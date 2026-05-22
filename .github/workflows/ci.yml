@@ -27,6 +27,9 @@ jobs:
       - name: Integration test (real hooks, end-to-end)
         run: node tools/integration-test.mjs
 
+      - name: Tech-debt gate (kit must pass its own constitution — no RED zone)
+        run: node templates/vibekit/tools/scripts/tech-debt-scan.mjs --ci
+
       - name: Installer dry sanity (greenfield install)
         run: |
           mkdir -p /tmp/vibe-greenfield

@@ -91,6 +91,18 @@ function renderBoard({ fileCount, findings }) {
 function main() {
   const args = process.argv.slice(2);
   const result = scan(args.includes('--quick'));
+  if (args.includes('--ci')) {
+    // CI gate: fail the build on any RED-zone (severity 5) finding so the kit —
+    // or any project — can't regress past its own hard line-budget limit.
+    const red = result.findings.filter((f) => f.severity >= 5);
+    if (red.length > 0) {
+      console.error(`✗ tech-debt CI gate: ${red.length} RED-zone finding(s) (must be 0):`);
+      for (const f of red) console.error(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
+      process.exit(1);
+    }
+    console.log(`✓ tech-debt CI gate: no RED-zone findings across ${result.fileCount} files.`);
+    return;
+  }
   if (args.includes('--json')) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     return;
