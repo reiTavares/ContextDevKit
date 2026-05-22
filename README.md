@@ -1,6 +1,7 @@
 # 🌀 VibeDevKit
 
 [![CI](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/vibedevkit)](https://www.npmjs.com/package/vibedevkit)
 ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
@@ -40,11 +41,11 @@ parts that don't depend on the AI's goodwill:
 **One command, from anywhere** (the repo is the installer):
 
 ```bash
-# run the installer straight from GitHub into the current project
-npx github:reiTavares/VibeDevKit --target . --level 2 --yes
+# from npm (recommended)
+npx vibedevkit --target . --level 2 --yes
 
-# (once published to npm, this shortens to:)
-#   npx vibedevkit --target . --level 2 --yes
+# or straight from GitHub (no npm needed)
+npx github:reiTavares/VibeDevKit --target . --level 2 --yes
 ```
 
 Or clone and run locally:
