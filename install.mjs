@@ -144,6 +144,7 @@ async function installGitHooks(target) {
   const wrappers = {
     'pre-commit': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-commit.mjs\n',
     'commit-msg': '#!/bin/sh\nnode vibekit/runtime/git-hooks/commit-msg.mjs "$1"\n',
+    'pre-push': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-push.mjs\n',
   };
   for (const [name, body] of Object.entries(wrappers)) {
     const p = join(hooksDir, name);
@@ -208,7 +209,7 @@ async function uninstall(target, purge) {
     }
   }
   // 2. Remove the git hook wrappers we installed.
-  for (const h of ['pre-commit', 'commit-msg']) {
+  for (const h of ['pre-commit', 'commit-msg', 'pre-push']) {
     const p = join(target, '.git', 'hooks', h);
     if (existsSync(p)) {
       await rm(p, { force: true });

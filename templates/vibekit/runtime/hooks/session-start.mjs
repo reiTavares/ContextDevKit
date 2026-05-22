@@ -90,6 +90,44 @@ function getBranch() {
   }
 }
 
+/**
+ * Cross-machine + same-machine awareness (L3): recent OTHER branches — local
+ * worktrees and remote feature branches — with author + age, so parallel work
+ * (other devs/agents) is visible at boot. Read-only, best effort.
+ */
+function activeBranches(currentBranch) {
+  const lines = [];
+  try {
+    const worktrees = execSync('git worktree list --porcelain', { cwd: ROOT, encoding: 'utf-8', timeout: 3000 })
+      .split('\n')
+      .filter((l) => l.startsWith('branch '))
+      .map((l) => l.replace('branch refs/heads/', '').trim())
+      .filter((b) => b && b !== currentBranch);
+    for (const b of [...new Set(worktrees)].slice(0, 5)) lines.push(`- 🌳 local worktree on \`${b}\``);
+  } catch {
+    /* not a worktree setup */
+  }
+  try {
+    const cutoff = '2.weeks.ago';
+    const remote = execSync(
+      `git for-each-ref --sort=-committerdate --count=20 --format="%(refname:short)|%(committerdate:relative)|%(authorname)" refs/remotes`,
+      { cwd: ROOT, encoding: 'utf-8', timeout: 3000 },
+    )
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => l.split('|'))
+      .filter(([ref]) => ref && !/\/(main|master|HEAD)$/.test(ref) && !ref.endsWith(`/${currentBranch}`))
+      .filter(([, rel]) => !/(month|year)/.test(rel || ''))
+      .slice(0, 5);
+    for (const [ref, rel, author] of remote) lines.push(`- ☁️  \`${ref}\` — ${rel} by ${author}`);
+    void cutoff;
+  } catch {
+    /* no remote */
+  }
+  return lines.length ? lines.join('\n') : null;
+}
+
 async function projectName() {
   try {
     const pkg = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf-8'));
@@ -120,6 +158,7 @@ async function main() {
   const changelog = await readChangelog(ROOT);
   const latest = await extractLatestSession(ROOT);
   const workspace = level >= 3 ? await readWorkspaceSummary(ROOT) : null;
+  const branches = level >= 3 ? activeBranches(getBranch()) : null;
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
   const divergence = checkGitDivergence();
 
@@ -168,6 +207,16 @@ async function main() {
     out.push('## 👥 Active workspace claims');
     out.push('');
     out.push(workspace);
+    out.push('');
+  }
+
+  if (branches) {
+    out.push('## 🌿 Other active branches (parallel work)');
+    out.push('');
+    out.push(branches);
+    out.push('');
+    out.push('If you will touch files another branch changed, coordinate (or `/claim`) — the pre-push');
+    out.push('hook will also block a conflicting push.');
     out.push('');
   }
 

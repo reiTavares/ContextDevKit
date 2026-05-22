@@ -78,6 +78,9 @@ export const DEFAULT_CONFIG = Object.freeze({
     registration: ['vibekit/memory/SESSIONS.md', 'docs/CHANGELOG.md'],
   },
 
+  /** L3 — Multi-session. `mainBranch` is the upstream the pre-push conflict check compares against. */
+  l3: { mainBranch: 'main' },
+
   /**
    * QA squad config (used by /test-plan, /scaffold-tests, /qa-signoff and the
    * qa-* agents at Level >= 4). `criticalPaths` get the highest coverage

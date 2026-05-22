@@ -9,8 +9,9 @@
  * Level → hooks:
  *   1  SessionStart
  *   2  + PostToolUse (Edit|Write|MultiEdit), Stop
- *   5  + PreToolUse  (Edit|Write|MultiEdit)
- * (Levels 3 and 4 add git hooks and agents respectively — not Claude hooks.)
+ *   3  + PreToolUse  (concurrency-guard) — and git hooks (installed separately)
+ *   5  + PreToolUse  (simulate-gate)
+ * (Level 4 adds agents — not Claude hooks.)
  *
  * @param {Record<string, any> | null} existing parsed settings.json (or null)
  * @param {number} level 1–5
@@ -40,6 +41,7 @@ export function composeSettings(existing, level) {
     add('PostToolUse', 'Edit|Write|MultiEdit', 'track-edits.mjs');
     add('Stop', null, 'check-registration.mjs');
   }
+  if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
   if (level >= 5) add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
 
   settings.hooks = hooks;

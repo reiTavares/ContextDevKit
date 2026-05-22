@@ -37,7 +37,12 @@ unless it has something to say.** A broken hook must never block real work.
 | Boot context | `SessionStart` | `session-start.mjs` | git fetch + divergence; drift banner; inject latest session + `[Unreleased]` + active claims |
 | Edit ledger | `PostToolUse` (Edit\|Write\|MultiEdit) | `track-edits.mjs` | append edit to per-session ledger; renew claim heartbeat; cross-claim warning |
 | Drift nudge | `Stop` | `check-registration.mjs` | block stop if ≥ 2 important files changed and session unregistered; L5 archive + distill nudge |
-| Risk gate | `PreToolUse` (Edit\|Write\|MultiEdit) | `simulate-gate.mjs` | block edits to `highRiskPaths` without a covering `/simulate-impact` |
+| Concurrency guard (L3) | `PreToolUse` (Edit\|Write\|MultiEdit) | `concurrency-guard.mjs` | warn when another session/external change touched the same file (no clobber) |
+| Risk gate (L5) | `PreToolUse` (Edit\|Write\|MultiEdit) | `simulate-gate.mjs` | block edits to `highRiskPaths` without a covering `/simulate-impact` |
+
+Git hooks (installed at L≥3): `pre-commit` (regenerate indices), `commit-msg`
+(Conventional Commits), `pre-push` (fetch upstream + **block real conflicts** via
+`git merge-tree` — the cross-machine guarantee).
 
 Shared modules:
 

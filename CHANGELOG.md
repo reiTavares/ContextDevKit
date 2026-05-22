@@ -9,6 +9,21 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [0.5.0] - 2026-05-22
 
 ### Added
+- **Concurrency hardening (L3)** — robust against parallel sessions on the same
+  machine AND different devs/machines:
+  - `concurrency-guard.mjs` (`PreToolUse`): warns before you overwrite a file
+    another active session edited recently, or that changed on disk since you
+    last wrote it (covers full-file `Write`, which Claude Code's `Edit` freshness
+    check doesn't).
+  - `pre-push.mjs` git hook: fetches the upstream and **blocks a push that has a
+    real textual conflict** with what was pushed there (`git merge-tree`); warns
+    on auto-mergeable overlap. Bypass: `VIBE_ALLOW_CONFLICT_PUSH=1`.
+  - SessionStart now lists **other active branches** (local worktrees + recent
+    remote branches with author/age) for cross-machine awareness.
+  - New config `l3.mainBranch` (upstream the conflict check compares against).
+- **`/ship` automatic checkpoints** — `--auto` runs the pipeline through
+  objective gates (no manual pause), still stopping on a red gate and before any
+  irreversible action.
 - **L6 — Autonomy & Insight** (new level): `/ship` (autonomous squad pipeline:
   design → implement → review → test → record, with checkpoints), `/retro`
   (learning loop turning recurring drift/debt into rules + ADRs), `/vibe-stats`

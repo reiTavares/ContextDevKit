@@ -1,6 +1,6 @@
 ---
-description: L6 — autonomous feature pipeline. Drives the full squad: design → implement → review → test → log, with checkpoints.
-argument-hint: <feature / objective>
+description: L6 — autonomous feature pipeline. Drives the full squad: design → implement → review → test → log. Checkpoints can be manual or automatic.
+argument-hint: <feature / objective> [--auto]
 ---
 
 # 🚢 Ship (autonomous squad pipeline)
@@ -8,8 +8,21 @@ argument-hint: <feature / objective>
 Objective: **$ARGUMENTS**
 
 Run the end-to-end delivery pipeline, orchestrating the squad. Use TodoWrite to
-track the stages and **pause for the user's OK at each checkpoint (◆)** — this is
-autonomous, not unsupervised.
+track the stages.
+
+## Checkpoint mode
+
+The stages marked ◆ are checkpoints. Pick the mode from the arguments:
+
+- **Manual (default)** — pause and ask for the user's OK at each ◆. Safest.
+- **Automatic (`--auto` in the arguments)** — do NOT pause at ◆; instead each
+  checkpoint becomes an **automatic gate**: proceed only if its objective
+  criteria pass (design has no unresolved high-risk item; review has zero
+  blockers; tests green; coverage ≥ `qa.coverageTarget` on `qa.criticalPaths`).
+  If a gate **fails**, STOP and report — never push past a red gate. Always pause
+  for the user before an irreversible action (commit/push/PR) regardless of mode.
+
+State which mode you're running at the start.
 
 ## Pipeline
 

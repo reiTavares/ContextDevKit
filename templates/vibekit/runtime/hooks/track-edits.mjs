@@ -13,7 +13,7 @@
  *
  * Defensive: any failure exits 0 with a stderr note. Zero third-party deps.
  */
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { isTrackable, readLedger, resolveSessionId, toRepoRelative, writeLedger } from './ledger.mjs';
 import { WORKSPACE_STATE_DIR } from '../config/paths.mjs';
@@ -110,11 +110,20 @@ async function main() {
   const paths = extractPaths(payload).map(toRepoRelative).filter(isTrackable);
   if (paths.length === 0) return;
 
-  // 1. Append to ledger.
+  // 1. Append to ledger (recording each file's post-edit mtime so the L3
+  //    concurrency guard can later detect an EXTERNAL change to the same file).
   const ledger = await readLedger(sessionId);
   const tool = payload.tool_name ?? 'unknown';
   const now = Date.now();
-  for (const p of paths) ledger.modifications.push({ path: p, tool, at: now });
+  for (const p of paths) {
+    let mtime = null;
+    try {
+      mtime = (await stat(resolve(ROOT, p))).mtimeMs;
+    } catch {
+      /* file may not exist yet */
+    }
+    ledger.modifications.push({ path: p, tool, at: now, mtime });
+  }
   await writeLedger(sessionId, ledger);
 
   // 2. Renew heartbeat (if this session has a claim file).

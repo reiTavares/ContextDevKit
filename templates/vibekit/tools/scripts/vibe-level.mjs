@@ -36,6 +36,7 @@ async function installGitHooks() {
   const wrappers = {
     'pre-commit': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-commit.mjs\n',
     'commit-msg': '#!/bin/sh\nnode vibekit/runtime/git-hooks/commit-msg.mjs "$1"\n',
+    'pre-push': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-push.mjs\n',
   };
   for (const [name, body] of Object.entries(wrappers)) {
     const p = resolve(hooksDir, name);

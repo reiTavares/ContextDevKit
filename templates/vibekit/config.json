@@ -40,6 +40,7 @@
     ],
     "registration": ["vibekit/memory/SESSIONS.md", "docs/CHANGELOG.md"]
   },
+  "l3": { "mainBranch": "main" },
   "qa": {
     "criticalPaths": [],
     "coverageTarget": { "lines": 80, "branches": 70 }

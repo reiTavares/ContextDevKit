@@ -38,15 +38,27 @@ reloads hooks).
 
 ## L3 — Multi-session
 
-**Goal:** run several Claude sessions in parallel without collisions.
+**Goal:** run several Claude sessions in parallel — same machine or different
+machines/devs — **without one silently overwriting another**.
 
 - `/claim` / `/release` reserve paths; the `PostToolUse` hook warns when you edit
   a path another active session claimed.
-- `/worktree-new` creates an isolated git worktree (its own ledger) for a
-  parallel chat on the same machine.
-- `SESSIONS.md` and `WORKSPACE.md` become auto-generated indices.
-- Git hooks: `pre-commit` regenerates the indices; `commit-msg` enforces
-  Conventional Commits (bypass with `[skip-cc]`).
+- **Concurrency guard** (`PreToolUse`): before you write a file, it warns if
+  another active session edited that exact file recently, or if it changed on
+  disk since you last wrote it — so you re-read and merge instead of clobbering.
+  (Claude Code's own `Edit` already refuses to edit a file changed since you read
+  it; the guard adds cross-session awareness and covers full-file `Write`s.)
+- **Boot awareness**: SessionStart lists other active branches — local worktrees
+  and recent **remote** feature branches (author + age) — so parallel work on
+  other machines is visible immediately.
+- **pre-push conflict check**: before a push lands, it fetches the upstream
+  (`l3.mainBranch`, default `main`) and **blocks** if your branch has a real
+  textual conflict with what was pushed there (warns on auto-mergeable overlap).
+  This is the cross-machine guarantee the local ledger can't give. Bypass:
+  `VIBE_ALLOW_CONFLICT_PUSH=1`.
+- `/worktree-new` creates an isolated git worktree (its own ledger).
+- `SESSIONS.md` / `WORKSPACE.md` are auto-generated; `pre-commit` regenerates
+  them; `commit-msg` enforces Conventional Commits (`[skip-cc]` to bypass).
 
 **Use when:** more than one session/developer, or you use worktrees.
 

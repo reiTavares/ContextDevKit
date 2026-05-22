@@ -53,8 +53,8 @@ function checkCompose(composeSettings) {
   const expect = {
     1: ['SessionStart'],
     2: ['PostToolUse', 'SessionStart', 'Stop'],
-    3: ['PostToolUse', 'SessionStart', 'Stop'],
-    4: ['PostToolUse', 'SessionStart', 'Stop'],
+    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
     5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
     6: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
   };
@@ -99,7 +99,12 @@ async function checkTemplates() {
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
   ghTpl.includes('PULL_REQUEST_TEMPLATE.md') ? ok('GitHub PR template present') : bad('missing PR template');
-  for (const f of ['templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json', 'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs', '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md']) {
+  for (const f of [
+    'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json',
+    'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
+    '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
+    'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
+  ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }
 }

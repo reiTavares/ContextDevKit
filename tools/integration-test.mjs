@@ -48,6 +48,9 @@ async function main() {
       run([join(proj, 'vibekit', 'runtime', 'hooks', name)], { cwd: proj, input: JSON.stringify(payload) }).stdout || '';
     const script = (rel, ...a) => run([join(proj, 'vibekit', 'tools', 'scripts', rel), ...a], { cwd: proj });
 
+    // L3 git hooks installed (pre-push conflict check).
+    existsSync(join(proj, '.git', 'hooks', 'pre-push')) ? ok('pre-push git hook installed') : bad('pre-push hook missing');
+
     // First-run trigger.
     hook('session-start.mjs', {}).includes('First run')
       ? ok('SessionStart fires the first-run trigger')
@@ -73,6 +76,16 @@ async function main() {
     hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).trim() === ''
       ? ok('L5 gate allows after /simulate-impact')
       : bad('L5 gate still blocked after simulation');
+
+    // Concurrency guard (L3+): another session edited a file; a different session
+    // about to edit the same file is warned (cross-session collision).
+    hook('track-edits.mjs', { session_id: 'other', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } });
+    hook('concurrency-guard.mjs', { session_id: 'me', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } }).includes('Concurrency')
+      ? ok('concurrency-guard warns on cross-session collision')
+      : bad('concurrency-guard did not warn');
+    const l5settings = readJson(join(proj, '.claude', 'settings.json'));
+    (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
+      ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');
 
     // setup-complete silences the trigger.
     script('setup-complete.mjs');
