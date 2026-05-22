@@ -32,6 +32,21 @@ Single entry point is the orchestrator.
 | `qa-perf` | 2 | Benchmarks/profiling once a hot path is identified |
 | `qa-e2e` | 2 | Critical user journeys through the real UI |
 
+### 🔐 security-team — security & infra (DevSecOps)
+The system's safety net: application security **and** the infrastructure and
+supply chain it runs on. Enable on any project that ships to real users (i.e.
+almost all). Owns the security best-practices bar and the dependency policy.
+
+| Agent | When to use |
+| --- | --- |
+| `security` | AppSec: auth, secrets, crypto, input/trust boundaries, **dependency & supply-chain risk** (pinning, CVEs, licenses), threat modeling, security review |
+| `devops` | Infra & delivery security: CI/CD, build/deploy, environments, secrets management, observability, release safety, infra hardening |
+| _(add yours)_ | `sre` (reliability/incident), `dependency-auditor` (lockfile/CVE/license), `iac` (Terraform/k8s policy) as the system grows |
+
+`security` and `devops` are **shared** with devteam/ops-team — security is a
+cross-cutting concern, not a silo. On a Critical/High finding, security-team can
+**block a release** (veto on the L5/L6 gates for high-risk paths).
+
 ### ⚖️ compliance-team — data protection & law
 Enable when the product handles personal data (especially of Brazilian residents).
 
@@ -59,6 +74,8 @@ Enable when the product has a user interface.
 
 - **`code-reviewer` (devteam)** owns **style + the constitution** (ADR-0008-style).
 - **`qa-orchestrator` (qa-team)** owns **behaviour + test sign-off**.
+- **`security` (security-team)** owns **the security bar** — it can block a
+  release on a Critical/High finding, regardless of the other squads.
 - On conflict, **devteam decides** until the project reaches a maturity milestone
   you define — then quality gates can harden (see `/vibe-level`, the L5/L6 gates).
 
