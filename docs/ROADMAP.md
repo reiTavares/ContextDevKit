@@ -84,8 +84,9 @@ move the needle** on a real project. The next milestone is not a new level — i
    known CVEs and licenses, flag unmaintained/over-privileged deps, and gate risky
    upgrades. The kit ships **zero runtime deps**, but every install runs `node`
    scripts (and the optional `zod` dev-dep), so supply-chain hygiene is part of
-   "secure by default". Candidate surface: a `dependency-auditor` agent + a
-   `/deps-audit` check the L5/L6 gates can require on high-risk merges.
+   "secure by default". ✅ **`/deps-audit` shipped** (deterministic checks +
+   native `npm`/`pnpm`/`yarn audit`, feeds the backlog); a `dependency-auditor`
+   agent and a gate-on-merge requirement remain candidates.
 
 ## Future directions (candidate L7+ / plugins)
 

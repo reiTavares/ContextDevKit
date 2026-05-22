@@ -199,6 +199,12 @@ async function main() {
     debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
       ? ok('tech-debt --ci gate passes on a clean project')
       : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
+
+    // Dependency audit: flags no-lockfile + loose version ranges as findings.
+    writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', dependencies: { leftpad: '*' } }));
+    const deps = JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings || [];
+    deps.some((f) => f.kind === 'no-lockfile') && deps.some((f) => f.kind === 'loose-range')
+      ? ok('deps-audit flags no-lockfile + loose ranges') : bad(`deps-audit findings: ${JSON.stringify(deps)}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }

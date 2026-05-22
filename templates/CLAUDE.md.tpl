@@ -106,7 +106,7 @@ Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/sta
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
 · `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
+· `/contract-check` · `/deps-audit` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
 · `/distill-sessions` · `/distill-apply`.
 Structure & platform: `/squad` (squads) · `/git` (version control + remote)

@@ -14,6 +14,9 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
   groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
   release safety), with veto on the L5/L6 gates for Critical/High findings.
+- **`/deps-audit` (security-team)** — deterministic dependency / supply-chain check
+  (lockfile present, version pinning, plus native `npm`/`pnpm`/`yarn audit` CVEs when
+  available) that emits findings into the DevPipeline backlog. Roadmap 1.0 #6.
 - **Analysis → DevPipeline backlog flow.** `/bug-hunt`, `/analyze-code-ia-practices`,
   `/tech-debt-sweep`, and `/audit` now always emit a report **and** push each finding
   into the DevPipeline backlog, **auto-prioritized** by severity (RED→P1, yellow→P2,
@@ -36,6 +39,11 @@ this project follows [Semantic Versioning](https://semver.org/).
   **sharpened routing boundaries** — `architect` (dependency fit) vs `security`
   (supply-chain risk); `test-engineer` (devteam, L<4) vs `qa-orchestrator` (L≥4
   entry point). Roadmap 1.0 #5.
+
+### Deprecated
+- `/state`, `/vibe-doctor`, `/context-refresh` now carry a deprecation banner
+  pointing to `/audit` (still fully functional); `/release` is noted as paired with
+  `/claim`. Non-destructive first step of the 1.0 surface-trim (#1).
 
 ### Fixed
 - Tech-debt marker detector no longer flags its own doc comment (a false positive

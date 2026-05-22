@@ -34,6 +34,7 @@ const GITIGNORE_BLOCK = [
   '.context-snapshot.md',
   '.distillation-proposal.md',
   'vibekit/memory/tech-debt-findings.json',
+  'vibekit/memory/deps-findings.json',
 ].join('\n');
 
 export async function patchGitignore(target) {
