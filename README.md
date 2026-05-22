@@ -79,6 +79,30 @@ sub-agents, installs what's needed (with your OK), records a baseline ADR, and
 logs the session — going from "kit installed" to "kit fitted to *this* project"
 in a single pass. After it finishes, the trigger stops nagging.
 
+### What you'll see
+
+<!-- Drop a real recording here when you have one: a GIF or an asciinema embed.
+     ![demo](docs/media/setup.gif) -->
+
+```text
+$ npx vibedevkit --target . --level 2 --yes
+✓ .claude/settings.json wired for L2
+✓ engine installed (vibekit/runtime, vibekit/tools)
+✓ slash commands installed (.claude/commands)
+✓ CLAUDE.md created  ·  docs/CHANGELOG.md created
+✅ VibeDevKit installed at Level 2
+
+# open in Claude Code → the boot hook greets you with:
+## 🚀 First run — VibeDevKit not configured yet  →  run /setupvibedevkit
+
+> /setupvibedevkit
+  Phase 1 — Inspect ……  detected: TypeScript · Vite · React · vitest
+  Phase 3 — Apply ……    ledger tuned (src/, tests/); high-risk: src/db/schema.ts
+  Phase 4 — CLAUDE.md …  stack + immutable rules filled in
+  Phase 7 — baseline ADR-0001 recorded; session logged
+  ✅ VibeDevKit fitted to this project.
+```
+
 ## The five levels
 
 | Level | Name | Adds |

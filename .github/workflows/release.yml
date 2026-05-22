@@ -1,0 +1,41 @@
+name: Release
+
+# Publishes to npm when a version tag (v*) is pushed.
+#
+# One-time setup: add a repo secret NPM_TOKEN
+#   GitHub → Settings → Secrets and variables → Actions → New repository secret
+#   Name: NPM_TOKEN
+#   Value: an npm "Automation" / granular token with publish rights (bypass 2FA)
+#
+# To cut a release:
+#   1. bump "version" in package.json
+#   2. git commit -am "chore(release): vX.Y.Z"
+#   3. git tag vX.Y.Z && git push && git push --tags
+# The workflow runs the test suite, then `npm publish`.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Test (selfcheck + integration)
+        run: node tools/selfcheck.mjs && node tools/integration-test.mjs
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
