@@ -165,6 +165,23 @@ async function main() {
     const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
     /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
 
+    // DevPipeline ingest: analysis findings flow into the backlog, auto-prioritized.
+    writeFileSync(join(proj, 'findings.json'), JSON.stringify({ findings: [
+      { kind: 'line-budget', severity: 5, path: 'src/big.js', line: 400, message: 'too big' },
+      { kind: 'todo-marker', severity: 1, path: 'src/x.js', line: 3, message: 'leftover TODO' },
+    ] }));
+    script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore');
+    const ingested = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]')
+      .filter((t) => /^line-budget|^todo-marker/.test(t.source || ''));
+    ingested.length === 2 && ingested.some((t) => t.priority === 'P1') && ingested.some((t) => t.priority === 'P3')
+      ? ok('pipeline ingest creates auto-prioritized tasks from findings') : bad(`ingest failed: ${JSON.stringify(ingested)}`);
+    /Ingested 0 finding/.test(script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore').stdout || '')
+      ? ok('pipeline ingest is idempotent (no duplicates)') : bad('ingest re-added duplicates');
+    const lb = ingested.find((t) => /^line-budget/.test(t.source));
+    script('pipeline.mjs', 'prioritize', lb.id, 'P0');
+    JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === lb.id)?.priority === 'P0'
+      ? ok('pipeline prioritize overrides the auto priority (user-editable)') : bad('prioritize did not change priority');
+
     // Security: a crafted base-branch arg must reach git LITERALLY (the whole
     // string is one invalid ref → non-zero exit), not be split by a shell. The
     // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
