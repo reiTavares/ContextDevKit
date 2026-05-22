@@ -119,6 +119,17 @@ async function main() {
     const stats = script('stats.mjs', '--json');
     (() => { try { return typeof JSON.parse(stats.stdout).driftRatePct === 'number'; } catch { return false; } })()
       ? ok('stats emits JSON metrics') : bad(`stats failed: ${stats.stderr}`);
+
+    // best-practices doc installed.
+    existsSync(join(proj, 'vibekit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
+
+    // DevPipeline: add → move → sync reflects in devpipeline.md.
+    script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P1', '--title', 'login crash');
+    const board1 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+    board1.includes('login crash') && /Backlog \*\*1\*\*/.test(board1) ? ok('pipeline add → backlog on board') : bad('pipeline add not reflected');
+    script('pipeline.mjs', 'move', '001', 'testing');
+    const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+    /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }

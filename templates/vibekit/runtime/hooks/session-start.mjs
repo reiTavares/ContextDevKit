@@ -13,6 +13,7 @@
  * zero third-party deps.
  */
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import {
@@ -128,6 +129,11 @@ function activeBranches(currentBranch) {
   return lines.length ? lines.join('\n') : null;
 }
 
+/** True when the project has no source code yet (routes first-run to /aidevtool-from0). */
+function isGreenfield() {
+  return !['src', 'app', 'apps', 'packages', 'lib', 'components', 'pages', 'server', 'cmd', 'internal'].some((d) => existsSync(resolve(ROOT, d)));
+}
+
 async function projectName() {
   try {
     const pkg = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf-8'));
@@ -172,13 +178,27 @@ async function main() {
   out.push('');
 
   if (needsSetup) {
+    const empty = isGreenfield();
     out.push('## 🚀 First run — VibeDevKit not configured yet');
     out.push('');
-    out.push('This project has VibeDevKit installed but **onboarding has not run**. Before doing other');
-    out.push('work, **run `/setupvibedevkit`** — it inspects the project, tunes the config to this stack,');
-    out.push('fills in `CLAUDE.md` (rules, stack, glossary), flags high-risk paths, installs what is');
-    out.push('needed, and records a baseline ADR. If the user opened this session for a quick task,');
-    out.push('offer to run setup first; otherwise proceed and remind them setup is pending.');
+    if (empty) {
+      out.push('This folder looks **empty (no code yet)**. Run **`/aidevtool-from0`** — it interviews you');
+      out.push('about the product, suggests/refines the stack, drafts a roadmap, adopts the best-practices');
+      out.push('constitution, and seeds the DevPipeline. From zero, the kit stays ACTIVE: it keeps');
+      out.push('suggesting the next practice/level as the product takes shape.');
+    } else {
+      out.push('This project already has code. Run **`/setupvibedevkit`** — it inspects the project, tunes');
+      out.push('the config to this stack, fills in `CLAUDE.md`, flags high-risk paths, installs what is');
+      out.push('needed, and records a baseline ADR. (Empty project instead? use `/aidevtool-from0`.)');
+    }
+    out.push('');
+  }
+
+  if (loadConfigSync(ROOT)?.practices?.active === true) {
+    out.push('## 🧠 Best-practices skill is ACTIVE');
+    out.push('');
+    out.push('Honor `vibekit/best-practices.md` (file-size budget, intelligent refactor by responsibility,');
+    out.push('SoC, naming, docs). Run `/analyze-code-ia-practices` to audit + get refactor proposals.');
     out.push('');
   }
 

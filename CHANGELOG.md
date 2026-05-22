@@ -6,6 +6,23 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`/aidevtool-from0`** — bootstrap an empty project from zero: intelligent
+  interactive product questionnaire → product vision, stack suggestion/refine
+  (ADR), product **roadmap** (P-IDs), best-practices constitution, and a seeded
+  DevPipeline. First-run boot now routes empty projects here, existing ones to
+  `/setupvibedevkit`.
+- **Best-practices skill**: `vibekit/best-practices.md` (file-size budget +
+  **intelligent** refactor-by-responsibility, SoC, naming, errors, docs) and
+  `/analyze-code-ia-practices` — runs the scanner then proposes the *right*
+  refactor per file (never random splits). New `practices.active` config; boot
+  reminds when active.
+- **DevPipeline** (execution control, distinct from the product roadmap):
+  `vibekit/pipeline/{backlog,testing,conclusion}/` task files + generated
+  `devpipeline.md` dashboard; `pipeline.mjs` (`add`/`move`/`sync`) and the
+  `/pipeline` manager command. Bugs/increments/chores + roadmap items broken into
+  tasks with priority + SLA. Synced on pre-commit.
+
 ## [0.5.0] - 2026-05-22
 
 ### Added

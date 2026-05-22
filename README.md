@@ -147,15 +147,32 @@ your-project/
 
 ## Slash commands
 
-`/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
-· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
-· `/claim` · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/ship`
-· `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply` · `/vibe-level`
-· `/vibe-config` · `/vibe-doctor`
+**Setup:** `/aidevtool-from0` (empty project) · `/setupvibedevkit` (existing project)
+
+**Daily:** `/state` · `/log-session` · `/new-adr` · `/close-version`
+· `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
+
+**Multi-session:** `/claim` · `/release` · `/worktree-new`
+
+**Quality:** `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
+· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`
+
+**Execution & autonomy:** `/pipeline` (DevPipeline board) · `/ship` · `/retro`
+· `/vibe-stats` · `/distill-sessions` · `/distill-apply`
+
+**Platform:** `/vibe-level` · `/vibe-config` · `/vibe-doctor`
 
 The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`/`qa-perf`/
 `qa-e2e`) and the other sub-agents install at **Level 4**.
+
+### Roadmap vs DevPipeline
+
+Two different artifacts: **`vibekit/memory/roadmap.md`** is the *product/business
+plan* (capabilities, P-IDs, the what/why). The **DevPipeline**
+(`vibekit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
+increments, chores, and roadmap items broken into tasks with priority + SLA,
+flowing `backlog → testing → conclusion`. The roadmap says what to build; the
+pipeline runs the work.
 
 🇧🇷 Guia em português: [instrucoes.md](instrucoes.md).
 

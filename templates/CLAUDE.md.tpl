@@ -101,11 +101,13 @@ Layers active depend on the level (see `vibekit/README.md`):
 4. At the end of a productive session → `/log-session`.
 
 ### Slash commands
-`/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
-· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
-· `/claim` · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/distill-sessions`
-· `/distill-apply` · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/state`
+· `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
+· `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
+Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
+· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Execution:
+`/pipeline` · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`.
+Platform: `/vibe-level` · `/vibe-config` · `/vibe-doctor`.
 
 ---
 

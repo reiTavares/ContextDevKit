@@ -32,6 +32,9 @@ export const DEFAULT_CONFIG = Object.freeze({
    */
   setup: { completed: true },
 
+  /** Best-practices skill (vibekit/best-practices.md). When active, boot reminds + /analyze-code-ia-practices is encouraged. */
+  practices: { active: false },
+
   /**
    * Path classification for the L2 ledger. Override per stack via config.
    *   - `important`: an edit here can trigger the Stop drift nudge.

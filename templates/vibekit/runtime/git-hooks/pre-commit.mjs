@@ -34,6 +34,10 @@ function main() {
     safeRun('node vibekit/tools/scripts/workspace-sync.mjs');
     safeRun('git add vibekit/memory/WORKSPACE.md');
   }
+  if (existsSync(resolve(ROOT, 'vibekit/pipeline'))) {
+    safeRun('node vibekit/tools/scripts/pipeline.mjs sync');
+    safeRun('git add vibekit/pipeline/devpipeline.md');
+  }
 
   console.log('✓ pre-commit done.');
 }
