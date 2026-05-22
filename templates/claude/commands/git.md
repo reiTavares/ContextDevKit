@@ -1,5 +1,5 @@
 ---
-description: Version-control skill — git workflow + connect a remote (GitHub/GitLab/other) with the CLI, fully integrated.
+description: Version-control command — git workflow + connect a remote (GitHub/GitLab/other) with the CLI, fully integrated.
 argument-hint: [status | setup-remote | new-branch <name> | commit | pr | sync | release]
 ---
 
