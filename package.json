@@ -4,7 +4,7 @@
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
-    "vibedevkit": "./install.mjs"
+    "vibedevkit": "install.mjs"
   },
   "scripts": {
     "install:here": "node install.mjs --target .",
