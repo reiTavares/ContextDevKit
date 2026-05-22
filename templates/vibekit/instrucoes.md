@@ -37,7 +37,7 @@ Trocar de nível: `/vibe-level <n>` (reinicie o Claude Code depois).
 - **Coordenação (L3):** `/claim` · `/release` · `/worktree-new`
 - **Qualidade (L4/L5):** `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check`
 - **Produto & execução:** `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
-- **Estrutura & plataforma:** `/claude-md` (CLAUDE.md por módulo) · `/vibe-doctor` · `/vibe-config` · `/vibe-level`
+- **Estrutura & plataforma:** `/git` (controle de versão + remoto) · `/claude-md` (CLAUDE.md por módulo) · `/vibe-doctor` · `/vibe-config` · `/vibe-level`
 
 ## Boas práticas
 

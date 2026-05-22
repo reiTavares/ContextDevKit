@@ -410,8 +410,12 @@ async function main() {
   const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
   if (level >= 3) {
-    if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg)');
+    if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
     else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
+  }
+  // Version-control hint: suggest connecting a remote if there isn't one.
+  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
+    report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
   }
 
   // ── summary ──

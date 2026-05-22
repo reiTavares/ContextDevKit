@@ -67,6 +67,12 @@ each its **own scoped CLAUDE.md** with `/claude-md` — the root one is the
 constitution; each module documents its local rules. Do this as modules are born,
 not after the codebase is already sprawling.
 
+## Phase 6b — Version control
+Set up git from day one: `git init` if needed, then **connect a remote** via
+`/git setup-remote` — pick GitHub/GitLab/other, install the CLI (`gh`/`glab`),
+create the repo (private by default), push the first commit. Confirm before
+pushing/creating (outward-facing).
+
 ## Phase 7 — Set level & finish
 
 Recommend a starting level (usually L2; L4+ if it'll be a team). Run

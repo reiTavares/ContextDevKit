@@ -160,8 +160,8 @@ your-project/
 **Product & execution:** `/roadmap` (product plan) · `/pipeline` (DevPipeline board)
 · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
 
-**Structure & platform:** `/claude-md` (scoped CLAUDE.md per app/module)
-· `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+**Structure & platform:** `/git` (version control + connect a remote) · `/claude-md`
+(scoped CLAUDE.md per app/module) · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
 
 The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`/`qa-perf`/
 `qa-e2e`) and the other sub-agents install at **Level 4**.

@@ -85,6 +85,9 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
 - `/distill-sessions` + `/distill-apply` — propõe e aplica refinamentos no `CLAUDE.md`.
 
 ### Estrutura e plataforma
+- `/git` — skill de controle de versão: workflow (branch/commit Conventional, PR,
+  nunca push direto na default, rebase) **e** conectar um remoto (GitHub/GitLab/
+  outro) instalando o CLI (`gh`/`glab`) e criando o repo (privado por padrão).
 - `/claude-md` — garante um `CLAUDE.md` próprio em cada app/módulo (backend,
   frontend, cada package/serviço) — como no app-ruivo. O root é a constituição;
   cada módulo documenta as regras locais.

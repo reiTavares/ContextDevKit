@@ -7,6 +7,13 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Version-control skill** — `/git` command + `git.mjs` diagnostics. Codifies the
+  workflow (Conventional branches/commits — already hook-enforced — feature→PR, no
+  direct push to default, rebase-sync, conflict handling via pre-push) and the
+  **remote setup**: detects git/repo/remote/provider and whether `gh`/`glab` are
+  installed+authed, and guides connecting GitHub/GitLab/other (install the CLI +
+  create the repo, private by default). Wired into `/setupvibedevkit` (6b),
+  `/aidevtool-from0` (6b), the installer hint, and `doctor` (notes missing remote).
 - **Modular CLAUDE.md** — each app/module gets its own scoped CLAUDE.md (like the
   source platform's `apps/api/CLAUDE.md` + `apps/mobile/CLAUDE.md`). `claude-md.mjs`
   (find/scaffold) detects module roots (`backend/`, `frontend/`, `api/`, `web/`,

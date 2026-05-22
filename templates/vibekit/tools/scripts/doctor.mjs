@@ -9,6 +9,7 @@
  *
  * Run:  node vibekit/tools/scripts/doctor.mjs   (or /vibe-doctor)
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
@@ -131,6 +132,16 @@ function checkModuleClaudeMd() {
     : note(`${missing.length} module(s) missing CLAUDE.md: ${missing.join(', ')}`, 'run /claude-md to scaffold + fill them');
 }
 
+function checkRemote() {
+  if (!existsSync(resolve(ROOT, '.git'))) return; // not a git repo — /git can init
+  try {
+    const url = execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    url ? pass(`git remote: ${url}`) : note('no git remote', 'run /git setup-remote (GitHub/GitLab/other)');
+  } catch {
+    note('no git remote configured', 'run /git setup-remote to connect GitHub/GitLab/other + CLI');
+  }
+}
+
 function checkZod(level) {
   if ((level ?? 0) < 5) return;
   const hasZod = existsSync(resolve(ROOT, 'node_modules/zod'));
@@ -146,6 +157,7 @@ checkMemory();
 checkSetup();
 checkRoadmap();
 checkModuleClaudeMd();
+checkRemote();
 checkZod(level);
 console.log(
   crit === 0
