@@ -46,6 +46,8 @@
   },
   "l5": {
     "highRiskPaths": [],
+    "lineBudget": { "yellow": 240, "red": 308 },
+    "contractGlobs": [],
     "distill": {
       "observeWindow": 10,
       "proposeAfterSessions": 30,

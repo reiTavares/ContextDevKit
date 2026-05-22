@@ -92,6 +92,10 @@ export const DEFAULT_CONFIG = Object.freeze({
   l5: {
     /** Editing any of these without a prior `/simulate-impact` is gated. */
     highRiskPaths: [],
+    /** Line-budget thresholds used by the tech-debt scanner. */
+    lineBudget: { yellow: 240, red: 308 },
+    /** Files whose exported symbols form the public contract (drift gate). Empty = off. */
+    contractGlobs: [],
     /** Auto-distill cadence (CLAUDE.md self-refinement loop). */
     distill: {
       observeWindow: 10,

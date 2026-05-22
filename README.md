@@ -110,8 +110,9 @@ $ npx vibedevkit --target . --level 2 --yes
 | **1** | Memory | Boot context injection, `/log-session`, ADRs, changelog |
 | **2** | Ledger | Drift detection — tracks edits, nudges you to register the session |
 | **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits) |
-| **4** | Squads | Specialized sub-agents (`code-reviewer`, `context-keeper`, `architect`, …) |
-| **5** | Proactive | `/simulate-impact` gate on high-risk paths, `/tech-debt-sweep`, auto-distill |
+| **4** | Squads | Specialized sub-agents (`code-reviewer`, `context-keeper`, `architect`, QA squad, …) |
+| **5** | Proactive | `/simulate-impact` gate, `/tech-debt-sweep` (deterministic), `/contract-check`, auto-distill |
+| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/retro` (learning loop), `/vibe-stats` (metrics) |
 
 Change level anytime — from inside the project:
 
@@ -149,11 +150,14 @@ your-project/
 `/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
 · `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
 · `/claim` · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/distill-sessions`
-· `/distill-apply` · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/ship`
+· `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply` · `/vibe-level`
+· `/vibe-config` · `/vibe-doctor`
 
-The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`) and the
-other sub-agents install at **Level 4**.
+The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`/`qa-perf`/
+`qa-e2e`) and the other sub-agents install at **Level 4**.
+
+🇧🇷 Guia em português: [instrucoes.md](instrucoes.md).
 
 ## Maintenance
 
@@ -194,6 +198,8 @@ never break work, add a test for anything you add).
 - [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally.
 - [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, rebrand.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — architect analysis, the L6 layer, future directions.
+- [instrucoes.md](instrucoes.md) — guia de uso em português (pt-BR).
 
 ## License
 

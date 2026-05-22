@@ -25,7 +25,8 @@ const LABELS = {
   2: 'L2 Ledger — + drift detection (PostToolUse + Stop nudge)',
   3: 'L3 Multi — + claims, worktrees, derived indices, git hooks',
   4: 'L4 Squads — + specialized sub-agents (.claude/agents)',
-  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep',
+  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
+  6: 'L6 Autonomy & Insight — + /ship pipeline, /retro learning loop, metrics',
 };
 
 async function installGitHooks() {
@@ -56,8 +57,8 @@ async function main() {
   }
 
   const level = Number(arg);
-  if (!Number.isInteger(level) || level < 1 || level > 5) {
-    console.error('Level must be an integer 1–5.');
+  if (!Number.isInteger(level) || level < 1 || level > 6) {
+    console.error('Level must be an integer 1–6.');
     process.exit(1);
   }
 

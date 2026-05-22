@@ -6,6 +6,26 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-22
+
+### Added
+- **L6 — Autonomy & Insight** (new level): `/ship` (autonomous squad pipeline:
+  design → implement → review → test → record, with checkpoints), `/retro`
+  (learning loop turning recurring drift/debt into rules + ADRs), `/vibe-stats`
+  (platform telemetry). No new hook — a capability tier on top of L5.
+- **Deterministic tech-debt scanner** (`tech-debt-scan.mjs` + `tech-debt-detectors.mjs`):
+  generic regex detectors (line budget, SRP "And/Or/E" names, TODO markers,
+  React state-loops). `/tech-debt-sweep` now runs the scanner, then interprets.
+- **Generic contract-drift** (`contract-scan.mjs` + `/contract-check`): declare
+  `l5.contractGlobs`, snapshot exported symbols, flag removals/renames. CI-able.
+- **Platform metrics** (`stats.mjs`): sessions, drift rate, cadence, ADR/agent counts.
+- **`instrucoes.md`** — pt-BR usage guide (kit root + installed into projects).
+- **`docs/ROADMAP.md`** — architect gap analysis vs the source system + L6 + future.
+- New config: `l5.lineBudget`, `l5.contractGlobs`. Level range is now 1–6.
+
+### Changed
+- `/audit` now runs doctor + stats + tech-debt-scan + contract-scan deterministically.
+
 ## [0.4.1] - 2026-05-22
 
 ### Added

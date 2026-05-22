@@ -98,6 +98,14 @@ async function main() {
     // doctor runs and reports.
     const doc = script('doctor.mjs');
     /VibeDevKit doctor/i.test(doc.stdout || '') ? ok('doctor runs') : bad(`doctor failed: ${doc.stderr}`);
+
+    // L5/L6 scanners run and produce JSON.
+    const debt = script('tech-debt-scan.mjs', '--json');
+    (() => { try { return Array.isArray(JSON.parse(debt.stdout).findings); } catch { return false; } })()
+      ? ok('tech-debt-scan emits JSON findings') : bad(`tech-debt-scan failed: ${debt.stderr}`);
+    const stats = script('stats.mjs', '--json');
+    (() => { try { return typeof JSON.parse(stats.stdout).driftRatePct === 'number'; } catch { return false; } })()
+      ? ok('stats emits JSON metrics') : bad(`stats failed: ${stats.stderr}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }

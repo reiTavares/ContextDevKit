@@ -51,7 +51,7 @@ function checkConfig() {
     return null;
   }
   const level = getLevel(ROOT);
-  level >= 1 && level <= 5 ? pass(`config valid — level L${level}`) : note('config.level out of range', 'use /vibe-level <1-5>');
+  level >= 1 && level <= 6 ? pass(`config valid — level L${level}`) : note('config.level out of range', 'use /vibe-level <1-6>');
   return level;
 }
 

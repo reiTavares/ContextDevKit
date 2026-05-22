@@ -8,15 +8,17 @@ Run a consolidated health check of the project and summarize the most important
 actions. Good to run weekly or before a release (and a natural fit for a
 scheduled/recurring run — see below).
 
-1. **Install health** — run `node vibekit/tools/scripts/doctor.mjs` and report
-   any ✗ critical issues or ⚠ notes.
-2. **Tech debt** — perform a `/tech-debt-sweep` (quick profile is fine): list the
-   worst offenders against the `CLAUDE.md` constitution (oversized files, SRP
-   smells, missing docs). Don't fix here — just surface.
-3. **QA status** — if a test suite exists, run it (and coverage if available) and
+1. **Install health** — `node vibekit/tools/scripts/doctor.mjs` — report any ✗
+   critical issues or ⚠ notes.
+2. **Metrics** — `node vibekit/tools/scripts/stats.mjs` — note drift rate and
+   cadence; flag if drift is high (sessions not being registered).
+3. **Tech debt** — `node vibekit/tools/scripts/tech-debt-scan.mjs --quick` — list
+   the worst offenders; interpret which are real (don't fix here).
+4. **Contract** — if `l5.contractGlobs` is set,
+   `node vibekit/tools/scripts/contract-scan.mjs` — flag removed/renamed exports.
+5. **QA status** — if a test suite exists, run it (and coverage if available) and
    note whether `qa.criticalPaths` are covered vs `qa.coverageTarget`.
-4. **Drift** — note any unregistered prior sessions or stale claims from the boot
-   context.
+6. **Drift** — note any unregistered prior sessions or stale claims from boot.
 
 Output a single prioritized list: **🔴 do now / 🟡 soon / 🟢 fyi**, each with the
 file and the one-line fix. Offer to open a focused `/dev-start` on the top item.

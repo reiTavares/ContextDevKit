@@ -16,7 +16,7 @@
  *
  * Flags:
  *   --target <path>   destination project root (default: process.cwd())
- *   --level <1-5>     activation level (default: prompt, else 2)
+ *   --level <1-6>     activation level (default: prompt, else 2)
  *   --name <string>   project name for the CLAUDE.md header
  *   --mode <m>        greenfield | existing (default: auto-detect)
  *   --yes             non-interactive; use flags/defaults, no prompts
@@ -57,15 +57,15 @@ const HELP = `
 🌀 VibeDevKit installer
 
 Usage:
-  node install.mjs [--target <path>] [--level <1-5>] [--name <str>]
+  node install.mjs [--target <path>] [--level <1-6>] [--name <str>]
                    [--mode greenfield|existing] [--yes] [--force]
-  node install.mjs --rewire --level <1-5>     only recompose .claude/settings.json
+  node install.mjs --rewire --level <1-6>     only recompose .claude/settings.json
   node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
   node install.mjs --help | --version
 
 Flags:
   --target <path>   destination project root (default: current directory)
-  --level <1-5>     activation level (default: prompt, else 2)
+  --level <1-6>     activation level (default: prompt, else 2)
   --name <string>   project name for the CLAUDE.md header
   --mode <m>        greenfield | existing (default: auto-detect)
   --yes, -y         non-interactive (use flags/defaults, no prompts)
@@ -246,7 +246,8 @@ const LEVEL_LABELS = {
   2: 'L2 Ledger — + drift detection (recommended start)',
   3: 'L3 Multi — + claims, worktrees, derived indices, git hooks',
   4: 'L4 Squads — + specialized sub-agents',
-  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep',
+  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
+  6: 'L6 Autonomy & Insight — + /ship pipeline, /retro, metrics',
 };
 
 // ── main ─────────────────────────────────────────────────────────────────────
@@ -300,7 +301,7 @@ async function main() {
     rl.close();
   }
 
-  level = Number.isInteger(level) && level >= 1 && level <= 5 ? level : 2;
+  level = Number.isInteger(level) && level >= 1 && level <= 6 ? level : 2;
   name = name || require_basename(target);
   mode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
 
@@ -341,7 +342,7 @@ async function main() {
   }
 
   // 5. Memory seeds: write only if missing.
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/sessions/.gitkeep', 'README.md']) {
+  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md']) {
     const src = join(TPL, 'vibekit', rel);
     if (!existsSync(src)) continue;
     const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
