@@ -8,13 +8,16 @@
  * Usage:  node vibekit/tools/scripts/worktree-new.mjs <feature> [base-branch]
  *   Creates branch `feat/<feature>` and worktree `../<repo>-<feature>`.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { basename, resolve } from 'node:path';
 
 const ROOT = process.cwd();
 
-function git(cmd) {
-  return execSync(`git ${cmd}`, { cwd: ROOT, encoding: 'utf-8' }).trim();
+// execFileSync (argv array, NO shell) so a crafted base-branch arg can never
+// inject — e.g. `worktree-new.mjs feat "HEAD; rm -rf ~"` is passed to git as a
+// single literal revision and simply fails, instead of running the `rm`.
+function git(args) {
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8' }).trim();
 }
 
 function main() {
@@ -30,7 +33,7 @@ function main() {
   const dest = resolve(ROOT, '..', `${repoName}-${slug}`);
 
   try {
-    git(`worktree add -b ${branch} "${dest}" ${base}`);
+    git(['worktree', 'add', '-b', branch, dest, base]);
   } catch (err) {
     console.error(`❌ Could not create worktree: ${err?.message ?? err}`);
     process.exit(1);
