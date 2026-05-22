@@ -6,17 +6,30 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
+  groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
+  release safety), with veto on the L5/L6 gates for Critical/High findings.
+
 ### Changed
 - **`install.mjs` refactored into focused modules** under `tools/install/` (cli,
   fs, project, git, uninstall). The entry point drops 487 → 234 lines — back under
   the 280-line constitution and out of the tech-debt RED ZONE. Behaviour-identical
   (the integration test drives the real installer end-to-end). Renamed
   `require_basename` → `requireBasename` to satisfy the kit's own naming rule.
+- **All git/node calls go through `execFileSync` (no shell)** in `claim` and
+  `release` — consistency + defense-in-depth.
+- **`tech-debt-scan --ci`** added (exits non-zero on any RED-zone finding) and
+  enforced as a CI step, so the kit can't regress past its own line-budget limit.
+
+### Fixed
+- Tech-debt marker detector no longer flags its own doc comment (a false positive
+  in every sweep).
 
 ### Docs
-- **Roadmap:** marked the squad families as shipped (v0.5.2) and set a **1.0 —
-  harden & prove** milestone (freeze the surface, validate L4–L6 value, eat our
-  own dog food, lock public contracts) as the priority before any L7.
+- **Roadmap:** marked the squad families as shipped (v0.5.2); set a **1.0 — harden
+  & prove** milestone before any L7; added **dependency & supply-chain control**
+  (owned by `security-team`) as a 1.0 item.
 - `/git` command description said "skill"; corrected to "command".
 
 ### Security

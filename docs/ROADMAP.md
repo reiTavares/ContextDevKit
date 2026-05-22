@@ -79,6 +79,13 @@ move the needle** on a real project. The next milestone is not a new level — i
 5. **Deepen the thin spots.** Tier-2 agents (`qa-perf`, `qa-e2e`, `qa-unit`) get
    anti-pattern tables + concrete examples; clarify `architect`↔`security` and
    `test-engineer`↔`qa-orchestrator` routing boundaries.
+6. **Dependency & supply-chain control** — owned by the new **security-team**.
+   A first-class policy + tooling: pin/lock versions, audit installed packages for
+   known CVEs and licenses, flag unmaintained/over-privileged deps, and gate risky
+   upgrades. The kit ships **zero runtime deps**, but every install runs `node`
+   scripts (and the optional `zod` dev-dep), so supply-chain hygiene is part of
+   "secure by default". Candidate surface: a `dependency-auditor` agent + a
+   `/deps-audit` check the L5/L6 gates can require on high-risk merges.
 
 ## Future directions (candidate L7+ / plugins)
 
