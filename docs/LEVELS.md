@@ -56,8 +56,11 @@ reloads hooks).
 
 - Sub-agents land in `.claude/agents/`: `code-reviewer` (constitution audit),
   `context-keeper` (the platform + memory), `architect` (cross-cutting design),
-  plus `_TEMPLATE.md` to grow your own domain agents.
-- Claude routes work to the right specialist based on each agent's `description`.
+  `test-engineer`, `security`, plus the **QA squad** — `qa-orchestrator` (router
+  + sign-off) with `qa-unit` / `qa-integration` / `qa-fuzzer` specialists. Use
+  `_TEMPLATE.md` to grow your own domain agents.
+- QA commands `/test-plan`, `/scaffold-tests`, `/qa-signoff` route through
+  `qa-orchestrator`. Claude picks the right specialist from each `description`.
 
 **Use when:** the codebase is big enough that domain expertise pays off.
 

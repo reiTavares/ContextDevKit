@@ -40,6 +40,10 @@
     ],
     "registration": ["vibekit/memory/SESSIONS.md", "docs/CHANGELOG.md"]
   },
+  "qa": {
+    "criticalPaths": [],
+    "coverageTarget": { "lines": 80, "branches": 70 }
+  },
   "l5": {
     "highRiskPaths": [],
     "distill": {

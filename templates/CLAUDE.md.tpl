@@ -102,9 +102,10 @@ Layers active depend on the level (see `vibekit/README.md`):
 
 ### Slash commands
 `/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
-· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/claim`
-· `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/vibe-level` · `/vibe-config`
+· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
+· `/claim` · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
+· `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/distill-sessions`
+· `/distill-apply` · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
 
 ---
 

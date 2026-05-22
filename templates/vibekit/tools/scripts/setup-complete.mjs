@@ -57,7 +57,9 @@ function main() {
       if (!Array.isArray(cfg.ledger.registration)) cfg.ledger.registration = ['vibekit/memory/SESSIONS.md', 'docs/CHANGELOG.md'];
       cfg.l5 = cfg.l5 || {};
       if (Array.isArray(suggested.highRiskPaths)) cfg.l5.highRiskPaths = suggested.highRiskPaths;
-      console.log(`Applied suggestions: ${cfg.ledger.important.length} important paths, ${cfg.l5.highRiskPaths.length} high-risk paths.`);
+      cfg.qa = cfg.qa || {};
+      if (Array.isArray(suggested.qaCriticalPaths)) cfg.qa.criticalPaths = suggested.qaCriticalPaths;
+      console.log(`Applied suggestions: ${cfg.ledger.important.length} important paths, ${cfg.l5.highRiskPaths.length} high-risk paths, ${(cfg.qa.criticalPaths || []).length} qa-critical paths.`);
     } else {
       console.log('No report supplied or report had no suggestions — only flipping setup flag.');
     }

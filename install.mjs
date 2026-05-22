@@ -97,6 +97,18 @@ async function copyTree(src, dest) {
   if (!existsSync(src)) return;
   await cp(src, dest, { recursive: true, force: true });
 }
+/** Recursively copies `src` into `dest`, writing each file ONLY if absent. */
+async function copyTreeIfMissing(src, dest) {
+  if (!existsSync(src)) return 0;
+  let count = 0;
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    const from = join(src, entry.name);
+    const to = join(dest, entry.name);
+    if (entry.isDirectory()) count += await copyTreeIfMissing(from, to);
+    else if (await writeIfMissing(to, await readFile(from, 'utf-8'), false)) count++;
+  }
+  return count;
+}
 async function read(path) {
   // Strip a leading UTF-8 BOM so JSON.parse never trips on Windows-written files.
   return (await readFile(path, 'utf-8')).replace(/^﻿/, '');
@@ -335,6 +347,9 @@ async function main() {
     const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
     if (wrote) report.push(`✓ seeded vibekit/${rel}`);
   }
+  // Ensure memory dirs exist even if a packager stripped the .gitkeep seed.
+  await ensureDir(join(target, 'vibekit', 'memory', 'sessions'));
+  await ensureDir(join(target, 'vibekit', 'memory', 'decisions'));
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
@@ -383,9 +398,11 @@ async function main() {
     report.push('✓ docs/CHANGELOG.md created');
   }
 
-  // 9. .gitignore + .gitattributes + git hooks.
+  // 9. .gitignore + .gitattributes + GitHub templates + git hooks.
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');
   if (await patchGitattributes(target)) report.push('✓ .gitattributes patched (LF for engine scripts)');
+  const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
+  if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
   if (level >= 3) {
     if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg)');
     else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');

@@ -78,6 +78,16 @@ export const DEFAULT_CONFIG = Object.freeze({
     registration: ['vibekit/memory/SESSIONS.md', 'docs/CHANGELOG.md'],
   },
 
+  /**
+   * QA squad config (used by /test-plan, /scaffold-tests, /qa-signoff and the
+   * qa-* agents at Level >= 4). `criticalPaths` get the highest coverage
+   * priority; `coverageTarget` is the floor a sign-off aims for.
+   */
+  qa: {
+    criticalPaths: [],
+    coverageTarget: { lines: 80, branches: 70 },
+  },
+
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
     /** Editing any of these without a prior `/simulate-impact` is gated. */

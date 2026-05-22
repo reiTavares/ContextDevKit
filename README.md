@@ -42,6 +42,9 @@ parts that don't depend on the AI's goodwill:
 ```bash
 # run the installer straight from GitHub into the current project
 npx github:reiTavares/VibeDevKit --target . --level 2 --yes
+
+# (once published to npm, this shortens to:)
+#   npx vibedevkit --target . --level 2 --yes
 ```
 
 Or clone and run locally:
@@ -119,10 +122,13 @@ your-project/
 ## Slash commands
 
 `/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
-· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/claim`
-· `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/distill-sessions` · `/distill-apply` · `/vibe-level` · `/vibe-config`
-· `/vibe-doctor`
+· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
+· `/claim` · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
+· `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/distill-sessions`
+· `/distill-apply` · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+
+The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`) and the
+other sub-agents install at **Level 4**.
 
 ## Maintenance
 

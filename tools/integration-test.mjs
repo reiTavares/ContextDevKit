@@ -86,6 +86,15 @@ async function main() {
     !settings.hooks?.PreToolUse ? ok('vibe-level 2 removes the L5 PreToolUse hook') : bad('PreToolUse still wired at L2');
     settings.hooks?.SessionStart && settings.hooks?.Stop ? ok('vibe-level 2 keeps L1/L2 hooks') : bad('L1/L2 hooks lost');
 
+    // GitHub templates + QA agents installed.
+    existsSync(join(proj, '.github', 'PULL_REQUEST_TEMPLATE.md')) ? ok('GitHub PR template installed') : bad('PR template not installed');
+    existsSync(join(proj, '.claude', 'agents', 'qa-orchestrator.md')) ? ok('QA squad agents installed (L5)') : bad('qa-orchestrator agent missing');
+
+    // vibe-config show/set round-trip.
+    script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
+    const showOut = script('vibe-config.mjs', 'show', 'qa.coverageTarget.lines').stdout || '';
+    showOut.trim() === '90' ? ok('vibe-config set/show round-trips') : bad(`vibe-config round-trip failed: ${showOut}`);
+
     // doctor runs and reports.
     const doc = script('doctor.mjs');
     /VibeDevKit doctor/i.test(doc.stdout || '') ? ok('doctor runs') : bad(`doctor failed: ${doc.stderr}`);

@@ -4,6 +4,23 @@ All notable changes to VibeDevKit are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/);
 this project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-05-22
+
+### Added
+- **QA squad** (Level 4): `qa-orchestrator` (router + sign-off) plus `qa-unit`,
+  `qa-integration`, `qa-fuzzer` specialists, and the `/test-plan`,
+  `/scaffold-tests`, `/qa-signoff` commands. New `qa` config section
+  (`criticalPaths`, `coverageTarget`); `detect-stack`/`setup-complete` suggest
+  and apply `qa.criticalPaths`.
+- **`/audit`** — one-pass health audit (doctor + tech-debt + QA + drift) with a
+  prioritized action list; README documents running it on a schedule.
+- **GitHub templates** installed into the target's `.github/` (PR template +
+  bug/feature issue templates), written only if missing.
+- **npm packaging**: `prepublishOnly` gates publish on the test suite.
+
+### Notes
+- Now ships 22 slash commands and 10 agent archetypes. Agents install at L ≥ 4.
+
 ## [0.3.0] - 2026-05-22
 
 ### Added

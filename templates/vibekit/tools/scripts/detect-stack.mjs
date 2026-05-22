@@ -156,6 +156,7 @@ const report = {
   suggested: {
     ledger: suggestLedger(sourceDirs, languages),
     highRiskPaths: suggestHighRiskPaths(),
+    qaCriticalPaths: suggestHighRiskPaths(),
     recommendedLevel: sourceDirs.length === 0 ? 1 : 2,
   },
 };
