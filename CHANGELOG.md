@@ -7,6 +7,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`/deep-analysis` (global sweep)** — `deep-analysis.mjs` aggregates every
+  deterministic scanner (tech-debt, deps, contract) into one report; the command
+  adds judgment (security / architecture / bug pass), suggests ADRs, and ingests
+  every finding into the backlog. The security-mode boot trigger reminds you to run it.
 - **WSJF (SAFe) prioritization + bug severity + SLA** in the DevPipeline. A task's
   priority comes from a WSJF score (`pipeline.mjs add --wsjf uv,tc,rr,js` or
   `pipeline.mjs wsjf <id> …`), from **bug severity** (`--severity S1-S4`), or from

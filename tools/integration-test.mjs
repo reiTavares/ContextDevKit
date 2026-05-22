@@ -201,6 +201,11 @@ async function main() {
       readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
       ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
 
+    // Deep analysis: aggregates the deterministic scanners into one report.
+    const deep = JSON.parse(script('deep-analysis.mjs', '--json').stdout || '{}');
+    deep.byScan && typeof deep.total === 'number' && Array.isArray(deep.findings)
+      ? ok('deep-analysis aggregates scanners into one report') : bad(`deep-analysis failed: ${JSON.stringify(deep).slice(0, 120)}`);
+
     // Security: a crafted base-branch arg must reach git LITERALLY (the whole
     // string is one invalid ref → non-zero exit), not be split by a shell. The
     // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
