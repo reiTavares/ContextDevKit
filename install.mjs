@@ -23,7 +23,7 @@
  *   --rewire          only recompose .claude/settings.json for the level
  *   --force           overwrite CLAUDE.md / memory seeds if they exist
  */
-import { cp, mkdir, readFile, writeFile, chmod } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, chmod, rm } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,12 +35,16 @@ const TPL = resolve(KIT_ROOT, 'templates');
 
 // ── arg parsing ───────────────────────────────────────────────────────────
 function parseArgs(argv) {
-  const args = { yes: false, rewire: false, force: false };
+  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--yes' || a === '-y') args.yes = true;
     else if (a === '--rewire') args.rewire = true;
     else if (a === '--force') args.force = true;
+    else if (a === '--uninstall') args.uninstall = true;
+    else if (a === '--purge') args.purge = true;
+    else if (a === '--help' || a === '-h') args.help = true;
+    else if (a === '--version' || a === '-v') args.version = true;
     else if (a === '--target') args.target = argv[++i];
     else if (a === '--level') args.level = Number(argv[++i]);
     else if (a === '--name') args.name = argv[++i];
@@ -48,6 +52,32 @@ function parseArgs(argv) {
   }
   return args;
 }
+
+const HELP = `
+🌀 VibeDevKit installer
+
+Usage:
+  node install.mjs [--target <path>] [--level <1-5>] [--name <str>]
+                   [--mode greenfield|existing] [--yes] [--force]
+  node install.mjs --rewire --level <1-5>     only recompose .claude/settings.json
+  node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
+  node install.mjs --help | --version
+
+Flags:
+  --target <path>   destination project root (default: current directory)
+  --level <1-5>     activation level (default: prompt, else 2)
+  --name <string>   project name for the CLAUDE.md header
+  --mode <m>        greenfield | existing (default: auto-detect)
+  --yes, -y         non-interactive (use flags/defaults, no prompts)
+  --force           overwrite CLAUDE.md / memory seeds if they exist
+  --rewire          only recompose settings.json for the given --level
+  --uninstall       remove VibeDevKit hook wiring + git hooks (keeps memory)
+  --purge           with --uninstall, also delete vibekit/ engine + commands/agents
+  --help, -h        show this help
+  --version, -v     print the kit version
+
+After installing, open the project in Claude Code and run /setupvibedevkit.
+`;
 
 // ── small fs helpers ────────────────────────────────────────────────────────
 async function ensureDir(p) {
@@ -130,6 +160,64 @@ async function patchGitignore(target) {
   return true;
 }
 
+async function patchGitattributes(target) {
+  const tplPath = join(TPL, 'gitattributes');
+  if (!existsSync(tplPath)) return false;
+  const block = await read(tplPath);
+  const p = join(target, '.gitattributes');
+  let current = '';
+  if (existsSync(p)) current = await read(p);
+  if (current.includes('VibeDevKit — keep engine scripts')) return false;
+  await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + block, 'utf-8');
+  return true;
+}
+
+// ── uninstall ────────────────────────────────────────────────────────────────
+async function uninstall(target, purge) {
+  const report = [];
+  // 1. Strip VibeDevKit hook entries from settings.json (keep the user's own).
+  const settingsPath = join(target, '.claude', 'settings.json');
+  if (existsSync(settingsPath)) {
+    try {
+      const settings = JSON.parse(await read(settingsPath));
+      const hooks = settings.hooks || {};
+      for (const evt of Object.keys(hooks)) {
+        if (!Array.isArray(hooks[evt])) continue;
+        hooks[evt] = hooks[evt]
+          .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !String(h.command || '').includes('vibekit/runtime/hooks')) }))
+          .filter((g) => (g.hooks || []).length > 0);
+        if (hooks[evt].length === 0) delete hooks[evt];
+      }
+      settings.hooks = hooks;
+      await overwrite(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+      report.push('✓ removed VibeDevKit hook wiring from .claude/settings.json');
+    } catch {
+      report.push('⚠️  could not parse .claude/settings.json — left untouched');
+    }
+  }
+  // 2. Remove the git hook wrappers we installed.
+  for (const h of ['pre-commit', 'commit-msg']) {
+    const p = join(target, '.git', 'hooks', h);
+    if (existsSync(p)) {
+      await rm(p, { force: true });
+      report.push(`✓ removed git hook ${h}`);
+    }
+  }
+  // 3. With --purge, delete the engine + commands/agents (KEEP memory).
+  if (purge) {
+    for (const rel of ['vibekit/runtime', 'vibekit/tools', '.claude/commands', '.claude/agents']) {
+      const p = join(target, rel);
+      if (existsSync(p)) {
+        await rm(p, { recursive: true, force: true });
+        report.push(`✓ purged ${rel}`);
+      }
+    }
+    report.push('ℹ️  kept vibekit/memory/ (your ADRs + session history) and CLAUDE.md');
+  }
+  console.log('\n' + report.join('\n'));
+  console.log('\n✅ VibeDevKit uninstalled.' + (purge ? '' : ' Engine files kept; re-run without --uninstall to re-enable.'));
+}
+
 // ── render templates ─────────────────────────────────────────────────────────
 function render(tpl, vars) {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vars ? vars[k] : `{{${k}}}`));
@@ -150,10 +238,33 @@ const LEVEL_LABELS = {
 };
 
 // ── main ─────────────────────────────────────────────────────────────────────
+async function kitVersion() {
+  try {
+    return JSON.parse(await read(join(KIT_ROOT, 'package.json'))).version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args.help) {
+    console.log(HELP);
+    return;
+  }
+  if (args.version) {
+    console.log(`vibedevkit ${await kitVersion()}`);
+    return;
+  }
+
   const target = resolve(args.target || process.cwd());
   await ensureDir(target);
+
+  if (args.uninstall) {
+    await uninstall(target, args.purge);
+    return;
+  }
 
   const interactive = !args.yes && process.stdout.isTTY;
   let level = Number.isInteger(args.level) ? args.level : undefined;
@@ -272,8 +383,9 @@ async function main() {
     report.push('✓ docs/CHANGELOG.md created');
   }
 
-  // 9. .gitignore + git hooks.
+  // 9. .gitignore + .gitattributes + git hooks.
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');
+  if (await patchGitattributes(target)) report.push('✓ .gitattributes patched (LF for engine scripts)');
   if (level >= 3) {
     if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg)');
     else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');

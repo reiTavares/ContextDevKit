@@ -1,5 +1,10 @@
 # 🌀 VibeDevKit
 
+[![CI](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
+
 > A portable, **level-based AI-assisted development platform** for Claude Code.
 > Drop it into any project — greenfield or existing, any stack — and get durable
 > project memory, automatic context loading, drift detection, specialized
@@ -116,7 +121,23 @@ your-project/
 `/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
 · `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/claim`
 · `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
-· `/vibe-level` · `/vibe-config`
+· `/distill-sessions` · `/distill-apply` · `/vibe-level` · `/vibe-config`
+· `/vibe-doctor`
+
+## Maintenance
+
+```bash
+# diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
+/vibe-doctor          # or: node vibekit/tools/scripts/doctor.mjs
+
+# change level (rewires settings.json, installs git hooks at L>=3)
+/vibe-level 4
+
+# uninstall — keeps your memory (ADRs, sessions) and CLAUDE.md
+node /path/to/vibedevkit/install.mjs --target . --uninstall
+# ...or also remove the engine/commands/agents:
+node /path/to/vibedevkit/install.mjs --target . --uninstall --purge
+```
 
 ## Customizing for your stack
 
@@ -129,8 +150,13 @@ own squad of sub-agents and adding slash commands.
 ## Develop the kit itself
 
 ```bash
-node tools/selfcheck.mjs    # smoke test: loads the engine, asserts wiring per level
+npm test                      # selfcheck + integration test (what CI runs)
+node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
+node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules (zero hot-path deps, hooks
+never break work, add a test for anything you add).
 
 ## Docs
 

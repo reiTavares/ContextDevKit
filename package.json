@@ -1,6 +1,6 @@
 {
   "name": "vibedevkit",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
@@ -8,10 +8,28 @@
   },
   "scripts": {
     "install:here": "node install.mjs --target .",
-    "check": "node tools/selfcheck.mjs"
+    "check": "node tools/selfcheck.mjs",
+    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs"
   },
+  "files": [
+    "install.mjs",
+    "templates/",
+    "tools/",
+    "docs/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reiTavares/VibeDevKit.git"
+  },
+  "homepage": "https://github.com/reiTavares/VibeDevKit#readme",
+  "bugs": {
+    "url": "https://github.com/reiTavares/VibeDevKit/issues"
   },
   "keywords": [
     "claude-code",

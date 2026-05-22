@@ -82,11 +82,17 @@ function checkConfig(load) {
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
-  cmds.length >= 10 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
-  cmds.includes('setupvibedevkit.md') ? ok('/setupvibedevkit onboarding command present') : bad('missing /setupvibedevkit');
+  cmds.length >= 15 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
+  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md']) {
+    cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
+  }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
-  agents.length >= 3 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
-  for (const f of ['templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json', 'install.mjs']) {
+  agents.length >= 6 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
+  const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs']) {
+    scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
+  }
+  for (const f of ['templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json', 'templates/gitattributes', 'install.mjs', '.github/workflows/ci.yml', 'CHANGELOG.md']) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }
 }

@@ -15,12 +15,11 @@ Sections you can tune:
 - `l5.distill.*` — auto-distillation cadence.
 - `level` — prefer changing via `/vibe-level`.
 
-How to act:
-- `show [dotted.path]` — read `vibekit/config.json` and print the requested value (or the whole file).
-- `set <dotted.path> <value>` — load the JSON, set the value (parse arrays/numbers/booleans
-  appropriately), and write it back with 2-space indent.
+How to act — use the helper script (it coerces types and validates with zod when available):
+- Show:  `node vibekit/tools/scripts/vibe-config.mjs show [dotted.path]`
+- Set:   `node vibekit/tools/scripts/vibe-config.mjs set <dotted.path> <value>`
+  (arrays/objects accept JSON, e.g. `set ledger.important '["app/","tests/"]'`).
 
-If `zod` is installed in the project, validate the result against
-`vibekit/runtime/config/schema.mjs` before writing and report any errors. If `zod` is not installed,
-do a basic structural sanity check (correct types, no absolute/backslashed paths) and proceed.
-Never write a malformed config — the hooks fall back to defaults, but a clean file is the contract.
+Run the appropriate command based on `$ARGUMENTS` and show the output. The script never writes a
+malformed config — if `zod` is installed it validates against `vibekit/runtime/config/schema.mjs`
+first. For changing the level, prefer `/vibe-level`.

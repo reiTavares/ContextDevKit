@@ -1,0 +1,6 @@
+# Normalize line endings so the engine scripts stay LF on every platform
+# (silences "LF will be replaced by CRLF" warnings and keeps shebang hooks valid).
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

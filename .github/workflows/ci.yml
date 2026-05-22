@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Self-check (static engine smoke test)
+        run: node tools/selfcheck.mjs
+
+      - name: Integration test (real hooks, end-to-end)
+        run: node tools/integration-test.mjs
+
+      - name: Installer dry sanity (greenfield install)
+        run: |
+          mkdir -p /tmp/vibe-greenfield
+          git -C /tmp/vibe-greenfield init -b main
+          node install.mjs --target /tmp/vibe-greenfield --level 3 --name "CI Greenfield" --mode greenfield --yes
+          test -f /tmp/vibe-greenfield/CLAUDE.md
+          test -f /tmp/vibe-greenfield/vibekit/config.json
+          test -f /tmp/vibe-greenfield/.claude/settings.json
