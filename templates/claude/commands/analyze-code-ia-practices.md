@@ -26,9 +26,17 @@ Audit the codebase (focus: **$ARGUMENTS** if given, else the whole repo) against
    - Big `renderX()` → promote to a real component.
    - Genuinely cohesive long file → say "leave it, document the cohesion" rather
      than force a split.
-4. **Output** a ranked plan: per file → the smell, the recommended refactor
-   (concrete: new files + what moves), and effort (S/M/L). Top 5 first.
-5. Do **not** refactor in this command — it's analysis. Offer to open a focused
+4. **Output** a ranked plan (the report): per file → the smell, the recommended
+   refactor (concrete: new files + what moves), and effort (S/M/L). Top 5 first.
+5. **Feed the DevPipeline backlog** — add each item as a task, **auto-prioritized**
+   (blocker→P0, high/RED→P1, medium→P2, nit→P3):
+   ```
+   node vibekit/tools/scripts/pipeline.mjs add --type chore --priority <P> \
+     --source "practices:<file>" --title "refactor <file> by responsibility"
+   ```
+   `--source` keeps re-runs idempotent; then `pipeline.mjs sync`. Priorities are
+   **always editable** by the user (`pipeline.mjs prioritize <id> <P>` or `/pipeline`).
+6. Do **not** refactor in this command — it's analysis. Offer to open a focused
    `/dev-start "refactor <file> by responsibility"` (or `/ship`) on the top item.
 
 If best-practices aren't active yet, ask the user whether to adopt them (set

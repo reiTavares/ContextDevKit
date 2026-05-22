@@ -10,6 +10,12 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
   groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
   release safety), with veto on the L5/L6 gates for Critical/High findings.
+- **Analysis → DevPipeline backlog flow.** `/bug-hunt`, `/analyze-code-ia-practices`,
+  `/tech-debt-sweep`, and `/audit` now always emit a report **and** push each finding
+  into the DevPipeline backlog, **auto-prioritized** by severity (RED→P1, yellow→P2,
+  low→P3) and **idempotent**. New `pipeline.mjs ingest <findings.json>` and
+  `pipeline.mjs prioritize <id> <P0-P3>` (the auto priority is **always editable** by
+  the user). `tech-debt-scan --write` also emits `tech-debt-findings.json`.
 
 ### Changed
 - **`install.mjs` refactored into focused modules** under `tools/install/` (cli,
