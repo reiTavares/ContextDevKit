@@ -206,6 +206,18 @@ async function main() {
     deep.byScan && typeof deep.total === 'number' && Array.isArray(deep.findings)
       ? ok('deep-analysis aggregates scanners into one report') : bad(`deep-analysis failed: ${JSON.stringify(deep).slice(0, 120)}`);
 
+    // Security mode: SessionStart reminds to /deep-analysis on the cadence (default-on, configurable).
+    const secCfg = readJson(cfgPath);
+    secCfg.securityMode = { active: true, everyNSessions: 1 };
+    writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+    writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
+    hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+      ? ok('security-mode boot trigger fires on cadence') : bad('security-mode banner missing');
+    secCfg.securityMode.active = false;
+    writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+    !hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+      ? ok('security-mode disabled via config (active:false)') : bad('security-mode fired while disabled');
+
     // Security: a crafted base-branch arg must reach git LITERALLY (the whole
     // string is one invalid ref → non-zero exit), not be split by a shell. The
     // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected

@@ -109,6 +109,13 @@ export const DEFAULT_CONFIG = Object.freeze({
     bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
   },
 
+  /**
+   * Security mode — proactive analysis cadence. When `active`, the SessionStart
+   * hook reminds you to run `/deep-analysis` every `everyNSessions` sessions.
+   * ACTIVE by default; set `active: false` to disable.
+   */
+  securityMode: { active: true, everyNSessions: 10 },
+
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
     /** Editing any of these without a prior `/simulate-impact` is gated. */

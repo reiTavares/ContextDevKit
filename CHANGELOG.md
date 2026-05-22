@@ -7,6 +7,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Security mode (active, not reactive)** — a SessionStart trigger reminds you to
+  run `/deep-analysis` every `securityMode.everyNSessions` sessions (default 10),
+  **on by default**; disable with `securityMode.active: false`. The manual
+  `/deep-analysis` command stays available anytime.
 - **`/deep-analysis` (global sweep)** — `deep-analysis.mjs` aggregates every
   deterministic scanner (tech-debt, deps, contract) into one report; the command
   adds judgment (security / architecture / bug pass), suggests ADRs, and ingests
