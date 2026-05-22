@@ -17,6 +17,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **`/deps-audit` (security-team)** — deterministic dependency / supply-chain check
   (lockfile present, version pinning, plus native `npm`/`pnpm`/`yarn audit` CVEs when
   available) that emits findings into the DevPipeline backlog. Roadmap 1.0 #6.
+- **`infra-security` agent (security-team)** — threat-models the platform the app
+  runs on (IaC/cloud misconfig, IAM least-privilege, network exposure, secrets,
+  container/runtime + CI/CD supply-chain hardening); pairs with `devops` (builds it)
+  and `security` (AppSec). The security-team is now AppSec + infra + delivery.
 - **Analysis → DevPipeline backlog flow.** `/bug-hunt`, `/analyze-code-ia-practices`,
   `/tech-debt-sweep`, and `/audit` now always emit a report **and** push each finding
   into the DevPipeline backlog, **auto-prioritized** by severity (RED→P1, yellow→P2,

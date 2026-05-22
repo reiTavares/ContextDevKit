@@ -113,6 +113,7 @@ async function main() {
     existsSync(join(proj, 'vibekit', 'squads', 'README.md')) ? ok('squad manifest installed') : bad('squads/README.md missing');
     existsSync(join(proj, '.claude', 'agents', 'privacy-lgpd.md')) && existsSync(join(proj, '.claude', 'agents', 'ux-designer.md'))
       ? ok('compliance + design squads installed') : bad('new squad agents missing');
+    existsSync(join(proj, '.claude', 'agents', 'infra-security.md')) ? ok('security-team infra-security agent installed') : bad('infra-security agent missing');
 
     // vibe-config show/set round-trip.
     script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
