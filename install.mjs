@@ -35,10 +35,11 @@ const TPL = resolve(KIT_ROOT, 'templates');
 
 // ── arg parsing ───────────────────────────────────────────────────────────
 function parseArgs(argv) {
-  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false };
+  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--yes' || a === '-y') args.yes = true;
+    else if (a === '--update') { args.update = true; args.yes = true; }
     else if (a === '--rewire') args.rewire = true;
     else if (a === '--force') args.force = true;
     else if (a === '--uninstall') args.uninstall = true;
@@ -59,6 +60,8 @@ const HELP = `
 Usage:
   node install.mjs [--target <path>] [--level <1-6>] [--name <str>]
                    [--mode greenfield|existing] [--yes] [--force]
+  node install.mjs --update                   safe update: refresh engine + commands,
+                                              keep your level/config/memory/CLAUDE.md
   node install.mjs --rewire --level <1-6>     only recompose .claude/settings.json
   node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
   node install.mjs --help | --version
@@ -70,6 +73,8 @@ Flags:
   --mode <m>        greenfield | existing (default: auto-detect)
   --yes, -y         non-interactive (use flags/defaults, no prompts)
   --force           overwrite CLAUDE.md / memory seeds if they exist
+  --update          safe update: refresh engine/commands/agents + re-wire hooks for
+                    the CURRENT level; never touches CLAUDE.md, config, or memory
   --rewire          only recompose settings.json for the given --level
   --uninstall       remove VibeDevKit hook wiring + git hooks (keeps memory)
   --purge           with --uninstall, also delete vibekit/ engine + commands/agents
@@ -302,6 +307,16 @@ async function main() {
     rl.close();
   }
 
+  // Safe re-run / update: if no explicit --level, preserve the project's current
+  // level (read from config) instead of silently downgrading to the default.
+  if (!(Number.isInteger(level) && level >= 1 && level <= 6)) {
+    try {
+      const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
+      if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
+    } catch {
+      /* no config yet */
+    }
+  }
   level = Number.isInteger(level) && level >= 1 && level <= 6 ? level : 2;
   name = name || require_basename(target);
   mode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
@@ -379,21 +394,26 @@ async function main() {
   }
 
   // 7. CLAUDE.md: render if missing; else drop a side file to merge.
-  const claudeTpl = await read(join(TPL, 'CLAUDE.md.tpl'));
-  const claudeOut = render(claudeTpl, {
-    PROJECT_NAME: name,
-    DATE: new Date().toISOString().slice(0, 10),
-    LEVEL: String(level),
-    MODE: mode,
-    STACK_NOTES: mode === 'existing' ? await detectStack(target) : 'Greenfield — define the stack as the first architectural decision (`/new-adr`).',
-  });
+  //    On --update we NEVER touch CLAUDE.md (it's user-owned content).
   const claudePath = join(target, 'CLAUDE.md');
-  if (!existsSync(claudePath) || args.force) {
-    await overwrite(claudePath, claudeOut);
-    report.push('✓ CLAUDE.md created');
+  if (args.update && existsSync(claudePath)) {
+    /* update: leave the user's CLAUDE.md untouched */
   } else {
-    await overwrite(join(target, 'CLAUDE.vibedevkit.md'), claudeOut);
-    report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.vibedevkit.md to merge by hand');
+    const claudeTpl = await read(join(TPL, 'CLAUDE.md.tpl'));
+    const claudeOut = render(claudeTpl, {
+      PROJECT_NAME: name,
+      DATE: new Date().toISOString().slice(0, 10),
+      LEVEL: String(level),
+      MODE: mode,
+      STACK_NOTES: mode === 'existing' ? await detectStack(target) : 'Greenfield — define the stack as the first architectural decision (`/new-adr`).',
+    });
+    if (!existsSync(claudePath) || args.force) {
+      await overwrite(claudePath, claudeOut);
+      report.push('✓ CLAUDE.md created');
+    } else {
+      await overwrite(join(target, 'CLAUDE.vibedevkit.md'), claudeOut);
+      report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.vibedevkit.md to merge by hand');
+    }
   }
 
   // 8. CHANGELOG: render if missing.
@@ -420,6 +440,14 @@ async function main() {
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
+  if (args.update) {
+    console.log(`\n✅ VibeDevKit UPDATED to v${await kitVersion()} (Level ${level} preserved) in ${target}`);
+    console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
+    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files.');
+    console.log('   Restart Claude Code to load the refreshed hooks.');
+    console.log('');
+    return;
+  }
   console.log(`\n✅ VibeDevKit installed at Level ${level} into ${target}`);
   console.log('\nNext steps:');
   console.log('  1. Open the project in Claude Code (it reads .claude/ + CLAUDE.md).');

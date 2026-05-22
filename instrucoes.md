@@ -130,7 +130,15 @@ node vibekit/tools/scripts/tech-debt-scan.mjs --write
 node vibekit/tools/scripts/generate-context.mjs   # snapshot p/ refactor/IA externa
 ```
 
-Atualizar o kit (sem perder memória/config): rode o instalador de novo.
+**Atualizar com segurança (sem perder nada):**
+```bash
+npx vibedevkit@latest --target . --update
+```
+Atualiza só o engine + slash commands + wiring dos hooks para o **nível atual**.
+**Nunca** toca em `CLAUDE.md`, `vibekit/config.json`, memória (ADRs/sessões/roadmap),
+tarefas do pipeline, nem nos `CLAUDE.md` de cada módulo. (Offline/GitHub:
+`npx github:reiTavares/VibeDevKit --target . --update`.)
+
 Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória;
 `--purge` também remove o engine).
 

@@ -87,6 +87,14 @@ async function main() {
     (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
       ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');
 
+    // Safe --update: preserves CLAUDE.md, config (level + overrides), memory.
+    writeFileSync(join(proj, 'CLAUDE.md'), readFileSync(join(proj, 'CLAUDE.md'), 'utf-8') + '\n## USER MARKER\n');
+    run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+    const afterCfg = readJson(join(proj, 'vibekit', 'config.json'));
+    readFileSync(join(proj, 'CLAUDE.md'), 'utf-8').includes('USER MARKER') && afterCfg.level === 5 && !existsSync(join(proj, 'CLAUDE.vibedevkit.md'))
+      ? ok('--update preserves CLAUDE.md + level (no data loss)')
+      : bad('--update lost data (CLAUDE.md/level/side-file)');
+
     // setup-complete silences the trigger.
     script('setup-complete.mjs');
     !hook('session-start.mjs', {}).includes('First run')

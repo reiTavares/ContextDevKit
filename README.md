@@ -1,4 +1,4 @@
-# 🌀 VibeDevKit
+e # 🌀 VibeDevKit
 
 [![CI](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/vibedevkit)](https://www.npmjs.com/package/vibedevkit)
@@ -182,6 +182,12 @@ pipeline runs the work.
 ```bash
 # diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
 /vibe-doctor          # or: node vibekit/tools/scripts/doctor.mjs
+
+# safe update — refresh engine + slash commands + hook wiring for your CURRENT
+# level. NEVER touches CLAUDE.md, vibekit/config.json, memory (ADRs/sessions/
+# roadmap), pipeline tasks, or scoped module CLAUDE.md files.
+npx vibedevkit@latest --target . --update
+#   (offline / from GitHub: npx github:reiTavares/VibeDevKit --target . --update)
 
 # change level (rewires settings.json, installs git hooks at L>=3)
 /vibe-level 4

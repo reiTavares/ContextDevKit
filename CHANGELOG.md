@@ -6,6 +6,15 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Safe `--update`** — `npx vibedevkit@latest --target . --update` refreshes the
+  engine, slash commands, agents, and hook wiring **for the project's CURRENT
+  level**, and **never touches** user-owned content: `CLAUDE.md`, `vibekit/config.json`
+  (level + overrides preserved), memory (ADRs/sessions/roadmap/glossary), pipeline
+  tasks, or scoped module `CLAUDE.md` files. New seed artifacts are added
+  write-if-missing. Any plain re-run also now preserves the existing level instead
+  of defaulting to 2.
+
 ## [0.5.0] - 2026-05-22
 
 ### Added
