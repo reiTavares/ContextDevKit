@@ -7,6 +7,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Modular CLAUDE.md** — each app/module gets its own scoped CLAUDE.md (like the
+  source platform's `apps/api/CLAUDE.md` + `apps/mobile/CLAUDE.md`). `claude-md.mjs`
+  (find/scaffold) detects module roots (`backend/`, `frontend/`, `api/`, `web/`,
+  `mobile/`, and `apps/*`/`packages/*`/`modules/*`/`services/*`), `/claude-md`
+  scaffolds + fills them, a `CLAUDE.child.md.tpl` is seeded, and `doctor` notes
+  modules missing one. Wired into `/setupvibedevkit` (Phase 4b) + `/aidevtool-from0`.
+- **Product roadmap as a first-class artifact**: seeded `vibekit/memory/roadmap.md`
+  (P-ID format), `/roadmap` command (new project → build it WITH the user;
+  existing project → find a roadmap/PRD/spec to import, or analyze the code and
+  **propose** one + ask the user for objectives), and `roadmap.mjs`
+  (find/status/init). Wired into `/setupvibedevkit` (Phase 5b) and
+  `/aidevtool-from0` (Phase 4); `doctor` notes when the roadmap is undefined.
 - **`/aidevtool-from0`** — bootstrap an empty project from zero: intelligent
   interactive product questionnaire → product vision, stack suggestion/refine
   (ADR), product **roadmap** (P-IDs), best-practices constitution, and a seeded

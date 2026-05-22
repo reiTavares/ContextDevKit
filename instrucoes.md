@@ -20,15 +20,15 @@ npx vibedevkit --target . --level 2 --yes
 npx github:reiTavares/VibeDevKit --target . --level 2 --yes
 ```
 
-Depois, abra o projeto no Claude Code, aprove os hooks uma vez, e rode:
+Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
+"first run" aparece no boot e te roteia:
 
-```
-/setupvibedevkit
-```
-
-Esse comando **adapta o kit ao seu projeto**: detecta a stack, ajusta o config,
-preenche o `CLAUDE.md`, marca paths de risco, cria um ADR base e registra a
-sessão. Um banner de "first run" aparece no boot até você rodá-lo.
+- **Projeto vazio (do zero):** rode **`/aidevtool-from0`** — questionário de
+  produto interativo → visão, stack (sugere/refina), **roadmap**, boas práticas
+  e DevPipeline. Ele te acompanha e fica ativo conforme o projeto cresce.
+- **Projeto existente:** rode **`/setupvibedevkit`** — detecta a stack, ajusta o
+  config, preenche o `CLAUDE.md`, marca paths de risco, **procura/propõe o
+  roadmap**, cria um ADR base e registra a sessão.
 
 ## Os 6 níveis (suba conforme a confiança)
 
@@ -71,15 +71,23 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
 - `/test-plan`, `/scaffold-tests`, `/qa-signoff` — squad de QA.
 - `/simulate-impact <objetivo>` — mapeia o blast radius antes de mexer em path de risco.
 - `/tech-debt-sweep [quick]` — scanner determinístico + interpretação.
+- `/analyze-code-ia-practices` — auditoria de boas práticas + refactor inteligente (por responsabilidade, nunca quebra aleatória).
 - `/contract-check [--save]` — detecta quebra de contrato (exports removidos).
 
-### Autonomia e insight (L6)
-- `/ship <feature>` — pipeline completo: design → implementa → review → testa → registra.
+### Produto e execução
+- `/roadmap` — o plano de produto (o quê/porquê). Projeto novo: cria **com você**;
+  existente: procura roadmap/PRD ou analisa e **propõe** + pede seus objetivos.
+- `/pipeline` — o DevPipeline (execução): bugs, increments, tarefas com prioridade
+  e SLA fluindo `backlog → testing → conclusion`. **≠ roadmap** (que é produto).
+- `/ship <feature> [--auto]` — pipeline completo: design → implementa → review → testa → registra.
 - `/retro` — learning loop: vira fricção recorrente em regras/ADRs.
 - `/vibe-stats` — métricas (sessões, drift rate, ADRs, cadência).
 - `/distill-sessions` + `/distill-apply` — propõe e aplica refinamentos no `CLAUDE.md`.
 
-### Plataforma
+### Estrutura e plataforma
+- `/claude-md` — garante um `CLAUDE.md` próprio em cada app/módulo (backend,
+  frontend, cada package/serviço) — como no app-ruivo. O root é a constituição;
+  cada módulo documenta as regras locais.
 - `/vibe-doctor` — diagnóstico do install (node, config, wiring, git hooks).
 - `/vibe-config show|set` — lê/edita `vibekit/config.json`.
 - `/vibe-level [1-6]` — vê/troca o nível.

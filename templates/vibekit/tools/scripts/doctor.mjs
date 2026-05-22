@@ -9,7 +9,7 @@
  *
  * Run:  node vibekit/tools/scripts/doctor.mjs   (or /vibe-doctor)
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
@@ -91,6 +91,46 @@ function checkSetup() {
   completed ? pass('onboarding complete') : note('onboarding not run', 'run /setupvibedevkit');
 }
 
+function checkRoadmap() {
+  const p = resolve(ROOT, 'vibekit/memory/roadmap.md');
+  let defined = false;
+  try {
+    const t = readFileSync(p, 'utf-8');
+    defined = !t.includes('ROADMAP-NOT-DEFINED') && t.trim().length > 0;
+  } catch {
+    /* missing */
+  }
+  defined ? pass('product roadmap defined') : note('product roadmap not defined', 'run /roadmap to create it (with you)');
+}
+
+function checkModuleClaudeMd() {
+  const groups = ['apps', 'packages', 'modules', 'services', 'libs'];
+  const splits = ['backend', 'frontend', 'client', 'server', 'api', 'web', 'mobile', 'functions', 'worker'];
+  const manifests = ['package.json', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'tsconfig.json'];
+  const buildable = (d) => manifests.some((m) => existsSync(resolve(d, m))) || existsSync(resolve(d, 'src'));
+  const roots = new Set();
+  for (const s of splits) {
+    const abs = resolve(ROOT, s);
+    if (existsSync(abs) && buildable(abs)) roots.add(s);
+  }
+  for (const g of groups) {
+    const gAbs = resolve(ROOT, g);
+    if (!existsSync(gAbs)) continue;
+    let children = [];
+    try {
+      children = readdirSync(gAbs, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name);
+    } catch {
+      /* skip */
+    }
+    for (const c of children) if (buildable(resolve(gAbs, c))) roots.add(`${g}/${c}`);
+  }
+  if (roots.size === 0) return; // single-package — root CLAUDE.md is enough
+  const missing = [...roots].filter((r) => !existsSync(resolve(ROOT, r, 'CLAUDE.md')));
+  missing.length === 0
+    ? pass(`all ${roots.size} module(s) have a scoped CLAUDE.md`)
+    : note(`${missing.length} module(s) missing CLAUDE.md: ${missing.join(', ')}`, 'run /claude-md to scaffold + fill them');
+}
+
 function checkZod(level) {
   if ((level ?? 0) < 5) return;
   const hasZod = existsSync(resolve(ROOT, 'node_modules/zod'));
@@ -104,6 +144,8 @@ checkWiring(level);
 checkGitHooks(level);
 checkMemory();
 checkSetup();
+checkRoadmap();
+checkModuleClaudeMd();
 checkZod(level);
 console.log(
   crit === 0

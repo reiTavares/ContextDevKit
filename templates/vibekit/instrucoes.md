@@ -31,12 +31,13 @@ Trocar de nível: `/vibe-level <n>` (reinicie o Claude Code depois).
 
 ## Comandos principais
 
+- **Setup:** `/aidevtool-from0` (vazio) · `/setupvibedevkit` (existente)
 - **Contexto:** `/state` · `/log-session` (no fim) · `/new-adr` · `/close-version` · `/context-refresh`
 - **Modos:** `/dev-start` · `/bug-hunt` · `/audit`
 - **Coordenação (L3):** `/claim` · `/release` · `/worktree-new`
-- **Qualidade (L4/L5):** `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/simulate-impact` · `/tech-debt-sweep` · `/contract-check`
-- **Autonomia (L6):** `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
-- **Plataforma:** `/vibe-doctor` · `/vibe-config` · `/vibe-level`
+- **Qualidade (L4/L5):** `/test-plan` · `/scaffold-tests` · `/qa-signoff` · `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check`
+- **Produto & execução:** `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
+- **Estrutura & plataforma:** `/claude-md` (CLAUDE.md por módulo) · `/vibe-doctor` · `/vibe-config` · `/vibe-level`
 
 ## Boas práticas
 

@@ -83,8 +83,8 @@ function checkConfig(load) {
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
-  cmds.length >= 29 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
-  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md']) {
+  cmds.length >= 31 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
+  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
@@ -94,7 +94,7 @@ async function checkTemplates() {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -105,6 +105,7 @@ async function checkTemplates() {
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
+    'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }

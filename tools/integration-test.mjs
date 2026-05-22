@@ -11,7 +11,7 @@
  * Run:  node tools/integration-test.mjs   (exit 0 = healthy)
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,6 +122,24 @@ async function main() {
 
     // best-practices doc installed.
     existsSync(join(proj, 'vibekit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
+
+    // Roadmap seeded (undefined) + find reports it as not-defined.
+    existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
+    const rm = script('roadmap.mjs', 'find', '--json');
+    (() => { try { return JSON.parse(rm.stdout).canonicalDefined === false; } catch { return false; } })()
+      ? ok('roadmap find reports undefined (seed placeholder)') : bad(`roadmap find failed: ${rm.stderr || rm.stdout}`);
+
+    // Modular CLAUDE.md: two apps lacking CLAUDE.md → scaffold creates both.
+    mkdirSync(join(proj, 'apps', 'api'), { recursive: true });
+    mkdirSync(join(proj, 'apps', 'web'), { recursive: true });
+    writeFileSync(join(proj, 'apps', 'api', 'package.json'), '{"name":"api"}');
+    writeFileSync(join(proj, 'apps', 'web', 'package.json'), '{"name":"web"}');
+    const cmFind = script('claude-md.mjs', 'find', '--json');
+    (() => { try { return JSON.parse(cmFind.stdout).moduleRoots.length === 2; } catch { return false; } })()
+      ? ok('claude-md detects 2 module roots') : bad(`claude-md find failed: ${cmFind.stdout || cmFind.stderr}`);
+    script('claude-md.mjs', 'scaffold');
+    existsSync(join(proj, 'apps', 'api', 'CLAUDE.md')) && existsSync(join(proj, 'apps', 'web', 'CLAUDE.md'))
+      ? ok('claude-md scaffolds scoped CLAUDE.md per module') : bad('module CLAUDE.md not scaffolded');
 
     // DevPipeline: add → move → sync reflects in devpipeline.md.
     script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P1', '--title', 'login crash');

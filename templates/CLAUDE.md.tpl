@@ -105,9 +105,11 @@ Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/sta
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
 · `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Execution:
-`/pipeline` · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`.
-Platform: `/vibe-level` · `/vibe-config` · `/vibe-doctor`.
+· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
+execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
+· `/distill-sessions` · `/distill-apply`.
+Structure & platform: `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level`
+· `/vibe-config` · `/vibe-doctor`.
 
 ---
 

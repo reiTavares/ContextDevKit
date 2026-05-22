@@ -157,10 +157,11 @@ your-project/
 **Quality:** `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
 · `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`
 
-**Execution & autonomy:** `/pipeline` (DevPipeline board) · `/ship` · `/retro`
-· `/vibe-stats` · `/distill-sessions` · `/distill-apply`
+**Product & execution:** `/roadmap` (product plan) · `/pipeline` (DevPipeline board)
+· `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
 
-**Platform:** `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+**Structure & platform:** `/claude-md` (scoped CLAUDE.md per app/module)
+· `/vibe-level` · `/vibe-config` · `/vibe-doctor`
 
 The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`/`qa-perf`/
 `qa-e2e`) and the other sub-agents install at **Level 4**.

@@ -43,10 +43,11 @@ and 1–2 alternatives + trade-offs (act like `architect`). Record the choice as
 
 ## Phase 4 — Roadmap (product/business)
 
-Write `vibekit/memory/roadmap.md`: phases/milestones with **P-IDs** (P1.x, P2.x…),
-each a user-facing capability with a one-line acceptance note, ordered by value.
-This is the *what/why* of the product — NOT bugs or CI tasks (those live in the
-DevPipeline).
+Build `vibekit/memory/roadmap.md` **with the user** via `/roadmap new`: phases/
+milestones with **P-IDs** (P1.x, P2.x…), each a user-facing capability + a
+one-line acceptance note, ordered by value. Co-create it — ask which outcomes
+matter first; don't dump a template. This is the *what/why* of the product — NOT
+bugs or CI tasks (those live in the DevPipeline).
 
 ## Phase 5 — Best practices (the constitution)
 
@@ -60,6 +61,11 @@ random; SoC; naming; errors; docs). On yes, fill the constitution section of
 Seed the DevPipeline from the roadmap: break the first milestone into a few
 concrete backlog tasks —
 `node vibekit/tools/scripts/pipeline.mjs add --type feature --priority P1 --title "..." --roadmap P1.1`.
+
+As soon as the project's structure exists (apps/backend/frontend/modules), give
+each its **own scoped CLAUDE.md** with `/claude-md` — the root one is the
+constitution; each module documents its local rules. Do this as modules are born,
+not after the codebase is already sprawling.
 
 ## Phase 7 — Set level & finish
 

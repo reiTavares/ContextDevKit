@@ -53,11 +53,27 @@ Edit `CLAUDE.md` (or merge `CLAUDE.vibedevkit.md` if the installer left one):
 - "Language policy" — set the UI language row.
 - Keep it under ~200 lines. Push detail into ADRs.
 
+## Phase 4b — Scoped CLAUDE.md per app/module
+Run `node vibekit/tools/scripts/claude-md.mjs find`. For a multi-app/monorepo
+project, ensure **each app/module has its own CLAUDE.md** (backend, frontend,
+each package/service): `claude-md.mjs scaffold`, then **fill each** with real
+local rules (role, local stack, local conventions, boundaries) via `/claude-md`.
+Single-package project → the root CLAUDE.md is enough; skip.
+
 ## Phase 5 — Seed the glossary & domain agents
 - Add any clear domain terms (from README/code) to `vibekit/memory/GLOSSARY.md`.
 - If level ≥ 4 and there are clear seams, scaffold focused sub-agents from
   `.claude/agents/_TEMPLATE.md` (e.g. `frontend`, `backend`, `db`, `security`)
   — sharp `description`s naming the dirs they own. Skip seams that don't exist.
+
+## Phase 5b — Product roadmap (important — don't skip)
+Run `node vibekit/tools/scripts/roadmap.mjs find --json`:
+- If it lists an existing roadmap/PRD/spec file → offer to **import/normalize** it
+  into `vibekit/memory/roadmap.md` via `/roadmap from-existing`.
+- If none and the roadmap is undefined → **analyze** the codebase and **propose** a
+  roadmap, then **ask the user for their objectives** to add (P-IDs). Drive this
+  with `/roadmap from-existing`. A project without a roadmap is flying blind —
+  create it now (with the user), even a small first version.
 
 ## Phase 6 — Install what's needed (confirm first)
 - If `package.json` exists but dependencies aren't installed, offer to run the
