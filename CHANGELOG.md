@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-05-22
+
 ### Added
 - **Squads as a first-class concept** — `vibekit/squads/README.md` manifest
   (rosters, when-to-use, **sovereignty** rule, grow guide), `_BRIEFING.md.tpl`
