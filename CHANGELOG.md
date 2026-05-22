@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-22
+
 ### Added
 - **Safe `--update`** — `npx vibedevkit@latest --target . --update` refreshes the
   engine, slash commands, agents, and hook wiring **for the project's CURRENT
