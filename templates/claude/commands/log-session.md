@@ -1,0 +1,45 @@
+---
+description: Register the current session (creates a session file + updates CHANGELOG). Use at the end.
+---
+
+Register the current work session. Steps:
+
+1. **Find the next session number.** List `vibekit/memory/sessions/`. Each file is
+   `<YYYY-MM-DD>-<NN>-<slug>.md`. The next `NN` = highest existing + 1 (zero-padded, min 2 digits).
+   If the folder is empty, start at `01`.
+
+2. **Create the session file** `vibekit/memory/sessions/<today>-<NN>-<slug>.md` where `<slug>`
+   is a short kebab-case description (lowercase `a-z0-9._-` only). Use this structure:
+
+   ```markdown
+   # <Human-readable title>
+
+   - **Date**: <YYYY-MM-DD>
+   - **Session number**: <NN>
+   - **Branch**: `<git branch>`
+
+   ## Request
+   <what the user asked for>
+
+   ## Done
+   <what was implemented/decided — files, key changes>
+
+   ## Decisions
+   <any architectural choices; link ADRs as [ADR-NNNN](../decisions/NNNN-...md)>
+
+   ## Final state
+   <what works, what is pending, the natural next step>
+   ```
+
+   Derive "Done" from the actual edits this session (check the ledger at
+   `.claude/.sessions/` if useful) — be factual, do not inflate.
+
+3. **Update `docs/CHANGELOG.md`** — add bullet(s) under `## [Unreleased]` describing user-facing
+   or structural changes (Keep a Changelog style: Added / Changed / Fixed / Removed).
+
+4. **Regenerate the index**: run `node vibekit/tools/scripts/session-reindex.mjs`.
+
+5. Confirm to the user: session number, file path, and CHANGELOG lines added.
+
+Editing `vibekit/memory/SESSIONS.md` (via reindex) and `docs/CHANGELOG.md` marks the session as
+registered, which silences the Stop drift nudge.

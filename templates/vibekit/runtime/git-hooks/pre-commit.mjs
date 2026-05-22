@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+/**
+ * pre-commit git hook (Level >= 3).
+ *
+ * Goal: keep the derived indices (`vibekit/memory/SESSIONS.md` and
+ * `WORKSPACE.md`) in sync with their source-of-truth files, FAST (< 1s).
+ * Heavy validation (type-check, lint, tests) belongs in CI, not here.
+ *
+ * Invoked by `.git/hooks/pre-commit` (a thin wrapper the installer drops).
+ * Bypass: `git commit --no-verify`.
+ */
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const ROOT = process.cwd();
+
+function safeRun(cmd) {
+  try {
+    execSync(cmd, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 10_000 });
+  } catch {
+    /* never block the commit on a derived-doc regen failure */
+  }
+}
+
+function main() {
+  console.log('› pre-commit: regenerating derived docs...');
+
+  if (existsSync(resolve(ROOT, 'vibekit/memory/sessions'))) {
+    safeRun('node vibekit/tools/scripts/session-reindex.mjs');
+    safeRun('git add vibekit/memory/SESSIONS.md');
+  }
+  if (existsSync(resolve(ROOT, '.claude/.workspace'))) {
+    safeRun('node vibekit/tools/scripts/workspace-sync.mjs');
+    safeRun('git add vibekit/memory/WORKSPACE.md');
+  }
+
+  console.log('✓ pre-commit done.');
+}
+
+main();

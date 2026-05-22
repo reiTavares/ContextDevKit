@@ -1,0 +1,57 @@
+{
+  "level": 2,
+  "ledger": {
+    "important": [
+      "src/",
+      "lib/",
+      "app/",
+      "apps/",
+      "packages/",
+      "components/",
+      "pages/",
+      "server/",
+      "vibekit/",
+      ".claude/",
+      ".github/",
+      "CLAUDE.md",
+      "package.json",
+      "tsconfig.json",
+      "pyproject.toml",
+      "go.mod",
+      "Cargo.toml"
+    ],
+    "irrelevant": [
+      "node_modules/",
+      "dist/",
+      "build/",
+      "out/",
+      ".next/",
+      ".turbo/",
+      ".expo/",
+      ".svelte-kit/",
+      "coverage/",
+      "__pycache__/",
+      "target/",
+      "vendor/",
+      ".context-snapshot.md",
+      ".claude/.sessions/",
+      ".claude/.workspace/"
+    ],
+    "registration": ["vibekit/memory/SESSIONS.md", "docs/CHANGELOG.md"]
+  },
+  "l5": {
+    "highRiskPaths": [],
+    "distill": {
+      "observeWindow": 10,
+      "proposeAfterSessions": 30,
+      "archiveLedgersOlderThanDays": 7
+    },
+    "techDebtSweep": {
+      "default": "full",
+      "profiles": {
+        "full": { "cadenceDays": 14, "scope": "all" },
+        "quick": { "cadenceDays": 3, "scope": "red-zone-only" }
+      }
+    }
+  }
+}

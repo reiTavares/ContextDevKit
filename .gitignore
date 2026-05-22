@@ -1,0 +1,16 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.tmp.drive*
+.tmp.onedrive*
+
+# This is the KIT repo. Runtime state only appears in TARGET projects, but
+# ignore it here too in case you test-install into a subfolder.
+.claude/.sessions/
+.claude/.workspace/
+.context-snapshot.md
+
+# Throwaway install targets used by manual testing
+.selftest*/

@@ -1,0 +1,16 @@
+---
+description: Regenerate the dynamic full-project snapshot (.context-snapshot.md).
+---
+
+Regenerate the on-demand project snapshot:
+
+```
+node vibekit/tools/scripts/generate-context.mjs
+```
+
+This writes `.context-snapshot.md` (gitignored) containing the folder tree, detected stack, latest
+session, CHANGELOG `[Unreleased]`, and a glossary excerpt.
+
+Use it before a large refactor (so you can see the whole project at once), or to paste into another
+AI that lacks the boot hook. After running, read `.context-snapshot.md` and give the user a 3-line
+summary of what it captured.

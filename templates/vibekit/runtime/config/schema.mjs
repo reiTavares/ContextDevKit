@@ -1,0 +1,70 @@
+/**
+ * OPTIONAL strict config schema (zod) for `/vibe-config`.
+ *
+ * The hot path (hooks) NEVER imports this — it uses the zero-dependency
+ * loader in `load.mjs`. This module is loaded ONLY by `/vibe-config` when the
+ * user wants strict validation before persisting an edit, and it degrades
+ * gracefully when `zod` is not installed (the slash command catches the import
+ * error and falls back to structural checks).
+ *
+ * Install `zod` in the target project to enable strict validation:
+ *   npm i -D zod   (or pnpm/yarn/bun equivalent)
+ */
+import { z } from 'zod';
+
+const PathString = z
+  .string()
+  .min(1, 'path must not be empty')
+  .refine((p) => !p.startsWith('/') && !p.includes('\\'), {
+    message: 'use forward-slashed, repo-relative paths (no leading /, no backslashes)',
+  });
+
+const Profile = z.object({
+  cadenceDays: z.number().int().positive(),
+  scope: z.string().min(1),
+});
+
+const LedgerSchema = z
+  .object({
+    important: z.array(PathString).min(1),
+    irrelevant: z.array(PathString),
+    registration: z.array(PathString),
+  })
+  .partial()
+  .default({});
+
+const L5Schema = z
+  .object({
+    highRiskPaths: z.array(PathString).default([]),
+    distill: z
+      .object({
+        observeWindow: z.number().int().positive().default(10),
+        proposeAfterSessions: z.number().int().positive().default(30),
+        archiveLedgersOlderThanDays: z.number().int().positive().default(7),
+      })
+      .default({}),
+    techDebtSweep: z
+      .object({ default: z.string().min(1), profiles: z.record(z.string(), Profile) })
+      .default({ default: 'full', profiles: { full: { cadenceDays: 14, scope: 'all' } } }),
+  })
+  .default({});
+
+export const ConfigSchema = z
+  .object({
+    level: z.number().int().min(1).max(5).default(2),
+    ledger: LedgerSchema,
+    l5: L5Schema,
+  })
+  .default({});
+
+export function validateConfig(raw) {
+  const result = ConfigSchema.safeParse(raw ?? {});
+  if (result.success) return { ok: true, config: result.data };
+  return { ok: false, error: result.error };
+}
+
+export function formatZodError(error) {
+  return error.issues
+    .map((i) => `  - ${i.path.length ? i.path.join('.') : '(root)'}: ${i.message}`)
+    .join('\n');
+}
