@@ -7,6 +7,12 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **WSJF (SAFe) prioritization + bug severity + SLA** in the DevPipeline. A task's
+  priority comes from a WSJF score (`pipeline.mjs add --wsjf uv,tc,rr,js` or
+  `pipeline.mjs wsjf <id> …`), from **bug severity** (`--severity S1-S4`), or from
+  scanner severity; the **SLA due date** follows the priority (config
+  `pipeline.slaDays`) and the board flags ⏰ overdue. Logic in
+  `pipeline-prioritize.mjs`, rendering in `pipeline-board.mjs`.
 - **`business-rules/` memory folder** — `vibekit/memory/business-rules/` with a
   versioned-rule `_TEMPLATE.md`, scaffolded on install and surfaced in
   `/setupvibedevkit`. Mirrors the source platform's `docs/business-rules/`, kept in

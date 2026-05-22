@@ -186,6 +186,15 @@ async function main() {
     JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === lb.id)?.priority === 'P0'
       ? ok('pipeline prioritize overrides the auto priority (user-editable)') : bad('prioritize did not change priority');
 
+    // WSJF (SAFe) → priority + bug severity (S1-S4) → priority + SLA due date.
+    script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'wsjf item', '--wsjf', '8,9,5,3');
+    script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'sev bug', '--severity', 'S1');
+    const prio = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]');
+    const wsjfT = prio.find((t) => t.title === 'wsjf item');
+    const sevT = prio.find((t) => t.title === 'sev bug');
+    wsjfT?.priority === 'P1' && Number(wsjfT.wsjf) > 0 && sevT?.priority === 'P0' && sevT?.sla
+      ? ok('pipeline WSJF→priority, bug severity→priority, SLA due date') : bad(`WSJF/severity failed: ${JSON.stringify({ wsjfT, sevT })}`);
+
     // Security: a crafted base-branch arg must reach git LITERALLY (the whole
     // string is one invalid ref → non-zero exit), not be split by a shell. The
     // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
