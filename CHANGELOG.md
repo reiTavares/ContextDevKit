@@ -31,6 +31,11 @@ this project follows [Semantic Versioning](https://semver.org/).
   `release` — consistency + defense-in-depth.
 - **`tech-debt-scan --ci`** added (exits non-zero on any RED-zone finding) and
   enforced as a CI step, so the kit can't regress past its own line-budget limit.
+- **Deepened tier-2 QA agents** (`qa-unit`, `qa-perf`, `qa-e2e`) with anti-pattern
+  tables + operational guidance (mocking strategy; visual-regression note), and
+  **sharpened routing boundaries** — `architect` (dependency fit) vs `security`
+  (supply-chain risk); `test-engineer` (devteam, L<4) vs `qa-orchestrator` (L≥4
+  entry point). Roadmap 1.0 #5.
 
 ### Fixed
 - Tech-debt marker detector no longer flags its own doc comment (a false positive
@@ -44,6 +49,9 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **Roadmap:** added a **diverse & visual testing harness** future direction —
   browser-driven visual / regression testing with a **Python** option (Playwright /
   Selenium), owned by `qa-e2e` + `design-team`, gating "done" in `/ship`.
+- **CONTRIBUTING:** documented the **public contracts** (config schema, installer
+  flags, hook payload, `vibekit/` layout, command/agent names) as the 1.0 stability
+  promise — breaking changes need an ADR + `/contract-check` (roadmap 1.0 #4).
 
 ### Security
 - **Closed a shell-injection vector in `worktree-new`.** The base-branch argument

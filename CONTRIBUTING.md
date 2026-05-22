@@ -17,6 +17,28 @@ keep it that way.
 - **Keep it portable.** No bash-isms in `.mjs`; use `node:*` APIs. Strip a BOM
   before `JSON.parse`. Forward-slash paths in config.
 
+## Public contracts (the 1.0 stability promise)
+
+These surfaces other projects depend on are **stable**: a breaking change needs an
+ADR (`/new-adr`) and must show up in `/contract-check` before release.
+
+- **`vibekit/config.json` schema** — the keys hooks/scripts read (`level`,
+  `ledger.*`, `l5.*`, `qa.*`, `practices.*`, `setup.*`). Add keys freely; never
+  rename/remove without a migration.
+- **Installer flags** — `--target / --level / --name / --mode / --yes / --force /
+  --rewire / --update / --uninstall / --purge / --help / --version`. Don't change
+  a flag's meaning.
+- **Hook payload contract** — hooks read `session_id` + the tool payload on stdin
+  and exit 0 **silently** on anything they don't handle.
+- **The `vibekit/` layout** — `runtime/`, `tools/`, `memory/{decisions,sessions,
+  business-rules}`, `squads/`, `pipeline/` — plus `.claude/{commands,agents,
+  settings.json}`. Renames break installs.
+- **Slash-command & agent names** — removing/renaming one breaks muscle memory and
+  user scripts; **deprecate before removing**.
+
+Point `l5.contractGlobs` at the export surface you consider public so
+`/contract-check` catches an accidental break.
+
 ## Project layout
 
 - `install.mjs` — the installer (also the `npx`/`bin` entry).
