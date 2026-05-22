@@ -36,7 +36,7 @@ function main() {
   }
   if (existsSync(resolve(ROOT, 'vibekit/pipeline'))) {
     safeRun('node vibekit/tools/scripts/pipeline.mjs sync');
-    safeRun('git add vibekit/pipeline/devpipeline.md');
+    safeRun('git add vibekit/pipeline/devpipeline.md vibekit/pipeline/known-bugs.md');
   }
 
   console.log('✓ pre-commit done.');

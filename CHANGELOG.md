@@ -13,6 +13,10 @@ this project follows [Semantic Versioning](https://semver.org/).
   scanner severity; the **SLA due date** follows the priority (config
   `pipeline.slaDays`) and the board flags ⏰ overdue. Logic in
   `pipeline-prioritize.mjs`, rendering in `pipeline-board.mjs`.
+- **Bug taxonomy + known-bugs map.** Bug tasks carry `severity` (S1-S4) + `bugType`
+  (functional/regression/security/performance/data/…); `pipeline.mjs sync` generates
+  `vibekit/pipeline/known-bugs.md` (registry grouped by severity, open vs resolved,
+  ⏰ overdue), and `pipeline.mjs bugs` prints/regenerates it.
 - **`business-rules/` memory folder** — `vibekit/memory/business-rules/` with a
   versioned-rule `_TEMPLATE.md`, scaffolded on install and surfaced in
   `/setupvibedevkit`. Mirrors the source platform's `docs/business-rules/`, kept in

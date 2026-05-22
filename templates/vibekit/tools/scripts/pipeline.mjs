@@ -25,7 +25,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
-import { renderBoard } from './pipeline-board.mjs';
+import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 
 const ROOT = process.cwd();
 const PIPE = resolve(ROOT, 'vibekit/pipeline');
@@ -251,7 +251,17 @@ function move() {
 
 function sync() {
   ensureDirs();
-  writeFileSync(resolve(PIPE, 'devpipeline.md'), renderBoard(listTasks()), 'utf-8');
+  const all = listTasks();
+  writeFileSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all), 'utf-8');
+  writeFileSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all), 'utf-8');
+}
+
+/** Print + regenerate the known-bugs map. */
+function bugs() {
+  sync();
+  const open = listTasks().filter((t) => t.type === 'bug' && t.stage !== 'conclusion');
+  console.log(`🐞 Known bugs: ${open.length} open. Map → vibekit/pipeline/known-bugs.md`);
+  for (const b of open) console.log(`   ${b.severity || '—'} ${b.priority} ${b.id} ${b.bugType || ''} — ${b.title}`);
 }
 
 const cmd = process.argv[2];
@@ -259,6 +269,7 @@ if (cmd === 'add') add();
 else if (cmd === 'ingest') ingest();
 else if (cmd === 'prioritize') prioritize();
 else if (cmd === 'wsjf') setWsjf();
+else if (cmd === 'bugs') bugs();
 else if (cmd === 'move') move();
 else if (cmd === 'sync') {
   sync();
@@ -268,6 +279,6 @@ else if (cmd === 'sync') {
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|move|sync|list>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|sync|list>');
   process.exit(1);
 }

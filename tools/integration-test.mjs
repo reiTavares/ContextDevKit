@@ -195,6 +195,12 @@ async function main() {
     wsjfT?.priority === 'P1' && Number(wsjfT.wsjf) > 0 && sevT?.priority === 'P0' && sevT?.sla
       ? ok('pipeline WSJF→priority, bug severity→priority, SLA due date') : bad(`WSJF/severity failed: ${JSON.stringify({ wsjfT, sevT })}`);
 
+    // Known-bugs map: bug tasks grouped + a map file generated.
+    script('pipeline.mjs', 'bugs');
+    existsSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md')) &&
+      readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
+      ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
+
     // Security: a crafted base-branch arg must reach git LITERALLY (the whole
     // string is one invalid ref → non-zero exit), not be split by a shell. The
     // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
