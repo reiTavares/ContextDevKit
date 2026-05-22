@@ -6,15 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-05-22
+
 ### Added
 - **QA squad Tier 2**: `qa-perf` (benchmark/profile a hot path) and `qa-e2e`
   (critical user journeys through the real UI) agents — now 12 agent archetypes.
 - **Release workflow** (`.github/workflows/release.yml`): pushing a `v*` tag runs
-  the test suite and publishes to npm via the `NPM_TOKEN` repo secret.
+  the test suite, publishes to npm via the `NPM_TOKEN` secret, and creates the
+  GitHub Release automatically.
 - README demo/walkthrough of the `/setupvibedevkit` flow.
 
-### Released
-- v0.4.0 published to npm and tagged as a GitHub Release.
+### Note
+- First release cut by the automated tag pipeline (validating it end-to-end).
 
 ## [0.4.0] - 2026-05-22
 

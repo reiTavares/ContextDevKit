@@ -19,7 +19,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write # needed to create the GitHub Release
 
 jobs:
   publish:
@@ -39,3 +39,8 @@ jobs:
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
