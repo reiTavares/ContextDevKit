@@ -6,6 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **`install.mjs` refactored into focused modules** under `tools/install/` (cli,
+  fs, project, git, uninstall). The entry point drops 487 → 234 lines — back under
+  the 280-line constitution and out of the tech-debt RED ZONE. Behaviour-identical
+  (the integration test drives the real installer end-to-end). Renamed
+  `require_basename` → `requireBasename` to satisfy the kit's own naming rule.
+
+### Docs
+- **Roadmap:** marked the squad families as shipped (v0.5.2) and set a **1.0 —
+  harden & prove** milestone (freeze the surface, validate L4–L6 value, eat our
+  own dog food, lock public contracts) as the priority before any L7.
+
 ## [0.5.2] - 2026-05-22
 
 ### Added
