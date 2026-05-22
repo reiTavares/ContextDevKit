@@ -109,7 +109,10 @@ function main() {
   }
   if (args.includes('--write')) {
     writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-board.md'), renderBoard(result), 'utf-8');
-    console.log(`✅ tech-debt-board.md written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+    // Also dump the raw findings so the DevPipeline can ingest them deterministically.
+    writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+    console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/tech-debt-findings.json --type chore');
     return;
   }
   const counts = result.findings.reduce((m, f) => ((m[f.kind] = (m[f.kind] || 0) + 1), m), {});
