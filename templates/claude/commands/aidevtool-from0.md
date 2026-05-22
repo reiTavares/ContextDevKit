@@ -67,11 +67,14 @@ each its **own scoped CLAUDE.md** with `/claude-md` — the root one is the
 constitution; each module documents its local rules. Do this as modules are born,
 not after the codebase is already sprawling.
 
-## Phase 6b — Version control
-Set up git from day one: `git init` if needed, then **connect a remote** via
-`/git setup-remote` — pick GitHub/GitLab/other, install the CLI (`gh`/`glab`),
-create the repo (private by default), push the first commit. Confirm before
-pushing/creating (outward-facing).
+## Phase 6b — Version control (verify, then decide with the user)
+Run `node vibekit/tools/scripts/git.mjs status`. `git init` if it's not a repo.
+Then check the remote:
+- **already connected** (`remoteUrl` present) → confirm it's the right one, done.
+- **none** → **ask**: "Do you already have a repository to connect, or should we
+  create a new one?" Then run `/git setup-remote` (B1 connect existing / B2 create
+  new — private by default; install `gh`/`glab` if needed). A new project should be
+  under version control from day one. Confirm before pushing/creating.
 
 ## Phase 7 — Set level & finish
 

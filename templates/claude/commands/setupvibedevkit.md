@@ -82,11 +82,16 @@ Run `node vibekit/tools/scripts/roadmap.mjs find --json`:
   offer to add `zod` as a dev dependency (optional — the kit runs without it).
 - Never install anything without explicit confirmation.
 
-## Phase 6b — Version control (confirm first)
-Run `node vibekit/tools/scripts/git.mjs status`. Ensure: a git repo (`git init`
-if missing), and a **remote** — if none, offer `/git setup-remote` to connect
-GitHub/GitLab/other (install `gh`/`glab` + create the repo). Confirm before any
-push/repo-creation (outward-facing). Default to a **private** repo unless asked.
+## Phase 6b — Version control (verify the remote, decide with the user)
+Run `node vibekit/tools/scripts/git.mjs status` and act on the result:
+- **`isRepo: false`** → offer `git init`.
+- **`remoteUrl` present** → a repo is already connected; confirm it's the right one
+  and move on.
+- **`remoteUrl: null`** → **ask the user**: "No remote is connected. Do you already
+  have a repository (GitHub/GitLab/other) to connect, or should we create one?"
+  Then run `/git setup-remote` and follow its decision tree (B1 connect existing /
+  B2 create new — private by default, install `gh`/`glab` if needed).
+Confirm before any push/repo-creation (outward-facing).
 
 ## Phase 7 — Record the baseline
 1. Create `vibekit/memory/decisions/0001-<stack-slug>.md` (use `/new-adr` style)

@@ -17,23 +17,41 @@ Run `git.mjs status` and summarize: repo/commits, branch, remote + provider,
 ahead/behind, and whether `gh`/`glab` are installed + authed. Flag what's missing
 and recommend the single next action.
 
-## setup-remote — connect GitHub / GitLab / other
-If there's no `origin` (or the user wants to add one):
-1. Ask which provider: **GitHub**, **GitLab**, or **other** (plain git URL).
-2. Make sure the provider CLI is installed + authed (offer the install command
-   for the user's OS — confirm before running anything that installs):
-   - **GitHub** → `gh`. Install: macOS `brew install gh` · Windows `winget install
-     GitHub.cli` · Linux see cli.github.com. Auth: `gh auth login`.
-   - **GitLab** → `glab`. Install: macOS `brew install glab` · Windows `winget
-     install glab` · Linux see gitlab.com/gitlab-org/cli. Auth: `glab auth login`.
-   - **other** → just `git remote add origin <url>`.
-3. Create the repo + wire the remote (confirm first — this is outward-facing):
-   - GitHub: `gh repo create <name> --private --source . --remote origin --push`
-   - GitLab: `glab repo create <name> --private` then `git push -u origin <branch>`
-   - other: `git remote add origin <url>` then `git push -u origin <branch>`
-   Default to **private** unless the user asks for public (public is hard to undo).
-4. Recommend branch protection on the default branch (PRs + green CI before merge)
-   — via the provider's settings or `gh`/`glab` API.
+## setup-remote — the decision tree (detect → connect or create)
+**Always start by detecting** — read `git.mjs status` (`remoteUrl`, `isRepo`,
+`hasCommits`, `cli`). Then follow the branch that matches:
+
+**0. Not a git repo yet?** → `git init` first (and make an initial commit once
+there are files).
+
+**A. A remote ALREADY exists** (`remoteUrl` not null) → say so, show the URL +
+provider, confirm it's the intended one, and stop. Nothing to set up. (Only fix
+it if the user says it's wrong.)
+
+**B. No remote → ASK: "Do you already have a repository for this
+   (GitHub/GitLab/other) to connect, or should we create a new one?"**
+
+  - **B1 — they HAVE one to connect** → ask for the URL (or `owner/repo`) and wire
+    it: `git remote add origin <url>`, then `git fetch origin` and either
+    `git push -u origin <branch>` (local has the history) or
+    `git pull --rebase origin <default>` (remote has history) — reconcile if both
+    do, keeping BOTH sides.
+
+  - **B2 — they DON'T have one → suggest creating it.** Ask provider
+    (GitHub/GitLab/other) + visibility (**private by default**; public is hard to
+    undo — confirm explicitly). Ensure the CLI is installed + authed first (offer
+    the OS-aware install; confirm before installing):
+    - **GitHub** → `gh`: macOS `brew install gh` · Windows `winget install
+      GitHub.cli` · Linux cli.github.com. Auth: `gh auth login`.
+    - **GitLab** → `glab`: macOS `brew install glab` · Windows `winget install
+      glab` · Linux gitlab.com/gitlab-org/cli. Auth: `glab auth login`.
+    Then create + wire + push (confirm — outward-facing):
+    - GitHub: `gh repo create <name> --private --source . --remote origin --push`
+    - GitLab: `glab repo create <name> --private` then `git push -u origin <branch>`
+    - other: create in the UI, then `git remote add origin <url>` + push.
+
+Finally, recommend branch protection on the default branch (PRs + green CI before
+merge). Never push/create without the user's explicit OK.
 
 ## new-branch <name>
 `git checkout -b <type>/<name>` using a Conventional type
