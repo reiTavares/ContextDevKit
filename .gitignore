@@ -6,6 +6,10 @@ desktop.ini
 .tmp.drive*
 .tmp.onedrive*
 
+# npm auth token — NEVER commit this
+.npmrc
+*.tgz
+
 # This is the KIT repo. Runtime state only appears in TARGET projects, but
 # ignore it here too in case you test-install into a subfolder.
 .claude/.sessions/
