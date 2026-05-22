@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 - **Security mode (active, not reactive)** — a SessionStart trigger reminds you to
   run `/deep-analysis` every `securityMode.everyNSessions` sessions (default 10),
