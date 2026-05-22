@@ -17,6 +17,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **Roadmap:** marked the squad families as shipped (v0.5.2) and set a **1.0 —
   harden & prove** milestone (freeze the surface, validate L4–L6 value, eat our
   own dog food, lock public contracts) as the priority before any L7.
+- `/git` command description said "skill"; corrected to "command".
+
+### Security
+- **Closed a shell-injection vector in `worktree-new`.** The base-branch argument
+  was interpolated into a shell string (`execSync(\`git ... ${base}\`)`), so a
+  crafted value like `"HEAD; rm -rf ~"` could run arbitrary commands. It now uses
+  `execFileSync('git', argv)` (no shell), so the argument is a single literal git
+  revision and a malicious value simply fails as an invalid reference.
 
 ## [0.5.2] - 2026-05-22
 
