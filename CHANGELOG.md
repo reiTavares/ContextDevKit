@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-22
+
 ### Added
 - **Version-control skill** — `/git` command + `git.mjs` diagnostics. Codifies the
   workflow (Conventional branches/commits — already hook-enforced — feature→PR, no
@@ -41,10 +43,6 @@ this project follows [Semantic Versioning](https://semver.org/).
   `devpipeline.md` dashboard; `pipeline.mjs` (`add`/`move`/`sync`) and the
   `/pipeline` manager command. Bugs/increments/chores + roadmap items broken into
   tasks with priority + SLA. Synced on pre-commit.
-
-## [0.5.0] - 2026-05-22
-
-### Added
 - **Concurrency hardening (L3)** — robust against parallel sessions on the same
   machine AND different devs/machines:
   - `concurrency-guard.mjs` (`PreToolUse`): warns before you overwrite a file
