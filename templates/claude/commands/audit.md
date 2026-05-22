@@ -21,7 +21,14 @@ scheduled/recurring run — see below).
 6. **Drift** — note any unregistered prior sessions or stale claims from boot.
 
 Output a single prioritized list: **🔴 do now / 🟡 soon / 🟢 fyi**, each with the
-file and the one-line fix. Offer to open a focused `/dev-start` on the top item.
+file and the one-line fix — this is the audit report.
+
+**Feed the backlog so nothing is lost.** Ingest the mechanical findings (run
+`tech-debt-scan.mjs --write` first, then `node vibekit/tools/scripts/pipeline.mjs
+ingest vibekit/memory/tech-debt-findings.json --type chore`), and `pipeline.mjs
+add` the 🔴/🟡 items you raised by judgment (🔴→P0/P1, 🟡→P2). The priorities are
+**auto-assigned but always editable** by the user (`pipeline.mjs prioritize <id>
+<P>` or `/pipeline`). Offer to open a focused `/dev-start` on the top item.
 
 > Tip: to run this on a schedule, use the harness — e.g. `/loop` for an interval
 > in-session, or `/schedule` to register a recurring remote agent that runs

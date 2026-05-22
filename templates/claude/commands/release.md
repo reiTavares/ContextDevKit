@@ -3,6 +3,9 @@ description: Release this session's claim(s) — a specific path, or all of them
 argument-hint: [path]
 ---
 
+> ℹ️ **Paired with `/claim`** (claim → work → release). Manage both as one flow;
+> this command does the release half.
+
 Release path claims for this session.
 
 - To release a specific path: `node vibekit/tools/scripts/release.mjs $ARGUMENTS`

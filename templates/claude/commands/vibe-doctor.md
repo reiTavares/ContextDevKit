@@ -2,6 +2,9 @@
 description: Diagnose this project's VibeDevKit install (node, config, hook wiring, git hooks, onboarding).
 ---
 
+> ⚠️ **Deprecated (1.0):** **/audit** runs the doctor *plus* stats, tech-debt and
+> QA — prefer it. This still runs just the doctor.
+
 Run the VibeDevKit health check:
 
 ```

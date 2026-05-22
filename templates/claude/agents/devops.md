@@ -28,7 +28,9 @@ and keep secrets and environments sane.
 - Wire environments, secrets, and deploy targets; add health checks + basic
   observability.
 - Provide a rollback path and a short runbook for incidents.
-- Defer auth/crypto specifics to `security`; app architecture to `architect`.
+- Defer auth/crypto specifics to `security`, the infra **threat model** (IAM /
+  network / IaC misconfig, runtime hardening) to `infra-security`, and app
+  architecture to `architect`.
 
 ## Anti-patterns you refuse
 - Secrets committed or echoed in logs; deploys with no rollback.

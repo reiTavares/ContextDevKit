@@ -113,6 +113,7 @@ async function main() {
     existsSync(join(proj, 'vibekit', 'squads', 'README.md')) ? ok('squad manifest installed') : bad('squads/README.md missing');
     existsSync(join(proj, '.claude', 'agents', 'privacy-lgpd.md')) && existsSync(join(proj, '.claude', 'agents', 'ux-designer.md'))
       ? ok('compliance + design squads installed') : bad('new squad agents missing');
+    existsSync(join(proj, '.claude', 'agents', 'infra-security.md')) ? ok('security-team infra-security agent installed') : bad('infra-security agent missing');
 
     // vibe-config show/set round-trip.
     script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
@@ -133,6 +134,9 @@ async function main() {
 
     // best-practices doc installed.
     existsSync(join(proj, 'vibekit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
+
+    // Ancestor parity: business-rules/ folder is scaffolded for domain-rule specs.
+    existsSync(join(proj, 'vibekit', 'memory', 'business-rules', '_TEMPLATE.md')) ? ok('business-rules/ scaffolded (ancestor parity)') : bad('business-rules template missing');
 
     // Roadmap seeded (undefined) + find reports it as not-defined.
     existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
@@ -164,6 +168,76 @@ async function main() {
     script('pipeline.mjs', 'move', '001', 'testing');
     const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
     /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
+
+    // DevPipeline ingest: analysis findings flow into the backlog, auto-prioritized.
+    writeFileSync(join(proj, 'findings.json'), JSON.stringify({ findings: [
+      { kind: 'line-budget', severity: 5, path: 'src/big.js', line: 400, message: 'too big' },
+      { kind: 'todo-marker', severity: 1, path: 'src/x.js', line: 3, message: 'leftover TODO' },
+    ] }));
+    script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore');
+    const ingested = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]')
+      .filter((t) => /^line-budget|^todo-marker/.test(t.source || ''));
+    ingested.length === 2 && ingested.some((t) => t.priority === 'P1') && ingested.some((t) => t.priority === 'P3')
+      ? ok('pipeline ingest creates auto-prioritized tasks from findings') : bad(`ingest failed: ${JSON.stringify(ingested)}`);
+    /Ingested 0 finding/.test(script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore').stdout || '')
+      ? ok('pipeline ingest is idempotent (no duplicates)') : bad('ingest re-added duplicates');
+    const lb = ingested.find((t) => /^line-budget/.test(t.source));
+    script('pipeline.mjs', 'prioritize', lb.id, 'P0');
+    JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === lb.id)?.priority === 'P0'
+      ? ok('pipeline prioritize overrides the auto priority (user-editable)') : bad('prioritize did not change priority');
+
+    // WSJF (SAFe) → priority + bug severity (S1-S4) → priority + SLA due date.
+    script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'wsjf item', '--wsjf', '8,9,5,3');
+    script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'sev bug', '--severity', 'S1');
+    const prio = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]');
+    const wsjfT = prio.find((t) => t.title === 'wsjf item');
+    const sevT = prio.find((t) => t.title === 'sev bug');
+    wsjfT?.priority === 'P1' && Number(wsjfT.wsjf) > 0 && sevT?.priority === 'P0' && sevT?.sla
+      ? ok('pipeline WSJF→priority, bug severity→priority, SLA due date') : bad(`WSJF/severity failed: ${JSON.stringify({ wsjfT, sevT })}`);
+
+    // Known-bugs map: bug tasks grouped + a map file generated.
+    script('pipeline.mjs', 'bugs');
+    existsSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md')) &&
+      readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
+      ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
+
+    // Deep analysis: aggregates the deterministic scanners into one report.
+    const deep = JSON.parse(script('deep-analysis.mjs', '--json').stdout || '{}');
+    deep.byScan && typeof deep.total === 'number' && Array.isArray(deep.findings)
+      ? ok('deep-analysis aggregates scanners into one report') : bad(`deep-analysis failed: ${JSON.stringify(deep).slice(0, 120)}`);
+
+    // Security mode: SessionStart reminds to /deep-analysis on the cadence (default-on, configurable).
+    const secCfg = readJson(cfgPath);
+    secCfg.securityMode = { active: true, everyNSessions: 1 };
+    writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+    writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
+    hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+      ? ok('security-mode boot trigger fires on cadence') : bad('security-mode banner missing');
+    secCfg.securityMode.active = false;
+    writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+    !hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+      ? ok('security-mode disabled via config (active:false)') : bad('security-mode fired while disabled');
+
+    // Security: a crafted base-branch arg must reach git LITERALLY (the whole
+    // string is one invalid ref → non-zero exit), not be split by a shell. The
+    // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
+    // `echo`, exiting 0 — so a non-zero exit here proves no shell was involved.
+    const wt = script('worktree-new.mjs', 'feat', 'HEAD; echo INJECTED_PWNED');
+    wt.status !== 0
+      ? ok('worktree-new passes the base-branch arg literally (no shell injection)')
+      : bad('worktree-new shell injection NOT neutralized (a shell split the arg)');
+
+    // tech-debt --ci gate: a clean project has no RED-zone finding → exits 0.
+    const debtCi = script('tech-debt-scan.mjs', '--ci');
+    debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
+      ? ok('tech-debt --ci gate passes on a clean project')
+      : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
+
+    // Dependency audit: flags no-lockfile + loose version ranges as findings.
+    writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', dependencies: { leftpad: '*' } }));
+    const deps = JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings || [];
+    deps.some((f) => f.kind === 'no-lockfile') && deps.some((f) => f.kind === 'loose-range')
+      ? ok('deps-audit flags no-lockfile + loose ranges') : bad(`deps-audit findings: ${JSON.stringify(deps)}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }

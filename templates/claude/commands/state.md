@@ -2,6 +2,9 @@
 description: Quick summary of current project state (latest session + Unreleased + key rules)
 ---
 
+> ⚠️ **Deprecated (1.0):** prefer **/audit** for a fuller, prioritized health
+> view. This quick state read still works for now.
+
 Summarize the current state of this project in at most 12 lines. To do so:
 
 1. Read `vibekit/memory/SESSIONS.md` — take the most recent entry (top of the table).

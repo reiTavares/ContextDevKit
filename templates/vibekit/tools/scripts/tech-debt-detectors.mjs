@@ -47,7 +47,7 @@ export function detectSrpAnd(relPath, content) {
   return findings;
 }
 
-/** TODO/FIXME/HACK/XXX markers — debt the author already flagged. */
+/** Flags the four standard unresolved-debt markers the author left in code. */
 export function detectTodoMarkers(relPath, content) {
   if (!CODE_RE.test(relPath)) return [];
   const findings = [];

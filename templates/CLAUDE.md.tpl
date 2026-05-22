@@ -88,8 +88,9 @@ Layers active depend on the level (see `vibekit/README.md`):
 
 - **CLAUDE.md** (this file) + hooks load context automatically at session start.
 - **`vibekit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
-  *what*, one file per session), `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md`
-  & `WORKSPACE.md` (auto-generated indices).
+  *what*, one file per session), `business-rules/` (domain rules, versioned),
+  `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md` & `WORKSPACE.md` (auto-generated
+  indices).
 - **`docs/CHANGELOG.md`** — factual release chronology.
 - **Hooks** (`.claude/settings.json` → `vibekit/runtime/hooks/`) inject boot
   context, track edits, and nudge you to register the session on drift.
@@ -105,7 +106,7 @@ Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/sta
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
 · `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
+· `/contract-check` · `/deps-audit` · `/deep-analysis` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
 · `/distill-sessions` · `/distill-apply`.
 Structure & platform: `/squad` (squads) · `/git` (version control + remote)

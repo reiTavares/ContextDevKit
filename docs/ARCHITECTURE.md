@@ -22,7 +22,7 @@ vibekit/
   runtime/config/     # paths, defaults, zero-dep loader, settings composer, zod (opt)
   runtime/git-hooks/  # pre-commit, commit-msg
   tools/scripts/      # maintenance + slash-command helpers
-  memory/             # decisions/, sessions/, GLOSSARY.md, generated indices
+  memory/             # decisions/, sessions/, business-rules/, GLOSSARY.md, generated indices
   config.json         # level + ledger path lists + L5 params
 ```
 

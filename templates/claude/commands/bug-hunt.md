@@ -28,4 +28,15 @@ Symptom under investigation:
 6. **Only after root cause is confirmed**: propose the minimal fix, get approval, then implement.
    Add a regression test if the stack supports it.
 
+7. **Report + backlog.** Write a short root-cause report (symptom → root cause → fix →
+   regression test). Record the bug — and any *related* issues you surfaced — in the
+   DevPipeline, point by point:
+   ```
+   node vibekit/tools/scripts/pipeline.mjs add --type bug --priority <P0-P3> \
+     --source "bug:<area>" --title "<symptom>"
+   ```
+   Auto-priority: data-loss / security / broken build → P0, broken core path → P1,
+   degraded → P2, cosmetic → P3. If you fixed it this session, `pipeline.mjs move
+   <id> conclusion`. Priorities are **always editable** (`prioritize <id> <P>` / `/pipeline`).
+
 Resist the urge to "just try something." A confirmed root cause beats three plausible guesses.

@@ -2,6 +2,9 @@
 description: Regenerate the dynamic full-project snapshot (.context-snapshot.md).
 ---
 
+> ⚠️ **Deprecated (1.0):** prefer **/audit** (or the auto boot context). This
+> still regenerates the on-demand snapshot.
+
 Regenerate the on-demand project snapshot:
 
 ```

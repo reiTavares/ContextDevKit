@@ -7,7 +7,7 @@
  *
  * Usage:  node vibekit/tools/scripts/release.mjs [path]
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -46,7 +46,7 @@ async function main() {
   }
 
   try {
-    execSync('node vibekit/tools/scripts/workspace-sync.mjs', { cwd: ROOT, stdio: 'ignore' });
+    execFileSync('node', ['vibekit/tools/scripts/workspace-sync.mjs'], { cwd: ROOT, stdio: 'ignore' });
   } catch {
     /* best effort */
   }

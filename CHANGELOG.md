@@ -6,6 +6,90 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Security mode (active, not reactive)** — a SessionStart trigger reminds you to
+  run `/deep-analysis` every `securityMode.everyNSessions` sessions (default 10),
+  **on by default**; disable with `securityMode.active: false`. The manual
+  `/deep-analysis` command stays available anytime.
+- **`/deep-analysis` (global sweep)** — `deep-analysis.mjs` aggregates every
+  deterministic scanner (tech-debt, deps, contract) into one report; the command
+  adds judgment (security / architecture / bug pass), suggests ADRs, and ingests
+  every finding into the backlog. The security-mode boot trigger reminds you to run it.
+- **WSJF (SAFe) prioritization + bug severity + SLA** in the DevPipeline. A task's
+  priority comes from a WSJF score (`pipeline.mjs add --wsjf uv,tc,rr,js` or
+  `pipeline.mjs wsjf <id> …`), from **bug severity** (`--severity S1-S4`), or from
+  scanner severity; the **SLA due date** follows the priority (config
+  `pipeline.slaDays`) and the board flags ⏰ overdue. Logic in
+  `pipeline-prioritize.mjs`, rendering in `pipeline-board.mjs`.
+- **Bug taxonomy + known-bugs map.** Bug tasks carry `severity` (S1-S4) + `bugType`
+  (functional/regression/security/performance/data/…); `pipeline.mjs sync` generates
+  `vibekit/pipeline/known-bugs.md` (registry grouped by severity, open vs resolved,
+  ⏰ overdue), and `pipeline.mjs bugs` prints/regenerates it.
+- **`business-rules/` memory folder** — `vibekit/memory/business-rules/` with a
+  versioned-rule `_TEMPLATE.md`, scaffolded on install and surfaced in
+  `/setupvibedevkit`. Mirrors the source platform's `docs/business-rules/`, kept in
+  `vibekit/memory/` alongside the rest of the project's durable memory.
+- **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
+  groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
+  release safety), with veto on the L5/L6 gates for Critical/High findings.
+- **`/deps-audit` (security-team)** — deterministic dependency / supply-chain check
+  (lockfile present, version pinning, plus native `npm`/`pnpm`/`yarn audit` CVEs when
+  available) that emits findings into the DevPipeline backlog. Roadmap 1.0 #6.
+- **`infra-security` agent (security-team)** — threat-models the platform the app
+  runs on (IaC/cloud misconfig, IAM least-privilege, network exposure, secrets,
+  container/runtime + CI/CD supply-chain hardening); pairs with `devops` (builds it)
+  and `security` (AppSec). The security-team is now AppSec + infra + delivery.
+- **Analysis → DevPipeline backlog flow.** `/bug-hunt`, `/analyze-code-ia-practices`,
+  `/tech-debt-sweep`, and `/audit` now always emit a report **and** push each finding
+  into the DevPipeline backlog, **auto-prioritized** by severity (RED→P1, yellow→P2,
+  low→P3) and **idempotent**. New `pipeline.mjs ingest <findings.json>` and
+  `pipeline.mjs prioritize <id> <P0-P3>` (the auto priority is **always editable** by
+  the user). `tech-debt-scan --write` also emits `tech-debt-findings.json`.
+
+### Changed
+- **`install.mjs` refactored into focused modules** under `tools/install/` (cli,
+  fs, project, git, uninstall). The entry point drops 487 → 234 lines — back under
+  the 280-line constitution and out of the tech-debt RED ZONE. Behaviour-identical
+  (the integration test drives the real installer end-to-end). Renamed
+  `require_basename` → `requireBasename` to satisfy the kit's own naming rule.
+- **All git/node calls go through `execFileSync` (no shell)** in `claim` and
+  `release` — consistency + defense-in-depth.
+- **`tech-debt-scan --ci`** added (exits non-zero on any RED-zone finding) and
+  enforced as a CI step, so the kit can't regress past its own line-budget limit.
+- **Deepened tier-2 QA agents** (`qa-unit`, `qa-perf`, `qa-e2e`) with anti-pattern
+  tables + operational guidance (mocking strategy; visual-regression note), and
+  **sharpened routing boundaries** — `architect` (dependency fit) vs `security`
+  (supply-chain risk); `test-engineer` (devteam, L<4) vs `qa-orchestrator` (L≥4
+  entry point). Roadmap 1.0 #5.
+
+### Deprecated
+- `/state`, `/vibe-doctor`, `/context-refresh` now carry a deprecation banner
+  pointing to `/audit` (still fully functional); `/release` is noted as paired with
+  `/claim`. Non-destructive first step of the 1.0 surface-trim (#1).
+
+### Fixed
+- Tech-debt marker detector no longer flags its own doc comment (a false positive
+  in every sweep).
+
+### Docs
+- **Roadmap:** marked the squad families as shipped (v0.5.2); set a **1.0 — harden
+  & prove** milestone before any L7; added **dependency & supply-chain control**
+  (owned by `security-team`) as a 1.0 item.
+- `/git` command description said "skill"; corrected to "command".
+- **Roadmap:** added a **diverse & visual testing harness** future direction —
+  browser-driven visual / regression testing with a **Python** option (Playwright /
+  Selenium), owned by `qa-e2e` + `design-team`, gating "done" in `/ship`.
+- **CONTRIBUTING:** documented the **public contracts** (config schema, installer
+  flags, hook payload, `vibekit/` layout, command/agent names) as the 1.0 stability
+  promise — breaking changes need an ADR + `/contract-check` (roadmap 1.0 #4).
+
+### Security
+- **Closed a shell-injection vector in `worktree-new`.** The base-branch argument
+  was interpolated into a shell string (`execSync(\`git ... ${base}\`)`), so a
+  crafted value like `"HEAD; rm -rf ~"` could run arbitrary commands. It now uses
+  `execFileSync('git', argv)` (no shell), so the argument is a single literal git
+  revision and a malicious value simply fails as an invalid reference.
+
 ## [0.5.2] - 2026-05-22
 
 ### Added

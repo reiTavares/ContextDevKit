@@ -60,8 +60,11 @@ each package/service): `claude-md.mjs scaffold`, then **fill each** with real
 local rules (role, local stack, local conventions, boundaries) via `/claude-md`.
 Single-package project → the root CLAUDE.md is enough; skip.
 
-## Phase 5 — Glossary & squads (sub-agents)
+## Phase 5 — Glossary, business rules & squads (sub-agents)
 - Add any clear domain terms (from README/code) to `vibekit/memory/GLOSSARY.md`.
+- Capture any explicit **domain rules** you can infer as versioned files in
+  `vibekit/memory/business-rules/` (copy `_TEMPLATE.md`) — e.g. pricing, eligibility,
+  scheduling, gamification. One cohesive rule per file.
 - At **level ≥ 4** the squads install (`.claude/agents/`): **devteam**, **qa-team**,
   **compliance-team** (LGPD), **design-team** (UI/UX), plus starter product/ops
   agents. Review `vibekit/squads/README.md`. Enable the squads relevant to this

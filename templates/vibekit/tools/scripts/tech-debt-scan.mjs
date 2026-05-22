@@ -91,13 +91,28 @@ function renderBoard({ fileCount, findings }) {
 function main() {
   const args = process.argv.slice(2);
   const result = scan(args.includes('--quick'));
+  if (args.includes('--ci')) {
+    // CI gate: fail the build on any RED-zone (severity 5) finding so the kit —
+    // or any project — can't regress past its own hard line-budget limit.
+    const red = result.findings.filter((f) => f.severity >= 5);
+    if (red.length > 0) {
+      console.error(`✗ tech-debt CI gate: ${red.length} RED-zone finding(s) (must be 0):`);
+      for (const f of red) console.error(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
+      process.exit(1);
+    }
+    console.log(`✓ tech-debt CI gate: no RED-zone findings across ${result.fileCount} files.`);
+    return;
+  }
   if (args.includes('--json')) {
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
     return;
   }
   if (args.includes('--write')) {
     writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-board.md'), renderBoard(result), 'utf-8');
-    console.log(`✅ tech-debt-board.md written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+    // Also dump the raw findings so the DevPipeline can ingest them deterministically.
+    writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+    console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/tech-debt-findings.json --type chore');
     return;
   }
   const counts = result.findings.reduce((m, f) => ((m[f.kind] = (m[f.kind] || 0) + 1), m), {});

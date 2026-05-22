@@ -21,5 +21,15 @@ Run the **deterministic scanner** first, then interpret. Profile: **$ARGUMENTS**
    responsibilities? Add any smells the scanner can't see (leaky abstractions,
    duplicated logic, missing error handling) — referencing `CLAUDE.md`.
 
-3. Surface the **top 5** items with the one-line fix each. Do NOT fix anything
-   here — it's an audit. Offer to open a focused `/dev-start` on the worst one.
+3. **Feed the DevPipeline backlog** — every finding becomes a tracked task:
+   ```
+   node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/tech-debt-findings.json --type chore
+   ```
+   One backlog task per finding, **auto-prioritized from severity** (RED→P1,
+   yellow→P2, low→P3), **idempotent** (re-running never duplicates).
+
+4. **Report + hand off.** Surface the **top 5** with the one-line fix each — the
+   board `vibekit/memory/tech-debt-board.md` is the full report. Do NOT fix here.
+   Tell the user the items are in the backlog and the priorities are
+   **always editable**: `node vibekit/tools/scripts/pipeline.mjs prioritize <id> <P0-P3>`
+   or `/pipeline`. Offer to open a focused `/dev-start` on the worst one.

@@ -30,5 +30,21 @@ loop), not for every change.
   checkpoint.
 - Keep the suite runnable headless in CI.
 
+## Anti-patterns you refuse on sight
+| Symptom | Why it's wrong | Fix |
+| --- | --- | --- |
+| `sleep(3000)` to "wait" | flaky; races CI | wait on a condition / role / network-idle |
+| Brittle CSS / XPath selectors | break on every refactor | select by accessible role / label / text |
+| Tests that depend on each other's order | non-deterministic in CI | each test seeds + tears down its own state |
+| Hitting real third parties | flaky, costly, unsafe | stub them; use a seeded test account |
+| One mega-journey covering everything | a failure localizes nothing | one critical journey per test |
+
+## Visual verification (when the UI's *look* is the contract)
+For changes where appearance matters, add **screenshot / visual-regression** checks
+on top of behavioural assertions: capture a baseline, diff on change, and treat an
+unintended visual diff as a failure. Runner is the project's choice — **Playwright
+(JS or Python)**, Cypress, or Selenium — never a second framework. Pair with
+`design-team` for the baselines. (See the roadmap's diverse & visual testing harness.)
+
 You cover the critical journeys end-to-end and report what they protect — and
 explicitly what is left to the faster layers.

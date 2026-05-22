@@ -13,7 +13,7 @@
  * zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import {
@@ -144,6 +144,19 @@ async function projectName() {
   return basename(ROOT);
 }
 
+/** Security mode (config): returns the cadence N when a /deep-analysis is due, else 0. */
+function securityModeDue() {
+  const cfg = loadConfigSync(ROOT)?.securityMode;
+  if (!cfg || cfg.active !== true) return 0;
+  const everyN = Number(cfg.everyNSessions) > 0 ? Number(cfg.everyNSessions) : 10;
+  try {
+    const n = readdirSync(resolve(ROOT, 'vibekit/memory/sessions')).filter((f) => f.endsWith('.md')).length;
+    return n > 0 && n % everyN === 0 ? everyN : 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function main() {
   const raw = await readStdin();
   let payload = {};
@@ -167,8 +180,9 @@ async function main() {
   const branches = level >= 3 ? activeBranches(getBranch()) : null;
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
   const divergence = checkGitDivergence();
+  const secDue = securityModeDue();
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -199,6 +213,14 @@ async function main() {
     out.push('');
     out.push('Honor `vibekit/best-practices.md` (file-size budget, intelligent refactor by responsibility,');
     out.push('SoC, naming, docs). Run `/analyze-code-ia-practices` to audit + get refactor proposals.');
+    out.push('');
+  }
+
+  if (secDue) {
+    out.push('## 🛡️ Security mode — time for a deep sweep');
+    out.push('');
+    out.push(`**${secDue} sessions** in. Run **\`/deep-analysis\`** — full code + security + deps + bug`);
+    out.push('sweep → report → ADRs → backlog. (Active by default; disable via `securityMode.active`.)');
     out.push('');
   }
 

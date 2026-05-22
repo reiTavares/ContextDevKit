@@ -57,10 +57,43 @@ commands + metrics + orchestration on top of the L5 gates.
   no scheduled "predicted vs actual" review yet.
 - **Contract drift is regex/export-based**, not AST. Good signal, not proof.
 
+## Next milestone — 1.0: harden & prove (before any L7)
+
+The kit reached **L6 in a single quarter** — context fidelity, quality gates, and
+autonomy/insight all shipped. The risk now is *breadth outrunning proof*: 33
+commands, 18 agents, six levels, and **no published evidence that L4–L6 actually
+move the needle** on a real project. The next milestone is not a new level — it's
+**earning a 1.0**:
+
+1. **Freeze the surface.** No new levels or agent families until 1.0. Prune thin
+   command wrappers (`/state`, `/vibe-doctor`, `/context-refresh` fold into
+   `/audit`; `/claim`+`/release` merge). Fewer, sharper commands.
+2. **Prove the value of each level.** Use `/vibe-stats` on real projects to show
+   L4–L6 reduce drift/debt vs L1–L3. Trim or rework what can't justify itself —
+   the honest hypothesis is that ~80% of the value lives in L1–L3.
+3. **Eat our own dog food.** The kit must pass its own `/tech-debt-sweep` clean.
+   (`install.mjs` refactored out of the RED ZONE in this pass; keep it green.)
+4. **Lock the public contracts.** `config.json` schema, installer flags, and the
+   hook payload shape become a stability promise; changes go through an ADR +
+   `/contract-check`. This is what "1.0" should mean here.
+5. **Deepen the thin spots.** Tier-2 agents (`qa-perf`, `qa-e2e`, `qa-unit`) get
+   anti-pattern tables + concrete examples; clarify `architect`↔`security` and
+   `test-engineer`↔`qa-orchestrator` routing boundaries.
+6. **Dependency & supply-chain control** — owned by the new **security-team**.
+   A first-class policy + tooling: pin/lock versions, audit installed packages for
+   known CVEs and licenses, flag unmaintained/over-privileged deps, and gate risky
+   upgrades. The kit ships **zero runtime deps**, but every install runs `node`
+   scripts (and the optional `zod` dev-dep), so supply-chain hygiene is part of
+   "secure by default". ✅ **`/deps-audit` shipped** (deterministic checks +
+   native `npm`/`pnpm`/`yarn audit`, feeds the backlog); a `dependency-auditor`
+   agent and a gate-on-merge requirement remain candidates.
+
 ## Future directions (candidate L7+ / plugins)
 
-1. **Design / Product / Ops squads.** New agent families under the same
-   convention (a `design-team`, `product-team`). The squad pattern scales.
+1. **Design / Product / Ops squads.** ✅ **Shipped in v0.5.2** — `compliance-team`
+   (LGPD), `design-team` (UX/UI/a11y), plus `product-owner` / `devops` starters,
+   organized by a `vibekit/squads/` manifest with a sovereignty rule. The squad
+   pattern is proven; further families (docs/data/growth/support) follow it.
 2. **Fleet mode.** One control plane over many repos — aggregate stats, run
    `/audit` across a portfolio, propagate CLAUDE.md rule changes.
 3. **Outcome-driven agent tuning.** Feed review/test outcomes back to refine each
@@ -69,6 +102,15 @@ commands + metrics + orchestration on top of the L5 gates.
    + `qa-orchestrator`, contract-drift as a required check.
 5. **Pluggable detectors & language packs.** Drop-in detectors and stack presets
    (`--preset next`, `--preset go`) so `/setupvibedevkit` is even sharper.
+6. **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
+   integration / fuzz with a **browser-driven, visual** layer: open the running
+   app, exercise real flows, and verify changes by **screenshot / visual
+   regression** — so a change isn't "done" until the UI is confirmed.
+   Language-agnostic with a **Python option** (Playwright-for-Python / Selenium)
+   alongside JS runners, so each project picks its stack. Owned by `qa-e2e`
+   (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
+   `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
+   is a **project** dependency, never on the kit's zero-dep hot path.
 
 ## Design invariants (don't regress these)
 

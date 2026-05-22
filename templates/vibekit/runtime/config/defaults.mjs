@@ -94,6 +94,28 @@ export const DEFAULT_CONFIG = Object.freeze({
     coverageTarget: { lines: 80, branches: 70 },
   },
 
+  /**
+   * DevPipeline prioritization (WSJF / SAFe) + bug severity + SLA.
+   *   - `wsjfBands`: WSJF score ≥ value → priority (P0/P1/P2, else P3).
+   *   - `severityPriority`: ITIL bug severity S1–S4 → priority.
+   *   - `slaDays`: resolution target (days) per priority → the task's SLA due date.
+   *   - `bugTypes`: the bug taxonomy used to classify bug tasks.
+   */
+  pipeline: {
+    framework: 'wsjf',
+    wsjfBands: { p0: 8, p1: 5, p2: 2 },
+    severityPriority: { S1: 'P0', S2: 'P1', S3: 'P2', S4: 'P3' },
+    slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 },
+    bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
+  },
+
+  /**
+   * Security mode — proactive analysis cadence. When `active`, the SessionStart
+   * hook reminds you to run `/deep-analysis` every `everyNSessions` sessions.
+   * ACTIVE by default; set `active: false` to disable.
+   */
+  securityMode: { active: true, everyNSessions: 10 },
+
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
     /** Editing any of these without a prior `/simulate-impact` is gated. */
