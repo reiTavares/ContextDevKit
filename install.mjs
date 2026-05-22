@@ -126,7 +126,7 @@ async function main() {
   }
 
   // 5. Memory seeds: write only if missing.
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl']) {
+  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl']) {
     const src = join(TPL, 'vibekit', rel);
     if (!existsSync(src)) continue;
     const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
@@ -135,6 +135,7 @@ async function main() {
   // Ensure memory dirs exist even if a packager stripped the .gitkeep seed.
   await ensureDir(join(target, 'vibekit', 'memory', 'sessions'));
   await ensureDir(join(target, 'vibekit', 'memory', 'decisions'));
+  await ensureDir(join(target, 'vibekit', 'memory', 'business-rules'));
   // DevPipeline scaffolding (write-if-missing so existing tasks survive re-install).
   const pipeCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'pipeline'), join(target, 'vibekit', 'pipeline'));
   if (pipeCount > 0) report.push(`✓ seeded vibekit/pipeline (${pipeCount} file(s))`);

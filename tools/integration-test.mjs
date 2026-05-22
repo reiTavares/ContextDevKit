@@ -134,6 +134,9 @@ async function main() {
     // best-practices doc installed.
     existsSync(join(proj, 'vibekit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
 
+    // Ancestor parity: business-rules/ folder is scaffolded for domain-rule specs.
+    existsSync(join(proj, 'vibekit', 'memory', 'business-rules', '_TEMPLATE.md')) ? ok('business-rules/ scaffolded (ancestor parity)') : bad('business-rules template missing');
+
     // Roadmap seeded (undefined) + find reports it as not-defined.
     existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
     const rm = script('roadmap.mjs', 'find', '--json');

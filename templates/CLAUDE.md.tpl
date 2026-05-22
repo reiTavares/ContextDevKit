@@ -88,8 +88,9 @@ Layers active depend on the level (see `vibekit/README.md`):
 
 - **CLAUDE.md** (this file) + hooks load context automatically at session start.
 - **`vibekit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
-  *what*, one file per session), `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md`
-  & `WORKSPACE.md` (auto-generated indices).
+  *what*, one file per session), `business-rules/` (domain rules, versioned),
+  `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md` & `WORKSPACE.md` (auto-generated
+  indices).
 - **`docs/CHANGELOG.md`** — factual release chronology.
 - **Hooks** (`.claude/settings.json` → `vibekit/runtime/hooks/`) inject boot
   context, track edits, and nudge you to register the session on drift.

@@ -7,6 +7,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`business-rules/` memory folder** — `vibekit/memory/business-rules/` with a
+  versioned-rule `_TEMPLATE.md`, scaffolded on install and surfaced in
+  `/setupvibedevkit`. Mirrors the source platform's `docs/business-rules/`, kept in
+  `vibekit/memory/` alongside the rest of the project's durable memory.
 - **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
   groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
   release safety), with veto on the L5/L6 gates for Critical/High findings.
