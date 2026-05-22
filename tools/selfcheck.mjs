@@ -83,6 +83,7 @@ async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
   cmds.length >= 10 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
+  cmds.includes('setupvibedevkit.md') ? ok('/setupvibedevkit onboarding command present') : bad('missing /setupvibedevkit');
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
   agents.length >= 3 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
   for (const f of ['templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json', 'install.mjs']) {

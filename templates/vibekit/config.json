@@ -1,5 +1,6 @@
 {
   "level": 2,
+  "setup": { "completed": false },
   "ledger": {
     "important": [
       "src/",

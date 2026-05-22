@@ -225,12 +225,14 @@ async function main() {
     if (wrote) report.push(`✓ seeded vibekit/${rel}`);
   }
 
-  // 6. config.json: create with level, or update only `level` if it exists.
+  // 6. config.json: create with level + first-run flag, or update level
+  //    (preserving an already-completed setup so re-installs don't re-trigger).
   const cfgPath = join(target, 'vibekit', 'config.json');
   if (existsSync(cfgPath)) {
     try {
       const cfg = JSON.parse(await read(cfgPath));
       cfg.level = level;
+      if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
       await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
       report.push(`✓ updated vibekit/config.json level → ${level}`);
     } catch {
@@ -239,8 +241,9 @@ async function main() {
   } else {
     const cfg = JSON.parse(await read(join(TPL, 'vibekit', 'config.json')));
     cfg.level = level;
+    cfg.setup = { completed: false, installedAt: new Date().toISOString() };
     await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-    report.push(`✓ created vibekit/config.json (level ${level})`);
+    report.push(`✓ created vibekit/config.json (level ${level}, first-run pending)`);
   }
 
   // 7. CLAUDE.md: render if missing; else drop a side file to merge.
@@ -282,8 +285,11 @@ async function main() {
   console.log('\nNext steps:');
   console.log('  1. Open the project in Claude Code (it reads .claude/ + CLAUDE.md).');
   console.log('  2. Approve the hooks on first run (one-time per hook).');
-  console.log('  3. Try /state, then work normally. /log-session at the end.');
-  if (level < 5) console.log(`  4. Level up later:  node <kit>/install.mjs --rewire --level ${Math.min(level + 1, 5)}`);
+  console.log('  3. ⭐ Run  /setupvibedevkit  — it fits the kit to THIS project');
+  console.log('     (detects stack, tunes config, fills CLAUDE.md, flags risks).');
+  console.log('     The first-run trigger will remind you automatically.');
+  console.log('  4. Then work normally. /log-session at the end.');
+  if (level < 5) console.log(`  5. Level up later:  /vibe-level ${Math.min(level + 1, 5)}`);
   console.log('');
 }
 

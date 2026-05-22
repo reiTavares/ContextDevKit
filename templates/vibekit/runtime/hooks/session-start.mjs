@@ -32,7 +32,7 @@ import {
   wasRegisteredDuringSession,
   writeLedger,
 } from './ledger.mjs';
-import { getLevel } from '../config/load.mjs';
+import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
@@ -110,6 +110,7 @@ async function main() {
   }
   const sessionId = resolveSessionId(payload);
   const level = getLevel(ROOT);
+  const needsSetup = loadConfigSync(ROOT)?.setup?.completed !== true;
 
   // Fresh ledger for this session (Level >= 2 uses it; harmless at L1).
   await writeLedger(sessionId, freshLedger(sessionId));
@@ -122,7 +123,7 @@ async function main() {
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
   const divergence = checkGitDivergence();
 
-  if (!sessions && !changelog && !latest && drift.length === 0) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -130,6 +131,17 @@ async function main() {
   out.push('');
   out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch()}\` · VibeDevKit level: \`L${level}\``);
   out.push('');
+
+  if (needsSetup) {
+    out.push('## 🚀 First run — VibeDevKit not configured yet');
+    out.push('');
+    out.push('This project has VibeDevKit installed but **onboarding has not run**. Before doing other');
+    out.push('work, **run `/setupvibedevkit`** — it inspects the project, tunes the config to this stack,');
+    out.push('fills in `CLAUDE.md` (rules, stack, glossary), flags high-risk paths, installs what is');
+    out.push('needed, and records a baseline ADR. If the user opened this session for a quick task,');
+    out.push('offer to run setup first; otherwise proceed and remind them setup is pending.');
+    out.push('');
+  }
 
   if (divergence && (divergence.ahead > 0 || divergence.behind > 0)) {
     out.push('## 🔄 Git status vs upstream');

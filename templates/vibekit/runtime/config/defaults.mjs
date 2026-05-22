@@ -24,6 +24,15 @@ export const DEFAULT_CONFIG = Object.freeze({
   level: 2,
 
   /**
+   * First-run onboarding state. The installer writes `completed: false` into a
+   * fresh project's config so the SessionStart hook fires the `/setupvibedevkit`
+   * trigger on the first session. `/setupvibedevkit` flips it to `true` when
+   * onboarding finishes. The DEFAULT is `true` so a missing/corrupt config never
+   * nags — only an installer-written `false` triggers the banner.
+   */
+  setup: { completed: true },
+
+  /**
    * Path classification for the L2 ledger. Override per stack via config.
    *   - `important`: an edit here can trigger the Stop drift nudge.
    *   - `irrelevant`: never tracked (build output, caches, runtime state).

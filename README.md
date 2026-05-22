@@ -32,22 +32,43 @@ parts that don't depend on the AI's goodwill:
 
 ## Install
 
-From the kit folder, point it at your project:
+**One command, from anywhere** (the repo is the installer):
+
+```bash
+# run the installer straight from GitHub into the current project
+npx github:reiTavares/VibeDevKit --target . --level 2 --yes
+```
+
+Or clone and run locally:
 
 ```bash
 # interactive — asks name / mode / level
 node install.mjs --target /path/to/your-project
 
-# or non-interactive
+# non-interactive
 node install.mjs --target /path/to/your-project --level 2 --name "My App" --yes
 ```
 
 Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the
-whole thing, including a starter `CLAUDE.md` you fill in. Existing project? It
-detects your stack, never clobbers your `CLAUDE.md` (it writes
-`CLAUDE.vibedevkit.md` to merge by hand), and preserves any hooks you already had.
+whole thing. Existing project? It detects your stack, never clobbers your
+`CLAUDE.md` (it writes `CLAUDE.vibedevkit.md` to merge by hand), and preserves
+any hooks you already had.
 
-Then open the project in Claude Code, approve the hooks once, and try `/state`.
+### Then: one-shot self-configuration
+
+Open the project in Claude Code, approve the hooks once — and **VibeDevKit tells
+you it isn't configured yet** (a first-run trigger fires from the boot hook).
+Run:
+
+```
+/setupvibedevkit
+```
+
+This inspects the project, tunes the config to your stack (`ledger` path lists,
+high-risk paths), fills in `CLAUDE.md` (rules, stack, glossary), scaffolds domain
+sub-agents, installs what's needed (with your OK), records a baseline ADR, and
+logs the session — going from "kit installed" to "kit fitted to *this* project"
+in a single pass. After it finishes, the trigger stops nagging.
 
 ## The five levels
 
@@ -92,9 +113,10 @@ your-project/
 
 ## Slash commands
 
-`/state` · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh`
-· `/dev-start` · `/bug-hunt` · `/claim` · `/release` · `/worktree-new`
-· `/simulate-impact` · `/tech-debt-sweep` · `/vibe-level` · `/vibe-config`
+`/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
+· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/claim`
+· `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
+· `/vibe-level` · `/vibe-config`
 
 ## Customizing for your stack
 

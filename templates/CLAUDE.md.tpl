@@ -101,9 +101,10 @@ Layers active depend on the level (see `vibekit/README.md`):
 4. At the end of a productive session → `/log-session`.
 
 ### Slash commands
-`/state` · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh`
-· `/dev-start` · `/bug-hunt` · `/claim` · `/release` · `/worktree-new`
-· `/simulate-impact` · `/tech-debt-sweep` · `/vibe-level` · `/vibe-config`
+`/setupvibedevkit` (run once, first) · `/state` · `/log-session` · `/new-adr`
+· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/claim`
+· `/release` · `/worktree-new` · `/simulate-impact` · `/tech-debt-sweep`
+· `/vibe-level` · `/vibe-config`
 
 ---
 
