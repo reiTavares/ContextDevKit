@@ -41,6 +41,9 @@ this project follows [Semantic Versioning](https://semver.org/).
   & prove** milestone before any L7; added **dependency & supply-chain control**
   (owned by `security-team`) as a 1.0 item.
 - `/git` command description said "skill"; corrected to "command".
+- **Roadmap:** added a **diverse & visual testing harness** future direction —
+  browser-driven visual / regression testing with a **Python** option (Playwright /
+  Selenium), owned by `qa-e2e` + `design-team`, gating "done" in `/ship`.
 
 ### Security
 - **Closed a shell-injection vector in `worktree-new`.** The base-branch argument

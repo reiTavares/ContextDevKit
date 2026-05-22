@@ -101,6 +101,15 @@ move the needle** on a real project. The next milestone is not a new level — i
    + `qa-orchestrator`, contract-drift as a required check.
 5. **Pluggable detectors & language packs.** Drop-in detectors and stack presets
    (`--preset next`, `--preset go`) so `/setupvibedevkit` is even sharper.
+6. **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
+   integration / fuzz with a **browser-driven, visual** layer: open the running
+   app, exercise real flows, and verify changes by **screenshot / visual
+   regression** — so a change isn't "done" until the UI is confirmed.
+   Language-agnostic with a **Python option** (Playwright-for-Python / Selenium)
+   alongside JS runners, so each project picks its stack. Owned by `qa-e2e`
+   (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
+   `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
+   is a **project** dependency, never on the kit's zero-dep hot path.
 
 ## Design invariants (don't regress these)
 
