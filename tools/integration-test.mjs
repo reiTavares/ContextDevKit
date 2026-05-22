@@ -164,6 +164,21 @@ async function main() {
     script('pipeline.mjs', 'move', '001', 'testing');
     const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
     /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
+
+    // Security: a crafted base-branch arg must reach git LITERALLY (the whole
+    // string is one invalid ref → non-zero exit), not be split by a shell. The
+    // old execSync(string) path would run `git ... HEAD` (valid) THEN the injected
+    // `echo`, exiting 0 — so a non-zero exit here proves no shell was involved.
+    const wt = script('worktree-new.mjs', 'feat', 'HEAD; echo INJECTED_PWNED');
+    wt.status !== 0
+      ? ok('worktree-new passes the base-branch arg literally (no shell injection)')
+      : bad('worktree-new shell injection NOT neutralized (a shell split the arg)');
+
+    // tech-debt --ci gate: a clean project has no RED-zone finding → exits 0.
+    const debtCi = script('tech-debt-scan.mjs', '--ci');
+    debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
+      ? ok('tech-debt --ci gate passes on a clean project')
+      : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }
