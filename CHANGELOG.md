@@ -6,6 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Squads as a first-class concept** — `vibekit/squads/README.md` manifest
+  (rosters, when-to-use, **sovereignty** rule, grow guide), `_BRIEFING.md.tpl`
+  (optional two-tier rich briefings), and the `/squad` command (show/route/brief/
+  new-squad). Agents are now grouped: **devteam** + **qa-team** (existing), plus
+  **compliance-team** (`privacy-lgpd` — standardized Brazilian LGPD skills: legal
+  basis, consent, Art. 18 rights, retention/deletion, DPO, ANPD incidents,
+  processors), **design-team** (`ux-designer`, `ui-designer`, `accessibility`
+  WCAG AA), and starters for **product-team** (`product-owner`) and **ops-team**
+  (`devops`). README suggests further squads (docs/data/growth/support) as
+  templates. Now 18 agent archetypes; all install at Level 4.
+
 ## [0.5.1] - 2026-05-22
 
 ### Added

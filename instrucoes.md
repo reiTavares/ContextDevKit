@@ -85,6 +85,9 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
 - `/distill-sessions` + `/distill-apply` — propõe e aplica refinamentos no `CLAUDE.md`.
 
 ### Estrutura e plataforma
+- `/squad` — mostra/roteia/cria os **squads** de agentes (devteam, qa-team,
+  compliance-LGPD, design UI/UX, product, ops) — instalam no Nível 4. Veja
+  `vibekit/squads/README.md`.
 - `/git` — skill de controle de versão: workflow (branch/commit Conventional, PR,
   nunca push direto na default, rebase) **e** conectar um remoto (GitHub/GitLab/
   outro) instalando o CLI (`gh`/`glab`) e criando o repo (privado por padrão).

@@ -83,13 +83,13 @@ function checkConfig(load) {
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
-  cmds.length >= 32 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
-  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md']) {
+  cmds.length >= 33 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
+  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
-  agents.length >= 12 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
-  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md']) {
+  agents.length >= 18 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
+  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md']) {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
@@ -106,6 +106,7 @@ async function checkTemplates() {
     'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
+    'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }

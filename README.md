@@ -160,11 +160,19 @@ your-project/
 **Product & execution:** `/roadmap` (product plan) · `/pipeline` (DevPipeline board)
 · `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
 
-**Structure & platform:** `/git` (version control + connect a remote) · `/claude-md`
-(scoped CLAUDE.md per app/module) · `/vibe-level` · `/vibe-config` · `/vibe-doctor`
+**Structure & platform:** `/squad` (squads roster + grow) · `/git` (version control
++ remote) · `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level` · `/vibe-config`
+· `/vibe-doctor`
 
-The QA squad (`qa-orchestrator` + `qa-unit`/`qa-integration`/`qa-fuzzer`/`qa-perf`/
-`qa-e2e`) and the other sub-agents install at **Level 4**.
+### Squads (Level 4)
+
+Sub-agents are organized into **squads** (`vibekit/squads/README.md`, managed with
+`/squad`): **devteam** (architect, code-reviewer, context-keeper, security,
+test-engineer), **qa-team** (qa-orchestrator + unit/integration/fuzzer/perf/e2e),
+**compliance-team** (`privacy-lgpd` — standardized Brazilian LGPD skills),
+**design-team** (ux-designer, ui-designer, accessibility), plus starters for
+**product-team** (`product-owner`) and **ops-team** (`devops`). Grow your own —
+or new squads (docs/data/growth) — from `_TEMPLATE.md` via `/squad`.
 
 ### Roadmap vs DevPipeline
 

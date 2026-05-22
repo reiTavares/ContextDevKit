@@ -60,11 +60,14 @@ each package/service): `claude-md.mjs scaffold`, then **fill each** with real
 local rules (role, local stack, local conventions, boundaries) via `/claude-md`.
 Single-package project → the root CLAUDE.md is enough; skip.
 
-## Phase 5 — Seed the glossary & domain agents
+## Phase 5 — Glossary & squads (sub-agents)
 - Add any clear domain terms (from README/code) to `vibekit/memory/GLOSSARY.md`.
-- If level ≥ 4 and there are clear seams, scaffold focused sub-agents from
-  `.claude/agents/_TEMPLATE.md` (e.g. `frontend`, `backend`, `db`, `security`)
-  — sharp `description`s naming the dirs they own. Skip seams that don't exist.
+- At **level ≥ 4** the squads install (`.claude/agents/`): **devteam**, **qa-team**,
+  **compliance-team** (LGPD), **design-team** (UI/UX), plus starter product/ops
+  agents. Review `vibekit/squads/README.md`. Enable the squads relevant to this
+  project (e.g. compliance-team if it handles Brazilian residents' personal data;
+  design-team if it has a UI) and **grow the devteam** with domain agents via
+  `/squad` (e.g. `frontend`, `backend`, `db`) from `_TEMPLATE.md`.
 
 ## Phase 5b — Product roadmap (important — don't skip)
 Run `node vibekit/tools/scripts/roadmap.mjs find --json`:
@@ -85,12 +88,10 @@ Run `node vibekit/tools/scripts/roadmap.mjs find --json`:
 ## Phase 6b — Version control (verify the remote, decide with the user)
 Run `node vibekit/tools/scripts/git.mjs status` and act on the result:
 - **`isRepo: false`** → offer `git init`.
-- **`remoteUrl` present** → a repo is already connected; confirm it's the right one
-  and move on.
-- **`remoteUrl: null`** → **ask the user**: "No remote is connected. Do you already
-  have a repository (GitHub/GitLab/other) to connect, or should we create one?"
-  Then run `/git setup-remote` and follow its decision tree (B1 connect existing /
-  B2 create new — private by default, install `gh`/`glab` if needed).
+- **`remoteUrl` present** → already connected; confirm it's the right one, move on.
+- **`remoteUrl: null`** → **ask**: "No remote — do you already have a repo
+  (GitHub/GitLab/other) to connect, or should we create one?" Then run
+  `/git setup-remote` (B1 connect existing / B2 create new, private by default).
 Confirm before any push/repo-creation (outward-facing).
 
 ## Phase 7 — Record the baseline

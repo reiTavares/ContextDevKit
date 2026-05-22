@@ -108,8 +108,9 @@ Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices
 · `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
 · `/distill-sessions` · `/distill-apply`.
-Structure & platform: `/git` (version control + remote) · `/claude-md` (scoped
-CLAUDE.md per module) · `/vibe-level` · `/vibe-config` · `/vibe-doctor`.
+Structure & platform: `/squad` (squads) · `/git` (version control + remote)
+· `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level` · `/vibe-config`
+· `/vibe-doctor`.
 
 ---
 

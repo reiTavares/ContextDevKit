@@ -110,6 +110,9 @@ async function main() {
     // GitHub templates + QA agents installed.
     existsSync(join(proj, '.github', 'PULL_REQUEST_TEMPLATE.md')) ? ok('GitHub PR template installed') : bad('PR template not installed');
     existsSync(join(proj, '.claude', 'agents', 'qa-orchestrator.md')) ? ok('QA squad agents installed (L5)') : bad('qa-orchestrator agent missing');
+    existsSync(join(proj, 'vibekit', 'squads', 'README.md')) ? ok('squad manifest installed') : bad('squads/README.md missing');
+    existsSync(join(proj, '.claude', 'agents', 'privacy-lgpd.md')) && existsSync(join(proj, '.claude', 'agents', 'ux-designer.md'))
+      ? ok('compliance + design squads installed') : bad('new squad agents missing');
 
     // vibe-config show/set round-trip.
     script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
