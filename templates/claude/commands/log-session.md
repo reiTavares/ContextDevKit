@@ -39,7 +39,12 @@ Register the current work session. Steps:
 
 4. **Regenerate the index**: run `node vibekit/tools/scripts/session-reindex.mjs`.
 
-5. Confirm to the user: session number, file path, and CHANGELOG lines added.
+5. **Close the predicted-vs-actual loop** (if this session ran `/simulate-impact`): run
+   `node vibekit/tools/scripts/predictions-review.mjs` — it fills the *Actual* section of each
+   prediction file from the ledger (paths actually changed vs predicted). No-op if there were
+   no simulations.
+
+6. Confirm to the user: session number, file path, and CHANGELOG lines added.
 
 Editing `vibekit/memory/SESSIONS.md` (via reindex) and `docs/CHANGELOG.md` marks the session as
 registered, which silences the Stop drift nudge.

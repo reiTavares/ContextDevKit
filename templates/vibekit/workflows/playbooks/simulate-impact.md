@@ -49,7 +49,8 @@ Use it when the objective crosses **≥ 2** high-risk surfaces, e.g.:
 ```
 /simulate-impact "<obj>"  → vibekit/memory/predictions/<date>-<sid>-<slug>.md  (pending, coveredPaths)
 implementation in the same session (or discard)
-/log-session              → appends "Predicted vs Actual" (paths actually touched, delta, risk accuracy)
+/predictions-review       → fills "Actual": paths changed, delta vs predicted, risk note
+       (auto-run by /log-session at session end)
 ```
 This corpus calibrates future simulations.
 

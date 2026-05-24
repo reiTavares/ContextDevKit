@@ -7,6 +7,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`/predictions-review` — closes the predicted-vs-actual loop** (ancestor parity #1,
+  second half). `predictions-review.mjs` fills each `/simulate-impact` prediction's
+  *Actual* section from the session ledger (paths changed vs predicted, delta both
+  ways); auto-run by `/log-session`. The v1.1.0 write-half was a stub; the review half
+  is now implemented. Covered by selfcheck + integration tests.
 - **`workflows/` guides + playbooks** — installed `vibekit/workflows/` with per-level
   workflow docs (L1–L5, plus an L6 capability-tier note) and four reusable playbooks
   (`tech-debt-sweep`, `simulate-impact`, `distillation-cycle`, `security-batch`),
