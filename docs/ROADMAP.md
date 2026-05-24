@@ -57,36 +57,41 @@ commands + metrics + orchestration on top of the L5 gates.
   no scheduled "predicted vs actual" review yet.
 - **Contract drift is regex/export-based**, not AST. Good signal, not proof.
 
-## Next milestone — 1.0: harden & prove (before any L7)
+## 1.0 — harden & prove ✅ SHIPPED (2026-05-22 · npm `vibedevkit@1.0.0`)
 
-The kit reached **L6 in a single quarter** — context fidelity, quality gates, and
-autonomy/insight all shipped. The risk now is *breadth outrunning proof*: 33
-commands, 18 agents, six levels, and **no published evidence that L4–L6 actually
-move the needle** on a real project. The next milestone is not a new level — it's
-**earning a 1.0**:
+L6 was reached in a single quarter; **1.0 earned it by hardening, not adding
+levels**:
 
-1. **Freeze the surface.** No new levels or agent families until 1.0. Prune thin
-   command wrappers (`/state`, `/vibe-doctor`, `/context-refresh` fold into
-   `/audit`; `/claim`+`/release` merge). Fewer, sharper commands.
-2. **Prove the value of each level.** Use `/vibe-stats` on real projects to show
-   L4–L6 reduce drift/debt vs L1–L3. Trim or rework what can't justify itself —
-   the honest hypothesis is that ~80% of the value lives in L1–L3.
-3. **Eat our own dog food.** The kit must pass its own `/tech-debt-sweep` clean.
-   (`install.mjs` refactored out of the RED ZONE in this pass; keep it green.)
-4. **Lock the public contracts.** `config.json` schema, installer flags, and the
-   hook payload shape become a stability promise; changes go through an ADR +
-   `/contract-check`. This is what "1.0" should mean here.
-5. **Deepen the thin spots.** Tier-2 agents (`qa-perf`, `qa-e2e`, `qa-unit`) get
-   anti-pattern tables + concrete examples; clarify `architect`↔`security` and
-   `test-engineer`↔`qa-orchestrator` routing boundaries.
-6. **Dependency & supply-chain control** — owned by the new **security-team**.
-   A first-class policy + tooling: pin/lock versions, audit installed packages for
-   known CVEs and licenses, flag unmaintained/over-privileged deps, and gate risky
-   upgrades. The kit ships **zero runtime deps**, but every install runs `node`
-   scripts (and the optional `zod` dev-dep), so supply-chain hygiene is part of
-   "secure by default". ✅ **`/deps-audit` shipped** (deterministic checks +
-   native `npm`/`pnpm`/`yarn audit`, feeds the backlog); a `dependency-auditor`
-   agent and a gate-on-merge requirement remain candidates.
+1. ✅ **Froze the surface.** Thin wrappers (`/state`, `/vibe-doctor`,
+   `/context-refresh`) deprecated toward `/audit`; `/release` paired with `/claim`.
+2. 🟡 **Prove the value of each level.** Tooling shipped (`/vibe-stats`, analysis →
+   backlog); still needs **real-world data** to confirm L4–L6 earn their keep —
+   the one item that needs *usage*, not code. *Ongoing.*
+3. ✅ **Ate our own dog food.** `install.mjs` refactored 487 → 234 (out of the RED
+   zone); a `tech-debt-scan --ci` gate keeps it green in CI.
+4. ✅ **Locked the public contracts.** Documented in `CONTRIBUTING.md`; changes
+   need an ADR + `/contract-check`.
+5. ✅ **Deepened the thin spots.** `qa-unit` / `qa-perf` / `qa-e2e` got anti-pattern
+   tables; `architect`↔`security` and `test-engineer`↔`qa-orchestrator` clarified.
+6. ✅ **Dependency & supply-chain control.** `/deps-audit` + the **security-team**
+   (`security` AppSec · `infra-security` IaC/cloud · `devops` delivery).
+
+**Also delivered in 1.0:** standardized **WSJF (SAFe) prioritization + bug severity
+(S1–S4) + SLA** with a **known-bugs map** in the DevPipeline; **`/deep-analysis`**
+(global sweep → report → ADRs → backlog); an **active security-mode** boot trigger
+(runs every N sessions, on by default); and the **`business-rules/`** memory folder.
+
+## Next — post-1.0 focus: ancestor parity
+
+Complete the distillation from the source platform (`app-ruivo/devAItools`) — the
+three pieces deliberately flattened pre-1.0 (see *Honest gaps*):
+
+- **`memory/predictions/`** — `/simulate-impact` writes a prediction file per run;
+  a later **predicted-vs-actual** review closes the loop. ← *starting here.*
+- **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
+  behind the lean `.claude/agents/` agents (`/squad brief <agent>`).
+- **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
+  (tech-debt sweep, simulate-impact, distillation, security batch).
 
 ## Future directions (candidate L7+ / plugins)
 
