@@ -108,6 +108,7 @@ async function checkTemplates() {
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
     'templates/vibekit/memory/business-rules/_TEMPLATE.md',
+    'templates/vibekit/memory/predictions/.gitkeep',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }

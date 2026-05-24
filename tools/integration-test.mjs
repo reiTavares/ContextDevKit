@@ -11,7 +11,7 @@
  * Run:  node tools/integration-test.mjs   (exit 0 = healthy)
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -76,6 +76,10 @@ async function main() {
     hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).trim() === ''
       ? ok('L5 gate allows after /simulate-impact')
       : bad('L5 gate still blocked after simulation');
+    // Ancestor parity: /simulate-impact leaves a prediction trail file.
+    existsSync(join(proj, 'vibekit', 'memory', 'predictions')) && readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
+      ? ok('simulate-impact writes a prediction file (predictions/)')
+      : bad('no prediction file written');
 
     // Concurrency guard (L3+): another session edited a file; a different session
     // about to edit the same file is warned (cross-session collision).
