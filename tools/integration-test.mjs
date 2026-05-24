@@ -118,6 +118,10 @@ async function main() {
     existsSync(join(proj, '.claude', 'agents', 'privacy-lgpd.md')) && existsSync(join(proj, '.claude', 'agents', 'ux-designer.md'))
       ? ok('compliance + design squads installed') : bad('new squad agents missing');
     existsSync(join(proj, '.claude', 'agents', 'infra-security.md')) ? ok('security-team infra-security agent installed') : bad('infra-security agent missing');
+    // Two-tier squad briefings: squad.mjs scaffolds a briefing into the right squad folder.
+    script('squad.mjs', 'brief', 'security');
+    existsSync(join(proj, 'vibekit', 'squads', 'security-team', 'security.md'))
+      ? ok('squad brief scaffolds a tier-2 briefing (squads/<team>/)') : bad('squad brief did not scaffold');
 
     // vibe-config show/set round-trip.
     script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
