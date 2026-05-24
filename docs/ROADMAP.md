@@ -55,14 +55,11 @@ commands + metrics + orchestration on top of the L5 gates.
 
 ## Honest gaps / not yet ported
 
-- **Two-tier agents.** The source had lean executable agents + rich sibling
-  briefings. The kit ships single-tier (lean) on purpose — but a `briefings/`
-  layer is a good future option for very large squads.
-- **Detailed L1–L5 workflow docs / playbooks.** The kit favors `instrucoes.md` +
-  these docs over a deep playbook tree. Fine for now.
-- **Predictions review cadence.** `/simulate-impact` writes predictions; there's
-  no scheduled "predicted vs actual" review yet.
 - **Contract drift is regex/export-based**, not AST. Good signal, not proof.
+
+_The earlier gaps have since shipped: **two-tier briefings** (v1.1.0,
+`/squad brief`), **workflow docs/playbooks** (`vibekit/workflows/`), and the
+**predictions review cadence** (`/predictions-review`)._
 
 ## 1.0 — harden & prove ✅ SHIPPED (2026-05-22 · npm `vibedevkit@1.0.0`)
 

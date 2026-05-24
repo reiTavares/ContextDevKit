@@ -6,7 +6,19 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-24
+
 ### Added
+- **`code-security` agent (security-team sub-specialist)** — owns the code's external
+  attack surface: third-party integration code (API clients/SDKs, webhooks &
+  callbacks, (de)serialization of external responses), dependency provenance/SBOM,
+  and SAST/CodeQL triage. Mirrors `infra-security`; cross-linked from `security`
+  (AppSec lead) and `infra-security` so the lanes don't overlap.
+- **GitHub-native security** — `templates/github/dependabot.yml` + an **advisory**
+  `security.yml` workflow (dependency-review on PRs + the `/deps-audit` gate + CodeQL),
+  installed write-if-missing; **`gh-alerts.mjs`** syncs Dependabot + code-scanning
+  alerts into the DevPipeline backlog (via the `gh` CLI; degrades to exit 0 without
+  `gh`/repo/network); new **`/security-setup`** command ties scaffolding + sync together.
 - **`/predictions-review` — closes the predicted-vs-actual loop** (ancestor parity #1,
   second half). `predictions-review.mjs` fills each `/simulate-impact` prediction's
   *Actual* section from the session ledger (paths changed vs predicted, delta both
@@ -19,13 +31,23 @@ this project follows [Semantic Versioning](https://semver.org/).
   installer (`copyTreeIfMissing`); covered by selfcheck + integration tests. Completes
   the post-1.0 **ancestor parity** focus (piece #3 of 3).
 
+### Changed
+- **`/deps-audit` grown into a dependency policy** — adds **license allow/deny** (from
+  installed package metadata), a CycloneDX **SBOM** (`--sbom` → `vibekit/memory/sbom.json`),
+  and **lockfile-drift** detection, driven by a new `deps` config block (`defaults.mjs`
+  + optional zod `schema.mjs`). Findings still flow into the DevPipeline backlog.
+  Zero-dep and defensive (never throws).
+
 ### Docs
-- **Roadmap:** added two initiatives to *Future directions* — **token economy &
-  usage insight** (per-session token reporting via `/token-report`, budgets, and
-  cost-driven optimization, extending L6 Insight) and **playbook management**
-  (a registry + `/playbook` to list/show/run/track reusable procedures);
-  cross-linked the latter to the existing `workflows/playbooks/` ancestor-parity
-  foundation.
+- **Roadmap:** added — and shipped — the **"supply-chain & code security"** section
+  (deepen the security-team), plus a **status-key convention** (`⏳ in progress`
+  alongside `✅`/`📋`/`🟡`/`➖`) in `docs/ROADMAP.md` and the installed-project template;
+  trimmed the now-resolved entries from *Honest gaps*.
+- **Roadmap:** added two *Future directions* initiatives — **token economy & usage
+  insight** (per-session token reporting via `/token-report`, budgets, and cost-driven
+  optimization, extending L6 Insight) and **playbook management** (a registry +
+  `/playbook` to list/show/run/track reusable procedures), cross-linked to the existing
+  `workflows/playbooks/` ancestor-parity foundation.
 
 ## [1.1.0] - 2026-05-24
 
