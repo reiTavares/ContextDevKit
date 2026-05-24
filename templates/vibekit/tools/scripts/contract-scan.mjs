@@ -14,8 +14,12 @@
  *   node vibekit/tools/scripts/contract-scan.mjs --json
  *
  * Baseline: vibekit/memory/contract-baseline.json (commit it).
- * Regex-based, language-agnostic-ish (JS/TS export forms). Advisory by default;
- * wire into CI to block breaking changes without an intentional version bump.
+ * Regex-based, language-agnostic-ish (JS/TS export forms): named/declaration
+ * exports incl. `declare`/`abstract`/generators, `export default`, namespace
+ * re-exports (`export * [as N] from`), and type-only `export type { … }`. It is
+ * good signal, not an AST proof (a parser dependency would break the zero-dep
+ * invariant). Advisory by default; wire into CI to block breaking changes
+ * without an intentional version bump.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -25,8 +29,14 @@ const ROOT = process.cwd();
 const BASELINE = resolve(ROOT, 'vibekit/memory/contract-baseline.json');
 const GLOBS = loadConfigSync(ROOT).l5?.contractGlobs || [];
 
-const EXPORT_RE = /export\s+(?:async\s+)?(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/g;
-const REEXPORT_RE = /export\s*\{\s*([^}]+)\}/g;
+// Declarations: export [declare] [abstract] [async] <kw> NAME (function may be a generator).
+const EXPORT_RE = /export\s+(?:declare\s+)?(?:abstract\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|interface|type|enum)\s+([A-Za-z_$][\w$]*)/g;
+// Named (re-)exports incl. type-only blocks: export [type] { a, b as c, type D }.
+const NAMED_RE = /export\s*(?:type\s+)?\{([^}]*)\}/g;
+// Default export — tracked as the `default` symbol (removing it is breaking).
+const DEFAULT_RE = /export\s+default\b/;
+// Namespace re-export: export * [as NS] from '...'.
+const STAR_RE = /export\s*\*\s*(?:as\s+([A-Za-z_$][\w$]*)\s+)?from\s*['"]([^'"]+)['"]/g;
 
 function matchesGlob(rel) {
   return GLOBS.some((g) => rel === g || rel.startsWith(g));
@@ -54,13 +64,17 @@ function extractExports(content) {
   let m;
   EXPORT_RE.lastIndex = 0;
   while ((m = EXPORT_RE.exec(content)) !== null) seen.add(m[1]);
-  REEXPORT_RE.lastIndex = 0;
-  while ((m = REEXPORT_RE.exec(content)) !== null) {
+  NAMED_RE.lastIndex = 0;
+  while ((m = NAMED_RE.exec(content)) !== null) {
     for (const raw of m[1].split(',')) {
-      const part = raw.trim().split(/\s+as\s+/).pop().replace(/[^A-Za-z0-9_$]/g, '');
+      // Drop an inline `type ` modifier and any `as` alias, keep the exposed name.
+      const part = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop().replace(/[^A-Za-z0-9_$]/g, '');
       if (part) seen.add(part);
     }
   }
+  STAR_RE.lastIndex = 0;
+  while ((m = STAR_RE.exec(content)) !== null) seen.add(m[1] || `* from ${m[2]}`);
+  if (DEFAULT_RE.test(content)) seen.add('default');
   return [...seen];
 }
 

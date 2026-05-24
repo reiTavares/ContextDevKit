@@ -165,6 +165,34 @@ async function main() {
     // Ancestor parity: business-rules/ folder is scaffolded for domain-rule specs.
     existsSync(join(proj, 'vibekit', 'memory', 'business-rules', '_TEMPLATE.md')) ? ok('business-rules/ scaffolded (ancestor parity)') : bad('business-rules template missing');
 
+    // Contract drift: the deepened extractor catches default / export* / abstract / type-only;
+    // --save a baseline, remove those exports, then assert the diff flags each removal.
+    const ccfg = readJson(cfgPath);
+    ccfg.l5 = ccfg.l5 || {};
+    ccfg.l5.contractGlobs = ['src/contract/'];
+    writeFileSync(cfgPath, JSON.stringify(ccfg, null, 2));
+    mkdirSync(join(proj, 'src', 'contract'), { recursive: true });
+    const apiPath = join(proj, 'src', 'contract', 'api.ts');
+    writeFileSync(apiPath, [
+      'export default function main() {}',
+      'export const alpha = 1;',
+      'export abstract class Beta {}',
+      "export * from './other';",
+      'export type Gamma = { x: number };',
+      "export { delta, epsilon as zeta } from './m';",
+    ].join('\n'));
+    script('contract-scan.mjs', '--save');
+    writeFileSync(apiPath, ['export const alpha = 1;', "export { delta, epsilon as zeta } from './m';"].join('\n'));
+    const drift = script('contract-scan.mjs', '--json');
+    (() => {
+      try {
+        const removed = JSON.parse(drift.stdout).removals.join('\n');
+        return ['default', 'Beta', 'Gamma'].every((n) => removed.includes(n)) && removed.includes('* from ./other');
+      } catch { return false; }
+    })()
+      ? ok('contract-scan detects removed default / export* / abstract / type-only exports')
+      : bad(`contract-scan drift miss: ${drift.stdout || drift.stderr}`);
+
     // Roadmap seeded (undefined) + find reports it as not-defined.
     existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
     const rm = script('roadmap.mjs', 'find', '--json');
