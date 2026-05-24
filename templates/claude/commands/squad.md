@@ -12,9 +12,10 @@ behaviour). Agents live in `.claude/agents/` and install at **Level 4**.
 Act on **$ARGUMENTS**:
 
 ## show (default)
-Read `vibekit/squads/README.md` and list the squads, their members, and when to
-use each. If `.claude/agents/` isn't present, note the project is below Level 4 —
-suggest `/vibe-level 4` to enable the squads.
+Run `node vibekit/tools/scripts/squad.mjs list` (agents + which already have a
+tier-2 briefing) and read `vibekit/squads/README.md`; summarize the squads, their
+members, and when to use each. If `.claude/agents/` isn't present, note the project
+is below Level 4 — suggest `/vibe-level 4` to enable the squads.
 
 ## route <task>
 Pick the right squad/agent for the task and delegate (use the Agent tool to
@@ -23,10 +24,14 @@ invoke the sub-agent). Building/designing/reviewing → **devteam** (`architect`
 full feature, prefer `/ship` (orchestrates the whole squad with checkpoints).
 
 ## brief <agent>
-Create/edit the **tier-2 rich briefing** for an agent at
-`vibekit/squads/<squad>/<agent>.md` (from `vibekit/squads/_BRIEFING.md.tpl`) —
-the deep reference (anti-patterns, recipes, edge cases) behind the lean
-`.claude/agents/<agent>.md`. Fill it with real, specific content for this project.
+Scaffold the **tier-2 rich briefing**, then fill it:
+```
+node vibekit/tools/scripts/squad.mjs brief <agent>
+```
+It auto-detects the agent's squad and creates `vibekit/squads/<squad>/<agent>.md`
+from `_BRIEFING.md.tpl` (idempotent). Then **fill it** with real, specific content
+for this project — anti-patterns, end-to-end recipes, edge cases — the deep
+reference behind the lean `.claude/agents/<agent>.md`.
 
 ## new-squad <name>
 Add a new squad (e.g. `design-team`, `product-team`, `ops-team`): create a

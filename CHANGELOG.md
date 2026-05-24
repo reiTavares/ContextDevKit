@@ -7,6 +7,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Two-tier squad briefings** — `squad.mjs brief <agent>` scaffolds a rich briefing
+  into `vibekit/squads/<squad>/<agent>.md` (squad auto-detected) behind the lean
+  `.claude/agents/` agent; `squad.mjs list` shows briefing coverage. Wired into
+  `/squad`. Ancestor parity #2.
 - **`memory/predictions/`** — `/simulate-impact` (`mark-simulation.mjs`) now writes a
   prediction file per run (objective · covered paths · predicted-vs-actual stub),
   seeded on install. First step of the post-1.0 **ancestor parity** focus.
