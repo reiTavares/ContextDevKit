@@ -49,11 +49,22 @@ const L5Schema = z
   })
   .default({});
 
+const DepsSchema = z
+  .object({
+    requireLockfile: z.boolean().default(true),
+    licenses: z
+      .object({ allow: z.array(z.string()).default([]), deny: z.array(z.string()).default([]) })
+      .default({}),
+    maxAgeDays: z.number().int().positive().nullable().default(null),
+  })
+  .default({});
+
 export const ConfigSchema = z
   .object({
     level: z.number().int().min(1).max(5).default(2),
     ledger: LedgerSchema,
     l5: L5Schema,
+    deps: DepsSchema,
   })
   .default({});
 

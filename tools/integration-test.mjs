@@ -9,6 +9,11 @@
  * runs identically locally and in CI.
  *
  * Run:  node tools/integration-test.mjs   (exit 0 = healthy)
+ *
+ * COHESION NOTE: this is intentionally ONE file — a single install followed by a
+ * sequential drive of every hook/script in install order. Splitting it would
+ * fragment that narrative and force shared temp-project setup across modules, so
+ * it may sit slightly over the 280-line budget (structural tolerance, ADR-style).
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -260,6 +265,27 @@ async function main() {
     const deps = JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings || [];
     deps.some((f) => f.kind === 'no-lockfile') && deps.some((f) => f.kind === 'loose-range')
       ? ok('deps-audit flags no-lockfile + loose ranges') : bad(`deps-audit findings: ${JSON.stringify(deps)}`);
+
+    // Dependency policy: a denied license is flagged; --sbom writes a CycloneDX SBOM.
+    const depCfg = readJson(cfgPath);
+    depCfg.deps = { requireLockfile: true, licenses: { allow: [], deny: ['GPL-3.0'] } };
+    writeFileSync(cfgPath, JSON.stringify(depCfg, null, 2));
+    writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', version: '1.0.0', dependencies: { gpllib: '1.0.0' } }));
+    mkdirSync(join(proj, 'node_modules', 'gpllib'), { recursive: true });
+    writeFileSync(join(proj, 'node_modules', 'gpllib', 'package.json'), JSON.stringify({ name: 'gpllib', version: '1.0.0', license: 'GPL-3.0' }));
+    JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'license-deny')
+      ? ok('deps-audit flags a denied license (deps policy)') : bad('deps-audit did not flag the denied license');
+    script('deps-audit.mjs', '--sbom');
+    (() => { try { const s = readJson(join(proj, 'vibekit', 'memory', 'sbom.json')); return s.bomFormat === 'CycloneDX' && (s.components || []).some((c) => c.name === 'gpllib'); } catch { return false; } })()
+      ? ok('deps-audit --sbom writes a CycloneDX SBOM') : bad('SBOM not written/invalid');
+
+    // GitHub-native security: scaffolding + code-security agent installed; alert sync degrades safely.
+    existsSync(join(proj, '.github', 'dependabot.yml')) && existsSync(join(proj, '.github', 'workflows', 'security.yml'))
+      ? ok('GitHub security scaffolding installed (dependabot.yml + security workflow)') : bad('security scaffolding not installed');
+    existsSync(join(proj, '.claude', 'agents', 'code-security.md')) ? ok('code-security agent installed (L5)') : bad('code-security agent missing');
+    const ghAlerts = script('gh-alerts.mjs', '--json');
+    ghAlerts.status === 0 && (() => { try { return Array.isArray(JSON.parse(ghAlerts.stdout).findings); } catch { return false; } })()
+      ? ok('gh-alerts degrades safely without a GitHub repo (exit 0, empty findings)') : bad(`gh-alerts failed: ${ghAlerts.stdout || ghAlerts.stderr}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }

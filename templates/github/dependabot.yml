@@ -1,0 +1,27 @@
+# Dependabot — keep dependencies patched automatically.
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+# Scaffolded by VibeDevKit (/security-setup). Uncomment / add the ecosystems your
+# project uses (npm, pip, gomod, cargo, maven, bundler, composer, docker, ...).
+version: 2
+updates:
+  # GitHub Actions used by your workflows (valid in any repo; harmless if none).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "security"]
+
+  # Node / npm — uncomment if the project has a package.json at the root.
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   open-pull-requests-limit: 10
+  #   labels: ["dependencies", "security"]
+
+  # Python — uncomment for requirements.txt / pyproject.toml.
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"

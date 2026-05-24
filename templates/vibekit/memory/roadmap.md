@@ -7,8 +7,9 @@
 >
 > **Convention — P-IDs:** phases are `P1`, `P2`, …; items are `P1.1`, `P1.2`, …
 > Each item is a user-facing capability with a one-line acceptance note. Mark
-> status with: 📋 planned · 🟡 in progress · ✅ done. Cross-reference DevPipeline
-> tasks by P-ID (a task's `roadmap:` field).
+> status with: 📋 planned · ⏳ in progress (a session is on it) · 🟡 partial/blocked ·
+> ✅ done — flip an item to ⏳ when a session starts it, to ✅ when it ships.
+> Cross-reference DevPipeline tasks by P-ID (a task's `roadmap:` field).
 
 <!-- ROADMAP-NOT-DEFINED -->
 _No roadmap defined yet._ Run **`/roadmap`** — in a new project it's built with
