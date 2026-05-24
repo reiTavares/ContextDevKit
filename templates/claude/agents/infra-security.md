@@ -48,6 +48,6 @@ Group findings 🔴 Critical / 🟠 High / 🟡 Medium / 🟢 Info with the reso
 | --- | --- |
 | Build / deploy / observability mechanics | `devops` |
 | App-level auth / crypto / input handling | `security` |
-| Dependency CVEs / licenses | `security` (+ `/deps-audit`) |
+| Dependency CVEs / licenses / SBOM, integration code | `code-security` (+ `/deps-audit`) |
 
 On a Critical/High infra finding, the security-team can block the release.

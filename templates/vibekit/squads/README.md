@@ -39,10 +39,11 @@ almost all). Owns the security best-practices bar and the dependency policy.
 
 | Agent | When to use |
 | --- | --- |
-| `security` | AppSec: auth, secrets, crypto, input/trust boundaries, **dependency & supply-chain risk** (pinning, CVEs, licenses), threat modeling, security review |
+| `security` | AppSec **lead**: auth, secrets, crypto, input/trust boundaries, threat modeling, security review; owns the security bar + dependency policy |
+| `code-security` | The **code's** external surface: third-party integration code (API clients/SDKs, webhooks, (de)serialization), dependency provenance/SBOM + **license policy**, SAST/CodeQL triage |
 | `infra-security` | The **platform's** threat model: IaC/cloud misconfig, IAM least-privilege, network exposure, secrets management, container/runtime + CI/CD supply-chain hardening |
 | `devops` | Infra & **delivery**: CI/CD, build/deploy, environments, secrets plumbing, observability, release safety — *builds what `infra-security` audits* |
-| _(add yours)_ | `dependency-auditor` (CVE/license/pinning), `sre` (reliability/incident), `iac` (policy-as-code) as the system grows |
+| _(add yours)_ | `sre` (reliability/incident), `iac` (policy-as-code) as the system grows |
 
 `security` and `devops` are **shared** with devteam/ops-team — security is a
 cross-cutting concern, not a silo. On a Critical/High finding, security-team can
