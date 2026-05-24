@@ -91,7 +91,8 @@ three pieces deliberately flattened pre-1.0 (see *Honest gaps*):
 - **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
   behind the lean `.claude/agents/` agents (`/squad brief <agent>`).
 - **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
-  (tech-debt sweep, simulate-impact, distillation, security batch).
+  (tech-debt sweep, simulate-impact, distillation, security batch). *This is the
+  foundation for **playbook management** (Future directions #8).*
 
 ## Future directions (candidate L7+ / plugins)
 
@@ -116,6 +117,28 @@ three pieces deliberately flattened pre-1.0 (see *Honest gaps*):
    (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
    `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
    is a **project** dependency, never on the kit's zero-dep hot path.
+7. **Token economy & usage insight.** Make token cost a first-class, *measured*
+   dimension of the platform — the natural extension of L6 **Insight**
+   (`stats.mjs` / `/vibe-stats`, which today tracks sessions, drift, cadence but
+   not cost). Capture **per-session token usage** (input / output / cache, broken
+   down by agent and by command) into a plain-files ledger
+   (`vibekit/memory/usage/`), and surface it as **`/token-report`** (per session,
+   per week, per agent/squad) plus a running **budget** with advisory warnings when
+   a session trends hot. Then feed the data back into **optimization**: flag
+   context-heavy hooks/commands, recommend cheaper models for low-stakes steps, and
+   quantify what each *level* costs — so the open 1.0 question ("do L4–L6 earn their
+   keep?") finally gets a data-backed answer. Invariant-safe: advisory by default,
+   plain files, **zero deps on the hot path** (collection is best-effort and never
+   blocks real work).
+8. **Playbook management.** Promote the post-1.0 `workflows/playbooks/` foundation
+   (see *ancestor parity*) from a static doc tree into a **managed, runnable**
+   layer: a **playbook registry/index** (discover what exists), **`/playbook`** to
+   list / show / run a named procedure (tech-debt sweep, simulate-impact,
+   distillation, security batch, release), per-run **tracking** in the ledger (which
+   playbook ran, when, outcome), and **composition** so `/ship` and the squads
+   invoke playbooks instead of ad-hoc step lists. Turns repeatable procedures into
+   first-class, versioned, auditable assets — same "plain files, advisory,
+   inspectable" posture as the rest of the kit.
 
 ## Design invariants (don't regress these)
 

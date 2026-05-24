@@ -6,6 +6,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Docs
+- **Roadmap:** added two initiatives to *Future directions* — **token economy &
+  usage insight** (per-session token reporting via `/token-report`, budgets, and
+  cost-driven optimization, extending L6 Insight) and **playbook management**
+  (a registry + `/playbook` to list/show/run/track reusable procedures);
+  cross-linked the latter to the existing `workflows/playbooks/` ancestor-parity
+  foundation.
+
 ## [1.1.0] - 2026-05-24
 
 ### Added
