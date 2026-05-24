@@ -1,0 +1,54 @@
+# Security checks — ADVISORY by default (they report, they don't block the merge).
+# Scaffolded by VibeDevKit (/security-setup). To ENFORCE: mark a job a required
+# status check in branch protection, or remove its `continue-on-error`.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write # CodeQL uploads results here
+
+jobs:
+  dependency-review:
+    # GitHub's native diff of dependency changes on a PR (CVEs + license).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true # advisory — remove to block on a vulnerable bump
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  deps-audit:
+    # VibeDevKit's deterministic supply-chain check (lockfile, pinning, license, CVEs).
+    runs-on: ubuntu-latest
+    continue-on-error: true # advisory — remove to block
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node vibekit/tools/scripts/deps-audit.mjs
+
+  codeql:
+    # SAST. Set `language` to your stack: c-cpp, csharp, go, java-kotlin,
+    # javascript-typescript, python, ruby, swift. Remove this job if you enable
+    # CodeQL "default setup" in repository settings instead.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        language: ["javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
