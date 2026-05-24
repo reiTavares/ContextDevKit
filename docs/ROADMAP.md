@@ -115,18 +115,18 @@ auth/secrets and the *platform*, not the code's exposure *through* its dependenc
 third-party integrations) and any **GitHub-native** automation (the kit ships no `.github/`
 scaffolding). Three moves, all on the existing rails:
 
-- 📋 **`code-security` agent** — a security-team **sub-specialist** (mirrors `infra-security`,
+- ✅ **`code-security` agent** — a security-team **sub-specialist** (mirrors `infra-security`,
   no overlap with the `security` AppSec lead). Lane: the code's *external* attack surface —
   third-party integration code (API clients / SDK usage, webhook & callback handling,
   (de)serialization of external responses), dependency **provenance / SBOM**, and SAST /
   CodeQL findings. Lean agent under `.claude/agents/` + a two-tier briefing in
   `vibekit/squads/security-team/`.
-- 📋 **Dependency control of the system** — grow `/deps-audit` from "CVEs + loose ranges" into a
+- ✅ **Dependency control of the system** — grow `/deps-audit` from "CVEs + loose ranges" into a
   real **dependency policy**: license allow/deny + SBOM generation, lockfile-drift detection,
   unmaintained / abandoned-package flags, and a scheduled (not just on-demand) sweep. Policy
   lives in `vibekit/config.json` (allowed licenses, max package age, pinning rules); findings
   still flow into the DevPipeline backlog like every other finding.
-- 📋 **GitHub / Dependabot integration** — the kit scaffolds **`.github/dependabot.yml`** + a
+- ✅ **GitHub / Dependabot integration** — the kit scaffolds **`.github/dependabot.yml`** + a
   **security workflow** (CodeQL + `dependency-review` on PRs + the `/deps-audit` gate),
   ecosystem auto-detected, via `/security-setup` (or folded into `/setupvibedevkit`). The
   *loop-closer* (the on-brand half): a sync pulls **Dependabot / GitHub security alerts**
@@ -137,6 +137,13 @@ scaffolding). Three moves, all on the existing rails:
 CI, never on the kit's zero-dep hot path; the PR security workflow is **advisory by default**
 (opt into blocking); everything is plain files (`dependabot.yml`, workflow YAML, findings
 JSON) and **config-driven** (ecosystems + license policy in `config.json`).
+
+✅ **Shipped** — the `code-security` agent (security-team sub-specialist),
+`/deps-audit` grown with license policy + CycloneDX SBOM (`--sbom`) + lockfile-drift
+and a `deps` config block, `.github/` scaffolding (Dependabot + an advisory
+`security.yml`), and `gh-alerts.mjs` (GitHub alerts → DevPipeline backlog) behind a
+new `/security-setup`. *Deferred:* registry-backed staleness, scheduled alert-sync,
+required-check enforcement.
 
 ## Future directions (candidate L7+ / plugins)
 
