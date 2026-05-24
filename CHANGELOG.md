@@ -6,6 +6,15 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`memory/predictions/`** — `/simulate-impact` (`mark-simulation.mjs`) now writes a
+  prediction file per run (objective · covered paths · predicted-vs-actual stub),
+  seeded on install. First step of the post-1.0 **ancestor parity** focus.
+
+### Docs
+- **Roadmap:** marked the 1.0 milestone **shipped** (per-item status + the extras
+  delivered) and set **ancestor parity** as the post-1.0 focus.
+
 ## [1.0.0]
 
 ### Added
