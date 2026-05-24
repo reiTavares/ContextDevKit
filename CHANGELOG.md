@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-05-24
+
 ### Added
 - **Two-tier squad briefings** — `squad.mjs brief <agent>` scaffolds a rich briefing
   into `vibekit/squads/<squad>/<agent>.md` (squad auto-detected) behind the lean
