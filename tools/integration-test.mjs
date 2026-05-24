@@ -86,6 +86,14 @@ async function main() {
         .every((f) => existsSync(join(proj, 'vibekit', 'workflows', 'playbooks', f)))
       ? ok('workflows + playbooks installed (workflows/playbooks/)')
       : bad('workflows/playbooks not installed');
+    // Ancestor parity #1 (loop closed): predictions-review fills the Actual section of
+    // the prediction file from the ledger (session "it" changed src/a.js, src/b.js).
+    script('predictions-review.mjs');
+    const predMd = readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).find((f) => f.endsWith('.md'));
+    const predBody = predMd ? readFileSync(join(proj, 'vibekit', 'memory', 'predictions', predMd), 'utf-8') : '';
+    predBody.includes('## Actual (reviewed') && predBody.includes('src/a.js') && !predBody.includes('fill on review')
+      ? ok('predictions-review closes the predicted-vs-actual loop (Actual filled)')
+      : bad('predictions-review did not fill the Actual section');
 
     // Concurrency guard (L3+): another session edited a file; a different session
     // about to edit the same file is warned (cross-session collision).
