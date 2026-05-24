@@ -4,6 +4,13 @@ An architect's view of where VibeDevKit is, what it learned from the production
 system it was distilled from (the "Ruiva" project's `devAItools/`), and where it
 goes next.
 
+> **Status key.** Every roadmap item carries a marker, kept current as work moves:
+> ✅ **done** (shipped/implemented) · ⏳ **in progress** (being executed in a session
+> right now) · 🟡 **partial / awaiting input** (started, or blocked on external data —
+> not actively in a session) · 📋 **planned** (not started) · ➖ **dropped**
+> (intentionally not ported). **Process:** when a session picks up an item, mark it
+> ⏳; when it ships, switch it to ✅.
+
 ## Lineage
 
 VibeDevKit is the **generalized, stack-agnostic distillation** of a real
@@ -99,21 +106,53 @@ shipped** (✅ below):
   installed under `vibekit/workflows/`, seeded write-if-missing. The foundation for
   **playbook management** (Future directions #8).*
 
+## Then — supply-chain & code security (deepen the security-team)
+
+1.0 shipped the *foundation*: the **security-team** (`security` AppSec · `infra-security`
+IaC/cloud · `devops` delivery) and `/deps-audit` (lockfile/pinning + native CVE audit →
+backlog). Two things are still missing — a **code-facing** lane (today's agents own
+auth/secrets and the *platform*, not the code's exposure *through* its dependencies and
+third-party integrations) and any **GitHub-native** automation (the kit ships no `.github/`
+scaffolding). Three moves, all on the existing rails:
+
+- 📋 **`code-security` agent** — a security-team **sub-specialist** (mirrors `infra-security`,
+  no overlap with the `security` AppSec lead). Lane: the code's *external* attack surface —
+  third-party integration code (API clients / SDK usage, webhook & callback handling,
+  (de)serialization of external responses), dependency **provenance / SBOM**, and SAST /
+  CodeQL findings. Lean agent under `.claude/agents/` + a two-tier briefing in
+  `vibekit/squads/security-team/`.
+- 📋 **Dependency control of the system** — grow `/deps-audit` from "CVEs + loose ranges" into a
+  real **dependency policy**: license allow/deny + SBOM generation, lockfile-drift detection,
+  unmaintained / abandoned-package flags, and a scheduled (not just on-demand) sweep. Policy
+  lives in `vibekit/config.json` (allowed licenses, max package age, pinning rules); findings
+  still flow into the DevPipeline backlog like every other finding.
+- 📋 **GitHub / Dependabot integration** — the kit scaffolds **`.github/dependabot.yml`** + a
+  **security workflow** (CodeQL + `dependency-review` on PRs + the `/deps-audit` gate),
+  ecosystem auto-detected, via `/security-setup` (or folded into `/setupvibedevkit`). The
+  *loop-closer* (the on-brand half): a sync pulls **Dependabot / GitHub security alerts**
+  (`gh api`) into the **same backlog**, where the `code-security` agent triages reachability —
+  so GitHub's alerts become prioritized, owned tasks instead of an ignored tab.
+
+**Stays inside the invariants:** the `.github/` files, SBOM and CodeQL run in the *project's*
+CI, never on the kit's zero-dep hot path; the PR security workflow is **advisory by default**
+(opt into blocking); everything is plain files (`dependabot.yml`, workflow YAML, findings
+JSON) and **config-driven** (ecosystems + license policy in `config.json`).
+
 ## Future directions (candidate L7+ / plugins)
 
-1. **Design / Product / Ops squads.** ✅ **Shipped in v0.5.2** — `compliance-team`
+1. ✅ **Design / Product / Ops squads** — **Shipped in v0.5.2:** `compliance-team`
    (LGPD), `design-team` (UX/UI/a11y), plus `product-owner` / `devops` starters,
    organized by a `vibekit/squads/` manifest with a sovereignty rule. The squad
    pattern is proven; further families (docs/data/growth/support) follow it.
-2. **Fleet mode.** One control plane over many repos — aggregate stats, run
+2. 📋 **Fleet mode.** One control plane over many repos — aggregate stats, run
    `/audit` across a portfolio, propagate CLAUDE.md rule changes.
-3. **Outcome-driven agent tuning.** Feed review/test outcomes back to refine each
+3. 📋 **Outcome-driven agent tuning.** Feed review/test outcomes back to refine each
    agent's briefing automatically (closing the loop the source only hinted at).
-4. **Editor/CI surfaces.** Status-line widget, PR-review bot using `code-reviewer`
+4. 📋 **Editor/CI surfaces.** Status-line widget, PR-review bot using `code-reviewer`
    + `qa-orchestrator`, contract-drift as a required check.
-5. **Pluggable detectors & language packs.** Drop-in detectors and stack presets
+5. 📋 **Pluggable detectors & language packs.** Drop-in detectors and stack presets
    (`--preset next`, `--preset go`) so `/setupvibedevkit` is even sharper.
-6. **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
+6. 📋 **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
    integration / fuzz with a **browser-driven, visual** layer: open the running
    app, exercise real flows, and verify changes by **screenshot / visual
    regression** — so a change isn't "done" until the UI is confirmed.
@@ -122,7 +161,7 @@ shipped** (✅ below):
    (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
    `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
    is a **project** dependency, never on the kit's zero-dep hot path.
-7. **Token economy & usage insight.** Make token cost a first-class, *measured*
+7. 📋 **Token economy & usage insight.** Make token cost a first-class, *measured*
    dimension of the platform — the natural extension of L6 **Insight**
    (`stats.mjs` / `/vibe-stats`, which today tracks sessions, drift, cadence but
    not cost). Capture **per-session token usage** (input / output / cache, broken
@@ -135,7 +174,7 @@ shipped** (✅ below):
    keep?") finally gets a data-backed answer. Invariant-safe: advisory by default,
    plain files, **zero deps on the hot path** (collection is best-effort and never
    blocks real work).
-8. **Playbook management.** Promote the post-1.0 `workflows/playbooks/` foundation
+8. 📋 **Playbook management.** Promote the post-1.0 `workflows/playbooks/` foundation
    (see *ancestor parity*) from a static doc tree into a **managed, runnable**
    layer: a **playbook registry/index** (discover what exists), **`/playbook`** to
    list / show / run a named procedure (tech-debt sweep, simulate-impact,
