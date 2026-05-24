@@ -6,6 +6,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`workflows/` guides + playbooks** — installed `vibekit/workflows/` with per-level
+  workflow docs (L1–L5, plus an L6 capability-tier note) and four reusable playbooks
+  (`tech-debt-sweep`, `simulate-impact`, `distillation-cycle`, `security-batch`),
+  generalized and translated from the source platform. Seeded write-if-missing by the
+  installer (`copyTreeIfMissing`); covered by selfcheck + integration tests. Completes
+  the post-1.0 **ancestor parity** focus (piece #3 of 3).
+
 ### Docs
 - **Roadmap:** added two initiatives to *Future directions* — **token economy &
   usage insight** (per-session token reporting via `/token-report`, budgets, and

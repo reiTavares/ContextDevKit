@@ -141,6 +141,9 @@ async function main() {
   const pipeCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'pipeline'), join(target, 'vibekit', 'pipeline'));
   if (pipeCount > 0) report.push(`✓ seeded vibekit/pipeline (${pipeCount} file(s))`);
   for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'vibekit', 'pipeline', s));
+  // Workflow guides (L1–L6) + reusable playbooks (write-if-missing so customizations survive).
+  const wfCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'workflows'), join(target, 'vibekit', 'workflows'));
+  if (wfCount > 0) report.push(`✓ seeded vibekit/workflows (${wfCount} file(s))`);
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).

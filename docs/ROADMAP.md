@@ -90,9 +90,10 @@ three pieces deliberately flattened pre-1.0 (see *Honest gaps*):
   a later **predicted-vs-actual** review closes the loop. ← *starting here.*
 - **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
   behind the lean `.claude/agents/` agents (`/squad brief <agent>`).
-- **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
-  (tech-debt sweep, simulate-impact, distillation, security batch). *This is the
-  foundation for **playbook management** (Future directions #8).*
+- ✅ **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
+  (tech-debt sweep, simulate-impact, distillation, security batch). *Shipped:
+  installed under `vibekit/workflows/`, seeded write-if-missing. The foundation for
+  **playbook management** (Future directions #8).*
 
 ## Future directions (candidate L7+ / plugins)
 

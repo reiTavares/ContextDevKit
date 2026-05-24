@@ -80,6 +80,12 @@ async function main() {
     existsSync(join(proj, 'vibekit', 'memory', 'predictions')) && readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
       ? ok('simulate-impact writes a prediction file (predictions/)')
       : bad('no prediction file written');
+    // Ancestor parity: workflow guides (L1–L6) + reusable playbooks are installed.
+    existsSync(join(proj, 'vibekit', 'workflows', 'README.md')) &&
+      ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']
+        .every((f) => existsSync(join(proj, 'vibekit', 'workflows', 'playbooks', f)))
+      ? ok('workflows + playbooks installed (workflows/playbooks/)')
+      : bad('workflows/playbooks not installed');
 
     // Concurrency guard (L3+): another session edited a file; a different session
     // about to edit the same file is warned (cross-session collision).

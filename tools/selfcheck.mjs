@@ -112,6 +112,14 @@ async function checkTemplates() {
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }
+  const wf = await readdir(resolve(KIT, 'templates/vibekit/workflows')).catch(() => []);
+  for (const f of ['README.md', 'L1-static-loading.md', 'L2-session-ledger.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
+    wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
+  }
+  const playbooks = await readdir(resolve(KIT, 'templates/vibekit/workflows/playbooks')).catch(() => []);
+  for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']) {
+    playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
+  }
 }
 
 async function main() {
