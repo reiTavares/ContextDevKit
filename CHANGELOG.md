@@ -6,6 +6,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Contract drift detection deepened** (`contract-scan.mjs`) — the export extractor
+  now also catches `export default`, namespace re-exports (`export * [as N] from`),
+  `declare`/`abstract` declarations, generators, and type-only `export type { … }`
+  (and fixes an inline-`{ type X }` mis-parse). Stays regex-based and **zero-dep** by
+  design — AST would need a parser dependency (see *Honest gaps* / ADR-0003). New
+  integration test covers it.
+
 ## [1.2.0] - 2026-05-24
 
 ### Added

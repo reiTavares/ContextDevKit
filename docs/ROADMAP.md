@@ -55,7 +55,13 @@ commands + metrics + orchestration on top of the L5 gates.
 
 ## Honest gaps / not yet ported
 
-- **Contract drift is regex/export-based**, not AST. Good signal, not proof.
+- **Contract drift is regex-based, not AST.** The extractor now covers the common
+  JS/TS forms (named/declaration exports incl. `declare`/`abstract`/generators,
+  `export default`, namespace re-exports `export * [as N] from`, and type-only
+  `export type { … }`) — good signal, but not an AST *proof*. True AST needs a
+  parser **dependency**; the zero-dep invariant forbids it on the hot path. A parser
+  behind an *optional* dynamic import (zod-style) is a possible future option,
+  deliberately not taken yet. [→ ADR-0003]
 
 _The earlier gaps have since shipped: **two-tier briefings** (v1.1.0,
 `/squad brief`), **workflow docs/playbooks** (`vibekit/workflows/`), and the
