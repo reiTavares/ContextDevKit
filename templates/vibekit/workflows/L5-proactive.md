@@ -82,6 +82,7 @@ zod schema (dynamic import only — the loader stays zero-dep). Inspect/edit wit
 ## Calibration over time
 
 `/simulate-impact` predictions get a "predicted vs actual" appendix from
-`/log-session`; recurring misses refine the command's prompts (or become an ADR).
-Sequential diffs of the debt board show the trend. After enough cycles, feed the
-patterns into `/retro` (L6).
+`/predictions-review` (also run automatically by `/log-session`), which fills each
+prediction's *Actual* section from the ledger; recurring misses refine the command's
+prompts (or become an ADR). Sequential diffs of the debt board show the trend. After
+enough cycles, feed the patterns into `/retro` (L6).

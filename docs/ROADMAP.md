@@ -84,12 +84,16 @@ levels**:
 ## Next — post-1.0 focus: ancestor parity
 
 Complete the distillation from the source platform (`app-ruivo/devAItools`) — the
-three pieces deliberately flattened pre-1.0 (see *Honest gaps*):
+three pieces deliberately flattened pre-1.0 (see *Honest gaps*). **All three are now
+shipped** (✅ below):
 
-- **`memory/predictions/`** — `/simulate-impact` writes a prediction file per run;
-  a later **predicted-vs-actual** review closes the loop. ← *starting here.*
-- **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
-  behind the lean `.claude/agents/` agents (`/squad brief <agent>`).
+- ✅ **`memory/predictions/`** — `/simulate-impact` writes a prediction file per run;
+  `/predictions-review` (auto-run by `/log-session`) closes the loop, filling each
+  file's *Actual* section from the ledger (changed vs predicted paths, both deltas).
+  *Shipped: write half in v1.1.0; predicted-vs-actual review closed here.*
+- ✅ **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
+  behind the lean `.claude/agents/` agents. *Shipped v1.1.0: `/squad brief <agent>`
+  scaffolds a briefing, `/squad list` shows coverage.*
 - ✅ **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
   (tech-debt sweep, simulate-impact, distillation, security batch). *Shipped:
   installed under `vibekit/workflows/`, seeded write-if-missing. The foundation for
