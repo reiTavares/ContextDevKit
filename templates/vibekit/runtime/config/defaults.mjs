@@ -116,6 +116,21 @@ export const DEFAULT_CONFIG = Object.freeze({
    */
   securityMode: { active: true, everyNSessions: 10 },
 
+  /**
+   * Dependency policy for `/deps-audit` (security-team). All advisory — findings
+   * flow into the DevPipeline backlog, they don't block by default.
+   *   - `requireLockfile`: flag a manifest with deps but no committed lockfile.
+   *   - `licenses.allow`: if non-empty, a dependency whose license is NOT listed
+   *     is flagged (allow-list mode). SPDX ids, case-insensitive.
+   *   - `licenses.deny`: a dependency whose license IS listed is always flagged.
+   *   - `maxAgeDays`: reserved for registry-backed staleness (not enforced yet).
+   */
+  deps: {
+    requireLockfile: true,
+    licenses: { allow: [], deny: ['GPL-3.0', 'AGPL-3.0'] },
+    maxAgeDays: null,
+  },
+
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
     /** Editing any of these without a prior `/simulate-impact` is gated. */

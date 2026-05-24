@@ -2,20 +2,26 @@
 /**
  * Dependency / supply-chain audit — the security-team's deterministic check.
  *
- * Zero-dep checks on the manifest + lockfile, plus an OPTIONAL native audit
- * (`npm`/`pnpm`/`yarn audit`) when the toolchain is present and online. Findings
- * are shaped to feed `pipeline.mjs ingest` (kind/severity/path/message/source), so
- * supply-chain issues flow into the DevPipeline backlog like any other finding.
+ * Zero-dep checks on the manifest + lockfile + installed metadata, plus an
+ * OPTIONAL native audit (`npm`/`pnpm`/`yarn audit`) when the toolchain is
+ * present and online. Findings are shaped to feed `pipeline.mjs ingest`
+ * (kind/severity/path/message/source), so supply-chain issues flow into the
+ * DevPipeline backlog like any other finding.
+ *
+ * Policy lives in `vibekit/config.json` → `deps` (requireLockfile, license
+ * allow/deny); see runtime/config/defaults.mjs.
  *
  *   node .../deps-audit.mjs            # console summary
  *   node .../deps-audit.mjs --json     # machine-readable { findings: [...] }
  *   node .../deps-audit.mjs --write    # → vibekit/memory/deps-findings.json (for ingest)
+ *   node .../deps-audit.mjs --sbom     # → vibekit/memory/sbom.json (CycloneDX)
  *
  * Defensive: never throws; degrades to "nothing to report" when it can't tell.
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { loadConfigSync } from '../../runtime/config/load.mjs';
 
 const ROOT = process.cwd();
 const SEV = { critical: 5, high: 4, moderate: 3, low: 2, info: 1 };
@@ -33,15 +39,83 @@ function readJson(p) {
   }
 }
 
-function auditNode() {
+function depPolicy() {
+  try {
+    return loadConfigSync(ROOT).deps || {};
+  } catch {
+    return { requireLockfile: true, licenses: { allow: [], deny: [] } };
+  }
+}
+
+/** All declared dependency names (prod + dev). */
+function depNames(pkg) {
+  return Object.keys({ ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) });
+}
+
+/** Best-effort SPDX id from an installed package's metadata. null if unknown. */
+function licenseOf(name) {
+  const meta = readJson(resolve(ROOT, 'node_modules', name, 'package.json'));
+  if (!meta) return null;
+  if (typeof meta.license === 'string') return meta.license;
+  if (meta.license && typeof meta.license.type === 'string') return meta.license.type;
+  if (Array.isArray(meta.licenses) && meta.licenses[0]?.type) return meta.licenses[0].type;
+  return null;
+}
+
+function auditLicenses(pkg, policy) {
+  const allow = (policy.licenses?.allow || []).map((s) => s.toLowerCase());
+  const deny = (policy.licenses?.deny || []).map((s) => s.toLowerCase());
+  if (!allow.length && !deny.length) return;
+  for (const name of depNames(pkg)) {
+    const lic = licenseOf(name);
+    if (!lic) continue; // not installed / unknown — degrade silently
+    const l = lic.toLowerCase();
+    if (deny.includes(l)) add(4, 'license-deny', `\`${name}\`: license ${lic} is denied by policy (deps.licenses.deny).`);
+    else if (allow.length && !allow.includes(l)) add(2, 'license-unlisted', `\`${name}\`: license ${lic} is not in the allow-list (deps.licenses.allow).`);
+  }
+}
+
+/** Heuristic: a declared dep that does not appear in the lockfile text. */
+function auditDrift(pkg, lockText) {
+  for (const name of depNames(pkg)) {
+    const present = lockText.includes(`node_modules/${name}`) || lockText.includes(`"${name}"`) || lockText.includes(`${name}@`) || lockText.includes(`/${name}/`);
+    if (!present) add(2, 'lockfile-drift', `\`${name}\` is declared but not found in the lockfile — run install to sync it.`);
+  }
+}
+
+function buildSbom(pkg) {
+  const all = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+  const components = Object.entries(all).map(([name, range]) => {
+    const meta = readJson(resolve(ROOT, 'node_modules', name, 'package.json'));
+    const version = meta?.version || String(range).replace(/^[^0-9]*/, '') || '0.0.0';
+    const lic = licenseOf(name);
+    return { type: 'library', name, version, purl: `pkg:npm/${name}@${version}`, ...(lic ? { licenses: [{ license: { id: lic } }] } : {}) };
+  });
+  return {
+    bomFormat: 'CycloneDX',
+    specVersion: '1.5',
+    metadata: {
+      timestamp: new Date().toISOString(),
+      tools: [{ vendor: 'VibeDevKit', name: 'deps-audit' }],
+      component: { type: 'application', name: pkg.name || 'app', version: pkg.version || '0.0.0' },
+    },
+    components,
+  };
+}
+
+function findLock() {
+  const locks = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json'];
+  return locks.find((l) => existsSync(resolve(ROOT, l)));
+}
+
+function auditNode(policy) {
   if (!existsSync(resolve(ROOT, 'package.json'))) return false;
   const pkg = readJson(resolve(ROOT, 'package.json')) || {};
   const all = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
   const hasDeps = Object.keys(all).length > 0;
 
-  const locks = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'npm-shrinkwrap.json'];
-  const lock = locks.find((l) => existsSync(resolve(ROOT, l)));
-  if (hasDeps && !lock) add(4, 'no-lockfile', 'No lockfile committed — installs are not reproducible. Commit one.');
+  const lock = findLock();
+  if (hasDeps && !lock && policy.requireLockfile !== false) add(4, 'no-lockfile', 'No lockfile committed — installs are not reproducible. Commit one.');
 
   for (const [name, range] of Object.entries(all)) {
     if (typeof range !== 'string') continue;
@@ -49,7 +123,12 @@ function auditNode() {
       add(3, 'loose-range', `\`${name}\`: "${range}" is unbounded — pin a version (or a caret range with a lockfile).`);
     }
   }
-  if (hasDeps && lock) runNativeAudit(lock);
+
+  auditLicenses(pkg, policy);
+  if (lock) {
+    auditDrift(pkg, readFileSync(resolve(ROOT, lock), 'utf-8'));
+    runNativeAudit(lock);
+  }
   return true;
 }
 
@@ -82,8 +161,23 @@ function pythonHint() {
   }
 }
 
+function writeSbom() {
+  const pkg = readJson(resolve(ROOT, 'package.json'));
+  if (!pkg) {
+    console.log('🔐 deps-audit --sbom: no package.json found.');
+    return;
+  }
+  const out = resolve(ROOT, 'vibekit/memory/sbom.json');
+  writeFileSync(out, JSON.stringify(buildSbom(pkg), null, 2), 'utf-8');
+  console.log('🔐 deps-audit: SBOM written → vibekit/memory/sbom.json (CycloneDX 1.5).');
+}
+
 function main() {
-  auditNode();
+  if (process.argv.includes('--sbom')) {
+    writeSbom();
+    return;
+  }
+  auditNode(depPolicy());
   pythonHint();
   const result = { findings };
 
