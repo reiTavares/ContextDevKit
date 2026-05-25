@@ -6,6 +6,15 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **agent-forge squad — foundations (Fase 0).** New *factory* squad that forges
+  portable, multi-provider Agent Packages for projects outside the kit. Scaffolded
+  `templates/vibekit/squads/agent-forge/` with its README (mandate, roster, boundary)
+  and `best-practices.md` (the bar every forged agent clears — five principles, the
+  default catalogue, provider notes, three-pillar governance, eval lifecycle).
+  Approved by ADR-0012; remaining phases tracked on the DevPipeline (031–035).
+  Selfcheck inventory guards both docs. (030)
+
 ## [1.4.2] - 2026-05-25
 
 ### Changed
