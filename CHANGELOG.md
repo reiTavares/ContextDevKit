@@ -6,6 +6,15 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-05-25
+
+### Changed
+- **CI actions bumped to Node 24 majors** (re-pinned by SHA): `actions/checkout`
+  v4→v6, `actions/setup-node` v4→v6, `actions/dependency-review-action` v4→v5 —
+  across `release.yml`, `ci.yml` and the scaffolded `quality.yml`/`security.yml`
+  templates. Clears GitHub's Node 20 runtime-deprecation warning (forced Node 24
+  on 2026-06-02). CodeQL stays on v3 (no Node 24 major yet). Still SHA-pinned.
+
 ## [1.4.1] - 2026-05-25
 
 DevPipeline backlog cleared (all 25 open tasks) — bug fixes, supply-chain &
