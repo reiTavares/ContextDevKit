@@ -19,7 +19,7 @@ import { composeSettings } from './templates/vibekit/runtime/config/settings-com
 import { applyPreset, listPresets } from './templates/vibekit/runtime/config/presets.mjs';
 import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
-import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
+import { installGitHooks, patchGitignore, patchBoardGitignore, patchGitattributes } from './tools/install/git.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
@@ -204,6 +204,9 @@ async function main() {
 
   // 9. .gitignore + .gitattributes + GitHub templates + git hooks.
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');
+  let boardPolicy;
+  try { boardPolicy = JSON.parse(await read(cfgPath))?.pipeline?.commitBoard; } catch { /* default: committed */ }
+  if (await patchBoardGitignore(target, boardPolicy)) report.push('✓ DevPipeline board set local-only (pipeline.commitBoard=false)');
   if (await patchGitattributes(target, TPL)) report.push('✓ .gitattributes patched (LF for engine scripts)');
   const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);

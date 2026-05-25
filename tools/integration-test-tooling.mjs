@@ -45,6 +45,18 @@ try {
   const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
   /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
 
+  // Session-aware board: `pipeline start` stamps the owning session; board shows it live (🟢).
+  hook('track-edits.mjs', { session_id: 'ownerA', tool_name: 'Write', tool_input: { file_path: 'src/owned.js' } });
+  script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P2', '--title', 'owned task');
+  const ownedId = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'owned task')?.id;
+  script('pipeline.mjs', 'start', ownedId);
+  const started = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'owned task');
+  started?.stage === 'testing' && started?.owner === 'ownerA'
+    ? ok('pipeline start moves to testing + stamps the owning session') : bad(`pipeline start stamp failed: ${JSON.stringify(started)}`);
+  const board3 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  board3.includes('`ownerA`') && board3.includes('🟢') && board3.includes('Owner (session')
+    ? ok('board shows the in-progress task with its live owning session') : bad('board missing live owner on the board');
+
   // DevPipeline ingest: analysis findings flow into the backlog, auto-prioritized.
   writeFileSync(join(proj, 'findings.json'), JSON.stringify({ findings: [
     { kind: 'line-budget', severity: 5, path: 'src/big.js', line: 400, message: 'too big' },

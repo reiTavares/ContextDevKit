@@ -16,22 +16,57 @@ function table(tasks) {
   return rows.join('\n') + '\n';
 }
 
-/** Full `devpipeline.md` markdown from the task list. */
-export function renderBoard(tasks) {
+/** Owner cell for the in-progress lane: 🟢 live / 🟡 idle session + branch. */
+function ownerCell(task) {
+  if (!task.owner) return '_unassigned_';
+  const session = `\`${String(task.owner).slice(0, 8)}\``;
+  const dot = task.active ? '🟢' : '🟡';
+  const branch = task.branch ? ` · \`${task.branch}\`` : '';
+  return `${dot} ${session}${branch}`;
+}
+
+/** In-progress lane — like `table` but with the owning session instead of WSJF/roadmap. */
+function testingTable(tasks) {
+  if (tasks.length === 0) return '_(empty — nothing pulled into testing. `/pipeline start <id>` to claim one.)_\n';
+  const rows = ['| ID | Pri | Type | Title | Owner (session · branch) | SLA |', '| --- | --- | --- | --- | --- | --- |'];
+  for (const t of tasks) {
+    const sla = t.sla ? (isOverdue(t) ? `⏰ ${t.sla}` : t.sla) : '—';
+    rows.push(`| ${t.id} | ${t.priority} | ${t.type} | ${t.title} | ${ownerCell(t)} | ${sla} |`);
+  }
+  return rows.join('\n') + '\n';
+}
+
+/** One-line git-policy note so any reader knows whether this board is shared or local-only. */
+function gitPolicyNote(opts) {
+  return opts.commitBoard === false
+    ? 'this board is **local-only** (gitignored) — pure execution control, never published; only the task files (if any) travel.'
+    : 'committed as **shared team state**. (A repo dogfooding the kit may exclude all of `vibekit/` locally, so its board never reaches the published kit.)';
+}
+
+/**
+ * Full `devpipeline.md` markdown from the task list.
+ *
+ * @param {Array} tasks — task list (in-testing items may carry `owner`/`branch`/`active`).
+ * @param {{ commitBoard?: boolean }} [opts] — git policy, surfaced in the header.
+ */
+export function renderBoard(tasks, opts = {}) {
   const by = (s) => tasks.filter((t) => t.stage === s);
   const overdue = tasks.filter(isOverdue);
   const out = [];
   out.push('# DevPipeline — execution board');
   out.push('');
   out.push('> ⚠️  **AUTO-GENERATED** by `pipeline.mjs sync` (also on pre-commit). Do not hand-edit.');
-  out.push('> Product/business plan is `vibekit/memory/roadmap.md`. THIS is execution control:');
-  out.push('> bugs / increments / chores with **WSJF** priority + **SLA** (⏰ = overdue).');
+  out.push('> **What this is:** execution *control* — the live board of bugs / increments / chores');
+  out.push('> with **WSJF** priority + **SLA** (⏰ = overdue). The product/business plan is a separate');
+  out.push('> doc — `vibekit/memory/roadmap.md` (the what/why). This is the how/now.');
+  out.push('> **In progress** shows the task **and the session working it** (🟢 = that session is live).');
+  out.push(`> **Git:** ${gitPolicyNote(opts)}`);
   out.push('');
   out.push(`Backlog **${by('backlog').length}** · Testing **${by('testing').length}** · Concluded **${by('conclusion').length}** · ⏰ Overdue **${overdue.length}**`);
   out.push('');
   out.push('## 🟡 In testing / in progress');
   out.push('');
-  out.push(table(by('testing')));
+  out.push(testingTable(by('testing')));
   out.push('## 📋 Backlog (by priority)');
   out.push('');
   out.push(table(by('backlog')));

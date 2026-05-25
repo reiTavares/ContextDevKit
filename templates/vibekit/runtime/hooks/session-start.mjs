@@ -18,6 +18,7 @@ import {
   extractLatestSession,
   extractUnreleased,
   readChangelog,
+  readPipelineInProgress,
   readSessionsIndex,
   readWorkspaceSummary,
 } from './boot-context-readers.mjs';
@@ -91,12 +92,13 @@ async function main() {
   const latest = await extractLatestSession(ROOT);
   const workspace = level >= 3 ? await readWorkspaceSummary(ROOT) : null;
   const branches = level >= 3 ? activeBranches(ROOT, getBranch(ROOT)) : null;
+  const pipeline = await readPipelineInProgress(ROOT);
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
   const divergence = checkGitDivergence(ROOT);
   const secDue = securityModeDue(ROOT);
   const predDue = predictionsReviewDue(ROOT);
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue) return;
+  if (!needsSetup && !sessions && !changelog && !latest && !pipeline && drift.length === 0 && !secDue && !predDue) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -182,6 +184,17 @@ async function main() {
     out.push('');
     out.push('If you will touch files another branch changed, coordinate (or `/claim`) — the pre-push');
     out.push('hook will also block a conflicting push.');
+    out.push('');
+  }
+
+  if (pipeline) {
+    out.push('## 🛠️ DevPipeline — in progress');
+    out.push('');
+    out.push(pipeline);
+    out.push('');
+    out.push('This is the execution-control board (the how/now), **not** the roadmap. Each task here is');
+    out.push('owned by a session (🟢 = live). `/pipeline show` for the full board; `/pipeline start <id>`');
+    out.push('to pull one and stamp yourself as owner. Avoid files another live session already owns.');
     out.push('');
   }
 

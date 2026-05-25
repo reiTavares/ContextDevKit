@@ -65,11 +65,23 @@ try {
     ? ok('predictions-review closes the predicted-vs-actual loop (Actual filled)')
     : bad('predictions-review did not fill the Actual section');
 
-  // Concurrency guard (L3+): warn before overwriting a file another session edited.
-  hook('track-edits.mjs', { session_id: 'other', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } });
-  hook('concurrency-guard.mjs', { session_id: 'me', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } }).includes('Concurrency')
-    ? ok('concurrency-guard warns on cross-session collision')
-    : bad('concurrency-guard did not warn');
+  // Concurrency guard (L3+): a senior, live session that owns a file BLOCKS a newer one.
+  hook('track-edits.mjs', { session_id: 'senior', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } });
+  existsSync(join(proj, '.claude', '.workspace', 'senior.json'))
+    ? ok('track-edits auto-presence registers an editing session (implicit claim)')
+    : bad('auto-presence workspace file not written');
+  hook('concurrency-guard.mjs', { session_id: 'newcomer', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } }).includes('"decision":"block"')
+    ? ok('concurrency-guard BLOCKS a newer session from a senior owner\'s file')
+    : bad('concurrency-guard did not block the senior-owner collision');
+  (run([join(proj, 'vibekit', 'runtime', 'hooks', 'concurrency-guard.mjs')], { cwd: proj, input: JSON.stringify({ session_id: 'newcomer', tool_name: 'Write', tool_input: { file_path: 'src/shared.js' } }), env: { ...process.env, VIBE_ALLOW_CLAIMED_EDIT: '1' } }).stdout || '').includes('"decision":"block"')
+    ? bad('bypass did not lift the block') : ok('VIBE_ALLOW_CLAIMED_EDIT bypass lifts the block');
+  // Soft-warn tier: a NEWER session that touched the file is advisory only (no block).
+  hook('track-edits.mjs', { session_id: 'early', tool_name: 'Write', tool_input: { file_path: 'src/placeholder.js' } });
+  hook('track-edits.mjs', { session_id: 'late', tool_name: 'Write', tool_input: { file_path: 'src/warnzone.js' } });
+  const warnOut = hook('concurrency-guard.mjs', { session_id: 'early', tool_name: 'Write', tool_input: { file_path: 'src/warnzone.js' } });
+  warnOut.includes('Concurrency') && !warnOut.includes('"decision":"block"')
+    ? ok('concurrency-guard only WARNS when the other session is newer (not senior)')
+    : bad(`concurrency-guard tiering wrong: ${warnOut.slice(0, 80)}`);
   const l5settings = readJson(join(proj, '.claude', 'settings.json'));
   (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
     ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');

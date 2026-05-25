@@ -100,6 +100,10 @@ export const DEFAULT_CONFIG = Object.freeze({
    *   - `severityPriority`: ITIL bug severity S1–S4 → priority.
    *   - `slaDays`: resolution target (days) per priority → the task's SLA due date.
    *   - `bugTypes`: the bug taxonomy used to classify bug tasks.
+   *   - `commitBoard`: when `true` (default) the generated board travels in git as
+   *     shared team state; set `false` to keep `devpipeline.md`/`known-bugs.md`
+   *     local-only (the installer gitignores them) — pure execution control that
+   *     never reaches the published artifact. Task files are unaffected.
    */
   pipeline: {
     framework: 'wsjf',
@@ -107,6 +111,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     severityPriority: { S1: 'P0', S2: 'P1', S3: 'P2', S4: 'P3' },
     slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 },
     bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
+    commitBoard: true,
   },
 
   /**

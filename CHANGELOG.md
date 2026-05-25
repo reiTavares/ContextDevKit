@@ -13,6 +13,21 @@ this project follows [Semantic Versioning](https://semver.org/).
   `status` detects an existing harness. Owned by `qa-e2e`; wired into `/scaffold-tests`,
   `/qa-signoff`, `/ship`. The runner is a project dependency — the kit scaffolds, never
   bundles/runs browsers (zero-dep hot path). Roadmap *Future directions* #6.
+- **Enforced parallel-session coordination + session-aware DevPipeline** (ADR-0004) —
+  - The L3 **concurrency guard now BLOCKS** (PreToolUse `decision:block`), not just warns,
+    when a file is owned by an **older, still-live** session (actively editing it or having
+    `/claim`ed it). The senior session keeps the file until it finishes → PRs → merges; the
+    newer one is told to work elsewhere or pull another DevPipeline/roadmap task. Weaker
+    signals stay advisory; audited bypass `VIBE_ALLOW_CLAIMED_EDIT=1`; fails open on error.
+  - **Auto-presence** (`track-edits`): editing a file is an implicit claim — every live
+    session is now visible in `.claude/.workspace/` (+ WORKSPACE.md) without a manual `/claim`.
+  - **`/pipeline start <id>`** pulls a task into testing AND stamps the owning session
+    (id + branch). The "in testing / in progress" lane now renders the **owner session** with
+    a 🟢 live marker — it stops being permanently empty.
+  - **Boot context** surfaces the in-progress board (task + owner) and states the board's
+    purpose + git policy, so a session grasps the pipeline immediately.
+  - **`pipeline.commitBoard`** config (default `true`) — board committed as shared team state,
+    or local-only (installer gitignores it). Covered by selfcheck + integration tests.
 - **Fleet mode (MVP)** — `/fleet` + `fleet.mjs`: a control plane over many repos.
   Registry outside any repo (`~/.vibedevkit/fleet.json`, override `VIBE_FLEET_FILE`);
   `add`/`remove`/`list`, `stats` (aggregate each repo's `stats.mjs`), `audit`
@@ -48,6 +63,9 @@ this project follows [Semantic Versioning](https://semver.org/).
   config via `presets.mjs`. Roadmap *Future directions* #5.
 
 ### Changed
+- **DevPipeline board header rewritten** — the generated `devpipeline.md` now states what it
+  is (execution control, not the roadmap), that "in progress" shows the owning session, and
+  its git policy — so any session understands it at a glance.
 - **Contract drift detection deepened** (`contract-scan.mjs`) — the export extractor
   now also catches `export default`, namespace re-exports (`export * [as N] from`),
   `declare`/`abstract` declarations, generators, and type-only `export type { … }`

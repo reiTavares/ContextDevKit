@@ -8,7 +8,10 @@
  *
  * Side effects:
  *   1. Updates `.claude/.sessions/<sid>.json`.
- *   2. Renews the heartbeat in `.claude/.workspace/<sid>.json` (if claimed).
+ *   2. Auto-presence: ensures `.claude/.workspace/<sid>.json` exists with a fresh
+ *      heartbeat — editing a file IS an implicit claim, so a live session is
+ *      visible (to the board, WORKSPACE.md and the L3 concurrency guard) even if
+ *      it never ran `/claim`.
  *   3. Surfaces a cross-claim warning when editing another session's claim.
  *
  * Defensive: any failure exits 0 with a stderr note. Zero third-party deps.
@@ -43,14 +46,28 @@ function extractPaths(payload) {
   return [];
 }
 
-async function renewHeartbeat(sessionId) {
+/**
+ * Auto-presence: create the workspace file if missing (so editing == implicit
+ * claim) and stamp a fresh heartbeat. `startedAt` is seeded from the ledger so
+ * the concurrency guard's seniority check is consistent across both stores.
+ * Best effort — never blocks an edit.
+ */
+async function ensurePresence(sessionId, startedAt) {
   const path = resolve(WORKSPACE_DIR, `${sessionId}.json`);
   try {
-    const data = JSON.parse(await readFile(path, 'utf-8'));
+    await mkdir(WORKSPACE_DIR, { recursive: true });
+    let data;
+    try {
+      data = JSON.parse(await readFile(path, 'utf-8'));
+    } catch {
+      data = { sessionId, startedAt, claims: [] };
+    }
+    if (typeof data.startedAt !== 'number') data.startedAt = startedAt;
+    if (!Array.isArray(data.claims)) data.claims = [];
     data.lastHeartbeat = Date.now();
     await writeFile(path, JSON.stringify(data, null, 2), 'utf-8');
   } catch {
-    /* no claim file — nothing to renew */
+    /* best effort — presence is advisory */
   }
 }
 
@@ -126,9 +143,9 @@ async function main() {
   }
   await writeLedger(sessionId, ledger);
 
-  // 2. Renew heartbeat (if this session has a claim file).
-  await mkdir(WORKSPACE_DIR, { recursive: true }).catch(() => {});
-  await renewHeartbeat(sessionId);
+  // 2. Auto-presence: make this session visible (fresh heartbeat) even if it
+  //    never ran /claim — editing a file IS an implicit claim.
+  await ensurePresence(sessionId, ledger.startedAt);
 
   // 3. Cross-claim detection (L3).
   const otherClaims = await loadOtherClaims(sessionId);

@@ -18,14 +18,22 @@
  *   node .../pipeline.mjs ingest <findings.json> [--type chore]   # 1 task/finding, auto-priority, idempotent
  *   node .../pipeline.mjs prioritize <id> <P0-P3>                  # user override of the auto priority
  *   node .../pipeline.mjs move <id> testing|conclusion|backlog
+ *   node .../pipeline.mjs start <id>    # pull into testing + stamp the current session as owner
  *   node .../pipeline.mjs sync          # regenerate devpipeline.md
  *   node .../pipeline.mjs list [--json]
+ *
+ * NOTE (file size): this is the cohesive command surface — one handler per
+ * subcommand + shared task I/O. Board rendering, prioritization and session
+ * ownership already live in sibling modules (pipeline-board / -prioritize /
+ * -session); splitting the dispatch further would be premature abstraction, so
+ * the file sits within the 280–308 structural-tolerance band.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
+import { stampOwnership, readCurrentSession, enrichActive } from './pipeline-session.mjs';
 
 const ROOT = process.cwd();
 const PIPE = resolve(ROOT, 'vibekit/pipeline');
@@ -62,7 +70,7 @@ function listTasks() {
     }
     for (const f of files) {
       const fm = parseFrontmatter(readFileSync(resolve(PIPE, stage, f), 'utf-8'));
-      tasks.push({ stage, file: f, id: fm.id || f.split('-')[0], title: fm.title || f, type: fm.type || 'task', priority: fm.priority || 'P2', severity: fm.severity || '', wsjf: fm.wsjf || '', bugType: fm.bugType || '', sla: fm.sla || '', roadmap: fm.roadmap || '', source: fm.source || '', created: fm.created || '' });
+      tasks.push({ stage, file: f, id: fm.id || f.split('-')[0], title: fm.title || f, type: fm.type || 'task', priority: fm.priority || 'P2', severity: fm.severity || '', wsjf: fm.wsjf || '', bugType: fm.bugType || '', sla: fm.sla || '', roadmap: fm.roadmap || '', source: fm.source || '', created: fm.created || '', owner: fm.owner || '', branch: fm.branch || '', startedTesting: fm.startedTesting || '' });
     }
   }
   return tasks.sort((a, b) => (a.priority + a.id).localeCompare(b.priority + b.id));
@@ -225,9 +233,9 @@ function setWsjf() {
   console.log(`✅ ${task.id} WSJF ${score} → ${pr} (SLA ${due})`);
 }
 
-function move() {
+function move(forceStage) {
   const id = process.argv[3];
-  const stage = process.argv[4];
+  const stage = forceStage || process.argv[4];
   if (!id || !STAGES[stage]) {
     console.error('Usage: pipeline.mjs move <id> <backlog|testing|conclusion>');
     process.exit(1);
@@ -240,6 +248,7 @@ function move() {
   const from = resolve(PIPE, task.stage, task.file);
   const to = resolve(PIPE, stage, task.file);
   let text = readFileSync(from, 'utf-8').replace(/^(status:).*$/m, `status: ${STATUS[stage]}`);
+  if (stage === 'testing') text = stampOwnership(text, readCurrentSession(ROOT));
   if (stage === 'conclusion' && !/^concluded:/m.test(text)) {
     text = text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${new Date().toISOString().slice(0, 10)}\n---`);
   }
@@ -251,8 +260,8 @@ function move() {
 
 function sync() {
   ensureDirs();
-  const all = listTasks();
-  writeFileSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all), 'utf-8');
+  const all = enrichActive(listTasks(), ROOT);
+  writeFileSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all, { commitBoard: CFG.commitBoard !== false }), 'utf-8');
   writeFileSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all), 'utf-8');
 }
 
@@ -271,6 +280,7 @@ else if (cmd === 'prioritize') prioritize();
 else if (cmd === 'wsjf') setWsjf();
 else if (cmd === 'bugs') bugs();
 else if (cmd === 'move') move();
+else if (cmd === 'start') move('testing');
 else if (cmd === 'sync') {
   sync();
   console.log('✅ devpipeline.md regenerated.');
@@ -279,6 +289,6 @@ else if (cmd === 'sync') {
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|sync|list>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|sync|list>');
   process.exit(1);
 }

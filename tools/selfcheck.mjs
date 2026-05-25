@@ -85,6 +85,34 @@ function checkConfig(load) {
   else bad('config defaults missing ledger.important');
   if (Number.isInteger(load.getLevel(KIT))) ok(`getLevel() → L${load.getLevel(KIT)}`);
   else bad('getLevel() did not return an integer');
+  if (cfg?.pipeline?.commitBoard === true) ok('pipeline.commitBoard defaults to committed');
+  else bad('config defaults missing pipeline.commitBoard=true');
+}
+
+async function checkPipeline() {
+  console.log('Checking DevPipeline board + session linkage...');
+  const scripts = resolve(KIT, 'templates/vibekit/tools/scripts');
+  const imp = (rel, base) => import('file://' + resolve(base, rel).replaceAll('\\', '/'));
+  let board, session, git;
+  try {
+    board = await imp('pipeline-board.mjs', scripts);
+    session = await imp('pipeline-session.mjs', scripts);
+    git = await imp('git.mjs', resolve(KIT, 'tools/install'));
+  } catch (err) {
+    bad(`pipeline modules import — ${err?.message ?? err}`);
+    return;
+  }
+  const inProgress = board.renderBoard(
+    [{ stage: 'testing', id: '001', title: 'X', type: 'bug', priority: 'P1', owner: 'abcd1234efgh', branch: 'feat/x', active: true, sla: '' }],
+    { commitBoard: true },
+  );
+  inProgress.includes('Owner (session') && inProgress.includes('`abcd1234`') ? ok('board renders in-progress owner column') : bad('board missing owner/session column');
+  inProgress.includes('🟢') ? ok('board marks the live session') : bad('board missing live (🟢) marker');
+  board.renderBoard([], { commitBoard: false }).includes('local-only') ? ok('board git note honors commitBoard=false') : bad('board git note missing local-only');
+  board.renderBoard([], { commitBoard: true }).includes('shared team state') ? ok('board git note honors commitBoard=true') : bad('board git note missing committed note');
+  const stamped = session.stampOwnership('---\nid: 1\nowner: \nstatus: testing\n---\n\n## T\n', { sessionId: 'sid-9', branch: 'feat/y' });
+  stamped.includes('owner: sid-9') && stamped.includes('branch: feat/y') && stamped.includes('startedTesting:') ? ok('stampOwnership upserts owner/branch/startedTesting') : bad('stampOwnership did not stamp fields');
+  typeof git.patchBoardGitignore === 'function' ? ok('installer exports patchBoardGitignore') : bad('installer missing patchBoardGitignore');
 }
 
 async function checkTemplates() {
@@ -101,7 +129,7 @@ async function checkTemplates() {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'pipeline-session.mjs', 'deep-analysis.mjs', 'squad.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -146,6 +174,7 @@ async function main() {
     merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
       ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
   } else bad('presets.applyPreset not exported');
+  await checkPipeline();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

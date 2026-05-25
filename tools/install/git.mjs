@@ -48,6 +48,28 @@ export async function patchGitignore(target) {
   return true;
 }
 
+const BOARD_IGNORE_BLOCK = [
+  '',
+  '# VibeDevKit — DevPipeline board kept local (pipeline.commitBoard = false)',
+  'vibekit/pipeline/devpipeline.md',
+  'vibekit/pipeline/known-bugs.md',
+].join('\n');
+
+/**
+ * When `pipeline.commitBoard === false`, gitignore the generated board so it
+ * stays a local-only control artifact (task files still travel). No-op otherwise.
+ * Idempotent via its own marker, independent of the runtime-state block.
+ */
+export async function patchBoardGitignore(target, commitBoard) {
+  if (commitBoard !== false) return false;
+  const p = join(target, '.gitignore');
+  let current = '';
+  if (existsSync(p)) current = await read(p);
+  if (current.includes('DevPipeline board kept local')) return false;
+  await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + BOARD_IGNORE_BLOCK + '\n', 'utf-8');
+  return true;
+}
+
 export async function patchGitattributes(target, tplDir) {
   const tplPath = join(tplDir, 'gitattributes');
   if (!existsSync(tplPath)) return false;

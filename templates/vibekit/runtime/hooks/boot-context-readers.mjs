@@ -7,7 +7,7 @@
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
+import { CHANGELOG, PLATFORM_DIR, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
 
 const SECTION_LIMIT = 60;
 
@@ -73,6 +73,24 @@ export async function readWorkspaceSummary(root) {
   const startIdx = lines.findIndex((l) => /^##\s+🟢\s+Active/.test(l));
   if (startIdx === -1) return null;
   return lines.slice(startIdx).slice(0, 12).join('\n').trim();
+}
+
+/**
+ * The "In testing / in progress" lane of the generated DevPipeline board — so a
+ * new session sees what is already in flight (and which session owns it) at boot.
+ * Returns null when the board is missing or that lane is empty (zero noise).
+ */
+export async function readPipelineInProgress(root) {
+  const md = await readSafe(root, `${PLATFORM_DIR}/pipeline/devpipeline.md`);
+  if (!md) return null;
+  const lines = md.split('\n');
+  const startIdx = lines.findIndex((l) => /^##\s+🟡\s+In testing/.test(l));
+  if (startIdx === -1) return null;
+  const rest = lines.slice(startIdx + 1);
+  const endRel = rest.findIndex((l) => /^##\s+/.test(l));
+  const body = rest.slice(0, endRel === -1 ? rest.length : endRel).join('\n').trim();
+  if (!body || /^_\(empty/.test(body)) return null;
+  return body.split('\n').slice(0, 14).join('\n').trim();
 }
 
 export async function readChangelog(root) {
