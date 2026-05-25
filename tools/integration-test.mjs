@@ -152,6 +152,47 @@ try {
   })()
     ? ok('contract-scan detects removed default / export* / abstract / type-only exports')
     : bad(`contract-scan drift miss: ${drift.stdout || drift.stderr}`);
+  // Optional AST contract drift (#001): with a parser available (fake via VIBE_CONTRACT_PARSER),
+  // extraction uses the AST, not regex — the baseline reflects AST-derived names.
+  const astCfg = readJson(cfgPath);
+  astCfg.l5.contractGlobs = ['src/ast/'];
+  writeFileSync(cfgPath, JSON.stringify(astCfg, null, 2));
+  mkdirSync(join(proj, 'src', 'ast'), { recursive: true });
+  writeFileSync(join(proj, 'src', 'ast', 'mod.js'), 'export const regexName = 1;\n');
+  writeFileSync(join(proj, '_fakeparser.mjs'), 'export function parse(){return{body:[{type:"ExportDefaultDeclaration"},{type:"ExportNamedDeclaration",specifiers:[{exported:{name:"astOnly"}}]}]};}\n');
+  run([join(proj, 'vibekit', 'tools', 'scripts', 'contract-scan.mjs'), '--save'], { cwd: proj, env: { ...process.env, VIBE_CONTRACT_PARSER: join(proj, '_fakeparser.mjs') } });
+  const astBaseline = readFileSync(join(proj, 'vibekit', 'memory', 'contract-baseline.json'), 'utf-8');
+  astBaseline.includes('astOnly') && !astBaseline.includes('regexName')
+    ? ok('contract-scan uses the optional AST parser when importable') : bad(`AST path not used: ${astBaseline}`);
+
+  // Playbook management (#8): the registry lists installed playbooks; run records a tracked entry.
+  const pbList = script('playbook.mjs', 'list').stdout || '';
+  pbList.includes('tech-debt-sweep') && pbList.includes('security-batch')
+    ? ok('playbook list shows the registry') : bad(`playbook list missing entries: ${pbList}`);
+  script('playbook.mjs', 'run', 'tech-debt-sweep', 'IT run');
+  const pbRuns = existsSync(join(proj, 'vibekit', 'memory', 'playbook-runs.md'))
+    && readFileSync(join(proj, 'vibekit', 'memory', 'playbook-runs.md'), 'utf-8');
+  pbRuns && pbRuns.includes('tech-debt-sweep')
+    ? ok('playbook run records a tracked entry') : bad('playbook run did not track');
+
+  // Token economy (#7): token-report aggregates usage from transcripts (fake --from dir; also
+  // exercises the cwd filter + defensive JSON parsing of a bad line).
+  const ttx = join(proj, '_ttx');
+  mkdirSync(ttx, { recursive: true });
+  const usageLine = (i, o) => JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, message: { role: 'assistant', usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
+  writeFileSync(join(ttx, 'sess1.jsonl'), [usageLine(100, 200), usageLine(50, 25), '{ bad json'].join('\n'));
+  const tr = script('token-report.mjs', '--from', ttx, '--json');
+  (() => { try { const j = JSON.parse(tr.stdout); return j.sessions === 1 && j.totals.total === 375 && j.totals.input === 150; } catch { return false; } })()
+    ? ok('token-report aggregates token usage from transcripts') : bad(`token-report failed: ${tr.stdout || tr.stderr}`);
+
+  // Predictions-review cadence (#002): cadence on + an unreviewed prediction → SessionStart reminds.
+  const prCfg = readJson(cfgPath);
+  prCfg.predictionsReview = { active: true, everyNSessions: 1 };
+  writeFileSync(cfgPath, JSON.stringify(prCfg, null, 2));
+  writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x\n');
+  writeFileSync(join(proj, 'vibekit', 'memory', 'predictions', 'unrev.md'), '# Prediction\n\n## Actual — fill on review\n');
+  hook('session-start.mjs', {}).includes('/predictions-review')
+    ? ok('predictions-review cadence reminds when a review is due') : bad('no predictions-review cadence reminder');
 
   // Roadmap seeded (undefined) + find reports it as not-defined.
   existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');

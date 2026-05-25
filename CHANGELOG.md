@@ -17,6 +17,21 @@ this project follows [Semantic Versioning](https://semver.org/).
   sessions) and **proposes** briefing refinements to `.agent-tuning-proposal.md`
   (gitignored); applies nothing, mirroring `/distill-sessions`. Promotes roadmap
   *Future directions* #2/#3 from candidate to MVP.
+- **Playbook management** (roadmap #8) — `playbook.mjs` + **`/playbook`** turn
+  `vibekit/workflows/playbooks/` into a managed layer: **list** the registry, **show**
+  a procedure, and **run** one (records a tracked entry in
+  `vibekit/memory/playbook-runs.md`, then prints the steps). `/ship` and the squads can
+  `run` a playbook instead of restating it. Zero-dep; covered by selfcheck + integration
+  tests.
+- **Token economy & usage insight** (roadmap #7) — `token-report.mjs` + **`/token-report`**
+  read Claude Code's local session transcripts and aggregate token usage per session and
+  per ISO week (input/output/cache), with a configurable budget (`tokens.budgetPerSession`)
+  that flags hot sessions. Read-only, local, zero-dep, aggregated counts only. New
+  integration test covers aggregation.
+- **Predictions-review cadence** (roadmap #002) — when `predictionsReview.active` (on by
+  default), the SessionStart hook reminds you to run `/predictions-review` every N sessions,
+  but **only** when unreviewed `/simulate-impact` predictions exist (silent otherwise).
+  Mirrors security-mode. New integration test covers the trigger.
 
 ### Changed
 - **Contract drift detection deepened** (`contract-scan.mjs`) — the export extractor
@@ -25,6 +40,11 @@ this project follows [Semantic Versioning](https://semver.org/).
   (and fixes an inline-`{ type X }` mis-parse). Stays regex-based and **zero-dep** by
   design — AST would need a parser dependency (see *Honest gaps* / ADR-0003). New
   integration test covers it.
+- **Optional AST contract drift** (`contract-scan.mjs`, roadmap #001) — when a parser is
+  importable (`acorn`, or a module named by `VIBE_CONTRACT_PARSER`), extraction uses the
+  AST for precision; otherwise the deepened regex (the zero-dep default) is used. The kit
+  ships no parser, so the default is unchanged. Integration test covers the AST path via a
+  fake parser. [→ ADR-0003]
 
 ## [1.2.0] - 2026-05-24
 

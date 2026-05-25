@@ -55,13 +55,12 @@ commands + metrics + orchestration on top of the L5 gates.
 
 ## Honest gaps / not yet ported
 
-- **Contract drift is regex-based, not AST.** The extractor now covers the common
-  JS/TS forms (named/declaration exports incl. `declare`/`abstract`/generators,
-  `export default`, namespace re-exports `export * [as N] from`, and type-only
-  `export type { … }`) — good signal, but not an AST *proof*. True AST needs a
-  parser **dependency**; the zero-dep invariant forbids it on the hot path. A parser
-  behind an *optional* dynamic import (zod-style) is a possible future option,
-  deliberately not taken yet. [→ ADR-0003]
+- **Contract drift: regex by default, AST optional.** The regex extractor covers the
+  common JS/TS forms (named/declaration exports incl. `declare`/`abstract`/generators,
+  `export default`, namespace re-exports `export * [as N] from`, type-only
+  `export type { … }`). For AST precision, install `acorn` (or set `VIBE_CONTRACT_PARSER`):
+  `contract-scan` uses it **only if importable**, so the zero-dep default holds. Residual:
+  still "signal, not proof" for exotic TS without a TS-aware parser. [→ ADR-0003]
 
 _The earlier gaps have since shipped: **two-tier briefings** (v1.1.0,
 `/squad brief`), **workflow docs/playbooks** (`vibekit/workflows/`), and the
@@ -175,28 +174,20 @@ required-check enforcement.
    (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
    `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
    is a **project** dependency, never on the kit's zero-dep hot path.
-7. 📋 **Token economy & usage insight.** Make token cost a first-class, *measured*
-   dimension of the platform — the natural extension of L6 **Insight**
-   (`stats.mjs` / `/vibe-stats`, which today tracks sessions, drift, cadence but
-   not cost). Capture **per-session token usage** (input / output / cache, broken
-   down by agent and by command) into a plain-files ledger
-   (`vibekit/memory/usage/`), and surface it as **`/token-report`** (per session,
-   per week, per agent/squad) plus a running **budget** with advisory warnings when
-   a session trends hot. Then feed the data back into **optimization**: flag
-   context-heavy hooks/commands, recommend cheaper models for low-stakes steps, and
-   quantify what each *level* costs — so the open 1.0 question ("do L4–L6 earn their
-   keep?") finally gets a data-backed answer. Invariant-safe: advisory by default,
-   plain files, **zero deps on the hot path** (collection is best-effort and never
-   blocks real work).
-8. 📋 **Playbook management.** Promote the post-1.0 `workflows/playbooks/` foundation
-   (see *ancestor parity*) from a static doc tree into a **managed, runnable**
-   layer: a **playbook registry/index** (discover what exists), **`/playbook`** to
-   list / show / run a named procedure (tech-debt sweep, simulate-impact,
-   distillation, security batch, release), per-run **tracking** in the ledger (which
-   playbook ran, when, outcome), and **composition** so `/ship` and the squads
-   invoke playbooks instead of ad-hoc step lists. Turns repeatable procedures into
-   first-class, versioned, auditable assets — same "plain files, advisory,
-   inspectable" posture as the rest of the kit.
+7. ✅ **Token economy & usage insight.** *Shipped (first cut):* `/token-report` +
+   `token-report.mjs` read Claude Code's local session transcripts and aggregate
+   **per-session token usage** (input / output / cache) and **per ISO week**, with a
+   configurable **budget** (`tokens.budgetPerSession`) that flags hot sessions — the
+   cost extension of L6 **Insight**. Read-only, local, zero-dep, aggregated counts
+   only. Next refinements (not yet done): per-agent/command breakdown and feeding the
+   data into automated optimization hints.
+8. ✅ **Playbook management.** *Shipped:* the `workflows/playbooks/` foundation is now a
+   **managed, runnable** layer — `playbook.mjs` + **`/playbook`** to **list** the
+   registry (discover what exists), **show** a procedure, and **run** one (records a
+   tracked entry in `vibekit/memory/playbook-runs.md`, then prints the steps to
+   execute). `/ship` and the squads can `run` a playbook instead of restating it.
+   Turns repeatable procedures into first-class, auditable assets — same "plain files,
+   advisory, inspectable" posture as the rest of the kit.
 
 ## Design invariants (don't regress these)
 
