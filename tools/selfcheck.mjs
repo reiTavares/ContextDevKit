@@ -34,6 +34,7 @@ async function importLibs() {
     'config/presets.mjs',
     'hooks/path-classification.mjs',
     'hooks/boot-context-readers.mjs',
+    'hooks/boot-signals.mjs',
     'hooks/ledger.mjs',
   ];
   const mods = {};
