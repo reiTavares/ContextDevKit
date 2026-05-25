@@ -314,6 +314,19 @@ async function main() {
     const ghAlerts = script('gh-alerts.mjs', '--json');
     ghAlerts.status === 0 && (() => { try { return Array.isArray(JSON.parse(ghAlerts.stdout).findings); } catch { return false; } })()
       ? ok('gh-alerts degrades safely without a GitHub repo (exit 0, empty findings)') : bad(`gh-alerts failed: ${ghAlerts.stdout || ghAlerts.stderr}`);
+
+    // Fleet mode: register this project in a temp registry, aggregate stats across the fleet.
+    const fleetEnv = { ...process.env, VIBE_FLEET_FILE: join(proj, '.fleet.json') };
+    const fleet = (...a) => run([join(proj, 'vibekit', 'tools', 'scripts', 'fleet.mjs'), ...a], { cwd: proj, env: fleetEnv });
+    fleet('add', proj);
+    const fleetStats = fleet('stats', '--json');
+    (() => { try { const d = JSON.parse(fleetStats.stdout); return d.totals.repos === 1 && d.repos[0]?.ok === true && typeof d.totals.totalSessions === 'number'; } catch { return false; } })()
+      ? ok('fleet stats aggregates a registered repo (control plane)') : bad(`fleet failed: ${fleetStats.stdout || fleetStats.stderr}`);
+
+    // Agent tuning: signal aggregation lists the installed agent roster (proposes only, no auto-apply).
+    const tuning = script('agent-tuning.mjs', '--json');
+    (() => { try { const d = JSON.parse(tuning.stdout); return Array.isArray(d.agents) && d.agents.length >= 1 && typeof d.sessionsAnalyzed === 'number'; } catch { return false; } })()
+      ? ok('agent-tuning aggregates the agent roster + signals') : bad(`agent-tuning failed: ${tuning.stdout || tuning.stderr}`);
   } finally {
     rmSync(proj, { recursive: true, force: true });
   }
