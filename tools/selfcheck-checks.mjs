@@ -9,6 +9,10 @@
  *
  * Every function takes the reporter `rep` ({ ok, bad }) plus only what it needs,
  * so it has no hidden module state. Entry point: `runExtendedChecks(rep, ctx)`.
+ *
+ * Cohesion note: this is the single registry of extended checks. It may sit slightly
+ * over the 280-line budget (within the +10% structural tolerance) — splitting per-check
+ * into a third file would be premature abstraction, not a real seam.
  */
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
@@ -168,6 +172,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['squad detection single-sourced (squad.mjs)', 'templates/vibekit/tools/scripts/squad.mjs', /squad-meta/],
     ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
     ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
+    ['agent-forge yaml loader uses optional dynamic import', 'templates/vibekit/squads/agent-forge/lib/yaml.mjs', /import\(\s*['"]yaml['"]\s*\)/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
@@ -268,6 +273,18 @@ async function checkCapabilityMatrix(rep, KIT) {
   flaws.length ? flaws.forEach((flaw) => bad(`matrix: ${flaw}`)) : ok('matrix ids unique, well-formed, from allowed providers, tiered');
 }
 
+/** Rule 1 + ADR-0013: the L1-3 hot path never imports the optional `yaml` dep. */
+async function checkHotPathNoYaml(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking the hot path stays yaml-free (rule 1)...');
+  const importsYaml = /\bimport\b[^\n]*['"]yaml['"]|require\(\s*['"]yaml['"]/;
+  const offenders = [];
+  for (const file of await listMjs(resolve(KIT, 'templates/vibekit/runtime'))) {
+    if (importsYaml.test(await readFile(file, 'utf-8').catch(() => ''))) offenders.push(file.replace(KIT, '').replaceAll('\\', '/'));
+  }
+  offenders.length ? offenders.forEach((o) => bad(`hot-path yaml import: ${o}`)) : ok('hot path imports no yaml dep (ADR-0013)');
+}
+
 /** Runs every extended check in order. `ctx` = { KIT, RT, mods }. */
 export async function runExtendedChecks(rep, { KIT, RT, mods }) {
   await checkBootReaders(rep, mods['hooks/boot-context-readers.mjs']);
@@ -277,5 +294,6 @@ export async function runExtendedChecks(rep, { KIT, RT, mods }) {
   await checkLevelsAndSchema(rep, mods, RT);
   await checkSourceInvariants(rep, KIT);
   await checkNoHardcodedPaths(rep, KIT);
+  await checkHotPathNoYaml(rep, KIT);
   await checkWorkflowsPinned(rep, KIT);
 }
