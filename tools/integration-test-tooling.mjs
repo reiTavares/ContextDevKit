@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { run, readJson, reporter, installFixture } from './it-helpers.mjs';
+import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -106,6 +106,23 @@ try {
   debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
     ? ok('tech-debt --ci gate passes on a clean project')
     : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
+
+  // Pluggable detectors: a drop-in vibekit/detectors/*.mjs is loaded and its findings appear.
+  mkdirSync(join(proj, 'vibekit', 'detectors'), { recursive: true });
+  writeFileSync(join(proj, 'vibekit', 'detectors', 'custom.mjs'),
+    "export default function detectFooBar(p, c) { return c.includes('FOOBAR') ? [{ kind: 'custom-foobar', severity: 2, path: p, line: 1, message: 'FOOBAR marker' }] : []; }\n");
+  mkdirSync(join(proj, 'src'), { recursive: true });
+  writeFileSync(join(proj, 'src', 'marker.js'), '// FOOBAR\n');
+  JSON.parse(script('tech-debt-scan.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'custom-foobar')
+    ? ok('tech-debt-scan loads a drop-in custom detector (vibekit/detectors/)') : bad('custom detector not loaded');
+
+  // Stack presets: install --preset merges stack paths into config (union with defaults).
+  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go']);
+  (readJson(cfgPath).ledger?.important || []).includes('internal/')
+    ? ok('install --preset merges a stack preset into config') : bad('preset paths not merged into config');
+
+  // Quality CI workflow scaffolded (contract-drift + tech-debt gates).
+  existsSync(join(proj, '.github', 'workflows', 'quality.yml')) ? ok('quality CI workflow installed') : bad('quality.yml not installed');
 
   // Dependency audit: flags no-lockfile + loose version ranges as findings.
   writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', dependencies: { leftpad: '*' } }));

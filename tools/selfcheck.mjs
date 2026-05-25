@@ -31,6 +31,7 @@ async function importLibs() {
     'config/defaults.mjs',
     'config/load.mjs',
     'config/settings-compose.mjs',
+    'config/presets.mjs',
     'hooks/path-classification.mjs',
     'hooks/boot-context-readers.mjs',
     'hooks/ledger.mjs',
@@ -69,6 +70,11 @@ function checkCompose(composeSettings) {
   const dup = (twice.hooks.PostToolUse || []).length;
   if (dup === 1) ok('re-running installer is idempotent (no duplicate hooks)');
   else bad(`idempotency broken — PostToolUse has ${dup} groups after re-compose`);
+  // Status-line widget wired at L1+, and a user's own statusLine is preserved.
+  const sl = composeSettings(null, 1).statusLine;
+  sl && String(sl.command).includes('vibekit/runtime/statusline') ? ok('statusLine widget wired (L1+)') : bad('statusLine widget not wired');
+  composeSettings({ statusLine: { type: 'command', command: 'mine' } }, 5).statusLine?.command === 'mine'
+    ? ok('composeSettings preserves a user statusLine') : bad('composeSettings clobbered a user statusLine');
 }
 
 function checkConfig(load) {
@@ -101,11 +107,13 @@ async function checkTemplates() {
   ghTpl.includes('PULL_REQUEST_TEMPLATE.md') ? ok('GitHub PR template present') : bad('missing PR template');
   ghTpl.includes('dependabot.yml') ? ok('Dependabot config template present') : bad('missing dependabot.yml');
   existsSync(resolve(KIT, 'templates/github/workflows/security.yml')) ? ok('security workflow template present') : bad('missing security workflow template');
+  existsSync(resolve(KIT, 'templates/github/workflows/quality.yml')) ? ok('quality workflow template present') : bad('missing quality workflow template');
   for (const f of [
     'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json',
     'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
+    'templates/vibekit/runtime/statusline.mjs', 'templates/vibekit/runtime/config/presets.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
@@ -131,6 +139,12 @@ async function main() {
   const load = mods['config/load.mjs'];
   if (compose?.composeSettings) checkCompose(compose.composeSettings);
   if (load?.loadConfigSync) checkConfig(load);
+  const presets = mods['config/presets.mjs'];
+  if (presets?.applyPreset) {
+    const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
+    merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
+      ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
+  } else bad('presets.applyPreset not exported');
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
