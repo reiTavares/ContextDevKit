@@ -6,7 +6,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-05-25
+
 ### Added
+- **L7 "Ecosystem & Scale" — new capability tier.** The shipped Future-directions
+  capabilities (fleet, agent-tuning, editor/CI, detectors/presets, token economy,
+  playbooks, visual tests) are now a real activation level: **`/vibe-level 7`**.
+  Wiring only — `getLevel` 1→7, level labels + `--level 1-7`, `defaults` docs; **no
+  new hook** (same capability-tier pattern as L6). [→ ADR-0008]
 - **Diverse & visual testing harness (MVP)** — `/visual-test` + `visual-test.mjs`
   **scaffold** a browser-driven visual layer (screenshot / visual-regression) for the
   detected stack: Playwright **JS** (`@playwright/test`) + **Python** (pytest-playwright);
