@@ -147,7 +147,11 @@ and a `deps` config block, `.github/` scaffolding (Dependabot + an advisory
 new `/security-setup`. *Deferred:* registry-backed staleness, scheduled alert-sync,
 required-check enforcement.
 
-## Future directions (candidate L7+ / plugins)
+## L7 — Ecosystem & Scale (the former "Future directions", now shipped)
+
+These were the *candidate L7+* items. With **v1.3.0** they ship as the **L7 capability
+tier** (`/vibe-level 7`) — cross-cutting capabilities layered on top of L6, **no new
+hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 shipped earlier.
 
 1. ✅ **Design / Product / Ops squads** — **Shipped in v0.5.2:** `compliance-team`
    (LGPD), `design-team` (UX/UI/a11y), plus `product-owner` / `devops` starters,

@@ -230,7 +230,7 @@ never break work, add a test for anything you add).
 - [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally.
 - [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, rebrand.
-- [docs/ROADMAP.md](docs/ROADMAP.md) — architect analysis, the L6 layer, future directions.
+- [docs/ROADMAP.md](docs/ROADMAP.md) — architect analysis, the L6/L7 capability tiers, future directions.
 - [instrucoes.md](instrucoes.md) — guia de uso em português (pt-BR).
 
 ## License

@@ -28,17 +28,17 @@ export const HELP = `
 🌀 VibeDevKit installer
 
 Usage:
-  node install.mjs [--target <path>] [--level <1-6>] [--name <str>]
+  node install.mjs [--target <path>] [--level <1-7>] [--name <str>]
                    [--mode greenfield|existing] [--yes] [--force]
   node install.mjs --update                   safe update: refresh engine + commands,
                                               keep your level/config/memory/CLAUDE.md
-  node install.mjs --rewire --level <1-6>     only recompose .claude/settings.json
+  node install.mjs --rewire --level <1-7>     only recompose .claude/settings.json
   node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
   node install.mjs --help | --version
 
 Flags:
   --target <path>   destination project root (default: current directory)
-  --level <1-6>     activation level (default: prompt, else 2)
+  --level <1-7>     activation level (default: prompt, else 2)
   --name <string>   project name for the CLAUDE.md header
   --mode <m>        greenfield | existing (default: auto-detect)
   --preset <name>   stack preset to merge into config: next | go | python
@@ -67,4 +67,5 @@ export const LEVEL_LABELS = {
   4: 'L4 Squads — + specialized sub-agents',
   5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
   6: 'L6 Autonomy & Insight — + /ship pipeline, /retro, metrics',
+  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight',
 };

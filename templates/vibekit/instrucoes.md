@@ -26,6 +26,7 @@ boot até você rodá-lo.
 | **L4 Squads** | sub-agentes especializados (`.claude/agents`) |
 | **L5 Proactive** | gate `/simulate-impact`, tech-debt, contract drift |
 | **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas |
+| **L7 Ecosystem** | fleet multi-repo (`/fleet`), agent-tuning, testes visuais, playbooks, custo/tokens |
 
 Trocar de nível: `/vibe-level <n>` (reinicie o Claude Code depois).
 

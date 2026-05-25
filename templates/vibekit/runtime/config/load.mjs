@@ -87,10 +87,10 @@ export function loadConfigSync(root = process.cwd()) {
   return deepMerge(structuredClone(DEFAULT_CONFIG), raw);
 }
 
-/** Reads only the active level (1–6). Defensive — defaults to 2. */
+/** Reads only the active level (1–7). Defensive — defaults to 2. */
 export function getLevel(root = process.cwd()) {
   const lvl = Number(loadConfigSync(root)?.level);
-  return Number.isInteger(lvl) && lvl >= 1 && lvl <= 6 ? lvl : 2;
+  return Number.isInteger(lvl) && lvl >= 1 && lvl <= 7 ? lvl : 2;
 }
 
 /**

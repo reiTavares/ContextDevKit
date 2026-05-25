@@ -93,6 +93,9 @@ try {
   const settings = readJson(join(proj, '.claude', 'settings.json'));
   !settings.hooks?.PreToolUse ? ok('vibe-level 2 removes the L5 PreToolUse hook') : bad('PreToolUse still wired at L2');
   settings.hooks?.SessionStart && settings.hooks?.Stop ? ok('vibe-level 2 keeps L1/L2 hooks') : bad('L1/L2 hooks lost');
+  // L7 is a valid capability-tier level (no new hook beyond L5/L6).
+  script('vibe-level.mjs', '7');
+  readJson(join(proj, 'vibekit', 'config.json')).level === 7 ? ok('vibe-level 7 sets the L7 capability tier') : bad('vibe-level 7 not applied');
 
   // GitHub templates + QA/compliance/design/security agents + two-tier briefings.
   existsSync(join(proj, '.github', 'PULL_REQUEST_TEMPLATE.md')) ? ok('GitHub PR template installed') : bad('PR template not installed');
