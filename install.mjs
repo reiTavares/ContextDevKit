@@ -71,14 +71,19 @@ async function main() {
     if (!level) {
       console.log('\nLevels:');
       for (const [k, v] of Object.entries(LEVEL_LABELS)) console.log(`  ${k}. ${v}`);
-      level = Number(await prompt(rl, '\nStart at level', '2'));
+      level = Number(await prompt(rl, '\nStart at level', String(mode === 'greenfield' ? 3 : 7)));
     }
     rl.close();
   }
 
+  // Recommended starting level by project type: L3 for greenfield, L7 for a project
+  // that already has code (full toolkit; gates stay inert until configured). [ADR-0009]
+  const effMode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
+  const recommended = effMode === 'greenfield' ? 3 : 7;
+
   // Safe re-run / update: if no explicit --level, preserve the project's current
   // level (read from config) instead of silently downgrading to the default.
-  if (!(Number.isInteger(level) && level >= 1 && level <= 6)) {
+  if (!(Number.isInteger(level) && level >= 1 && level <= 7)) {
     try {
       const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
       if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
@@ -86,9 +91,9 @@ async function main() {
       /* no config yet */
     }
   }
-  level = Number.isInteger(level) && level >= 1 && level <= 6 ? level : 2;
+  level = Number.isInteger(level) && level >= 1 && level <= 7 ? level : recommended;
   name = name || requireBasename(target);
-  mode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
+  mode = effMode;
 
   const report = [];
 
