@@ -117,6 +117,22 @@ export const DEFAULT_CONFIG = Object.freeze({
   securityMode: { active: true, everyNSessions: 10 },
 
   /**
+   * Token economy & usage insight (L6). `/token-report` reads Claude Code's local
+   * session transcripts (`~/.claude/projects/…`) and aggregates token usage for this
+   * project — advisory, read-only, aggregated counts only.
+   *   - `budgetPerSession`: total tokens/session that triggers a ⚠️ warning (0 = off).
+   *   - `warnAtPct`: warn once a session reaches this % of the budget.
+   */
+  tokens: { budgetPerSession: 0, warnAtPct: 80 },
+
+  /**
+   * Predictions-review cadence (L5/L6). When `active`, the SessionStart hook reminds you
+   * to run `/predictions-review` every `everyNSessions` sessions — but ONLY when there are
+   * unreviewed `/simulate-impact` predictions, so it stays silent otherwise.
+   */
+  predictionsReview: { active: true, everyNSessions: 10 },
+
+  /**
    * Dependency policy for `/deps-audit` (security-team). All advisory — findings
    * flow into the DevPipeline backlog, they don't block by default.
    *   - `requireLockfile`: flag a manifest with deps but no committed lockfile.

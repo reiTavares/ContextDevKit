@@ -13,7 +13,7 @@
  * zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import {
@@ -157,6 +157,34 @@ function securityModeDue() {
   }
 }
 
+/**
+ * Predictions-review cadence (config): returns N when a review is due — i.e. it's an
+ * every-N-sessions tick AND at least one `/simulate-impact` prediction is still
+ * unreviewed (`fill on review` stub present). Zero noise when there's nothing to review.
+ */
+function predictionsReviewDue() {
+  const cfg = loadConfigSync(ROOT)?.predictionsReview;
+  if (!cfg || cfg.active !== true) return 0;
+  const everyN = Number(cfg.everyNSessions) > 0 ? Number(cfg.everyNSessions) : 10;
+  try {
+    const n = readdirSync(resolve(ROOT, 'vibekit/memory/sessions')).filter((f) => f.endsWith('.md')).length;
+    if (n === 0 || n % everyN !== 0) return 0;
+    const dir = resolve(ROOT, 'vibekit/memory/predictions');
+    const unreviewed = readdirSync(dir)
+      .filter((f) => f.endsWith('.md'))
+      .some((f) => {
+        try {
+          return readFileSync(resolve(dir, f), 'utf-8').includes('fill on review');
+        } catch {
+          return false;
+        }
+      });
+    return unreviewed ? everyN : 0;
+  } catch {
+    return 0;
+  }
+}
+
 async function main() {
   const raw = await readStdin();
   let payload = {};
@@ -181,8 +209,9 @@ async function main() {
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
   const divergence = checkGitDivergence();
   const secDue = securityModeDue();
+  const predDue = predictionsReviewDue();
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -221,6 +250,15 @@ async function main() {
     out.push('');
     out.push(`**${secDue} sessions** in. Run **\`/deep-analysis\`** — full code + security + deps + bug`);
     out.push('sweep → report → ADRs → backlog. (Active by default; disable via `securityMode.active`.)');
+    out.push('');
+  }
+
+  if (predDue) {
+    out.push('## 🔮 Predictions — close the loop');
+    out.push('');
+    out.push(`**${predDue} sessions** in with **unreviewed** \`/simulate-impact\` predictions. Run`);
+    out.push('**`/predictions-review`** to fill their *Actual* section (predicted vs actual). It also');
+    out.push('auto-runs at `/log-session`; disable the reminder via `predictionsReview.active`.');
     out.push('');
   }
 

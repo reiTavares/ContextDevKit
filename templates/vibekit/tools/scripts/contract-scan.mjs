@@ -16,13 +16,15 @@
  * Baseline: vibekit/memory/contract-baseline.json (commit it).
  * Regex-based, language-agnostic-ish (JS/TS export forms): named/declaration
  * exports incl. `declare`/`abstract`/generators, `export default`, namespace
- * re-exports (`export * [as N] from`), and type-only `export type { … }`. It is
- * good signal, not an AST proof (a parser dependency would break the zero-dep
- * invariant). Advisory by default; wire into CI to block breaking changes
- * without an intentional version bump.
+ * re-exports (`export * [as N] from`), and type-only `export type { … }`. Good
+ * signal by default; for AST precision install `acorn` (or point
+ * `VIBE_CONTRACT_PARSER` at a parser) — used **only if importable**, so the
+ * zero-dep default holds. Advisory by default; wire into CI to block breaking
+ * changes without an intentional version bump.
  */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 
 const ROOT = process.cwd();
@@ -78,11 +80,59 @@ function extractExports(content) {
   return [...seen];
 }
 
-function snapshot() {
+/**
+ * Optional AST parser — zero-dep DEFAULT (regex). If a parser module is importable
+ * (name from `VIBE_CONTRACT_PARSER`, else `acorn`), use it for precise extraction;
+ * otherwise fall back to regex. Installing `acorn` upgrades JS precision opt-in —
+ * the kit ships nothing, preserving the zero-dep invariant. [→ ADR-0003]
+ */
+async function loadParser() {
+  const name = process.env.VIBE_CONTRACT_PARSER || 'acorn';
+  const spec = /[\\/]/.test(name) ? pathToFileURL(resolve(ROOT, name)).href : name;
+  try {
+    return await import(spec);
+  } catch {
+    return null;
+  }
+}
+
+/** Exported names via AST (precise). Returns null when the file can't be parsed. */
+function extractExportsAst(content, parser) {
+  let ast;
+  try {
+    ast = parser.parse(content, { sourceType: 'module', ecmaVersion: 'latest', allowHashBang: true });
+  } catch {
+    return null;
+  }
+  const names = new Set();
+  for (const node of ast.body || []) {
+    if (node.type === 'ExportDefaultDeclaration') {
+      names.add('default');
+    } else if (node.type === 'ExportAllDeclaration') {
+      names.add(node.exported ? node.exported.name : `* from ${node.source?.value ?? ''}`);
+    } else if (node.type === 'ExportNamedDeclaration') {
+      for (const spec of node.specifiers || []) names.add(spec.exported?.name ?? spec.exported?.value);
+      if (node.declaration?.id?.name) names.add(node.declaration.id.name);
+      for (const d of node.declaration?.declarations || []) if (d.id?.name) names.add(d.id.name);
+    }
+  }
+  return [...names].filter(Boolean);
+}
+
+/** Exported names for one file: AST when a parser is present and the file parses, else regex. */
+function extractFor(content, parser) {
+  if (parser) {
+    const viaAst = extractExportsAst(content, parser);
+    if (viaAst) return viaAst;
+  }
+  return extractExports(content);
+}
+
+function snapshot(parser) {
   const surface = {};
   for (const rel of walk(ROOT, [])) {
     try {
-      surface[rel] = extractExports(readFileSync(resolve(ROOT, rel), 'utf-8')).sort();
+      surface[rel] = extractFor(readFileSync(resolve(ROOT, rel), 'utf-8'), parser).sort();
     } catch {
       /* skip */
     }
@@ -99,13 +149,13 @@ function diff(base, current) {
   return removals;
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   if (GLOBS.length === 0) {
     console.log('ℹ️  No l5.contractGlobs configured — nothing to track. Set them via /vibe-config to enable.');
     return;
   }
-  const current = snapshot();
+  const current = snapshot(await loadParser());
   if (args.includes('--save')) {
     writeFileSync(BASELINE, JSON.stringify(current, null, 2) + '\n', 'utf-8');
     const total = Object.values(current).reduce((n, a) => n + a.length, 0);
@@ -129,4 +179,7 @@ function main() {
   process.exit(removals.length > 0 ? 1 : 0);
 }
 
-main();
+main().catch((err) => {
+  console.error('contract-scan failed:', err?.message ?? err);
+  process.exit(1);
+});
