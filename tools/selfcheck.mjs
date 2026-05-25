@@ -4,9 +4,10 @@
  *
  * - Imports every library engine module to catch syntax / import errors.
  *   (Does NOT import the hook entrypoints — those self-execute `main()`.)
- * - Asserts `composeSettings` wires the right hooks per level.
- * - Asserts the zero-dep config loader returns sane defaults.
+ * - Asserts `composeSettings` wires the right hooks per level + config defaults.
  * - Confirms the expected template files are present.
+ * - Delegates the deeper behavioural + structural invariants to
+ *   `selfcheck-checks.mjs` (split out to stay within the line budget).
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
@@ -14,6 +15,7 @@ import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runExtendedChecks } from './selfcheck-checks.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/vibekit/runtime');
@@ -28,11 +30,13 @@ async function importLibs() {
   console.log('Loading engine library modules...');
   const libs = [
     'config/paths.mjs',
+    'config/levels.mjs',
     'config/defaults.mjs',
     'config/load.mjs',
     'config/settings-compose.mjs',
     'config/presets.mjs',
     'hooks/path-classification.mjs',
+    'hooks/safe-io.mjs',
     'hooks/boot-context-readers.mjs',
     'hooks/boot-signals.mjs',
     'hooks/ledger.mjs',
@@ -88,6 +92,37 @@ function checkConfig(load) {
   else bad('getLevel() did not return an integer');
 }
 
+function checkPresets(presets) {
+  if (!presets?.applyPreset) {
+    bad('presets.applyPreset not exported');
+    return;
+  }
+  const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
+  merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
+    ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
+  // 013 — a partial/custom preset (omits l5 + qa) must merge, not crash.
+  presets.PRESETS.__sc_partial = { ledger: { important: ['z/'] } };
+  try {
+    const partial = presets.applyPreset({}, '__sc_partial');
+    partial.ledger.important.includes('z/') && Array.isArray(partial.l5.highRiskPaths) && Array.isArray(partial.qa.criticalPaths)
+      ? ok('applyPreset tolerates a partial preset (missing l5/qa keys)') : bad('applyPreset partial-preset result malformed');
+  } catch (err) {
+    bad(`applyPreset crashed on a partial preset — ${err?.message ?? err}`);
+  } finally {
+    delete presets.PRESETS.__sc_partial;
+  }
+}
+
+function checkPaths(paths) {
+  if (!paths?.pathsFor) {
+    bad('pathsFor not exported');
+    return;
+  }
+  const pf = paths.pathsFor('/tmp/proj');
+  pf.pipeline.replaceAll('\\', '/').endsWith('vibekit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('vibekit/memory/sessions')
+    ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
+}
+
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
@@ -102,7 +137,7 @@ async function checkTemplates() {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -115,8 +150,10 @@ async function checkTemplates() {
     'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
+    'templates/vibekit/runtime/hooks/safe-io.mjs', 'templates/vibekit/runtime/config/levels.mjs',
     'templates/vibekit/runtime/statusline.mjs', 'templates/vibekit/runtime/config/presets.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
+    'templates/vibekit/detectors/README.md', 'templates/vibekit/detectors/example-detector.mjs.example',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
     'templates/vibekit/memory/business-rules/_TEMPLATE.md',
@@ -137,16 +174,11 @@ async function checkTemplates() {
 async function main() {
   console.log('\n🌀 VibeDevKit self-check\n');
   const mods = await importLibs();
-  const compose = mods['config/settings-compose.mjs'];
-  const load = mods['config/load.mjs'];
-  if (compose?.composeSettings) checkCompose(compose.composeSettings);
-  if (load?.loadConfigSync) checkConfig(load);
-  const presets = mods['config/presets.mjs'];
-  if (presets?.applyPreset) {
-    const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
-    merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
-      ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
-  } else bad('presets.applyPreset not exported');
+  if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(mods['config/settings-compose.mjs'].composeSettings);
+  if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);
+  checkPaths(mods['config/paths.mjs']);
+  checkPresets(mods['config/presets.mjs']);
+  await runExtendedChecks({ ok, bad }, { KIT, RT, mods });
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

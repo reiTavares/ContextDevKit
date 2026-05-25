@@ -22,8 +22,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const SEV = { critical: 5, high: 4, moderate: 3, low: 2, info: 1 };
 const findings = [];
 
@@ -31,13 +34,7 @@ function add(severity, kind, message, path = 'package.json') {
   findings.push({ kind, severity, path, message, source: `deps:${kind}:${path}` });
 }
 
-function readJson(p) {
-  try {
-    return JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (p) => readJsonSafe(p);
 
 function depPolicy() {
   try {
@@ -146,8 +143,8 @@ function runNativeAudit(lock) {
 }
 
 function parseNpmAudit(out) {
-  const data = JSON.parse(out);
-  for (const [name, v] of Object.entries(data.vulnerabilities || {})) { // npm v7+
+  const parsed = JSON.parse(out);
+  for (const [name, v] of Object.entries(parsed.vulnerabilities || {})) { // npm v7+
     add(SEV[v.severity] || 2, 'cve', `\`${name}\`: ${v.severity} advisory — see \`npm audit\`.`);
   }
   for (const a of Object.values(data.advisories || {})) { // npm v6
@@ -167,7 +164,7 @@ function writeSbom() {
     console.log('🔐 deps-audit --sbom: no package.json found.');
     return;
   }
-  const out = resolve(ROOT, 'vibekit/memory/sbom.json');
+  const out = resolve(P.memory, 'sbom.json');
   writeFileSync(out, JSON.stringify(buildSbom(pkg), null, 2), 'utf-8');
   console.log('🔐 deps-audit: SBOM written → vibekit/memory/sbom.json (CycloneDX 1.5).');
 }
@@ -179,16 +176,16 @@ function main() {
   }
   auditNode(depPolicy());
   pythonHint();
-  const result = { findings };
+  const report = { findings };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(ROOT, 'vibekit/memory/deps-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'deps-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔐 deps-audit: ${findings.length} finding(s) → vibekit/memory/deps-findings.json`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deps-findings.json --type chore');
     return;
   }
   if (process.argv.includes('--json')) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     return;
   }
   if (findings.length === 0) {

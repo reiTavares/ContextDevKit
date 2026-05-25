@@ -10,10 +10,13 @@
  * fallback so the status line can't break the session. Claude Code pipes session
  * JSON on stdin; we don't need it (we read the project at `process.cwd()`).
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathsFor } from './config/paths.mjs';
+import { readJsonSafe } from './hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 
 function count(dir, re) {
   try {
@@ -24,17 +27,13 @@ function count(dir, re) {
 }
 
 function level() {
-  try {
-    const lvl = Number(JSON.parse(readFileSync(resolve(ROOT, 'vibekit/config.json'), 'utf-8').replace(/^﻿/, '')).level);
-    return Number.isInteger(lvl) ? lvl : null;
-  } catch {
-    return null;
-  }
+  const lvl = Number(readJsonSafe(P.config, {}).level);
+  return Number.isInteger(lvl) ? lvl : null;
 }
 
 function main() {
   try {
-    if (!existsSync(resolve(ROOT, 'vibekit'))) {
+    if (!existsSync(P.platform)) {
       process.stdout.write('🌀 vibedevkit');
       return;
     }

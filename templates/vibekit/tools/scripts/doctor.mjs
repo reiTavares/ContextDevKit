@@ -14,8 +14,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
+import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 let crit = 0;
 let warn = 0;
 const pass = (m) => console.log(`  ✓ ${m}`);
@@ -28,13 +32,7 @@ const note = (m, fix) => {
   warn++;
 };
 
-function readJson(rel) {
-  try {
-    return JSON.parse(readFileSync(resolve(ROOT, rel), 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (rel) => readJsonSafe(resolve(ROOT, rel));
 
 function checkNode() {
   const major = Number(process.versions.node.split('.')[0]);
@@ -42,7 +40,7 @@ function checkNode() {
 }
 
 function checkConfig() {
-  if (!existsSync(resolve(ROOT, 'vibekit/config.json'))) {
+  if (!existsSync(P.config)) {
     fail('vibekit/config.json missing', 're-run the installer');
     return null;
   }
@@ -52,7 +50,7 @@ function checkConfig() {
     return null;
   }
   const level = getLevel(ROOT);
-  level >= 1 && level <= 7 ? pass(`config valid — level L${level}`) : note('config.level out of range', 'use /vibe-level <1-7>');
+  isValidLevel(level) ? pass(`config valid — level L${level}`) : note('config.level out of range', `use /vibe-level <${MIN_LEVEL}-${MAX_LEVEL}>`);
   return level;
 }
 
@@ -83,7 +81,7 @@ function checkGitHooks(level) {
 }
 
 function checkMemory() {
-  existsSync(resolve(ROOT, 'vibekit/memory/sessions')) ? pass('memory/sessions present') : note('memory/sessions missing', 're-run the installer');
+  existsSync(P.sessions) ? pass('memory/sessions present') : note('memory/sessions missing', 're-run the installer');
   existsSync(resolve(ROOT, 'docs/CHANGELOG.md')) ? pass('docs/CHANGELOG.md present') : note('CHANGELOG missing', 're-run the installer');
 }
 
@@ -93,7 +91,7 @@ function checkSetup() {
 }
 
 function checkRoadmap() {
-  const p = resolve(ROOT, 'vibekit/memory/roadmap.md');
+  const p = P.roadmap;
   let defined = false;
   try {
     const t = readFileSync(p, 'utf-8');

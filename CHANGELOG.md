@@ -6,6 +6,46 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-05-25
+
+DevPipeline backlog cleared (all 25 open tasks) — bug fixes, supply-chain &
+test hardening, and single-source refactors. No public API removed.
+
+### Fixed
+- **Network git calls now time out** (`git.mjs`, `pre-push.mjs`) — an unreachable
+  remote could hang `/git status` and any push. Bounded via `VIBE_GIT_TIMEOUT_MS`. (007)
+- **Boot banner**: `[Unreleased]` clipped past 60 lines now shows a `(truncated)`
+  marker (009); `extractLatestSession` breaks a session-number tie by the later date (010).
+- **`applyPreset`** no longer crashes on a partial/custom preset missing `l5`/`qa`/`ledger`. (013)
+- **Atomic writes** (tmp-file + rename) for the ledger, workspace, pipeline and claim
+  writers — a concurrent reader can't see a half-written file; pipeline ids are now
+  collision-safe (exclusive create). (011)
+- **`SessionStart`** no longer deletes a live concurrent session's fresh ledger. (008)
+
+### Security
+- **`sanitizeSid`** applied at every workspace-path construction (claim/release/track-edits)
+  — defense-in-depth against `../` traversal in a session id. (012)
+- **GitHub Actions pinned to commit SHAs** across release/ci + the security/quality
+  workflow templates; **`ci.yml` is least-privilege** (`contents: read`). (019, 020)
+- **README "Security & trust"** section — npx/hook-install + tag-pinning + fleet/detector
+  code-execution disclosure; installer **backs up an existing git hook** to `.bak`. (021, 022)
+
+### Added
+- **Guards test suite** (`integration-test-guards.mjs`): commit-msg, pre-push
+  (block/warn/allow/bypass), config-loader fallbacks, uninstall/purge, concurrency-guard
+  external-edit, gh-alerts mappers, malformed-settings recovery. (014–018)
+- **Pluggable-detector seed** `vibekit/detectors/` (README + inert example), now installed. (026)
+
+### Changed
+- **Single-source level taxonomy** (`config/levels.mjs`) + **passthrough config schema**
+  (no more `max(5)` cap; keeps every section). [ADR-0010] (024, 025)
+- **Single-source platform paths** via `pathsFor(root)`; a selfcheck guard now fails on any
+  hardcoded `vibekit/` path construction (rule 4). [ADR-0011] (023)
+- **Shared zero-dep helpers**: `readJsonSafe`/`parseJsonSafe` + `squadOf`, killing duplicated
+  BOM-parse / squad-detection code. (027, 028)
+- Line-budget cohesion notes + constitution nits (dead imports, bare-var renames);
+  `selfcheck.mjs` split to stay under the RED-zone gate. (005, 006, 029)
+
 ## [1.4.0] - 2026-05-25
 
 ### Changed

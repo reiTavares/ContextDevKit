@@ -14,6 +14,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { DEFAULT_CONFIG } from './defaults.mjs';
+import { isValidLevel } from './levels.mjs';
 import { CONFIG_FILE } from './paths.mjs';
 
 export function configPathFor(root = process.cwd()) {
@@ -87,10 +88,10 @@ export function loadConfigSync(root = process.cwd()) {
   return deepMerge(structuredClone(DEFAULT_CONFIG), raw);
 }
 
-/** Reads only the active level (1–7). Defensive — defaults to 2. */
+/** Reads only the active level (MIN_LEVEL..MAX_LEVEL). Defensive — defaults to 2. */
 export function getLevel(root = process.cwd()) {
   const lvl = Number(loadConfigSync(root)?.level);
-  return Number.isInteger(lvl) && lvl >= 1 && lvl <= 7 ? lvl : 2;
+  return isValidLevel(lvl) ? lvl : 2;
 }
 
 /**

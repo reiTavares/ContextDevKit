@@ -19,10 +19,12 @@
  */
 import { existsSync, readdirSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const PLAYBOOKS_DIR = resolve(ROOT, 'vibekit/workflows/playbooks');
-const RUNS_LOG = resolve(ROOT, 'vibekit/memory/playbook-runs.md');
+const P = pathsFor(ROOT);
+const PLAYBOOKS_DIR = P.playbooks;
+const RUNS_LOG = resolve(P.memory, 'playbook-runs.md');
 
 /** All playbook files in the registry, sorted. */
 function listFiles() {
@@ -80,7 +82,7 @@ function run(name, note) {
   if (!file) unknown(name);
   const when = new Date().toISOString();
   try {
-    mkdirSync(resolve(ROOT, 'vibekit/memory'), { recursive: true });
+    mkdirSync(P.memory, { recursive: true });
     if (!existsSync(RUNS_LOG)) {
       appendFileSync(RUNS_LOG, '# Playbook runs\n\n| When | Playbook | Note |\n| --- | --- | --- |\n', 'utf-8');
     }

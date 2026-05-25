@@ -19,16 +19,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, basename, resolve } from 'node:path';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const FLEET_FILE = process.env.VIBE_FLEET_FILE || resolve(homedir(), '.vibedevkit', 'fleet.json');
 
-function readJson(p) {
-  try {
-    return JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (p) => readJsonSafe(p);
 
 function loadRegistry() {
   const reg = readJson(FLEET_FILE);
@@ -41,7 +36,7 @@ function saveRegistry(reg) {
   writeFileSync(FLEET_FILE, JSON.stringify(reg, null, 2) + '\n', 'utf-8');
 }
 
-/** Run a repo's script with --json and parse the result. null on any failure. */
+/** Run a repo's script with --json and parse the rows. null on any failure. */
 function runRepoJson(repo, rel, args = ['--json']) {
   const script = resolve(repo, rel);
   if (!existsSync(script)) return null;
@@ -126,15 +121,15 @@ function cmdPropagate() {
   const snippet = readFileSync(ruleFile, 'utf-8').trim();
   const key = snippet.split('\n').find((l) => l.trim().length > 12)?.trim() || snippet.slice(0, 40);
   const { repos } = loadRegistry();
-  const result = repos.map((repo) => {
+  const rows = repos.map((repo) => {
     const claudeMd = resolve(repo, 'CLAUDE.md');
     const has = existsSync(claudeMd) && readFileSync(claudeMd, 'utf-8').includes(key);
     return { path: repo, name: basename(repo), present: has };
   });
-  const missing = result.filter((r) => !r.present);
-  if (isJson()) return void process.stdout.write(JSON.stringify({ key, missing: missing.map((r) => r.path), checked: result }, null, 2) + '\n');
-  console.log(`🛰️  fleet propagate (detect-only) — rule absent in ${missing.length}/${result.length} repo(s):\n   key: "${key}"\n`);
-  for (const r of result) console.log(`   ${r.present ? '✓ has ' : '✗ MISSING'}  ${r.name}`);
+  const missing = rows.filter((r) => !r.present);
+  if (isJson()) return void process.stdout.write(JSON.stringify({ key, missing: missing.map((r) => r.path), checked: rows }, null, 2) + '\n');
+  console.log(`🛰️  fleet propagate (detect-only) — rule absent in ${missing.length}/${rows.length} repo(s):\n   key: "${key}"\n`);
+  for (const r of rows) console.log(`   ${r.present ? '✓ has ' : '✗ MISSING'}  ${r.name}`);
   if (missing.length) console.log(`\n   Add the rule to each MISSING repo's CLAUDE.md (reviewed, per-repo) — fleet does not auto-edit.`);
 }
 

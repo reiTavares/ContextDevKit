@@ -1,6 +1,6 @@
 {
   "name": "vibedevkit",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
@@ -9,8 +9,8 @@
   "scripts": {
     "install:here": "node install.mjs --target .",
     "check": "node tools/selfcheck.mjs",
-    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs",
-    "prepublishOnly": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs"
+    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-guards.mjs",
+    "prepublishOnly": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-guards.mjs"
   },
   "files": [
     "install.mjs",

@@ -10,8 +10,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
+import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const WS_DIR = resolve(ROOT, '.claude/.workspace');
@@ -40,24 +42,24 @@ async function main() {
     console.error('Usage: claim.mjs <path> [path2 ...]');
     process.exit(1);
   }
-  const sid = await sessionId();
+  const sid = sanitizeSid(await sessionId());
   await mkdir(WS_DIR, { recursive: true });
   const file = resolve(WS_DIR, `${sid}.json`);
 
-  let data = { sessionId: sid, branch: gitOut(['symbolic-ref', '--short', 'HEAD'], 'detached'), user: gitOut(['config', 'user.name'], 'unknown'), startedAt: Date.now(), lastHeartbeat: Date.now(), claims: [] };
+  let claimRecord = { sessionId: sid, branch: gitOut(['symbolic-ref', '--short', 'HEAD'], 'detached'), user: gitOut(['config', 'user.name'], 'unknown'), startedAt: Date.now(), lastHeartbeat: Date.now(), claims: [] };
   if (existsSync(file)) {
     try {
-      data = { ...data, ...JSON.parse(await readFile(file, 'utf-8')) };
+      claimRecord = { ...claimRecord, ...JSON.parse(await readFile(file, 'utf-8')) };
     } catch {
       /* recreate */
     }
   }
-  data.lastHeartbeat = Date.now();
-  const existing = new Set((data.claims || []).map((c) => c.path));
+  claimRecord.lastHeartbeat = Date.now();
+  const existing = new Set((claimRecord.claims || []).map((c) => c.path));
   for (const p of paths) {
-    if (!existing.has(p)) data.claims.push({ path: p, claimedAt: Date.now() });
+    if (!existing.has(p)) claimRecord.claims.push({ path: p, claimedAt: Date.now() });
   }
-  await writeFile(file, JSON.stringify(data, null, 2), 'utf-8');
+  await writeFileAtomic(file, JSON.stringify(claimRecord, null, 2));
 
   try {
     execFileSync('node', ['vibekit/tools/scripts/workspace-sync.mjs'], { cwd: ROOT, stdio: 'ignore' });

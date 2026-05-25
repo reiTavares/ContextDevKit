@@ -51,6 +51,9 @@ try {
   existsSync(join(proj, 'vibekit', 'memory', 'predictions')) && readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
     ? ok('simulate-impact writes a prediction file (predictions/)')
     : bad('no prediction file written');
+  // Pluggable-detector seed (026): README + inert example install (discoverable, not auto-run).
+  existsSync(join(proj, 'vibekit', 'detectors', 'README.md')) && existsSync(join(proj, 'vibekit', 'detectors', 'example-detector.mjs.example'))
+    ? ok('detectors seed installed (README + .example, discoverable)') : bad('detectors seed not installed');
   // Ancestor parity: workflow guides (L1–L6) + reusable playbooks are installed.
   existsSync(join(proj, 'vibekit', 'workflows', 'README.md')) &&
     ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']
@@ -73,6 +76,12 @@ try {
   const l5settings = readJson(join(proj, '.claude', 'settings.json'));
   (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
     ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');
+
+  // 008 — a booting session must NOT delete a concurrent session's fresh/empty ledger.
+  const concLedger = join(proj, '.claude', '.sessions', 'concurrent.json');
+  writeFileSync(concLedger, JSON.stringify({ sessionId: 'concurrent', startedAt: Date.now(), modifications: [], registered: false, stopWarnedAt: null, simulations: [] }));
+  hook('session-start.mjs', { session_id: 'booting-now' });
+  existsSync(concLedger) ? ok('session-start preserves a concurrent session fresh ledger (008)') : bad('session-start deleted a concurrent fresh ledger');
 
   // Safe --update: preserves CLAUDE.md, config (level + overrides), memory.
   writeFileSync(join(proj, 'CLAUDE.md'), readFileSync(join(proj, 'CLAUDE.md'), 'utf-8') + '\n## USER MARKER\n');

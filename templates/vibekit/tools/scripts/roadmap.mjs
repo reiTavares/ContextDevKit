@@ -13,9 +13,11 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CANON = resolve(ROOT, 'vibekit/memory/roadmap.md');
+const P = pathsFor(ROOT);
+const CANON = P.roadmap;
 const PLACEHOLDER = 'ROADMAP-NOT-DEFINED';
 const SKIP = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.next', '.turbo', 'vendor', 'target', '__pycache__', '.claude']);
 const NAME_RE = /(road[\s_-]?map|^prd\b|product[\s_-]?spec|product[\s_-]?vision|^vision|^spec)\b/i;
@@ -74,7 +76,7 @@ if (cmd === 'find') {
   if (existsSync(CANON)) {
     console.log('roadmap.md already exists — leaving it untouched.');
   } else {
-    mkdirSync(resolve(ROOT, 'vibekit/memory'), { recursive: true });
+    mkdirSync(P.memory, { recursive: true });
     writeFileSync(CANON, `# Product Roadmap\n\n<!-- ${PLACEHOLDER} -->\n_No roadmap defined yet._ Run \`/roadmap\`.\n`, 'utf-8');
     console.log('✅ seeded vibekit/memory/roadmap.md');
   }

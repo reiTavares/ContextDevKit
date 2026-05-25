@@ -11,24 +11,16 @@
  * After changing level, restart Claude Code so it reloads the hooks.
  */
 import { existsSync } from 'node:fs';
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod, rename } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { LEVEL_LABELS as LABELS, MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CONFIG = resolve(ROOT, 'vibekit/config.json');
+const CONFIG = pathsFor(ROOT).config;
 const SETTINGS = resolve(ROOT, '.claude/settings.json');
-
-const LABELS = {
-  1: 'L1 Memory — boot context, session log, ADRs, changelog',
-  2: 'L2 Ledger — + drift detection (PostToolUse + Stop nudge)',
-  3: 'L3 Multi — + claims, worktrees, derived indices, git hooks',
-  4: 'L4 Squads — + specialized sub-agents (.claude/agents)',
-  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
-  6: 'L6 Autonomy & Insight — + /ship pipeline, /retro learning loop, metrics',
-  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight',
-};
 
 async function installGitHooks() {
   const hooksDir = resolve(ROOT, '.git/hooks');
@@ -41,6 +33,11 @@ async function installGitHooks() {
   };
   for (const [name, body] of Object.entries(wrappers)) {
     const p = resolve(hooksDir, name);
+    // Back up a pre-existing non-ours hook (husky/lint-staged) before replacing it.
+    if (existsSync(p) && !(await readFile(p, 'utf-8').catch(() => '')).includes('vibekit/runtime/git-hooks')) {
+      const backup = `${p}.bak`;
+      if (!existsSync(backup)) await rename(p, backup);
+    }
     await writeFile(p, body, 'utf-8');
     await chmod(p, 0o755).catch(() => {});
   }
@@ -54,13 +51,13 @@ async function main() {
   if (!arg) {
     console.log(`Current VibeDevKit level: L${current}\n`);
     for (const [k, v] of Object.entries(LABELS)) console.log(`${Number(k) <= current ? '✓' : ' '} ${v}`);
-    console.log('\nChange with:  node vibekit/tools/scripts/vibe-level.mjs <1-7>');
+    console.log(`\nChange with:  node vibekit/tools/scripts/vibe-level.mjs <${MIN_LEVEL}-${MAX_LEVEL}>`);
     return;
   }
 
   const level = Number(arg);
-  if (!Number.isInteger(level) || level < 1 || level > 7) {
-    console.error('Level must be an integer 1–7.');
+  if (!isValidLevel(level)) {
+    console.error(`Level must be an integer ${MIN_LEVEL}–${MAX_LEVEL}.`);
     process.exit(1);
   }
 

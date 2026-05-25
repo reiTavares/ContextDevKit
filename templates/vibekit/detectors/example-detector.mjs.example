@@ -1,0 +1,25 @@
+/**
+ * Example custom tech-debt detector — flags stray `console.log(` calls left in
+ * source (a common debug leftover). Copy this file to `<name>.mjs` in this
+ * folder to ACTIVATE it (the `.example` suffix keeps it inert until you do):
+ *
+ *   cp example-detector.mjs.example console-log.mjs
+ *
+ * Contract: `(relativePath, fileContent) => findings[]`. See README.md.
+ */
+export default function detectConsoleLog(path, content) {
+  const findings = [];
+  content.split('\n').forEach((line, i) => {
+    if (/\bconsole\.log\(/.test(line)) {
+      findings.push({
+        kind: 'console-log',
+        severity: 2,
+        path,
+        line: i + 1,
+        snippet: line.trim().slice(0, 120),
+        message: 'Stray `console.log` — remove it or route through a real logger.',
+      });
+    }
+  });
+  return findings;
+}

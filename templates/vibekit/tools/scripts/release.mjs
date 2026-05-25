@@ -9,8 +9,10 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
+import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const WS_DIR = resolve(ROOT, '.claude/.workspace');
@@ -26,7 +28,7 @@ async function sessionId() {
 
 async function main() {
   const target = process.argv[2]?.replaceAll('\\', '/');
-  const sid = await sessionId();
+  const sid = sanitizeSid(await sessionId());
   const file = resolve(WS_DIR, `${sid}.json`);
 
   if (!existsSync(file)) {
@@ -38,11 +40,11 @@ async function main() {
     await rm(file, { force: true });
     console.log(`✅ Released ALL claims for session ${sid.slice(0, 8)}.`);
   } else {
-    const data = JSON.parse(await readFile(file, 'utf-8'));
-    const before = (data.claims || []).length;
-    data.claims = (data.claims || []).filter((c) => c.path !== target);
-    await writeFile(file, JSON.stringify(data, null, 2), 'utf-8');
-    console.log(before === data.claims.length ? `ℹ️  No claim matched "${target}".` : `✅ Released claim "${target}".`);
+    const claimRecord = JSON.parse(await readFile(file, 'utf-8'));
+    const before = (claimRecord.claims || []).length;
+    claimRecord.claims = (claimRecord.claims || []).filter((c) => c.path !== target);
+    await writeFileAtomic(file, JSON.stringify(claimRecord, null, 2));
+    console.log(before === claimRecord.claims.length ? `ℹ️  No claim matched "${target}".` : `✅ Released claim "${target}".`);
   }
 
   try {

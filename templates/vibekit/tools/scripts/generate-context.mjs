@@ -14,8 +14,10 @@
  */
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const OUTPUT = resolve(ROOT, '.context-snapshot.md');
 const MAX_DEPTH = 4;
 const IGNORE = new Set(['node_modules', '.git', 'dist', 'build', 'out', '.next', '.turbo', '.expo', 'coverage', '__pycache__', 'target', 'vendor', '.claude']);
@@ -73,7 +75,7 @@ async function detectStack() {
 async function latestSession() {
   let files = [];
   try {
-    files = await readdir(resolve(ROOT, 'vibekit/memory/sessions'));
+    files = await readdir(P.sessions);
   } catch {
     return null;
   }

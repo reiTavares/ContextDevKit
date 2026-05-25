@@ -10,6 +10,7 @@
  * `PLATFORM_DIR` here and run the installer's `--rewire` step. Nothing else
  * references the literal folder name.
  */
+import { resolve } from 'node:path';
 
 /** Platform bounded-context folder (everything except `.claude/`). */
 export const PLATFORM_DIR = 'vibekit';
@@ -49,3 +50,43 @@ export const WORKSPACE_STATE_DIR = '.claude/.workspace';
 
 /** On-demand full-project snapshot (gitignored). */
 export const CONTEXT_SNAPSHOT = '.context-snapshot.md';
+
+/**
+ * Resolves every canonical location to an ABSOLUTE path under `root`. This is the
+ * single helper scripts/hooks use instead of hardcoding `resolve(ROOT, 'vibekit/…')`
+ * literals — so the platform folder name lives only in `PLATFORM_DIR` (immutable
+ * rule 4). One-off files under memory use `resolve(p.memory, '<name>')`.
+ *
+ * @param {string} [root] project root (default cwd)
+ */
+export function pathsFor(root = process.cwd()) {
+  const at = (rel) => resolve(root, rel);
+  return {
+    root,
+    platform: at(PLATFORM_DIR),
+    memory: at(MEMORY_DIR),
+    sessions: at(SESSIONS_DIR),
+    sessionsIndex: at(SESSIONS_INDEX),
+    workspaceIndex: at(WORKSPACE_INDEX),
+    decisions: at(DECISIONS_DIR),
+    glossary: at(GLOSSARY),
+    predictions: at(PREDICTIONS_DIR),
+    changelog: at(CHANGELOG),
+    config: at(CONFIG_FILE),
+    ledgerDir: at(LEDGER_DIR),
+    workspaceStateDir: at(WORKSPACE_STATE_DIR),
+    contextSnapshot: at(CONTEXT_SNAPSHOT),
+    pipeline: at(`${PLATFORM_DIR}/pipeline`),
+    runtime: at(`${PLATFORM_DIR}/runtime`),
+    tools: at(`${PLATFORM_DIR}/tools`),
+    scripts: at(`${PLATFORM_DIR}/tools/scripts`),
+    squads: at(`${PLATFORM_DIR}/squads`),
+    workflows: at(`${PLATFORM_DIR}/workflows`),
+    playbooks: at(`${PLATFORM_DIR}/workflows/playbooks`),
+    detectors: at(`${PLATFORM_DIR}/detectors`),
+    businessRules: at(`${MEMORY_DIR}/business-rules`),
+    roadmap: at(`${MEMORY_DIR}/roadmap.md`),
+    contractBaseline: at(`${MEMORY_DIR}/contract-baseline.json`),
+    bestPractices: at(`${PLATFORM_DIR}/best-practices.md`),
+  };
+}

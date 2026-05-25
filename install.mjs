@@ -10,6 +10,14 @@
  * The mechanics live in focused modules under `tools/install/` (cli, fs,
  * project, git, uninstall); this file just wires the steps together.
  * Run `node install.mjs --help` for usage and the full flag list.
+ *
+ * Cohesion note (line budget): this file is intentionally a single linear
+ * orchestrator — the ordered install steps (settings → engine → commands →
+ * agents → memory seeds → GitHub → git hooks → config) share one `target` +
+ * `report` and must run in sequence. Splitting the sequence into more modules
+ * would scatter the one thing this file exists to express (the install order)
+ * and add indirection without reducing real complexity. The heavy lifting is
+ * already delegated to `tools/install/*`; what remains is the recipe.
  */
 import { existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
@@ -21,6 +29,7 @@ import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
+import { isValidLevel } from './templates/vibekit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -83,7 +92,7 @@ async function main() {
 
   // Safe re-run / update: if no explicit --level, preserve the project's current
   // level (read from config) instead of silently downgrading to the default.
-  if (!(Number.isInteger(level) && level >= 1 && level <= 7)) {
+  if (!isValidLevel(level)) {
     try {
       const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
       if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
@@ -91,7 +100,7 @@ async function main() {
       /* no config yet */
     }
   }
-  level = Number.isInteger(level) && level >= 1 && level <= 7 ? level : recommended;
+  level = isValidLevel(level) ? level : recommended;
   name = name || requireBasename(target);
   mode = effMode;
 
@@ -150,6 +159,9 @@ async function main() {
   // Workflow guides (L1–L6) + reusable playbooks (write-if-missing so customizations survive).
   const wfCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'workflows'), join(target, 'vibekit', 'workflows'));
   if (wfCount > 0) report.push(`✓ seeded vibekit/workflows (${wfCount} file(s))`);
+  // Pluggable-detector seed (README + inert example) so the extension point is discoverable.
+  const detCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'detectors'), join(target, 'vibekit', 'detectors'));
+  if (detCount > 0) report.push(`✓ seeded vibekit/detectors (${detCount} file(s))`);
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
@@ -213,8 +225,11 @@ async function main() {
   const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
   if (level >= 3) {
-    if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
-    else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
+    const gitHooks = await installGitHooks(target);
+    if (gitHooks.installed) {
+      report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
+      if (gitHooks.backedUp.length) report.push(`  ↳ backed up your existing ${gitHooks.backedUp.join(', ')} hook(s) → *.bak`);
+    } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
   }
   // Version-control hint: suggest connecting a remote if there isn't one.
   if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {

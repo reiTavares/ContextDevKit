@@ -12,8 +12,10 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathsFor } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 
 function safeRun(cmd) {
   try {
@@ -26,7 +28,7 @@ function safeRun(cmd) {
 function main() {
   console.log('› pre-commit: regenerating derived docs...');
 
-  if (existsSync(resolve(ROOT, 'vibekit/memory/sessions'))) {
+  if (existsSync(P.sessions)) {
     safeRun('node vibekit/tools/scripts/session-reindex.mjs');
     safeRun('git add vibekit/memory/SESSIONS.md');
   }
@@ -34,7 +36,7 @@ function main() {
     safeRun('node vibekit/tools/scripts/workspace-sync.mjs');
     safeRun('git add vibekit/memory/WORKSPACE.md');
   }
-  if (existsSync(resolve(ROOT, 'vibekit/pipeline'))) {
+  if (existsSync(P.pipeline)) {
     safeRun('node vibekit/tools/scripts/pipeline.mjs sync');
     safeRun('git add vibekit/pipeline/devpipeline.md vibekit/pipeline/known-bugs.md');
   }

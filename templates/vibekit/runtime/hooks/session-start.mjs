@@ -54,15 +54,32 @@ async function readStdin() {
   });
 }
 
+/** A ledger touched within this window may belong to a LIVE concurrent session. */
+const ACTIVE_GRACE_MS = 15 * 60 * 1000;
+
+/** Most recent activity timestamp for a ledger (its start, or its last edit). */
+function lastActivityAt(ledger) {
+  const mods = Array.isArray(ledger.modifications) ? ledger.modifications : [];
+  const lastMod = mods.reduce((mx, m) => (typeof m?.at === 'number' && m.at > mx ? m.at : mx), 0);
+  return Math.max(typeof ledger.startedAt === 'number' ? ledger.startedAt : 0, lastMod);
+}
+
 async function analyzePriorLedgers(currentSessionId) {
   const all = await listAllLedgers();
   const drift = [];
+  const now = Date.now();
   for (const { sessionId, ledger } of all) {
     if (sessionId === currentSessionId) continue;
+    const mods = Array.isArray(ledger.modifications) ? ledger.modifications : [];
     const registered = ledger.registered || wasRegisteredDuringSession(ledger);
     const pending = pendingImportantPaths(ledger);
     if (registered || pending.length === 0) {
-      await rm(ledgerPathFor(sessionId), { force: true }).catch(() => {});
+      // Reap a resolved ledger — but NEVER an empty one, nor one touched within the
+      // grace window: that may be a LIVE concurrent session that just wrote its
+      // fresh (empty) ledger. Deleting it was the race (008): a booting session
+      // wiped a live peer. The owning session cleans up its own ledger.
+      const maybeLive = mods.length === 0 || now - lastActivityAt(ledger) < ACTIVE_GRACE_MS;
+      if (!maybeLive) await rm(ledgerPathFor(sessionId), { force: true }).catch(() => {});
       continue;
     }
     drift.push({ sessionId, paths: pending });

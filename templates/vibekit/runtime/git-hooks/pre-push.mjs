@@ -21,6 +21,14 @@ import { loadConfigSync } from '../config/load.mjs';
 const ROOT = process.cwd();
 const MAIN = loadConfigSync(ROOT).l3?.mainBranch || 'main';
 
+/**
+ * Cap every git subprocess (ms) so the network `fetch` below can't hang a push
+ * against an unreachable/slow remote. On timeout `execFileSync` throws → `git()`
+ * returns `{ ok:false }`, which the conflict check already treats as "couldn't
+ * refresh, allow the push" (defensive: never block on tooling). Env-overridable.
+ */
+const GIT_TIMEOUT_MS = Number.parseInt(process.env.VIBE_GIT_TIMEOUT_MS || '', 10) || 15000;
+
 if (process.env.VIBE_ALLOW_CONFLICT_PUSH === '1') {
   console.error('⚠️  pre-push: conflict check bypassed (VIBE_ALLOW_CONFLICT_PUSH=1).');
   process.exit(0);
@@ -28,7 +36,7 @@ if (process.env.VIBE_ALLOW_CONFLICT_PUSH === '1') {
 
 function git(args, allowFail = true) {
   try {
-    return { ok: true, out: execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() };
+    return { ok: true, out: execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: GIT_TIMEOUT_MS }).trim() };
   } catch (err) {
     if (!allowFail) throw err;
     return { ok: false, out: '', status: err?.status };
