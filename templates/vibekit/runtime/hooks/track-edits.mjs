@@ -13,9 +13,10 @@
  *
  * Defensive: any failure exits 0 with a stderr note. Zero third-party deps.
  */
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { isTrackable, readLedger, resolveSessionId, toRepoRelative, writeLedger } from './ledger.mjs';
+import { isTrackable, readLedger, resolveSessionId, sanitizeSid, toRepoRelative, writeLedger } from './ledger.mjs';
+import { writeFileAtomic } from './safe-io.mjs';
 import { WORKSPACE_STATE_DIR } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
@@ -44,11 +45,11 @@ function extractPaths(payload) {
 }
 
 async function renewHeartbeat(sessionId) {
-  const path = resolve(WORKSPACE_DIR, `${sessionId}.json`);
+  const path = resolve(WORKSPACE_DIR, `${sanitizeSid(sessionId)}.json`);
   try {
     const data = JSON.parse(await readFile(path, 'utf-8'));
     data.lastHeartbeat = Date.now();
-    await writeFile(path, JSON.stringify(data, null, 2), 'utf-8');
+    await writeFileAtomic(path, JSON.stringify(data, null, 2));
   } catch {
     /* no claim file — nothing to renew */
   }
@@ -106,7 +107,9 @@ async function main() {
     return;
   }
 
-  const sessionId = resolveSessionId(payload);
+  // Sanitize once up front: session id is external input and is used to build
+  // ledger + workspace paths (defense-in-depth against `../` traversal).
+  const sessionId = sanitizeSid(resolveSessionId(payload));
   const paths = extractPaths(payload).map(toRepoRelative).filter(isTrackable);
   if (paths.length === 0) return;
 

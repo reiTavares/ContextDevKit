@@ -8,8 +8,9 @@
  *
  * Usage:  node vibekit/tools/scripts/workspace-sync.mjs
  */
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const WORKSPACE_DIR = resolve(ROOT, '.claude/.workspace');
@@ -95,7 +96,7 @@ async function main() {
   const claims = await loadClaims();
   const active = claims.filter((c) => !isStale(c));
   const stale = claims.filter(isStale);
-  await writeFile(OUTPUT_PATH, buildMarkdown(active, stale), 'utf-8');
+  await writeFileAtomic(OUTPUT_PATH, buildMarkdown(active, stale));
   console.log(`✅ WORKSPACE.md regenerated — ${active.length} active, ${stale.length} stale.`);
 }
 

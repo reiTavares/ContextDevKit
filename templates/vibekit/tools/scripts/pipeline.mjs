@@ -24,6 +24,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 
@@ -85,10 +86,8 @@ function getArg(name) {
 /** Writes one backlog task file and returns its id. Shared by add + ingest. */
 function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = '', source = '', context = '', severity = '', wsjf = '', bugType = '' }) {
   ensureDirs();
-  const id = nextId();
   const created = new Date().toISOString().slice(0, 10);
-  const file = `${id}-${slug(title)}.md`;
-  const body = [
+  const buildBody = (id) => [
     '---',
     `id: ${id}`,
     `title: ${title}`,
@@ -112,8 +111,21 @@ function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = 
     '- [ ] ',
     '',
   ].join('\n');
-  writeFileSync(resolve(PIPE, 'backlog', file), body, 'utf-8');
-  return id;
+  // Collision-safe id allocation: claim the file with an exclusive create (`wx`).
+  // If two concurrent `add`s race for the same id, the loser sees EEXIST (or finds
+  // the id already taken) and retries with the next id — two tasks never share one.
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const id = nextId();
+    if (listTasks().some((t) => t.id === id)) continue;
+    try {
+      writeFileSync(resolve(PIPE, 'backlog', `${id}-${slug(title)}.md`), buildBody(id), { encoding: 'utf-8', flag: 'wx' });
+      return id;
+    } catch (err) {
+      if (err?.code === 'EEXIST') continue;
+      throw err;
+    }
+  }
+  throw new Error('pipeline: could not allocate a unique task id (50 attempts exhausted)');
 }
 
 function add() {
@@ -195,7 +207,7 @@ function prioritize() {
     process.exit(1);
   }
   const p = resolve(PIPE, task.stage, task.file);
-  writeFileSync(p, readFileSync(p, 'utf-8').replace(/^priority:.*$/m, `priority: ${priority}`), 'utf-8');
+  writeFileAtomicSync(p, readFileSync(p, 'utf-8').replace(/^priority:.*$/m, `priority: ${priority}`));
   sync();
   console.log(`✅ ${task.id} priority → ${priority}`);
 }
@@ -217,10 +229,10 @@ function setWsjf() {
   const pr = wsjfToPriority(score, BANDS);
   const due = slaDue(pr, task.created, SLADAYS);
   const p = resolve(PIPE, task.stage, task.file);
-  writeFileSync(p, readFileSync(p, 'utf-8')
+  writeFileAtomicSync(p, readFileSync(p, 'utf-8')
     .replace(/^priority:.*$/m, `priority: ${pr}`)
     .replace(/^wsjf:.*$/m, `wsjf: ${score}`)
-    .replace(/^sla:.*$/m, `sla: ${due}`), 'utf-8');
+    .replace(/^sla:.*$/m, `sla: ${due}`));
   sync();
   console.log(`✅ ${task.id} WSJF ${score} → ${pr} (SLA ${due})`);
 }
@@ -243,7 +255,7 @@ function move() {
   if (stage === 'conclusion' && !/^concluded:/m.test(text)) {
     text = text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${new Date().toISOString().slice(0, 10)}\n---`);
   }
-  writeFileSync(from, text, 'utf-8');
+  writeFileAtomicSync(from, text);
   renameSync(from, to);
   sync();
   console.log(`✅ Moved ${task.id} → ${stage}`);
@@ -252,8 +264,8 @@ function move() {
 function sync() {
   ensureDirs();
   const all = listTasks();
-  writeFileSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all), 'utf-8');
-  writeFileSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all), 'utf-8');
+  writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all));
+  writeFileAtomicSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all));
 }
 
 /** Print + regenerate the known-bugs map. */

@@ -10,7 +10,7 @@
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -34,6 +34,7 @@ async function importLibs() {
     'config/settings-compose.mjs',
     'config/presets.mjs',
     'hooks/path-classification.mjs',
+    'hooks/safe-io.mjs',
     'hooks/boot-context-readers.mjs',
     'hooks/boot-signals.mjs',
     'hooks/ledger.mjs',
@@ -121,6 +122,31 @@ async function checkBootReaders(boot) {
   }
 }
 
+/**
+ * Concurrency-safety primitives: atomic writes round-trip and leave no temp
+ * residue, and sid sanitization neutralizes path traversal. Guards 008/011/012.
+ */
+async function checkConcurrencySafety(safeio, ledger) {
+  console.log('Checking atomic I/O + sid sanitization...');
+  if (safeio?.writeFileAtomicSync && safeio?.writeFileAtomic) {
+    const tmp = mkdtempSync(join(tmpdir(), 'vibekit-io-'));
+    try {
+      const f = resolve(tmp, 'a.txt');
+      safeio.writeFileAtomicSync(f, 'hello');
+      readFileSync(f, 'utf-8') === 'hello' ? ok('writeFileAtomicSync round-trips') : bad('writeFileAtomicSync wrong content');
+      await safeio.writeFileAtomic(f, 'world');
+      readFileSync(f, 'utf-8') === 'world' ? ok('writeFileAtomic round-trips') : bad('writeFileAtomic wrong content');
+      readdirSync(tmp).length === 1 ? ok('atomic write leaves no temp residue') : bad('atomic write left temp files behind');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  } else bad('safe-io atomic writers not exported');
+  if (ledger?.sanitizeSid) {
+    const dirty = ledger.sanitizeSid('../../etc/passwd');
+    !dirty.includes('/') && !dirty.includes('.') ? ok('sanitizeSid neutralizes path traversal') : bad(`sanitizeSid leaked separators: ${dirty}`);
+  } else bad('ledger.sanitizeSid not exported');
+}
+
 const srcText = (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
 
 /**
@@ -134,6 +160,14 @@ async function checkSourceInvariants() {
   const cases = [
     ['network git calls time out (git.mjs)', 'templates/vibekit/tools/scripts/git.mjs', /timeout:\s*\w/],
     ['network git calls time out (pre-push.mjs)', 'templates/vibekit/runtime/git-hooks/pre-push.mjs', /timeout:\s*\w/],
+    ['ledger writes are atomic', 'templates/vibekit/runtime/hooks/ledger.mjs', /writeFileAtomic/],
+    ['pipeline writers are atomic', 'templates/vibekit/tools/scripts/pipeline.mjs', /writeFileAtomicSync/],
+    ['workspace-sync write is atomic', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /writeFileAtomic/],
+    ['pipeline allocates ids with exclusive create', 'templates/vibekit/tools/scripts/pipeline.mjs', /flag:\s*'wx'/],
+    ['claim sanitizes the session id', 'templates/vibekit/tools/scripts/claim.mjs', /sanitizeSid/],
+    ['release sanitizes the session id', 'templates/vibekit/tools/scripts/release.mjs', /sanitizeSid/],
+    ['track-edits sanitizes the session id', 'templates/vibekit/runtime/hooks/track-edits.mjs', /sanitizeSid/],
+    ['session-start guards live ledgers from deletion', 'templates/vibekit/runtime/hooks/session-start.mjs', /maybeLive/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
@@ -211,6 +245,7 @@ async function main() {
     }
   } else bad('presets.applyPreset not exported');
   await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
+  await checkConcurrencySafety(mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
   await checkSourceInvariants();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);

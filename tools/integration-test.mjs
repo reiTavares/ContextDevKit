@@ -74,6 +74,12 @@ try {
   (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
     ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');
 
+  // 008 — a booting session must NOT delete a concurrent session's fresh/empty ledger.
+  const concLedger = join(proj, '.claude', '.sessions', 'concurrent.json');
+  writeFileSync(concLedger, JSON.stringify({ sessionId: 'concurrent', startedAt: Date.now(), modifications: [], registered: false, stopWarnedAt: null, simulations: [] }));
+  hook('session-start.mjs', { session_id: 'booting-now' });
+  existsSync(concLedger) ? ok('session-start preserves a concurrent session fresh ledger (008)') : bad('session-start deleted a concurrent fresh ledger');
+
   // Safe --update: preserves CLAUDE.md, config (level + overrides), memory.
   writeFileSync(join(proj, 'CLAUDE.md'), readFileSync(join(proj, 'CLAUDE.md'), 'utf-8') + '\n## USER MARKER\n');
   run([join(KIT, 'install.mjs'), '--target', proj, '--update']);

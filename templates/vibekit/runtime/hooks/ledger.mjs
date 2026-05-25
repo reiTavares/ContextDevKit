@@ -23,9 +23,10 @@
  * All functions are defensive: never throw; on error return safe defaults so
  * a hook never breaks a Claude session. Zero third-party deps.
  */
-import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { isImportant, isRegistrationFile, isTrackable } from './path-classification.mjs';
+import { writeFileAtomic } from './safe-io.mjs';
 import { LEDGER_DIR } from '../config/paths.mjs';
 
 export { isImportant, isRegistrationFile, isTrackable };
@@ -54,12 +55,12 @@ export async function readLedger(sessionId) {
   }
 }
 
-/** Persists a ledger and updates the last-touched pointer. */
+/** Persists a ledger and updates the last-touched pointer (both atomic). */
 export async function writeLedger(sessionId, ledger) {
   try {
     await mkdir(SESSIONS_DIR, { recursive: true });
-    await writeFile(ledgerPathFor(sessionId), JSON.stringify(ledger, null, 2), 'utf-8');
-    await writeFile(LAST_TOUCHED_PATH, JSON.stringify({ sessionId, at: Date.now() }), 'utf-8');
+    await writeFileAtomic(ledgerPathFor(sessionId), JSON.stringify(ledger, null, 2));
+    await writeFileAtomic(LAST_TOUCHED_PATH, JSON.stringify({ sessionId, at: Date.now() }));
   } catch (err) {
     process.stderr.write(`[ledger] write failed: ${err?.message ?? err}\n`);
   }
@@ -124,7 +125,13 @@ export function freshLedger(sessionId) {
   };
 }
 
-function sanitizeSid(sid) {
+/**
+ * Maps a session id to a filesystem-safe token: only `[A-Za-z0-9_-]`, capped at
+ * 64 chars. Exported so every path-constructing caller (ledger, claim/release,
+ * track-edits) sanitizes consistently — a session id is external input and must
+ * never be able to escape `.claude/.sessions` or `.claude/.workspace` (`../`).
+ */
+export function sanitizeSid(sid) {
   return String(sid).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
 }
 
