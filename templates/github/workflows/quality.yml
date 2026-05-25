@@ -1,0 +1,36 @@
+# Quality gates — contract drift + tech-debt RED zone.
+# Scaffolded by VibeDevKit. Each job FAILS the run on a regression; to make it
+# BLOCK merges, add it as a required status check in branch protection.
+name: quality
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-drift:
+    # Fails if a public export was removed/renamed since the committed baseline
+    # (vibekit/memory/contract-baseline.json). No-op until you set `l5.contractGlobs`
+    # and save a baseline (`contract-scan.mjs --save`).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node vibekit/tools/scripts/contract-scan.mjs
+
+  tech-debt:
+    # Fails on any RED-zone finding (a file over the hard line-budget limit).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node vibekit/tools/scripts/tech-debt-scan.mjs --ci

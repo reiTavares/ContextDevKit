@@ -16,6 +16,7 @@ import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import { composeSettings } from './templates/vibekit/runtime/config/settings-compose.mjs';
+import { applyPreset, listPresets } from './templates/vibekit/runtime/config/presets.mjs';
 import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
@@ -148,22 +149,26 @@ async function main() {
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
   const cfgPath = join(target, 'vibekit', 'config.json');
+  const preset = args.preset && listPresets().includes(args.preset) ? args.preset : null;
+  if (args.preset && !preset) report.push(`⚠️  unknown --preset "${args.preset}" (have: ${listPresets().join(', ')}) — ignored`);
   if (existsSync(cfgPath)) {
     try {
-      const cfg = JSON.parse(await read(cfgPath));
+      let cfg = JSON.parse(await read(cfgPath));
       cfg.level = level;
       if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
+      if (preset) cfg = applyPreset(cfg, preset);
       await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-      report.push(`✓ updated vibekit/config.json level → ${level}`);
+      report.push(`✓ updated vibekit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
     } catch {
       /* leave malformed file for the user */
     }
   } else {
-    const cfg = JSON.parse(await read(join(TPL, 'vibekit', 'config.json')));
+    let cfg = JSON.parse(await read(join(TPL, 'vibekit', 'config.json')));
     cfg.level = level;
     cfg.setup = { completed: false, installedAt: new Date().toISOString() };
+    if (preset) cfg = applyPreset(cfg, preset);
     await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-    report.push(`✓ created vibekit/config.json (level ${level}, first-run pending)`);
+    report.push(`✓ created vibekit/config.json (level ${level}, first-run pending${preset ? `, preset ${preset}` : ''})`);
   }
 
   // 7. CLAUDE.md: render if missing; else drop a side file to merge.

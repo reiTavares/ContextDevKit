@@ -12,10 +12,7 @@
  * Constraints: concise output, all errors silent (NEVER block a session),
  * zero third-party deps.
  */
-import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
-import { basename, resolve } from 'node:path';
+import { rm } from 'node:fs/promises';
 import {
   exists,
   extractLatestSession,
@@ -24,6 +21,15 @@ import {
   readSessionsIndex,
   readWorkspaceSummary,
 } from './boot-context-readers.mjs';
+import {
+  activeBranches,
+  checkGitDivergence,
+  getBranch,
+  isGreenfield,
+  predictionsReviewDue,
+  projectName,
+  securityModeDue,
+} from './boot-signals.mjs';
 import {
   freshLedger,
   ledgerPathFor,
@@ -64,127 +70,6 @@ async function analyzePriorLedgers(currentSessionId) {
   return drift;
 }
 
-function checkGitDivergence() {
-  try {
-    execSync('git fetch origin --quiet', { cwd: ROOT, stdio: 'ignore', timeout: 5000 });
-  } catch {
-    return null;
-  }
-  try {
-    const counts = execSync('git rev-list --left-right --count HEAD...@{u}', {
-      cwd: ROOT,
-      encoding: 'utf-8',
-      timeout: 3000,
-    }).trim();
-    const [a, b] = counts.split(/\s+/);
-    return { ahead: Number.parseInt(a ?? '0', 10), behind: Number.parseInt(b ?? '0', 10) };
-  } catch {
-    return null;
-  }
-}
-
-function getBranch() {
-  try {
-    return execSync('git symbolic-ref --short HEAD', { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-  } catch {
-    return 'detached';
-  }
-}
-
-/**
- * Cross-machine + same-machine awareness (L3): recent OTHER branches — local
- * worktrees and remote feature branches — with author + age, so parallel work
- * (other devs/agents) is visible at boot. Read-only, best effort.
- */
-function activeBranches(currentBranch) {
-  const lines = [];
-  try {
-    const worktrees = execSync('git worktree list --porcelain', { cwd: ROOT, encoding: 'utf-8', timeout: 3000 })
-      .split('\n')
-      .filter((l) => l.startsWith('branch '))
-      .map((l) => l.replace('branch refs/heads/', '').trim())
-      .filter((b) => b && b !== currentBranch);
-    for (const b of [...new Set(worktrees)].slice(0, 5)) lines.push(`- 🌳 local worktree on \`${b}\``);
-  } catch {
-    /* not a worktree setup */
-  }
-  try {
-    const cutoff = '2.weeks.ago';
-    const remote = execSync(
-      `git for-each-ref --sort=-committerdate --count=20 --format="%(refname:short)|%(committerdate:relative)|%(authorname)" refs/remotes`,
-      { cwd: ROOT, encoding: 'utf-8', timeout: 3000 },
-    )
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => l.split('|'))
-      .filter(([ref]) => ref && !/\/(main|master|HEAD)$/.test(ref) && !ref.endsWith(`/${currentBranch}`))
-      .filter(([, rel]) => !/(month|year)/.test(rel || ''))
-      .slice(0, 5);
-    for (const [ref, rel, author] of remote) lines.push(`- ☁️  \`${ref}\` — ${rel} by ${author}`);
-    void cutoff;
-  } catch {
-    /* no remote */
-  }
-  return lines.length ? lines.join('\n') : null;
-}
-
-/** True when the project has no source code yet (routes first-run to /aidevtool-from0). */
-function isGreenfield() {
-  return !['src', 'app', 'apps', 'packages', 'lib', 'components', 'pages', 'server', 'cmd', 'internal'].some((d) => existsSync(resolve(ROOT, d)));
-}
-
-async function projectName() {
-  try {
-    const pkg = JSON.parse(await readFile(resolve(ROOT, 'package.json'), 'utf-8'));
-    if (typeof pkg?.name === 'string' && pkg.name) return pkg.name;
-  } catch {
-    /* no package.json */
-  }
-  return basename(ROOT);
-}
-
-/** Security mode (config): returns the cadence N when a /deep-analysis is due, else 0. */
-function securityModeDue() {
-  const cfg = loadConfigSync(ROOT)?.securityMode;
-  if (!cfg || cfg.active !== true) return 0;
-  const everyN = Number(cfg.everyNSessions) > 0 ? Number(cfg.everyNSessions) : 10;
-  try {
-    const n = readdirSync(resolve(ROOT, 'vibekit/memory/sessions')).filter((f) => f.endsWith('.md')).length;
-    return n > 0 && n % everyN === 0 ? everyN : 0;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Predictions-review cadence (config): returns N when a review is due — i.e. it's an
- * every-N-sessions tick AND at least one `/simulate-impact` prediction is still
- * unreviewed (`fill on review` stub present). Zero noise when there's nothing to review.
- */
-function predictionsReviewDue() {
-  const cfg = loadConfigSync(ROOT)?.predictionsReview;
-  if (!cfg || cfg.active !== true) return 0;
-  const everyN = Number(cfg.everyNSessions) > 0 ? Number(cfg.everyNSessions) : 10;
-  try {
-    const n = readdirSync(resolve(ROOT, 'vibekit/memory/sessions')).filter((f) => f.endsWith('.md')).length;
-    if (n === 0 || n % everyN !== 0) return 0;
-    const dir = resolve(ROOT, 'vibekit/memory/predictions');
-    const unreviewed = readdirSync(dir)
-      .filter((f) => f.endsWith('.md'))
-      .some((f) => {
-        try {
-          return readFileSync(resolve(dir, f), 'utf-8').includes('fill on review');
-        } catch {
-          return false;
-        }
-      });
-    return unreviewed ? everyN : 0;
-  } catch {
-    return 0;
-  }
-}
-
 async function main() {
   const raw = await readStdin();
   let payload = {};
@@ -205,23 +90,23 @@ async function main() {
   const changelog = await readChangelog(ROOT);
   const latest = await extractLatestSession(ROOT);
   const workspace = level >= 3 ? await readWorkspaceSummary(ROOT) : null;
-  const branches = level >= 3 ? activeBranches(getBranch()) : null;
+  const branches = level >= 3 ? activeBranches(ROOT, getBranch(ROOT)) : null;
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
-  const divergence = checkGitDivergence();
-  const secDue = securityModeDue();
-  const predDue = predictionsReviewDue();
+  const divergence = checkGitDivergence(ROOT);
+  const secDue = securityModeDue(ROOT);
+  const predDue = predictionsReviewDue(ROOT);
 
   if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue) return;
 
   const out = [];
   out.push('<project-context-boot>');
-  out.push(`# 📚 Boot context — ${await projectName()}`);
+  out.push(`# 📚 Boot context — ${await projectName(ROOT)}`);
   out.push('');
-  out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch()}\` · VibeDevKit level: \`L${level}\``);
+  out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · VibeDevKit level: \`L${level}\``);
   out.push('');
 
   if (needsSetup) {
-    const empty = isGreenfield();
+    const empty = isGreenfield(ROOT);
     out.push('## 🚀 First run — VibeDevKit not configured yet');
     out.push('');
     if (empty) {

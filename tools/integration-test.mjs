@@ -105,6 +105,12 @@ try {
   existsSync(join(proj, 'vibekit', 'squads', 'security-team', 'security.md'))
     ? ok('squad brief scaffolds a tier-2 briefing (squads/<team>/)') : bad('squad brief did not scaffold');
 
+  // Status-line widget: wired into settings.json + runs and prints a line.
+  readJson(join(proj, '.claude', 'settings.json')).statusLine?.command?.includes('vibekit/runtime/statusline')
+    ? ok('statusLine widget wired into settings.json') : bad('statusLine not wired into settings.json');
+  (run([join(proj, 'vibekit', 'runtime', 'statusline.mjs')], { cwd: proj }).stdout || '').includes('🌀')
+    ? ok('statusline.mjs prints a status line') : bad('statusline.mjs produced no output');
+
   // vibe-config show/set round-trip.
   script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
   const showOut = script('vibe-config.mjs', 'show', 'qa.coverageTarget.lines').stdout || '';

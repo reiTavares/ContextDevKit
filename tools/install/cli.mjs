@@ -19,6 +19,7 @@ export function parseArgs(argv) {
     else if (a === '--level') args.level = Number(argv[++i]);
     else if (a === '--name') args.name = argv[++i];
     else if (a === '--mode') args.mode = argv[++i];
+    else if (a === '--preset') args.preset = argv[++i];
   }
   return args;
 }
@@ -40,6 +41,7 @@ Flags:
   --level <1-6>     activation level (default: prompt, else 2)
   --name <string>   project name for the CLAUDE.md header
   --mode <m>        greenfield | existing (default: auto-detect)
+  --preset <name>   stack preset to merge into config: next | go | python
   --yes, -y         non-interactive (use flags/defaults, no prompts)
   --force           overwrite CLAUDE.md / memory seeds if they exist
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
