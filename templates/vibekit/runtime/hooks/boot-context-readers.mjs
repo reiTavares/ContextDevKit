@@ -42,8 +42,10 @@ export async function extractLatestSession(root) {
   const entries = files
     .map((f) => ENTRY_PATTERN.exec(f))
     .filter(Boolean)
-    .map((m) => ({ filename: m[0], num: Number.parseInt(m[2], 10) }))
-    .sort((a, b) => b.num - a.num);
+    .map((m) => ({ filename: m[0], date: m[1], num: Number.parseInt(m[2], 10) }))
+    // Session number is canonical; on a number collision the later DATE wins so
+    // the boot banner never shows a stale entry just because of a numbering clash.
+    .sort((a, b) => b.num - a.num || b.date.localeCompare(a.date));
   if (entries.length === 0) return null;
   const content = await readSafe(root, `${SESSIONS_DIR}/${entries[0].filename}`);
   if (!content) return null;
@@ -60,9 +62,11 @@ export function extractUnreleased(text) {
   const slice = lines.slice(startIdx + 1);
   const endRel = slice.findIndex((l) => l.trim() === '---' || /^##\s+\[/.test(l));
   const end = endRel === -1 ? slice.length : endRel;
+  const truncated = end > SECTION_LIMIT;
   const content = slice.slice(0, Math.min(end, SECTION_LIMIT)).join('\n').trim();
   if (!content || /add your changes|empty|vazio/i.test(content)) return null;
-  return content;
+  // Tell the reader the boot banner is showing a clipped view, not the whole list.
+  return truncated ? `${content}\n… (truncated — full [Unreleased] in docs/CHANGELOG.md)` : content;
 }
 
 /** Active-session table from WORKSPACE.md (first ~12 lines after the header). */

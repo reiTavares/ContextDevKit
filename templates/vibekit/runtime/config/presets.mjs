@@ -32,14 +32,16 @@ const uniq = (arr) => [...new Set(arr)];
 
 /**
  * Returns a NEW config with the named preset merged in (array fields unioned).
- * Unknown name → the config is returned unchanged.
+ * Unknown name → the config is returned unchanged. Every preset field is read
+ * with optional chaining so a partial/custom preset that omits `ledger`, `l5`,
+ * or `qa` merges what it has instead of crashing on `undefined.field`.
  */
 export function applyPreset(config, name) {
   const preset = PRESETS[name];
   if (!preset) return config;
   const cfg = { ...config };
-  cfg.ledger = { ...(cfg.ledger || {}), important: uniq([...(cfg.ledger?.important || []), ...(preset.ledger.important || [])]) };
-  cfg.l5 = { ...(cfg.l5 || {}), highRiskPaths: uniq([...(cfg.l5?.highRiskPaths || []), ...(preset.l5.highRiskPaths || [])]) };
-  cfg.qa = { ...(cfg.qa || {}), criticalPaths: uniq([...(cfg.qa?.criticalPaths || []), ...(preset.qa.criticalPaths || [])]) };
+  cfg.ledger = { ...(cfg.ledger || {}), important: uniq([...(cfg.ledger?.important || []), ...(preset.ledger?.important || [])]) };
+  cfg.l5 = { ...(cfg.l5 || {}), highRiskPaths: uniq([...(cfg.l5?.highRiskPaths || []), ...(preset.l5?.highRiskPaths || [])]) };
+  cfg.qa = { ...(cfg.qa || {}), criticalPaths: uniq([...(cfg.qa?.criticalPaths || []), ...(preset.qa?.criticalPaths || [])]) };
   return cfg;
 }

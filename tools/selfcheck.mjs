@@ -10,9 +10,10 @@
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -86,6 +87,38 @@ function checkConfig(load) {
   else bad('config defaults missing ledger.important');
   if (Number.isInteger(load.getLevel(KIT))) ok(`getLevel() → L${load.getLevel(KIT)}`);
   else bad('getLevel() did not return an integer');
+}
+
+/**
+ * Boot-context reader behaviours that the boot banner depends on (pure-ish I/O).
+ * Guards two boundary bugs: a clipped [Unreleased] must say so, and a session
+ * number collision must resolve by the later date.
+ */
+async function checkBootReaders(boot) {
+  console.log('Checking boot-context readers...');
+  if (!boot?.extractUnreleased || !boot?.extractLatestSession) {
+    bad('boot-context-readers exports missing (extractUnreleased/extractLatestSession)');
+    return;
+  }
+  // 009 — short block returned verbatim; an over-limit block gets a truncation marker.
+  boot.extractUnreleased('## [Unreleased]\n\n- one real change\n\n## [1.0.0]\n') === '- one real change'
+    ? ok('extractUnreleased returns a short block verbatim') : bad('extractUnreleased mangled a short block');
+  const bigBody = Array.from({ length: 80 }, (_, i) => `- change ${i}`).join('\n');
+  /truncated/i.test(boot.extractUnreleased(`## [Unreleased]\n\n${bigBody}\n\n## [1.0.0]\n`) || '')
+    ? ok('extractUnreleased flags a >60-line block as truncated') : bad('extractUnreleased truncated silently (no marker)');
+  // 010 — same session number, different dates → later date wins.
+  const tmp = mkdtempSync(join(tmpdir(), 'vibekit-sc-'));
+  try {
+    const sdir = resolve(tmp, 'vibekit/memory/sessions');
+    mkdirSync(sdir, { recursive: true });
+    writeFileSync(resolve(sdir, '2026-01-02-09-older.md'), '# OLDER session pick\n');
+    writeFileSync(resolve(sdir, '2026-05-09-09-newer.md'), '# NEWER session pick\n');
+    const latest = await boot.extractLatestSession(tmp);
+    latest?.content?.includes('NEWER')
+      ? ok('extractLatestSession breaks a number tie by the later date') : bad(`extractLatestSession tie-break wrong: ${latest?.content}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
 const srcText = (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
@@ -165,7 +198,19 @@ async function main() {
     const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
     merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
       ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
+    // 013 — a partial/custom preset (omits l5 + qa) must merge, not crash.
+    presets.PRESETS.__sc_partial = { ledger: { important: ['z/'] } };
+    try {
+      const partial = presets.applyPreset({}, '__sc_partial');
+      partial.ledger.important.includes('z/') && Array.isArray(partial.l5.highRiskPaths) && Array.isArray(partial.qa.criticalPaths)
+        ? ok('applyPreset tolerates a partial preset (missing l5/qa keys)') : bad('applyPreset partial-preset result malformed');
+    } catch (err) {
+      bad(`applyPreset crashed on a partial preset — ${err?.message ?? err}`);
+    } finally {
+      delete presets.PRESETS.__sc_partial;
+    }
   } else bad('presets.applyPreset not exported');
+  await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
   await checkSourceInvariants();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
