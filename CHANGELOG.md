@@ -32,6 +32,14 @@ this project follows [Semantic Versioning](https://semver.org/).
   default), the SessionStart hook reminds you to run `/predictions-review` every N sessions,
   but **only** when unreviewed `/simulate-impact` predictions exist (silent otherwise).
   Mirrors security-mode. New integration test covers the trigger.
+- **Editor/CI surfaces (MVP)** — a **status-line widget** (`statusline.mjs`, wired as
+  `settings.statusLine` at L≥1, preserving a user's own) and a **quality CI workflow**
+  (`.github/workflows/quality.yml`: `contract-scan --ci` + `tech-debt --ci`). Roadmap
+  *Future directions* #4. (The Claude-driven PR-review bot is deferred — needs Claude in CI.)
+- **Pluggable detectors & stack presets (MVP)** — `tech-debt-scan` loads drop-in
+  detectors from `vibekit/detectors/*.mjs` (defensive dynamic import); `install.mjs
+  --preset next|go|python` merges a stack preset (ledger / high-risk / QA paths) into
+  config via `presets.mjs`. Roadmap *Future directions* #5.
 
 ### Changed
 - **Contract drift detection deepened** (`contract-scan.mjs`) — the export extractor

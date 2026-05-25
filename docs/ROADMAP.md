@@ -161,10 +161,15 @@ required-check enforcement.
    aggregate per-agent signals (briefing coverage, usage) and **propose** briefing
    refinements (mirrors `/distill-sessions`; applies nothing). *Deferred: a closed
    auto-loop + real per-agent outcome capture (PR-review / test attribution).*
-4. 📋 **Editor/CI surfaces.** Status-line widget, PR-review bot using `code-reviewer`
-   + `qa-orchestrator`, contract-drift as a required check.
-5. 📋 **Pluggable detectors & language packs.** Drop-in detectors and stack presets
-   (`--preset next`, `--preset go`) so `/setupvibedevkit` is even sharper.
+4. ✅ **Editor/CI surfaces (MVP).** Status-line widget (`statusline.mjs`, wired as
+   `settings.statusLine`, preserves a user's own) + a **quality CI workflow**
+   (`contract-scan --ci` + `tech-debt --ci`, shipped to `.github/workflows/`).
+   *Deferred: the Claude-driven PR-review bot (needs Claude in CI); making the
+   checks **required** is a branch-protection setting, not code.*
+5. ✅ **Pluggable detectors & language packs (MVP).** Drop-in detectors from
+   `vibekit/detectors/*.mjs` (loaded by `tech-debt-scan`) + stack **presets**
+   (`install.mjs --preset next|go|python`, merged into config). *Deferred: a larger
+   preset library.*
 6. 📋 **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
    integration / fuzz with a **browser-driven, visual** layer: open the running
    app, exercise real flows, and verify changes by **screenshot / visual
