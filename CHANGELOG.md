@@ -6,6 +6,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-05-25
+
 DevPipeline backlog cleared (all 25 open tasks) — bug fixes, supply-chain &
 test hardening, and single-source refactors. No public API removed.
 
