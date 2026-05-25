@@ -1,0 +1,1 @@
+{"id":"example-001","input":{"{{input_field}}":"{{example input}}"},"expected":{"{{output_field}}":"{{expected output}}"},"rubric":{"type":"field_match_with_tolerance","fields":{"{{output_field}}":"exact"}},"tags":["{{tag}}"]}

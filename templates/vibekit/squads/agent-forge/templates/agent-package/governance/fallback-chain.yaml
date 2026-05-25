@@ -1,0 +1,16 @@
+# Ordered provider/model fallback. Rule: at least one entry MUST be a provider
+# different from primary (defense against a single-provider outage). Mirrors
+# manifest.yaml spec.model_selection.
+primary:
+  provider: {{anthropic}}
+  model: {{claude-sonnet-4-6}}
+
+chain:
+  - provider: {{google}}                 # different provider — outage defense
+    model: {{gemini-2.5-pro}}
+    condition: primary_5xx OR primary_timeout
+  - provider: {{deepseek}}
+    model: {{deepseek-v3}}
+    condition: cost_budget_breached
+
+on_safety_block: do_not_fallback         # respect the provider's safety decision

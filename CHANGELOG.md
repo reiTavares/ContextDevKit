@@ -14,8 +14,13 @@ this project follows [Semantic Versioning](https://semver.org/).
   default catalogue, provider notes, three-pillar governance, eval lifecycle).
   Seeded `router/capability-matrix.json` (5 providers, 11 models, dated + ADR-gated)
   with a selfcheck guard that parses it and rejects malformed / duplicate / disallowed
-  model ids. Selfcheck inventory also guards the two docs. Approved by ADR-0012;
-  remaining phases tracked on the DevPipeline (031–035). (030)
+  model ids. Materialized the full APF v1 template tree (`templates/agent-package/`,
+  45 files): manifest, canonical + per-provider prompts, canonical tool schema +
+  per-provider tool adapters, the eval set (golden / red-team / rubric / thresholds /
+  run-eval), three governance policies + fallback-chain + audit schema, RAG config,
+  and Node / Python / Go runtime-adapter stubs. Selfcheck inventory guards the docs +
+  representative APF files. Approved by ADR-0012; remaining phases on the DevPipeline
+  (031–035). (030)
 
 ## [1.4.2] - 2026-05-25
 

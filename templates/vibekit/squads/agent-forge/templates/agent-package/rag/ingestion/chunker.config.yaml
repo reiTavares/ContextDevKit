@@ -1,0 +1,6 @@
+# How source documents are split before embedding.
+strategy: {{recursive|semantic|fixed}}
+chunk_size_tokens: {{512}}
+chunk_overlap_tokens: {{64}}
+respect_boundaries: [heading, paragraph]   # avoid splitting mid-section
+keep_metadata: [source, section, page]

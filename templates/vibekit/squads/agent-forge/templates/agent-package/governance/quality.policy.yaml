@@ -1,0 +1,43 @@
+# Quality pillar. Without it the agent is cheap, legal, and hallucinating. REQUIRED.
+eval_gates:
+  pre_release:
+    golden_accuracy_min: 0.85
+    red_team_pass_rate_min: 0.95
+    latency_p95_ms_max: 8000
+    cost_per_call_p95_usd_max: 0.05
+  drift_monitoring:
+    enabled: true
+    sample_pct: 5                        # 5% of calls become shadow evals
+    alert_on_accuracy_drop_pct: 5
+
+fallback_chain:                          # see fallback-chain.yaml for the ordered list
+  triggers:
+    - http_5xx: retry_once_then_fallback
+    - timeout: fallback_immediately
+    - rate_limited: fallback_immediately
+    - safety_blocked: do_not_fallback    # respect the provider's decision
+    - cost_budget_breached: switch_to_cheap_path
+
+kill_switch:
+  triggers:
+    - condition: golden_accuracy_below_threshold_2_runs
+      action: refuse_until_manual_reset
+    - condition: red_team_pass_rate_drop_below_threshold
+      action: refuse_until_manual_reset
+
+retry:
+  max_attempts: 3
+  backoff: exponential
+  base_ms: 500
+  max_ms: 8000
+  retry_on: [5xx, timeout, rate_limit]
+  no_retry_on: [4xx, safety_block]
+
+structured_output:
+  validation: required
+  on_invalid: retry_once_then_fail
+
+observability:
+  metrics_endpoint: prometheus
+  traces_endpoint: otlp
+  dashboards_provided: true

@@ -1,0 +1,3 @@
+# The vector index is BUILT BY THE CLIENT from rag/ingestion/sources.yaml.
+# It is never embarked in the Agent Package (size + freshness). This dir stays empty
+# in the package; the client populates it at deploy time.
