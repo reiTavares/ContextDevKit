@@ -36,6 +36,12 @@ export function composeSettings(existing, level) {
     (hooks[evt] = hooks[evt] || []).push(entry);
   };
 
+  // Status-line widget (level >= 1). Preserve a user's own statusLine — only set
+  // or replace a previously-installed VibeDevKit one.
+  if (level >= 1 && (!settings.statusLine || String(settings.statusLine.command || '').includes('vibekit/runtime/statusline'))) {
+    settings.statusLine = { type: 'command', command: 'node vibekit/runtime/statusline.mjs', padding: 0 };
+  }
+
   if (level >= 1) add('SessionStart', null, 'session-start.mjs');
   if (level >= 2) {
     add('PostToolUse', 'Edit|Write|MultiEdit', 'track-edits.mjs');
