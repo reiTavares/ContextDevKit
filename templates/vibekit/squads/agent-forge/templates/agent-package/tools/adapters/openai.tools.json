@@ -1,0 +1,14 @@
+{
+  "_generated": "Fase 1 by tool-designer from ../schemas.canonical.json. Do not hand-edit.",
+  "_format": "OpenAI `tools` array of type 'function': { type, function: { name, description, parameters } }.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "{{tool_name}}",
+        "description": "{{from canonical}}",
+        "parameters": { "type": "object", "properties": {}, "required": [] }
+      }
+    }
+  ]
+}

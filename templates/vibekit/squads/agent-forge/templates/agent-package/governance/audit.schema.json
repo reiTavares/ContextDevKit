@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Agent audit event",
+  "description": "One line per call in the audit log (JSONL). Inputs/outputs are logged AFTER redaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ts", "agent", "model_used", "outcome"],
+  "properties": {
+    "ts": { "type": "string", "format": "date-time" },
+    "request_id": { "type": "string" },
+    "agent": { "type": "string" },
+    "agent_version": { "type": "string" },
+    "model_used": { "type": "string" },
+    "fallback_triggered": { "type": "boolean" },
+    "input_redacted": { "type": "string" },
+    "output_redacted": { "type": "string" },
+    "pii_redactions": { "type": "integer", "minimum": 0 },
+    "cost_usd": { "type": "number", "minimum": 0 },
+    "latency_ms": { "type": "integer", "minimum": 0 },
+    "outcome": { "type": "string", "enum": ["ok", "refused", "error", "killed"] },
+    "error_code": { "type": "string" }
+  }
+}

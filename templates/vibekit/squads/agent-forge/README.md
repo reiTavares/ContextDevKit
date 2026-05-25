@@ -61,6 +61,8 @@ time.** The forge runs here; the package runs anywhere. (ADR-0012, constraint 1�
 
 ## Status
 
-Fase 0 (foundations). This README + [`best-practices.md`](best-practices.md) are the
-first deliverable. The agents, the APF template, the capability matrix, and the
-`/forge-*` commands land across Fases 1–5 — track them on the DevPipeline (030–035).
+Fase 0 (foundations) — **complete**. This README, [`best-practices.md`](best-practices.md),
+the [`router/capability-matrix.json`](router/capability-matrix.json) seed, and the
+[`templates/agent-package/`](templates/agent-package/) APF v1 skeleton are in place. The
+agents and the `/forge-*` commands land across Fases 1–5 — track them on the DevPipeline
+(031–035).

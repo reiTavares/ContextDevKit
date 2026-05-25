@@ -1,0 +1,6 @@
+# Optional reranker — re-scores the top_k from the vector store before injection.
+# Remove this file if config.yaml retrieval.rerank is false.
+enabled: {{true}}
+model: {{bge-reranker-v2-m3|cohere-rerank-3}}
+top_n_after_rerank: {{4}}
+min_score: {{0.50}}
