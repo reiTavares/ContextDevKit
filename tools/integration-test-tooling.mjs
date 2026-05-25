@@ -1,0 +1,155 @@
+#!/usr/bin/env node
+/**
+ * VibeDevKit integration test — TOOLING scripts.
+ *
+ * Installs the kit into a throwaway temp project and exercises the tool scripts
+ * (modular CLAUDE.md, git, DevPipeline, deep-analysis, security mode, deps-audit,
+ * gh-alerts, fleet, agent-tuning, …). The core hooks/engine are covered by
+ * `integration-test.mjs`. Shared harness: `it-helpers.mjs`.
+ *
+ * Run:  node tools/integration-test-tooling.mjs   (exit 0 = healthy)
+ */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { run, readJson, reporter, installFixture } from './it-helpers.mjs';
+
+const rep = reporter();
+const { ok, bad } = rep;
+console.log('\n🌀 VibeDevKit integration test — tooling\n');
+const fx = installFixture(rep);
+const { proj, cfgPath, hook, script } = fx;
+
+try {
+  // Modular CLAUDE.md: two apps lacking CLAUDE.md → scaffold creates both.
+  mkdirSync(join(proj, 'apps', 'api'), { recursive: true });
+  mkdirSync(join(proj, 'apps', 'web'), { recursive: true });
+  writeFileSync(join(proj, 'apps', 'api', 'package.json'), '{"name":"api"}');
+  writeFileSync(join(proj, 'apps', 'web', 'package.json'), '{"name":"web"}');
+  const cmFind = script('claude-md.mjs', 'find', '--json');
+  (() => { try { return JSON.parse(cmFind.stdout).moduleRoots.length === 2; } catch { return false; } })()
+    ? ok('claude-md detects 2 module roots') : bad(`claude-md find failed: ${cmFind.stdout || cmFind.stderr}`);
+  script('claude-md.mjs', 'scaffold');
+  existsSync(join(proj, 'apps', 'api', 'CLAUDE.md')) && existsSync(join(proj, 'apps', 'web', 'CLAUDE.md'))
+    ? ok('claude-md scaffolds scoped CLAUDE.md per module') : bad('module CLAUDE.md not scaffolded');
+
+  // Version control: git.mjs reports a repo with no remote (temp project has none).
+  const gitStatus = script('git.mjs', 'status', '--json');
+  (() => { try { const g = JSON.parse(gitStatus.stdout); return g.isRepo === true && g.remoteUrl === null; } catch { return false; } })()
+    ? ok('git.mjs reports repo + missing remote') : bad(`git.mjs failed: ${gitStatus.stdout || gitStatus.stderr}`);
+
+  // DevPipeline: add → move → sync reflects in devpipeline.md.
+  script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P1', '--title', 'login crash');
+  const board1 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  board1.includes('login crash') && /Backlog \*\*1\*\*/.test(board1) ? ok('pipeline add → backlog on board') : bad('pipeline add not reflected');
+  script('pipeline.mjs', 'move', '001', 'testing');
+  const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
+
+  // DevPipeline ingest: analysis findings flow into the backlog, auto-prioritized.
+  writeFileSync(join(proj, 'findings.json'), JSON.stringify({ findings: [
+    { kind: 'line-budget', severity: 5, path: 'src/big.js', line: 400, message: 'too big' },
+    { kind: 'todo-marker', severity: 1, path: 'src/x.js', line: 3, message: 'leftover TODO' },
+  ] }));
+  script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore');
+  const ingested = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]')
+    .filter((t) => /^line-budget|^todo-marker/.test(t.source || ''));
+  ingested.length === 2 && ingested.some((t) => t.priority === 'P1') && ingested.some((t) => t.priority === 'P3')
+    ? ok('pipeline ingest creates auto-prioritized tasks from findings') : bad(`ingest failed: ${JSON.stringify(ingested)}`);
+  /Ingested 0 finding/.test(script('pipeline.mjs', 'ingest', 'findings.json', '--type', 'chore').stdout || '')
+    ? ok('pipeline ingest is idempotent (no duplicates)') : bad('ingest re-added duplicates');
+  const lb = ingested.find((t) => /^line-budget/.test(t.source));
+  script('pipeline.mjs', 'prioritize', lb.id, 'P0');
+  JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === lb.id)?.priority === 'P0'
+    ? ok('pipeline prioritize overrides the auto priority (user-editable)') : bad('prioritize did not change priority');
+
+  // WSJF (SAFe) → priority + bug severity (S1-S4) → priority + SLA due date.
+  script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'wsjf item', '--wsjf', '8,9,5,3');
+  script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'sev bug', '--severity', 'S1');
+  const prio = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]');
+  const wsjfT = prio.find((t) => t.title === 'wsjf item');
+  const sevT = prio.find((t) => t.title === 'sev bug');
+  wsjfT?.priority === 'P1' && Number(wsjfT.wsjf) > 0 && sevT?.priority === 'P0' && sevT?.sla
+    ? ok('pipeline WSJF→priority, bug severity→priority, SLA due date') : bad(`WSJF/severity failed: ${JSON.stringify({ wsjfT, sevT })}`);
+
+  // Known-bugs map: bug tasks grouped + a map file generated.
+  script('pipeline.mjs', 'bugs');
+  existsSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md')) &&
+    readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
+    ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
+
+  // Deep analysis: aggregates the deterministic scanners into one report.
+  const deep = JSON.parse(script('deep-analysis.mjs', '--json').stdout || '{}');
+  deep.byScan && typeof deep.total === 'number' && Array.isArray(deep.findings)
+    ? ok('deep-analysis aggregates scanners into one report') : bad(`deep-analysis failed: ${JSON.stringify(deep).slice(0, 120)}`);
+
+  // Security mode: SessionStart reminds to /deep-analysis on the cadence (default-on).
+  const secCfg = readJson(cfgPath);
+  secCfg.securityMode = { active: true, everyNSessions: 1 };
+  writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+  writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
+  hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+    ? ok('security-mode boot trigger fires on cadence') : bad('security-mode banner missing');
+  secCfg.securityMode.active = false;
+  writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
+  !hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
+    ? ok('security-mode disabled via config (active:false)') : bad('security-mode fired while disabled');
+
+  // Security: a crafted base-branch arg must reach git LITERALLY (one invalid ref →
+  // non-zero exit), not be split by a shell — proves no shell was involved.
+  const wt = script('worktree-new.mjs', 'feat', 'HEAD; echo INJECTED_PWNED');
+  wt.status !== 0
+    ? ok('worktree-new passes the base-branch arg literally (no shell injection)')
+    : bad('worktree-new shell injection NOT neutralized (a shell split the arg)');
+
+  // tech-debt --ci gate: a clean project has no RED-zone finding → exits 0.
+  const debtCi = script('tech-debt-scan.mjs', '--ci');
+  debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
+    ? ok('tech-debt --ci gate passes on a clean project')
+    : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
+
+  // Dependency audit: flags no-lockfile + loose version ranges as findings.
+  writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', dependencies: { leftpad: '*' } }));
+  const deps = JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings || [];
+  deps.some((f) => f.kind === 'no-lockfile') && deps.some((f) => f.kind === 'loose-range')
+    ? ok('deps-audit flags no-lockfile + loose ranges') : bad(`deps-audit findings: ${JSON.stringify(deps)}`);
+
+  // Dependency policy: a denied license is flagged; --sbom writes a CycloneDX SBOM.
+  const depCfg = readJson(cfgPath);
+  depCfg.deps = { requireLockfile: true, licenses: { allow: [], deny: ['GPL-3.0'] } };
+  writeFileSync(cfgPath, JSON.stringify(depCfg, null, 2));
+  writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', version: '1.0.0', dependencies: { gpllib: '1.0.0' } }));
+  mkdirSync(join(proj, 'node_modules', 'gpllib'), { recursive: true });
+  writeFileSync(join(proj, 'node_modules', 'gpllib', 'package.json'), JSON.stringify({ name: 'gpllib', version: '1.0.0', license: 'GPL-3.0' }));
+  JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'license-deny')
+    ? ok('deps-audit flags a denied license (deps policy)') : bad('deps-audit did not flag the denied license');
+  script('deps-audit.mjs', '--sbom');
+  (() => { try { const s = readJson(join(proj, 'vibekit', 'memory', 'sbom.json')); return s.bomFormat === 'CycloneDX' && (s.components || []).some((c) => c.name === 'gpllib'); } catch { return false; } })()
+    ? ok('deps-audit --sbom writes a CycloneDX SBOM') : bad('SBOM not written/invalid');
+
+  // GitHub-native security: scaffolding + code-security agent installed; alert sync degrades safely.
+  existsSync(join(proj, '.github', 'dependabot.yml')) && existsSync(join(proj, '.github', 'workflows', 'security.yml'))
+    ? ok('GitHub security scaffolding installed (dependabot.yml + security workflow)') : bad('security scaffolding not installed');
+  existsSync(join(proj, '.claude', 'agents', 'code-security.md')) ? ok('code-security agent installed (L5)') : bad('code-security agent missing');
+  const ghAlerts = script('gh-alerts.mjs', '--json');
+  ghAlerts.status === 0 && (() => { try { return Array.isArray(JSON.parse(ghAlerts.stdout).findings); } catch { return false; } })()
+    ? ok('gh-alerts degrades safely without a GitHub repo (exit 0, empty findings)') : bad(`gh-alerts failed: ${ghAlerts.stdout || ghAlerts.stderr}`);
+
+  // Fleet mode: register this project in a temp registry, aggregate stats across the fleet.
+  const fleetEnv = { ...process.env, VIBE_FLEET_FILE: join(proj, '.fleet.json') };
+  const fleet = (...a) => run([join(proj, 'vibekit', 'tools', 'scripts', 'fleet.mjs'), ...a], { cwd: proj, env: fleetEnv });
+  fleet('add', proj);
+  const fleetStats = fleet('stats', '--json');
+  (() => { try { const d = JSON.parse(fleetStats.stdout); return d.totals.repos === 1 && d.repos[0]?.ok === true && typeof d.totals.totalSessions === 'number'; } catch { return false; } })()
+    ? ok('fleet stats aggregates a registered repo (control plane)') : bad(`fleet failed: ${fleetStats.stdout || fleetStats.stderr}`);
+
+  // Agent tuning: signal aggregation lists the installed agent roster (proposes only).
+  const tuning = script('agent-tuning.mjs', '--json');
+  (() => { try { const d = JSON.parse(tuning.stdout); return Array.isArray(d.agents) && d.agents.length >= 1 && typeof d.sessionsAnalyzed === 'number'; } catch { return false; } })()
+    ? ok('agent-tuning aggregates the agent roster + signals') : bad(`agent-tuning failed: ${tuning.stdout || tuning.stderr}`);
+} catch (err) {
+  bad(`crashed: ${err?.stack || err}`);
+} finally {
+  fx.cleanup();
+}
+
+rep.finish('Integration (tooling)');

@@ -6,6 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Fleet mode (MVP)** — `/fleet` + `fleet.mjs`: a control plane over many repos.
+  Registry outside any repo (`~/.vibedevkit/fleet.json`, override `VIBE_FLEET_FILE`);
+  `add`/`remove`/`list`, `stats` (aggregate each repo's `stats.mjs`), `audit`
+  (aggregate `deep-analysis`), and `propagate <rule-file>` (report which repos'
+  `CLAUDE.md` **lack** a rule — detect-only, no cross-repo edits). Zero-dep, defensive.
+- **Outcome-driven agent tuning (MVP)** — `/tune-agents` + `agent-tuning.mjs`:
+  aggregates per-agent signals (tier-2 briefing coverage + usage mentions across
+  sessions) and **proposes** briefing refinements to `.agent-tuning-proposal.md`
+  (gitignored); applies nothing, mirroring `/distill-sessions`. Promotes roadmap
+  *Future directions* #2/#3 from candidate to MVP.
+
 ### Changed
 - **Contract drift detection deepened** (`contract-scan.mjs`) — the export extractor
   now also catches `export default`, namespace re-exports (`export * [as N] from`),

@@ -154,10 +154,14 @@ required-check enforcement.
    (LGPD), `design-team` (UX/UI/a11y), plus `product-owner` / `devops` starters,
    organized by a `vibekit/squads/` manifest with a sovereignty rule. The squad
    pattern is proven; further families (docs/data/growth/support) follow it.
-2. 📋 **Fleet mode.** One control plane over many repos — aggregate stats, run
-   `/audit` across a portfolio, propagate CLAUDE.md rule changes.
-3. 📋 **Outcome-driven agent tuning.** Feed review/test outcomes back to refine each
-   agent's briefing automatically (closing the loop the source only hinted at).
+2. ✅ **Fleet mode (MVP).** One control plane over many repos via `/fleet` +
+   `fleet.mjs` — registry at `~/.vibedevkit/fleet.json`; aggregate `stats` / `audit`
+   across a portfolio; detect CLAUDE.md rule drift (`propagate --check`, detect-only).
+   *Deferred: auto-applying rule edits across repos; remote repos.*
+3. ✅ **Outcome-driven agent tuning (MVP).** `/tune-agents` + `agent-tuning.mjs`
+   aggregate per-agent signals (briefing coverage, usage) and **propose** briefing
+   refinements (mirrors `/distill-sessions`; applies nothing). *Deferred: a closed
+   auto-loop + real per-agent outcome capture (PR-review / test attribution).*
 4. 📋 **Editor/CI surfaces.** Status-line widget, PR-review bot using `code-reviewer`
    + `qa-orchestrator`, contract-drift as a required check.
 5. 📋 **Pluggable detectors & language packs.** Drop-in detectors and stack presets
