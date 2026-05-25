@@ -23,7 +23,7 @@ reloads hooks).
 
 **Use when:** any project. This is the floor.
 
-## L2 — Ledger (recommended start)
+## L2 — Ledger
 
 **Goal:** stop work from silently going unrecorded.
 
@@ -92,9 +92,42 @@ auth) you want protected from casual edits.
 
 ---
 
-## Climbing strategy
+## L6 — Autonomy & Insight
 
-Start at **L2**. Add **L3** the first time you open a second session. Add **L4**
-once you have clear domain seams. Reserve **L5** for when a careless edit to a
-core file would actually hurt — and populate `l5.highRiskPaths` with those files
-first (`/vibe-config`), or the gate has nothing to protect.
+**Goal:** make the platform *act and learn*, not just remember and enforce. A
+**capability tier** — no new hook, commands on top of the L5 gates.
+
+- `/ship` — orchestrated pipeline (design → implement → review → test → record).
+- `/retro` — turns recurring drift/debt into governance (rules + ADRs).
+- `/vibe-stats` — telemetry (drift rate, cadence, ADR/agent counts).
+
+**Use when:** the practice is established and you want orchestration + insight.
+
+---
+
+## L7 — Ecosystem & Scale
+
+**Goal:** operate beyond a single repo and close the quality/insight loops. Also a
+**capability tier** — no new hook.
+
+- `/fleet` — one control plane over many repos (portfolio stats, cross-repo audit).
+- `/tune-agents` — propose outcome-driven refinements to agent briefings.
+- `/visual-test` — scaffold a browser-driven visual / screenshot harness.
+- `/playbook`, `/token-report`, `/security-setup` + pluggable detectors & stack presets.
+
+**Use when:** an existing/active project that should use the full toolkit from day one.
+
+---
+
+## Where to start
+
+The kit is **not** timid by default:
+
+- **Vibe-coding a NEW / empty project from zero?** Start at **L3** — memory + drift +
+  multi-session + git hooks. A solid base, no ceremony.
+- **A project that already has code?** Start at **L7** — use everything. It's not
+  intrusive: the L5 `simulate-gate` stays inert until you set `l5.highRiskPaths`; the
+  rest is advisory. (See [ADR-0009].)
+
+`/vibe-level <n>` moves up or down any time. The installer picks **L3** (greenfield) or
+**L7** (existing) for you, based on whether the folder already has code.

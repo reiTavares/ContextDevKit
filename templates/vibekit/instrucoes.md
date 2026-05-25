@@ -21,7 +21,7 @@ boot até você rodá-lo.
 | Nível | O que ativa |
 | --- | --- |
 | **L1 Memory** | contexto no boot, `/log-session`, ADRs, changelog |
-| **L2 Ledger** | detecção de drift (comece aqui) |
+| **L2 Ledger** | detecção de drift |
 | **L3 Multi** | claims, worktrees, índices auto-gerados, git hooks |
 | **L4 Squads** | sub-agentes especializados (`.claude/agents`) |
 | **L5 Proactive** | gate `/simulate-impact`, tech-debt, contract drift |
@@ -42,7 +42,9 @@ Trocar de nível: `/vibe-level <n>` (reinicie o Claude Code depois).
 
 ## Boas práticas
 
-- Comece no **L2** e suba conforme a confiança.
+- **Onde começar:** projeto **novo/vazio** (vibe-code do zero) → **L3**; projeto que
+  **já tem código** → **L7** (use tudo; os gates ficam inertes até configurar
+  `highRiskPaths`). O instalador já escolhe L3/L7 pra você. Suba/desça com `/vibe-level`.
 - **ADR antes** de decisão grande (`/new-adr`). ADR aceito é imutável.
 - **Registre a sessão** (`/log-session`) — veja seu `drift rate` em `/vibe-stats`.
 - Ajuste `vibekit/config.json` → `ledger.*` ao seu stack (ou `/vibe-config`).

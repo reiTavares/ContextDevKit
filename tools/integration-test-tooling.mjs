@@ -9,7 +9,8 @@
  *
  * Run:  node tools/integration-test-tooling.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
 
@@ -120,6 +121,24 @@ try {
   run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go']);
   (readJson(cfgPath).ledger?.important || []).includes('internal/')
     ? ok('install --preset merges a stack preset into config') : bad('preset paths not merged into config');
+
+  // Recommended start level (ADR-0009): greenfield auto-picks L3, existing auto-picks L7
+  // (the latter also proves the level cap accepts 7 — a broken cap would downgrade to 2).
+  const gdir = mkdtempSync(join(tmpdir(), 'vibekit-gf-'));
+  const edir = mkdtempSync(join(tmpdir(), 'vibekit-ex-'));
+  try {
+    run([join(KIT, 'install.mjs'), '--target', gdir, '--yes']);
+    readJson(join(gdir, 'vibekit', 'config.json')).level === 3
+      ? ok('install auto-picks L3 for a greenfield project') : bad(`greenfield default not L3: ${readJson(join(gdir, 'vibekit', 'config.json')).level}`);
+    mkdirSync(join(edir, 'src'), { recursive: true });
+    writeFileSync(join(edir, 'src', 'index.js'), 'export const x = 1;\n');
+    run([join(KIT, 'install.mjs'), '--target', edir, '--yes']);
+    readJson(join(edir, 'vibekit', 'config.json')).level === 7
+      ? ok('install auto-picks L7 for an existing project (+ level cap accepts 7)') : bad(`existing default not L7: ${readJson(join(edir, 'vibekit', 'config.json')).level}`);
+  } finally {
+    rmSync(gdir, { recursive: true, force: true });
+    rmSync(edir, { recursive: true, force: true });
+  }
 
   // Quality CI workflow scaffolded (contract-drift + tech-debt gates).
   existsSync(join(proj, '.github', 'workflows', 'quality.yml')) ? ok('quality CI workflow installed') : bad('quality.yml not installed');

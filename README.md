@@ -41,11 +41,11 @@ parts that don't depend on the AI's goodwill:
 **One command, from anywhere** (the repo is the installer):
 
 ```bash
-# from npm (recommended)
-npx vibedevkit --target . --level 2 --yes
+# from npm (recommended) — auto-picks L3 for an empty folder, L7 if it already has code
+npx vibedevkit --target . --yes
 
 # or straight from GitHub (no npm needed)
-npx github:reiTavares/VibeDevKit --target . --level 2 --yes
+npx github:reiTavares/VibeDevKit --target . --yes
 ```
 
 Or clone and run locally:
@@ -54,8 +54,8 @@ Or clone and run locally:
 # interactive — asks name / mode / level
 node install.mjs --target /path/to/your-project
 
-# non-interactive
-node install.mjs --target /path/to/your-project --level 2 --name "My App" --yes
+# non-interactive (omit --level to auto-pick L3/L7; pass --level <1-7> to pin one)
+node install.mjs --target /path/to/your-project --name "My App" --yes
 ```
 
 Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the
@@ -85,12 +85,12 @@ in a single pass. After it finishes, the trigger stops nagging.
      ![demo](docs/media/setup.gif) -->
 
 ```text
-$ npx vibedevkit --target . --level 2 --yes
-✓ .claude/settings.json wired for L2
+$ npx vibedevkit --target . --yes
+✓ .claude/settings.json wired for L7
 ✓ engine installed (vibekit/runtime, vibekit/tools)
 ✓ slash commands installed (.claude/commands)
 ✓ CLAUDE.md created  ·  docs/CHANGELOG.md created
-✅ VibeDevKit installed at Level 2
+✅ VibeDevKit installed at Level 7 (existing project — full toolkit)
 
 # open in Claude Code → the boot hook greets you with:
 ## 🚀 First run — VibeDevKit not configured yet  →  run /setupvibedevkit

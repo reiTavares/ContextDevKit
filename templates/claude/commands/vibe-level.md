@@ -1,6 +1,6 @@
 ---
-description: Show or change the VibeDevKit activation level (1–5).
-argument-hint: [1-5]
+description: Show or change the VibeDevKit activation level (1–7).
+argument-hint: [1-7]
 ---
 
 Inspect or change the VibeDevKit level for this project.
@@ -12,5 +12,6 @@ Changing the level updates `vibekit/config.json` and recomposes `.claude/setting
 (and installs git hooks at Level ≥ 3). Run the appropriate command based on `$ARGUMENTS`, show the
 output, and remind the user to **restart Claude Code** so it reloads the hooks.
 
-Levels: 1 Memory · 2 Ledger (drift) · 3 Multi-session · 4 Squads (agents) · 5 Proactive (gates).
+Levels: 1 Memory · 2 Ledger (drift) · 3 Multi-session · 4 Squads (agents) · 5 Proactive (gates)
+· 6 Autonomy & Insight · 7 Ecosystem & Scale. (6–7 are capability tiers — no new hook.)
 Going up adds capability; going down cleanly removes the now-disabled hooks.

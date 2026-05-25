@@ -96,7 +96,7 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
   cada módulo documenta as regras locais.
 - `/vibe-doctor` — diagnóstico do install (node, config, wiring, git hooks).
 - `/vibe-config show|set` — lê/edita `vibekit/config.json`.
-- `/vibe-level [1-6]` — vê/troca o nível.
+- `/vibe-level [1-7]` — vê/troca o nível.
 
 ## Fluxo recomendado por sessão
 
@@ -108,9 +108,11 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
 
 ## Boas práticas
 
-- **Comece no L2.** Suba para L3 ao abrir uma 2ª sessão; L4 quando houver
-  domínios claros; L5 quando um edit descuidado em arquivo crítico doer; L6
-  quando quiser orquestração/autonomia.
+- **Onde começar (a filosofia é simples):** se o projeto **já existe / já tem
+  código**, use **todos os recursos** → comece no **L7** (não é intrusivo: os gates
+  ficam inertes até você configurar `highRiskPaths`). Se está fazendo **vibe-code do
+  zero** (projeto vazio), o básico já ajuda muito → comece no **L3**. O instalador
+  escolhe L3/L7 automaticamente; ajuste com `/vibe-level <n>` quando quiser.
 - **ADR antes de decidir grande.** Stack, biblioteca, padrão → `/new-adr`. ADR
   aceito é **imutável**; para mudar, crie outro que o substitua.
 - **Registre a sessão.** O `drift rate` no `/vibe-stats` mostra se você está

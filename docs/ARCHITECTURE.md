@@ -68,7 +68,7 @@ only by `/vibe-config`; it degrades gracefully when zod isn't present.
 
 ## Level system
 
-`config.json` → `level` (1–5) is the single switch.
+`config.json` → `level` (1–7) is the single switch.
 
 - The **installer** and the in-project **`vibe-level.mjs`** both call the shared
   `composeSettings(existing, level)` (`runtime/config/settings-compose.mjs`) to

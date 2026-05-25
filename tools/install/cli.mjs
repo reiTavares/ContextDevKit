@@ -62,10 +62,10 @@ export async function prompt(rl, q, def) {
 
 export const LEVEL_LABELS = {
   1: 'L1 Memory — boot context, session log, ADRs, changelog',
-  2: 'L2 Ledger — + drift detection (recommended start)',
-  3: 'L3 Multi — + claims, worktrees, derived indices, git hooks',
+  2: 'L2 Ledger — + drift detection',
+  3: 'L3 Multi — + claims, worktrees, derived indices, git hooks (recommended for a NEW/empty project)',
   4: 'L4 Squads — + specialized sub-agents',
   5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
   6: 'L6 Autonomy & Insight — + /ship pipeline, /retro, metrics',
-  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight',
+  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight (recommended for an EXISTING project with code)',
 };
