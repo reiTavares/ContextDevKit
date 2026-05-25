@@ -6,6 +6,22 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-05-25
+
+### Changed
+- **Recommended starting level by project type** (ADR-0009) — the installer now
+  defaults to **L3** for a greenfield/empty folder and **L7** for a project that
+  already has code (was: always recommend L2). `--level` still pins; a re-install
+  preserves an existing project's level. Not intrusive — the L5 simulate-gate stays
+  inert until `l5.highRiskPaths` is set. Docs retagged (`cli` labels, `LEVELS.md`
+  with new L6/L7 sections, both `instrucoes.md`, README quickstart).
+
+### Fixed
+- **Level cap stuck at 6.** `install.mjs` silently downgraded `--level 7` to 2, and
+  `doctor.mjs` flagged a valid L7 project as "config.level out of range". Both now
+  accept **1–7**. Also corrected stale `1-5`/`1-6` range hints across `/vibe-level`,
+  `/setupvibedevkit`, `settings-compose`, and `docs/ARCHITECTURE.md`.
+
 ## [1.3.0] - 2026-05-25
 
 ### Added
