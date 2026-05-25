@@ -22,9 +22,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const SEV = { critical: 5, high: 4, moderate: 3, low: 2, info: 1 };
 const findings = [];
 
@@ -162,7 +164,7 @@ function writeSbom() {
     console.log('🔐 deps-audit --sbom: no package.json found.');
     return;
   }
-  const out = resolve(ROOT, 'vibekit/memory/sbom.json');
+  const out = resolve(P.memory, 'sbom.json');
   writeFileSync(out, JSON.stringify(buildSbom(pkg), null, 2), 'utf-8');
   console.log('🔐 deps-audit: SBOM written → vibekit/memory/sbom.json (CycloneDX 1.5).');
 }
@@ -177,7 +179,7 @@ function main() {
   const result = { findings };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(ROOT, 'vibekit/memory/deps-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'deps-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
     console.log(`🔐 deps-audit: ${findings.length} finding(s) → vibekit/memory/deps-findings.json`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deps-findings.json --type chore');
     return;

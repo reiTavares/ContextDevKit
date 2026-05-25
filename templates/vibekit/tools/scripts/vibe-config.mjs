@@ -12,10 +12,10 @@
  * pretty-prints with 2-space indent and validates structure first.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CONFIG = resolve(ROOT, 'vibekit/config.json');
+const CONFIG = pathsFor(ROOT).config;
 
 function load() {
   if (!existsSync(CONFIG)) return {};

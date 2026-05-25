@@ -14,8 +14,10 @@
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const SCANS = [
   { name: 'tech-debt', script: 'tech-debt-scan.mjs' },
   { name: 'deps', script: 'deps-audit.mjs' },
@@ -43,7 +45,7 @@ function main() {
   const result = { findings, byScan, total: findings.length, at: new Date().toISOString() };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(ROOT, 'vibekit/memory/deep-analysis-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'deep-analysis-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
     console.log(`🔬 deep-analysis: ${findings.length} finding(s) → vibekit/memory/deep-analysis-findings.json`);
     console.log('   → ingest:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deep-analysis-findings.json --type chore');
     return;

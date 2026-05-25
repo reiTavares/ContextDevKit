@@ -21,9 +21,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseJsonSafe, readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CONFIG = resolve(ROOT, 'vibekit/config.json');
+const CONFIG = pathsFor(ROOT).config;
 
 const readJson = (path, fallback = null) => readJsonSafe(path, fallback);
 

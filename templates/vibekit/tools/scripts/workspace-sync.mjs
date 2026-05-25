@@ -11,10 +11,11 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
 const WORKSPACE_DIR = resolve(ROOT, '.claude/.workspace');
-const OUTPUT_PATH = resolve(ROOT, 'vibekit/memory/WORKSPACE.md');
+const OUTPUT_PATH = pathsFor(ROOT).workspaceIndex;
 const STALE_AFTER_MS = 60 * 60 * 1000;
 
 async function loadClaims() {

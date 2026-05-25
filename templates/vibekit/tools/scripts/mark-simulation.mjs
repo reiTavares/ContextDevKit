@@ -12,6 +12,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { markSimulation, readLedger, toRepoRelative, writeLedger } from '../../runtime/hooks/ledger.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const LAST_TOUCHED = resolve(process.cwd(), '.claude/.sessions/.last-touched');
 
@@ -50,7 +51,7 @@ async function writePrediction(sid, objective, coveredPaths) {
   const slug = objective.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'prediction';
   const rel = `vibekit/memory/predictions/${date}-${sid.slice(0, 8)}-${slug}.md`;
   try {
-    await mkdir(resolve(process.cwd(), 'vibekit/memory/predictions'), { recursive: true });
+    await mkdir(pathsFor(process.cwd()).predictions, { recursive: true });
     await writeFile(resolve(process.cwd(), rel), [
       `# Prediction — ${objective}`,
       '',

@@ -15,11 +15,13 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { PLATFORM_DIR, pathsFor } from '../../runtime/config/paths.mjs';
 import { ALL_DETECTORS, CODE_RE } from './tech-debt-detectors.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const cfg = loadConfigSync(ROOT);
-const IRRELEVANT = (cfg.ledger?.irrelevant || []).concat(['.git/', 'vibekit/tools/', 'vibekit/runtime/', 'vibekit/detectors/']);
+const IRRELEVANT = (cfg.ledger?.irrelevant || []).concat(['.git/', `${PLATFORM_DIR}/tools/`, `${PLATFORM_DIR}/runtime/`, `${PLATFORM_DIR}/detectors/`]);
 const LINE_BUDGET = cfg.l5?.lineBudget || { yellow: 240, red: 308 };
 
 function isIgnored(rel) {
@@ -57,14 +59,14 @@ function collectFns(mod) {
 async function loadCustomDetectors() {
   let files;
   try {
-    files = readdirSync(resolve(ROOT, 'vibekit/detectors')).filter((f) => f.endsWith('.mjs'));
+    files = readdirSync(P.detectors).filter((f) => f.endsWith('.mjs'));
   } catch {
     return [];
   }
   const fns = [];
   for (const f of files) {
     try {
-      fns.push(...collectFns(await import(pathToFileURL(resolve(ROOT, 'vibekit/detectors', f)).href)));
+      fns.push(...collectFns(await import(pathToFileURL(resolve(P.detectors, f)).href)));
     } catch {
       /* a broken custom detector must never block the scan */
     }
@@ -142,9 +144,9 @@ async function main() {
     return;
   }
   if (args.includes('--write')) {
-    writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-board.md'), renderBoard(result), 'utf-8');
+    writeFileSync(resolve(P.memory, 'tech-debt-board.md'), renderBoard(result), 'utf-8');
     // Also dump the raw findings so the DevPipeline can ingest them deterministically.
-    writeFileSync(resolve(ROOT, 'vibekit/memory/tech-debt-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'tech-debt-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
     console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/tech-debt-findings.json --type chore');
     return;

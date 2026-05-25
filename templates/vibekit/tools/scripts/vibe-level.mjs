@@ -16,9 +16,10 @@ import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { LEVEL_LABELS as LABELS, MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CONFIG = resolve(ROOT, 'vibekit/config.json');
+const CONFIG = pathsFor(ROOT).config;
 const SETTINGS = resolve(ROOT, '.claude/settings.json');
 
 async function installGitHooks() {

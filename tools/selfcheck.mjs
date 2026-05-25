@@ -283,6 +283,46 @@ async function checkWorkflowsPinned() {
     ? ok('ci.yml declares least-privilege permissions (contents: read)') : bad('ci.yml missing contents:read permissions');
 }
 
+/** All `.mjs` under a directory, recursively. */
+async function listMjs(absDir) {
+  const out = [];
+  let entries = [];
+  try {
+    entries = await readdir(absDir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const p = resolve(absDir, e.name);
+    if (e.isDirectory()) out.push(...(await listMjs(p)));
+    else if (e.name.endsWith('.mjs')) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * Immutable rule 4: the platform folder name lives only in PLATFORM_DIR. Fail if
+ * any shipped runtime/script constructs a `vibekit/` path via resolve/join
+ * instead of going through pathsFor()/PLATFORM_DIR. Comment lines are exempt.
+ */
+async function checkNoHardcodedPaths() {
+  console.log('Checking platform paths are single-sourced (rule 4)...');
+  const re = /\b(resolve|join)\(.*['"]vibekit\//;
+  const offenders = [];
+  for (const d of ['templates/vibekit/runtime', 'templates/vibekit/tools/scripts']) {
+    for (const file of await listMjs(resolve(KIT, d))) {
+      const lines = (await readFile(file, 'utf-8').catch(() => '')).split('\n');
+      lines.forEach((line, i) => {
+        if (/^\s*(\*|\/\/)/.test(line)) return; // skip comments
+        if (re.test(line)) offenders.push(`${file.replace(KIT, '').replaceAll('\\', '/')}:${i + 1}`);
+      });
+    }
+  }
+  offenders.length === 0
+    ? ok('no hardcoded vibekit/ path construction (all via pathsFor/PLATFORM_DIR)')
+    : offenders.forEach((o) => bad(`hardcoded vibekit/ path: ${o}`));
+}
+
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
@@ -336,6 +376,12 @@ async function main() {
   const load = mods['config/load.mjs'];
   if (compose?.composeSettings) checkCompose(compose.composeSettings);
   if (load?.loadConfigSync) checkConfig(load);
+  const paths = mods['config/paths.mjs'];
+  if (paths?.pathsFor) {
+    const pf = paths.pathsFor('/tmp/proj');
+    pf.pipeline.replaceAll('\\', '/').endsWith('vibekit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('vibekit/memory/sessions')
+      ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
+  } else bad('pathsFor not exported');
   const presets = mods['config/presets.mjs'];
   if (presets?.applyPreset) {
     const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
@@ -358,6 +404,7 @@ async function main() {
   await checkSquadMeta();
   await checkLevelsAndSchema(mods);
   await checkSourceInvariants();
+  await checkNoHardcodedPaths();
   await checkWorkflowsPinned();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);

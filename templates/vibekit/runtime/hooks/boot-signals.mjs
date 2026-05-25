@@ -12,6 +12,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
+import { pathsFor } from '../config/paths.mjs';
 
 export function checkGitDivergence(root) {
   try {
@@ -90,7 +91,7 @@ export async function projectName(root) {
 /** Counts registered session files. Shared by the cadence triggers. */
 function sessionCount(root) {
   try {
-    return readdirSync(resolve(root, 'vibekit/memory/sessions')).filter((f) => f.endsWith('.md')).length;
+    return readdirSync(pathsFor(root).sessions).filter((f) => f.endsWith('.md')).length;
   } catch {
     return 0;
   }
@@ -117,7 +118,7 @@ export function predictionsReviewDue(root) {
   const n = sessionCount(root);
   if (n === 0 || n % everyN !== 0) return 0;
   try {
-    const dir = resolve(root, 'vibekit/memory/predictions');
+    const dir = pathsFor(root).predictions;
     const unreviewed = readdirSync(dir)
       .filter((f) => f.endsWith('.md'))
       .some((f) => {

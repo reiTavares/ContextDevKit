@@ -24,12 +24,13 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 
 const ROOT = process.cwd();
-const PIPE = resolve(ROOT, 'vibekit/pipeline');
+const PIPE = pathsFor(ROOT).pipeline;
 const STAGES = { backlog: 'backlog', testing: 'testing', conclusion: 'conclusion' };
 const STATUS = { backlog: 'backlog', testing: 'testing', conclusion: 'done' };
 const CFG = loadConfigSync(ROOT).pipeline || {};

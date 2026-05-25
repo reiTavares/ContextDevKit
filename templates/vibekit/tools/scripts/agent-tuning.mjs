@@ -15,11 +15,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { squadOf } from './squad-meta.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const AGENTS = resolve(ROOT, '.claude/agents');
-const SQUADS = resolve(ROOT, 'vibekit/squads');
-const SESSIONS = resolve(ROOT, 'vibekit/memory/sessions');
+const SQUADS = P.squads;
+const SESSIONS = P.sessions;
 
 function read(p) {
   try {

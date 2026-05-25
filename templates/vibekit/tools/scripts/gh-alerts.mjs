@@ -18,8 +18,10 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 const SEV = { critical: 5, high: 4, medium: 3, moderate: 3, low: 2, warning: 2, error: 4, note: 1 };
 const findings = [];
 
@@ -94,7 +96,7 @@ function main() {
   const result = { findings };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(ROOT, 'vibekit/memory/gh-alerts-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'gh-alerts-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
     console.log(`🔐 gh-alerts: ${findings.length} alert(s) → vibekit/memory/gh-alerts-findings.json`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/gh-alerts-findings.json --type chore');
     return;

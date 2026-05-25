@@ -15,10 +15,11 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { squadOf } from './squad-meta.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
 const AGENTS = resolve(ROOT, '.claude/agents');
-const SQUADS = resolve(ROOT, 'vibekit/squads');
+const SQUADS = pathsFor(ROOT).squads;
 const squadFor = (agent) => squadOf(AGENTS, agent);
 
 function listAgents() {

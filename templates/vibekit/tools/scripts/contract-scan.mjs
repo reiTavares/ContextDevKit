@@ -26,9 +26,10 @@ import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from '
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const BASELINE = resolve(ROOT, 'vibekit/memory/contract-baseline.json');
+const BASELINE = pathsFor(ROOT).contractBaseline;
 const GLOBS = loadConfigSync(ROOT).l5?.contractGlobs || [];
 
 // Declarations: export [declare] [abstract] [async] <kw> NAME (function may be a generator).

@@ -16,10 +16,12 @@
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const SESSIONS_DIR = resolve(ROOT, 'vibekit/memory/sessions');
-const INDEX_PATH = resolve(ROOT, 'vibekit/memory/SESSIONS.md');
+const P = pathsFor(ROOT);
+const SESSIONS_DIR = P.sessions;
+const INDEX_PATH = P.sessionsIndex;
 const ENTRY_PATTERN = /^(\d{4}-\d{2}-\d{2})-(\d{2,})-([a-z0-9._-]+)\.md$/;
 
 async function extractTitle(filePath, fallbackSlug) {

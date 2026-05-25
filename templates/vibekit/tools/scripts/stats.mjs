@@ -12,9 +12,11 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { getLevel } from '../../runtime/config/load.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
+const P = pathsFor(ROOT);
 
 const readJson = (p) => readJsonSafe(p);
 
@@ -48,8 +50,8 @@ function collect() {
     ...listJson(resolve(ROOT, '.claude/.sessions')),
     ...listJson(resolve(ROOT, '.claude/.sessions/.archive')),
   ];
-  const registeredSessions = count(resolve(ROOT, 'vibekit/memory/sessions'), /^\d{4}-\d{2}-\d{2}-\d{2,}-.+\.md$/);
-  const adrs = count(resolve(ROOT, 'vibekit/memory/decisions'), /^\d{4}-.+\.md$/);
+  const registeredSessions = count(P.sessions, /^\d{4}-\d{2}-\d{2}-\d{2,}-.+\.md$/);
+  const adrs = count(P.decisions, /^\d{4}-.+\.md$/);
   const agents = count(resolve(ROOT, '.claude/agents'), /\.md$/);
   const commands = count(resolve(ROOT, '.claude/commands'), /\.md$/);
 
