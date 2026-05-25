@@ -59,6 +59,7 @@ function checkCompose(composeSettings) {
     4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
     5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
     6: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    7: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
   };
   for (const [lvl, want] of Object.entries(expect)) {
     const got = events(Number(lvl));

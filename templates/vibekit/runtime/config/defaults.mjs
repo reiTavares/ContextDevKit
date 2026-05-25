@@ -13,12 +13,16 @@
  */
 
 /**
- * `level` (1–5) gates which subsystems are active:
+ * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
+ * capability tiers (no new hook — commands/tooling on top of the L5 gates):
  *   1 Memory      — boot context + session log + ADRs + changelog
  *   2 Ledger      — drift detection (PostToolUse + Stop nudge)
  *   3 Multi       — claims, worktrees, derived indices, git hooks
  *   4 Squads      — specialized sub-agents
  *   5 Proactive   — simulate-impact gate, tech-debt sweep, contract drift
+ *   6 Autonomy    — /ship pipeline, /retro, metrics (capability tier)
+ *   7 Ecosystem   — fleet (multi-repo), agent-tuning, visual tests, playbooks,
+ *                   token/cost insight, security automation (capability tier)
  */
 export const DEFAULT_CONFIG = Object.freeze({
   level: 2,

@@ -27,6 +27,7 @@ const LABELS = {
   4: 'L4 Squads — + specialized sub-agents (.claude/agents)',
   5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
   6: 'L6 Autonomy & Insight — + /ship pipeline, /retro learning loop, metrics',
+  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight',
 };
 
 async function installGitHooks() {
@@ -58,8 +59,8 @@ async function main() {
   }
 
   const level = Number(arg);
-  if (!Number.isInteger(level) || level < 1 || level > 6) {
-    console.error('Level must be an integer 1–6.');
+  if (!Number.isInteger(level) || level < 1 || level > 7) {
+    console.error('Level must be an integer 1–7.');
     process.exit(1);
   }
 
