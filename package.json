@@ -9,8 +9,8 @@
   "scripts": {
     "install:here": "node install.mjs --target .",
     "check": "node tools/selfcheck.mjs",
-    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs",
-    "prepublishOnly": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs"
+    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-guards.mjs",
+    "prepublishOnly": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-guards.mjs"
   },
   "files": [
     "install.mjs",
