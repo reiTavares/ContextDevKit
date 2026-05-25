@@ -13,12 +13,13 @@
  */
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { ALL_DETECTORS, CODE_RE } from './tech-debt-detectors.mjs';
 
 const ROOT = process.cwd();
 const cfg = loadConfigSync(ROOT);
-const IRRELEVANT = (cfg.ledger?.irrelevant || []).concat(['.git/', 'vibekit/tools/', 'vibekit/runtime/']);
+const IRRELEVANT = (cfg.ledger?.irrelevant || []).concat(['.git/', 'vibekit/tools/', 'vibekit/runtime/', 'vibekit/detectors/']);
 const LINE_BUDGET = cfg.l5?.lineBudget || { yellow: 240, red: 308 };
 
 function isIgnored(rel) {
@@ -43,7 +44,35 @@ function walk(dir, acc) {
   return acc;
 }
 
-function scan(quick) {
+/** Functions exported by a custom detector module: default (fn or array) + `detectors`. */
+function collectFns(mod) {
+  const out = [];
+  if (typeof mod.default === 'function') out.push(mod.default);
+  else if (Array.isArray(mod.default)) out.push(...mod.default.filter((x) => typeof x === 'function'));
+  if (Array.isArray(mod.detectors)) out.push(...mod.detectors.filter((x) => typeof x === 'function'));
+  return out;
+}
+
+/** Drop-in detectors from `vibekit/detectors/*.mjs`. Defensive — a broken one is skipped. */
+async function loadCustomDetectors() {
+  let files;
+  try {
+    files = readdirSync(resolve(ROOT, 'vibekit/detectors')).filter((f) => f.endsWith('.mjs'));
+  } catch {
+    return [];
+  }
+  const fns = [];
+  for (const f of files) {
+    try {
+      fns.push(...collectFns(await import(pathToFileURL(resolve(ROOT, 'vibekit/detectors', f)).href)));
+    } catch {
+      /* a broken custom detector must never block the scan */
+    }
+  }
+  return fns;
+}
+
+function scan(quick, detectors) {
   const files = walk(ROOT, []);
   const findings = [];
   for (const rel of files) {
@@ -53,9 +82,13 @@ function scan(quick) {
     } catch {
       continue;
     }
-    for (const detector of ALL_DETECTORS) {
-      const opts = detector.name === 'detectLineBudget' ? LINE_BUDGET : undefined;
-      for (const f of detector(rel, content, opts)) findings.push(f);
+    for (const detector of detectors) {
+      try {
+        const opts = detector.name === 'detectLineBudget' ? LINE_BUDGET : undefined;
+        for (const f of detector(rel, content, opts) || []) findings.push(f);
+      } catch {
+        /* a custom detector must not break the scan */
+      }
     }
   }
   const filtered = quick ? findings.filter((f) => f.severity >= 4) : findings;
@@ -88,9 +121,10 @@ function renderBoard({ fileCount, findings }) {
   return out.join('\n') + '\n';
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
-  const result = scan(args.includes('--quick'));
+  const detectors = [...ALL_DETECTORS, ...(await loadCustomDetectors())];
+  const result = scan(args.includes('--quick'), detectors);
   if (args.includes('--ci')) {
     // CI gate: fail the build on any RED-zone (severity 5) finding so the kit —
     // or any project — can't regress past its own hard line-budget limit.
@@ -122,4 +156,7 @@ function main() {
   if (result.findings.length > 15) console.log(`   … and ${result.findings.length - 15} more (use --write for the full board).`);
 }
 
-main();
+main().catch((err) => {
+  console.error('tech-debt-scan failed:', err?.message ?? err);
+  process.exit(1);
+});
