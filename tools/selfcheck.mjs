@@ -11,7 +11,7 @@
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
 import { existsSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -88,6 +88,25 @@ function checkConfig(load) {
   else bad('getLevel() did not return an integer');
 }
 
+const srcText = (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
+
+/**
+ * Source-level invariants: small structural guarantees that would silently
+ * regress if a future edit dropped them. Each entry is [label, file, regex] and
+ * fails the build when the pattern disappears. Cheaper than a behavioural test
+ * for "the wiring is still there" properties.
+ */
+async function checkSourceInvariants() {
+  console.log('Checking source-level invariants...');
+  const cases = [
+    ['network git calls time out (git.mjs)', 'templates/vibekit/tools/scripts/git.mjs', /timeout:\s*\w/],
+    ['network git calls time out (pre-push.mjs)', 'templates/vibekit/runtime/git-hooks/pre-push.mjs', /timeout:\s*\w/],
+  ];
+  for (const [label, rel, re] of cases) {
+    re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
+  }
+}
+
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
@@ -147,6 +166,7 @@ async function main() {
     merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
       ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
   } else bad('presets.applyPreset not exported');
+  await checkSourceInvariants();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

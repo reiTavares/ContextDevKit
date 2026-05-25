@@ -13,9 +13,18 @@ import { execFileSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 
+/**
+ * Hard ceiling (ms) for any git/CLI subprocess. A hung network call — `git fetch`
+ * against an unreachable remote, or `gh auth status` with no connectivity — must
+ * not freeze `/git status`. On timeout `execFileSync` throws, so `run()` returns
+ * `{ ok:false }` (the same path as a failed command) and the report degrades
+ * gracefully. Overridable via env so tests can drive the timeout path fast.
+ */
+const CMD_TIMEOUT_MS = Number.parseInt(process.env.VIBE_GIT_TIMEOUT_MS || '', 10) || 10000;
+
 function run(cmd, args) {
   try {
-    return { ok: true, out: execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() };
+    return { ok: true, out: execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: CMD_TIMEOUT_MS }).trim() };
   } catch (err) {
     return { ok: false, out: '', code: err?.status };
   }
