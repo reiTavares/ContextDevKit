@@ -156,6 +156,7 @@ async function checkTemplates() {
     'templates/vibekit/detectors/README.md', 'templates/vibekit/detectors/example-detector.mjs.example',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
+    'templates/vibekit/squads/agent-forge/README.md', 'templates/vibekit/squads/agent-forge/best-practices.md',
     'templates/vibekit/memory/business-rules/_TEMPLATE.md',
     'templates/vibekit/memory/predictions/.gitkeep',
   ]) {
