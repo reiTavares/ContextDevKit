@@ -12,6 +12,8 @@ for independent slices via the Agent tool when available):
 - **qa-unit** → pure functions/modules in scope (fast, mocked deps).
 - **qa-integration** → anything crossing a boundary (HTTP/DB/queue/fs).
 - **qa-fuzzer** → parsers, validators, schemas, auth, and `qa.criticalPaths`.
+- **qa-e2e** → critical user journeys, plus **visual / screenshot** checks where the
+  UI's *look* is the contract (scaffold with `/visual-test`).
 
 Rules:
 1. Match the project's existing test runner and file conventions. Never add a

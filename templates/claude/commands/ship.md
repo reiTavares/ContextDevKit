@@ -38,7 +38,8 @@ State which mode you're running at the start.
 5. **Self-review** — delegate to `code-reviewer`: constitution + immutable rules.
    Fix blockers before continuing.
 6. **Test** — `/scaffold-tests` then run the suite; `/qa-signoff` against
-   `qa.criticalPaths` + `coverageTarget`. ◆ Checkpoint if anything is red.
+   `qa.criticalPaths` + `coverageTarget`. If the UI's *look* is part of the change,
+   run the **visual** suite too (`/visual-test`). ◆ Checkpoint if anything is red.
 7. **Quality gates** — run `tech-debt-scan` and (if `l5.contractGlobs` set)
    `contract-scan`; surface regressions.
 8. **Record** — `/new-adr` if a real decision was made; `/log-session`; update
