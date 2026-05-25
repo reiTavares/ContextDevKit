@@ -174,6 +174,31 @@ async function checkSourceInvariants() {
   }
 }
 
+/**
+ * Supply-chain: shipped GitHub Actions must be pinned to a commit SHA (a moving
+ * `@v4` tag is a supply-chain risk), and CI must declare least-privilege perms.
+ */
+async function checkWorkflowsPinned() {
+  console.log('Checking GitHub Actions are SHA-pinned...');
+  const files = [
+    '.github/workflows/ci.yml',
+    '.github/workflows/release.yml',
+    'templates/github/workflows/quality.yml',
+    'templates/github/workflows/security.yml',
+  ];
+  const floating = /uses:\s*[\w./-]+@v\d/; // a `# v4` comment after a SHA does not match
+  for (const rel of files) {
+    const text = await srcText(rel);
+    if (!text) {
+      bad(`workflow missing: ${rel}`);
+      continue;
+    }
+    floating.test(text) ? bad(`${rel} has an unpinned (floating) action tag`) : ok(`${rel} actions are SHA-pinned`);
+  }
+  /permissions:[\s\S]*?contents:\s*read/.test(await srcText('.github/workflows/ci.yml'))
+    ? ok('ci.yml declares least-privilege permissions (contents: read)') : bad('ci.yml missing contents:read permissions');
+}
+
 async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
@@ -247,6 +272,7 @@ async function main() {
   await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
   await checkConcurrencySafety(mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
   await checkSourceInvariants();
+  await checkWorkflowsPinned();
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
