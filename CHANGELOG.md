@@ -7,6 +7,12 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Diverse & visual testing harness (MVP)** — `/visual-test` + `visual-test.mjs`
+  **scaffold** a browser-driven visual layer (screenshot / visual-regression) for the
+  detected stack: Playwright **JS** (`@playwright/test`) + **Python** (pytest-playwright);
+  `status` detects an existing harness. Owned by `qa-e2e`; wired into `/scaffold-tests`,
+  `/qa-signoff`, `/ship`. The runner is a project dependency — the kit scaffolds, never
+  bundles/runs browsers (zero-dep hot path). Roadmap *Future directions* #6.
 - **Fleet mode (MVP)** — `/fleet` + `fleet.mjs`: a control plane over many repos.
   Registry outside any repo (`~/.vibedevkit/fleet.json`, override `VIBE_FLEET_FILE`);
   `add`/`remove`/`list`, `stats` (aggregate each repo's `stats.mjs`), `audit`

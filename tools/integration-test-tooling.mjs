@@ -124,6 +124,13 @@ try {
   // Quality CI workflow scaffolded (contract-drift + tech-debt gates).
   existsSync(join(proj, '.github', 'workflows', 'quality.yml')) ? ok('quality CI workflow installed') : bad('quality.yml not installed');
 
+  // Visual testing harness (#6): the scaffolder writes a Playwright starter; status detects it.
+  script('visual-test.mjs', 'scaffold', '--js');
+  existsSync(join(proj, 'playwright.config.js')) && existsSync(join(proj, 'tests', 'visual', 'home.spec.js'))
+    ? ok('visual-test scaffolds a Playwright starter') : bad('visual-test did not scaffold');
+  (() => { try { return JSON.parse(script('visual-test.mjs', 'status', '--json').stdout).set === true; } catch { return false; } })()
+    ? ok('visual-test status detects the scaffolded harness') : bad('visual-test status missed the harness');
+
   // Dependency audit: flags no-lockfile + loose version ranges as findings.
   writeFileSync(join(proj, 'package.json'), JSON.stringify({ name: 'it', dependencies: { leftpad: '*' } }));
   const deps = JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings || [];

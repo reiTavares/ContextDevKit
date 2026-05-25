@@ -44,7 +44,9 @@ For changes where appearance matters, add **screenshot / visual-regression** che
 on top of behavioural assertions: capture a baseline, diff on change, and treat an
 unintended visual diff as a failure. Runner is the project's choice — **Playwright
 (JS or Python)**, Cypress, or Selenium — never a second framework. Pair with
-`design-team` for the baselines. (See the roadmap's diverse & visual testing harness.)
+`design-team` for the baselines. Scaffold a starter with **`/visual-test`**
+(`visual-test.mjs scaffold` writes a Playwright config + a `tests/visual/` baseline;
+the runner is a project dependency, never the kit's).
 
 You cover the critical journeys end-to-end and report what they protect — and
 explicitly what is left to the faster layers.

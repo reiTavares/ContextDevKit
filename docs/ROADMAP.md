@@ -170,15 +170,14 @@ required-check enforcement.
    `vibekit/detectors/*.mjs` (loaded by `tech-debt-scan`) + stack **presets**
    (`install.mjs --preset next|go|python`, merged into config). *Deferred: a larger
    preset library.*
-6. 📋 **Diverse & visual testing harness.** Broaden the QA squad beyond unit /
-   integration / fuzz with a **browser-driven, visual** layer: open the running
-   app, exercise real flows, and verify changes by **screenshot / visual
-   regression** — so a change isn't "done" until the UI is confirmed.
-   Language-agnostic with a **Python option** (Playwright-for-Python / Selenium)
-   alongside JS runners, so each project picks its stack. Owned by `qa-e2e`
-   (+ `design-team` for visual baselines), wired into `/scaffold-tests`,
-   `/qa-signoff`, and the `/ship` gate. Stays true to the invariants: the harness
-   is a **project** dependency, never on the kit's zero-dep hot path.
+6. ✅ **Diverse & visual testing harness (MVP).** `/visual-test` + `visual-test.mjs`
+   **scaffold** a browser-driven, visual layer (screenshot / visual-regression) for
+   the detected stack — **Playwright JS** (`@playwright/test`) + **Python**
+   (pytest-playwright); `status` detects an existing harness. Owned by `qa-e2e`
+   (+ `design-team` for baselines), wired into `/scaffold-tests`, `/qa-signoff`, and
+   the `/ship` gate. The runner is a **project** dependency (the kit scaffolds, never
+   bundles/runs browsers) — true to the zero-dep hot-path invariant. *Deferred:
+   running browsers in the kit's own CI; real baselines/diffing; a hosted diff service.*
 7. ✅ **Token economy & usage insight.** *Shipped (first cut):* `/token-report` +
    `token-report.mjs` read Claude Code's local session transcripts and aggregate
    **per-session token usage** (input / output / cache) and **per ISO week**, with a
