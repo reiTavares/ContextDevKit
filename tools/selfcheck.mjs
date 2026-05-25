@@ -29,6 +29,7 @@ async function importLibs() {
   console.log('Loading engine library modules...');
   const libs = [
     'config/paths.mjs',
+    'config/levels.mjs',
     'config/defaults.mjs',
     'config/load.mjs',
     'config/settings-compose.mjs',
@@ -147,6 +148,54 @@ async function checkConcurrencySafety(safeio, ledger) {
   } else bad('ledger.sanitizeSid not exported');
 }
 
+/**
+ * Level taxonomy is single-sourced (levels.mjs) and the optional config schema
+ * agrees with it: getLevel honors the range, and (where zod is installed) strict
+ * validation accepts the defaults + every passthrough section. Guards 024/025/018.
+ */
+async function checkLevelsAndSchema(mods) {
+  console.log('Checking level taxonomy + config schema...');
+  const levels = mods['config/levels.mjs'];
+  const load = mods['config/load.mjs'];
+  const defaults = mods['config/defaults.mjs']?.DEFAULT_CONFIG;
+  if (levels) {
+    levels.MAX_LEVEL === 7 && levels.isValidLevel(7) && !levels.isValidLevel(8) && !levels.isValidLevel(0)
+      ? ok('levels: MAX_LEVEL 7 + isValidLevel bounds') : bad('levels bounds wrong');
+    levels.clampLevel(99) === 7 && levels.clampLevel(-5) === 1 ? ok('levels: clampLevel clamps to range') : bad('clampLevel wrong');
+    Object.keys(levels.LEVEL_LABELS).length === 7 ? ok('levels: 7 labels in the single table') : bad('LEVEL_LABELS count wrong');
+  } else bad('config/levels.mjs not loaded');
+  if (load?.getLevel) {
+    const root = mkdtempSync(join(tmpdir(), 'vibekit-lv-'));
+    try {
+      mkdirSync(resolve(root, 'vibekit'), { recursive: true });
+      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 7 }));
+      load.getLevel(root) === 7 ? ok('getLevel accepts L7') : bad('getLevel rejects L7');
+      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 8 }));
+      load.getLevel(root) === 2 ? ok('getLevel rejects an out-of-range level (fallback 2)') : bad('getLevel did not reject L8');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+  // 024/018 — strict schema validation (only where the optional zod dep is present).
+  let zodAvailable = false;
+  try {
+    await import('zod');
+    zodAvailable = true;
+  } catch {
+    /* optional dep */
+  }
+  if (!zodAvailable) {
+    ok('schema validation skipped (zod not installed — optional dep by design)');
+    return;
+  }
+  const schema = await import('file://' + resolve(RT, 'config/schema.mjs').replaceAll('\\', '/'));
+  const good = schema.validateConfig(defaults);
+  good.ok && good.config.qa && good.config.pipeline
+    ? ok('schema validates DEFAULT_CONFIG + passthrough keeps every section') : bad('schema rejected defaults / dropped sections');
+  schema.validateConfig({ ...defaults, level: 7 }).ok ? ok('schema accepts level 7') : bad('schema rejects level 7');
+  !schema.validateConfig({ ...defaults, level: 9 }).ok ? ok('schema rejects an out-of-range level') : bad('schema accepted level 9');
+}
+
 const srcText = (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
 
 /**
@@ -168,6 +217,10 @@ async function checkSourceInvariants() {
     ['release sanitizes the session id', 'templates/vibekit/tools/scripts/release.mjs', /sanitizeSid/],
     ['track-edits sanitizes the session id', 'templates/vibekit/runtime/hooks/track-edits.mjs', /sanitizeSid/],
     ['session-start guards live ledgers from deletion', 'templates/vibekit/runtime/hooks/session-start.mjs', /maybeLive/],
+    ['config schema is passthrough', 'templates/vibekit/runtime/config/schema.mjs', /\.passthrough\(\)/],
+    ['config schema bounds level by MAX_LEVEL', 'templates/vibekit/runtime/config/schema.mjs', /max\(MAX_LEVEL\)/],
+    ['installer labels single-sourced from levels.mjs', 'tools/install/cli.mjs', /levels\.mjs/],
+    ['vibe-level labels single-sourced from levels.mjs', 'templates/vibekit/tools/scripts/vibe-level.mjs', /levels\.mjs/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
@@ -271,6 +324,7 @@ async function main() {
   } else bad('presets.applyPreset not exported');
   await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
   await checkConcurrencySafety(mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
+  await checkLevelsAndSchema(mods);
   await checkSourceInvariants();
   await checkWorkflowsPinned();
   await checkTemplates();

@@ -14,6 +14,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
+import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 
 const ROOT = process.cwd();
 let crit = 0;
@@ -52,7 +53,7 @@ function checkConfig() {
     return null;
   }
   const level = getLevel(ROOT);
-  level >= 1 && level <= 7 ? pass(`config valid — level L${level}`) : note('config.level out of range', 'use /vibe-level <1-7>');
+  isValidLevel(level) ? pass(`config valid — level L${level}`) : note('config.level out of range', `use /vibe-level <${MIN_LEVEL}-${MAX_LEVEL}>`);
   return level;
 }
 

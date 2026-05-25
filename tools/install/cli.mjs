@@ -2,6 +2,7 @@
  * CLI surface for the installer: argument parsing, the `--help` text, the
  * interactive prompt helper, and the human-readable level labels.
  */
+export { LEVEL_LABELS } from '../../templates/vibekit/runtime/config/levels.mjs';
 
 export function parseArgs(argv) {
   const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false };
@@ -59,13 +60,3 @@ export async function prompt(rl, q, def) {
   const a = (await rl.question(`${q}${def ? ` (${def})` : ''}: `)).trim();
   return a || def || '';
 }
-
-export const LEVEL_LABELS = {
-  1: 'L1 Memory — boot context, session log, ADRs, changelog',
-  2: 'L2 Ledger — + drift detection',
-  3: 'L3 Multi — + claims, worktrees, derived indices, git hooks (recommended for a NEW/empty project)',
-  4: 'L4 Squads — + specialized sub-agents',
-  5: 'L5 Proactive — + simulate-impact gate, tech-debt sweep, contract drift',
-  6: 'L6 Autonomy & Insight — + /ship pipeline, /retro, metrics',
-  7: 'L7 Ecosystem & Scale — + fleet (multi-repo), agent-tuning, visual tests, playbooks, token/cost insight (recommended for an EXISTING project with code)',
-};

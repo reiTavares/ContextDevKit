@@ -11,6 +11,7 @@
  *   npm i -D zod   (or pnpm/yarn/bun equivalent)
  */
 import { z } from 'zod';
+import { MAX_LEVEL, MIN_LEVEL } from './levels.mjs';
 
 const PathString = z
   .string()
@@ -59,13 +60,19 @@ const DepsSchema = z
   })
   .default({});
 
+// `.passthrough()` keeps every section the defaults define (qa, pipeline,
+// securityMode, tokens, predictionsReview, l3, setup, practices, …) instead of
+// silently dropping the ones not modelled here — the alternative to re-declaring
+// the whole config tree in zod. The level bound is single-sourced from
+// levels.mjs so it can never drift from getLevel again. See ADR-0010.
 export const ConfigSchema = z
   .object({
-    level: z.number().int().min(1).max(5).default(2),
+    level: z.number().int().min(MIN_LEVEL).max(MAX_LEVEL).default(2),
     ledger: LedgerSchema,
     l5: L5Schema,
     deps: DepsSchema,
   })
+  .passthrough()
   .default({});
 
 export function validateConfig(raw) {

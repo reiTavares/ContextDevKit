@@ -21,6 +21,7 @@ import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
+import { isValidLevel } from './templates/vibekit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -83,7 +84,7 @@ async function main() {
 
   // Safe re-run / update: if no explicit --level, preserve the project's current
   // level (read from config) instead of silently downgrading to the default.
-  if (!(Number.isInteger(level) && level >= 1 && level <= 7)) {
+  if (!isValidLevel(level)) {
     try {
       const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
       if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
@@ -91,7 +92,7 @@ async function main() {
       /* no config yet */
     }
   }
-  level = Number.isInteger(level) && level >= 1 && level <= 7 ? level : recommended;
+  level = isValidLevel(level) ? level : recommended;
   name = name || requireBasename(target);
   mode = effMode;
 
