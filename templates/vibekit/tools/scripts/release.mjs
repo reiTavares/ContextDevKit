@@ -40,11 +40,11 @@ async function main() {
     await rm(file, { force: true });
     console.log(`✅ Released ALL claims for session ${sid.slice(0, 8)}.`);
   } else {
-    const data = JSON.parse(await readFile(file, 'utf-8'));
-    const before = (data.claims || []).length;
-    data.claims = (data.claims || []).filter((c) => c.path !== target);
-    await writeFileAtomic(file, JSON.stringify(data, null, 2));
-    console.log(before === data.claims.length ? `ℹ️  No claim matched "${target}".` : `✅ Released claim "${target}".`);
+    const claimRecord = JSON.parse(await readFile(file, 'utf-8'));
+    const before = (claimRecord.claims || []).length;
+    claimRecord.claims = (claimRecord.claims || []).filter((c) => c.path !== target);
+    await writeFileAtomic(file, JSON.stringify(claimRecord, null, 2));
+    console.log(before === claimRecord.claims.length ? `ℹ️  No claim matched "${target}".` : `✅ Released claim "${target}".`);
   }
 
   try {

@@ -20,6 +20,14 @@
  *   node .../pipeline.mjs move <id> testing|conclusion|backlog
  *   node .../pipeline.mjs sync          # regenerate devpipeline.md
  *   node .../pipeline.mjs list [--json]
+ *
+ * Cohesion note (line budget): this is one engine over a single data model — a
+ * task is one markdown file with frontmatter, and every command (add/ingest/
+ * prioritize/wsjf/move/sync/bugs) reads or mutates that same model through the
+ * shared `listTasks`/`writeTask`/`sync` helpers. Rendering already lives in
+ * `pipeline-board.mjs` and scoring in `pipeline-prioritize.mjs`; splitting the
+ * remaining command dispatch from the task CRUD would only couple two halves of
+ * one lifecycle across a seam. Kept whole deliberately (≤ the +10% tolerance).
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';

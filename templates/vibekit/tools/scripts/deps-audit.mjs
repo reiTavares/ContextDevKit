@@ -143,8 +143,8 @@ function runNativeAudit(lock) {
 }
 
 function parseNpmAudit(out) {
-  const data = JSON.parse(out);
-  for (const [name, v] of Object.entries(data.vulnerabilities || {})) { // npm v7+
+  const parsed = JSON.parse(out);
+  for (const [name, v] of Object.entries(parsed.vulnerabilities || {})) { // npm v7+
     add(SEV[v.severity] || 2, 'cve', `\`${name}\`: ${v.severity} advisory — see \`npm audit\`.`);
   }
   for (const a of Object.values(data.advisories || {})) { // npm v6
@@ -176,16 +176,16 @@ function main() {
   }
   auditNode(depPolicy());
   pythonHint();
-  const result = { findings };
+  const report = { findings };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(P.memory, 'deps-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'deps-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔐 deps-audit: ${findings.length} finding(s) → vibekit/memory/deps-findings.json`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deps-findings.json --type chore');
     return;
   }
   if (process.argv.includes('--json')) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     return;
   }
   if (findings.length === 0) {

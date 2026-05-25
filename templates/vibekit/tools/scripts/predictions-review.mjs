@@ -97,10 +97,10 @@ async function main() {
   const date = new Date().toISOString().slice(0, 10);
   let reviewed = 0;
   for (const simulation of simulations) {
-    const result = await reviewOne(simulation, actual, date);
-    if (result.reviewed) {
+    const outcome = await reviewOne(simulation, actual, date);
+    if (outcome.reviewed) {
       reviewed++;
-      console.log(`✅ Closed predicted-vs-actual loop: ${result.rel}`);
+      console.log(`✅ Closed predicted-vs-actual loop: ${outcome.rel}`);
     }
   }
   if (reviewed === 0) console.log('ℹ️  Prediction file(s) missing — nothing written.');

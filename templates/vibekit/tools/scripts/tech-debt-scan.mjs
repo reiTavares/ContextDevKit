@@ -11,7 +11,7 @@
  *   node vibekit/tools/scripts/tech-debt-scan.mjs --write    # → vibekit/memory/tech-debt-board.md
  *   node vibekit/tools/scripts/tech-debt-scan.mjs --quick    # red zone only (severity >= 4)
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
@@ -126,36 +126,36 @@ function renderBoard({ fileCount, findings }) {
 async function main() {
   const args = process.argv.slice(2);
   const detectors = [...ALL_DETECTORS, ...(await loadCustomDetectors())];
-  const result = scan(args.includes('--quick'), detectors);
+  const report = scan(args.includes('--quick'), detectors);
   if (args.includes('--ci')) {
     // CI gate: fail the build on any RED-zone (severity 5) finding so the kit —
     // or any project — can't regress past its own hard line-budget limit.
-    const red = result.findings.filter((f) => f.severity >= 5);
+    const red = report.findings.filter((f) => f.severity >= 5);
     if (red.length > 0) {
       console.error(`✗ tech-debt CI gate: ${red.length} RED-zone finding(s) (must be 0):`);
       for (const f of red) console.error(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
       process.exit(1);
     }
-    console.log(`✓ tech-debt CI gate: no RED-zone findings across ${result.fileCount} files.`);
+    console.log(`✓ tech-debt CI gate: no RED-zone findings across ${report.fileCount} files.`);
     return;
   }
   if (args.includes('--json')) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     return;
   }
   if (args.includes('--write')) {
-    writeFileSync(resolve(P.memory, 'tech-debt-board.md'), renderBoard(result), 'utf-8');
+    writeFileSync(resolve(P.memory, 'tech-debt-board.md'), renderBoard(report), 'utf-8');
     // Also dump the raw findings so the DevPipeline can ingest them deterministically.
-    writeFileSync(resolve(P.memory, 'tech-debt-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
-    console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+    writeFileSync(resolve(P.memory, 'tech-debt-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
+    console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${report.findings.length} finding(s) across ${report.fileCount} files.`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/tech-debt-findings.json --type chore');
     return;
   }
-  const counts = result.findings.reduce((m, f) => ((m[f.kind] = (m[f.kind] || 0) + 1), m), {});
-  console.log(`🧹 Tech debt: ${result.findings.length} finding(s) across ${result.fileCount} files.`);
+  const counts = report.findings.reduce((m, f) => ((m[f.kind] = (m[f.kind] || 0) + 1), m), {});
+  console.log(`🧹 Tech debt: ${report.findings.length} finding(s) across ${report.fileCount} files.`);
   for (const [k, n] of Object.entries(counts)) console.log(`   ${k}: ${n}`);
-  for (const f of result.findings.slice(0, 15)) console.log(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
-  if (result.findings.length > 15) console.log(`   … and ${result.findings.length - 15} more (use --write for the full board).`);
+  for (const f of report.findings.slice(0, 15)) console.log(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
+  if (report.findings.length > 15) console.log(`   … and ${report.findings.length - 15} more (use --write for the full board).`);
 }
 
 main().catch((err) => {

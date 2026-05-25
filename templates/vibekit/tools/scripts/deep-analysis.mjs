@@ -27,8 +27,8 @@ const SCANS = [
 function runScan(script) {
   try {
     const out = execFileSync('node', [`vibekit/tools/scripts/${script}`, '--json'], { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 120000 });
-    const data = JSON.parse(out.replace(/^﻿/, ''));
-    return Array.isArray(data) ? data : data.findings || [];
+    const parsed = JSON.parse(out.replace(/^﻿/, ''));
+    return Array.isArray(parsed) ? parsed : parsed.findings || [];
   } catch {
     return [];
   }
@@ -42,16 +42,16 @@ function main() {
     byScan[s.name] = f.length;
     findings.push(...f);
   }
-  const result = { findings, byScan, total: findings.length, at: new Date().toISOString() };
+  const report = { findings, byScan, total: findings.length, at: new Date().toISOString() };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(P.memory, 'deep-analysis-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'deep-analysis-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔬 deep-analysis: ${findings.length} finding(s) → vibekit/memory/deep-analysis-findings.json`);
     console.log('   → ingest:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deep-analysis-findings.json --type chore');
     return;
   }
   if (process.argv.includes('--json')) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     return;
   }
   console.log(`🔬 deep-analysis: ${findings.length} deterministic finding(s) across ${SCANS.length} scanners.`);

@@ -93,16 +93,16 @@ function main() {
   }
   dependabotAlerts(repo);
   codeScanningAlerts(repo);
-  const result = { findings };
+  const report = { findings };
 
   if (process.argv.includes('--write')) {
-    writeFileSync(resolve(P.memory, 'gh-alerts-findings.json'), JSON.stringify(result, null, 2), 'utf-8');
+    writeFileSync(resolve(P.memory, 'gh-alerts-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔐 gh-alerts: ${findings.length} alert(s) → vibekit/memory/gh-alerts-findings.json`);
     console.log('   → feed the backlog:  node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/gh-alerts-findings.json --type chore');
     return;
   }
   if (process.argv.includes('--json')) {
-    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     return;
   }
   if (findings.length === 0) {

@@ -10,6 +10,14 @@
  * The mechanics live in focused modules under `tools/install/` (cli, fs,
  * project, git, uninstall); this file just wires the steps together.
  * Run `node install.mjs --help` for usage and the full flag list.
+ *
+ * Cohesion note (line budget): this file is intentionally a single linear
+ * orchestrator — the ordered install steps (settings → engine → commands →
+ * agents → memory seeds → GitHub → git hooks → config) share one `target` +
+ * `report` and must run in sequence. Splitting the sequence into more modules
+ * would scatter the one thing this file exists to express (the install order)
+ * and add indirection without reducing real complexity. The heavy lifting is
+ * already delegated to `tools/install/*`; what remains is the recipe.
  */
 import { existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';

@@ -4,17 +4,18 @@
  *
  * - Imports every library engine module to catch syntax / import errors.
  *   (Does NOT import the hook entrypoints — those self-execute `main()`.)
- * - Asserts `composeSettings` wires the right hooks per level.
- * - Asserts the zero-dep config loader returns sane defaults.
+ * - Asserts `composeSettings` wires the right hooks per level + config defaults.
  * - Confirms the expected template files are present.
+ * - Delegates the deeper behavioural + structural invariants to
+ *   `selfcheck-checks.mjs` (split out to stay within the line budget).
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { readdir } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runExtendedChecks } from './selfcheck-checks.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/vibekit/runtime');
@@ -91,236 +92,35 @@ function checkConfig(load) {
   else bad('getLevel() did not return an integer');
 }
 
-/**
- * Boot-context reader behaviours that the boot banner depends on (pure-ish I/O).
- * Guards two boundary bugs: a clipped [Unreleased] must say so, and a session
- * number collision must resolve by the later date.
- */
-async function checkBootReaders(boot) {
-  console.log('Checking boot-context readers...');
-  if (!boot?.extractUnreleased || !boot?.extractLatestSession) {
-    bad('boot-context-readers exports missing (extractUnreleased/extractLatestSession)');
+function checkPresets(presets) {
+  if (!presets?.applyPreset) {
+    bad('presets.applyPreset not exported');
     return;
   }
-  // 009 — short block returned verbatim; an over-limit block gets a truncation marker.
-  boot.extractUnreleased('## [Unreleased]\n\n- one real change\n\n## [1.0.0]\n') === '- one real change'
-    ? ok('extractUnreleased returns a short block verbatim') : bad('extractUnreleased mangled a short block');
-  const bigBody = Array.from({ length: 80 }, (_, i) => `- change ${i}`).join('\n');
-  /truncated/i.test(boot.extractUnreleased(`## [Unreleased]\n\n${bigBody}\n\n## [1.0.0]\n`) || '')
-    ? ok('extractUnreleased flags a >60-line block as truncated') : bad('extractUnreleased truncated silently (no marker)');
-  // 010 — same session number, different dates → later date wins.
-  const tmp = mkdtempSync(join(tmpdir(), 'vibekit-sc-'));
+  const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
+  merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
+    ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
+  // 013 — a partial/custom preset (omits l5 + qa) must merge, not crash.
+  presets.PRESETS.__sc_partial = { ledger: { important: ['z/'] } };
   try {
-    const sdir = resolve(tmp, 'vibekit/memory/sessions');
-    mkdirSync(sdir, { recursive: true });
-    writeFileSync(resolve(sdir, '2026-01-02-09-older.md'), '# OLDER session pick\n');
-    writeFileSync(resolve(sdir, '2026-05-09-09-newer.md'), '# NEWER session pick\n');
-    const latest = await boot.extractLatestSession(tmp);
-    latest?.content?.includes('NEWER')
-      ? ok('extractLatestSession breaks a number tie by the later date') : bad(`extractLatestSession tie-break wrong: ${latest?.content}`);
+    const partial = presets.applyPreset({}, '__sc_partial');
+    partial.ledger.important.includes('z/') && Array.isArray(partial.l5.highRiskPaths) && Array.isArray(partial.qa.criticalPaths)
+      ? ok('applyPreset tolerates a partial preset (missing l5/qa keys)') : bad('applyPreset partial-preset result malformed');
+  } catch (err) {
+    bad(`applyPreset crashed on a partial preset — ${err?.message ?? err}`);
   } finally {
-    rmSync(tmp, { recursive: true, force: true });
+    delete presets.PRESETS.__sc_partial;
   }
 }
 
-/**
- * Concurrency-safety primitives: atomic writes round-trip and leave no temp
- * residue, and sid sanitization neutralizes path traversal. Guards 008/011/012.
- */
-async function checkConcurrencySafety(safeio, ledger) {
-  console.log('Checking atomic I/O + sid sanitization...');
-  if (safeio?.writeFileAtomicSync && safeio?.writeFileAtomic) {
-    const tmp = mkdtempSync(join(tmpdir(), 'vibekit-io-'));
-    try {
-      const f = resolve(tmp, 'a.txt');
-      safeio.writeFileAtomicSync(f, 'hello');
-      readFileSync(f, 'utf-8') === 'hello' ? ok('writeFileAtomicSync round-trips') : bad('writeFileAtomicSync wrong content');
-      await safeio.writeFileAtomic(f, 'world');
-      readFileSync(f, 'utf-8') === 'world' ? ok('writeFileAtomic round-trips') : bad('writeFileAtomic wrong content');
-      readdirSync(tmp).length === 1 ? ok('atomic write leaves no temp residue') : bad('atomic write left temp files behind');
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
-  } else bad('safe-io atomic writers not exported');
-  if (ledger?.sanitizeSid) {
-    const dirty = ledger.sanitizeSid('../../etc/passwd');
-    !dirty.includes('/') && !dirty.includes('.') ? ok('sanitizeSid neutralizes path traversal') : bad(`sanitizeSid leaked separators: ${dirty}`);
-  } else bad('ledger.sanitizeSid not exported');
-  // 027 — shared defensive JSON read/parse (replaces the copy-pasted BOM strip).
-  if (safeio?.readJsonSafe && safeio?.parseJsonSafe) {
-    safeio.parseJsonSafe('{"a":1}')?.a === 1 && safeio.parseJsonSafe('not json', 'fb') === 'fb'
-      ? ok('parseJsonSafe parses + falls back') : bad('parseJsonSafe wrong');
-    const tmp2 = mkdtempSync(join(tmpdir(), 'vibekit-rj-'));
-    try {
-      const jf = resolve(tmp2, 'x.json');
-      writeFileSync(jf, '﻿' + JSON.stringify({ ok: true })); // BOM-prefixed
-      safeio.readJsonSafe(jf)?.ok === true ? ok('readJsonSafe reads a BOM-prefixed JSON file') : bad('readJsonSafe BOM fail');
-      safeio.readJsonSafe(resolve(tmp2, 'missing.json'), 'def') === 'def' ? ok('readJsonSafe returns fallback for a missing file') : bad('readJsonSafe missing-file fail');
-    } finally {
-      rmSync(tmp2, { recursive: true, force: true });
-    }
-  } else bad('safe-io read helpers (readJsonSafe/parseJsonSafe) not exported');
-}
-
-/** 028 — shared squad detection used by /squad + /tune-agents. */
-async function checkSquadMeta() {
-  console.log('Checking shared squad detection...');
-  const { squadOf } = await import('file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-meta.mjs').replaceAll('\\', '/'));
-  const dir = mkdtempSync(join(tmpdir(), 'vibekit-sq-'));
-  try {
-    writeFileSync(resolve(dir, 'infra-security.md'), '---\ndescription: Cloud security (security-team)\n---\n');
-    squadOf(dir, 'qa-unit') === 'qa-team' ? ok('squadOf: qa-* → qa-team') : bad('squadOf qa-* wrong');
-    squadOf(dir, 'infra-security') === 'security-team' ? ok('squadOf: reads the squad tag from the description') : bad('squadOf tag parse wrong');
-    squadOf(dir, 'nonexistent') === 'devteam' ? ok('squadOf: missing agent → devteam') : bad('squadOf fallback wrong');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-/**
- * Level taxonomy is single-sourced (levels.mjs) and the optional config schema
- * agrees with it: getLevel honors the range, and (where zod is installed) strict
- * validation accepts the defaults + every passthrough section. Guards 024/025/018.
- */
-async function checkLevelsAndSchema(mods) {
-  console.log('Checking level taxonomy + config schema...');
-  const levels = mods['config/levels.mjs'];
-  const load = mods['config/load.mjs'];
-  const defaults = mods['config/defaults.mjs']?.DEFAULT_CONFIG;
-  if (levels) {
-    levels.MAX_LEVEL === 7 && levels.isValidLevel(7) && !levels.isValidLevel(8) && !levels.isValidLevel(0)
-      ? ok('levels: MAX_LEVEL 7 + isValidLevel bounds') : bad('levels bounds wrong');
-    levels.clampLevel(99) === 7 && levels.clampLevel(-5) === 1 ? ok('levels: clampLevel clamps to range') : bad('clampLevel wrong');
-    Object.keys(levels.LEVEL_LABELS).length === 7 ? ok('levels: 7 labels in the single table') : bad('LEVEL_LABELS count wrong');
-  } else bad('config/levels.mjs not loaded');
-  if (load?.getLevel) {
-    const root = mkdtempSync(join(tmpdir(), 'vibekit-lv-'));
-    try {
-      mkdirSync(resolve(root, 'vibekit'), { recursive: true });
-      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 7 }));
-      load.getLevel(root) === 7 ? ok('getLevel accepts L7') : bad('getLevel rejects L7');
-      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 8 }));
-      load.getLevel(root) === 2 ? ok('getLevel rejects an out-of-range level (fallback 2)') : bad('getLevel did not reject L8');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  }
-  // 024/018 — strict schema validation (only where the optional zod dep is present).
-  let zodAvailable = false;
-  try {
-    await import('zod');
-    zodAvailable = true;
-  } catch {
-    /* optional dep */
-  }
-  if (!zodAvailable) {
-    ok('schema validation skipped (zod not installed — optional dep by design)');
+function checkPaths(paths) {
+  if (!paths?.pathsFor) {
+    bad('pathsFor not exported');
     return;
   }
-  const schema = await import('file://' + resolve(RT, 'config/schema.mjs').replaceAll('\\', '/'));
-  const good = schema.validateConfig(defaults);
-  good.ok && good.config.qa && good.config.pipeline
-    ? ok('schema validates DEFAULT_CONFIG + passthrough keeps every section') : bad('schema rejected defaults / dropped sections');
-  schema.validateConfig({ ...defaults, level: 7 }).ok ? ok('schema accepts level 7') : bad('schema rejects level 7');
-  !schema.validateConfig({ ...defaults, level: 9 }).ok ? ok('schema rejects an out-of-range level') : bad('schema accepted level 9');
-}
-
-const srcText = (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
-
-/**
- * Source-level invariants: small structural guarantees that would silently
- * regress if a future edit dropped them. Each entry is [label, file, regex] and
- * fails the build when the pattern disappears. Cheaper than a behavioural test
- * for "the wiring is still there" properties.
- */
-async function checkSourceInvariants() {
-  console.log('Checking source-level invariants...');
-  const cases = [
-    ['network git calls time out (git.mjs)', 'templates/vibekit/tools/scripts/git.mjs', /timeout:\s*\w/],
-    ['network git calls time out (pre-push.mjs)', 'templates/vibekit/runtime/git-hooks/pre-push.mjs', /timeout:\s*\w/],
-    ['ledger writes are atomic', 'templates/vibekit/runtime/hooks/ledger.mjs', /writeFileAtomic/],
-    ['pipeline writers are atomic', 'templates/vibekit/tools/scripts/pipeline.mjs', /writeFileAtomicSync/],
-    ['workspace-sync write is atomic', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /writeFileAtomic/],
-    ['pipeline allocates ids with exclusive create', 'templates/vibekit/tools/scripts/pipeline.mjs', /flag:\s*'wx'/],
-    ['claim sanitizes the session id', 'templates/vibekit/tools/scripts/claim.mjs', /sanitizeSid/],
-    ['release sanitizes the session id', 'templates/vibekit/tools/scripts/release.mjs', /sanitizeSid/],
-    ['track-edits sanitizes the session id', 'templates/vibekit/runtime/hooks/track-edits.mjs', /sanitizeSid/],
-    ['session-start guards live ledgers from deletion', 'templates/vibekit/runtime/hooks/session-start.mjs', /maybeLive/],
-    ['config schema is passthrough', 'templates/vibekit/runtime/config/schema.mjs', /\.passthrough\(\)/],
-    ['config schema bounds level by MAX_LEVEL', 'templates/vibekit/runtime/config/schema.mjs', /max\(MAX_LEVEL\)/],
-    ['installer labels single-sourced from levels.mjs', 'tools/install/cli.mjs', /levels\.mjs/],
-    ['vibe-level labels single-sourced from levels.mjs', 'templates/vibekit/tools/scripts/vibe-level.mjs', /levels\.mjs/],
-    ['squad detection single-sourced (squad.mjs)', 'templates/vibekit/tools/scripts/squad.mjs', /squad-meta/],
-    ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
-  ];
-  for (const [label, rel, re] of cases) {
-    re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
-  }
-}
-
-/**
- * Supply-chain: shipped GitHub Actions must be pinned to a commit SHA (a moving
- * `@v4` tag is a supply-chain risk), and CI must declare least-privilege perms.
- */
-async function checkWorkflowsPinned() {
-  console.log('Checking GitHub Actions are SHA-pinned...');
-  const files = [
-    '.github/workflows/ci.yml',
-    '.github/workflows/release.yml',
-    'templates/github/workflows/quality.yml',
-    'templates/github/workflows/security.yml',
-  ];
-  const floating = /uses:\s*[\w./-]+@v\d/; // a `# v4` comment after a SHA does not match
-  for (const rel of files) {
-    const text = await srcText(rel);
-    if (!text) {
-      bad(`workflow missing: ${rel}`);
-      continue;
-    }
-    floating.test(text) ? bad(`${rel} has an unpinned (floating) action tag`) : ok(`${rel} actions are SHA-pinned`);
-  }
-  /permissions:[\s\S]*?contents:\s*read/.test(await srcText('.github/workflows/ci.yml'))
-    ? ok('ci.yml declares least-privilege permissions (contents: read)') : bad('ci.yml missing contents:read permissions');
-}
-
-/** All `.mjs` under a directory, recursively. */
-async function listMjs(absDir) {
-  const out = [];
-  let entries = [];
-  try {
-    entries = await readdir(absDir, { withFileTypes: true });
-  } catch {
-    return out;
-  }
-  for (const e of entries) {
-    const p = resolve(absDir, e.name);
-    if (e.isDirectory()) out.push(...(await listMjs(p)));
-    else if (e.name.endsWith('.mjs')) out.push(p);
-  }
-  return out;
-}
-
-/**
- * Immutable rule 4: the platform folder name lives only in PLATFORM_DIR. Fail if
- * any shipped runtime/script constructs a `vibekit/` path via resolve/join
- * instead of going through pathsFor()/PLATFORM_DIR. Comment lines are exempt.
- */
-async function checkNoHardcodedPaths() {
-  console.log('Checking platform paths are single-sourced (rule 4)...');
-  const re = /\b(resolve|join)\(.*['"]vibekit\//;
-  const offenders = [];
-  for (const d of ['templates/vibekit/runtime', 'templates/vibekit/tools/scripts']) {
-    for (const file of await listMjs(resolve(KIT, d))) {
-      const lines = (await readFile(file, 'utf-8').catch(() => '')).split('\n');
-      lines.forEach((line, i) => {
-        if (/^\s*(\*|\/\/)/.test(line)) return; // skip comments
-        if (re.test(line)) offenders.push(`${file.replace(KIT, '').replaceAll('\\', '/')}:${i + 1}`);
-      });
-    }
-  }
-  offenders.length === 0
-    ? ok('no hardcoded vibekit/ path construction (all via pathsFor/PLATFORM_DIR)')
-    : offenders.forEach((o) => bad(`hardcoded vibekit/ path: ${o}`));
+  const pf = paths.pathsFor('/tmp/proj');
+  pf.pipeline.replaceAll('\\', '/').endsWith('vibekit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('vibekit/memory/sessions')
+    ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
 }
 
 async function checkTemplates() {
@@ -337,7 +137,7 @@ async function checkTemplates() {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -350,6 +150,7 @@ async function checkTemplates() {
     'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
+    'templates/vibekit/runtime/hooks/safe-io.mjs', 'templates/vibekit/runtime/config/levels.mjs',
     'templates/vibekit/runtime/statusline.mjs', 'templates/vibekit/runtime/config/presets.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
@@ -372,40 +173,11 @@ async function checkTemplates() {
 async function main() {
   console.log('\n🌀 VibeDevKit self-check\n');
   const mods = await importLibs();
-  const compose = mods['config/settings-compose.mjs'];
-  const load = mods['config/load.mjs'];
-  if (compose?.composeSettings) checkCompose(compose.composeSettings);
-  if (load?.loadConfigSync) checkConfig(load);
-  const paths = mods['config/paths.mjs'];
-  if (paths?.pathsFor) {
-    const pf = paths.pathsFor('/tmp/proj');
-    pf.pipeline.replaceAll('\\', '/').endsWith('vibekit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('vibekit/memory/sessions')
-      ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
-  } else bad('pathsFor not exported');
-  const presets = mods['config/presets.mjs'];
-  if (presets?.applyPreset) {
-    const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
-    merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
-      ? ok('applyPreset merges a stack preset (array union)') : bad('applyPreset did not merge the preset');
-    // 013 — a partial/custom preset (omits l5 + qa) must merge, not crash.
-    presets.PRESETS.__sc_partial = { ledger: { important: ['z/'] } };
-    try {
-      const partial = presets.applyPreset({}, '__sc_partial');
-      partial.ledger.important.includes('z/') && Array.isArray(partial.l5.highRiskPaths) && Array.isArray(partial.qa.criticalPaths)
-        ? ok('applyPreset tolerates a partial preset (missing l5/qa keys)') : bad('applyPreset partial-preset result malformed');
-    } catch (err) {
-      bad(`applyPreset crashed on a partial preset — ${err?.message ?? err}`);
-    } finally {
-      delete presets.PRESETS.__sc_partial;
-    }
-  } else bad('presets.applyPreset not exported');
-  await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
-  await checkConcurrencySafety(mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
-  await checkSquadMeta();
-  await checkLevelsAndSchema(mods);
-  await checkSourceInvariants();
-  await checkNoHardcodedPaths();
-  await checkWorkflowsPinned();
+  if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(mods['config/settings-compose.mjs'].composeSettings);
+  if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);
+  checkPaths(mods['config/paths.mjs']);
+  checkPresets(mods['config/presets.mjs']);
+  await runExtendedChecks({ ok, bad }, { KIT, RT, mods });
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

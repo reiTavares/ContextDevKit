@@ -47,9 +47,9 @@ function extractPaths(payload) {
 async function renewHeartbeat(sessionId) {
   const path = resolve(WORKSPACE_DIR, `${sanitizeSid(sessionId)}.json`);
   try {
-    const data = JSON.parse(await readFile(path, 'utf-8'));
-    data.lastHeartbeat = Date.now();
-    await writeFileAtomic(path, JSON.stringify(data, null, 2));
+    const claimRecord = JSON.parse(await readFile(path, 'utf-8'));
+    claimRecord.lastHeartbeat = Date.now();
+    await writeFileAtomic(path, JSON.stringify(claimRecord, null, 2));
   } catch {
     /* no claim file — nothing to renew */
   }
@@ -68,9 +68,9 @@ async function loadOtherClaims(mySessionId) {
     const otherSid = f.slice(0, -5);
     if (otherSid === mySessionId) continue;
     try {
-      const data = JSON.parse(await readFile(resolve(WORKSPACE_DIR, f), 'utf-8'));
-      if (Array.isArray(data?.claims)) {
-        for (const cl of data.claims) if (typeof cl?.path === 'string') claims.set(cl.path, otherSid);
+      const claimRecord = JSON.parse(await readFile(resolve(WORKSPACE_DIR, f), 'utf-8'));
+      if (Array.isArray(claimRecord?.claims)) {
+        for (const cl of claimRecord.claims) if (typeof cl?.path === 'string') claims.set(cl.path, otherSid);
       }
     } catch {
       /* skip malformed */

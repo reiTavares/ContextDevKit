@@ -76,9 +76,9 @@ export const ConfigSchema = z
   .default({});
 
 export function validateConfig(raw) {
-  const result = ConfigSchema.safeParse(raw ?? {});
-  if (result.success) return { ok: true, config: result.data };
-  return { ok: false, error: result.error };
+  const parsed = ConfigSchema.safeParse(raw ?? {});
+  if (parsed.success) return { ok: true, config: parsed.data };
+  return { ok: false, error: parsed.error };
 }
 
 export function formatZodError(error) {

@@ -22,7 +22,7 @@
  * zero-dep default holds. Advisory by default; wire into CI to block breaking
  * changes without an intentional version bump.
  */
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
