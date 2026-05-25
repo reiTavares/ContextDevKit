@@ -33,6 +33,7 @@ const GITIGNORE_BLOCK = [
   '.claude/.workspace/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
+  '.agent-tuning-proposal.md',
   'vibekit/memory/tech-debt-findings.json',
   'vibekit/memory/deps-findings.json',
   'vibekit/memory/deep-analysis-findings.json',
