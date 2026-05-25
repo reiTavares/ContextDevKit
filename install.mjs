@@ -159,6 +159,9 @@ async function main() {
   // Workflow guides (L1–L6) + reusable playbooks (write-if-missing so customizations survive).
   const wfCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'workflows'), join(target, 'vibekit', 'workflows'));
   if (wfCount > 0) report.push(`✓ seeded vibekit/workflows (${wfCount} file(s))`);
+  // Pluggable-detector seed (README + inert example) so the extension point is discoverable.
+  const detCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'detectors'), join(target, 'vibekit', 'detectors'));
+  if (detCount > 0) report.push(`✓ seeded vibekit/detectors (${detCount} file(s))`);
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
@@ -222,8 +225,11 @@ async function main() {
   const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
   if (level >= 3) {
-    if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
-    else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
+    const gitHooks = await installGitHooks(target);
+    if (gitHooks.installed) {
+      report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
+      if (gitHooks.backedUp.length) report.push(`  ↳ backed up your existing ${gitHooks.backedUp.join(', ')} hook(s) → *.bak`);
+    } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
   }
   // Version-control hint: suggest connecting a remote if there isn't one.
   if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {

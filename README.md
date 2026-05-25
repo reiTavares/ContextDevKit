@@ -63,6 +63,22 @@ whole thing. Existing project? It detects your stack, never clobbers your
 `CLAUDE.md` (it writes `CLAUDE.vibedevkit.md` to merge by hand), and preserves
 any hooks you already had.
 
+### Security & trust (read before installing)
+
+VibeDevKit is a code-execution tool — install it like any dependency you run:
+
+- **`npx` runs the installer**, which writes git hooks under `.git/hooks/` (at
+  L≥3) and Claude Code hooks into `.claude/settings.json`. Those hooks then run
+  `node` on each session/commit/push. **Pin a tag** for a reproducible install
+  rather than tracking the moving default branch:
+  `npx github:reiTavares/VibeDevKit#v1.4.0 --target . --yes`.
+- **An existing git hook is never clobbered** — the installer backs it up to
+  `<hook>.bak` before writing its wrapper.
+- **`/fleet`** reads/executes scripts across *other* repos you register, and
+  **custom detectors** in `vibekit/detectors/*.mjs` are executed by the tech-debt
+  scanner with full Node privileges. Only register repos and add detectors you
+  trust — treat them as code review surface.
+
 ### Then: one-shot self-configuration
 
 Open the project in Claude Code, approve the hooks once — and **VibeDevKit tells

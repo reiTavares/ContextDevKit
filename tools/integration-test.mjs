@@ -51,6 +51,9 @@ try {
   existsSync(join(proj, 'vibekit', 'memory', 'predictions')) && readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
     ? ok('simulate-impact writes a prediction file (predictions/)')
     : bad('no prediction file written');
+  // Pluggable-detector seed (026): README + inert example install (discoverable, not auto-run).
+  existsSync(join(proj, 'vibekit', 'detectors', 'README.md')) && existsSync(join(proj, 'vibekit', 'detectors', 'example-detector.mjs.example'))
+    ? ok('detectors seed installed (README + .example, discoverable)') : bad('detectors seed not installed');
   // Ancestor parity: workflow guides (L1–L6) + reusable playbooks are installed.
   existsSync(join(proj, 'vibekit', 'workflows', 'README.md')) &&
     ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']

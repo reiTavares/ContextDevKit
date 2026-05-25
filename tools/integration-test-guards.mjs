@@ -197,9 +197,30 @@ function testUninstall() {
   }
 }
 
+/** 021 — installer backs up a pre-existing non-ours git hook instead of clobbering it. */
+function testInstallerHookBackup() {
+  const proj = tmp('hookbk');
+  git(['init', '-b', 'main'], proj);
+  git(['config', 'user.email', 'it@example.com'], proj);
+  git(['config', 'user.name', 'IT'], proj);
+  const hooksDir = join(proj, '.git', 'hooks');
+  mkdirSync(hooksDir, { recursive: true });
+  writeFileSync(join(hooksDir, 'pre-commit'), '#!/bin/sh\necho "my custom hook"\n');
+  try {
+    run([join(KIT, 'install.mjs'), '--target', proj, '--level', '3', '--name', 'HookBak', '--yes']);
+    const installed = readFileSync(join(hooksDir, 'pre-commit'), 'utf-8');
+    const backup = existsSync(join(hooksDir, 'pre-commit.bak')) ? readFileSync(join(hooksDir, 'pre-commit.bak'), 'utf-8') : '';
+    installed.includes('vibekit/runtime/git-hooks') && backup.includes('my custom hook')
+      ? ok('installer backs up an existing non-ours git hook (.bak)') : bad(`installer hook backup failed: backup="${backup.trim()}"`);
+  } finally {
+    rmSync(proj, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   await testConfigLoader();
   await testGhAlertMappers();
+  testInstallerHookBackup();
   const fx = installFixture(rep);
   try {
     testCommitMsg(fx.proj);

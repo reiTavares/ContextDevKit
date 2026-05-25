@@ -153,6 +153,7 @@ async function checkTemplates() {
     'templates/vibekit/runtime/hooks/safe-io.mjs', 'templates/vibekit/runtime/config/levels.mjs',
     'templates/vibekit/runtime/statusline.mjs', 'templates/vibekit/runtime/config/presets.mjs',
     'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
+    'templates/vibekit/detectors/README.md', 'templates/vibekit/detectors/example-detector.mjs.example',
     'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
     'templates/vibekit/memory/business-rules/_TEMPLATE.md',

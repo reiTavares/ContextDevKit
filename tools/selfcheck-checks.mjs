@@ -167,6 +167,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['vibe-level labels single-sourced from levels.mjs', 'templates/vibekit/tools/scripts/vibe-level.mjs', /levels\.mjs/],
     ['squad detection single-sourced (squad.mjs)', 'templates/vibekit/tools/scripts/squad.mjs', /squad-meta/],
     ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
+    ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

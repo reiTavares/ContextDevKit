@@ -11,7 +11,7 @@
  * After changing level, restart Claude Code so it reloads the hooks.
  */
 import { existsSync } from 'node:fs';
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod, rename } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
@@ -33,6 +33,11 @@ async function installGitHooks() {
   };
   for (const [name, body] of Object.entries(wrappers)) {
     const p = resolve(hooksDir, name);
+    // Back up a pre-existing non-ours hook (husky/lint-staged) before replacing it.
+    if (existsSync(p) && !(await readFile(p, 'utf-8').catch(() => '')).includes('vibekit/runtime/git-hooks')) {
+      const backup = `${p}.bak`;
+      if (!existsSync(backup)) await rename(p, backup);
+    }
     await writeFile(p, body, 'utf-8');
     await chmod(p, 0o755).catch(() => {});
   }
