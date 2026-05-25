@@ -12,8 +12,10 @@ this project follows [Semantic Versioning](https://semver.org/).
   `templates/vibekit/squads/agent-forge/` with its README (mandate, roster, boundary)
   and `best-practices.md` (the bar every forged agent clears — five principles, the
   default catalogue, provider notes, three-pillar governance, eval lifecycle).
-  Approved by ADR-0012; remaining phases tracked on the DevPipeline (031–035).
-  Selfcheck inventory guards both docs. (030)
+  Seeded `router/capability-matrix.json` (5 providers, 11 models, dated + ADR-gated)
+  with a selfcheck guard that parses it and rejects malformed / duplicate / disallowed
+  model ids. Selfcheck inventory also guards the two docs. Approved by ADR-0012;
+  remaining phases tracked on the DevPipeline (031–035). (030)
 
 ## [1.4.2] - 2026-05-25
 

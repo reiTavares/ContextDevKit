@@ -235,11 +235,45 @@ async function checkNoHardcodedPaths(rep, KIT) {
     : offenders.forEach((o) => bad(`hardcoded vibekit/ path: ${o}`));
 }
 
+/** agent-forge capability matrix: parses (BOM-safe, zero-dep) with unique,
+ *  well-formed ids from allowed providers (ADR-0012, constraints 5-6). */
+async function checkCapabilityMatrix(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking agent-forge capability matrix...');
+  const rel = 'templates/vibekit/squads/agent-forge/router/capability-matrix.json';
+  const raw = await readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
+  let matrix;
+  try {
+    matrix = JSON.parse(raw.replace(/^﻿/, ''));
+  } catch {
+    bad(raw ? 'capability matrix does not parse' : `capability matrix missing: ${rel}`);
+    return;
+  }
+  if (typeof matrix.updated !== 'string' || !Array.isArray(matrix.models) || !matrix.models.length) {
+    bad('capability matrix needs an `updated` date + a non-empty `models[]`');
+    return;
+  }
+  ok(`capability matrix parses (${matrix.models.length} models, updated ${matrix.updated})`);
+  const allowed = new Set(matrix.allowed_providers || []);
+  const seen = new Set();
+  const flaws = [];
+  for (const model of matrix.models) {
+    const id = model?.id;
+    if (typeof id !== 'string' || !/^[a-z0-9-]+\/[\w.-]+$/.test(id)) { flaws.push(`malformed id ${JSON.stringify(id)}`); continue; }
+    if (seen.has(id)) flaws.push(`duplicate id ${id}`);
+    seen.add(id);
+    if (allowed.size && !allowed.has(id.split('/')[0])) flaws.push(`disallowed provider ${id}`);
+    if (!model.tier) flaws.push(`${id} missing tier`);
+  }
+  flaws.length ? flaws.forEach((flaw) => bad(`matrix: ${flaw}`)) : ok('matrix ids unique, well-formed, from allowed providers, tiered');
+}
+
 /** Runs every extended check in order. `ctx` = { KIT, RT, mods }. */
 export async function runExtendedChecks(rep, { KIT, RT, mods }) {
   await checkBootReaders(rep, mods['hooks/boot-context-readers.mjs']);
   await checkConcurrencySafety(rep, mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
   await checkSquadMeta(rep, KIT);
+  await checkCapabilityMatrix(rep, KIT);
   await checkLevelsAndSchema(rep, mods, RT);
   await checkSourceInvariants(rep, KIT);
   await checkNoHardcodedPaths(rep, KIT);
