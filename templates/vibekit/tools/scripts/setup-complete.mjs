@@ -18,24 +18,19 @@
  * stays valid — the file is the contract the hooks read.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { parseJsonSafe, readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const CONFIG = resolve(ROOT, 'vibekit/config.json');
 
-function readJson(path, fallback) {
-  try {
-    return JSON.parse(readFileSync(path, 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return fallback;
-  }
-}
+const readJson = (path, fallback = null) => readJsonSafe(path, fallback);
 
 function runDetector() {
   try {
     const out = execFileSync('node', ['vibekit/tools/scripts/detect-stack.mjs'], { cwd: ROOT, encoding: 'utf-8' });
-    return JSON.parse(out.replace(/^﻿/, ''));
+    return parseJsonSafe(out, null);
   } catch (err) {
     console.error(`detect-stack failed: ${err?.message ?? err}`);
     return null;

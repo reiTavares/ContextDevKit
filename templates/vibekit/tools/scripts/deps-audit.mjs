@@ -22,6 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const SEV = { critical: 5, high: 4, moderate: 3, low: 2, info: 1 };
@@ -31,13 +32,7 @@ function add(severity, kind, message, path = 'package.json') {
   findings.push({ kind, severity, path, message, source: `deps:${kind}:${path}` });
 }
 
-function readJson(p) {
-  try {
-    return JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (p) => readJsonSafe(p);
 
 function depPolicy() {
   try {

@@ -14,6 +14,7 @@
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { squadOf } from './squad-meta.mjs';
 
 const ROOT = process.cwd();
 const AGENTS = resolve(ROOT, '.claude/agents');
@@ -36,22 +37,12 @@ function listMd(dir) {
   }
 }
 
-// Squad detection mirrors squad.mjs: qa-* → qa-team; else the (...-team) tag in
-// the agent's description; falls back to devteam.
-function squadOf(agent) {
-  if (/^qa-/.test(agent)) return 'qa-team';
-  const fm = read(resolve(AGENTS, `${agent}.md`)).match(/^---\n([\s\S]*?)\n---/);
-  const desc = (fm && /description:\s*(.*)/.exec(fm[1])?.[1]) || '';
-  const m = desc.match(/\(([a-z][a-z0-9-]*?)(?: squad)?\)\s*$/i);
-  return m ? m[1] : 'devteam';
-}
-
 function collect() {
   const agentFiles = listMd(AGENTS).filter((f) => f !== '_TEMPLATE.md');
   const sessions = listMd(SESSIONS).map((f) => read(resolve(SESSIONS, f)));
   const agents = agentFiles.map((f) => {
     const name = f.slice(0, -3);
-    const squad = squadOf(name);
+    const squad = squadOf(AGENTS, name);
     return {
       name,
       squad,

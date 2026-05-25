@@ -15,6 +15,7 @@ import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 let crit = 0;
@@ -29,13 +30,7 @@ const note = (m, fix) => {
   warn++;
 };
 
-function readJson(rel) {
-  try {
-    return JSON.parse(readFileSync(resolve(ROOT, rel), 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (rel) => readJsonSafe(resolve(ROOT, rel));
 
 function checkNode() {
   const major = Number(process.versions.node.split('.')[0]);

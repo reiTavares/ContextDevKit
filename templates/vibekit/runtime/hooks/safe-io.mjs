@@ -12,8 +12,37 @@
  * path-classification.mjs) so both the runtime hooks and the tool scripts share
  * one source. Sync variant for the scripts, async for the hot-path hooks.
  */
-import { renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { rename, unlink, writeFile } from 'node:fs/promises';
+
+const BOM = /^﻿/;
+
+/**
+ * Parse JSON defensively: strips a leading UTF-8 BOM (common from Windows
+ * editors / PowerShell) and returns `fallback` on any error instead of throwing.
+ */
+export function parseJsonSafe(text, fallback = null) {
+  if (typeof text !== 'string') return fallback;
+  try {
+    return JSON.parse(text.replace(BOM, ''));
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Read + parse a JSON file defensively (BOM-tolerant). A missing file or invalid
+ * JSON returns `fallback`. This is the single source for the BOM-strip+parse
+ * pattern previously copy-pasted across the tool scripts.
+ */
+export function readJsonSafe(path, fallback = null) {
+  if (!existsSync(path)) return fallback;
+  try {
+    return parseJsonSafe(readFileSync(path, 'utf-8'), fallback);
+  } catch {
+    return fallback;
+  }
+}
 
 /** Unique temp path next to the target (same dir → same filesystem → atomic rename). */
 function tmpName(path) {

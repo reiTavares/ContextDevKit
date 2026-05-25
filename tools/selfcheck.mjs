@@ -146,6 +146,35 @@ async function checkConcurrencySafety(safeio, ledger) {
     const dirty = ledger.sanitizeSid('../../etc/passwd');
     !dirty.includes('/') && !dirty.includes('.') ? ok('sanitizeSid neutralizes path traversal') : bad(`sanitizeSid leaked separators: ${dirty}`);
   } else bad('ledger.sanitizeSid not exported');
+  // 027 — shared defensive JSON read/parse (replaces the copy-pasted BOM strip).
+  if (safeio?.readJsonSafe && safeio?.parseJsonSafe) {
+    safeio.parseJsonSafe('{"a":1}')?.a === 1 && safeio.parseJsonSafe('not json', 'fb') === 'fb'
+      ? ok('parseJsonSafe parses + falls back') : bad('parseJsonSafe wrong');
+    const tmp2 = mkdtempSync(join(tmpdir(), 'vibekit-rj-'));
+    try {
+      const jf = resolve(tmp2, 'x.json');
+      writeFileSync(jf, '﻿' + JSON.stringify({ ok: true })); // BOM-prefixed
+      safeio.readJsonSafe(jf)?.ok === true ? ok('readJsonSafe reads a BOM-prefixed JSON file') : bad('readJsonSafe BOM fail');
+      safeio.readJsonSafe(resolve(tmp2, 'missing.json'), 'def') === 'def' ? ok('readJsonSafe returns fallback for a missing file') : bad('readJsonSafe missing-file fail');
+    } finally {
+      rmSync(tmp2, { recursive: true, force: true });
+    }
+  } else bad('safe-io read helpers (readJsonSafe/parseJsonSafe) not exported');
+}
+
+/** 028 — shared squad detection used by /squad + /tune-agents. */
+async function checkSquadMeta() {
+  console.log('Checking shared squad detection...');
+  const { squadOf } = await import('file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-meta.mjs').replaceAll('\\', '/'));
+  const dir = mkdtempSync(join(tmpdir(), 'vibekit-sq-'));
+  try {
+    writeFileSync(resolve(dir, 'infra-security.md'), '---\ndescription: Cloud security (security-team)\n---\n');
+    squadOf(dir, 'qa-unit') === 'qa-team' ? ok('squadOf: qa-* → qa-team') : bad('squadOf qa-* wrong');
+    squadOf(dir, 'infra-security') === 'security-team' ? ok('squadOf: reads the squad tag from the description') : bad('squadOf tag parse wrong');
+    squadOf(dir, 'nonexistent') === 'devteam' ? ok('squadOf: missing agent → devteam') : bad('squadOf fallback wrong');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -221,6 +250,8 @@ async function checkSourceInvariants() {
     ['config schema bounds level by MAX_LEVEL', 'templates/vibekit/runtime/config/schema.mjs', /max\(MAX_LEVEL\)/],
     ['installer labels single-sourced from levels.mjs', 'tools/install/cli.mjs', /levels\.mjs/],
     ['vibe-level labels single-sourced from levels.mjs', 'templates/vibekit/tools/scripts/vibe-level.mjs', /levels\.mjs/],
+    ['squad detection single-sourced (squad.mjs)', 'templates/vibekit/tools/scripts/squad.mjs', /squad-meta/],
+    ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
@@ -324,6 +355,7 @@ async function main() {
   } else bad('presets.applyPreset not exported');
   await checkBootReaders(mods['hooks/boot-context-readers.mjs']);
   await checkConcurrencySafety(mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
+  await checkSquadMeta();
   await checkLevelsAndSchema(mods);
   await checkSourceInvariants();
   await checkWorkflowsPinned();

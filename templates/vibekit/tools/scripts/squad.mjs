@@ -14,22 +14,12 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { squadOf } from './squad-meta.mjs';
 
 const ROOT = process.cwd();
 const AGENTS = resolve(ROOT, '.claude/agents');
 const SQUADS = resolve(ROOT, 'vibekit/squads');
-
-function squadOf(agent) {
-  if (/^qa-/.test(agent)) return 'qa-team';
-  try {
-    const fm = readFileSync(resolve(AGENTS, `${agent}.md`), 'utf-8').match(/^---\n([\s\S]*?)\n---/);
-    const desc = (fm && /description:\s*(.*)/.exec(fm[1])?.[1]) || '';
-    const m = desc.match(/\(([a-z][a-z0-9-]*?)(?: squad)?\)\s*$/i);
-    return m ? m[1] : 'devteam';
-  } catch {
-    return 'devteam';
-  }
-}
+const squadFor = (agent) => squadOf(AGENTS, agent);
 
 function listAgents() {
   try {
@@ -49,7 +39,7 @@ function brief() {
     console.error(`No agent at .claude/agents/${agent}.md (Level < 4?).`);
     process.exit(1);
   }
-  const squad = squadOf(agent);
+  const squad = squadFor(agent);
   mkdirSync(resolve(SQUADS, squad), { recursive: true });
   const dest = resolve(SQUADS, squad, `${agent}.md`);
   if (existsSync(dest)) {
@@ -74,7 +64,7 @@ function list() {
   }
   console.log(`👥 ${agents.length} agents (📄 = has a tier-2 briefing):`);
   for (const a of agents) {
-    const squad = squadOf(a);
+    const squad = squadFor(a);
     const has = existsSync(resolve(SQUADS, squad, `${a}.md`));
     console.log(`   ${has ? '📄' : '  '} ${a} — ${squad}`);
   }

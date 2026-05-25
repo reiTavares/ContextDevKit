@@ -19,16 +19,11 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, basename, resolve } from 'node:path';
+import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const FLEET_FILE = process.env.VIBE_FLEET_FILE || resolve(homedir(), '.vibedevkit', 'fleet.json');
 
-function readJson(p) {
-  try {
-    return JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
-  } catch {
-    return null;
-  }
-}
+const readJson = (p) => readJsonSafe(p);
 
 function loadRegistry() {
   const reg = readJson(FLEET_FILE);
