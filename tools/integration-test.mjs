@@ -119,9 +119,11 @@ try {
   const showOut = script('vibe-config.mjs', 'show', 'qa.coverageTarget.lines').stdout || '';
   showOut.trim() === '90' ? ok('vibe-config set/show round-trips') : bad(`vibe-config round-trip failed: ${showOut}`);
 
-  // doctor runs and reports.
+  // doctor runs and reports — and accepts the current level (L7 set above) as valid,
+  // not "out of range" (regression guard for the level-range cap).
   const doc = script('doctor.mjs');
-  /VibeDevKit doctor/i.test(doc.stdout || '') ? ok('doctor runs') : bad(`doctor failed: ${doc.stderr}`);
+  /VibeDevKit doctor/i.test(doc.stdout || '') && !/level.*out of range/i.test(doc.stdout || '')
+    ? ok('doctor runs + accepts L7 as a valid level') : bad(`doctor failed/flagged level: ${doc.stdout || doc.stderr}`);
 
   // L5/L6 scanners run and produce JSON.
   const debt = script('tech-debt-scan.mjs', '--json');

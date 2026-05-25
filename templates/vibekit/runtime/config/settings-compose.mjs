@@ -14,7 +14,7 @@
  * (Level 4 adds agents — not Claude hooks.)
  *
  * @param {Record<string, any> | null} existing parsed settings.json (or null)
- * @param {number} level 1–5
+ * @param {number} level 1–7
  * @returns {Record<string, any>}
  */
 export function composeSettings(existing, level) {

@@ -96,7 +96,7 @@ Reinicie o Claude Code depois de trocar (ele recarrega os hooks).
   cada módulo documenta as regras locais.
 - `/vibe-doctor` — diagnóstico do install (node, config, wiring, git hooks).
 - `/vibe-config show|set` — lê/edita `vibekit/config.json`.
-- `/vibe-level [1-6]` — vê/troca o nível.
+- `/vibe-level [1-7]` — vê/troca o nível.
 
 ## Fluxo recomendado por sessão
 

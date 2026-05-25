@@ -1,6 +1,6 @@
 ---
 description: One-shot intelligent onboarding — inspects the project and self-configures VibeDevKit to it.
-argument-hint: [target level 1-5]
+argument-hint: [target level 1-7]
 ---
 
 # 🚀 Setup VibeDevKit

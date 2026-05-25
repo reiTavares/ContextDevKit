@@ -54,7 +54,7 @@ async function main() {
   if (!arg) {
     console.log(`Current VibeDevKit level: L${current}\n`);
     for (const [k, v] of Object.entries(LABELS)) console.log(`${Number(k) <= current ? '✓' : ' '} ${v}`);
-    console.log('\nChange with:  node vibekit/tools/scripts/vibe-level.mjs <1-5>');
+    console.log('\nChange with:  node vibekit/tools/scripts/vibe-level.mjs <1-7>');
     return;
   }
 
