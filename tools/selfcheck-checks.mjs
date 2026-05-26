@@ -172,6 +172,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
     ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
     ['agent-forge yaml loader uses optional dynamic import', 'templates/vibekit/squads/agent-forge/lib/yaml.mjs', /import\(\s*['"]yaml['"]\s*\)/],
+    ['installer copies the agent-forge squad at L>=4', 'install.mjs', /copyTree\(join\(TPL, 'vibekit', 'squads', 'agent-forge'\)/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

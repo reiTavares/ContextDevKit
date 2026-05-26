@@ -134,10 +134,14 @@ async function main() {
   await copyTree(join(TPL, 'claude', 'commands'), join(target, '.claude', 'commands'));
   report.push('✓ slash commands installed (.claude/commands)');
 
-  // 4. Agents: only at L >= 4.
+  // 4. Agents + L4+ squads: only at L >= 4.
   if (level >= 4) {
     await copyTree(join(TPL, 'claude', 'agents'), join(target, '.claude', 'agents'));
     report.push('✓ agent archetypes installed (.claude/agents)');
+    // agent-forge factory squad: engine code + matrix + APF templates (ADR-0012).
+    // Always overwrite — engine kit code, not user-editable.
+    await copyTree(join(TPL, 'vibekit', 'squads', 'agent-forge'), join(target, 'vibekit', 'squads', 'agent-forge'));
+    report.push('✓ agent-forge squad installed (vibekit/squads/agent-forge)');
   }
 
   // 5. Memory seeds: write only if missing.
