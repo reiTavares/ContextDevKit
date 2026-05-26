@@ -16,6 +16,7 @@ import { readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runExtendedChecks } from './selfcheck-checks.mjs';
+import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/vibekit/runtime');
@@ -192,6 +193,7 @@ async function main() {
   checkPaths(mods['config/paths.mjs']);
   checkPresets(mods['config/presets.mjs']);
   await runExtendedChecks({ ok, bad }, { KIT, RT, mods });
+  await runAgentForgeChecks({ ok, bad }, KIT);
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
