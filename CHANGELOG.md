@@ -7,6 +7,36 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 1 MVP: end-to-end forge pipeline.** The squad now
+  produces a real Agent Package. Six pure, zero-dep `lib/*.mjs` modules carry the
+  pipeline: `architect.mjs` (canonical `INTERVIEW_QUESTIONS` + `validateBlueprint` +
+  `fillDefaults` + canonicalized SHA-256 `blueprintHash` for provenance);
+  `router.mjs` + `router/decision-rules.json` (13 rules under the 15-cap, structural
+  shortlists only — quality verdicts deferred to the eval harness per ADR-0012 §5);
+  `prompt-gen.mjs` (canonical Markdown → Anthropic XML with `cache=ephemeral` +
+  OpenAI Markdown sections); `tool-gen.mjs` (canonical JSON schemas → Anthropic
+  `{name,description,input_schema}` array + OpenAI `type:function` wrapper);
+  `packager.mjs` (split into pure `assembleManifest` + I/O `packageAgent` —
+  stamps provenance, replaces the README rationale slot, writes provider files).
+  The optional `yaml` dep (ADR-0013) is touched only at write time via `lib/yaml.mjs`.
+  Six lean `.claude/agents/forge-*.md` briefings (orchestrator / architect /
+  router / prompt-engineer / tool-designer / packager) plus the `/forge-new` slash
+  command and the executable `cli/forge-new.mjs` (exports `forgeNew()` for the
+  integration test). Selfcheck gains `checkRouterEngine` — a behavioural guard
+  that exercises a typical extraction blueprint AND the no-cloud constraint,
+  asserting the rationale carries the eval-as-authority disclaimer. (031)
+- **Installer copies the agent-forge squad at L>=4.** Fase-0 leftover fixed —
+  without this, the squad existed only in the source tree and installed projects
+  could not run `/forge-new`. Guarded by a `checkSourceInvariants` regex so a
+  silent regression is impossible.
+- **Integration round-trip for `/forge-new`.** New block in
+  `integration-test-tooling.mjs`: when the optional `yaml` dep is installed,
+  drives `forgeNew` to write a complete APF into a temp `agent-packages/...@0.1.0/`
+  and asserts 11 expected files + stamped blueprint hash + routed primary
+  provider + Anthropic XML prompt + OpenAI function-typed tools + Node adapter.
+  When `yaml` is absent (default CI), exercises the pure half of the pipeline
+  (validate → route → `assembleManifest` → generators) with the same invariants
+  in memory — CI proves correctness end-to-end either way.
 - **agent-forge squad — foundations (Fase 0).** New *factory* squad that forges
   portable, multi-provider Agent Packages for projects outside the kit. Scaffolded
   `templates/vibekit/squads/agent-forge/` with its README (mandate, roster, boundary)
