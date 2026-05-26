@@ -128,12 +128,13 @@ async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
   cmds.length >= 35 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
-  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md']) {
+  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
   agents.length >= 20 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
-  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md']) {
+  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md',
+    'forge-orchestrator.md', 'agent-architect.md', 'model-router.md', 'prompt-engineer.md', 'tool-designer.md', 'packager.md']) {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
@@ -159,6 +160,16 @@ async function checkTemplates() {
     'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
     'templates/vibekit/squads/agent-forge/README.md', 'templates/vibekit/squads/agent-forge/best-practices.md',
     'templates/vibekit/squads/agent-forge/ROADMAP.md',
+    'templates/vibekit/squads/agent-forge/lib/yaml.mjs',
+    'templates/vibekit/squads/agent-forge/lib/router.mjs',
+    'templates/vibekit/squads/agent-forge/lib/architect.mjs',
+    'templates/vibekit/squads/agent-forge/lib/prompt-gen.mjs',
+    'templates/vibekit/squads/agent-forge/lib/tool-gen.mjs',
+    'templates/vibekit/squads/agent-forge/lib/packager.mjs',
+    'templates/vibekit/squads/agent-forge/router/capability-matrix.json',
+    'templates/vibekit/squads/agent-forge/router/decision-rules.json',
+    'templates/vibekit/squads/agent-forge/cli/forge-new.mjs',
+    'templates/claude/commands/forge-new.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',
     'templates/vibekit/squads/agent-forge/templates/agent-package/README.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/.agentforgerc',
