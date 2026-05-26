@@ -65,4 +65,5 @@ Fase 0 (foundations) — **complete**. This README, [`best-practices.md`](best-p
 the [`router/capability-matrix.json`](router/capability-matrix.json) seed, and the
 [`templates/agent-package/`](templates/agent-package/) APF v1 skeleton are in place. The
 agents and the `/forge-*` commands land across Fases 1–5 — track them on the DevPipeline
-(031–035).
+(031–035). For the **section-by-section blueprint-coverage map** (the single artifact a
+future session opens to know where we stand), read [`ROADMAP.md`](ROADMAP.md).
