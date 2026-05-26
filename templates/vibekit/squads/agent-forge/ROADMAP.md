@@ -27,8 +27,8 @@
 | 3 | APF v1 — full tree (45 files) | ✅ | [`templates/agent-package/`](templates/agent-package/) (commit `d5efcd2`) |
 | 4.1 | Router inputs | ✅ | Documented (best-practices §4 / blueprint §4.1) — consumed in Fase 1 |
 | 4.2 | `capability-matrix.json` | ✅ | [`router/capability-matrix.json`](router/capability-matrix.json) (5 providers / 11 models, dated, ADR-gated, parse/id guard — commit `3ad928a`) |
-| 4.3 | `decision-rules.json` | 📋 | Fase 1 (task 031) — bounded to ≤15 rules per blueprint §12 |
-| 4.4 | Rationale section in package README | ✅ slot / 📋 generator | APF README has the slot ready; the model-router fills it in Fase 1 |
+| 4.3 | `decision-rules.json` | ✅ | [`router/decision-rules.json`](router/decision-rules.json) — 13 rules (cap 15), shortlists only, no quality opinions (ADR-0012 §5). Engine in [`lib/router.mjs`](lib/router.mjs). |
+| 4.4 | Rationale section in package README | ✅ slot + generator | The model-router emits the canonical `## Model Selection Rationale` block (rule trace + cross-provider fallback warning + eval-as-authority disclaimer) — `lib/router.mjs` `buildRationale`. |
 | 5 | Per-provider behaviour notes | ✅ | `best-practices.md` §4 (condensed table) |
 | 5 | `prompt-engineer` per-provider generators | 📋 | Fase 1 (Anthropic + OpenAI) · Fase 2 (Gemini, DeepSeek, self-hosted) |
 | 5 | `tool-designer` per-provider generators | 📋 | Fase 1 · Fase 2 (same split) |
@@ -49,7 +49,7 @@
 | 10 | L7 `/fleet` cross-repo agent-package registry | 📋 | Fase 5 (task 035) |
 | 11 | Implementation roadmap (5 fases) | ✅ | Mapped 1:1 to backlog 030–035 with sequenced SLAs |
 | 12 | Risks — matrix freshness | ✅ | ADR-0012 §6 + `checkCapabilityMatrix` |
-| 12 | Risks — decision-rules Frankenstein | 📋 | Enforce the 15-rule cap when writing `decision-rules.json` (Fase 1) |
+| 12 | Risks — decision-rules Frankenstein | ✅ | Router enforces the 15-rule cap at runtime; currently 13/15. Split by intent category when outgrown. |
 | 12 | Risks — golden eval staleness | 📋 | Shadow eval feeding golden (Fase 4) |
 | 12 | Risks — cross-project package divergence | 📋 | `/fleet` (Fase 5) |
 | 12 | Risks — compliance vertical templates (HIPAA/PCI) | ➖ v1 | Future jurisdiction add-ons via `compliance-team` squad |
