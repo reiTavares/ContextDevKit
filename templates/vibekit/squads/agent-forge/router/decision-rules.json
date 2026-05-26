@@ -1,0 +1,120 @@
+{
+  "_note": "Deterministic SHORTLISTS for the model-router. Rules return candidate id arrays; the EVAL HARNESS picks the actual best from the shortlist (ADR-0012 §5). NO hardcoded quality claims here. Capped at 15 rules per blueprint §12 — split by intent category if you outgrow it. Operators in `when`: literal (===), array (oneOf), or { '$gt'|'$gte'|'$lt'|'$lte'|'$eq': value }.",
+  "updated": "2026-05-26",
+  "version": "0.1.0",
+  "max_rules": 15,
+  "rules": [
+    {
+      "id": "residency-no-cloud",
+      "when": { "privacy.allow_cloud_providers": false },
+      "then": {
+        "primary_candidates": ["self-hosted/llama-3.x-70b", "self-hosted/mistral-large"]
+      },
+      "abort_if_no_candidate": true
+    },
+    {
+      "id": "residency-on-prem",
+      "when": { "privacy.data_residency": "on-prem" },
+      "then": {
+        "primary_candidates": ["self-hosted/llama-3.x-70b", "self-hosted/mistral-large"]
+      },
+      "abort_if_no_candidate": true
+    },
+    {
+      "id": "classification-low",
+      "when": { "intent.category": "classification", "intent.complexity": "low" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-haiku-4-5", "google/gemini-2.5-flash", "openai/gpt-4o-mini"],
+        "fallback_candidates": ["deepseek/deepseek-v3"]
+      }
+    },
+    {
+      "id": "extraction-simple",
+      "when": { "intent.category": "extraction", "intent.complexity": ["low", "medium"] },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6", "anthropic/claude-haiku-4-5"],
+        "fallback_candidates": ["google/gemini-2.5-pro", "openai/gpt-4o"],
+        "cheap_path": "anthropic/claude-haiku-4-5"
+      }
+    },
+    {
+      "id": "extraction-high",
+      "when": { "intent.category": "extraction", "intent.complexity": "high" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6"],
+        "fallback_candidates": ["openai/gpt-4o", "google/gemini-2.5-pro"],
+        "premium_path": "anthropic/claude-opus-4-7"
+      }
+    },
+    {
+      "id": "rag-answer-large-context",
+      "when": { "intent.category": "rag-answer", "context_window_needed_tokens": { "$gt": 200000 } },
+      "then": {
+        "primary_candidates": ["google/gemini-2.5-pro"],
+        "fallback_candidates": ["anthropic/claude-sonnet-4-6"]
+      }
+    },
+    {
+      "id": "rag-answer",
+      "when": { "intent.category": "rag-answer" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6"],
+        "fallback_candidates": ["openai/gpt-4o", "deepseek/deepseek-v3"]
+      }
+    },
+    {
+      "id": "coding-high",
+      "when": { "intent.category": "coding", "intent.complexity": "high" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6"],
+        "fallback_candidates": ["openai/gpt-4o"],
+        "cheap_path": "deepseek/deepseek-coder",
+        "premium_path": "anthropic/claude-opus-4-7"
+      }
+    },
+    {
+      "id": "coding",
+      "when": { "intent.category": "coding" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6", "deepseek/deepseek-coder"],
+        "fallback_candidates": ["openai/gpt-4o"],
+        "cheap_path": "deepseek/deepseek-coder"
+      }
+    },
+    {
+      "id": "reasoning-high",
+      "when": { "intent.category": "reasoning", "intent.complexity": "high" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-opus-4-7"],
+        "fallback_candidates": ["openai/gpt-4o", "google/gemini-2.5-pro"],
+        "cheap_path": "anthropic/claude-sonnet-4-6"
+      }
+    },
+    {
+      "id": "agentic-multi-step",
+      "when": { "intent.category": "agentic-multi-step" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6", "anthropic/claude-opus-4-7"],
+        "fallback_candidates": ["openai/gpt-4o"]
+      }
+    },
+    {
+      "id": "summarization",
+      "when": { "intent.category": "summarization" },
+      "then": {
+        "primary_candidates": ["anthropic/claude-haiku-4-5", "google/gemini-2.5-flash"],
+        "fallback_candidates": ["anthropic/claude-sonnet-4-6"]
+      }
+    },
+    {
+      "id": "default-balanced",
+      "when": {},
+      "then": {
+        "primary_candidates": ["anthropic/claude-sonnet-4-6"],
+        "fallback_candidates": ["openai/gpt-4o", "google/gemini-2.5-pro"],
+        "cheap_path": "anthropic/claude-haiku-4-5",
+        "premium_path": "anthropic/claude-opus-4-7"
+      }
+    }
+  ]
+}
