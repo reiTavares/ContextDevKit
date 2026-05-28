@@ -84,20 +84,36 @@ function cmdStats() {
   const rows = repos.map((repo) => {
     const s = runRepoJson(repo, 'vibekit/tools/scripts/stats.mjs');
     if (!s) return { path: repo, name: basename(repo), ok: false };
-    return { path: repo, name: basename(repo), ok: true, level: s.level, registeredSessions: s.registeredSessions, adrs: s.adrs, agents: s.agents, driftRatePct: s.driftRatePct };
+    return { path: repo, name: basename(repo), ok: true, level: s.level, registeredSessions: s.registeredSessions, adrs: s.adrs, agents: s.agents, driftRatePct: s.driftRatePct, forge: s.forge || null };
   });
   const ok = rows.filter((r) => r.ok);
+  const forgeRows = ok.filter((r) => r.forge);
   const totals = {
     repos: rows.length,
     withStats: ok.length,
     totalSessions: ok.reduce((a, r) => a + (r.registeredSessions || 0), 0),
     totalAdrs: ok.reduce((a, r) => a + (r.adrs || 0), 0),
     avgDriftPct: ok.length ? +(ok.reduce((a, r) => a + (r.driftRatePct || 0), 0) / ok.length).toFixed(1) : 0,
+    forge: forgeRows.length ? {
+      repos: forgeRows.length,
+      packages: forgeRows.reduce((a, r) => a + (r.forge.packages || 0), 0),
+      evaluated: forgeRows.reduce((a, r) => a + (r.forge.evaluated || 0), 0),
+      monthlyTarget: +forgeRows.reduce((a, r) => a + (r.forge.monthlyTarget || 0), 0).toFixed(2),
+      monthlyHardCap: +forgeRows.reduce((a, r) => a + (r.forge.monthlyHardCap || 0), 0).toFixed(2),
+    } : null,
   };
   if (isJson()) return void process.stdout.write(JSON.stringify({ repos: rows, totals }, null, 2) + '\n');
   console.log(`🛰️  fleet stats — ${totals.repos} repo(s), ${totals.totalSessions} sessions, ${totals.totalAdrs} ADRs, avg drift ${totals.avgDriftPct}%\n`);
   for (const r of rows) {
-    console.log(r.ok ? `   ${r.name}  L${r.level}  ${r.registeredSessions} sess  ${r.adrs} ADR  ${r.agents} agents  ${r.driftRatePct}% drift` : `   ${r.name}  (no stats — not a VibeDevKit repo?)`);
+    if (!r.ok) {
+      console.log(`   ${r.name}  (no stats — not a VibeDevKit repo?)`);
+      continue;
+    }
+    const forge = r.forge ? `  🔥 ${r.forge.packages} pkg (${r.forge.evaluated}✅)` : '';
+    console.log(`   ${r.name}  L${r.level}  ${r.registeredSessions} sess  ${r.adrs} ADR  ${r.agents} agents  ${r.driftRatePct}% drift${forge}`);
+  }
+  if (totals.forge) {
+    console.log(`\n🔥 Forge fleet: ${totals.forge.packages} packages across ${totals.forge.repos} repo(s), ${totals.forge.evaluated} eval-stamped, monthly target $${totals.forge.monthlyTarget} / hard cap $${totals.forge.monthlyHardCap}`);
   }
 }
 

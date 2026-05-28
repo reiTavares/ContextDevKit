@@ -153,8 +153,10 @@ export const DEFAULT_CONFIG = Object.freeze({
 
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
-    /** Editing any of these without a prior `/simulate-impact` is gated. */
-    highRiskPaths: [],
+    /** Editing any of these without a prior `/simulate-impact` is gated.
+     *  agent-packages/** is included by default — swapping a forged agent's primary
+     *  model is high blast radius (ADR-0012 + Fase 5). Remove if you don't ship agents. */
+    highRiskPaths: ['agent-packages/**'],
     /** Line-budget thresholds used by the tech-debt scanner. */
     lineBudget: { yellow: 240, red: 308 },
     /** Files whose exported symbols form the public contract (drift gate). Empty = off. */

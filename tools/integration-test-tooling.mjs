@@ -264,6 +264,17 @@ try {
     });
     gated.evalResult?.verdict === 'pass' && readFileSync(join(gated.summary.targetDir, 'manifest.yaml'), 'utf-8').includes('eval_passed_at: \'2026-05-26')
       ? ok('forge-new with runEval (passing mock) stamps eval_passed_at into manifest.yaml (Fase 3)') : bad(`runEval gate failed: verdict=${gated.evalResult?.verdict}`);
+    const ragBlueprint = { agent_name: 'contract-qa', role_one_line: 'You answer questions about contracts from the knowledge base.', intent: { category: 'rag-answer', complexity: 'high', domain: 'legal-pt-br' }, privacy: { allow_cloud_providers: true, data_residency: 'br-or-eu' }, capabilities: { tools: false, rag: true }, runtime_adapters: ['node', 'go'] };
+    const ragResult = await forgeNew(ragBlueprint, join(proj, 'agent-packages-rag'), { now: '2026-05-26T12:00:00Z' });
+    const ragApf = ragResult.summary.targetDir;
+    const ragConfig = readFileSync(join(ragApf, 'rag/config.yaml'), 'utf-8');
+    !ragConfig.includes('{{') && /backend:\s*qdrant/.test(ragConfig)
+      ? ok('forge-new writes a populated rag/config.yaml (qdrant backend for cloud-OK, Fase 5)') : bad('rag/config.yaml not populated or wrong backend');
+    /multilingual-e5/.test(ragConfig)
+      ? ok('forge-new picks multilingual-e5 for non-`-en` domain (Fase 5)') : bad('embedding model wrong for multilingual domain');
+    const goMod = readFileSync(join(ragApf, 'adapters/go/go.mod'), 'utf-8');
+    goMod.includes('contract-qa') && !goMod.includes('{{')
+      ? ok('forge-new stamps Go adapter go.mod when runtime_adapters includes go (Fase 5)') : bad(`go.mod not stamped: ${goMod}`);
   } else {
     const { validateBlueprint, fillDefaults } = await import('file://' + join(forgeBase, 'lib', 'architect.mjs').replaceAll('\\', '/'));
     const { routeAgent } = await import('file://' + join(forgeBase, 'lib', 'router.mjs').replaceAll('\\', '/'));

@@ -17,6 +17,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runExtendedChecks } from './selfcheck-checks.mjs';
 import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
+import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/vibekit/runtime');
@@ -138,7 +139,7 @@ async function checkTemplates() {
   agents.length >= 20 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
   for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md',
     'forge-orchestrator.md', 'agent-architect.md', 'model-router.md', 'prompt-engineer.md', 'tool-designer.md', 'packager.md',
-    'eval-designer.md', 'governance-officer.md']) {
+    'eval-designer.md', 'governance-officer.md', 'rag-designer.md']) {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
@@ -180,6 +181,8 @@ async function checkTemplates() {
     'templates/vibekit/squads/agent-forge/lib/eval-designer.mjs',
     'templates/vibekit/squads/agent-forge/lib/eval-runner.mjs',
     'templates/vibekit/squads/agent-forge/lib/governance-officer.mjs',
+    'templates/vibekit/squads/agent-forge/lib/rag-designer.mjs',
+    'tools/selfcheck-agent-forge-ops.mjs',
     'templates/claude/commands/forge-new.md',
     'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',
@@ -217,6 +220,7 @@ async function main() {
   checkPresets(mods['config/presets.mjs']);
   await runExtendedChecks({ ok, bad }, { KIT, RT, mods });
   await runAgentForgeChecks({ ok, bad }, KIT);
+  await runAgentForgeOpsChecks({ ok, bad }, KIT);
   await checkTemplates();
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
