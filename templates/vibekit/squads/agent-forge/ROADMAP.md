@@ -12,7 +12,7 @@
 
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 📋.
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 ✅; Fase 4 📋.
 
 ## Coverage map (blueprint section → here)
 
@@ -21,7 +21,7 @@
 | 0–1 | Exec summary + 5 principles | ✅ | [`README.md`](README.md), [`best-practices.md`](best-practices.md) |
 | 2 | `squad.manifest.json` | ➖ | Dropped by ADR-0012 §3 — squads detected by `squadOf` (the `(agent-forge squad)` tag) |
 | 2 | Squad folder + roster table | ✅ | [`README.md`](README.md) — agents listed by phase |
-| 2 | The 8 lean agent files (`.claude/agents/forge-*.md`) | 🟡 | ✅ Fase 1: `forge-orchestrator` / `agent-architect` / `model-router` / `prompt-engineer` / `tool-designer` / `packager`. 📋 Fase 3: `governance-officer` + `eval-designer`. 📋 Fase 5: `rag-designer`. |
+| 2 | The 8 lean agent files (`.claude/agents/forge-*.md`) | 🟡 | ✅ Fase 1: `forge-orchestrator` / `agent-architect` / `model-router` / `prompt-engineer` / `tool-designer` / `packager`. ✅ Fase 3: `eval-designer` + `governance-officer`. 📋 Fase 5: `rag-designer`. |
 | 2 | `templates/providers/<provider>/` reusable snippets | 🟡 | Per-provider stubs currently live **inside** the APF (`prompts/system.<provider>.md` + `tools/adapters/<provider>.tools.json`). Split out only if Fase 1–2 generators need shared snippets above APF scope. |
 | 2 | `policies/*.template.yaml` (squad scope) | 🟡 | The canonical policy templates ship **inside** the APF (`agent-package/governance/*.policy.yaml`). Equivalent for now; split if Fase 3's governance-officer needs squad-level partials. |
 | 3 | APF v1 — full tree (45 files) | ✅ | [`templates/agent-package/`](templates/agent-package/) (commit `d5efcd2`) |
@@ -35,11 +35,11 @@
 | 5 | Runtime `AgentRuntime` contract | ✅ | Documented in APF adapter READMEs + Node/Python/Go stubs |
 | 6.1–6.3 | Cost / compliance / quality policy templates | ✅ | [`templates/agent-package/governance/`](templates/agent-package/governance/) |
 | 6.x | `fallback-chain.yaml` + `audit.schema.json` | ✅ | Same dir |
-| 6 | `governance-officer` ENFORCER ("refuse if any pillar under-configured") | 📋 | Fase 3 (task 033) |
+| 6 | `governance-officer` ENFORCER ("refuse if any pillar under-configured") | ✅ | [`lib/governance-officer.mjs`](lib/governance-officer.mjs) — `attachGovernance` populates the 3 pillars from the blueprint + builds fallback chain from the router decision; `validateGovernance` refuses on missing sections or unresolved `{{TOKEN}}` placeholders. Briefing in [`.claude/agents/governance-officer.md`](../../../claude/agents/governance-officer.md). |
 | 6.4 | Three-pillar equal-weight rationale | ✅ | `best-practices.md` §5 |
 | 7.1–7.3 | Golden / red-team / rubric / thresholds | ✅ templates | [`templates/agent-package/evals/`](templates/agent-package/evals/) |
-| 7.4 | Eval lifecycle (3 moments) | ✅ docs / 📋 runner | `best-practices.md` §6; runner + gate in Fase 3 |
-| 7 | Eval gate in orchestrator (≤3 retries → abort) | 📋 | Fase 3 |
+| 7.4 | Eval lifecycle (3 moments) | ✅ | `best-practices.md` §6 (docs); [`lib/eval-runner.mjs`](lib/eval-runner.mjs) `runEvalSuite` (golden + red-team aggregated against thresholds; provider-agnostic — mock for CI, real adapter for prod). |
+| 7 | Eval gate in orchestrator (refuse to ship on fail) | ✅ | `forgeNew` supports `opts.runEval = { provider, semantic }`; `packageAgent` stamps `provenance.eval_passed_at` only when `evalResult.verdict === 'pass'`. The (≤3 retries → abort) refinement loop is the AGENT's job — driven by `.claude/agents/eval-designer.md`. |
 | 8 | `/forge-new` | ✅ | [`templates/claude/commands/forge-new.md`](../../../claude/commands/forge-new.md) + CLI [`cli/forge-new.mjs`](cli/forge-new.mjs) (`forgeNew()` exported for the integration test) |
 | 8 | `/forge-refresh-matrix` `/forge-route` `/forge-budget` `/forge-killswitch` `/forge-list` `/forge-show` `/forge-eval` `/forge-redteam` `/forge-audit` `/forge-doctor` `/forge-deprecate` `/forge-policy` `/forge-fallback-test` | 📋 | Fase 4 (task 034) |
 | 9 | Full lifecycle (forge → review → install → prod → maintain) | 🟡 | ✅ Fase 1 engine (architect → router → prompt+tool → packager) runs end-to-end. 📋 Fase 3 eval gate + governance enforcement. 📋 Fase 4 maintenance commands. |

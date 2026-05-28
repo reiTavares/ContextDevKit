@@ -7,6 +7,27 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 3: governance + eval gate (the refuse-to-ship layer).**
+  Principle 5 ("Eval before embarkation") is now enforced in code. Three pure
+  zero-dep modules carry the gate: `lib/eval-designer.mjs` (`designEvalSet` seeds
+  golden by `intent.category` + the universal red-team baseline of
+  prompt-injection / jailbreak / PII-leak + a rubric + thresholds derived from
+  blueprint privacy/sla/cost — PII-leak block rate forced to 1.0 when
+  `pii_present`); `lib/eval-runner.mjs` (`runEvalSuite`, provider-agnostic — mock
+  for CI, real adapter for production — supports `exact` / `exact_set` /
+  `numeric_tolerance:N` / `semantic_similarity:>=N`; aggregates p95 latency + cost
+  and refuses pass when any threshold breaches); `lib/governance-officer.mjs`
+  (`attachGovernance` builds the three pillars populated from the blueprint
+  plus the fallback chain from the router decision; `validateGovernance` refuses
+  on missing sections OR unresolved `{{TOKEN}}` placeholders). `packageAgent`
+  now calls `attachGovernance` first (throws early), writes 4 populated
+  governance YAMLs + 4 populated eval files (overwriting templates), and stamps
+  `provenance.eval_passed_at` ONLY when `opts.evalResult.verdict === 'pass'`.
+  `forgeNew` gains an opt-in `runEval = { provider, semantic }` that runs the
+  gate before packaging. Two new agent briefings ship: `eval-designer.md` (drives
+  the 10–50 golden expansion + domain red-team) and `governance-officer.md`
+  (three pillars equal-weight, refuse-over-rubber-stamp). 11 new behavioural
+  selfchecks + 6 new integration asserts. (033)
 - **agent-forge squad — Fase 2: multi-provider + Python runtime adapter.** All five
   providers now flow end-to-end through the pipeline. `prompt-gen.mjs` gains
   `renderGoogle` (Markdown body for `systemInstruction` + safetySettings note),

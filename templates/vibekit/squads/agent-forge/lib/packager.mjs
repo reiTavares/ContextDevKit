@@ -15,6 +15,8 @@ import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { blueprintHash } from './architect.mjs';
+import { designEvalSet, toJsonl } from './eval-designer.mjs';
+import { attachGovernance } from './governance-officer.mjs';
 import { generatePrompts } from './prompt-gen.mjs';
 import { generateAdapters } from './tool-gen.mjs';
 
@@ -53,7 +55,7 @@ export function assembleManifest(blueprint, decision, opts = {}) {
       provenance: {
         forged_by: `agent-forge@${opts.forgeVersion ?? FORGE_VERSION}`,
         blueprint_hash: blueprintHash(blueprint),
-        eval_passed_at: null,
+        eval_passed_at: opts.evalResult?.verdict === 'pass' ? (opts.evalPassedAt ?? now) : null,
       },
     },
     spec: {
@@ -109,11 +111,24 @@ function stampReadme(readme, decision) {
  * at runtime; throws a clear, actionable error via `loadYaml` if absent.
  */
 export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
+  const governance = attachGovernance(blueprint, decision);
+  const evalSet = designEvalSet(blueprint);
+
   const { stringifyYaml } = await import('./yaml.mjs');
   await copyTree(APF_TEMPLATE, targetDir);
 
   const manifest = assembleManifest(blueprint, decision, opts);
   await writeText(join(targetDir, 'manifest.yaml'), await stringifyYaml(manifest));
+
+  await writeText(join(targetDir, 'evals/golden.jsonl'), toJsonl(evalSet.golden));
+  await writeText(join(targetDir, 'evals/red-team.jsonl'), toJsonl(evalSet.redTeam));
+  await writeText(join(targetDir, 'evals/rubric.yaml'), await stringifyYaml(evalSet.rubric));
+  await writeText(join(targetDir, 'evals/thresholds.yaml'), await stringifyYaml(evalSet.thresholds));
+
+  await writeText(join(targetDir, 'governance/cost.policy.yaml'), await stringifyYaml(governance.cost));
+  await writeText(join(targetDir, 'governance/compliance.policy.yaml'), await stringifyYaml(governance.compliance));
+  await writeText(join(targetDir, 'governance/quality.policy.yaml'), await stringifyYaml(governance.quality));
+  await writeText(join(targetDir, 'governance/fallback-chain.yaml'), await stringifyYaml(governance.fallback));
 
   const canonicalPrompt = await readFile(join(targetDir, 'prompts/system.canonical.md'), 'utf-8');
   const prompts = generatePrompts(canonicalPrompt);
@@ -145,8 +160,13 @@ export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
       'tools/adapters/anthropic.tools.json', 'tools/adapters/openai.tools.json',
       'tools/adapters/google.tools.json', 'tools/adapters/deepseek.tools.json',
       'tools/adapters/ollama.tools.json',
+      'evals/golden.jsonl', 'evals/red-team.jsonl', 'evals/rubric.yaml', 'evals/thresholds.yaml',
+      'governance/cost.policy.yaml', 'governance/compliance.policy.yaml',
+      'governance/quality.policy.yaml', 'governance/fallback-chain.yaml',
       'README.md'],
     provenance: manifest.metadata.provenance,
+    governance,
+    evalSet,
   };
 }
 
