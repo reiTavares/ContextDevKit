@@ -245,6 +245,25 @@ try {
       ? ok('forge-new ships the Python runtime adapter with name stamped (Fase 2)') : bad('Python adapter not stamped (pyproject.toml)');
     readFileSync(join(apf, 'manifest.yaml'), 'utf-8').includes('python')
       ? ok('forge-new stamps runtime_adapters: [..., python] into manifest.yaml (Fase 2)') : bad('python missing from manifest runtime_adapters');
+    const costPolicy = readFileSync(join(apf, 'governance/cost.policy.yaml'), 'utf-8');
+    !costPolicy.includes('{{') && costPolicy.includes('budgets:')
+      ? ok('forge-new writes a POPULATED cost.policy.yaml (no {{TOKEN}}, Fase 3)') : bad('cost.policy still carries placeholders or no budgets');
+    const qualityPolicy = readFileSync(join(apf, 'governance/quality.policy.yaml'), 'utf-8');
+    qualityPolicy.includes('eval_gates:') && qualityPolicy.includes('fallback_chain:')
+      ? ok('forge-new writes a populated quality.policy.yaml (Fase 3)') : bad('quality.policy missing required sections');
+    const fallbackChain = readFileSync(join(apf, 'governance/fallback-chain.yaml'), 'utf-8');
+    fallbackChain.includes('primary:') && fallbackChain.includes('on_safety_block: do_not_fallback')
+      ? ok('forge-new writes a fallback-chain.yaml built from the router decision (Fase 3)') : bad('fallback-chain missing primary or safety_block rule');
+    readFileSync(join(apf, 'evals/thresholds.yaml'), 'utf-8').includes('release_gate:')
+      ? ok('forge-new writes a populated evals/thresholds.yaml (Fase 3)') : bad('evals/thresholds.yaml not populated');
+    /eval_passed_at:\s*null/.test(readFileSync(join(apf, 'manifest.yaml'), 'utf-8'))
+      ? ok('forge-new leaves eval_passed_at null without runEval (Fase 3 gate)') : bad('eval_passed_at not null without runEval');
+    const gated = await forgeNew(blueprint, join(proj, 'agent-packages-gated'), {
+      now: '2026-05-26T12:00:00Z',
+      runEval: { provider: (input) => (input.text ? { redacted: '[ok]' } : { y: 'ok' }) },
+    });
+    gated.evalResult?.verdict === 'pass' && readFileSync(join(gated.summary.targetDir, 'manifest.yaml'), 'utf-8').includes('eval_passed_at: \'2026-05-26')
+      ? ok('forge-new with runEval (passing mock) stamps eval_passed_at into manifest.yaml (Fase 3)') : bad(`runEval gate failed: verdict=${gated.evalResult?.verdict}`);
   } else {
     const { validateBlueprint, fillDefaults } = await import('file://' + join(forgeBase, 'lib', 'architect.mjs').replaceAll('\\', '/'));
     const { routeAgent } = await import('file://' + join(forgeBase, 'lib', 'router.mjs').replaceAll('\\', '/'));

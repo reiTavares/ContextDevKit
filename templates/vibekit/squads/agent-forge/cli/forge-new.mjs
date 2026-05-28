@@ -59,10 +59,16 @@ export async function forgeNew(rawBlueprint, outDir, opts = {}) {
   }
   const blueprint = fillDefaults(rawBlueprint);
   const decision = await routeAgent(blueprint, opts.routerOpts);
+  let evalResult = null;
+  if (opts.runEval) {
+    const { designEvalSet } = await import('../lib/eval-designer.mjs');
+    const { runEvalSuite } = await import('../lib/eval-runner.mjs');
+    evalResult = await runEvalSuite(designEvalSet(blueprint), opts.runEval);
+  }
   const version = opts.version ?? '0.1.0';
   const targetDir = resolve(outDir, `${blueprint.agent_name}@${version}`);
-  const summary = await packageAgent(blueprint, decision, targetDir, { ...opts, version });
-  return { blueprint, decision, summary };
+  const summary = await packageAgent(blueprint, decision, targetDir, { ...opts, version, evalResult });
+  return { blueprint, decision, summary, evalResult };
 }
 
 async function main(argv) {
