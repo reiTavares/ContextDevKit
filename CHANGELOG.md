@@ -7,6 +7,28 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 4: production maintenance + Forge Stats + reference
+  docs.** Operating a fleet of forged agents in production now has tools.
+  `lib/package-ops.mjs` discovers `<name>@<semver>/` dirs without needing the
+  yaml dep, loads manifests + provenance via the optional path, diagnoses
+  structural problems (missing files OR `{{TOKEN}}` placeholders in
+  governance YAMLs), and aggregates monthly budgets. Three CLI modules wire
+  **13 new `/forge-*` slash commands**: `cli/forge-ops.mjs`
+  (list/show/doctor/policy/budget/audit — read-only),
+  `cli/forge-eval-cli.mjs` (eval/redteam/route/fallback-test with `--provider
+  mock|chaos` for CI), `cli/forge-admin.mjs` (refresh-matrix/killswitch/
+  deprecate — dry-run by default, atomic tmp+rename writes on `--write`).
+  Each command has a thin briefing under `templates/claude/commands/forge-*.md`
+  carrying its refusal conditions. The Node runtime adapter ships a
+  `createShadowEval` scaffold (sample rate from
+  `quality.policy.yaml.eval_gates.drift_monitoring.sample_pct`; real scoring
+  delegated to the package's `evals/`). `/vibe-stats` gains a **Forge Stats**
+  section (package count, eval-stamp ratio, aggregate target + hard cap,
+  distribution by primary provider). New reference docs:
+  [`docs/SQUADS/agent-forge.md`](docs/SQUADS/agent-forge.md) +
+  [`docs/AGENT-PACKAGE-FORMAT.md`](docs/AGENT-PACKAGE-FORMAT.md). Selfcheck
+  gains `checkPackageOps` + 19 inventory entries (13 commands + 6 files).
+  ROADMAP §8 / §9 / §10 (Forge Stats) all ✅; Fase 4 ✅. (034)
 - **agent-forge squad — Fase 3: governance + eval gate (the refuse-to-ship layer).**
   Principle 5 ("Eval before embarkation") is now enforced in code. Three pure
   zero-dep modules carry the gate: `lib/eval-designer.mjs` (`designEvalSet` seeds

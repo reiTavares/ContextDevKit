@@ -128,7 +128,10 @@ async function checkTemplates() {
   console.log('Checking template inventory...');
   const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
   cmds.length >= 35 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
-  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md']) {
+  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
+    'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
+    'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
+    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
@@ -170,7 +173,15 @@ async function checkTemplates() {
     'templates/vibekit/squads/agent-forge/router/capability-matrix.json',
     'templates/vibekit/squads/agent-forge/router/decision-rules.json',
     'templates/vibekit/squads/agent-forge/cli/forge-new.mjs',
+    'templates/vibekit/squads/agent-forge/cli/forge-ops.mjs',
+    'templates/vibekit/squads/agent-forge/cli/forge-eval-cli.mjs',
+    'templates/vibekit/squads/agent-forge/cli/forge-admin.mjs',
+    'templates/vibekit/squads/agent-forge/lib/package-ops.mjs',
+    'templates/vibekit/squads/agent-forge/lib/eval-designer.mjs',
+    'templates/vibekit/squads/agent-forge/lib/eval-runner.mjs',
+    'templates/vibekit/squads/agent-forge/lib/governance-officer.mjs',
     'templates/claude/commands/forge-new.md',
+    'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',
     'templates/vibekit/squads/agent-forge/templates/agent-package/README.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/.agentforgerc',

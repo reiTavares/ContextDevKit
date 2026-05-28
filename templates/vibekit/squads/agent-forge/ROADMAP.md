@@ -12,7 +12,7 @@
 
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 ✅; Fase 4 📋.
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 ✅; Fase 4 ✅; Fase 5 📋.
 
 ## Coverage map (blueprint section → here)
 
@@ -41,11 +41,11 @@
 | 7.4 | Eval lifecycle (3 moments) | ✅ | `best-practices.md` §6 (docs); [`lib/eval-runner.mjs`](lib/eval-runner.mjs) `runEvalSuite` (golden + red-team aggregated against thresholds; provider-agnostic — mock for CI, real adapter for prod). |
 | 7 | Eval gate in orchestrator (refuse to ship on fail) | ✅ | `forgeNew` supports `opts.runEval = { provider, semantic }`; `packageAgent` stamps `provenance.eval_passed_at` only when `evalResult.verdict === 'pass'`. The (≤3 retries → abort) refinement loop is the AGENT's job — driven by `.claude/agents/eval-designer.md`. |
 | 8 | `/forge-new` | ✅ | [`templates/claude/commands/forge-new.md`](../../../claude/commands/forge-new.md) + CLI [`cli/forge-new.mjs`](cli/forge-new.mjs) (`forgeNew()` exported for the integration test) |
-| 8 | `/forge-refresh-matrix` `/forge-route` `/forge-budget` `/forge-killswitch` `/forge-list` `/forge-show` `/forge-eval` `/forge-redteam` `/forge-audit` `/forge-doctor` `/forge-deprecate` `/forge-policy` `/forge-fallback-test` | 📋 | Fase 4 (task 034) |
-| 9 | Full lifecycle (forge → review → install → prod → maintain) | 🟡 | ✅ Fase 1 engine (architect → router → prompt+tool → packager) runs end-to-end. 📋 Fase 3 eval gate + governance enforcement. 📋 Fase 4 maintenance commands. |
+| 8 | 13 maintenance `/forge-*` commands | ✅ | `cli/forge-ops.mjs` (list/show/doctor/policy/budget/audit) + `cli/forge-eval-cli.mjs` (eval/redteam/route/fallback-test) + `cli/forge-admin.mjs` (refresh-matrix/killswitch/deprecate, dry-run by default). 13 thin briefings under `templates/claude/commands/forge-*.md`. |
+| 9 | Full lifecycle (forge → review → install → prod → maintain) | ✅ | Fase 1 engine + Fase 3 eval gate + Fase 4 maintenance commands all wired. The runtime adapter ships a `createShadowEval` scaffold (sample rate from `quality.policy.yaml.eval_gates.drift_monitoring.sample_pct`). |
 | 10 | L4 enablement | ✅ | `README.md` "Where it sits in the levels" |
 | 10 | L5 `simulate-impact` for `agent-packages/` edits | 📋 | Wire once Fase 1 emits packages |
-| 10 | L6 `/vibe-stats` Forge Stats section | 📋 | Fase 4 |
+| 10 | L6 `/vibe-stats` Forge Stats section | ✅ | `stats.mjs` `collectForge()` walks `agent-packages/`; surfaces package count, eval-stamp ratio, aggregate monthly target + hard cap, distribution by primary provider. |
 | 10 | L7 `/fleet` cross-repo agent-package registry | 📋 | Fase 5 (task 035) |
 | 11 | Implementation roadmap (5 fases) | ✅ | Mapped 1:1 to backlog 030–035 with sequenced SLAs |
 | 12 | Risks — matrix freshness | ✅ | ADR-0012 §6 + `checkCapabilityMatrix` |
