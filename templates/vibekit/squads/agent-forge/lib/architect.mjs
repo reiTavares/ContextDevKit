@@ -35,12 +35,15 @@ export const INTERVIEW_QUESTIONS = [
   { id: 'capabilities.tools', prompt: 'Does the agent call tools?', type: 'boolean', default: false },
   { id: 'capabilities.rag', prompt: 'Does the agent use RAG?', type: 'boolean', default: false },
   { id: 'capabilities.structured_output', prompt: 'Does it return structured JSON?', type: 'boolean', default: false },
+  { id: 'runtime_adapters', prompt: 'Runtime adapters to emit (comma-separated)', type: 'enum-multi',
+    enum: ['node', 'python', 'go'], default: ['node'] },
 ];
 
 const REQUIRED_PATHS = INTERVIEW_QUESTIONS.filter((q) => q.required).map((q) => q.id);
 const CATEGORY_ENUM = INTERVIEW_QUESTIONS.find((q) => q.id === 'intent.category').enum;
 const COMPLEXITY_ENUM = ['low', 'medium', 'high'];
 const RESIDENCY_ENUM = ['us', 'br-or-eu', 'on-prem', 'any'];
+const RUNTIME_ENUM = ['node', 'python', 'go'];
 
 function readPath(obj, path) {
   return path.split('.').reduce((node, key) => (node == null ? undefined : node[key]), obj);
@@ -81,6 +84,15 @@ export function validateBlueprint(blueprint) {
   if (complexity && !COMPLEXITY_ENUM.includes(complexity)) errors.push(`intent.complexity invalid: ${complexity}`);
   const residency = readPath(blueprint, 'privacy.data_residency');
   if (residency && !RESIDENCY_ENUM.includes(residency)) errors.push(`privacy.data_residency invalid: ${residency}`);
+  const runtimes = readPath(blueprint, 'runtime_adapters');
+  if (runtimes !== undefined) {
+    if (!Array.isArray(runtimes) || runtimes.length === 0) {
+      errors.push('runtime_adapters must be a non-empty array');
+    } else {
+      const unknown = runtimes.filter((r) => !RUNTIME_ENUM.includes(r));
+      if (unknown.length) errors.push(`runtime_adapters has unknown entries: ${unknown.join(', ')} (allowed: ${RUNTIME_ENUM.join('|')})`);
+    }
+  }
   return { ok: errors.length === 0, errors };
 }
 

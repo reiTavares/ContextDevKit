@@ -203,6 +203,7 @@ try {
     intent: { category: 'classification', complexity: 'low' },
     privacy: { allow_cloud_providers: true, data_residency: 'br-or-eu' },
     capabilities: { tools: false, structured_output: true },
+    runtime_adapters: ['node', 'python'],
   };
   let yamlAvail = false;
   try { await import('yaml'); yamlAvail = true; } catch { /* optional dep — ADR-0013 */ }
@@ -210,9 +211,13 @@ try {
     const { forgeNew } = await import('file://' + join(forgeBase, 'cli', 'forge-new.mjs').replaceAll('\\', '/'));
     const result = await forgeNew(blueprint, join(proj, 'agent-packages'), { now: '2026-05-26T12:00:00Z' });
     const apf = result.summary.targetDir;
-    const expected = ['manifest.yaml', 'README.md', 'prompts/system.canonical.md', 'prompts/system.anthropic.md',
-      'prompts/system.openai.md', 'tools/schemas.canonical.json', 'tools/adapters/anthropic.tools.json',
-      'tools/adapters/openai.tools.json', 'evals/golden.jsonl', 'governance/cost.policy.yaml', 'adapters/node/index.js'];
+    const expected = ['manifest.yaml', 'README.md', 'prompts/system.canonical.md',
+      'prompts/system.anthropic.md', 'prompts/system.openai.md',
+      'prompts/system.google.md', 'prompts/system.deepseek.md', 'prompts/system.ollama.md',
+      'tools/schemas.canonical.json',
+      'tools/adapters/anthropic.tools.json', 'tools/adapters/openai.tools.json',
+      'tools/adapters/google.tools.json', 'tools/adapters/deepseek.tools.json', 'tools/adapters/ollama.tools.json',
+      'evals/golden.jsonl', 'governance/cost.policy.yaml', 'adapters/node/index.js'];
     const missing = expected.filter((f) => !existsSync(join(apf, f)));
     missing.length === 0 ? ok(`forge-new writes a complete APF (${expected.length} files)`) : bad(`APF missing: ${missing.join(', ')}`);
     const manifest = readFileSync(join(apf, 'manifest.yaml'), 'utf-8');
@@ -222,10 +227,24 @@ try {
       ? ok('forge-new stamps the routed primary provider into manifest.yaml') : bad('primary provider not in manifest');
     readFileSync(join(apf, 'prompts/system.anthropic.md'), 'utf-8').includes('<role>')
       ? ok('forge-new emits the Anthropic XML system prompt') : bad('Anthropic XML prompt missing');
+    readFileSync(join(apf, 'prompts/system.deepseek.md'), 'utf-8').includes('Think step by step')
+      ? ok('forge-new emits the DeepSeek prompt with explicit CoT cue (Fase 2)') : bad('DeepSeek CoT cue missing');
+    readFileSync(join(apf, 'prompts/system.google.md'), 'utf-8').includes('systemInstruction')
+      ? ok('forge-new emits the Gemini prompt with safetySettings note (Fase 2)') : bad('Gemini systemInstruction note missing');
     JSON.parse(readFileSync(join(apf, 'tools/adapters/openai.tools.json'), 'utf-8')).tools.every((t) => t.type === 'function')
       ? ok('forge-new emits OpenAI function-format tool adapters') : bad('OpenAI adapter malformed');
+    const googleAdapter = JSON.parse(readFileSync(join(apf, 'tools/adapters/google.tools.json'), 'utf-8'));
+    Array.isArray(googleAdapter.functionDeclarations) && googleAdapter.functionDeclarations.every((decl) => !('additionalProperties' in (decl.parameters || {})))
+      ? ok('forge-new emits Gemini functionDeclarations (additionalProperties stripped) (Fase 2)') : bad('Gemini adapter malformed or kept stripped fields');
+    JSON.parse(readFileSync(join(apf, 'tools/adapters/deepseek.tools.json'), 'utf-8')).tools.every((t) => t.type === 'function')
+      ? ok('forge-new emits DeepSeek tool adapter (OpenAI-compat) (Fase 2)') : bad('DeepSeek adapter malformed');
     readFileSync(join(apf, 'adapters/node/index.js'), 'utf-8').length > 0
       ? ok('forge-new ships the Node runtime adapter (round-trip ready)') : bad('Node adapter missing');
+    const pyproject = readFileSync(join(apf, 'adapters/python/pyproject.toml'), 'utf-8');
+    pyproject.includes(blueprint.agent_name) && !pyproject.includes('{{AGENT_NAME}}')
+      ? ok('forge-new ships the Python runtime adapter with name stamped (Fase 2)') : bad('Python adapter not stamped (pyproject.toml)');
+    readFileSync(join(apf, 'manifest.yaml'), 'utf-8').includes('python')
+      ? ok('forge-new stamps runtime_adapters: [..., python] into manifest.yaml (Fase 2)') : bad('python missing from manifest runtime_adapters');
   } else {
     const { validateBlueprint, fillDefaults } = await import('file://' + join(forgeBase, 'lib', 'architect.mjs').replaceAll('\\', '/'));
     const { routeAgent } = await import('file://' + join(forgeBase, 'lib', 'router.mjs').replaceAll('\\', '/'));
@@ -233,19 +252,33 @@ try {
     const { generatePrompts } = await import('file://' + join(forgeBase, 'lib', 'prompt-gen.mjs').replaceAll('\\', '/'));
     const { generateAdapters } = await import('file://' + join(forgeBase, 'lib', 'tool-gen.mjs').replaceAll('\\', '/'));
     validateBlueprint(blueprint).ok ? ok('forge-new (no-yaml): blueprint validates') : bad('blueprint invalid');
+    !validateBlueprint({ ...blueprint, runtime_adapters: ['rust'] }).ok
+      ? ok('forge-new (no-yaml): validateBlueprint rejects unknown runtime_adapters (Fase 2)') : bad('validateBlueprint accepted bogus runtime');
     const filled = fillDefaults(blueprint);
+    Array.isArray(filled.runtime_adapters) && filled.runtime_adapters[0] === 'node'
+      ? ok('forge-new (no-yaml): fillDefaults sets runtime_adapters default [node] (Fase 2)') : bad('runtime_adapters default missing');
     const decision = await routeAgent(filled);
     const manifest = assembleManifest(filled, decision, { now: '2026-05-26T12:00:00Z' });
     manifest.metadata.name === blueprint.agent_name && manifest.spec.model_selection.primary.provider === decision.primary.split('/')[0]
       ? ok('forge-new (no-yaml): assembleManifest stamps name + routed primary') : bad('assembleManifest mismatch');
+    const pyManifest = assembleManifest({ ...filled, runtime_adapters: ['node', 'python'] }, decision, { now: '2026-05-26T12:00:00Z' });
+    pyManifest.spec.runtime_adapters.includes('python')
+      ? ok('forge-new (no-yaml): blueprint.runtime_adapters flows into manifest.spec.runtime_adapters (Fase 2)') : bad('runtime_adapters did not flow through');
     /^[a-f0-9]{64}$/.test(manifest.metadata.provenance.blueprint_hash)
       ? ok('forge-new (no-yaml): provenance.blueprint_hash is SHA-256') : bad('blueprint_hash malformed');
     const prompts = generatePrompts('# Role\nYou classify.\n\n# Context\nClinic.\n\n# Rules\n- JSON.\n\n# Output\nJSON.\n');
     prompts.anthropic.includes('<role>') && prompts.openai.includes('# Role')
       ? ok('forge-new (no-yaml): prompt-gen renders Anthropic XML + OpenAI Markdown') : bad('prompt-gen output wrong');
-    const adapters = generateAdapters({ classify: { description: 'Classify text', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } } });
+    prompts.google?.includes('systemInstruction') && prompts.deepseek?.includes('Think step by step') && prompts.ollama?.includes('chat_template')
+      ? ok('forge-new (no-yaml): prompt-gen renders Gemini + DeepSeek (CoT) + Ollama (chat_template) (Fase 2)') : bad('Fase 2 prompts missing or malformed');
+    const adapters = generateAdapters({ classify: { description: 'Classify text', input_schema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string' } }, required: ['text'] } } });
     adapters.anthropic.tools[0].name === 'classify' && adapters.openai.tools[0].type === 'function'
       ? ok('forge-new (no-yaml): tool-gen renders Anthropic + OpenAI adapters') : bad('tool-gen output wrong');
+    const geminiDecl = adapters.google?.functionDeclarations?.[0];
+    geminiDecl?.name === 'classify' && !('additionalProperties' in (geminiDecl.parameters || {}))
+      ? ok('forge-new (no-yaml): tool-gen Gemini strips JSON-Schema fields not in the subset (Fase 2)') : bad('Gemini down-conversion wrong');
+    adapters.deepseek?.tools?.[0]?.type === 'function' && adapters.ollama?.tools?.[0]?.type === 'function'
+      ? ok('forge-new (no-yaml): tool-gen DeepSeek + Ollama mirror OpenAI shape (Fase 2)') : bad('DeepSeek/Ollama adapters wrong');
     console.log('  ⓘ yaml dep not installed — full file-write round-trip skipped (install: npm i yaml).');
   }
 } catch (err) {

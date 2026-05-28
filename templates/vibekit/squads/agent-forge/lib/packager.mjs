@@ -77,7 +77,7 @@ export function assembleManifest(blueprint, decision, opts = {}) {
         quality: 'governance/quality.policy.yaml',
         fallback: 'governance/fallback-chain.yaml',
       },
-      runtime_adapters: opts.runtimeAdapters ?? ['node'],
+      runtime_adapters: opts.runtimeAdapters ?? blueprint.runtime_adapters ?? ['node'],
     },
   };
 }
@@ -119,20 +119,59 @@ export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
   const prompts = generatePrompts(canonicalPrompt);
   await writeText(join(targetDir, 'prompts/system.anthropic.md'), prompts.anthropic);
   await writeText(join(targetDir, 'prompts/system.openai.md'), prompts.openai);
+  await writeText(join(targetDir, 'prompts/system.google.md'), prompts.google);
+  await writeText(join(targetDir, 'prompts/system.deepseek.md'), prompts.deepseek);
+  await writeText(join(targetDir, 'prompts/system.ollama.md'), prompts.ollama);
 
   const canonicalTools = JSON.parse((await readFile(join(targetDir, 'tools/schemas.canonical.json'), 'utf-8')).replace(/^﻿/, ''));
   const adapters = generateAdapters(canonicalTools);
   await writeText(join(targetDir, 'tools/adapters/anthropic.tools.json'), JSON.stringify(adapters.anthropic, null, 2) + '\n');
   await writeText(join(targetDir, 'tools/adapters/openai.tools.json'), JSON.stringify(adapters.openai, null, 2) + '\n');
+  await writeText(join(targetDir, 'tools/adapters/google.tools.json'), JSON.stringify(adapters.google, null, 2) + '\n');
+  await writeText(join(targetDir, 'tools/adapters/deepseek.tools.json'), JSON.stringify(adapters.deepseek, null, 2) + '\n');
+  await writeText(join(targetDir, 'tools/adapters/ollama.tools.json'), JSON.stringify(adapters.ollama, null, 2) + '\n');
 
   const readmePath = join(targetDir, 'README.md');
   await writeText(readmePath, stampReadme(await readFile(readmePath, 'utf-8'), decision));
 
+  await stampRuntimeAdapters(targetDir, blueprint, manifest.spec.runtime_adapters);
+
   return {
     targetDir,
     manifest,
-    files_written: ['manifest.yaml', 'prompts/system.anthropic.md', 'prompts/system.openai.md',
-      'tools/adapters/anthropic.tools.json', 'tools/adapters/openai.tools.json', 'README.md'],
+    files_written: ['manifest.yaml',
+      'prompts/system.anthropic.md', 'prompts/system.openai.md',
+      'prompts/system.google.md', 'prompts/system.deepseek.md', 'prompts/system.ollama.md',
+      'tools/adapters/anthropic.tools.json', 'tools/adapters/openai.tools.json',
+      'tools/adapters/google.tools.json', 'tools/adapters/deepseek.tools.json',
+      'tools/adapters/ollama.tools.json',
+      'README.md'],
     provenance: manifest.metadata.provenance,
   };
+}
+
+/**
+ * Replace `{{AGENT_NAME}}` (and the project version) in the Node + Python adapter
+ * manifests when those runtimes are requested. Pure I/O: no behavioural change to
+ * the adapter logic, just removes the literal placeholders so the package installs
+ * cleanly. Stays best-effort — a missing adapter dir is ignored.
+ */
+async function stampRuntimeAdapters(targetDir, blueprint, runtimes) {
+  const name = blueprint.agent_name;
+  const subs = (text) => String(text).replaceAll('{{AGENT_NAME}}', name).replaceAll('{{SEE_LICENSE}}', 'UNLICENSED');
+  const safeStamp = async (path) => {
+    try {
+      await writeText(path, subs(await readFile(path, 'utf-8')));
+    } catch {
+      /* adapter dir absent or unreadable — ignore */
+    }
+  };
+  if (runtimes?.includes('node')) {
+    await safeStamp(join(targetDir, 'adapters/node/package.json'));
+    await safeStamp(join(targetDir, 'adapters/node/README.md'));
+  }
+  if (runtimes?.includes('python')) {
+    await safeStamp(join(targetDir, 'adapters/python/pyproject.toml'));
+    await safeStamp(join(targetDir, 'adapters/python/README.md'));
+  }
 }
