@@ -69,6 +69,23 @@
 🆕 **`checkRouterEngine` selfcheck** (Fase 1) — behavioural guard: typical blueprint + no-cloud constraint both honored; rationale carries the eval-as-authority disclaimer.
 🆕 **Installer copies the squad at L>=4** (Fase 1 fix) — without this, agent-forge code lived only in source; selfcheck `checkSourceInvariants` guards the copy.
 🆕 **forge-new no-yaml fallback** (Fase 1) — integration test exercises the pure half of the pipeline (validate → route → assembleManifest → gens) so CI without the optional `yaml` dep still proves correctness end-to-end.
+🆕 **`runtime_adapters` is a first-class blueprint field** (Fase 2) — `enum-multi` over `[node, python, go]` with default `[node]`; `validateBlueprint` rejects unknown entries; `assembleManifest` reads it straight from the blueprint, so the manifest is no longer a packager-opts artifact.
+🆕 **Gemini subset enforced at generation time** (Fase 2) — `downConvertForGemini` strips `additionalProperties` / `$schema` / `$id` / `$ref` recursively so `functionDeclarations` is valid the moment it's written; the runtime adapter never has to remediate.
+🆕 **DeepSeek CoT cue baked into the prompt, not the runtime** (Fase 2) — `renderDeepSeek` prepends "Think step by step…" to Rules; the runtime contract stays uniform across providers.
+🆕 **governance-officer THROWS, not warns** (Fase 3) — `attachGovernance` runs at the top of `packageAgent`, before any I/O, so under-configured pillars never waste a `copyTree`. Refusal is a feature.
+🆕 **`semantic_similarity:>=N` skips without a callback** (Fase 3) — when `opts.semantic` is absent the field is *uncounted*, not failed; CI gates don't false-negative on missing embeddings.
+🆕 **One seed golden per package** (Fase 3) — `eval-designer` ships ONE category-shaped case; the eval-designer agent drives 10–50 domain-specific expansion with the dev. Templates carry no made-up domain content.
+🆕 **`eval_passed_at` defaults to `null`** (Fase 3) — the default is a *refused* gate, not an assumed pass. Only `evalResult.verdict === 'pass'` stamps the timestamp.
+🆕 **Mutator CLIs are dry-run by default** (Fase 4) — `/forge-refresh-matrix` / `/forge-killswitch` / `/forge-deprecate` only print the proposed diff; `--write` triggers an atomic tmp+rename. Refuse-over-rubber-stamp posture.
+🆕 **`discoverPackages` survives without `yaml`** (Fase 4) — directory walk + regex on `<name>@<semver>`; listing always works, columns from `manifest.yaml` degrade to `?` / `NEVER` gracefully.
+🆕 **Three CLI modules grouped by intent**, not 13 files (Fase 4) — `cli/forge-ops.mjs` (read) / `cli/forge-eval-cli.mjs` (re-run) / `cli/forge-admin.mjs` (mutate) share `lib/package-ops.mjs` and stay under 180 lines each.
+🆕 **Shadow-eval is a scaffold, not a runner** (Fase 4) — Node adapter ships `createShadowEval` with the sample-rate gate + a `runOne` delegation point; scoring stays single-sourced in the package's `evals/` + the kit's `eval-runner`.
+🆕 **`/forge-refresh-matrix` only stamps `updated`** (Fase 4) — model adds/removes/price changes stay ADR-gated (ADR-0012 §6). The command surfaces the ADR expectation in its output.
+🆕 **L5 simulate-impact gate is default-ON for `agent-packages/**`** (Fase 5) — `defaults.l5.highRiskPaths` ships with the glob; swapping a forged agent's primary model is too high-blast-radius to require opt-in.
+🆕 **Selfcheck split by responsibility, not phase** (Fase 5) — `selfcheck-agent-forge.mjs` (build pipeline: matrix + hot-path + router + Fase-3 gate) vs `selfcheck-agent-forge-ops.mjs` (operations: package-ops + rag-designer + L5 gate). Build engine vs running fleet.
+🆕 **Pinecone-under-no-cloud is refused, not silently downgraded** (Fase 5) — `rag-designer` makes the compliance contradiction explicit rather than quietly switching to pgvector and hiding the residency intent.
+🆕 **`/fleet stats` Forge fleet aggregation** (Fase 5) — `fleet.mjs cmdStats` surfaces packages, eval-stamp ratio, monthly target + hard cap both per-repo and as a fleet total — cross-project divergence becomes visible at the registry level.
+🆕 **.NET / Rust adapters deferred to demand** (Fase 5) — `stampRuntimeAdapters` seam is clean (a one-line `if (runtimes.includes('dotnet'))` branch when a real project asks). The blueprint said "per demand", and the polish is honest about it.
 
 ## How this stays current
 
