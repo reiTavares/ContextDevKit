@@ -7,6 +7,25 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 2: multi-provider + Python runtime adapter.** All five
+  providers now flow end-to-end through the pipeline. `prompt-gen.mjs` gains
+  `renderGoogle` (Markdown body for `systemInstruction` + safetySettings note),
+  `renderDeepSeek` (OpenAI-compat with an explicit CoT cue prepended to Rules),
+  `renderOllama` (Markdown body; the per-model `chat_template` is applied by the
+  runtime, not embedded). `tool-gen.mjs` gains `renderGoogle` with
+  `downConvertForGemini` that recursively strips JSON-Schema fields Gemini's
+  `functionDeclarations` parser rejects (`additionalProperties`, `$schema`, `$id`,
+  `$ref`), plus `renderDeepSeek` + `renderOllama` mirroring OpenAI's `type:function`
+  shape. `packager.mjs` writes the full 5 prompt files + 5 tool adapter files on
+  every package, and a new `stampRuntimeAdapters` replaces `{{AGENT_NAME}}` /
+  `{{SEE_LICENSE}}` in Node `package.json` + Python `pyproject.toml` (+ their
+  READMEs) when those runtimes are requested. `architect.mjs` promotes
+  `runtime_adapters` to a first-class blueprint field (`enum-multi` over
+  `[node, python, go]`, default `[node]`) — `validateBlueprint` rejects unknown
+  entries, `fillDefaults` defaults it, `assembleManifest` stamps
+  `spec.runtime_adapters` straight from the blueprint. Integration test gains 7
+  new asserts across both branches (yaml-available + no-yaml CI default) covering
+  every new provider + the Python adapter token stamping. (032)
 - **agent-forge squad — Fase 1 MVP: end-to-end forge pipeline.** The squad now
   produces a real Agent Package. Six pure, zero-dep `lib/*.mjs` modules carry the
   pipeline: `architect.mjs` (canonical `INTERVIEW_QUESTIONS` + `validateBlueprint` +

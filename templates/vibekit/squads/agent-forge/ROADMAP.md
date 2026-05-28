@@ -12,7 +12,7 @@
 
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 📋.
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 📋.
 
 ## Coverage map (blueprint section → here)
 
@@ -30,8 +30,8 @@
 | 4.3 | `decision-rules.json` | ✅ | [`router/decision-rules.json`](router/decision-rules.json) — 13 rules (cap 15), shortlists only, no quality opinions (ADR-0012 §5). Engine in [`lib/router.mjs`](lib/router.mjs). |
 | 4.4 | Rationale section in package README | ✅ slot + generator | The model-router emits the canonical `## Model Selection Rationale` block (rule trace + cross-provider fallback warning + eval-as-authority disclaimer) — `lib/router.mjs` `buildRationale`. |
 | 5 | Per-provider behaviour notes | ✅ | `best-practices.md` §4 (condensed table) |
-| 5 | `prompt-engineer` per-provider generators | 🟡 | ✅ Fase 1: Anthropic (XML, `cache=ephemeral` on Context) + OpenAI (Markdown `# Role`/`## Section`). 📋 Fase 2: Gemini, DeepSeek, self-hosted. [`lib/prompt-gen.mjs`](lib/prompt-gen.mjs) |
-| 5 | `tool-designer` per-provider generators | 🟡 | ✅ Fase 1: Anthropic (`name`/`description`/`input_schema`) + OpenAI (`type:function` wrapper). 📋 Fase 2: Gemini (functionDeclarations subset), DeepSeek (OpenAI-compat), Ollama (chat_template). [`lib/tool-gen.mjs`](lib/tool-gen.mjs) |
+| 5 | `prompt-engineer` per-provider generators | ✅ | All 5 providers: Anthropic (XML, `cache=ephemeral`), OpenAI (Markdown), Google (`systemInstruction` body + safetySettings note), DeepSeek (OpenAI-compat + explicit CoT cue), Ollama (Markdown, chat_template applied by runtime). [`lib/prompt-gen.mjs`](lib/prompt-gen.mjs) |
+| 5 | `tool-designer` per-provider generators | ✅ | All 5 providers: Anthropic (`name`/`description`/`input_schema`), OpenAI (`type:function`), Google (`functionDeclarations` SUBSET — `additionalProperties` + `$schema` stripped), DeepSeek + Ollama (OpenAI-compat shapes). [`lib/tool-gen.mjs`](lib/tool-gen.mjs) |
 | 5 | Runtime `AgentRuntime` contract | ✅ | Documented in APF adapter READMEs + Node/Python/Go stubs |
 | 6.1–6.3 | Cost / compliance / quality policy templates | ✅ | [`templates/agent-package/governance/`](templates/agent-package/governance/) |
 | 6.x | `fallback-chain.yaml` + `audit.schema.json` | ✅ | Same dir |
