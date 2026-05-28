@@ -211,6 +211,49 @@ async function checkEvalRunner(rep, KIT) {
     : bad(`expected fail with pii_leak, got verdict=${failResult.verdict}, failures=${failResult.failures.join(',')}`);
 }
 
+/** Fase 4: package-ops discovers `<name>@<semver>/` dirs without needing yaml; diagnose
+ *  flags missing files + unresolved `{{TOKEN}}` placeholders in governance YAMLs. */
+async function checkPackageOps(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking agent-forge package-ops (Fase 4)...');
+  const opsUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/package-ops.mjs').replaceAll('\\', '/');
+  let discoverPackages;
+  let diagnosePackage;
+  try {
+    ({ discoverPackages, diagnosePackage } = await import(opsUrl));
+  } catch (err) {
+    bad(`package-ops import failed: ${err.message}`);
+    return;
+  }
+  const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const root = mkdtempSync(join(tmpdir(), 'forge-ops-'));
+  try {
+    mkdirSync(join(root, 'demo@0.1.0/governance'), { recursive: true });
+    mkdirSync(join(root, 'demo@0.1.0/prompts'));
+    mkdirSync(join(root, 'demo@0.1.0/tools'));
+    mkdirSync(join(root, 'demo@0.1.0/evals'));
+    mkdirSync(join(root, 'not-a-package'));
+    writeFileSync(join(root, 'demo@0.1.0/manifest.yaml'), 'apiVersion: x\n');
+    const pkgs = await discoverPackages(root);
+    pkgs.length === 1 && pkgs[0].name === 'demo' && pkgs[0].version === '0.1.0'
+      ? ok('package-ops.discoverPackages finds <name>@<semver> dirs and skips others (Fase 4)')
+      : bad(`discoverPackages wrong: ${JSON.stringify(pkgs)}`);
+    const diag = await diagnosePackage(join(root, 'demo@0.1.0'));
+    diag.ok === false && diag.problems.some((problem) => problem.includes('missing'))
+      ? ok('package-ops.diagnosePackage reports missing required files (Fase 4)')
+      : bad(`diagnose wrong: ${JSON.stringify(diag)}`);
+    writeFileSync(join(root, 'demo@0.1.0/governance/cost.policy.yaml'), 'budgets:\n  per_call: {{0.015}}\n');
+    const diag2 = await diagnosePackage(join(root, 'demo@0.1.0'));
+    diag2.problems.some((problem) => problem.includes('{{TOKEN}}') || problem.includes('placeholders'))
+      ? ok('package-ops.diagnosePackage refuses governance YAML with {{TOKEN}} placeholders (Fase 4)')
+      : bad(`diagnose missed placeholders: ${JSON.stringify(diag2)}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 /** Runs every agent-forge-specific check in order. */
 export async function runAgentForgeChecks(rep, KIT) {
   await checkCapabilityMatrix(rep, KIT);
@@ -219,4 +262,5 @@ export async function runAgentForgeChecks(rep, KIT) {
   await checkEvalDesigner(rep, KIT);
   await checkGovernanceOfficer(rep, KIT);
   await checkEvalRunner(rep, KIT);
+  await checkPackageOps(rep, KIT);
 }
