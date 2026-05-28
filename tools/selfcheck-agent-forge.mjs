@@ -1,9 +1,11 @@
 /**
- * Self-check assertions specific to the `agent-forge` squad (ADR-0012, ADR-0013).
+ * Self-check assertions for the agent-forge **build pipeline** — foundational
+ * invariants (capability matrix, hot-path zero-yaml), the model-router, and the
+ * Fase 3 gate (eval-designer, governance-officer, eval-runner).
  *
- * Split out of `selfcheck-checks.mjs` once the squad gained a third dedicated
- * check (`checkRouterEngine`) — a real responsibility seam, not a premature
- * split. The squad will add more checks across Fases 1–5; this file grows with it.
+ * Operations / lifecycle checks (Fase 4 + 5: package-ops, rag-designer, L5
+ * forge-path gate) live in `selfcheck-agent-forge-ops.mjs`. Both runners are
+ * fanned out from `selfcheck.mjs` (no cross-import, no cycles).
  *
  * Same contract as `selfcheck-checks.mjs`: every function takes the reporter
  * `rep` ({ ok, bad }) plus only what it needs. Entry point:
@@ -211,50 +213,8 @@ async function checkEvalRunner(rep, KIT) {
     : bad(`expected fail with pii_leak, got verdict=${failResult.verdict}, failures=${failResult.failures.join(',')}`);
 }
 
-/** Fase 4: package-ops discovers `<name>@<semver>/` dirs without needing yaml; diagnose
- *  flags missing files + unresolved `{{TOKEN}}` placeholders in governance YAMLs. */
-async function checkPackageOps(rep, KIT) {
-  const { ok, bad } = rep;
-  console.log('Checking agent-forge package-ops (Fase 4)...');
-  const opsUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/package-ops.mjs').replaceAll('\\', '/');
-  let discoverPackages;
-  let diagnosePackage;
-  try {
-    ({ discoverPackages, diagnosePackage } = await import(opsUrl));
-  } catch (err) {
-    bad(`package-ops import failed: ${err.message}`);
-    return;
-  }
-  const { mkdtempSync, writeFileSync, mkdirSync, rmSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const { join } = await import('node:path');
-  const root = mkdtempSync(join(tmpdir(), 'forge-ops-'));
-  try {
-    mkdirSync(join(root, 'demo@0.1.0/governance'), { recursive: true });
-    mkdirSync(join(root, 'demo@0.1.0/prompts'));
-    mkdirSync(join(root, 'demo@0.1.0/tools'));
-    mkdirSync(join(root, 'demo@0.1.0/evals'));
-    mkdirSync(join(root, 'not-a-package'));
-    writeFileSync(join(root, 'demo@0.1.0/manifest.yaml'), 'apiVersion: x\n');
-    const pkgs = await discoverPackages(root);
-    pkgs.length === 1 && pkgs[0].name === 'demo' && pkgs[0].version === '0.1.0'
-      ? ok('package-ops.discoverPackages finds <name>@<semver> dirs and skips others (Fase 4)')
-      : bad(`discoverPackages wrong: ${JSON.stringify(pkgs)}`);
-    const diag = await diagnosePackage(join(root, 'demo@0.1.0'));
-    diag.ok === false && diag.problems.some((problem) => problem.includes('missing'))
-      ? ok('package-ops.diagnosePackage reports missing required files (Fase 4)')
-      : bad(`diagnose wrong: ${JSON.stringify(diag)}`);
-    writeFileSync(join(root, 'demo@0.1.0/governance/cost.policy.yaml'), 'budgets:\n  per_call: {{0.015}}\n');
-    const diag2 = await diagnosePackage(join(root, 'demo@0.1.0'));
-    diag2.problems.some((problem) => problem.includes('{{TOKEN}}') || problem.includes('placeholders'))
-      ? ok('package-ops.diagnosePackage refuses governance YAML with {{TOKEN}} placeholders (Fase 4)')
-      : bad(`diagnose missed placeholders: ${JSON.stringify(diag2)}`);
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-}
-
-/** Runs every agent-forge-specific check in order. */
+/** Runs every agent-forge build-pipeline check in order. Operations checks
+ *  (package-ops, rag-designer, L5 forge-path) live in `./selfcheck-agent-forge-ops.mjs`. */
 export async function runAgentForgeChecks(rep, KIT) {
   await checkCapabilityMatrix(rep, KIT);
   await checkHotPathNoYaml(rep, KIT);
@@ -262,5 +222,4 @@ export async function runAgentForgeChecks(rep, KIT) {
   await checkEvalDesigner(rep, KIT);
   await checkGovernanceOfficer(rep, KIT);
   await checkEvalRunner(rep, KIT);
-  await checkPackageOps(rep, KIT);
 }

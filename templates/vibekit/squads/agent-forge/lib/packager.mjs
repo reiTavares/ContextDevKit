@@ -18,6 +18,7 @@ import { blueprintHash } from './architect.mjs';
 import { designEvalSet, toJsonl } from './eval-designer.mjs';
 import { attachGovernance } from './governance-officer.mjs';
 import { generatePrompts } from './prompt-gen.mjs';
+import { designRagConfig } from './rag-designer.mjs';
 import { generateAdapters } from './tool-gen.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -130,6 +131,16 @@ export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
   await writeText(join(targetDir, 'governance/quality.policy.yaml'), await stringifyYaml(governance.quality));
   await writeText(join(targetDir, 'governance/fallback-chain.yaml'), await stringifyYaml(governance.fallback));
 
+  let rag = null;
+  if (blueprint?.capabilities?.rag === true) {
+    rag = designRagConfig(blueprint);
+    await writeText(join(targetDir, 'rag/config.yaml'), await stringifyYaml(rag.config));
+    await writeText(join(targetDir, 'rag/ingestion/chunker.config.yaml'), await stringifyYaml(rag.chunker));
+    await writeText(join(targetDir, 'rag/ingestion/sources.yaml'), await stringifyYaml(rag.sources));
+    await writeText(join(targetDir, 'rag/retrieval/query-template.md'), rag.queryTemplate);
+    await writeText(join(targetDir, 'rag/retrieval/rerank.config.yaml'), await stringifyYaml(rag.rerank));
+  }
+
   const canonicalPrompt = await readFile(join(targetDir, 'prompts/system.canonical.md'), 'utf-8');
   const prompts = generatePrompts(canonicalPrompt);
   await writeText(join(targetDir, 'prompts/system.anthropic.md'), prompts.anthropic);
@@ -167,6 +178,7 @@ export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
     provenance: manifest.metadata.provenance,
     governance,
     evalSet,
+    rag,
   };
 }
 
@@ -178,7 +190,13 @@ export async function packageAgent(blueprint, decision, targetDir, opts = {}) {
  */
 async function stampRuntimeAdapters(targetDir, blueprint, runtimes) {
   const name = blueprint.agent_name;
-  const subs = (text) => String(text).replaceAll('{{AGENT_NAME}}', name).replaceAll('{{SEE_LICENSE}}', 'UNLICENSED');
+  const modulePath = blueprint?.go_module_path || 'example.com';
+  const subs = (text) => String(text)
+    .replaceAll('{{AGENT_NAME}}', name)
+    .replaceAll('{{SEE_LICENSE}}', 'UNLICENSED')
+    .replaceAll('{{MODULE_PATH}}', modulePath)
+    .replaceAll('{{1.22}}', '1.22')
+    .replaceAll('{{3.10}}', '3.10');
   const safeStamp = async (path) => {
     try {
       await writeText(path, subs(await readFile(path, 'utf-8')));
@@ -193,5 +211,9 @@ async function stampRuntimeAdapters(targetDir, blueprint, runtimes) {
   if (runtimes?.includes('python')) {
     await safeStamp(join(targetDir, 'adapters/python/pyproject.toml'));
     await safeStamp(join(targetDir, 'adapters/python/README.md'));
+  }
+  if (runtimes?.includes('go')) {
+    await safeStamp(join(targetDir, 'adapters/go/go.mod'));
+    await safeStamp(join(targetDir, 'adapters/go/README.md'));
   }
 }

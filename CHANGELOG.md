@@ -7,6 +7,21 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 5: RAG designer + Go runtime + L5 gate + /fleet
+  Forge Stats.** Closes the original blueprint. New `lib/rag-designer.mjs`
+  generates the `rag/` bundle from the blueprint when `capabilities.rag` is
+  true — multilingual-vs-english embedding from `intent.domain`, pgvector vs
+  qdrant from residency, recursive chunk sizing tightened for extraction,
+  `top_k` scaled by complexity, hybrid search + reranker on by default. The
+  packager now also stamps `{{AGENT_NAME}}` / `{{MODULE_PATH}}` into the Go
+  runtime adapter (`go.mod` + README). `defaults.l5.highRiskPaths` ships with
+  `agent-packages/**` so any forged-agent edit triggers the simulate-impact
+  gate. `fleet.mjs cmdStats` aggregates per-repo Forge Stats and surfaces a
+  fleet-total `🔥 Forge fleet: N packages across M repos…` line. Selfcheck
+  split: build-pipeline checks stay in `selfcheck-agent-forge.mjs` (225
+  lines), Fase 4+5 ops checks moved to the new `selfcheck-agent-forge-ops.mjs`
+  (real responsibility seam). New `rag-designer.md` briefing — refuses
+  pinecone under no-cloud, refuses `top_k < 4`. (035)
 - **agent-forge squad — Fase 4: production maintenance + Forge Stats + reference
   docs.** Operating a fleet of forged agents in production now has tools.
   `lib/package-ops.mjs` discovers `<name>@<semver>/` dirs without needing the

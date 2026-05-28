@@ -12,7 +12,7 @@
 
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). Fase 0 ✅; Fase 1 ✅; Fase 2 ✅; Fase 3 ✅; Fase 4 ✅; Fase 5 📋.
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). All ✅ — Fase 0 / 1 / 2 / 3 / 4 / 5.
 
 ## Coverage map (blueprint section → here)
 
@@ -21,7 +21,7 @@
 | 0–1 | Exec summary + 5 principles | ✅ | [`README.md`](README.md), [`best-practices.md`](best-practices.md) |
 | 2 | `squad.manifest.json` | ➖ | Dropped by ADR-0012 §3 — squads detected by `squadOf` (the `(agent-forge squad)` tag) |
 | 2 | Squad folder + roster table | ✅ | [`README.md`](README.md) — agents listed by phase |
-| 2 | The 8 lean agent files (`.claude/agents/forge-*.md`) | 🟡 | ✅ Fase 1: `forge-orchestrator` / `agent-architect` / `model-router` / `prompt-engineer` / `tool-designer` / `packager`. ✅ Fase 3: `eval-designer` + `governance-officer`. 📋 Fase 5: `rag-designer`. |
+| 2 | The 9 lean agent files (`.claude/agents/forge-*.md`) | ✅ | Fase 1: `forge-orchestrator` / `agent-architect` / `model-router` / `prompt-engineer` / `tool-designer` / `packager`. Fase 3: `eval-designer` + `governance-officer`. Fase 5: `rag-designer`. |
 | 2 | `templates/providers/<provider>/` reusable snippets | 🟡 | Per-provider stubs currently live **inside** the APF (`prompts/system.<provider>.md` + `tools/adapters/<provider>.tools.json`). Split out only if Fase 1–2 generators need shared snippets above APF scope. |
 | 2 | `policies/*.template.yaml` (squad scope) | 🟡 | The canonical policy templates ship **inside** the APF (`agent-package/governance/*.policy.yaml`). Equivalent for now; split if Fase 3's governance-officer needs squad-level partials. |
 | 3 | APF v1 — full tree (45 files) | ✅ | [`templates/agent-package/`](templates/agent-package/) (commit `d5efcd2`) |
@@ -44,14 +44,14 @@
 | 8 | 13 maintenance `/forge-*` commands | ✅ | `cli/forge-ops.mjs` (list/show/doctor/policy/budget/audit) + `cli/forge-eval-cli.mjs` (eval/redteam/route/fallback-test) + `cli/forge-admin.mjs` (refresh-matrix/killswitch/deprecate, dry-run by default). 13 thin briefings under `templates/claude/commands/forge-*.md`. |
 | 9 | Full lifecycle (forge → review → install → prod → maintain) | ✅ | Fase 1 engine + Fase 3 eval gate + Fase 4 maintenance commands all wired. The runtime adapter ships a `createShadowEval` scaffold (sample rate from `quality.policy.yaml.eval_gates.drift_monitoring.sample_pct`). |
 | 10 | L4 enablement | ✅ | `README.md` "Where it sits in the levels" |
-| 10 | L5 `simulate-impact` for `agent-packages/` edits | 📋 | Wire once Fase 1 emits packages |
+| 10 | L5 `simulate-impact` for `agent-packages/` edits | ✅ | `defaults.l5.highRiskPaths` includes `agent-packages/**` — the simulate-gate triggers on any forged-agent edit. Guarded by `checkL5ForgePath`. |
 | 10 | L6 `/vibe-stats` Forge Stats section | ✅ | `stats.mjs` `collectForge()` walks `agent-packages/`; surfaces package count, eval-stamp ratio, aggregate monthly target + hard cap, distribution by primary provider. |
-| 10 | L7 `/fleet` cross-repo agent-package registry | 📋 | Fase 5 (task 035) |
+| 10 | L7 `/fleet` cross-repo agent-package registry | ✅ | `fleet.mjs cmdStats` aggregates per-repo Forge Stats — packages, eval-stamp ratio, monthly target + hard cap, surfaced both per-repo and as a fleet total. |
 | 11 | Implementation roadmap (5 fases) | ✅ | Mapped 1:1 to backlog 030–035 with sequenced SLAs |
 | 12 | Risks — matrix freshness | ✅ | ADR-0012 §6 + `checkCapabilityMatrix` |
 | 12 | Risks — decision-rules Frankenstein | ✅ | Router enforces the 15-rule cap at runtime; currently 13/15. Split by intent category when outgrown. |
 | 12 | Risks — golden eval staleness | 📋 | Shadow eval feeding golden (Fase 4) |
-| 12 | Risks — cross-project package divergence | 📋 | `/fleet` (Fase 5) |
+| 12 | Risks — cross-project package divergence | ✅ | `/fleet stats` surfaces packages-per-repo + aggregate budget so divergence becomes visible across the fleet. |
 | 12 | Risks — compliance vertical templates (HIPAA/PCI) | ➖ v1 | Future jurisdiction add-ons via `compliance-team` squad |
 | 12 | Risks — forge self-cost | ✅ planned | Orchestrator defaults to Haiku (set in agent files, Fase 1) |
 | Ap A | forge vs classic squad table | ✅ | `README.md` "The boundary (why this squad is different)" |
