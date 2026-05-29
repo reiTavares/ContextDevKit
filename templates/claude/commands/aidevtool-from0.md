@@ -41,6 +41,18 @@ they want a suggestion, propose **one** recommended stack with a short rationale
 and 1–2 alternatives + trade-offs (act like `architect`). Record the choice as
 `/new-adr "Stack: <summary>"` (ADR-0001). Don't over-engineer for imagined scale.
 
+**Curated stacks with playbooks.** When a curated option fits the requirements,
+prefer it over an ad-hoc proposal — the playbook anchors conventions the kit
+will enforce later (`/setupvibedevkit`, scoped CLAUDE.md, `/contract-check`):
+
+- **TanStack** (type-safe React/Solid/Vue with Query + Router; optionally
+  Start as the full-stack frame) → `vibekit/workflows/playbooks/tanstack.md`.
+  Pick it for type-safe apps where headless control matters; **don't** stack
+  TanStack Router on top of Next/Nuxt/Remix.
+
+If you pick a curated stack, cite its playbook in the ADR and inherit its
+conventions verbatim into the project's `CLAUDE.md` "Stack" block.
+
 ## Phase 4 — Roadmap (product/business)
 
 Build `vibekit/memory/roadmap.md` **with the user** via `/roadmap new`: phases/
@@ -66,6 +78,13 @@ As soon as the project's structure exists (apps/backend/frontend/modules), give
 each its **own scoped CLAUDE.md** with `/claude-md` — the root one is the
 constitution; each module documents its local rules. Do this as modules are born,
 not after the codebase is already sprawling.
+
+**Curated-stack starter (opt-in).** If Phase 3 picked a curated stack with a
+starter under `templates/vibekit/starters/<stack>/`, offer to copy it into the
+project root as a wiring scaffold. Default is **no**; the user explicitly
+opts in. Currently available: `tanstack/` (Start + Router + Query, empty —
+no invented domain, no CSS framework, no backend choice — see ADR-0017).
+After copy, the starter becomes the user's code; no upgrade path.
 
 ## Phase 6b — Version control (verify, then decide with the user)
 Run `node vibekit/tools/scripts/git.mjs status`. `git init` if it's not a repo.

@@ -53,6 +53,13 @@ Edit `CLAUDE.md` (or merge `CLAUDE.vibedevkit.md` if the installer left one):
 - "Language policy" — set the UI language row.
 - Keep it under ~200 lines. Push detail into ADRs.
 
+**Curated-stack rules.** When the detect report contains any `@tanstack/*`
+framework, inherit the conventions block from
+`vibekit/workflows/playbooks/tanstack.md` (the "Core conventions" section)
+into the project's `CLAUDE.md` under "Stack" or "Immutable rules". Cite the
+playbook + ADR-0017. Do **not** copy the opt-in starter — `/setupvibedevkit`
+detects and writes rules; the starter is `/aidevtool-from0`-only.
+
 ## Phase 4b — Scoped CLAUDE.md per app/module
 Run `node vibekit/tools/scripts/claude-md.mjs find`. For a multi-app/monorepo
 project, ensure **each app/module has its own CLAUDE.md** (backend, frontend,
