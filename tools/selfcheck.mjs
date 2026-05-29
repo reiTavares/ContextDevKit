@@ -6,8 +6,19 @@
  *   (Does NOT import the hook entrypoints — those self-execute `main()`.)
  * - Asserts `composeSettings` wires the right hooks per level + config defaults.
  * - Confirms the expected template files are present.
- * - Delegates the deeper behavioural + structural invariants to
- *   `selfcheck-checks.mjs` (split out to stay within the line budget).
+ * - Delegates the deeper invariants to sibling modules split by category
+ *   (ADR-0016 H1 / task 037):
+ *     - `selfcheck-runtime.mjs`     — boot readers, atomic I/O, sid, squad meta.
+ *     - `selfcheck-config.mjs`      — level taxonomy + zod schema agreement.
+ *     - `selfcheck-source.mjs`      — source-level patterns, rule 4, SHA-pinning.
+ *     - `selfcheck-agent-forge.mjs` / `-ops.mjs` — agent-forge squad checks.
+ *
+ * Cohesion note (line budget): this file is the harness — engine-module
+ * loading, settings composition, config/loader checks, paths/presets,
+ * template inventory, plus dispatch to the five runners. They share one
+ * `ok`/`bad` reporter and run in a single `main()`. Splitting harness from
+ * inventory would scatter the one concern this file exists to express
+ * (smoke-test the kit before ship). Kept whole within the +10% tolerance.
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
@@ -15,7 +26,9 @@ import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { runExtendedChecks } from './selfcheck-checks.mjs';
+import { runRuntimeChecks } from './selfcheck-runtime.mjs';
+import { runConfigChecks } from './selfcheck-config.mjs';
+import { runSourceChecks } from './selfcheck-source.mjs';
 import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 
@@ -218,7 +231,9 @@ async function main() {
   if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);
   checkPaths(mods['config/paths.mjs']);
   checkPresets(mods['config/presets.mjs']);
-  await runExtendedChecks({ ok, bad }, { KIT, RT, mods });
+  await runRuntimeChecks({ ok, bad }, { KIT, mods });
+  await runConfigChecks({ ok, bad }, { RT, mods });
+  await runSourceChecks({ ok, bad }, { KIT });
   await runAgentForgeChecks({ ok, bad }, KIT);
   await runAgentForgeOpsChecks({ ok, bad }, KIT);
   await checkTemplates();
