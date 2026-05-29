@@ -12,7 +12,8 @@
 
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5). All ✅ — Fase 0 / 1 / 2 / 3 / 4 / 5.
+- **Declarative pipeline DSL** [ADR-0015](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) — `pipeline.yaml` per squad; engine is opt-in, dry-runnable, simulate-impact-mappable. First consumer is this squad (Fase 6).
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5 — all ✅) + task **036** (Fase 6 — 📋 planned by ADR-0015).
 
 ## Coverage map (blueprint section → here)
 
@@ -57,6 +58,7 @@
 | Ap A | forge vs classic squad table | ✅ | `README.md` "The boundary (why this squad is different)" |
 | Ap B | Why a separate factory squad | ✅ | Same section |
 | Ap C | Glossary | 📋 low priority | Inline in best-practices for now; consolidate if it grows |
+| — | **Fase 6 — declarative `pipeline.yaml` + dry-run engine** (ADR-0015) | 📋 task 036 | `templates/vibekit/squads/agent-forge/pipeline.yaml` + `templates/vibekit/tools/scripts/squad-pipeline.mjs` (parse via `lib/yaml.mjs`, whitelisted `condition` grammar, `on_reject` / `max_review_cycles`, `state.json` per run). Opt-in per squad; turns the orchestrator's choreography into a diffable, simulate-impact-mappable plan. |
 
 ## Net additions (ADR-driven, not in the original blueprint)
 
@@ -86,6 +88,10 @@
 🆕 **Pinecone-under-no-cloud is refused, not silently downgraded** (Fase 5) — `rag-designer` makes the compliance contradiction explicit rather than quietly switching to pgvector and hiding the residency intent.
 🆕 **`/fleet stats` Forge fleet aggregation** (Fase 5) — `fleet.mjs cmdStats` surfaces packages, eval-stamp ratio, monthly target + hard cap both per-repo and as a fleet total — cross-project divergence becomes visible at the registry level.
 🆕 **.NET / Rust adapters deferred to demand** (Fase 5) — `stampRuntimeAdapters` seam is clean (a one-line `if (runtimes.includes('dotnet'))` branch when a real project asks). The blueprint said "per demand", and the polish is honest about it.
+🆕 **`pipeline.yaml` is opt-in per squad** (Fase 6, ADR-0015) — agent-forge is the first consumer; squads without a `pipeline.yaml` keep working as today. The engine refuses (with a clear message) when `yaml` is absent — pipelines are opt-in, not hot-path, so the zero-dep rule still holds.
+🆕 **Whitelisted `condition` grammar** (Fase 6, ADR-0015 §A.2) — only `<id>(.<id>)* <op> <literal>` and `…length <op> <int>` in v1. No arbitrary expression evaluation; bigger grammar needs a new ADR with a real use case.
+🆕 **Vendor model names stay out of YAML** (Fase 6, ADR-0015 §A.3) — `model_tier: fast|powerful|reasoning` only; the router (ADR-0012 §4) is the single resolver.
+🆕 **`max_review_cycles` is a hard cap** (Fase 6, ADR-0015 §A.4) — the engine refuses to loop past the cap and exits with "manual escalation required" instead of silently retrying forever.
 
 ## How this stays current
 

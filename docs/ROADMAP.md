@@ -197,6 +197,43 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
    Turns repeatable procedures into first-class, auditable assets — same "plain files,
    advisory, inspectable" posture as the rest of the kit.
 
+## Next — DevPipeline `working/` stage + declarative squad pipelines (ADR-0015)
+
+A single ADR opens two adjacent moves, sharing one substrate (`state.json` per
+in-flight item). Inspired by a read of [opensquad](https://github.com/renatoasse/opensquad)'s
+declarative pipeline, *not* a copy — the kit's zero-dep + model-router + simulate-impact
+invariants reshape the grammar (no full expression eval, no vendor model names, opt-in
+per squad, dry-run as a first-class mode).
+
+- 📋 **DevPipeline gains a `working/` stage** (task **037**, ADR-0015 §B). Today
+  `testing/` carries two meanings — "actively being worked on" and "code written,
+  awaiting QA". That conflation hides cross-session conflicts: session A can be
+  hammering on task `031` while session B has no idea unless A manually `/claim`ed
+  the right paths. The new stage holds **only WIP**; `testing/` reclaims its
+  sign-off meaning. `/pipeline start <id>` and `/pipeline stop <id>` move tasks
+  in/out; the workspace record (`.claude/.workspace/<sid>.json`) gains a `tasks[]`
+  array so the dashboard surfaces *which session owns which task, right now*. Stale
+  auto-eviction (default 90m without a heartbeat) keeps the lane honest. The
+  pre-push hook already refuses cross-session conflicts on paths; ADR-0015 extends
+  it to task ids.
+- 📋 **Declarative `pipeline.yaml` per squad + engine** (task **036**, ADR-0015 §A).
+  Optional file per squad declaring steps, `condition`, `on_reject`,
+  `max_review_cycles`, `model_tier`, `execution`, and `type: checkpoint`. Parsed
+  via `lib/yaml.mjs` (ADR-0013 optional dynamic import); engine refuses *with a
+  clear message* when `yaml` is absent — pipelines are opt-in, not a hot-path
+  feature. First consumer is `agent-forge` (Fase 6); `/ship` adopts the same DSL
+  when ready. Dry-run is a first-class mode — `squad-pipeline.mjs <squad>
+  --dry-run` prints the would-be execution order so `/simulate-impact` can map
+  pipeline-edit blast radius before changes ship.
+- 📋 **Canonical `state.json` substrate** (task **038**, ADR-0015 §C). One schema
+  for both "task in flight" and "pipeline run", recording owner session/user/branch,
+  current step, heartbeat, retry cycles. Forge Stats v2 reads it for success rate
+  + retry distribution; `/runs` (task **039**) lists the last N across squads.
+
+**Stays inside the invariants:** the DSL is opt-in per squad, hot-path stays
+zero-dep (yaml only behind the sanctioned optional import), and `condition`
+accepts a whitelisted grammar — no arbitrary expression evaluation.
+
 ## Design invariants (don't regress these)
 
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.
