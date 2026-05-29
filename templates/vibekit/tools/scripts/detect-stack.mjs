@@ -66,7 +66,7 @@ function detectLanguages() {
 function detectFrameworks() {
   const pkg = readJson('package.json');
   const deps = pkg ? Object.keys({ ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }) : [];
-  const known = ['next', 'react', 'react-native', 'expo', 'vue', 'nuxt', 'svelte', '@sveltejs/kit', 'astro', 'solid-js', 'angular', 'hono', 'express', 'fastify', '@nestjs/core', 'koa', 'drizzle-orm', 'prisma', '@prisma/client', 'typeorm', 'mongoose', 'vite', 'webpack', 'electron', 'tauri'];
+  const known = ['next', 'react', 'react-native', 'expo', 'vue', 'nuxt', 'svelte', '@sveltejs/kit', 'astro', 'solid-js', 'angular', 'hono', 'express', 'fastify', '@nestjs/core', 'koa', 'drizzle-orm', 'prisma', '@prisma/client', 'typeorm', 'mongoose', 'vite', 'webpack', 'electron', 'tauri', '@tanstack/start', '@tanstack/react-router', '@tanstack/react-query', '@tanstack/react-table', '@tanstack/react-form', '@tanstack/react-virtual', '@tanstack/solid-query', '@tanstack/vue-query'];
   const found = known.filter((k) => deps.includes(k));
   if (has('manage.py')) found.push('django');
   if (read('requirements.txt')?.match(/flask/i) || read('pyproject.toml')?.match(/flask/i)) found.push('flask');

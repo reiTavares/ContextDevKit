@@ -65,6 +65,13 @@ async function checkSourceInvariants(rep, KIT) {
     ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
     ['agent-forge yaml loader uses optional dynamic import', 'templates/vibekit/squads/agent-forge/lib/yaml.mjs', /import\(\s*['"]yaml['"]\s*\)/],
     ['installer copies the agent-forge squad at L>=4', 'install.mjs', /copyTree\(join\(TPL, 'vibekit', 'squads', 'agent-forge'\)/],
+    ['installer copies curated-stack starters', 'install.mjs', /copyTree\(join\(TPL, 'vibekit', 'starters'\)/],
+    ['detect-stack recognises TanStack family', 'templates/vibekit/tools/scripts/detect-stack.mjs', /@tanstack\/react-router/],
+    ['tanstack playbook present', 'templates/vibekit/workflows/playbooks/tanstack.md', /Playbook — TanStack/],
+    ['tanstack starter declares react-router dep', 'templates/vibekit/starters/tanstack/package.json', /@tanstack\/react-router/],
+    ['tanstack starter declares react-query dep', 'templates/vibekit/starters/tanstack/package.json', /@tanstack\/react-query/],
+    ['tanstack starter mounts QueryClientProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /QueryClientProvider/],
+    ['tanstack starter mounts RouterProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /RouterProvider/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

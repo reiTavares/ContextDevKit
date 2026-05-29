@@ -166,6 +166,10 @@ async function main() {
   // Pluggable-detector seed (README + inert example) so the extension point is discoverable.
   const detCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'detectors'), join(target, 'vibekit', 'detectors'));
   if (detCount > 0) report.push(`✓ seeded vibekit/detectors (${detCount} file(s))`);
+  // Curated-stack starters (always overwrite — pure templates, no user edits expected here;
+  // /aidevtool-from0 copies them OUT of vibekit/starters/ into the project root, not in-place).
+  await copyTree(join(TPL, 'vibekit', 'starters'), join(target, 'vibekit', 'starters'));
+  report.push('✓ curated-stack starters installed (vibekit/starters)');
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
