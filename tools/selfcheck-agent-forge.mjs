@@ -7,13 +7,14 @@
  * forge-path gate) live in `selfcheck-agent-forge-ops.mjs`. Both runners are
  * fanned out from `selfcheck.mjs` (no cross-import, no cycles).
  *
- * Same contract as `selfcheck-checks.mjs`: every function takes the reporter
- * `rep` ({ ok, bad }) plus only what it needs. Entry point:
- * `runAgentForgeChecks(rep, KIT)`.
+ * Same contract as the sibling `selfcheck-*.mjs` modules: every function
+ * takes the reporter `rep` ({ ok, bad }) plus only what it needs. Entry
+ * point: `runAgentForgeChecks(rep, KIT)`. Borrows `listMjs` from
+ * `selfcheck-source.mjs` (shared recursive `.mjs` walker).
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { listMjs } from './selfcheck-checks.mjs';
+import { listMjs } from './selfcheck-source.mjs';
 
 /** Capability matrix parses (BOM-safe, zero-dep) with unique, well-formed ids
  *  from allowed providers (ADR-0012, constraints 5-6). */
