@@ -2,9 +2,11 @@
  * Shared harness for the integration tests.
  *
  * The end-to-end suite is split by responsibility to stay within the line budget:
- *   - `integration-test.mjs`         — core engine: install + the real hooks.
- *   - `integration-test-tooling.mjs` — the tool scripts (pipeline, deps, fleet, …).
- * Both install a throwaway temp project via `installFixture` and drive it through
+ *   - `integration-test.mjs`                  — core engine: install + the real hooks.
+ *   - `integration-test-tooling.mjs`          — the tool scripts (deps, fleet, agent-forge, …).
+ *   - `integration-test-tooling-pipeline.mjs` — the DevPipeline chain (ADR-0016 H1 split).
+ *   - `integration-test-guards.mjs`           — guards that REJECT bad input (commit-msg, pre-push, loader).
+ * Each installs a throwaway temp project via `installFixture` and drives it through
  * `child_process` with a real stdin pipe — exactly how Claude Code invokes hooks.
  * Cross-platform (avoids PowerShell's broken string-to-stdin piping), self-cleaning.
  */
