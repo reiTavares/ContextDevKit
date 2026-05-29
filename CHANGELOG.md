@@ -7,6 +7,30 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **agent-forge squad — Fase 6: declarative pipeline DSL + dry-run engine
+  (ADR-0015 Part A).** The forge's orchestration is now a diffable, simulate-
+  impact-mappable plan. New `templates/vibekit/squads/agent-forge/pipeline.yaml`
+  declares the 9 build steps (validate-blueprint → route →
+  checkpoint-shortlist → generate-prompt → generate-tools? → generate-rag? →
+  governance → eval-gate (on_reject → generate-prompt, max_cycles: 3) →
+  package). New `templates/vibekit/tools/scripts/squad-pipeline.mjs` engine
+  parses via `lib/yaml.mjs` (ADR-0013 optional dynamic import) and refuses on
+  missing `yaml` with **exit 0 + informative** message — pipelines are opt-in,
+  not hot-path. New `squad-pipeline-condition.mjs` is the whitelisted
+  condition parser: only `<id>(.<id>)* <op> <literal>` and `…length <op>
+  <int>` (no function calls, no boolean chaining, no arithmetic). `--dry-run`
+  walks the graph against an empty context and prints the would-be execution
+  order with markers `✓` runs · `⊘` skipped by condition · `↺` has retry
+  loop. `max_review_cycles` is a hard cap (engine exits "manual escalation
+  required" rather than looping past it); vendor model names are refused
+  (only `model_tier: fast|powerful|reasoning` — the router stays the single
+  resolver). 2 new selfchecks in `selfcheck-agent-forge.mjs`
+  (`checkConditionParser` + `checkSquadPipeline`, 8 assertions). 4 new
+  integration asserts (pipeline ships, validates, yaml-absent informative
+  path). Spec: `docs/SQUAD-PIPELINE-FORMAT.md` (258 lines). `state.json` per
+  run is deferred to task 040 (ADR-0015 Part C). The agent-forge ROADMAP
+  Fase 6 row flips to ✅; opensquad-inspired but reshaped — full expression
+  eval, vendor names in YAML, and auto-state are deliberately rejected.
 - **agent-forge squad — Fase 5: RAG designer + Go runtime + L5 gate + /fleet
   Forge Stats.** Closes the original blueprint. New `lib/rag-designer.mjs`
   generates the `rag/` bundle from the blueprint when `capabilities.rag` is

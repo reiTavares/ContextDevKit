@@ -1,7 +1,8 @@
 /**
  * Self-check assertions for the agent-forge **build pipeline** — foundational
- * invariants (capability matrix, hot-path zero-yaml), the model-router, and the
- * Fase 3 gate (eval-designer, governance-officer, eval-runner).
+ * invariants (capability matrix, hot-path zero-yaml), the model-router, the
+ * Fase 3 gate (eval-designer, governance-officer, eval-runner), and the
+ * Fase 6 DSL (condition parser + squad-pipeline engine + pipeline.yaml).
  *
  * Operations / lifecycle checks (Fase 4 + 5: package-ops, rag-designer, L5
  * forge-path gate) live in `selfcheck-agent-forge-ops.mjs`. Both runners are
@@ -214,6 +215,81 @@ async function checkEvalRunner(rep, KIT) {
     : bad(`expected fail with pii_leak, got verdict=${failResult.verdict}, failures=${failResult.failures.join(',')}`);
 }
 
+/** Fase 6: condition parser refuses the deliberately-rejected grammars (function calls,
+ *  boolean chaining, arithmetic, bare identifier) AND accepts the canonical examples.
+ *  Pure static check — no yaml dep needed. */
+async function checkConditionParser(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking squad-pipeline condition parser (Fase 6)...');
+  const url = 'file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-pipeline-condition.mjs').replaceAll('\\', '/');
+  let parseCondition;
+  let evalCondition;
+  try {
+    ({ parseCondition, evalCondition } = await import(url));
+  } catch (err) {
+    bad(`condition parser import failed: ${err.message}`);
+    return;
+  }
+  const accepts = ['blueprint.tools.length > 0', 'capabilities.rag == true', 'intent.domain == "medical"', 'budget.cap <= 100', 'deployment.residency != null'];
+  const refuses = ['hasTools(blueprint)', 'a.length > 0 && b == true', 'x / 2 < 5', 'blueprint.tools', '', 'x..y > 0'];
+  accepts.every((expr) => parseCondition(expr).ok)
+    ? ok(`condition parser accepts ${accepts.length} canonical expressions`)
+    : bad(`condition parser rejected a canonical expression: ${accepts.find((expr) => !parseCondition(expr).ok)}`);
+  refuses.every((expr) => !parseCondition(expr).ok)
+    ? ok(`condition parser refuses ${refuses.length} out-of-grammar expressions (ADR-0015 §A.2)`)
+    : bad(`condition parser accepted an out-of-grammar expression: ${refuses.find((expr) => parseCondition(expr).ok)}`);
+  const ast = parseCondition('x == 5').ast;
+  evalCondition(ast, { x: '5' }) === false
+    ? ok('condition evaluator rejects type coercion ("5" == 5 → false)')
+    : bad('condition evaluator coerces types — should be strict equality');
+}
+
+/** Fase 6: agent-forge pipeline.yaml validates, contains the mandatory steps, and the
+ *  dry-run plan is non-empty against an empty context (ADR-0015 §A). Skipped when yaml
+ *  is absent — pipelines are opt-in; selfcheck must not require the dep. */
+async function checkSquadPipeline(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking squad-pipeline engine + agent-forge pipeline.yaml (Fase 6)...');
+  const url = 'file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-pipeline.mjs').replaceAll('\\', '/');
+  let loadAndValidate;
+  let plan;
+  try {
+    ({ loadAndValidate, plan } = await import(url));
+  } catch (err) {
+    bad(`squad-pipeline import failed: ${err.message}`);
+    return;
+  }
+  const result = await loadAndValidate('agent-forge').catch((err) => ({ error: err }));
+  if (result.yamlAbsent) {
+    ok('squad-pipeline takes the yaml-absent informative path (opt-in, not hot-path)');
+    return;
+  }
+  if (result.error) {
+    bad(`agent-forge pipeline.yaml refused to load: ${result.error.message}`);
+    return;
+  }
+  result.pipeline.squad === 'agent-forge' && result.pipeline.steps.length >= 8
+    ? ok(`agent-forge pipeline.yaml validates (${result.pipeline.steps.length} steps)`)
+    : bad(`agent-forge pipeline.yaml unexpected shape: squad=${result.pipeline.squad}, steps=${result.pipeline.steps?.length}`);
+  const ids = new Set(result.pipeline.steps.map((s) => s.id));
+  const required = ['validate-blueprint', 'route', 'checkpoint-shortlist', 'generate-prompt', 'governance', 'eval-gate', 'package'];
+  required.every((id) => ids.has(id))
+    ? ok('agent-forge pipeline covers the 7 mandatory step ids')
+    : bad(`agent-forge pipeline missing step(s): ${required.filter((id) => !ids.has(id)).join(', ')}`);
+  const rows = plan(result.pipeline, {});
+  rows.length === result.pipeline.steps.length
+    ? ok(`dry-run plan walks every step (${rows.length} rows)`)
+    : bad(`dry-run plan length mismatch: got ${rows.length}, expected ${result.pipeline.steps.length}`);
+  const evalRow = rows.find((r) => r.id === 'eval-gate');
+  evalRow?.marker === '↺'
+    ? ok('dry-run marks the eval-gate retry loop (↺)')
+    : bad(`eval-gate marker wrong: ${evalRow?.marker}`);
+  const toolsRow = rows.find((r) => r.id === 'generate-tools');
+  toolsRow?.marker === '⊘'
+    ? ok('dry-run skips generate-tools under empty ctx (condition → false → ⊘)')
+    : bad(`generate-tools marker wrong under empty ctx: ${toolsRow?.marker}`);
+}
+
 /** Runs every agent-forge build-pipeline check in order. Operations checks
  *  (package-ops, rag-designer, L5 forge-path) live in `./selfcheck-agent-forge-ops.mjs`. */
 export async function runAgentForgeChecks(rep, KIT) {
@@ -223,4 +299,6 @@ export async function runAgentForgeChecks(rep, KIT) {
   await checkEvalDesigner(rep, KIT);
   await checkGovernanceOfficer(rep, KIT);
   await checkEvalRunner(rep, KIT);
+  await checkConditionParser(rep, KIT);
+  await checkSquadPipeline(rep, KIT);
 }
