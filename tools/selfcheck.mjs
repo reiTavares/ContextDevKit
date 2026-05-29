@@ -157,7 +157,7 @@ async function checkTemplates() {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -195,9 +195,11 @@ async function checkTemplates() {
     'templates/vibekit/squads/agent-forge/lib/eval-runner.mjs',
     'templates/vibekit/squads/agent-forge/lib/governance-officer.mjs',
     'templates/vibekit/squads/agent-forge/lib/rag-designer.mjs',
+    'templates/vibekit/squads/agent-forge/pipeline.yaml',
     'tools/selfcheck-agent-forge-ops.mjs',
     'templates/claude/commands/forge-new.md',
     'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
+    'docs/SQUAD-PIPELINE-FORMAT.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',
     'templates/vibekit/squads/agent-forge/templates/agent-package/README.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/.agentforgerc',

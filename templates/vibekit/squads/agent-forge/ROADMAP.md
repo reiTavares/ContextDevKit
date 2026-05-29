@@ -13,7 +13,7 @@
 - **Approved by** [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — 7 binding constraints reshape the blueprint where it collided with the kit.
 - **YAML strategy** [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — optional `yaml` behind dynamic import (the `zod` precedent).
 - **Declarative pipeline DSL** [ADR-0015](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) — `pipeline.yaml` per squad; engine is opt-in, dry-runnable, simulate-impact-mappable. First consumer is this squad (Fase 6).
-- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5 — all ✅) + task **036** (Fase 6 — 📋 planned by ADR-0015).
+- **Phased delivery** on the DevPipeline as tasks **030–035** (Fases 0–5 — all ✅) + **Fase 6** (declarative pipeline DSL — ✅, shipped on `feat/agent-forge-fase6-pipeline-dsl`).
 
 ## Coverage map (blueprint section → here)
 
@@ -58,7 +58,7 @@
 | Ap A | forge vs classic squad table | ✅ | `README.md` "The boundary (why this squad is different)" |
 | Ap B | Why a separate factory squad | ✅ | Same section |
 | Ap C | Glossary | 📋 low priority | Inline in best-practices for now; consolidate if it grows |
-| — | **Fase 6 — declarative `pipeline.yaml` + dry-run engine** (ADR-0015) | 📋 task 036 | `templates/vibekit/squads/agent-forge/pipeline.yaml` + `templates/vibekit/tools/scripts/squad-pipeline.mjs` (parse via `lib/yaml.mjs`, whitelisted `condition` grammar, `on_reject` / `max_review_cycles`, `state.json` per run). Opt-in per squad; turns the orchestrator's choreography into a diffable, simulate-impact-mappable plan. |
+| — | **Fase 6 — declarative `pipeline.yaml` + dry-run engine** (ADR-0015 §A) | ✅ | [`pipeline.yaml`](pipeline.yaml) (9 steps) + engine [`templates/vibekit/tools/scripts/squad-pipeline.mjs`](../../tools/scripts/squad-pipeline.mjs) + whitelisted condition parser [`squad-pipeline-condition.mjs`](../../tools/scripts/squad-pipeline-condition.mjs). Parses via `lib/yaml.mjs` (ADR-0013); refuses on missing `yaml` with **exit 0 + informative** message (pipelines are opt-in, not hot-path). `--dry-run` walks the graph with empty ctx (markers `✓ / ⊘ / ↺`). `max_review_cycles` is a hard cap; vendor model names are refused (router stays the single resolver). 8 new selfchecks (`checkConditionParser` + `checkSquadPipeline`) + 4 new integration asserts (ships, validates, yaml-absent path). Spec: [`docs/SQUAD-PIPELINE-FORMAT.md`](../../../../docs/SQUAD-PIPELINE-FORMAT.md). `state.json` per run is deferred to task 040 (ADR-0015 §C). |
 
 ## Net additions (ADR-driven, not in the original blueprint)
 
@@ -92,6 +92,8 @@
 🆕 **Whitelisted `condition` grammar** (Fase 6, ADR-0015 §A.2) — only `<id>(.<id>)* <op> <literal>` and `…length <op> <int>` in v1. No arbitrary expression evaluation; bigger grammar needs a new ADR with a real use case.
 🆕 **Vendor model names stay out of YAML** (Fase 6, ADR-0015 §A.3) — `model_tier: fast|powerful|reasoning` only; the router (ADR-0012 §4) is the single resolver.
 🆕 **`max_review_cycles` is a hard cap** (Fase 6, ADR-0015 §A.4) — the engine refuses to loop past the cap and exits with "manual escalation required" instead of silently retrying forever.
+🆕 **Engine refuses with exit 0 when yaml is absent** (Fase 6, shipped) — pipelines are opt-in; missing yaml is a "feature not enabled" informative message, not an error. Selfcheck + integration test both exercise this path. Matches rule 2 ("hooks never break real work") — the squad keeps running fine if the optional dep is missing.
+🆕 **`condition` parser + engine split** (Fase 6, shipped) — `squad-pipeline-condition.mjs` (parser+eval, 192 lines) is a sibling of `squad-pipeline.mjs` (engine + dry-run, 250 lines). One file per responsibility — parser stays pure & testable without the yaml dep; engine handles I/O + dual-layout (source/installed) discovery.
 
 ## How this stays current
 

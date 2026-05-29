@@ -282,6 +282,38 @@ try {
       ? ok('forge-new (no-yaml): tool-gen DeepSeek + Ollama mirror OpenAI shape (Fase 2)') : bad('DeepSeek/Ollama adapters wrong');
     console.log('  ⓘ yaml dep not installed — full file-write round-trip skipped (install: npm i yaml).');
   }
+
+  // Fase 6 — squad-pipeline DSL: pipeline.yaml ships, validates, dry-run is non-empty.
+  // (ADR-0015 Part A; full grammar in docs/SQUAD-PIPELINE-FORMAT.md.)
+  existsSync(join(proj, 'vibekit', 'squads', 'agent-forge', 'pipeline.yaml'))
+    ? ok('agent-forge ships pipeline.yaml (Fase 6)')
+    : bad('agent-forge pipeline.yaml missing from install');
+  const pipelineEngineUrl = 'file://' + join(proj, 'vibekit', 'tools', 'scripts', 'squad-pipeline.mjs').replaceAll('\\', '/');
+  const { loadAndValidate, plan } = await import(pipelineEngineUrl);
+  const lv = await loadAndValidate('agent-forge').catch((err) => ({ error: err }));
+  if (yamlAvail) {
+    if (lv.error) {
+      bad(`Fase 6: loadAndValidate threw with yaml available: ${lv.error.message}`);
+    } else {
+      lv.pipeline?.squad === 'agent-forge' && lv.pipeline.steps.length >= 8
+        ? ok(`Fase 6: agent-forge pipeline validates (${lv.pipeline.steps.length} steps)`)
+        : bad(`Fase 6: pipeline shape wrong: ${JSON.stringify({ squad: lv.pipeline?.squad, steps: lv.pipeline?.steps?.length })}`);
+      const rows = plan(lv.pipeline, { blueprint: { tools: ['x'] }, capabilities: { rag: false } });
+      rows.find((r) => r.id === 'generate-tools')?.marker === '↺' || rows.find((r) => r.id === 'generate-tools')?.marker === '✓'
+        ? ok('Fase 6: dry-run runs generate-tools when blueprint.tools.length > 0')
+        : bad(`Fase 6: generate-tools marker wrong: ${rows.find((r) => r.id === 'generate-tools')?.marker}`);
+      rows.find((r) => r.id === 'generate-rag')?.marker === '⊘'
+        ? ok('Fase 6: dry-run skips generate-rag when capabilities.rag == false (⊘)')
+        : bad(`Fase 6: generate-rag marker wrong under rag=false: ${rows.find((r) => r.id === 'generate-rag')?.marker}`);
+      rows.find((r) => r.id === 'eval-gate')?.marker === '↺'
+        ? ok('Fase 6: dry-run marks eval-gate retry loop (↺, max_cycles: 3)')
+        : bad(`Fase 6: eval-gate marker wrong: ${rows.find((r) => r.id === 'eval-gate')?.marker}`);
+    }
+  } else {
+    lv.yamlAbsent === true
+      ? ok('Fase 6: squad-pipeline takes the yaml-absent informative path (opt-in, not hot-path)')
+      : bad(`Fase 6: expected { yamlAbsent: true } when yaml is missing, got ${JSON.stringify(lv)}`);
+  }
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
