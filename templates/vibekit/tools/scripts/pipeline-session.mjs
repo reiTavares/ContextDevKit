@@ -12,10 +12,20 @@
  * file makes start/stop symmetrical and lets the next maintainer read the full
  * lifecycle in one place. See [ADR-0015 §B](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md).
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
+import { readState, writeState } from '../../runtime/state/state-io.mjs';
 import { attachTask, detachTask } from './claim.mjs';
+
+function gitOut(args, cwd, fallback) {
+  try {
+    return execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 /**
  * Resolves a task id (with or without zero-padding) to its current stage + file
@@ -60,7 +70,13 @@ export async function startTask(pipeDir, rawId, sync) {
   moveStage(pipeDir, 'backlog', 'working', found.file, 'working');
   sync();
   await attachTask(rawId);
-  return { id: String(rawId).padStart(3, '0'), stage: 'working' };
+  const id = String(rawId).padStart(3, '0');
+  // ADR-0015 §C — stamp the canonical state.json substrate.
+  try {
+    const cwd = pipeDir.split(/[\\/]+vibekit[\\/]+/)[0] || process.cwd();
+    writeState(pipeDir, id, { kind: 'task', status: 'working', branch: gitOut(['symbolic-ref', '--short', 'HEAD'], cwd, null), ownerUser: gitOut(['config', 'user.name'], cwd, null), endedAt: null });
+  } catch { /* best-effort: state.json is observability, not the source of truth */ }
+  return { id, stage: 'working' };
 }
 
 /**
@@ -75,5 +91,9 @@ export async function stopTask(pipeDir, rawId, sync) {
   moveStage(pipeDir, 'working', 'backlog', found.file, 'backlog');
   sync();
   await detachTask(rawId);
-  return { id: String(rawId).padStart(3, '0'), stage: 'backlog' };
+  const id = String(rawId).padStart(3, '0');
+  try {
+    if (readState(pipeDir, id)) writeState(pipeDir, id, { status: 'backlog', endedAt: Date.now() });
+  } catch { /* best-effort */ }
+  return { id, stage: 'backlog' };
 }

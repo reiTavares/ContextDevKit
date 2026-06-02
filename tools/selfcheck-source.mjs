@@ -81,6 +81,13 @@ async function checkSourceInvariants(rep, KIT) {
     ['workspace-sync evicts stale tasks (ADR-0015 §B)', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /evictStaleTasks/],
     ['pipeline-board renders the Working stage', 'templates/vibekit/tools/scripts/pipeline-board.mjs', /## 🔵 Working/],
     ['defaults expose workingStaleAfterMinutes', 'templates/vibekit/runtime/config/defaults.mjs', /workingStaleAfterMinutes:\s*\d+/],
+    ['state-io exports readState (ADR-0015 §C)', 'templates/vibekit/runtime/state/state-io.mjs', /export function readState/],
+    ['state-io exports writeState', 'templates/vibekit/runtime/state/state-io.mjs', /export function writeState/],
+    ['state-io exports listStates', 'templates/vibekit/runtime/state/state-io.mjs', /export function listStates/],
+    ['state-io exports prune', 'templates/vibekit/runtime/state/state-io.mjs', /export function prune/],
+    ['pipeline-session stamps state.json on start (ADR-0015 §C)', 'templates/vibekit/tools/scripts/pipeline-session.mjs', /writeState\(pipeDir,\s*id,\s*\{\s*kind:\s*'task'/],
+    ['pipeline-session stamps endedAt on stop', 'templates/vibekit/tools/scripts/pipeline-session.mjs', /endedAt:\s*Date\.now\(\)/],
+    ['workspace-sync mirrors heartbeat into state.json', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /lastHeartbeat:\s*task\.lastHeartbeat/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
