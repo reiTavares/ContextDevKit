@@ -99,6 +99,28 @@ try {
   script('workspace-sync.mjs');
   const afterEvict = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
   afterEvict?.stage === 'backlog' ? ok('workspace-sync auto-evicts stale task back to backlog/') : bad(`stale evict failed: stage=${afterEvict?.stage}`);
+
+  // ─ ADR-0015 §C: canonical state.json substrate (per-task + per-pipeline-run) ─
+  script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'state-test');
+  const stTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'state-test');
+  script('pipeline.mjs', 'start', stTask.id);
+  const stateFile = join(proj, 'vibekit', 'pipeline', stTask.id, 'state.json');
+  existsSync(stateFile) ? ok('start writes state.json (ADR-0015 §C)') : bad('state.json not written on start');
+  const state1 = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf-8')) : {};
+  state1.kind === 'task' && state1.status === 'working' && typeof state1.startedAt === 'number'
+    ? ok('state.json shape correct (kind=task, status=working, timestamps)') : bad(`state shape wrong: ${JSON.stringify(state1)}`);
+  script('pipeline.mjs', 'stop', stTask.id);
+  const state2 = JSON.parse(readFileSync(stateFile, 'utf-8'));
+  state2.status === 'backlog' && typeof state2.endedAt === 'number'
+    ? ok('stop stamps endedAt + flips status to backlog') : bad(`stop did not update state: ${JSON.stringify(state2)}`);
+  script('pipeline.mjs', 'start', stTask.id);
+  script('pipeline.mjs', 'move', stTask.id, 'conclusion');
+  // The move's state.json mirror is fire-and-forget; poll briefly.
+  const deadline = Date.now() + 2000;
+  while (Date.now() < deadline && JSON.parse(readFileSync(stateFile, 'utf-8')).status !== 'done') { /* spin */ }
+  const state3 = JSON.parse(readFileSync(stateFile, 'utf-8'));
+  state3.status === 'done' && typeof state3.endedAt === 'number'
+    ? ok('move conclusion mirrors into state.json (status=done, endedAt set)') : bad(`conclusion state wrong: ${JSON.stringify(state3)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

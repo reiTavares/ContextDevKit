@@ -21,6 +21,7 @@ import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomic, writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
+import { readState, writeState } from '../../runtime/state/state-io.mjs';
 
 const ROOT = process.cwd();
 const WORKSPACE_DIR = resolve(ROOT, '.claude/.workspace');
@@ -86,11 +87,20 @@ function evictStaleTasks(claims, maxMinutes) {
     for (const task of record.tasks) {
       const ageMs = Date.now() - (task.lastHeartbeat || record.lastHeartbeat || 0);
       if (ageMs <= limit) {
+        // Living task: mirror heartbeat into state.json (best-effort, ADR-0015 §C).
+        try {
+          if (readState(PIPE_DIR, task.id)) writeState(PIPE_DIR, task.id, { lastHeartbeat: task.lastHeartbeat || Date.now() });
+        } catch { /* */ }
         survivors.push(task);
         continue;
       }
       const moved = moveTaskFile(task.id, 'working', 'backlog', { sid: record.sessionId, ageMs });
-      if (moved) evicted.push({ sid: record.sessionId, taskId: task.id });
+      if (moved) {
+        evicted.push({ sid: record.sessionId, taskId: task.id });
+        try {
+          if (readState(PIPE_DIR, task.id)) writeState(PIPE_DIR, task.id, { status: 'backlog', endedAt: Date.now() });
+        } catch { /* */ }
+      }
     }
     if (survivors.length !== record.tasks.length) {
       record.tasks = survivors;

@@ -249,6 +249,8 @@ function move() {
   writeFileAtomicSync(from, text);
   renameSync(from, to);
   sync();
+  // ADR-0015 §C — fire-and-forget state.json mirror (observability, best-effort).
+  import('../../runtime/state/state-io.mjs').then((m) => m.readState(PIPE, task.id) && m.writeState(PIPE, task.id, stage === 'conclusion' ? { status: STATUS[stage], endedAt: Date.now() } : { status: STATUS[stage] })).catch(() => {});
   console.log(`✅ Moved ${task.id} → ${stage}`);
 }
 
