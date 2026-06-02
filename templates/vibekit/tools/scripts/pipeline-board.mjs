@@ -27,9 +27,12 @@ export function renderBoard(tasks) {
   out.push('> Product/business plan is `vibekit/memory/roadmap.md`. THIS is execution control:');
   out.push('> bugs / increments / chores with **WSJF** priority + **SLA** (⏰ = overdue).');
   out.push('');
-  out.push(`Backlog **${by('backlog').length}** · Testing **${by('testing').length}** · Concluded **${by('conclusion').length}** · ⏰ Overdue **${overdue.length}**`);
+  out.push(`Backlog **${by('backlog').length}** · Working **${by('working').length}** · Testing **${by('testing').length}** · Concluded **${by('conclusion').length}** · ⏰ Overdue **${overdue.length}**`);
   out.push('');
-  out.push('## 🟡 In testing / in progress');
+  out.push('## 🔵 Working (active, owned by a session)');
+  out.push('');
+  out.push(table(by('working')));
+  out.push('## 🟡 In testing (code written, awaiting QA)');
   out.push('');
   out.push(table(by('testing')));
   out.push('## 📋 Backlog (by priority)');
@@ -57,7 +60,7 @@ export function renderKnownBugs(tasks) {
     if (inSev.length === 0) continue;
     out.push(`## ${SEV_LABEL[sev]} (${inSev.length})`, '', '| ID | Status | Bug type | Title | SLA |', '| --- | --- | --- | --- | --- |');
     for (const b of inSev) {
-      const status = b.stage === 'conclusion' ? '✅ resolved' : b.stage === 'testing' ? '🟡 testing' : '📋 open';
+      const status = b.stage === 'conclusion' ? '✅ resolved' : b.stage === 'testing' ? '🟡 testing' : b.stage === 'working' ? '🔵 working' : '📋 open';
       const sla = b.sla ? (isOverdue(b) ? `⏰ ${b.sla}` : b.sla) : '—';
       out.push(`| ${b.id} | ${status} | ${b.bugType || '—'} | ${b.title} | ${sla} |`);
     }

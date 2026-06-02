@@ -2,32 +2,14 @@
 /**
  * DevPipeline engine — the production board (distinct from the product roadmap).
  *
- * The roadmap (`vibekit/memory/roadmap.md`) is the product/business plan. The
- * DevPipeline is **execution control**: bugs, increments, chores and roadmap
- * items broken into tasks, each with priority + SLA, flowing through three
- * stages. One markdown file per task; `devpipeline.md` is the generated panel.
+ * Stages: `backlog/` → `working/` (ADR-0015 §B) → `testing/` → `conclusion/`.
+ * One markdown file per task; `devpipeline.md` is the generated panel. Rendering
+ * lives in `pipeline-board.mjs`, scoring in `pipeline-prioritize.mjs`, and the
+ * session-coupled `start`/`stop` transitions in `pipeline-session.mjs` (they
+ * write to the workspace record — different responsibility from pure CRUD).
  *
- *   vibekit/pipeline/backlog/      to do
- *   vibekit/pipeline/testing/      in progress / under test
- *   vibekit/pipeline/conclusion/   done (report)
- *   vibekit/pipeline/devpipeline.md  ← generated dashboard (do not hand-edit)
- *
- * Usage:
- *   node .../pipeline.mjs add --type bug --title "..." [--severity S1-S4] [--wsjf uv,tc,rr,js] [--priority P0-P3]
- *   node .../pipeline.mjs wsjf <id> <userValue> <timeCriticality> <riskReduction> <jobSize>  # → priority + SLA
- *   node .../pipeline.mjs ingest <findings.json> [--type chore]   # 1 task/finding, auto-priority, idempotent
- *   node .../pipeline.mjs prioritize <id> <P0-P3>                  # user override of the auto priority
- *   node .../pipeline.mjs move <id> testing|conclusion|backlog
- *   node .../pipeline.mjs sync          # regenerate devpipeline.md
- *   node .../pipeline.mjs list [--json]
- *
- * Cohesion note (line budget): this is one engine over a single data model — a
- * task is one markdown file with frontmatter, and every command (add/ingest/
- * prioritize/wsjf/move/sync/bugs) reads or mutates that same model through the
- * shared `listTasks`/`writeTask`/`sync` helpers. Rendering already lives in
- * `pipeline-board.mjs` and scoring in `pipeline-prioritize.mjs`; splitting the
- * remaining command dispatch from the task CRUD would only couple two halves of
- * one lifecycle across a seam. Kept whole deliberately (≤ the +10% tolerance).
+ * Subcommands: add · ingest · prioritize · wsjf · bugs · move · start · stop ·
+ * sync · list. See README / `/pipeline` briefing for invocation examples.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -39,8 +21,8 @@ import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 
 const ROOT = process.cwd();
 const PIPE = pathsFor(ROOT).pipeline;
-const STAGES = { backlog: 'backlog', testing: 'testing', conclusion: 'conclusion' };
-const STATUS = { backlog: 'backlog', testing: 'testing', conclusion: 'done' };
+const STAGES = { backlog: 'backlog', working: 'working', testing: 'testing', conclusion: 'conclusion' };
+const STATUS = { backlog: 'backlog', working: 'working', testing: 'testing', conclusion: 'done' };
 const CFG = loadConfigSync(ROOT).pipeline || {};
 const BANDS = CFG.wsjfBands || DEFAULTS.wsjfBands;
 const SEVMAP = CFG.severityPriority || DEFAULTS.severityPriority;
@@ -250,7 +232,7 @@ function move() {
   const id = process.argv[3];
   const stage = process.argv[4];
   if (!id || !STAGES[stage]) {
-    console.error('Usage: pipeline.mjs move <id> <backlog|testing|conclusion>');
+    console.error('Usage: pipeline.mjs move <id> <backlog|working|testing|conclusion>');
     process.exit(1);
   }
   const task = listTasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
@@ -268,6 +250,17 @@ function move() {
   renameSync(from, to);
   sync();
   console.log(`✅ Moved ${task.id} → ${stage}`);
+}
+
+/** Session-coupled transitions (start/stop) — logic lives in `pipeline-session.mjs`. */
+async function sessionCli(verb, marker, dest) {
+  const id = process.argv[3];
+  if (!id) { console.error(`Usage: pipeline.mjs ${verb} <id>`); process.exit(1); }
+  const sess = await import('./pipeline-session.mjs');
+  try {
+    const result = await (verb === 'start' ? sess.startTask : sess.stopTask)(PIPE, id, sync);
+    console.log(`${marker}  ${result.id} → ${dest}`);
+  } catch (err) { console.error(err.message); process.exit(1); }
 }
 
 function sync() {
@@ -292,6 +285,8 @@ else if (cmd === 'prioritize') prioritize();
 else if (cmd === 'wsjf') setWsjf();
 else if (cmd === 'bugs') bugs();
 else if (cmd === 'move') move();
+else if (cmd === 'start') await sessionCli('start', '▶', 'working/ (owner: this session)');
+else if (cmd === 'stop') await sessionCli('stop', '⏸', 'backlog/ (released)');
 else if (cmd === 'sync') {
   sync();
   console.log('✅ devpipeline.md regenerated.');
@@ -300,6 +295,6 @@ else if (cmd === 'sync') {
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|sync|list>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|sync|list>');
   process.exit(1);
 }

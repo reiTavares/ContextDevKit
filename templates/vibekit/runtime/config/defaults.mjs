@@ -99,11 +99,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
 
   /**
-   * DevPipeline prioritization (WSJF / SAFe) + bug severity + SLA.
+   * DevPipeline prioritization (WSJF / SAFe) + bug severity + SLA + WIP eviction.
    *   - `wsjfBands`: WSJF score ≥ value → priority (P0/P1/P2, else P3).
    *   - `severityPriority`: ITIL bug severity S1–S4 → priority.
    *   - `slaDays`: resolution target (days) per priority → the task's SLA due date.
    *   - `bugTypes`: the bug taxonomy used to classify bug tasks.
+   *   - `workingStaleAfterMinutes`: ADR-0015 §B — a task auto-evicts from `working/`
+   *     back to `backlog/` when its owning session is silent past this threshold.
    */
   pipeline: {
     framework: 'wsjf',
@@ -111,6 +113,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     severityPriority: { S1: 'P0', S2: 'P1', S3: 'P2', S4: 'P3' },
     slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 },
     bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
+    workingStaleAfterMinutes: 90,
   },
 
   /**

@@ -72,6 +72,15 @@ async function checkSourceInvariants(rep, KIT) {
     ['tanstack starter declares react-query dep', 'templates/vibekit/starters/tanstack/package.json', /@tanstack\/react-query/],
     ['tanstack starter mounts QueryClientProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /QueryClientProvider/],
     ['tanstack starter mounts RouterProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /RouterProvider/],
+    ['pipeline STAGES includes working (ADR-0015 §B)', 'templates/vibekit/tools/scripts/pipeline.mjs', /STAGES\s*=\s*\{[^}]*working:\s*'working'/],
+    ['pipeline STATUS includes working', 'templates/vibekit/tools/scripts/pipeline.mjs', /STATUS\s*=\s*\{[^}]*working:\s*'working'/],
+    ['pipeline.mjs wires start subcommand (ADR-0015 §B)', 'templates/vibekit/tools/scripts/pipeline.mjs', /cmd === 'start'/],
+    ['pipeline.mjs wires stop subcommand', 'templates/vibekit/tools/scripts/pipeline.mjs', /cmd === 'stop'/],
+    ['claim.mjs exports attachTask (ADR-0015 §B)', 'templates/vibekit/tools/scripts/claim.mjs', /export async function attachTask/],
+    ['claim.mjs exports detachTask', 'templates/vibekit/tools/scripts/claim.mjs', /export async function detachTask/],
+    ['workspace-sync evicts stale tasks (ADR-0015 §B)', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /evictStaleTasks/],
+    ['pipeline-board renders the Working stage', 'templates/vibekit/tools/scripts/pipeline-board.mjs', /## 🔵 Working/],
+    ['defaults expose workingStaleAfterMinutes', 'templates/vibekit/runtime/config/defaults.mjs', /workingStaleAfterMinutes:\s*\d+/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
