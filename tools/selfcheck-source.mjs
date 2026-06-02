@@ -63,6 +63,8 @@ async function checkSourceInvariants(rep, KIT) {
     ['squad detection single-sourced (squad.mjs)', 'templates/vibekit/tools/scripts/squad.mjs', /squad-meta/],
     ['squad detection single-sourced (agent-tuning.mjs)', 'templates/vibekit/tools/scripts/agent-tuning.mjs', /squad-meta/],
     ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
+    ['installer follows .git pointer in worktrees (bug 038)', 'tools/install/git.mjs', /resolveGitDir/],
+    ['installer parses the gitdir: pointer', 'tools/install/git.mjs', /gitdir:\\s\*\(\.\+\)/],
     ['agent-forge yaml loader uses optional dynamic import', 'templates/vibekit/squads/agent-forge/lib/yaml.mjs', /import\(\s*['"]yaml['"]\s*\)/],
     ['installer copies the agent-forge squad at L>=4', 'install.mjs', /copyTree\(join\(TPL, 'vibekit', 'squads', 'agent-forge'\)/],
     ['installer copies curated-stack starters', 'install.mjs', /copyTree\(join\(TPL, 'vibekit', 'starters'\)/],

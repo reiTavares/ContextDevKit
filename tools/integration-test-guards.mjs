@@ -197,6 +197,31 @@ function testUninstall() {
   }
 }
 
+/** 038 — installer follows .git pointer in worktrees (`.git` is a file, not a dir).
+ *  Simulates the worktree layout by writing a `.git` file with `gitdir: <path>`
+ *  and asserting hooks land in the pointed-at directory, not at `<target>/.git/hooks/`. */
+function testInstallerWorktreeGitPointer() {
+  const target = tmp('wtgit');
+  const gitdir = tmp('wtgit-gitdir');
+  mkdirSync(join(gitdir, 'hooks'), { recursive: true });
+  // Write the `.git` file pointer that git itself writes in a worktree.
+  writeFileSync(join(target, '.git'), `gitdir: ${gitdir.replaceAll('\\', '/')}\n`);
+  // The installer needs a package.json / minimal project to run cleanly.
+  writeFileSync(join(target, 'package.json'), '{"name":"wt-fixture"}');
+  try {
+    const r = run([join(KIT, 'install.mjs'), '--target', target, '--level', '3', '--name', 'Worktree', '--yes']);
+    r.status === 0 ? ok('installer succeeds against a worktree-shaped .git (bug 038 fixed)') : bad(`installer failed in worktree: ${r.stderr || r.stdout}`);
+    existsSync(join(gitdir, 'hooks', 'pre-commit'))
+      ? ok('installer writes hooks into the resolved gitdir, not into `<target>/.git/hooks/`') : bad('hooks not found in resolved gitdir');
+    const installed = existsSync(join(gitdir, 'hooks', 'pre-commit')) ? readFileSync(join(gitdir, 'hooks', 'pre-commit'), 'utf-8') : '';
+    installed.includes('vibekit/runtime/git-hooks')
+      ? ok('installed hook in worktree points at vibekit/runtime') : bad(`hook body wrong: ${installed}`);
+  } finally {
+    rmSync(target, { recursive: true, force: true });
+    rmSync(gitdir, { recursive: true, force: true });
+  }
+}
+
 /** 021 — installer backs up a pre-existing non-ours git hook instead of clobbering it. */
 function testInstallerHookBackup() {
   const proj = tmp('hookbk');
@@ -221,6 +246,7 @@ async function main() {
   await testConfigLoader();
   await testGhAlertMappers();
   testInstallerHookBackup();
+  testInstallerWorktreeGitPointer();
   const fx = installFixture(rep);
   try {
     testCommitMsg(fx.proj);
