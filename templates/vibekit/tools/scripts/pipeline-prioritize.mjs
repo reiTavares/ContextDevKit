@@ -16,6 +16,7 @@ export const DEFAULTS = {
   severityPriority: { S1: 'P0', S2: 'P1', S3: 'P2', S4: 'P3' }, // ITIL bug severity
   slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 }, // resolution target per priority
   bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
+  workingStaleAfterMinutes: 90, // task auto-evicts from working/ if owning session is silent past this (ADR-0015 §B)
 };
 
 function num(x) {

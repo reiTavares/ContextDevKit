@@ -12,7 +12,7 @@
  *
  * Run:  node tools/integration-test-tooling-pipeline.mjs   (exit 0 = healthy)
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reporter, installFixture } from './it-helpers.mjs';
 
@@ -62,6 +62,43 @@ try {
   existsSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md')) &&
     readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
     ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
+
+  // ─ ADR-0015 §B: working/ stage + tasks[] in workspace record + stale eviction ─
+  existsSync(join(proj, 'vibekit', 'pipeline', 'working'))
+    ? ok('working/ folder seeded post-install (ADR-0015 §B)')
+    : bad('working/ folder missing');
+  // Add a fresh task to start from a known state.
+  script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'wip-test');
+  const wipTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'wip-test');
+  // Bootstrap the session pointer so claim.mjs can identify "this session".
+  mkdirSync(join(proj, '.claude', '.sessions'), { recursive: true });
+  writeFileSync(join(proj, '.claude', '.sessions', '.last-touched'), JSON.stringify({ sessionId: 'it-039', at: Date.now() }));
+  // /pipeline start → moves to working/ + attaches to workspace.
+  script('pipeline.mjs', 'start', wipTask.id);
+  const afterStart = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
+  afterStart?.stage === 'working' ? ok('pipeline start → task moves to working/') : bad(`task stage after start = ${afterStart?.stage}`);
+  const wsFile = join(proj, '.claude', '.workspace', 'it-039.json');
+  const ws = existsSync(wsFile) ? JSON.parse(readFileSync(wsFile, 'utf-8')) : {};
+  Array.isArray(ws.tasks) && ws.tasks.some((t) => t.id === wipTask.id)
+    ? ok('claim.attachTask appends task to workspace tasks[]') : bad(`workspace tasks[] wrong: ${JSON.stringify(ws.tasks)}`);
+  const workingBoard = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  /Working \*\*\d+\*\*/.test(workingBoard) && /## 🔵 Working/.test(workingBoard)
+    ? ok('pipeline-board renders Working count + section') : bad('working stage missing from board');
+  // /pipeline stop → moves BACK to backlog (not testing), detaches.
+  script('pipeline.mjs', 'stop', wipTask.id);
+  const afterStop = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
+  afterStop?.stage === 'backlog' ? ok('pipeline stop → task moves BACK to backlog (not testing)') : bad(`task stage after stop = ${afterStop?.stage}`);
+  const wsAfter = JSON.parse(readFileSync(wsFile, 'utf-8'));
+  !wsAfter.tasks?.some((t) => t.id === wipTask.id) ? ok('claim.detachTask removes task from workspace tasks[]') : bad('task still attached after stop');
+  // Stale eviction: artificially age a task's heartbeat past the configured threshold.
+  script('pipeline.mjs', 'start', wipTask.id);
+  const wsStale = JSON.parse(readFileSync(wsFile, 'utf-8'));
+  wsStale.tasks[0].lastHeartbeat = Date.now() - (91 * 60 * 1000);
+  wsStale.lastHeartbeat = Date.now(); // session itself stays alive
+  writeFileSync(wsFile, JSON.stringify(wsStale, null, 2));
+  script('workspace-sync.mjs');
+  const afterEvict = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
+  afterEvict?.stage === 'backlog' ? ok('workspace-sync auto-evicts stale task back to backlog/') : bad(`stale evict failed: stage=${afterEvict?.stage}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
