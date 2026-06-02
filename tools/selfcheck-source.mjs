@@ -72,6 +72,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['tanstack starter declares react-query dep', 'templates/vibekit/starters/tanstack/package.json', /@tanstack\/react-query/],
     ['tanstack starter mounts QueryClientProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /QueryClientProvider/],
     ['tanstack starter mounts RouterProvider', 'templates/vibekit/starters/tanstack/src/main.tsx', /RouterProvider/],
+    // ADR-0015 §B — DevPipeline working/ stage.
     ['pipeline STAGES includes working (ADR-0015 §B)', 'templates/vibekit/tools/scripts/pipeline.mjs', /STAGES\s*=\s*\{[^}]*working:\s*'working'/],
     ['pipeline STATUS includes working', 'templates/vibekit/tools/scripts/pipeline.mjs', /STATUS\s*=\s*\{[^}]*working:\s*'working'/],
     ['pipeline.mjs wires start subcommand (ADR-0015 §B)', 'templates/vibekit/tools/scripts/pipeline.mjs', /cmd === 'start'/],
@@ -81,6 +82,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['workspace-sync evicts stale tasks (ADR-0015 §B)', 'templates/vibekit/tools/scripts/workspace-sync.mjs', /evictStaleTasks/],
     ['pipeline-board renders the Working stage', 'templates/vibekit/tools/scripts/pipeline-board.mjs', /## 🔵 Working/],
     ['defaults expose workingStaleAfterMinutes', 'templates/vibekit/runtime/config/defaults.mjs', /workingStaleAfterMinutes:\s*\d+/],
+    // ADR-0015 §C — canonical state.json substrate + /runs command.
     ['state-io exports readState (ADR-0015 §C)', 'templates/vibekit/runtime/state/state-io.mjs', /export function readState/],
     ['state-io exports writeState', 'templates/vibekit/runtime/state/state-io.mjs', /export function writeState/],
     ['state-io exports listStates', 'templates/vibekit/runtime/state/state-io.mjs', /export function listStates/],
@@ -93,6 +95,30 @@ async function checkSourceInvariants(rep, KIT) {
     ['/runs supports --json output', 'templates/vibekit/tools/scripts/runs.mjs', /flag\(['"]json['"]\)/],
     ['/runs refuses cleanly when no states exist', 'templates/vibekit/tools/scripts/runs.mjs', /No runs yet/],
     ['/runs command briefing ships', 'templates/claude/commands/runs.md', /Lists the \*\*last N in-flight items\*\*/],
+    // ADR-0019 — MCP injection convention seeded in agent template (commented).
+    ['agent _TEMPLATE documents mcpServers convention (ADR-0019)', 'templates/claude/agents/_TEMPLATE.md', /mcpServers/],
+    ['agent _TEMPLATE flags rationale requirement (ADR-0019)', 'templates/claude/agents/_TEMPLATE.md', /rationale/],
+    // ADR-0021 — review-provider adapter contract + seed adapter.
+    ['provider _adapter exports validateAdapter (ADR-0021)', 'templates/vibekit/runtime/providers/review/_adapter.mjs', /export function validateAdapter/],
+    ['provider _adapter defines ProviderError (ADR-0021)', 'templates/vibekit/runtime/providers/review/_adapter.mjs', /export class ProviderError/],
+    ['provider gh adapter declares id (ADR-0021)', 'templates/vibekit/runtime/providers/review/gh.mjs', /export const id\s*=\s*'gh'/],
+    ['provider gh adapter declares cliBinary (ADR-0021)', 'templates/vibekit/runtime/providers/review/gh.mjs', /export const cliBinary/],
+    ['provider gh adapter exports detectsRemote (ADR-0021)', 'templates/vibekit/runtime/providers/review/gh.mjs', /export const detectsRemote/],
+    ['provider gh adapter exports createPullRequest (ADR-0021)', 'templates/vibekit/runtime/providers/review/gh.mjs', /export async function createPullRequest/],
+    ['provider detect exports resolveAdapter (ADR-0021)', 'templates/vibekit/runtime/providers/review/detect.mjs', /export async function resolveAdapter/],
+    // Ticket 045 — /watch slash command + script.
+    ['watch script exports parseLedgerEntry (ticket 045)', 'templates/vibekit/tools/scripts/watch.mjs', /export function parseLedgerEntry/],
+    ['watch command file present (ticket 045)', 'templates/claude/commands/watch.md', /watch the active session ledger/i],
+    // Ticket 042 — two-tier memory: per-task scratch gitignored under pipeline/.
+    ['pipeline .gitignore excludes scratch files (ticket 042)', 'templates/vibekit/pipeline/.gitignore', /\*\.scratch\.md/],
+    ['dev-start documents per-task scratch convention (ticket 042)', 'templates/claude/commands/dev-start.md', /scratch\.md/],
+    // Ticket 048 / ADR-0020 — home.mjs helper for ~/.vibedevkit/ access.
+    ['home.mjs exports resolveHome (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /export function resolveHome/],
+    ['home.mjs exports readHomeFile (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /export function readHomeFile/],
+    ['home.mjs exports writeHomeFile (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /export function writeHomeFile/],
+    ['home.mjs writes atomically via renameSync (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /renameSync\(tmp, path\)/],
+    ['home.mjs honours VIBEDEVKIT_HOME override (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /VIBEDEVKIT_HOME/],
+    ['fleet.mjs delegates to home helper (ticket 048)', 'templates/vibekit/tools/scripts/fleet.mjs', /from '\.\/home\.mjs'/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
