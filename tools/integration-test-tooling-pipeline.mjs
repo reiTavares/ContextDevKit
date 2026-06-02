@@ -14,7 +14,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { reporter, installFixture } from './it-helpers.mjs';
+import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -121,6 +121,23 @@ try {
   const state3 = JSON.parse(readFileSync(stateFile, 'utf-8'));
   state3.status === 'done' && typeof state3.endedAt === 'number'
     ? ok('move conclusion mirrors into state.json (status=done, endedAt set)') : bad(`conclusion state wrong: ${JSON.stringify(state3)}`);
+
+  // ─ ADR-0015 §C follow-up: /runs command reads state.json substrate ─
+  const runsOut = script('runs.mjs').stdout || '';
+  runsOut.includes('tasks') && runsOut.includes(stTask.id)
+    ? ok('/runs lists tasks from state.json') : bad(`/runs output missing tasks: ${runsOut.slice(0, 200)}`);
+  const runsJson = JSON.parse(script('runs.mjs', '--json').stdout || '{}');
+  Array.isArray(runsJson.states) && runsJson.total >= 1
+    ? ok('/runs --json returns machine-readable shape') : bad(`/runs --json shape wrong: ${JSON.stringify(runsJson).slice(0, 200)}`);
+  const runsKindTask = JSON.parse(script('runs.mjs', '--json', '--kind', 'task').stdout || '{}');
+  runsKindTask.states?.every((s) => s.kind === 'task')
+    ? ok('/runs --kind task filters correctly') : bad('/runs --kind task did not filter');
+  // No-state refusal: run from a sibling dir that has no vibekit/pipeline/*/state.json.
+  const emptyDir = join(proj, 'apps', 'web');
+  mkdirSync(emptyDir, { recursive: true });
+  const noStateOut = run([join(KIT, 'templates/vibekit/tools/scripts/runs.mjs')], { cwd: emptyDir });
+  String(noStateOut?.stdout || '').includes('No runs yet')
+    ? ok('/runs prints clean refusal when no state files exist') : bad(`/runs no-state output: ${noStateOut?.stdout || noStateOut?.stderr}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
