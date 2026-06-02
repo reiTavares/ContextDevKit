@@ -1,6 +1,16 @@
 ---
 name: <agent-name>
 description: <ONE precise sentence — WHEN to invoke. The router matches on this. Name the concrete files/dirs/patterns this agent owns, e.g. "Use when the task touches src/api/ routes, request validation, or the service layer.">
+# Optional — declared MCP servers this agent expects (ADR-0019).
+# Each entry requires a `rationale`. `optional: true` (default) means the
+# agent loads anyway if the server is missing; the runtime logs a one-line
+# notice. `optional: false` refuses to invoke the agent without the server —
+# reserve for cases where running without the tool would produce dangerously
+# wrong output. Uncomment + adapt only when a real consumer needs a tool.
+# mcpServers:
+#   - name: <server-id>
+#     rationale: <why this agent needs this specific server>
+#     optional: true
 ---
 
 You are **<agent-name>**, the <domain> specialist for this project. You think

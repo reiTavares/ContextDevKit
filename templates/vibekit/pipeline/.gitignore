@@ -1,0 +1,6 @@
+# Per-task scratch — ephemeral notes the agent appends while a ticket is in
+# `testing/`. Convention: a ticket `NNN-*.md` may have a sibling
+# `NNN-*.scratch.md` that is never committed. At conclude time the agent
+# either summarises the scratch into the ticket's body or discards it.
+# See ADR-0017 trail + pipeline ticket 042 for the convention.
+*.scratch.md

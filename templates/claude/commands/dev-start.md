@@ -32,7 +32,13 @@ You just entered **dev-start** mode with the objective:
 
 4. **Break the objective into 3–7 concrete tasks** and track them with TodoWrite.
 
-5. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
+5. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
+   ticket is in `vibekit/pipeline/testing/`, drop them in a sibling file named
+   `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
+   `*.scratch.md` — scratches are local-only. At conclude time, summarise the
+   useful parts into the ticket body and let the scratch be discarded.
+
+6. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
 
 ## Why this mode exists
 

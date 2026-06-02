@@ -16,24 +16,34 @@
  * Zero-dependency and defensive: a missing/broken repo is skipped, never throws.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname, basename, resolve } from 'node:path';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { resolveHome, readHomeFile, writeHomeFile } from './home.mjs';
 
-const FLEET_FILE = process.env.VIBE_FLEET_FILE || resolve(homedir(), '.vibedevkit', 'fleet.json');
-
-const readJson = (p) => readJsonSafe(p);
+const FLEET_NAME = 'fleet.json';
+// VIBE_FLEET_FILE overrides the FULL path (used by integration tests). When
+// absent, fleet.json lives in `~/.vibedevkit/` via the home helper (ADR-0020).
+const FLEET_FILE_OVERRIDE = process.env.VIBE_FLEET_FILE || null;
+const FLEET_FILE = FLEET_FILE_OVERRIDE || resolve(resolveHome(), FLEET_NAME);
 
 function loadRegistry() {
-  const reg = readJson(FLEET_FILE);
+  if (FLEET_FILE_OVERRIDE) {
+    const reg = readJsonSafe(FLEET_FILE_OVERRIDE);
+    return reg && Array.isArray(reg.repos) ? reg : { repos: [] };
+  }
+  const reg = readHomeFile(FLEET_NAME);
   return reg && Array.isArray(reg.repos) ? reg : { repos: [] };
 }
 
 function saveRegistry(reg) {
-  const dir = dirname(FLEET_FILE);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(FLEET_FILE, JSON.stringify(reg, null, 2) + '\n', 'utf-8');
+  if (FLEET_FILE_OVERRIDE) {
+    const dir = dirname(FLEET_FILE_OVERRIDE);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(FLEET_FILE_OVERRIDE, JSON.stringify(reg, null, 2) + '\n', 'utf-8');
+    return;
+  }
+  writeHomeFile(FLEET_NAME, reg);
 }
 
 /** Run a repo's script with --json and parse the rows. null on any failure. */
