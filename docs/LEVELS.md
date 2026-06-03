@@ -66,13 +66,31 @@ machines/devs — **without one silently overwriting another**.
 
 **Goal:** specialized review and design instead of one generalist.
 
-- Sub-agents land in `.claude/agents/`: `code-reviewer` (constitution audit),
-  `context-keeper` (the platform + memory), `architect` (cross-cutting design),
-  `test-engineer`, `security`, plus the **QA squad** — `qa-orchestrator` (router
-  + sign-off) with `qa-unit` / `qa-integration` / `qa-fuzzer` specialists. Use
-  `_TEMPLATE.md` to grow your own domain agents.
-- QA commands `/test-plan`, `/scaffold-tests`, `/qa-signoff` route through
-  `qa-orchestrator`. Claude picks the right specialist from each `description`.
+Sub-agents land in `.claude/agents/`, organised into **squads** (each squad has
+a router specialist + a roster). The kit ships **28 agents across 7 squads**:
+
+- **devteam** — `architect` (cross-cutting design), `code-reviewer`
+  (constitution audit), `context-keeper` (platform + memory), `test-engineer`.
+- **qa-team** — `qa-orchestrator` (router + sign-off) with `qa-unit` /
+  `qa-integration` / `qa-fuzzer` / `qa-perf` / `qa-e2e` specialists.
+- **design-team** — `ui-designer`, `ux-designer`, `accessibility`,
+  **`seo-specialist`** (SEO + AISO), **`landing-architect`** (high-conversion
+  landing pages with anti-Lovable posture).
+- **security-team** — `security`, `code-security`, `infra-security`.
+- **compliance-team** — `privacy-lgpd`, `governance-officer`.
+- **ops-team** — `devops`.
+- **agent-forge** *(activated at L6)* — `forge-orchestrator`, `model-router`,
+  `prompt-engineer`, `tool-designer`, `eval-designer`, `packager`,
+  `rag-designer`, `agent-architect`.
+
+Routing is automatic: Claude picks an agent by matching the user's intent to
+the `description` frontmatter. QA commands (`/test-plan`, `/scaffold-tests`,
+`/qa-signoff`) go through `qa-orchestrator`; `/landing-page` invokes
+`landing-architect`, which delegates indexability to `seo-specialist`.
+
+Use `_TEMPLATE.md` (or `/squad`) to grow your own domain agents. See
+[`docs/SQUADS/design-team.md`](SQUADS/design-team.md) and
+[`docs/SQUADS/agent-forge.md`](SQUADS/agent-forge.md).
 
 **Use when:** the codebase is big enough that domain expertise pays off.
 
