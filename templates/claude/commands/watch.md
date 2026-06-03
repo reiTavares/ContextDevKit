@@ -12,8 +12,8 @@ runtime's `readMostRecentLedger`.
 ## Usage
 
 ```
-node vibekit/tools/scripts/watch.mjs           # print all entries and exit
-node vibekit/tools/scripts/watch.mjs --follow  # stream (re-poll every 500 ms; Ctrl-C to stop)
+node contextkit/tools/scripts/watch.mjs           # print all entries and exit
+node contextkit/tools/scripts/watch.mjs --follow  # stream (re-poll every 500 ms; Ctrl-C to stop)
 ```
 
 Output format:
@@ -21,8 +21,8 @@ Output format:
 ```
 # session 04b759ee — 17 entries
 [14:02:11] EDIT  templates/claude/commands/dev-start.md
-[14:02:14] WRITE templates/vibekit/runtime/providers/review/_adapter.mjs
-[14:02:16] WRITE templates/vibekit/runtime/providers/review/gh.mjs
+[14:02:14] WRITE templates/contextkit/runtime/providers/review/_adapter.mjs
+[14:02:16] WRITE templates/contextkit/runtime/providers/review/gh.mjs
 ...
 ```
 

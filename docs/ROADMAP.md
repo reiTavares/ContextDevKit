@@ -1,6 +1,6 @@
 # Architecture & Roadmap
 
-An architect's view of where VibeDevKit is, what it learned from the production
+An architect's view of where ContextDevKit is, what it learned from the production
 system it was distilled from (the "Ruiva" project's `devAItools/`), and where it
 goes next.
 
@@ -13,7 +13,7 @@ goes next.
 
 ## Lineage
 
-VibeDevKit is the **generalized, stack-agnostic distillation** of a real
+ContextDevKit is the **generalized, stack-agnostic distillation** of a real
 single-project AI dev platform. That source system was deeply coupled to its
 stack (Cloudflare Workers + Hono + Expo + Drizzle) and domain (LGPD). The kit
 keeps the *engine and the discipline*, drops the *stack-specific content*, and
@@ -41,7 +41,7 @@ L1–L3 buy **context fidelity** (the platform never forgets). L4–L5 buy **qua
 governance** (review, tests, gates). The missing frontier is making the platform
 *act and learn*, not just remember and enforce. That's **L6**:
 
-- **Insight** — `stats.mjs` / `/vibe-stats`: drift rate, cadence, ADR/agent
+- **Insight** — `stats.mjs` / `/context-stats`: drift rate, cadence, ADR/agent
   counts. You can't improve a practice you don't measure.
 - **Autonomy** — `/ship`: an orchestrated pipeline that drives the whole squad
   (architect → implement → code-review → QA → record) with human checkpoints.
@@ -58,22 +58,22 @@ commands + metrics + orchestration on top of the L5 gates.
 - **Contract drift: regex by default, AST optional.** The regex extractor covers the
   common JS/TS forms (named/declaration exports incl. `declare`/`abstract`/generators,
   `export default`, namespace re-exports `export * [as N] from`, type-only
-  `export type { … }`). For AST precision, install `acorn` (or set `VIBE_CONTRACT_PARSER`):
+  `export type { … }`). For AST precision, install `acorn` (or set `CONTEXT_CONTRACT_PARSER`):
   `contract-scan` uses it **only if importable**, so the zero-dep default holds. Residual:
   still "signal, not proof" for exotic TS without a TS-aware parser. [→ ADR-0003]
 
 _The earlier gaps have since shipped: **two-tier briefings** (v1.1.0,
-`/squad brief`), **workflow docs/playbooks** (`vibekit/workflows/`), and the
+`/squad brief`), **workflow docs/playbooks** (`contextkit/workflows/`), and the
 **predictions review cadence** (`/predictions-review`)._
 
-## 1.0 — harden & prove ✅ SHIPPED (2026-05-22 · npm `vibedevkit@1.0.0`)
+## 1.0 — harden & prove ✅ SHIPPED (2026-05-22 · npm `contextdevkit@1.0.0`)
 
 L6 was reached in a single quarter; **1.0 earned it by hardening, not adding
 levels**:
 
-1. ✅ **Froze the surface.** Thin wrappers (`/state`, `/vibe-doctor`,
+1. ✅ **Froze the surface.** Thin wrappers (`/state`, `/context-doctor`,
    `/context-refresh`) deprecated toward `/audit`; `/release` paired with `/claim`.
-2. 🟡 **Prove the value of each level.** Tooling shipped (`/vibe-stats`, analysis →
+2. 🟡 **Prove the value of each level.** Tooling shipped (`/context-stats`, analysis →
    backlog); still needs **real-world data** to confirm L4–L6 earn their keep —
    the one item that needs *usage*, not code. *Ongoing.*
 3. ✅ **Ate our own dog food.** `install.mjs` refactored 487 → 234 (out of the RED
@@ -100,12 +100,12 @@ shipped** (✅ below):
   `/predictions-review` (auto-run by `/log-session`) closes the loop, filling each
   file's *Actual* section from the ledger (changed vs predicted paths, both deltas).
   *Shipped: write half in v1.1.0; predicted-vs-actual review closed here.*
-- ✅ **Two-tier squad briefings** — `vibekit/squads/<team>/<agent>.md` rich briefings
+- ✅ **Two-tier squad briefings** — `contextkit/squads/<team>/<agent>.md` rich briefings
   behind the lean `.claude/agents/` agents. *Shipped v1.1.0: `/squad brief <agent>`
   scaffolds a briefing, `/squad list` shows coverage.*
 - ✅ **`workflows/playbooks/`** — per-level workflow docs (L1–L5) + reusable playbooks
   (tech-debt sweep, simulate-impact, distillation, security batch). *Shipped:
-  installed under `vibekit/workflows/`, seeded write-if-missing. The foundation for
+  installed under `contextkit/workflows/`, seeded write-if-missing. The foundation for
   **playbook management** (Future directions #8).*
 
 ## Then — supply-chain & code security (deepen the security-team)
@@ -122,15 +122,15 @@ scaffolding). Three moves, all on the existing rails:
   third-party integration code (API clients / SDK usage, webhook & callback handling,
   (de)serialization of external responses), dependency **provenance / SBOM**, and SAST /
   CodeQL findings. Lean agent under `.claude/agents/` + a two-tier briefing in
-  `vibekit/squads/security-team/`.
+  `contextkit/squads/security-team/`.
 - ✅ **Dependency control of the system** — grow `/deps-audit` from "CVEs + loose ranges" into a
   real **dependency policy**: license allow/deny + SBOM generation, lockfile-drift detection,
   unmaintained / abandoned-package flags, and a scheduled (not just on-demand) sweep. Policy
-  lives in `vibekit/config.json` (allowed licenses, max package age, pinning rules); findings
+  lives in `contextkit/config.json` (allowed licenses, max package age, pinning rules); findings
   still flow into the DevPipeline backlog like every other finding.
 - ✅ **GitHub / Dependabot integration** — the kit scaffolds **`.github/dependabot.yml`** + a
   **security workflow** (CodeQL + `dependency-review` on PRs + the `/deps-audit` gate),
-  ecosystem auto-detected, via `/security-setup` (or folded into `/setupvibedevkit`). The
+  ecosystem auto-detected, via `/security-setup` (or folded into `/setupcontextdevkit`). The
   *loop-closer* (the on-brand half): a sync pulls **Dependabot / GitHub security alerts**
   (`gh api`) into the **same backlog**, where the `code-security` agent triages reachability —
   so GitHub's alerts become prioritized, owned tasks instead of an ignored tab.
@@ -150,15 +150,15 @@ required-check enforcement.
 ## L7 — Ecosystem & Scale (the former "Future directions", now shipped)
 
 These were the *candidate L7+* items. With **v1.3.0** they ship as the **L7 capability
-tier** (`/vibe-level 7`) — cross-cutting capabilities layered on top of L6, **no new
+tier** (`/context-level 7`) — cross-cutting capabilities layered on top of L6, **no new
 hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 shipped earlier.
 
 1. ✅ **Design / Product / Ops squads** — **Shipped in v0.5.2:** `compliance-team`
    (LGPD), `design-team` (UX/UI/a11y), plus `product-owner` / `devops` starters,
-   organized by a `vibekit/squads/` manifest with a sovereignty rule. The squad
+   organized by a `contextkit/squads/` manifest with a sovereignty rule. The squad
    pattern is proven; further families (docs/data/growth/support) follow it.
 2. ✅ **Fleet mode (MVP).** One control plane over many repos via `/fleet` +
-   `fleet.mjs` — registry at `~/.vibedevkit/fleet.json`; aggregate `stats` / `audit`
+   `fleet.mjs` — registry at `~/.contextdevkit/fleet.json`; aggregate `stats` / `audit`
    across a portfolio; detect CLAUDE.md rule drift (`propagate --check`, detect-only).
    *Deferred: auto-applying rule edits across repos; remote repos.*
 3. ✅ **Outcome-driven agent tuning (MVP).** `/tune-agents` + `agent-tuning.mjs`
@@ -171,7 +171,7 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
    *Deferred: the Claude-driven PR-review bot (needs Claude in CI); making the
    checks **required** is a branch-protection setting, not code.*
 5. ✅ **Pluggable detectors & language packs (MVP).** Drop-in detectors from
-   `vibekit/detectors/*.mjs` (loaded by `tech-debt-scan`) + stack **presets**
+   `contextkit/detectors/*.mjs` (loaded by `tech-debt-scan`) + stack **presets**
    (`install.mjs --preset next|go|python`, merged into config). *Deferred: a larger
    preset library.*
 6. ✅ **Diverse & visual testing harness (MVP).** `/visual-test` + `visual-test.mjs`
@@ -192,7 +192,7 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
 8. ✅ **Playbook management.** *Shipped:* the `workflows/playbooks/` foundation is now a
    **managed, runnable** layer — `playbook.mjs` + **`/playbook`** to **list** the
    registry (discover what exists), **show** a procedure, and **run** one (records a
-   tracked entry in `vibekit/memory/playbook-runs.md`, then prints the steps to
+   tracked entry in `contextkit/memory/playbook-runs.md`, then prints the steps to
    execute). `/ship` and the squads can `run` a playbook instead of restating it.
    Turns repeatable procedures into first-class, auditable assets — same "plain files,
    advisory, inspectable" posture as the rest of the kit.
@@ -381,5 +381,5 @@ a separate one-line fix.
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.
 - **Hooks never break real work.** Exit 0 on error; silent unless they must speak.
 - **Everything is plain files in the repo.** Inspectable, reversible, no lock-in.
-- **Config-driven, not hardcoded.** Stack specifics live in `vibekit/config.json`.
+- **Config-driven, not hardcoded.** Stack specifics live in `contextkit/config.json`.
 - **Advisory by default; enforce by choice.** Gates inform; you opt into blocking.

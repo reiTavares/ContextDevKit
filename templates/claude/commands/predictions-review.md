@@ -9,11 +9,11 @@ Close the loop on `/simulate-impact` predictions for the current session.
 Run:
 
 ```
-node vibekit/tools/scripts/predictions-review.mjs
+node contextkit/tools/scripts/predictions-review.mjs
 ```
 
 This reads the session ledger and, for every `/simulate-impact` recorded this session, fills the
-**Actual** section of its prediction file in `vibekit/memory/predictions/`: the paths actually
+**Actual** section of its prediction file in `contextkit/memory/predictions/`: the paths actually
 changed vs what was predicted, with the delta in both directions (predicted-but-not-changed,
 changed-but-not-predicted).
 

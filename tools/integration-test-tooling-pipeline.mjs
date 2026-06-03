@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — TOOLING / DevPipeline.
+ * ContextDevKit integration test — TOOLING / DevPipeline.
  *
  * Sibling of `integration-test-tooling.mjs`. Extracted as a responsibility
  * seam (ADR-0016 H1 fix) because the DevPipeline test chain is internally
@@ -18,17 +18,17 @@ import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — tooling / DevPipeline\n');
+console.log('\n🌀 ContextDevKit integration test — tooling / DevPipeline\n');
 const fx = installFixture(rep);
 const { proj, script } = fx;
 
 try {
   // DevPipeline: add → move → sync reflects in devpipeline.md.
   script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P1', '--title', 'login crash');
-  const board1 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  const board1 = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   board1.includes('login crash') && /Backlog \*\*1\*\*/.test(board1) ? ok('pipeline add → backlog on board') : bad('pipeline add not reflected');
   script('pipeline.mjs', 'move', '001', 'testing');
-  const board2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  const board2 = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   /Testing \*\*1\*\*/.test(board2) ? ok('pipeline move → testing on board') : bad('pipeline move not reflected');
 
   // DevPipeline ingest: analysis findings flow into the backlog, auto-prioritized.
@@ -59,8 +59,8 @@ try {
 
   // Known-bugs map: bug tasks grouped + a map file generated.
   script('pipeline.mjs', 'bugs');
-  existsSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md')) &&
-    readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
+  existsSync(join(proj, 'contextkit', 'pipeline', 'known-bugs.md')) &&
+    readFileSync(join(proj, 'contextkit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
     ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
 
   // ─ Ticket 040: task metadata v2 (DAG dependencies + complexity + spike/docs) ─
@@ -68,20 +68,20 @@ try {
   const meta = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'spike-test');
   meta?.type === 'spike' && meta?.complexity === 'L' && Array.isArray(meta?.dependencies) && meta.dependencies.length === 2
     ? ok('pipeline add accepts --type spike + --complexity + --depends-on (ticket 040)') : bad(`metadata v2 wrong: ${JSON.stringify(meta)}`);
-  const boardV2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  const boardV2 = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   boardV2.includes('blocked by') ? ok('board renders "blocked by N" hint when dependencies are open (ticket 040)') : bad('blocked-by hint missing from board');
   // validate command: clean graph passes.
   const validClean = script('pipeline.mjs', 'validate');
   validClean.status === 0 ? ok('pipeline validate exits 0 on acyclic graph') : bad(`validate failed clean: ${validClean.stdout}${validClean.stderr}`);
   // Manually inject a cycle and prove validate refuses.
-  const spikeFile = join(proj, 'vibekit', 'pipeline', 'backlog', `${meta.id}-spike-test.md`);
+  const spikeFile = join(proj, 'contextkit', 'pipeline', 'backlog', `${meta.id}-spike-test.md`);
   writeFileSync(spikeFile, readFileSync(spikeFile, 'utf-8').replace(/^dependencies:.*$/m, `dependencies: [${meta.id}]`));
   const validCycle = script('pipeline.mjs', 'validate');
   validCycle.status !== 0 && /cycle/i.test(validCycle.stdout + validCycle.stderr)
     ? ok('pipeline validate refuses on dependency cycle (ticket 040)') : bad(`validate did not refuse cycle: status=${validCycle.status}`);
 
   // ─ ADR-0015 §B: working/ stage + tasks[] in workspace record + stale eviction ─
-  existsSync(join(proj, 'vibekit', 'pipeline', 'working'))
+  existsSync(join(proj, 'contextkit', 'pipeline', 'working'))
     ? ok('working/ folder seeded post-install (ADR-0015 §B)')
     : bad('working/ folder missing');
   // Add a fresh task to start from a known state.
@@ -98,7 +98,7 @@ try {
   const ws = existsSync(wsFile) ? JSON.parse(readFileSync(wsFile, 'utf-8')) : {};
   Array.isArray(ws.tasks) && ws.tasks.some((t) => t.id === wipTask.id)
     ? ok('claim.attachTask appends task to workspace tasks[]') : bad(`workspace tasks[] wrong: ${JSON.stringify(ws.tasks)}`);
-  const workingBoard = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  const workingBoard = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   /Working \*\*\d+\*\*/.test(workingBoard) && /## 🔵 Working/.test(workingBoard)
     ? ok('pipeline-board renders Working count + section') : bad('working stage missing from board');
   // /pipeline stop → moves BACK to backlog (not testing), detaches.
@@ -121,7 +121,7 @@ try {
   script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'state-test');
   const stTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'state-test');
   script('pipeline.mjs', 'start', stTask.id);
-  const stateFile = join(proj, 'vibekit', 'pipeline', stTask.id, 'state.json');
+  const stateFile = join(proj, 'contextkit', 'pipeline', stTask.id, 'state.json');
   existsSync(stateFile) ? ok('start writes state.json (ADR-0015 §C)') : bad('state.json not written on start');
   const state1 = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf-8')) : {};
   state1.kind === 'task' && state1.status === 'working' && typeof state1.startedAt === 'number'
@@ -149,10 +149,10 @@ try {
   const runsKindTask = JSON.parse(script('runs.mjs', '--json', '--kind', 'task').stdout || '{}');
   runsKindTask.states?.every((s) => s.kind === 'task')
     ? ok('/runs --kind task filters correctly') : bad('/runs --kind task did not filter');
-  // No-state refusal: run from a sibling dir that has no vibekit/pipeline/*/state.json.
+  // No-state refusal: run from a sibling dir that has no contextkit/pipeline/*/state.json.
   const emptyDir = join(proj, 'apps', 'web');
   mkdirSync(emptyDir, { recursive: true });
-  const noStateOut = run([join(KIT, 'templates/vibekit/tools/scripts/runs.mjs')], { cwd: emptyDir });
+  const noStateOut = run([join(KIT, 'templates/contextkit/tools/scripts/runs.mjs')], { cwd: emptyDir });
   String(noStateOut?.stdout || '').includes('No runs yet')
     ? ok('/runs prints clean refusal when no state files exist') : bad(`/runs no-state output: ${noStateOut?.stdout || noStateOut?.stderr}`);
 } catch (err) {

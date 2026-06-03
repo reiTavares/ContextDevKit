@@ -7,7 +7,7 @@ description: Quick summary of current project state (latest session + Unreleased
 
 Summarize the current state of this project in at most 12 lines. To do so:
 
-1. Run `node vibekit/tools/scripts/context-pack.mjs` [ADR-0027] — **one** bounded
+1. Run `node contextkit/tools/scripts/context-pack.mjs` [ADR-0027] — **one** bounded
    bundle with the latest-session digest, `[Unreleased]`, the immutable rules, the
    open backlog, and recent ADRs. Reason over the pack instead of opening those
    files separately; open a full file only if the pack flags something to inspect.

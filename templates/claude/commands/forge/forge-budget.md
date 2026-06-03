@@ -5,7 +5,7 @@ argument-hint: [--root <dir>] [--json]
 
 # 🛠️ Mode: agent-forge — budget
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs budget $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs budget $ARGUMENTS`.
 
 Sums `spec.cost.monthly_budget_usd` across every package and surfaces the
 per-agent breakdown. The hard cap = target × 1.5 per the governance default.

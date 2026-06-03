@@ -8,7 +8,7 @@ description: Regenerate the dynamic full-project snapshot (.context-snapshot.md)
 Regenerate the on-demand project snapshot:
 
 ```
-node vibekit/tools/scripts/generate-context.mjs
+node contextkit/tools/scripts/generate-context.mjs
 ```
 
 This writes `.context-snapshot.md` (gitignored) containing the folder tree, detected stack, latest

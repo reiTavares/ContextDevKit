@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] [--json]
 
 # 🛠️ Mode: agent-forge — re-route
 
-Run `node vibekit/squads/agent-forge/cli/forge-eval-cli.mjs route $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-eval-cli.mjs route $ARGUMENTS`.
 
 Surfaces "would the router pick the same primary now?" — useful after
 `/forge-refresh-matrix` or after a new ADR adds a model.

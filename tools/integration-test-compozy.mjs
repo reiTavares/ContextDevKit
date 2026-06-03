@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — COMPOZY follow-through features.
+ * ContextDevKit integration test — COMPOZY follow-through features.
  *
  * Sibling of `integration-test-guards.mjs`. Extracted as a responsibility seam
  * (guards is for input-rejection safety nets; the Compozy follow-throughs are
@@ -18,18 +18,18 @@ import { KIT, run, reporter } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — Compozy follow-throughs\n');
+console.log('\n🌀 ContextDevKit integration test — Compozy follow-throughs\n');
 
 const importKit = (rel) => import('file://' + join(KIT, rel).replaceAll('\\', '/'));
-const tmp = (tag) => mkdtempSync(join(tmpdir(), `vibekit-${tag}-`));
+const tmp = (tag) => mkdtempSync(join(tmpdir(), `contextkit-${tag}-`));
 
 /** 041 — /workflow macro lifecycle: new → 3× advance → completion → status. */
 function testWorkflowMacro() {
   const proj = tmp('wf');
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WF', '--yes']);
-  const cli = (...a) => run([join(proj, 'vibekit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
+  const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');
-  cli('new', 'demo').status === 0 && existsSync(join(proj, 'vibekit/memory/workflows/demo.md')) ? ok('/workflow new creates breadcrumb (ticket 041)') : bad('breadcrumb missing');
+  cli('new', 'demo').status === 0 && existsSync(join(proj, 'contextkit/memory/workflows/demo.md')) ? ok('/workflow new creates breadcrumb (ticket 041)') : bad('breadcrumb missing');
   cli('new', 'demo').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
   ['r1', 'ADR-0023', '[052]'].forEach((r) => cli('advance', 'demo', r));
   /complete/i.test(cli('advance', 'demo', 'merged').stdout) ? ok('/workflow lifecycle completes after 4 phases (ticket 041)') : bad('final advance missing complete');
@@ -40,7 +40,7 @@ function testWorkflowMacro() {
 
 /** 043 — distill-detect surfaces rule-like phrases (positive + negative + skip-headers). */
 async function testDistillDetect() {
-  const mod = await importKit('templates/vibekit/tools/scripts/distill-detect.mjs');
+  const mod = await importKit('templates/contextkit/tools/scripts/distill-detect.mjs');
   mod.detect('We decided that all auth flows must use refresh tokens. From now on, always validate JWTs.').length >= 2
     ? ok('distill-detect surfaces multiple rule-like phrases (ticket 043)') : bad('seeded sentence produced no candidates');
   mod.detect('Today we fixed a minor bug in the login flow.').length === 0
@@ -60,7 +60,7 @@ function testResumeCommand() {
   writeFileSync(join(proj, '.claude', '.sessions', 'sess-target.json'), sess('sess-target'));
   writeFileSync(join(proj, '.claude', '.workspace', 'sess-target.json'), ws('sess-target', [{ path: 'src/a.js', claimedAt: Date.now() }]));
   writeFileSync(join(proj, '.claude', '.sessions', 'sess-other.json'), sess('sess-other'));
-  const cli = (...args) => run([join(proj, 'vibekit', 'tools', 'scripts', 'resume.mjs'), ...args], { cwd: proj });
+  const cli = (...args) => run([join(proj, 'contextkit', 'tools', 'scripts', 'resume.mjs'), ...args], { cwd: proj });
   const listOut = cli();
   listOut.stdout.includes('sess-target') && listOut.stdout.includes('sess-other') ? ok('/resume lists unregistered drift candidates (ticket 046)') : bad(`list: ${listOut.stdout}`);
   const badId = cli('nope-not-real');

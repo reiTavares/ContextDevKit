@@ -12,19 +12,19 @@ adapters. Two providers ship, both targeting Google AI Studio:
   2026-06-02; verify at https://ai.google.dev/pricing).
 - **Veo** — video. `~$0.50 / second`; typical 8 s clip `~$4.00`.
 
-Authority: [ADR-0024](../../vibekit/memory/decisions/0024-media-generation-veo-nano-banana.md).
+Authority: [ADR-0024](../../contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md).
 
 ## Setup (one time)
 
 1. Get a key at https://aistudio.google.com/apikey
-2. Copy `vibekit/.env.example` to `vibekit/.env`, paste the key into
+2. Copy `contextkit/.env.example` to `contextkit/.env`, paste the key into
    `GOOGLE_AI_API_KEY=`.
-3. (Optional) set `VIBEDEVKIT_MEDIA_MAX_USD=5.00` for a per-process
+3. (Optional) set `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00` for a per-process
    cost cap — the adapter refuses the next call that would exceed it.
 4. Run via Node's built-in env-file loader (Node 20.6+):
 
 ```
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs <kind> ...
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs <kind> ...
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs <kind> ...
 ### Image
 
 ```
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs image \
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs image \
   --prompt "editorial product hero, asymmetric grid, single bold cyan accent" \
   --out public/hero.png \
   --aspect-ratio 16:9
@@ -41,7 +41,7 @@ node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs image \
 ### Video
 
 ```
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs video \
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs video \
   --prompt "macro slow-motion of a single drop of ink hitting paper" \
   --out public/hero.mp4 \
   --duration 8 \
@@ -51,7 +51,7 @@ node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs video \
 ### Dry-run (no API call, no charge)
 
 ```
-node vibekit/tools/scripts/media-gen.mjs image --prompt "..." --out path.png --dry-run
+node contextkit/tools/scripts/media-gen.mjs image --prompt "..." --out path.png --dry-run
 ```
 
 Prints what would be sent, including whether the required env vars are
@@ -62,11 +62,11 @@ cap is configured before the first paid call.
 
 - **Refuse-on-missing-creds (rule 8).** Without `GOOGLE_AI_API_KEY`
   set, the script exits with `NO_CREDENTIALS` pointing at
-  `vibekit/.env.example`. Never silently substitutes a placeholder.
+  `contextkit/.env.example`. Never silently substitutes a placeholder.
 - **Refuse-on-content-policy.** Google's API rejects some prompts;
   the script exits with `CONTENT_POLICY`. Refine the prompt and
   retry.
-- **Cost-cap guard.** When `VIBEDEVKIT_MEDIA_MAX_USD` is set, the
+- **Cost-cap guard.** When `CONTEXTDEVKIT_MEDIA_MAX_USD` is set, the
   adapters keep a per-process running total and refuse the next call
   that would push it over the cap.
 - **Atomic file write.** The output file is written with the parent

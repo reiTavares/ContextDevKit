@@ -1,6 +1,6 @@
 # Slash commands — domain taxonomy
 
-> Closes [ticket 047](../../../vibekit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md).
+> Closes [ticket 047](../../../contextkit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md).
 > Claude Code resolves commands by **file basename**, not by path — so
 > `/qa-signoff` finds `qa/qa-signoff.md` just as well as the flat layout.
 > Subfolders are pure human navigation: the directory listing is no longer
@@ -17,7 +17,7 @@ templates/claude/commands/
 ├── roadmap.md, close-version.md, context-refresh.md
 ├── claude-md.md, distill-apply.md, distill-sessions.md
 ├── fleet.md, playbook.md, predictions-review.md, simulate-impact.md
-├── squad.md, token-report.md, tune-agents.md, vibe-stats.md
+├── squad.md, token-report.md, tune-agents.md, context-stats.md
 ├── dashboard.md, watch.md
 ├── landing-page.md, media-gen.md   ← landing architect + media generation (ADR-0023/0024)
 ├── advise.md                       ← proactive six-lane improvement engine (ADR-0028)
@@ -58,11 +58,11 @@ templates/claude/commands/
 │   └── seo-audit.md                ← SEO + AISO static analysers (ADR-0025)
 │
 └── setup/                           ← installer + diagnostics
-    ├── setupvibedevkit.md
+    ├── setupcontextdevkit.md
     ├── aidevtool-from0.md
-    ├── vibe-doctor.md
-    ├── vibe-level.md
-    └── vibe-config.md
+    ├── context-doctor.md
+    ├── context-level.md
+    └── context-config.md
 ```
 
 ## Selection criteria for the root vs a pack

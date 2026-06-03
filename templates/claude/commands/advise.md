@@ -25,7 +25,7 @@ the owning agents/commands) and it does not write code (it's analysis).
 
 ## Steps
 
-1. **Load the taxonomy** from config (`advisor.lanes` in `vibekit/config.json`,
+1. **Load the taxonomy** from config (`advisor.lanes` in `contextkit/config.json`,
    defaults in `runtime/config/defaults.mjs`). Each lane carries an `owner`. Honor
    `advisor.active`; if `false`, say so and stop. Note the level — the fan-out needs
    the squad (Level ≥ 4).
@@ -44,7 +44,7 @@ the owning agents/commands) and it does not write code (it's analysis).
 
 3. **Skip a muted lane honestly (rule 8).** All six lanes ship with an owner
    (architecture · features · deepen · security · ux · growth). A lane whose `owner`
-   is set to `null` — muted via `/vibe-config` — is printed as **`skipped — no
+   is set to `null` — muted via `/context-config` — is printed as **`skipped — no
    owner`**. **Never** fabricate findings for a muted lane: a skip is a skip, never
    a false pass.
 
@@ -56,7 +56,7 @@ the owning agents/commands) and it does not write code (it's analysis).
 5. **Feed the DevPipeline backlog** — every surviving finding becomes a tracked,
    auto-prioritized task, tagged by lane so re-runs stay idempotent:
    ```
-   node vibekit/tools/scripts/pipeline.mjs add --type chore \
+   node contextkit/tools/scripts/pipeline.mjs add --type chore \
      --source "advise:<lane>" --title "<lane>: <finding>"
    ```
    then `pipeline.mjs sync`. Security findings → `--type bug --severity S1-S4`.

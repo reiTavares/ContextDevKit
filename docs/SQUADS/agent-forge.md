@@ -2,7 +2,7 @@
 
 > Public reference for the optional L4+ squad that forges portable, multi-provider
 > **Agent Packages (APF v1)** for projects *outside* the kit. The kit gains an
-> agent-that-builds-agents whose output ships independently — zero VibeDevKit
+> agent-that-builds-agents whose output ships independently — zero ContextDevKit
 > dependency at consume time.
 
 ## When to enable
@@ -13,8 +13,8 @@ typically `project_type: ai-product`. Stays inert otherwise.
 
 ## Approval + constraints
 
-- **[ADR-0012](../../vibekit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md)** — 7 binding constraints (portable zero-dep output, hot path stays zero-dep, reuse `squadOf`, no phantom prerequisite, **eval-as-authority**, owned matrix freshness, mandatory tests).
-- **[ADR-0013](../../vibekit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md)** — YAML strategy: optional `yaml` dep behind a dynamic import (the `zod` precedent).
+- **[ADR-0012](../../contextkit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md)** — 7 binding constraints (portable zero-dep output, hot path stays zero-dep, reuse `squadOf`, no phantom prerequisite, **eval-as-authority**, owned matrix freshness, mandatory tests).
+- **[ADR-0013](../../contextkit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md)** — YAML strategy: optional `yaml` dep behind a dynamic import (the `zod` precedent).
 
 ## Pipeline
 
@@ -48,14 +48,14 @@ typically `project_type: ai-product`. Stays inert otherwise.
 | `/forge-killswitch <agent> <on\|off>` | Toggle quality kill switch (atomic) |
 | `/forge-deprecate <agent>` | Stamp `metadata.deprecated_at`; recommend an ADR |
 
-Read `/vibe-stats` for the aggregate Forge Stats section.
+Read `/context-stats` for the aggregate Forge Stats section.
 
 ## Where each piece lives
 
-- **Squad source** — [`templates/vibekit/squads/agent-forge/`](../../templates/vibekit/squads/agent-forge/)
-- **Status map** — [`ROADMAP.md`](../../templates/vibekit/squads/agent-forge/ROADMAP.md) (the section-by-section blueprint coverage)
-- **Best-practices bar** — [`best-practices.md`](../../templates/vibekit/squads/agent-forge/best-practices.md)
-- **APF v1 template** — [`templates/vibekit/squads/agent-forge/templates/agent-package/`](../../templates/vibekit/squads/agent-forge/templates/agent-package/) (45 files)
+- **Squad source** — [`templates/contextkit/squads/agent-forge/`](../../templates/contextkit/squads/agent-forge/)
+- **Status map** — [`ROADMAP.md`](../../templates/contextkit/squads/agent-forge/ROADMAP.md) (the section-by-section blueprint coverage)
+- **Best-practices bar** — [`best-practices.md`](../../templates/contextkit/squads/agent-forge/best-practices.md)
+- **APF v1 template** — [`templates/contextkit/squads/agent-forge/templates/agent-package/`](../../templates/contextkit/squads/agent-forge/templates/agent-package/) (45 files)
 - **APF format reference** — [`docs/AGENT-PACKAGE-FORMAT.md`](AGENT-PACKAGE-FORMAT.md)
 
 ## Boundary

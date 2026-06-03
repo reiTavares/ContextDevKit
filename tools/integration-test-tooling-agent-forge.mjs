@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — TOOLING / agent-forge.
+ * ContextDevKit integration test — TOOLING / agent-forge.
  *
  * Sibling of `integration-test-tooling.mjs`. Extracted as a responsibility
  * seam (the split the parent file's cohesion note anticipated when budget
@@ -22,7 +22,7 @@ import { reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — tooling / agent-forge\n');
+console.log('\n🌀 ContextDevKit integration test — tooling / agent-forge\n');
 const fx = installFixture(rep);
 const { proj } = fx;
 
@@ -30,10 +30,10 @@ try {
   // agent-forge — installed at L>=4 + /forge-new round-trip: the architect/router/packager
   // pipeline writes a complete APF (yaml dep available) or proves the pure-JS half of the
   // pipeline (assembleManifest + router + generators) when yaml is absent (CI default).
-  existsSync(join(proj, 'vibekit', 'squads', 'agent-forge', 'lib', 'router.mjs'))
-    ? ok('agent-forge squad installed at L>=4 (vibekit/squads/agent-forge)')
+  existsSync(join(proj, 'contextkit', 'squads', 'agent-forge', 'lib', 'router.mjs'))
+    ? ok('agent-forge squad installed at L>=4 (contextkit/squads/agent-forge)')
     : bad('agent-forge squad missing from L5 install');
-  const forgeBase = join(proj, 'vibekit', 'squads', 'agent-forge').replaceAll('\\', '/');
+  const forgeBase = join(proj, 'contextkit', 'squads', 'agent-forge').replaceAll('\\', '/');
   const blueprint = {
     agent_name: 'intake-classifier',
     role_one_line: 'You classify intake forms by department.',
@@ -151,10 +151,10 @@ try {
 
   // Fase 6 — squad-pipeline DSL: pipeline.yaml ships, validates, dry-run is non-empty.
   // (ADR-0015 Part A; full grammar in docs/SQUAD-PIPELINE-FORMAT.md.)
-  existsSync(join(proj, 'vibekit', 'squads', 'agent-forge', 'pipeline.yaml'))
+  existsSync(join(proj, 'contextkit', 'squads', 'agent-forge', 'pipeline.yaml'))
     ? ok('agent-forge ships pipeline.yaml (Fase 6)')
     : bad('agent-forge pipeline.yaml missing from install');
-  const pipelineEngineUrl = 'file://' + join(proj, 'vibekit', 'tools', 'scripts', 'squad-pipeline.mjs').replaceAll('\\', '/');
+  const pipelineEngineUrl = 'file://' + join(proj, 'contextkit', 'tools', 'scripts', 'squad-pipeline.mjs').replaceAll('\\', '/');
   const { loadAndValidate, plan } = await import(pipelineEngineUrl);
   const lv = await loadAndValidate('agent-forge').catch((err) => ({ error: err }));
   if (yamlAvail) {

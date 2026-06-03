@@ -59,14 +59,14 @@ export async function installGitHooks(target) {
   const hooksDir = join(gitDir, 'hooks');
   await ensureDir(hooksDir);
   const wrappers = {
-    'pre-commit': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-commit.mjs\n',
-    'commit-msg': '#!/bin/sh\nnode vibekit/runtime/git-hooks/commit-msg.mjs "$1"\n',
-    'pre-push': '#!/bin/sh\nnode vibekit/runtime/git-hooks/pre-push.mjs\n',
+    'pre-commit': '#!/bin/sh\nnode contextkit/runtime/git-hooks/pre-commit.mjs\n',
+    'commit-msg': '#!/bin/sh\nnode contextkit/runtime/git-hooks/commit-msg.mjs "$1"\n',
+    'pre-push': '#!/bin/sh\nnode contextkit/runtime/git-hooks/pre-push.mjs\n',
   };
   const backedUp = [];
   for (const [name, body] of Object.entries(wrappers)) {
     const p = join(hooksDir, name);
-    if (existsSync(p) && !(await read(p)).includes('vibekit/runtime/git-hooks')) {
+    if (existsSync(p) && !(await read(p)).includes('contextkit/runtime/git-hooks')) {
       const backup = `${p}.bak`;
       if (!existsSync(backup)) {
         await rename(p, backup);
@@ -81,22 +81,22 @@ export async function installGitHooks(target) {
 
 const GITIGNORE_BLOCK = [
   '',
-  '# VibeDevKit — local runtime state (do not commit)',
+  '# ContextDevKit — local runtime state (do not commit)',
   '.claude/.sessions/',
   '.claude/.workspace/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
   '.agent-tuning-proposal.md',
-  'vibekit/memory/tech-debt-findings.json',
-  'vibekit/memory/deps-findings.json',
-  'vibekit/memory/deep-analysis-findings.json',
+  'contextkit/memory/tech-debt-findings.json',
+  'contextkit/memory/deps-findings.json',
+  'contextkit/memory/deep-analysis-findings.json',
 ].join('\n');
 
 export async function patchGitignore(target) {
   const p = join(target, '.gitignore');
   let current = '';
   if (existsSync(p)) current = await read(p);
-  if (current.includes('VibeDevKit — local runtime state')) return false;
+  if (current.includes('ContextDevKit — local runtime state')) return false;
   await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + GITIGNORE_BLOCK + '\n', 'utf-8');
   return true;
 }
@@ -108,7 +108,7 @@ export async function patchGitattributes(target, tplDir) {
   const p = join(target, '.gitattributes');
   let current = '';
   if (existsSync(p)) current = await read(p);
-  if (current.includes('VibeDevKit — keep engine scripts')) return false;
+  if (current.includes('ContextDevKit — keep engine scripts')) return false;
   await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + block, 'utf-8');
   return true;
 }

@@ -10,7 +10,7 @@ you apply the edits with your own OK.
 
 1. **Signals** (deterministic):
    ```
-   node vibekit/tools/scripts/agent-tuning.mjs --json
+   node contextkit/tools/scripts/agent-tuning.mjs --json
    ```
    Gives the roster, tier-2 briefing coverage, and per-agent mention counts across
    the session history (a usage proxy).
@@ -23,8 +23,8 @@ you apply the edits with your own OK.
    - **routing friction** — work that landed on the wrong agent → sharpen the
      `description` (that's what routing keys on).
 
-3. **Draft** concrete briefing edits to `vibekit/squads/<team>/<agent>.md` (scaffold
-   a missing briefing first: `node vibekit/tools/scripts/squad.mjs brief <agent>`).
+3. **Draft** concrete briefing edits to `contextkit/squads/<team>/<agent>.md` (scaffold
+   a missing briefing first: `node contextkit/tools/scripts/squad.mjs brief <agent>`).
    Prefer small, high-signal additions — briefings stay sharp, not bloated.
 
 4. **Write the proposal** to `.agent-tuning-proposal.md` (gitignored): the evidence

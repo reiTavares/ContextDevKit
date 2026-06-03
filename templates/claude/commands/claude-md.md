@@ -12,7 +12,7 @@ the code — clearer, more accurate guidance per area.
 
 1. **Detect** module roots:
    ```
-   node vibekit/tools/scripts/claude-md.mjs find
+   node contextkit/tools/scripts/claude-md.mjs find
    ```
    It finds split dirs (`backend/`, `frontend/`, `api/`, `web/`, `mobile/`, …) and
    monorepo group children (`apps/*`, `packages/*`, `modules/*`, `services/*`) that
@@ -20,7 +20,7 @@ the code — clearer, more accurate guidance per area.
 
 2. **Scaffold** the missing ones (stubs, won't overwrite):
    ```
-   node vibekit/tools/scripts/claude-md.mjs scaffold
+   node contextkit/tools/scripts/claude-md.mjs scaffold
    ```
 
 3. **Fill each one with real, local content** (this is the important part — don't

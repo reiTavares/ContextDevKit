@@ -8,10 +8,10 @@ Look back at recent work and convert repeated friction into durable improvements
 to how this project is built. Output proposals — apply only with the user's OK.
 
 1. **Gather signal:**
-   - `node vibekit/tools/scripts/stats.mjs --json` (drift rate, cadence).
-   - `node vibekit/tools/scripts/tech-debt-scan.mjs --json` (recurring smells).
+   - `node contextkit/tools/scripts/stats.mjs --json` (drift rate, cadence).
+   - `node contextkit/tools/scripts/tech-debt-scan.mjs --json` (recurring smells).
    - The last ~10 sessions as a **compact digest** [ADR-0027]:
-     `node vibekit/tools/scripts/session-digest.mjs --last 10` (corrections the
+     `node contextkit/tools/scripts/session-digest.mjs --last 10` (corrections the
      user repeated, conventions that emerged, decisions made informally) — open a
      full log only when a digest flags something to inspect.
    - `git log` since the last few sessions (what actually changed).
@@ -28,7 +28,7 @@ to how this project is built. Output proposals — apply only with the user's OK
    - **Habit nudges** — e.g. "drift rate 40% → register sessions".
 
 4. Present the proposals ranked by impact. On approval, apply via `/distill-apply`
-   (CLAUDE.md + ADR in one commit) and `/vibe-config` (config), then `/log-session`.
+   (CLAUDE.md + ADR in one commit) and `/context-config` (config), then `/log-session`.
 
 The point: the platform should get *smarter about this project* over time, not
 just enforce static rules.

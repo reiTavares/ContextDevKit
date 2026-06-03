@@ -35,7 +35,7 @@ export function requireBasename(p) {
 export function looksGreenfield(target) {
   try {
     const entries = existsSync(target) ? readdirSyncSafe(target) : [];
-    const meaningful = entries.filter((e) => !['.git', '.gitignore', 'README.md', 'LICENSE', '.claude', 'vibekit'].includes(e));
+    const meaningful = entries.filter((e) => !['.git', '.gitignore', 'README.md', 'LICENSE', '.claude', 'contextkit'].includes(e));
     return meaningful.length === 0;
   } catch {
     return true;

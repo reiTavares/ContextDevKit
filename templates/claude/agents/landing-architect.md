@@ -16,9 +16,9 @@ indexability work to the right squad member.
 ## Read first (in this order)
 
 1. `CLAUDE.md` (root) — immutable rules + the constitution.
-2. [ADR-0023](../../vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md) — the landing-page posture (fold rules, anti-Lovable refusals, package recs).
-3. [`vibekit/workflows/playbooks/landing-page.md`](../../vibekit/workflows/playbooks/landing-page.md) — the dated rec table + fold strategy + substitution table.
-4. [ADR-0025](../../vibekit/memory/decisions/0025-seo-and-aiso-posture.md) — the indexability gate you cannot skip.
+2. [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md) — the landing-page posture (fold rules, anti-Lovable refusals, package recs).
+3. [`contextkit/workflows/playbooks/landing-page.md`](../../contextkit/workflows/playbooks/landing-page.md) — the dated rec table + fold strategy + substitution table.
+4. [ADR-0025](../../contextkit/memory/decisions/0025-seo-and-aiso-posture.md) — the indexability gate you cannot skip.
 5. Any project-local ADR that overrides the playbook's defaults (the
    project's choices win — you do not re-litigate them).
 

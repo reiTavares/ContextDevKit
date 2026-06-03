@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit installer — entry point + orchestration.
+ * ContextDevKit installer — entry point + orchestration.
  *
  * Bootstraps the AI-assisted development platform into ANY project (greenfield
  * or existing, any stack). Idempotent: re-run it to change level or pull engine
@@ -23,13 +23,13 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-import { composeSettings } from './templates/vibekit/runtime/config/settings-compose.mjs';
-import { applyPreset, listPresets } from './templates/vibekit/runtime/config/presets.mjs';
+import { composeSettings } from './templates/contextkit/runtime/config/settings-compose.mjs';
+import { applyPreset, listPresets } from './templates/contextkit/runtime/config/presets.mjs';
 import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
-import { isValidLevel } from './templates/vibekit/runtime/config/levels.mjs';
+import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +51,7 @@ async function main() {
     return;
   }
   if (args.version) {
-    console.log(`vibedevkit ${await kitVersion()}`);
+    console.log(`contextdevkit ${await kitVersion()}`);
     return;
   }
 
@@ -70,7 +70,7 @@ async function main() {
 
   if (interactive) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    console.log('\n🌀 VibeDevKit installer\n');
+    console.log('\n🌀 ContextDevKit installer\n');
     console.log(`Target: ${target}\n`);
     if (!name) name = await prompt(rl, 'Project name', requireBasename(target));
     if (!mode) {
@@ -94,7 +94,7 @@ async function main() {
   // level (read from config) instead of silently downgrading to the default.
   if (!isValidLevel(level)) {
     try {
-      const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
+      const existingCfg = JSON.parse(await read(join(target, 'contextkit', 'config.json')));
       if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
     } catch {
       /* no config yet */
@@ -126,9 +126,9 @@ async function main() {
   }
 
   // 2. Engine: always overwrite (kit code; updates should propagate).
-  await copyTree(join(TPL, 'vibekit', 'runtime'), join(target, 'vibekit', 'runtime'));
-  await copyTree(join(TPL, 'vibekit', 'tools'), join(target, 'vibekit', 'tools'));
-  report.push('✓ engine installed (vibekit/runtime, vibekit/tools)');
+  await copyTree(join(TPL, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
+  await copyTree(join(TPL, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
+  report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
 
   // 3. Slash commands: always overwrite.
   await copyTree(join(TPL, 'claude', 'commands'), join(target, '.claude', 'commands'));
@@ -140,41 +140,41 @@ async function main() {
     report.push('✓ agent archetypes installed (.claude/agents)');
     // agent-forge factory squad: engine code + matrix + APF templates (ADR-0012).
     // Always overwrite — engine kit code, not user-editable.
-    await copyTree(join(TPL, 'vibekit', 'squads', 'agent-forge'), join(target, 'vibekit', 'squads', 'agent-forge'));
-    report.push('✓ agent-forge squad installed (vibekit/squads/agent-forge)');
+    await copyTree(join(TPL, 'contextkit', 'squads', 'agent-forge'), join(target, 'contextkit', 'squads', 'agent-forge'));
+    report.push('✓ agent-forge squad installed (contextkit/squads/agent-forge)');
   }
 
   // 5. Memory seeds: write only if missing. `.env.example` is seeded here so the
   //    user's edits survive re-install (ADR-0024 — media-gen credentials template).
   for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', '.env.example']) {
-    const src = join(TPL, 'vibekit', rel);
+    const src = join(TPL, 'contextkit', rel);
     if (!existsSync(src)) continue;
-    const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
-    if (wrote) report.push(`✓ seeded vibekit/${rel}`);
+    const wrote = await writeIfMissing(join(target, 'contextkit', rel), await read(src), args.force);
+    if (wrote) report.push(`✓ seeded contextkit/${rel}`);
   }
   // Ensure memory dirs exist even if a packager stripped the .gitkeep seed.
-  await ensureDir(join(target, 'vibekit', 'memory', 'sessions'));
-  await ensureDir(join(target, 'vibekit', 'memory', 'decisions'));
-  await ensureDir(join(target, 'vibekit', 'memory', 'business-rules'));
-  await ensureDir(join(target, 'vibekit', 'memory', 'predictions'));
+  await ensureDir(join(target, 'contextkit', 'memory', 'sessions'));
+  await ensureDir(join(target, 'contextkit', 'memory', 'decisions'));
+  await ensureDir(join(target, 'contextkit', 'memory', 'business-rules'));
+  await ensureDir(join(target, 'contextkit', 'memory', 'predictions'));
   // DevPipeline scaffolding (write-if-missing so existing tasks survive re-install).
-  const pipeCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'pipeline'), join(target, 'vibekit', 'pipeline'));
-  if (pipeCount > 0) report.push(`✓ seeded vibekit/pipeline (${pipeCount} file(s))`);
-  for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'vibekit', 'pipeline', s));
+  const pipeCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
+  if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);
+  for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'contextkit', 'pipeline', s));
   // Workflow guides (L1–L6) + reusable playbooks (write-if-missing so customizations survive).
-  const wfCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'workflows'), join(target, 'vibekit', 'workflows'));
-  if (wfCount > 0) report.push(`✓ seeded vibekit/workflows (${wfCount} file(s))`);
+  const wfCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'workflows'), join(target, 'contextkit', 'workflows'));
+  if (wfCount > 0) report.push(`✓ seeded contextkit/workflows (${wfCount} file(s))`);
   // Pluggable-detector seed (README + inert example) so the extension point is discoverable.
-  const detCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'detectors'), join(target, 'vibekit', 'detectors'));
-  if (detCount > 0) report.push(`✓ seeded vibekit/detectors (${detCount} file(s))`);
+  const detCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
+  if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
   // Curated-stack starters (always overwrite — pure templates, no user edits expected here;
-  // /aidevtool-from0 copies them OUT of vibekit/starters/ into the project root, not in-place).
-  await copyTree(join(TPL, 'vibekit', 'starters'), join(target, 'vibekit', 'starters'));
-  report.push('✓ curated-stack starters installed (vibekit/starters)');
+  // /aidevtool-from0 copies them OUT of contextkit/starters/ into the project root, not in-place).
+  await copyTree(join(TPL, 'contextkit', 'starters'), join(target, 'contextkit', 'starters'));
+  report.push('✓ curated-stack starters installed (contextkit/starters)');
 
   // 6. config.json: create with level + first-run flag, or update level
   //    (preserving an already-completed setup so re-installs don't re-trigger).
-  const cfgPath = join(target, 'vibekit', 'config.json');
+  const cfgPath = join(target, 'contextkit', 'config.json');
   const preset = args.preset && listPresets().includes(args.preset) ? args.preset : null;
   if (args.preset && !preset) report.push(`⚠️  unknown --preset "${args.preset}" (have: ${listPresets().join(', ')}) — ignored`);
   if (existsSync(cfgPath)) {
@@ -184,17 +184,17 @@ async function main() {
       if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
       if (preset) cfg = applyPreset(cfg, preset);
       await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-      report.push(`✓ updated vibekit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
+      report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
     } catch {
       /* leave malformed file for the user */
     }
   } else {
-    let cfg = JSON.parse(await read(join(TPL, 'vibekit', 'config.json')));
+    let cfg = JSON.parse(await read(join(TPL, 'contextkit', 'config.json')));
     cfg.level = level;
     cfg.setup = { completed: false, installedAt: new Date().toISOString() };
     if (preset) cfg = applyPreset(cfg, preset);
     await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-    report.push(`✓ created vibekit/config.json (level ${level}, first-run pending${preset ? `, preset ${preset}` : ''})`);
+    report.push(`✓ created contextkit/config.json (level ${level}, first-run pending${preset ? `, preset ${preset}` : ''})`);
   }
 
   // 7. CLAUDE.md: render if missing; else drop a side file to merge.
@@ -215,8 +215,8 @@ async function main() {
       await overwrite(claudePath, claudeOut);
       report.push('✓ CLAUDE.md created');
     } else {
-      await overwrite(join(target, 'CLAUDE.vibedevkit.md'), claudeOut);
-      report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.vibedevkit.md to merge by hand');
+      await overwrite(join(target, 'CLAUDE.contextdevkit.md'), claudeOut);
+      report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.contextdevkit.md to merge by hand');
     }
   }
 
@@ -248,26 +248,26 @@ async function main() {
   // ── summary ──
   console.log('\n' + report.join('\n'));
   if (args.update) {
-    console.log(`\n✅ VibeDevKit UPDATED to v${await kitVersion()} (Level ${level} preserved) in ${target}`);
+    console.log(`\n✅ ContextDevKit UPDATED to v${await kitVersion()} (Level ${level} preserved) in ${target}`);
     console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
     console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files.');
     console.log('   Restart Claude Code to load the refreshed hooks.');
     console.log('');
     return;
   }
-  console.log(`\n✅ VibeDevKit installed at Level ${level} into ${target}`);
+  console.log(`\n✅ ContextDevKit installed at Level ${level} into ${target}`);
   console.log('\nNext steps:');
   console.log('  1. Open the project in Claude Code (it reads .claude/ + CLAUDE.md).');
   console.log('  2. Approve the hooks on first run (one-time per hook).');
-  console.log('  3. ⭐ Run  /setupvibedevkit  — it fits the kit to THIS project');
+  console.log('  3. ⭐ Run  /setupcontextdevkit  — it fits the kit to THIS project');
   console.log('     (detects stack, tunes config, fills CLAUDE.md, flags risks).');
   console.log('     The first-run trigger will remind you automatically.');
   console.log('  4. Then work normally. /log-session at the end.');
-  if (level < 5) console.log(`  5. Level up later:  /vibe-level ${Math.min(level + 1, 5)}`);
+  if (level < 5) console.log(`  5. Level up later:  /context-level ${Math.min(level + 1, 5)}`);
   console.log('');
 }
 
 main().catch((err) => {
-  console.error('\n❌ VibeDevKit install failed:', err?.stack || err);
+  console.error('\n❌ ContextDevKit install failed:', err?.stack || err);
   process.exit(1);
 });

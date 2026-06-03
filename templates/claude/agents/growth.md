@@ -28,7 +28,7 @@ Experimentation**.
 1. **One North-Star, then the input metrics.** Name the single metric that proxies
    delivered value (not revenue, not signups). Decompose it into the 3–4 inputs a
    team can actually move. Everything below ladders up to it.
-2. **Activation is an event, not a vibe.** Define the **aha moment** as a concrete,
+2. **Activation is an event, not a gut feeling.** Define the **aha moment** as a concrete,
    instrumented action within a concrete window ("created 1 project + invited 1
    teammate in day 1"). Measure **time-to-value**; the fastest lever is usually
    shortening it, not adding a step.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — TOOLING scripts.
+ * ContextDevKit integration test — TOOLING scripts.
  *
  * Installs the kit into a throwaway temp project and exercises the tool scripts
  * (modular CLAUDE.md, git, deep-analysis, security mode, deps-audit, gh-alerts,
@@ -26,7 +26,7 @@ import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — tooling\n');
+console.log('\n🌀 ContextDevKit integration test — tooling\n');
 const fx = installFixture(rep);
 const { proj, cfgPath, hook, script } = fx;
 
@@ -59,7 +59,7 @@ try {
   const secCfg = readJson(cfgPath);
   secCfg.securityMode = { active: true, everyNSessions: 1 };
   writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
-  writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
+  writeFileSync(join(proj, 'contextkit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
   hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
     ? ok('security-mode boot trigger fires on cadence') : bad('security-mode banner missing');
   secCfg.securityMode.active = false;
@@ -80,14 +80,14 @@ try {
     ? ok('tech-debt --ci gate passes on a clean project')
     : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
 
-  // Pluggable detectors: a drop-in vibekit/detectors/*.mjs is loaded and its findings appear.
-  mkdirSync(join(proj, 'vibekit', 'detectors'), { recursive: true });
-  writeFileSync(join(proj, 'vibekit', 'detectors', 'custom.mjs'),
+  // Pluggable detectors: a drop-in contextkit/detectors/*.mjs is loaded and its findings appear.
+  mkdirSync(join(proj, 'contextkit', 'detectors'), { recursive: true });
+  writeFileSync(join(proj, 'contextkit', 'detectors', 'custom.mjs'),
     "export default function detectFooBar(p, c) { return c.includes('FOOBAR') ? [{ kind: 'custom-foobar', severity: 2, path: p, line: 1, message: 'FOOBAR marker' }] : []; }\n");
   mkdirSync(join(proj, 'src'), { recursive: true });
   writeFileSync(join(proj, 'src', 'marker.js'), '// FOOBAR\n');
   JSON.parse(script('tech-debt-scan.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'custom-foobar')
-    ? ok('tech-debt-scan loads a drop-in custom detector (vibekit/detectors/)') : bad('custom detector not loaded');
+    ? ok('tech-debt-scan loads a drop-in custom detector (contextkit/detectors/)') : bad('custom detector not loaded');
 
   // Stack presets: install --preset merges stack paths into config (union with defaults).
   run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go']);
@@ -96,17 +96,17 @@ try {
 
   // Recommended start level (ADR-0009): greenfield auto-picks L3, existing auto-picks L7
   // (the latter also proves the level cap accepts 7 — a broken cap would downgrade to 2).
-  const gdir = mkdtempSync(join(tmpdir(), 'vibekit-gf-'));
-  const edir = mkdtempSync(join(tmpdir(), 'vibekit-ex-'));
+  const gdir = mkdtempSync(join(tmpdir(), 'contextkit-gf-'));
+  const edir = mkdtempSync(join(tmpdir(), 'contextkit-ex-'));
   try {
     run([join(KIT, 'install.mjs'), '--target', gdir, '--yes']);
-    readJson(join(gdir, 'vibekit', 'config.json')).level === 3
-      ? ok('install auto-picks L3 for a greenfield project') : bad(`greenfield default not L3: ${readJson(join(gdir, 'vibekit', 'config.json')).level}`);
+    readJson(join(gdir, 'contextkit', 'config.json')).level === 3
+      ? ok('install auto-picks L3 for a greenfield project') : bad(`greenfield default not L3: ${readJson(join(gdir, 'contextkit', 'config.json')).level}`);
     mkdirSync(join(edir, 'src'), { recursive: true });
     writeFileSync(join(edir, 'src', 'index.js'), 'export const x = 1;\n');
     run([join(KIT, 'install.mjs'), '--target', edir, '--yes']);
-    readJson(join(edir, 'vibekit', 'config.json')).level === 7
-      ? ok('install auto-picks L7 for an existing project (+ level cap accepts 7)') : bad(`existing default not L7: ${readJson(join(edir, 'vibekit', 'config.json')).level}`);
+    readJson(join(edir, 'contextkit', 'config.json')).level === 7
+      ? ok('install auto-picks L7 for an existing project (+ level cap accepts 7)') : bad(`existing default not L7: ${readJson(join(edir, 'contextkit', 'config.json')).level}`);
   } finally {
     rmSync(gdir, { recursive: true, force: true });
     rmSync(edir, { recursive: true, force: true });
@@ -138,7 +138,7 @@ try {
   JSON.parse(script('deps-audit.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'license-deny')
     ? ok('deps-audit flags a denied license (deps policy)') : bad('deps-audit did not flag the denied license');
   script('deps-audit.mjs', '--sbom');
-  (() => { try { const s = readJson(join(proj, 'vibekit', 'memory', 'sbom.json')); return s.bomFormat === 'CycloneDX' && (s.components || []).some((c) => c.name === 'gpllib'); } catch { return false; } })()
+  (() => { try { const s = readJson(join(proj, 'contextkit', 'memory', 'sbom.json')); return s.bomFormat === 'CycloneDX' && (s.components || []).some((c) => c.name === 'gpllib'); } catch { return false; } })()
     ? ok('deps-audit --sbom writes a CycloneDX SBOM') : bad('SBOM not written/invalid');
 
   // GitHub-native security: scaffolding + code-security agent installed; alert sync degrades safely.
@@ -150,8 +150,8 @@ try {
     ? ok('gh-alerts degrades safely without a GitHub repo (exit 0, empty findings)') : bad(`gh-alerts failed: ${ghAlerts.stdout || ghAlerts.stderr}`);
 
   // Fleet mode: register this project in a temp registry, aggregate stats across the fleet.
-  const fleetEnv = { ...process.env, VIBE_FLEET_FILE: join(proj, '.fleet.json') };
-  const fleet = (...a) => run([join(proj, 'vibekit', 'tools', 'scripts', 'fleet.mjs'), ...a], { cwd: proj, env: fleetEnv });
+  const fleetEnv = { ...process.env, CONTEXT_FLEET_FILE: join(proj, '.fleet.json') };
+  const fleet = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'fleet.mjs'), ...a], { cwd: proj, env: fleetEnv });
   fleet('add', proj);
   const fleetStats = fleet('stats', '--json');
   (() => { try { const d = JSON.parse(fleetStats.stdout); return d.totals.repos === 1 && d.repos[0]?.ok === true && typeof d.totals.totalSessions === 'number'; } catch { return false; } })()

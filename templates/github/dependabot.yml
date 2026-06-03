@@ -1,6 +1,6 @@
 # Dependabot — keep dependencies patched automatically.
 # Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
-# Scaffolded by VibeDevKit (/security-setup). Uncomment / add the ecosystems your
+# Scaffolded by ContextDevKit (/security-setup). Uncomment / add the ecosystems your
 # project uses (npm, pip, gomod, cargo, maven, bundler, composer, docker, ...).
 version: 2
 updates:

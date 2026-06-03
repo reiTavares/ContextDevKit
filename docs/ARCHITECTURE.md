@@ -1,14 +1,14 @@
 # Architecture
 
-How VibeDevKit works internally — for anyone extending the engine.
+How ContextDevKit works internally — for anyone extending the engine.
 
 ## Two install locations
 
 Claude Code reads settings, slash commands, and agents from **hardcoded** paths
 under `.claude/`. Everything else — the engine, memory, scripts, providers —
-lives under a single rebrandable folder, `vibekit/` (a "bounded context"
+lives under a single rebrandable folder, `contextkit/` (a "bounded context"
 separate from your product code). The only literal reference to that folder
-name is `PLATFORM_DIR` in `vibekit/runtime/config/paths.mjs`.
+name is `PLATFORM_DIR` in `contextkit/runtime/config/paths.mjs`.
 
 ```
 .claude/                  # fixed by Claude Code
@@ -19,12 +19,12 @@ name is `PLATFORM_DIR` in `vibekit/runtime/config/paths.mjs`.
     qa/                   # qa-signoff, test-plan, scaffold-tests, visual-test
     vcs/                  # git, claim, release, worktree-new
     forge/                # 14 agent-forge lifecycle commands
-    setup/                # setupvibedevkit, vibe-doctor, vibe-level
+    setup/                # setupcontextdevkit, context-doctor, context-level
     *.md                  # daily commands at root
   agents/                 # 28 sub-agent archetypes (frontmatter: name + description)
   .sessions/              # per-session ledgers (gitignored runtime state)
   .workspace/             # per-session claim files (gitignored runtime state)
-vibekit/
+contextkit/
   .env.example            # optional credentials template (media-gen)
   runtime/hooks/          # the four hooks + shared ledger/classification/readers
   runtime/config/         # paths, defaults, zero-dep loader, settings composer, zod (opt)
@@ -43,7 +43,7 @@ vibekit/
 
 Claude Code's command resolver picks by **file basename** — `/qa-signoff` finds
 `qa/qa-signoff.md` exactly as well as a flat `qa-signoff.md`. The packs are
-pure human navigation (see [ticket 047 conclusion](../vibekit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md)).
+pure human navigation (see [ticket 047 conclusion](../contextkit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md)).
 
 ## The hooks (the engine)
 
@@ -86,17 +86,17 @@ leading UTF-8 BOM is stripped (common on Windows). On any failure it returns the
 frozen defaults — config is best-effort, never fatal.
 
 Strict validation (`runtime/config/schema.mjs`, zod) is **optional** and used
-only by `/vibe-config`; it degrades gracefully when zod isn't present.
+only by `/context-config`; it degrades gracefully when zod isn't present.
 
 ## Level system
 
 `config.json` → `level` (1–7) is the single switch. See [`LEVELS.md`](LEVELS.md)
 for what each level adds.
 
-- The **installer** and the in-project **`vibe-level.mjs`** both call the shared
+- The **installer** and the in-project **`context-level.mjs`** both call the shared
   `composeSettings(existing, level)` (`runtime/config/settings-compose.mjs`) to
   rebuild the `hooks` block — preserving your own hooks, stripping previously
-  installed VibeDevKit entries so going down a level cleanly removes them. It is
+  installed ContextDevKit entries so going down a level cleanly removes them. It is
   idempotent: re-running never duplicates entries.
 - Hooks also read the level at runtime and self-gate (e.g. the Stop hook only
   runs L5 distill-detect when `level >= 5`), so the wiring and the behaviour can
@@ -111,12 +111,12 @@ regenerates them before each commit. Never hand-edit a generated file.
 
 ## DevPipeline + state.json substrate
 
-The DevPipeline (`vibekit/pipeline/`) is the execution board — tickets flow
+The DevPipeline (`contextkit/pipeline/`) is the execution board — tickets flow
 `backlog/ → working/ → testing/ → conclusion/`. Each ticket is a markdown file
 with YAML frontmatter (id, title, type, priority, severity, SLA, dependencies
 DAG, complexity).
 
-The **state.json substrate** (`runtime/state/state-io.mjs`, [ADR-0015 §C](../vibekit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md))
+The **state.json substrate** (`runtime/state/state-io.mjs`, [ADR-0015 §C](../contextkit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md))
 gives every task and pipeline run a single readable state file (`startedAt`,
 `endedAt`, `lastHeartbeat`, `kind`, `status`). The `/runs` command reads from
 this substrate. `pipeline-session.mjs` stamps state on start/stop;
@@ -147,8 +147,8 @@ export async function postReviewComment({ prNumber, body }) { … }
 ```
 
 `detect.mjs` runs `git remote get-url origin` and picks the adapter whose
-`detectsRemote` matches, then records the choice in `vibekit/config.json` →
-`providers.review`. Authority: [ADR-0021](../vibekit/memory/decisions/0021-provider-strategy-review-qa.md).
+`detectsRemote` matches, then records the choice in `contextkit/config.json` →
+`providers.review`. Authority: [ADR-0021](../contextkit/memory/decisions/0021-provider-strategy-review-qa.md).
 
 ### Media providers (`runtime/providers/media/`) *(new in v1.7)*
 
@@ -168,12 +168,12 @@ export async function generate({ prompt, outPath, options }) { … }
 `CONTENT_POLICY`, `COST_CAP_REACHED`, `RATE_LIMIT`, `PROVIDER_ERROR`,
 `BAD_INPUT`, `IO`), `validateAdapter`, `assertCredentials` (refuses before any
 network call), and `noteCostOrThrow` (shared per-process USD tally read from
-`VIBEDEVKIT_MEDIA_MAX_USD`). Authority: [ADR-0024](../vibekit/memory/decisions/0024-media-generation-veo-nano-banana.md).
+`CONTEXTDEVKIT_MEDIA_MAX_USD`). Authority: [ADR-0024](../contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md).
 
 ## Squads — sub-agent organisation
 
 Each agent is a `.claude/agents/*.md` file with frontmatter (`name` +
-`description`; optional `mcpServers` per [ADR-0019](../vibekit/memory/decisions/0019-mcp-injection-in-squads.md)).
+`description`; optional `mcpServers` per [ADR-0019](../contextkit/memory/decisions/0019-mcp-injection-in-squads.md)).
 Claude Code routes to an agent by matching the `description` to the user's
 intent — so the description names the *concrete files/dirs/patterns* the agent
 owns.
@@ -200,7 +200,7 @@ Two zero-dep surfaces over the kit's existing files:
 - **`/dashboard`** (`dashboard.mjs` entry; `dashboard-data.mjs` reader;
   `dashboard-html.mjs` renderer; `dashboard-server.mjs` `--watch` server) —
   writes a self-contained HTML or serves it on `127.0.0.1:4242` (override via
-  `--port` or `VIBEDEVKIT_DASHBOARD_PORT`). Live mode uses `fs.watch` on the
+  `--port` or `CONTEXTDEVKIT_DASHBOARD_PORT`). Live mode uses `fs.watch` on the
   platform dir with a 200 ms debouncer and pushes data via Server-Sent Events.
 - **`/watch`** (`watch.mjs`) — tails the active session ledger via the runtime's
   `readMostRecentLedger` (single-sourced — rule 4). `--follow` re-polls every
@@ -210,7 +210,7 @@ Both bind to `127.0.0.1` only — no remote access by design.
 
 ## GitHub sync awareness (sync-check)
 
-`sync-check.mjs` ([ADR-0026](../vibekit/memory/decisions/0026-github-sync-awareness-dev-flow.md))
+`sync-check.mjs` ([ADR-0026](../contextkit/memory/decisions/0026-github-sync-awareness-dev-flow.md))
 has two modes wired into two slash commands:
 
 - **`preflight`** (run by `/dev-start` before scope-lock) — shows ahead/behind,
@@ -224,13 +224,13 @@ the PR check as **skipped, never a pass** (rule 8). Offline → silent exit 0.
 PR queries stay **off the `SessionStart` hot path** (rule 2 — never block
 real work; network + auth would violate the never-block invariant).
 
-## Home-scoped state (`~/.vibedevkit/`)
+## Home-scoped state (`~/.contextdevkit/`)
 
 ADR-0020 formalises a small home directory for cross-repo state that cannot
 live in any single repo. `home.mjs` is the single owner of resolution + atomic
 write contract:
 
-- `resolveHome()` — honours `VIBEDEVKIT_HOME`; otherwise `~/.vibedevkit/`; lazy
+- `resolveHome()` — honours `CONTEXTDEVKIT_HOME`; otherwise `~/.contextdevkit/`; lazy
   `mkdirSync` on first call.
 - `readHomeFile(name)` — returns `null` on absent/malformed/version mismatch;
   legacy files (without `version`) are adopted on first read.
@@ -249,7 +249,7 @@ exclusively (e.g. `GOOGLE_AI_API_KEY` for `/media-gen`).
 - **Defense in depth.** Instructions (CLAUDE.md, slash commands) are advisory;
   hooks are enforced. The two layers cover each other.
 - **Reversible & inspectable.** Everything is plain files in your repo. Uninstall
-  by deleting `vibekit/` and the VibeDevKit block from `.claude/settings.json`.
+  by deleting `contextkit/` and the ContextDevKit block from `.claude/settings.json`.
 - **No lock-in on the hot path.** Zero runtime deps for Levels 1–3. The optional
   layers (`zod` for strict validation, external APIs for `/media-gen`) are all
   opt-in and degrade gracefully when absent.

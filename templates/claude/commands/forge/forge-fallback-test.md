@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] [--json]
 
 # 🛠️ Mode: agent-forge — fallback test
 
-Run `node vibekit/squads/agent-forge/cli/forge-eval-cli.mjs fallback-test $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-eval-cli.mjs fallback-test $ARGUMENTS`.
 
 The chaos provider raises a 503 once, then behaves normally. The runner
 demonstrates that the eval scaffold tolerates the failure. The actual

@@ -1,11 +1,11 @@
 # Levels
 
-VibeDevKit activates progressively. The active level lives in
-`vibekit/config.json` → `level` and drives both which hooks are wired in
+ContextDevKit activates progressively. The active level lives in
+`contextkit/config.json` → `level` and drives both which hooks are wired in
 `.claude/settings.json` and which behaviours the hooks enable at runtime.
 
-Change level with `/vibe-level <n>` or
-`node vibekit/tools/scripts/vibe-level.mjs <n>` (then restart Claude Code so it
+Change level with `/context-level <n>` or
+`node contextkit/tools/scripts/context-level.mjs <n>` (then restart Claude Code so it
 reloads hooks).
 
 ---
@@ -17,7 +17,7 @@ reloads hooks).
 - `SessionStart` hook injects boot context: latest session, CHANGELOG
   `[Unreleased]`, git divergence vs upstream.
 - `/log-session` writes one markdown file per session under
-  `vibekit/memory/sessions/`.
+  `contextkit/memory/sessions/`.
 - `/new-adr` records architecture decisions (immutable once accepted).
 - `/state`, `/close-version`, `/context-refresh`.
 
@@ -55,7 +55,7 @@ machines/devs — **without one silently overwriting another**.
   (`l3.mainBranch`, default `main`) and **blocks** if your branch has a real
   textual conflict with what was pushed there (warns on auto-mergeable overlap).
   This is the cross-machine guarantee the local ledger can't give. Bypass:
-  `VIBE_ALLOW_CONFLICT_PUSH=1`.
+  `CONTEXT_ALLOW_CONFLICT_PUSH=1`.
 - `/worktree-new` creates an isolated git worktree (its own ledger).
 - `SESSIONS.md` / `WORKSPACE.md` are auto-generated; `pre-commit` regenerates
   them; `commit-msg` enforces Conventional Commits (`[skip-cc]` to bypass).
@@ -117,7 +117,7 @@ auth) you want protected from casual edits.
 
 - `/ship` — orchestrated pipeline (design → implement → review → test → record).
 - `/retro` — turns recurring drift/debt into governance (rules + ADRs).
-- `/vibe-stats` — telemetry (drift rate, cadence, ADR/agent counts).
+- `/context-stats` — telemetry (drift rate, cadence, ADR/agent counts).
 
 **Use when:** the practice is established and you want orchestration + insight.
 
@@ -141,11 +141,11 @@ auth) you want protected from casual edits.
 
 The kit is **not** timid by default:
 
-- **Vibe-coding a NEW / empty project from zero?** Start at **L3** — memory + drift +
+- **AI-assisted coding a NEW / empty project from zero?** Start at **L3** — memory + drift +
   multi-session + git hooks. A solid base, no ceremony.
 - **A project that already has code?** Start at **L7** — use everything. It's not
   intrusive: the L5 `simulate-gate` stays inert until you set `l5.highRiskPaths`; the
   rest is advisory. (See [ADR-0009].)
 
-`/vibe-level <n>` moves up or down any time. The installer picks **L3** (greenfield) or
+`/context-level <n>` moves up or down any time. The installer picks **L3** (greenfield) or
 **L7** (existing) for you, based on whether the folder already has code.

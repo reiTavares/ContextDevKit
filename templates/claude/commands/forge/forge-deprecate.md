@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] [--write]
 
 # 🛠️ Mode: agent-forge — deprecate
 
-Run `node vibekit/squads/agent-forge/cli/forge-admin.mjs deprecate $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-admin.mjs deprecate $ARGUMENTS`.
 
 Marks the version as deprecated without deleting it. Clients can still
 consume the package; the marker tells them to migrate to the successor.

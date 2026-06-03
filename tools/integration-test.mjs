@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — CORE engine (install + the real hooks).
+ * ContextDevKit integration test — CORE engine (install + the real hooks).
  *
  * Installs the kit into a throwaway temp project and drives the runtime hooks
  * end-to-end (drift block, L5 gate, predictions, concurrency, --update, …). The
@@ -15,7 +15,7 @@ import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — core\n');
+console.log('\n🌀 ContextDevKit integration test — core\n');
 const fx = installFixture(rep);
 const { proj, cfgPath, hook, script } = fx;
 
@@ -48,22 +48,22 @@ try {
     ? ok('L5 gate allows after /simulate-impact')
     : bad('L5 gate still blocked after simulation');
   // Ancestor parity: /simulate-impact leaves a prediction trail file.
-  existsSync(join(proj, 'vibekit', 'memory', 'predictions')) && readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
+  existsSync(join(proj, 'contextkit', 'memory', 'predictions')) && readdirSync(join(proj, 'contextkit', 'memory', 'predictions')).some((f) => f.endsWith('.md'))
     ? ok('simulate-impact writes a prediction file (predictions/)')
     : bad('no prediction file written');
   // Pluggable-detector seed (026): README + inert example install (discoverable, not auto-run).
-  existsSync(join(proj, 'vibekit', 'detectors', 'README.md')) && existsSync(join(proj, 'vibekit', 'detectors', 'example-detector.mjs.example'))
+  existsSync(join(proj, 'contextkit', 'detectors', 'README.md')) && existsSync(join(proj, 'contextkit', 'detectors', 'example-detector.mjs.example'))
     ? ok('detectors seed installed (README + .example, discoverable)') : bad('detectors seed not installed');
   // Ancestor parity: workflow guides (L1–L6) + reusable playbooks are installed.
-  existsSync(join(proj, 'vibekit', 'workflows', 'README.md')) &&
+  existsSync(join(proj, 'contextkit', 'workflows', 'README.md')) &&
     ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']
-      .every((f) => existsSync(join(proj, 'vibekit', 'workflows', 'playbooks', f)))
+      .every((f) => existsSync(join(proj, 'contextkit', 'workflows', 'playbooks', f)))
     ? ok('workflows + playbooks installed (workflows/playbooks/)')
     : bad('workflows/playbooks not installed');
   // Ancestor parity #1 (loop closed): predictions-review fills the Actual section.
   script('predictions-review.mjs');
-  const predMd = readdirSync(join(proj, 'vibekit', 'memory', 'predictions')).find((f) => f.endsWith('.md'));
-  const predBody = predMd ? readFileSync(join(proj, 'vibekit', 'memory', 'predictions', predMd), 'utf-8') : '';
+  const predMd = readdirSync(join(proj, 'contextkit', 'memory', 'predictions')).find((f) => f.endsWith('.md'));
+  const predBody = predMd ? readFileSync(join(proj, 'contextkit', 'memory', 'predictions', predMd), 'utf-8') : '';
   predBody.includes('## Actual (reviewed') && predBody.includes('src/a.js') && !predBody.includes('fill on review')
     ? ok('predictions-review closes the predicted-vs-actual loop (Actual filled)')
     : bad('predictions-review did not fill the Actual section');
@@ -86,8 +86,8 @@ try {
   // Safe --update: preserves CLAUDE.md, config (level + overrides), memory.
   writeFileSync(join(proj, 'CLAUDE.md'), readFileSync(join(proj, 'CLAUDE.md'), 'utf-8') + '\n## USER MARKER\n');
   run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
-  const afterCfg = readJson(join(proj, 'vibekit', 'config.json'));
-  readFileSync(join(proj, 'CLAUDE.md'), 'utf-8').includes('USER MARKER') && afterCfg.level === 5 && !existsSync(join(proj, 'CLAUDE.vibedevkit.md'))
+  const afterCfg = readJson(join(proj, 'contextkit', 'config.json'));
+  readFileSync(join(proj, 'CLAUDE.md'), 'utf-8').includes('USER MARKER') && afterCfg.level === 5 && !existsSync(join(proj, 'CLAUDE.contextdevkit.md'))
     ? ok('--update preserves CLAUDE.md + level (no data loss)')
     : bad('--update lost data (CLAUDE.md/level/side-file)');
 
@@ -97,41 +97,41 @@ try {
     ? ok('first-run trigger silent after setup-complete')
     : bad('trigger still firing after setup-complete');
 
-  // vibe-level down to L2 removes PreToolUse wiring.
-  script('vibe-level.mjs', '2');
+  // context-level down to L2 removes PreToolUse wiring.
+  script('context-level.mjs', '2');
   const settings = readJson(join(proj, '.claude', 'settings.json'));
-  !settings.hooks?.PreToolUse ? ok('vibe-level 2 removes the L5 PreToolUse hook') : bad('PreToolUse still wired at L2');
-  settings.hooks?.SessionStart && settings.hooks?.Stop ? ok('vibe-level 2 keeps L1/L2 hooks') : bad('L1/L2 hooks lost');
+  !settings.hooks?.PreToolUse ? ok('context-level 2 removes the L5 PreToolUse hook') : bad('PreToolUse still wired at L2');
+  settings.hooks?.SessionStart && settings.hooks?.Stop ? ok('context-level 2 keeps L1/L2 hooks') : bad('L1/L2 hooks lost');
   // L7 is a valid capability-tier level (no new hook beyond L5/L6).
-  script('vibe-level.mjs', '7');
-  readJson(join(proj, 'vibekit', 'config.json')).level === 7 ? ok('vibe-level 7 sets the L7 capability tier') : bad('vibe-level 7 not applied');
+  script('context-level.mjs', '7');
+  readJson(join(proj, 'contextkit', 'config.json')).level === 7 ? ok('context-level 7 sets the L7 capability tier') : bad('context-level 7 not applied');
 
   // GitHub templates + QA/compliance/design/security agents + two-tier briefings.
   existsSync(join(proj, '.github', 'PULL_REQUEST_TEMPLATE.md')) ? ok('GitHub PR template installed') : bad('PR template not installed');
   existsSync(join(proj, '.claude', 'agents', 'qa-orchestrator.md')) ? ok('QA squad agents installed (L5)') : bad('qa-orchestrator agent missing');
-  existsSync(join(proj, 'vibekit', 'squads', 'README.md')) ? ok('squad manifest installed') : bad('squads/README.md missing');
+  existsSync(join(proj, 'contextkit', 'squads', 'README.md')) ? ok('squad manifest installed') : bad('squads/README.md missing');
   existsSync(join(proj, '.claude', 'agents', 'privacy-lgpd.md')) && existsSync(join(proj, '.claude', 'agents', 'ux-designer.md'))
     ? ok('compliance + design squads installed') : bad('new squad agents missing');
   existsSync(join(proj, '.claude', 'agents', 'infra-security.md')) ? ok('security-team infra-security agent installed') : bad('infra-security agent missing');
   script('squad.mjs', 'brief', 'security');
-  existsSync(join(proj, 'vibekit', 'squads', 'security-team', 'security.md'))
+  existsSync(join(proj, 'contextkit', 'squads', 'security-team', 'security.md'))
     ? ok('squad brief scaffolds a tier-2 briefing (squads/<team>/)') : bad('squad brief did not scaffold');
 
   // Status-line widget: wired into settings.json + runs and prints a line.
-  readJson(join(proj, '.claude', 'settings.json')).statusLine?.command?.includes('vibekit/runtime/statusline')
+  readJson(join(proj, '.claude', 'settings.json')).statusLine?.command?.includes('contextkit/runtime/statusline')
     ? ok('statusLine widget wired into settings.json') : bad('statusLine not wired into settings.json');
-  (run([join(proj, 'vibekit', 'runtime', 'statusline.mjs')], { cwd: proj }).stdout || '').includes('🌀')
+  (run([join(proj, 'contextkit', 'runtime', 'statusline.mjs')], { cwd: proj }).stdout || '').includes('🌀')
     ? ok('statusline.mjs prints a status line') : bad('statusline.mjs produced no output');
 
-  // vibe-config show/set round-trip.
-  script('vibe-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
-  const showOut = script('vibe-config.mjs', 'show', 'qa.coverageTarget.lines').stdout || '';
-  showOut.trim() === '90' ? ok('vibe-config set/show round-trips') : bad(`vibe-config round-trip failed: ${showOut}`);
+  // context-config show/set round-trip.
+  script('context-config.mjs', 'set', 'qa.coverageTarget.lines', '90');
+  const showOut = script('context-config.mjs', 'show', 'qa.coverageTarget.lines').stdout || '';
+  showOut.trim() === '90' ? ok('context-config set/show round-trips') : bad(`context-config round-trip failed: ${showOut}`);
 
   // doctor runs and reports — and accepts the current level (L7 set above) as valid,
   // not "out of range" (regression guard for the level-range cap).
   const doc = script('doctor.mjs');
-  /VibeDevKit doctor/i.test(doc.stdout || '') && !/level.*out of range/i.test(doc.stdout || '')
+  /ContextDevKit doctor/i.test(doc.stdout || '') && !/level.*out of range/i.test(doc.stdout || '')
     ? ok('doctor runs + accepts L7 as a valid level') : bad(`doctor failed/flagged level: ${doc.stdout || doc.stderr}`);
 
   // L5/L6 scanners run and produce JSON.
@@ -143,8 +143,8 @@ try {
     ? ok('stats emits JSON metrics') : bad(`stats failed: ${stats.stderr}`);
 
   // best-practices doc + business-rules scaffold installed.
-  existsSync(join(proj, 'vibekit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
-  existsSync(join(proj, 'vibekit', 'memory', 'business-rules', '_TEMPLATE.md')) ? ok('business-rules/ scaffolded (ancestor parity)') : bad('business-rules template missing');
+  existsSync(join(proj, 'contextkit', 'best-practices.md')) ? ok('best-practices.md installed') : bad('best-practices.md missing');
+  existsSync(join(proj, 'contextkit', 'memory', 'business-rules', '_TEMPLATE.md')) ? ok('business-rules/ scaffolded (ancestor parity)') : bad('business-rules template missing');
 
   // Contract drift: deepened extractor catches default / export* / abstract / type-only.
   const ccfg = readJson(cfgPath);
@@ -172,7 +172,7 @@ try {
   })()
     ? ok('contract-scan detects removed default / export* / abstract / type-only exports')
     : bad(`contract-scan drift miss: ${drift.stdout || drift.stderr}`);
-  // Optional AST contract drift (#001): with a parser available (fake via VIBE_CONTRACT_PARSER),
+  // Optional AST contract drift (#001): with a parser available (fake via CONTEXT_CONTRACT_PARSER),
   // extraction uses the AST, not regex — the baseline reflects AST-derived names.
   const astCfg = readJson(cfgPath);
   astCfg.l5.contractGlobs = ['src/ast/'];
@@ -180,8 +180,8 @@ try {
   mkdirSync(join(proj, 'src', 'ast'), { recursive: true });
   writeFileSync(join(proj, 'src', 'ast', 'mod.js'), 'export const regexName = 1;\n');
   writeFileSync(join(proj, '_fakeparser.mjs'), 'export function parse(){return{body:[{type:"ExportDefaultDeclaration"},{type:"ExportNamedDeclaration",specifiers:[{exported:{name:"astOnly"}}]}]};}\n');
-  run([join(proj, 'vibekit', 'tools', 'scripts', 'contract-scan.mjs'), '--save'], { cwd: proj, env: { ...process.env, VIBE_CONTRACT_PARSER: join(proj, '_fakeparser.mjs') } });
-  const astBaseline = readFileSync(join(proj, 'vibekit', 'memory', 'contract-baseline.json'), 'utf-8');
+  run([join(proj, 'contextkit', 'tools', 'scripts', 'contract-scan.mjs'), '--save'], { cwd: proj, env: { ...process.env, CONTEXT_CONTRACT_PARSER: join(proj, '_fakeparser.mjs') } });
+  const astBaseline = readFileSync(join(proj, 'contextkit', 'memory', 'contract-baseline.json'), 'utf-8');
   astBaseline.includes('astOnly') && !astBaseline.includes('regexName')
     ? ok('contract-scan uses the optional AST parser when importable') : bad(`AST path not used: ${astBaseline}`);
 
@@ -190,8 +190,8 @@ try {
   pbList.includes('tech-debt-sweep') && pbList.includes('security-batch')
     ? ok('playbook list shows the registry') : bad(`playbook list missing entries: ${pbList}`);
   script('playbook.mjs', 'run', 'tech-debt-sweep', 'IT run');
-  const pbRuns = existsSync(join(proj, 'vibekit', 'memory', 'playbook-runs.md'))
-    && readFileSync(join(proj, 'vibekit', 'memory', 'playbook-runs.md'), 'utf-8');
+  const pbRuns = existsSync(join(proj, 'contextkit', 'memory', 'playbook-runs.md'))
+    && readFileSync(join(proj, 'contextkit', 'memory', 'playbook-runs.md'), 'utf-8');
   pbRuns && pbRuns.includes('tech-debt-sweep')
     ? ok('playbook run records a tracked entry') : bad('playbook run did not track');
 
@@ -209,13 +209,13 @@ try {
   const prCfg = readJson(cfgPath);
   prCfg.predictionsReview = { active: true, everyNSessions: 1 };
   writeFileSync(cfgPath, JSON.stringify(prCfg, null, 2));
-  writeFileSync(join(proj, 'vibekit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x\n');
-  writeFileSync(join(proj, 'vibekit', 'memory', 'predictions', 'unrev.md'), '# Prediction\n\n## Actual — fill on review\n');
+  writeFileSync(join(proj, 'contextkit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x\n');
+  writeFileSync(join(proj, 'contextkit', 'memory', 'predictions', 'unrev.md'), '# Prediction\n\n## Actual — fill on review\n');
   hook('session-start.mjs', {}).includes('/predictions-review')
     ? ok('predictions-review cadence reminds when a review is due') : bad('no predictions-review cadence reminder');
 
   // Roadmap seeded (undefined) + find reports it as not-defined.
-  existsSync(join(proj, 'vibekit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
+  existsSync(join(proj, 'contextkit', 'memory', 'roadmap.md')) ? ok('roadmap.md installed') : bad('roadmap.md missing');
   const rm = script('roadmap.mjs', 'find', '--json');
   (() => { try { return JSON.parse(rm.stdout).canonicalDefined === false; } catch { return false; } })()
     ? ok('roadmap find reports undefined (seed placeholder)') : bad(`roadmap find failed: ${rm.stderr || rm.stdout}`);

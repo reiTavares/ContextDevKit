@@ -9,23 +9,23 @@ Audit the codebase (focus: **$ARGUMENTS** if given, else the whole repo) against
 the rubric and propose improvements with engineering judgment.
 
 1. **Read both rubric files** + the constitution:
-   - `vibekit/best-practices.md` — *the rubric* (Tier 1 system &
+   - `contextkit/best-practices.md` — *the rubric* (Tier 1 system &
      architecture; Tier 2 module & function hygiene; the four-block
      Principle / Smells / Fix / Don't over-apply per rule).
-   - `vibekit/review-protocol.md` — *the protocol* (severity vocabulary
+   - `contextkit/review-protocol.md` — *the protocol* (severity vocabulary
      anchored on scanner sev 1..5; scope / spike relaxations; report shape;
      scanner-vs-agent contract).
    - `CLAUDE.md` constitution (especially §1 line budget, §2 SRP, §3 layers).
-   - `vibekit/config.json → l5.lineBudget` for the project's thresholds.
+   - `contextkit/config.json → l5.lineBudget` for the project's thresholds.
 2. **Run the deterministic scan:**
    ```
-   node vibekit/tools/scripts/tech-debt-scan.mjs --json
+   node contextkit/tools/scripts/tech-debt-scan.mjs --json
    ```
    The scanner emits findings on a 1..5 severity scale from four detectors:
    `line-budget` (sev 3/5), `srp-and` (sev 2 — JS `And`/`Or`/`E`, Python
    `_and_`/`_or_`), `react-state-loop` (sev 3 — React/JSX only,
    `> 2 useState + ≥ 1 useEffect`), `todo-marker` (sev 1 — `TODO`/`FIXME`/
-   `HACK`/`XXX`). Custom detectors auto-load from `vibekit/detectors/*.mjs`.
+   `HACK`/`XXX`). Custom detectors auto-load from `contextkit/detectors/*.mjs`.
    That is the *floor* of the report, not the ceiling.
 3. **Apply judgment the regex can't — in tier order:**
    - **Tier 1 first** (architecture, no scanner help): does the domain
@@ -61,7 +61,7 @@ the rubric and propose improvements with engineering judgment.
 6. **Feed the DevPipeline backlog** — add each surviving item as a task,
    **auto-prioritised** (BLOCKER→P0, HARD→P1, CANDIDATE→P2, NIT→P3):
    ```
-   node vibekit/tools/scripts/pipeline.mjs add --type chore --priority <P> \
+   node contextkit/tools/scripts/pipeline.mjs add --type chore --priority <P> \
      --source "practices:<file>" --title "refactor <file> by responsibility"
    ```
    `--source` keeps re-runs idempotent; then `pipeline.mjs sync`. Priorities
@@ -71,5 +71,5 @@ the rubric and propose improvements with engineering judgment.
    on the top item.
 
 If best-practices aren't active yet, ask the user whether to adopt them
-(set `practices.active = true` via `/vibe-config` and fill the `CLAUDE.md`
+(set `practices.active = true` via `/context-config` and fill the `CLAUDE.md`
 constitution).

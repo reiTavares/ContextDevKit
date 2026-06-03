@@ -12,7 +12,7 @@ immutable rules.
 ## Read first
 1. `CLAUDE.md` — the constitution and immutable rules. This is your rubric.
 2. The diff under review (`git diff <base>...HEAD`), or the files named by the user.
-3. Relevant ADRs in `vibekit/memory/decisions/` — a change that violates an
+3. Relevant ADRs in `contextkit/memory/decisions/` — a change that violates an
    accepted ADR is a blocker, not a nit.
 
 ## What you check (in priority order)
