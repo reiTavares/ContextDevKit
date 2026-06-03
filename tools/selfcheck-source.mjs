@@ -154,6 +154,13 @@ async function checkSourceInvariants(rep, KIT) {
     ['distill-detect surfaces "from now on" pattern', 'templates/vibekit/tools/scripts/distill-detect.mjs', /from now on/],
     ['log-session briefing wires distill-detect (ticket 043)', 'templates/claude/commands/log-session.md', /distill-detect\.mjs/],
     ['log-session briefing flags distill as proposal-only', 'templates/claude/commands/log-session.md', /proposal-only/],
+    // Ticket 041 — /workflow macro chains roadmap → ADR → pipeline → ship.
+    ['workflow.mjs ships 4 phases (ticket 041)', 'templates/vibekit/tools/scripts/workflow.mjs', /PHASES\s*=\s*\['roadmap',\s*'adr',\s*'tickets',\s*'ship'\]/],
+    ['workflow.mjs exposes new subcommand', 'templates/vibekit/tools/scripts/workflow.mjs', /cmd === 'new'/],
+    ['workflow.mjs exposes advance subcommand', 'templates/vibekit/tools/scripts/workflow.mjs', /cmd === 'advance'/],
+    ['workflow.mjs exposes status subcommand', 'templates/vibekit/tools/scripts/workflow.mjs', /cmd === 'status'/],
+    ['workflow.mjs slug regex blocks invalid slugs', 'templates/vibekit/tools/scripts/workflow.mjs', /SLUG_RE\s*=\s*\/\^/],
+    ['/workflow command briefing ships (ticket 041)', 'templates/claude/commands/pipeline/workflow.md', /chain \/roadmap → \/new-adr → \/pipeline → \/ship/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
