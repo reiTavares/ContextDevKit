@@ -206,6 +206,15 @@ async function checkSourceInvariants(rep, KIT) {
     ['landing-architect refuses cookie-cutter on sight', 'templates/claude/agents/landing-architect.md', /refuses the cookie-cutter/],
     ['landing-architect names the three decisions in order', 'templates/claude/agents/landing-architect.md', /three decisions, in order/],
     ['landing-architect delegation matrix points at seo-specialist gate', 'templates/claude/agents/landing-architect.md', /seo-specialist.*mandatory gate/],
+    // ADR-0026 — GitHub sync awareness (sync-check.mjs: preflight + prepr).
+    ['sync-check exposes preflight mode (ADR-0026)', 'templates/vibekit/tools/scripts/sync-check.mjs', /function preflight\(\)/],
+    ['sync-check exposes prepr mode (ADR-0026)', 'templates/vibekit/tools/scripts/sync-check.mjs', /function prepr\(\)/],
+    ['sync-check times out network calls (ADR-0026)', 'templates/vibekit/tools/scripts/sync-check.mjs', /timeout:\s*\w/],
+    ['sync-check degrades without gh — skip, not pass (rule 8)', 'templates/vibekit/tools/scripts/sync-check.mjs', /PR checks skipped/],
+    ['sync-check queries PR status fields', 'templates/vibekit/tools/scripts/sync-check.mjs', /PR_FIELDS\s*=/],
+    ['/dev-start runs sync-check preflight (ADR-0026)', 'templates/claude/commands/pipeline/dev-start.md', /sync-check\.mjs\s+preflight/],
+    ['/dev-start re-checks with sync-check prepr before a PR', 'templates/claude/commands/pipeline/dev-start.md', /sync-check\.mjs\s+prepr/],
+    ['/git pr runs sync-check prepr first (ADR-0026)', 'templates/claude/commands/vcs/git.md', /sync-check\.mjs\s+prepr/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

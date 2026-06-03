@@ -64,9 +64,13 @@ Stage intentionally and commit with Conventional Commits
 hook enforces this; `[skip-cc]` bypasses. Keep commits small and coherent.
 
 ## pr
-Push the branch (`git push -u origin <branch>` — the `pre-push` hook checks for
-conflicts first) and open a PR: `gh pr create` / `glab mr create`. Summarize the
-change; wait for CI green before merge. Don't push to the default branch directly.
+**First, re-check sync** [ADR-0026]: `node vibekit/tools/scripts/sync-check.mjs
+prepr`. It re-confirms you are not behind the default branch (rebase first if you
+are) and detects whether an **open PR already exists for this branch** — if so,
+just push to update it instead of creating a duplicate. Then push the branch
+(`git push -u origin <branch>` — the `pre-push` hook checks for conflicts first)
+and open a PR: `gh pr create` / `glab mr create`. Summarize the change; wait for
+CI green before merge. Don't push to the default branch directly.
 
 ## sync
 `git fetch` then `git pull --rebase origin <default>` to replay your work on top
