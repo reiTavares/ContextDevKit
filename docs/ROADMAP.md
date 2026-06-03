@@ -307,6 +307,41 @@ re-measured against `/token-report`.
 *Deferred:* per-command/agent token attribution in `/token-report`; a DevPipeline
 board digest for `/pipeline`; an mtime-keyed digest cache if extraction cost ever shows.
 
+## Next — Proactive Advisor: a six-lane improvement engine (ADR-0028)
+
+The kit ships strong *individual* analysis surfaces but no single capability that
+reads the project and — **proactively, not reactively** — surfaces improvement
+suggestions **before and after each change**, classified into six lanes:
+**architecture · features · deepen existing · security · UX · growth/retention**.
+A sweep mapped each: architecture and security are strong and (for security)
+already proactive; features and UX exist but are reactive; **two lanes have no
+owner at all** — *deepen existing features* and *growth/retention* (only
+acquisition exists, via `seo-specialist`). And nothing **aggregates** the lanes or
+fires automatically at the end of a change.
+
+- ✅ **Core shipped** — `/advise`, the aggregator. Two modes (`--before <objective>`
+  = opportunities + risks; `--after` = improvements, scoped to the changed surface),
+  an optional `--lane <id>` filter. It **delegates** to the owning agent per lane
+  (`/analyze-code-ia-practices`, `/deep-analysis`, `/roadmap`, the design-team) —
+  it never re-implements them — and feeds every surviving finding into the
+  DevPipeline backlog tagged `advise:<lane>`. It does not edit code.
+- ✅ **Single-sourced taxonomy** — `advisor.lanes` in config maps each lane to an
+  `owner`; `deepen` and `growth` ship as declared `owner: null` **seams** that
+  `/advise` surfaces as *skipped — no owner*, never faked (rule 8/9).
+- ✅ **Proactive trigger** — the Stop hook (`check-registration.mjs`) nudges
+  `/advise` after a productive session (≥ 2 important paths touched, debounced 24h,
+  config-gated) — the "after each implementation" moment. Mirrors the `securityMode`
+  posture: active by default, silent otherwise, never blocks (Rule 2).
+
+**Stays inside the invariants:** the expensive fan-out lives in the command, never
+the hot path; the Stop nudge is cheap, zero-dep, debounced, exit-0-on-error; the
+lane → owner map is config-driven; unowned lanes degrade to a visible skip.
+
+*Deferred (the two seams):* the **`growth-team`** squad (`growth` + `retention`
+agents) wired to `growth.owner`; an owner for **`deepen`** (a `product-owner`
+feature-depth lens or a dedicated agent); a `--since <ref>` diff scope for
+`--after`; and feeding recurring advisor findings into `/retro`.
+
 ## Design invariants (don't regress these)
 
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.

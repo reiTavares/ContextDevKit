@@ -20,6 +20,7 @@ templates/claude/commands/
 ├── squad.md, token-report.md, tune-agents.md, vibe-stats.md
 ├── dashboard.md, watch.md
 ├── landing-page.md, media-gen.md   ← landing architect + media generation (ADR-0023/0024)
+├── advise.md                       ← proactive six-lane improvement engine (ADR-0028)
 │
 ├── qa/                              ← test strategy + execution
 │   ├── qa-signoff.md
