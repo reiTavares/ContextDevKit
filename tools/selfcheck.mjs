@@ -140,8 +140,23 @@ function checkPaths(paths) {
 
 async function checkTemplates() {
   console.log('Checking template inventory...');
-  const cmds = await readdir(resolve(KIT, 'templates/claude/commands')).catch(() => []);
-  cmds.length >= 35 ? ok(`${cmds.length} slash commands present`) : bad(`only ${cmds.length} slash commands`);
+  // Ticket 047 — commands live in domain subfolders + at root. Walk recursively
+  // and assert (a) every expected command resolves by basename, (b) no two
+  // commands collide on basename (Claude Code resolves by basename).
+  async function walkCmds(dir, acc = []) {
+    for (const ent of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      const full = resolve(dir, ent.name);
+      if (ent.isDirectory()) await walkCmds(full, acc);
+      else if (ent.name.endsWith('.md') && ent.name !== 'README.md') acc.push(ent.name);
+    }
+    return acc;
+  }
+  const cmds = await walkCmds(resolve(KIT, 'templates/claude/commands'));
+  cmds.length >= 35 ? ok(`${cmds.length} slash commands present (across packs + root)`) : bad(`only ${cmds.length} slash commands`);
+  const seen = new Map();
+  for (const c of cmds) seen.set(c, (seen.get(c) || 0) + 1);
+  const collisions = [...seen.entries()].filter(([, n]) => n > 1);
+  collisions.length === 0 ? ok('no command basename collides across packs (ticket 047)') : bad(`basename collisions: ${collisions.map(([n]) => n).join(', ')}`);
   for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
     'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
     'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
@@ -199,7 +214,8 @@ async function checkTemplates() {
     'templates/vibekit/squads/agent-forge/lib/rag-designer.mjs',
     'templates/vibekit/squads/agent-forge/pipeline.yaml',
     'tools/selfcheck-agent-forge-ops.mjs',
-    'templates/claude/commands/forge-new.md',
+    'templates/claude/commands/forge/forge-new.md',
+    'templates/claude/commands/README.md',
     'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
     'docs/SQUAD-PIPELINE-FORMAT.md',
     'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',

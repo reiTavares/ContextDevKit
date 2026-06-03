@@ -4,3 +4,6 @@
 *.png binary
 *.jpg binary
 *.ico binary
+# VibeDevKit — keep engine scripts and git-hook wrappers LF on all platforms.
+vibekit/**/*.mjs text eol=lf
+.claude/**/*.json text eol=lf

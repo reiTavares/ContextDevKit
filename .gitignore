@@ -18,3 +18,13 @@ desktop.ini
 
 # Throwaway install targets used by manual testing
 .selftest*/
+
+# VibeDevKit — local runtime state (do not commit)
+.claude/.sessions/
+.claude/.workspace/
+.context-snapshot.md
+.distillation-proposal.md
+.agent-tuning-proposal.md
+vibekit/memory/tech-debt-findings.json
+vibekit/memory/deps-findings.json
+vibekit/memory/deep-analysis-findings.json

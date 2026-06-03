@@ -96,7 +96,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['/runs supports --kind filter', 'templates/vibekit/tools/scripts/runs.mjs', /\bkind:\s*kindFilter/],
     ['/runs supports --json output', 'templates/vibekit/tools/scripts/runs.mjs', /flag\(['"]json['"]\)/],
     ['/runs refuses cleanly when no states exist', 'templates/vibekit/tools/scripts/runs.mjs', /No runs yet/],
-    ['/runs command briefing ships', 'templates/claude/commands/runs.md', /Lists the \*\*last N in-flight items\*\*/],
+    ['/runs command briefing ships', 'templates/claude/commands/pipeline/runs.md', /Lists the \*\*last N in-flight items\*\*/],
     // ADR-0019 — MCP injection convention seeded in agent template (commented).
     ['agent _TEMPLATE documents mcpServers convention (ADR-0019)', 'templates/claude/agents/_TEMPLATE.md', /mcpServers/],
     ['agent _TEMPLATE flags rationale requirement (ADR-0019)', 'templates/claude/agents/_TEMPLATE.md', /rationale/],
@@ -113,7 +113,7 @@ async function checkSourceInvariants(rep, KIT) {
     ['watch command file present (ticket 045)', 'templates/claude/commands/watch.md', /watch the active session ledger/i],
     // Ticket 042 — two-tier memory: per-task scratch gitignored under pipeline/.
     ['pipeline .gitignore excludes scratch files (ticket 042)', 'templates/vibekit/pipeline/.gitignore', /\*\.scratch\.md/],
-    ['dev-start documents per-task scratch convention (ticket 042)', 'templates/claude/commands/dev-start.md', /scratch\.md/],
+    ['dev-start documents per-task scratch convention (ticket 042)', 'templates/claude/commands/pipeline/dev-start.md', /scratch\.md/],
     // Ticket 048 / ADR-0020 — home.mjs helper for ~/.vibedevkit/ access.
     ['home.mjs exports resolveHome (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /export function resolveHome/],
     ['home.mjs exports readHomeFile (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /export function readHomeFile/],
