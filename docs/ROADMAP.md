@@ -345,6 +345,36 @@ lane → owner map is config-driven; unowned lanes degrade to a visible skip.
 *Deferred:* a `--since <ref>` diff scope for `--after`; optional two-tier briefings
 for `growth` / `retention`; feeding recurring advisor findings into `/retro`.
 
+## Next — Behavioral discipline layer (ADR-0029)
+
+A review of the MIT-licensed [`andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills)
+repo surfaced a clean asymmetry: the kit is strong on the **structural** layer
+(*what good code looks like* — `best-practices.md`, the constitution) and on
+governance, but **thin on the *behavioral* layer** (*how the agent acts while
+producing the diff*). Karpathy's four principles mapped to: ✅ *Simplicity first*
+(had it, §9), 🟡 *Surgical changes* (only inside `/dev-start`), 🟡 *Goal-driven*
+(tools but no rule), ❌ *Think before coding* (**no rule told the agent to surface
+assumptions and ask when ambiguous before coding** — the biggest gap).
+
+- ✅ **`behaviors.md` + `behaviors-examples.md`** — the behavioral sibling of
+  `best-practices.md`: the four guidelines (think-before-coding · simplicity ·
+  surgical · goal-driven) with Do/Don't + a "Fits the kit" map, plus before/after
+  diffs of each anti-pattern. Credits the MIT source.
+- ✅ **Constitution §8** (`CLAUDE.md.tpl`) — a concise behavioral-discipline
+  section pointing to `behaviors.md`; **reconciles the one tension** (refactor by
+  responsibility is *deliberate* via `/dev-start` / `/analyze-code-ia-practices`,
+  never an opportunistic side effect).
+- ✅ **`behaviors.active` (default ON)** + a ~4-line boot reminder mirroring the
+  best-practices block; installer seeds both docs; `selfcheck` asserts each piece.
+
+**Stays inside the invariants:** the boot reminder never blocks (Rule 2), the
+guidance is single-sourced in one doc referenced by the constitution + boot
+(Rule 4), and we adopted the proven four rather than inventing a fifth (Rule 9).
+
+*Noticed, not fixed (surgical):* `best-practices.md` links to `review-protocol.md`,
+which the installer's seed list doesn't copy — a pre-existing broken link, left as
+a separate one-line fix.
+
 ## Design invariants (don't regress these)
 
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.

@@ -40,6 +40,15 @@ export const DEFAULT_CONFIG = Object.freeze({
   practices: { active: false },
 
   /**
+   * Behavioral discipline (vibekit/behaviors.md, ADR-0029) — how the agent ACTS
+   * while coding: think-before-coding (surface assumptions / ask when ambiguous),
+   * simplicity-first, surgical changes, goal-driven (reproduce-test first). When
+   * `active`, the SessionStart hook reminds you each session. ON by default — it's
+   * universal, cheap, and the constitution §8 already states it.
+   */
+  behaviors: { active: true },
+
+  /**
    * Path classification for the L2 ledger. Override per stack via config.
    *   - `important`: an edit here can trigger the Stop drift nudge.
    *   - `irrelevant`: never tracked (build output, caches, runtime state).

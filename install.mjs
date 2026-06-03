@@ -146,7 +146,7 @@ async function main() {
 
   // 5. Memory seeds: write only if missing. `.env.example` is seeded here so the
   //    user's edits survive re-install (ADR-0024 — media-gen credentials template).
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', '.env.example']) {
+  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', '.env.example']) {
     const src = join(TPL, 'vibekit', rel);
     if (!existsSync(src)) continue;
     const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
