@@ -19,6 +19,7 @@ templates/claude/commands/
 ├── fleet.md, playbook.md, predictions-review.md, simulate-impact.md
 ├── squad.md, token-report.md, tune-agents.md, vibe-stats.md
 ├── dashboard.md, watch.md
+├── landing-page.md, media-gen.md   ← landing architect + media generation (ADR-0023/0024)
 │
 ├── qa/                              ← test strategy + execution
 │   ├── qa-signoff.md
@@ -52,7 +53,8 @@ templates/claude/commands/
 │   ├── deps-audit.md
 │   ├── tech-debt-sweep.md
 │   ├── analyze-code-ia-practices.md
-│   └── contract-check.md
+│   ├── contract-check.md
+│   └── seo-audit.md                ← SEO + AISO static analysers (ADR-0025)
 │
 └── setup/                           ← installer + diagnostics
     ├── setupvibedevkit.md
