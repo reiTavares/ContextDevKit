@@ -262,6 +262,51 @@ the script is read-only — it never creates, edits, or merges a PR.
 *Deferred:* `glab` (GitLab) parity, a PR line in `/git status`, a `--watch`
 checks poll, and a latency cache.
 
+## Next — Token economy: the digest layer (ADR-0027)
+
+The kit already **measures** token usage (`/token-report` + `token-report.mjs`,
+roadmap #7) but has no **reducer**. A measurement pass over the 65 command files +
+the boot hook found the lever: in this kit, tokens are spent when *the AI reads
+files and reasons*, and a cluster of high-value commands still makes the AI ingest
+**full raw markdown** instead of a pre-digested view — the biggest single-run cost
+being the periodic L5/L6 commands that read the **last ~10 session logs raw**
+(~1,100–1,300 lines ≈ 13–16K tokens *before reasoning*), and the highest-frequency
+cost being the **boot banner injecting 60 raw lines of the last session every
+session**. ADR-0027 adds a deterministic, zero-dep **digest layer** that pre-digests
+the two artifacts the AI re-reads most (session logs, ADRs) so it reasons over
+compact output. Estimated **~120–200K input tokens/week** saved on an active project
+(full per-command estimate + assumptions in
+[docs/token-economy-plan.md](token-economy-plan.md)).
+
+- 📋 **`lib/digest/` — shared single-source extractor** (ADR-0027 §1). Pure,
+  zero-dep parsing of a session log's canonical structure and an ADR file into a
+  compact record. Reused by both the boot hook and the script wrappers — no
+  duplicated parsing (Rule 4).
+- 📋 **`session-digest.mjs`** (ADR-0027 §2). Session logs → ~12–18 line structured
+  digest (`--last N` / `--id` / `--json`). Rewires `/distill-sessions`, `/retro`,
+  `/tune-agents` to read digests, not raw logs — the **biggest single-run wins**.
+- 📋 **`adr-digest.mjs`** (ADR-0027 §3). A ~26-line ADR catalog (status · title ·
+  one-line decision) + `--search`. Replaces "read 3–5 ADRs to find the relevant
+  one" with "read the catalog, open at most one". Wires into `/ship`, `/dev-start`,
+  `/new-adr` (dup-decision check), `/deep-analysis`.
+- 📋 **`context-pack.mjs`** (ADR-0027 §4). One bounded "start of work" bundle
+  (latest-session digest + `[Unreleased]` + immutable rules + open pipeline tasks +
+  relevant-ADR slice) that collapses the 3–5 sequential reads in `/dev-start`,
+  `/state`, `/ship` into **one script call** — fewer tokens *and* fewer round-trips.
+- 📋 **Boot hook digest** (ADR-0027 §5). `session-start.mjs` emits a ~12-line
+  digest for "Last registered session" instead of 60 raw lines, **falling back to
+  the current raw-truncated output on any parse miss** (Rule 2/8 — degrade, never
+  break). The highest-frequency saving (every session).
+
+**Stays inside the invariants:** no new hook and no new dependency (plain scripts +
+one shared pure module); digests are **deterministic extraction**, not AI-written
+summaries (reproducible, free); a digest miss is a **visible raw-fallback**, never a
+silent drop; each slice ships with a `selfcheck`/`integration-test` assertion and is
+re-measured against `/token-report`.
+
+*Deferred:* per-command/agent token attribution in `/token-report`; a DevPipeline
+board digest for `/pipeline`; an mtime-keyed digest cache if extraction cost ever shows.
+
 ## Design invariants (don't regress these)
 
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.
