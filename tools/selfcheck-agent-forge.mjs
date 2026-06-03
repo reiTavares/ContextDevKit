@@ -22,7 +22,7 @@ import { listMjs } from './selfcheck-source.mjs';
 async function checkCapabilityMatrix(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge capability matrix...');
-  const rel = 'templates/vibekit/squads/agent-forge/router/capability-matrix.json';
+  const rel = 'templates/contextkit/squads/agent-forge/router/capability-matrix.json';
   const raw = await readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
   let matrix;
   try {
@@ -56,7 +56,7 @@ async function checkHotPathNoYaml(rep, KIT) {
   console.log('Checking the hot path stays yaml-free (rule 1)...');
   const importsYaml = /\bimport\b[^\n]*['"]yaml['"]|require\(\s*['"]yaml['"]/;
   const offenders = [];
-  for (const file of await listMjs(resolve(KIT, 'templates/vibekit/runtime'))) {
+  for (const file of await listMjs(resolve(KIT, 'templates/contextkit/runtime'))) {
     if (importsYaml.test(await readFile(file, 'utf-8').catch(() => ''))) offenders.push(file.replace(KIT, '').replaceAll('\\', '/'));
   }
   offenders.length ? offenders.forEach((o) => bad(`hot-path yaml import: ${o}`)) : ok('hot path imports no yaml dep (ADR-0013)');
@@ -68,7 +68,7 @@ async function checkHotPathNoYaml(rep, KIT) {
 async function checkRouterEngine(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge model-router engine...');
-  const routerUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/router.mjs').replaceAll('\\', '/');
+  const routerUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/router.mjs').replaceAll('\\', '/');
   let routeAgent;
   try {
     ({ routeAgent } = await import(routerUrl));
@@ -127,7 +127,7 @@ async function checkRouterEngine(rep, KIT) {
 async function checkEvalDesigner(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge eval-designer...');
-  const designerUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/eval-designer.mjs').replaceAll('\\', '/');
+  const designerUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/eval-designer.mjs').replaceAll('\\', '/');
   let designEvalSet;
   let toJsonl;
   try {
@@ -157,7 +157,7 @@ async function checkEvalDesigner(rep, KIT) {
 async function checkGovernanceOfficer(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge governance-officer...');
-  const govUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/governance-officer.mjs').replaceAll('\\', '/');
+  const govUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/governance-officer.mjs').replaceAll('\\', '/');
   let attachGovernance;
   let validateGovernance;
   try {
@@ -192,7 +192,7 @@ async function checkGovernanceOfficer(rep, KIT) {
 async function checkEvalRunner(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge eval-runner...');
-  const runnerUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/eval-runner.mjs').replaceAll('\\', '/');
+  const runnerUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/eval-runner.mjs').replaceAll('\\', '/');
   let runEvalSuite;
   try {
     ({ runEvalSuite } = await import(runnerUrl));
@@ -221,7 +221,7 @@ async function checkEvalRunner(rep, KIT) {
 async function checkConditionParser(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking squad-pipeline condition parser (Fase 6)...');
-  const url = 'file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-pipeline-condition.mjs').replaceAll('\\', '/');
+  const url = 'file://' + resolve(KIT, 'templates/contextkit/tools/scripts/squad-pipeline-condition.mjs').replaceAll('\\', '/');
   let parseCondition;
   let evalCondition;
   try {
@@ -250,7 +250,7 @@ async function checkConditionParser(rep, KIT) {
 async function checkSquadPipeline(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking squad-pipeline engine + agent-forge pipeline.yaml (Fase 6)...');
-  const url = 'file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-pipeline.mjs').replaceAll('\\', '/');
+  const url = 'file://' + resolve(KIT, 'templates/contextkit/tools/scripts/squad-pipeline.mjs').replaceAll('\\', '/');
   let loadAndValidate;
   let plan;
   try {

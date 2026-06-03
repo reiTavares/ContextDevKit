@@ -13,7 +13,7 @@ You just entered **dev-start** mode with the objective:
 
 1. **Sync preflight — look at GitHub *before* coding** [ADR-0026]. Run:
    ```
-   node vibekit/tools/scripts/sync-check.mjs preflight
+   node contextkit/tools/scripts/sync-check.mjs preflight
    ```
    It reports ahead/behind, recent **in-flight branches**, and **open PRs with
    their CI/review status** (flagging any *awaiting status*). If an open PR or a
@@ -22,7 +22,7 @@ You just entered **dev-start** mode with the objective:
    degrades to the git-only view; it never blocks. Behind upstream? `git pull`
    before editing.
 
-2. **Read the current state first** — run `node vibekit/tools/scripts/context-pack.mjs`
+2. **Read the current state first** — run `node contextkit/tools/scripts/context-pack.mjs`
    [ADR-0027]: **one** bounded bundle (latest-session digest + `[Unreleased]` +
    immutable rules + open backlog + recent ADRs) in a single call instead of
    opening each file. Open a full source only if the pack flags something to inspect.
@@ -44,13 +44,13 @@ You just entered **dev-start** mode with the objective:
 5. **Break the objective into 3–7 concrete tasks** and track them with TodoWrite.
 
 6. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
-   ticket is in `vibekit/pipeline/testing/`, drop them in a sibling file named
+   ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
    `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
    `*.scratch.md` — scratches are local-only. At conclude time, summarise the
    useful parts into the ticket body and let the scratch be discarded.
 
 7. **Before opening a PR — re-check sync** [ADR-0026]. Run
-   `node vibekit/tools/scripts/sync-check.mjs prepr` (or just use `/git pr`, which
+   `node contextkit/tools/scripts/sync-check.mjs prepr` (or just use `/git pr`, which
    runs it): it re-confirms you are not behind `main` and that **no open PR
    already exists for this branch** before you create one. Don't duplicate a PR;
    push to update the existing one.

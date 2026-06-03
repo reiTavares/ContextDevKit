@@ -1,9 +1,9 @@
 # Squad Pipeline Format v1
 
 > The declarative, opt-in pipeline a squad ships at
-> `templates/vibekit/squads/<squad>/pipeline.yaml`. Turns the orchestrator's
+> `templates/contextkit/squads/<squad>/pipeline.yaml`. Turns the orchestrator's
 > implicit choreography into a **diffable, dry-runnable, simulate-impact-
-> mappable plan**. First consumer: `agent-forge` (Fase 6, [ADR-0015](../vibekit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) Part A).
+> mappable plan**. First consumer: `agent-forge` (Fase 6, [ADR-0015](../contextkit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) Part A).
 >
 > **Opt-in per squad.** A squad with no `pipeline.yaml` keeps working as
 > today; the engine never runs on its own. Hot-path zero-dep stays — the
@@ -13,10 +13,10 @@
 ## Where the file lives
 
 ```
-templates/vibekit/squads/<squad>/pipeline.yaml
+templates/contextkit/squads/<squad>/pipeline.yaml
 ```
 
-The engine — `templates/vibekit/tools/scripts/squad-pipeline.mjs` — discovers
+The engine — `templates/contextkit/tools/scripts/squad-pipeline.mjs` — discovers
 pipelines by walking that directory.
 
 ## File schema
@@ -70,7 +70,7 @@ reasoning  — deep reasoning (e.g. Opus-class or o-series)
 
 **Vendor model names are forbidden in `pipeline.yaml`.** The engine refuses
 on bare model strings (`model: claude-sonnet-4-6` and friends). The
-[`model-router`](../templates/vibekit/squads/agent-forge/lib/router.mjs)
+[`model-router`](../templates/contextkit/squads/agent-forge/lib/router.mjs)
 (ADR-0012 §4) is the single resolver from tier → concrete model, honouring
 the capability matrix, residency constraints, and budget policy. Pipelines
 declare *intent*; the router decides *implementation*.
@@ -133,7 +133,7 @@ grammar violation at <step-id>`.
 - No coercion: `"5" == 5` is **false**.
 
 A bigger grammar (`&&`, `||`, function calls, arithmetic) is recorded as
-deliberately rejected in [ADR-0015 §A.2](../vibekit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md).
+deliberately rejected in [ADR-0015 §A.2](../contextkit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md).
 Expanding it needs a new ADR with the real use case attached.
 
 ## `on_reject` + `max_review_cycles`
@@ -184,7 +184,7 @@ stdin / a slash-command response.
 ## `--dry-run`
 
 ```
-node templates/vibekit/tools/scripts/squad-pipeline.mjs <squad> --dry-run
+node templates/contextkit/tools/scripts/squad-pipeline.mjs <squad> --dry-run
 ```
 
 The engine walks the graph, resolves `condition` against an empty context
@@ -240,19 +240,19 @@ asserts agent-forge produces it.
 
 - **Squad pipelines are opt-in.** No `pipeline.yaml` → squad keeps running
   the way it does today.
-- **Engine writes no shared state in v1.** Task 040 ([ADR-0015 Part C](../vibekit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md))
+- **Engine writes no shared state in v1.** Task 040 ([ADR-0015 Part C](../contextkit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md))
   introduces `state.json` per run; until then, the engine prints to stdout
   and that's it.
 - **`/ship` does not adopt this yet.** Same engine, but the integration is
   a follow-up after Fase 6 ships.
 - **Hot-path zero-dep stays.** The dynamic import lives behind
-  [`lib/yaml.mjs`](../templates/vibekit/squads/agent-forge/lib/yaml.mjs);
+  [`lib/yaml.mjs`](../templates/contextkit/squads/agent-forge/lib/yaml.mjs);
   `runtime/hooks/**` and `runtime/config/load.mjs` import nothing from
   here. Pipelines are an L4+ feature.
 
 ## Cross-references
 
-- [ADR-0012](../vibekit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — agent-forge boundary + router as single resolver
-- [ADR-0013](../vibekit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — sanctioned optional yaml import
-- [ADR-0015](../vibekit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) — this format's authorising ADR
+- [ADR-0012](../contextkit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md) — agent-forge boundary + router as single resolver
+- [ADR-0013](../contextkit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md) — sanctioned optional yaml import
+- [ADR-0015](../contextkit/memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) — this format's authorising ADR
 - [`docs/SQUADS/agent-forge.md`](SQUADS/agent-forge.md) — first consumer

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit self-check — smoke test for the kit BEFORE you ship it.
+ * ContextDevKit self-check — smoke test for the kit BEFORE you ship it.
  *
  * - Imports every library engine module to catch syntax / import errors.
  *   (Does NOT import the hook entrypoints — those self-execute `main()`.)
@@ -33,7 +33,7 @@ import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
-const RT = resolve(KIT, 'templates/vibekit/runtime');
+const RT = resolve(KIT, 'templates/contextkit/runtime');
 let failures = 0;
 const ok = (m) => console.log(`  ✓ ${m}`);
 const bad = (m) => {
@@ -93,7 +93,7 @@ function checkCompose(composeSettings) {
   else bad(`idempotency broken — PostToolUse has ${dup} groups after re-compose`);
   // Status-line widget wired at L1+, and a user's own statusLine is preserved.
   const sl = composeSettings(null, 1).statusLine;
-  sl && String(sl.command).includes('vibekit/runtime/statusline') ? ok('statusLine widget wired (L1+)') : bad('statusLine widget not wired');
+  sl && String(sl.command).includes('contextkit/runtime/statusline') ? ok('statusLine widget wired (L1+)') : bad('statusLine widget not wired');
   composeSettings({ statusLine: { type: 'command', command: 'mine' } }, 5).statusLine?.command === 'mine'
     ? ok('composeSettings preserves a user statusLine') : bad('composeSettings clobbered a user statusLine');
 }
@@ -134,7 +134,7 @@ function checkPaths(paths) {
     return;
   }
   const pf = paths.pathsFor('/tmp/proj');
-  pf.pipeline.replaceAll('\\', '/').endsWith('vibekit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('vibekit/memory/sessions')
+  pf.pipeline.replaceAll('\\', '/').endsWith('contextkit/pipeline') && pf.sessions.replaceAll('\\', '/').endsWith('contextkit/memory/sessions')
     ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
 }
 
@@ -157,7 +157,7 @@ async function checkTemplates() {
   for (const c of cmds) seen.set(c, (seen.get(c) || 0) + 1);
   const collisions = [...seen.entries()].filter(([, n]) => n > 1);
   collisions.length === 0 ? ok('no command basename collides across packs (ticket 047)') : bad(`basename collisions: ${collisions.map(([n]) => n).join(', ')}`);
-  for (const c of ['setupvibedevkit.md', 'distill-sessions.md', 'distill-apply.md', 'vibe-doctor.md', 'vibe-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'vibe-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
+  for (const c of ['setupcontextdevkit.md', 'distill-sessions.md', 'distill-apply.md', 'context-doctor.md', 'context-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'context-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
     'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
     'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
     'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md']) {
@@ -171,8 +171,8 @@ async function checkTemplates() {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
-  const scripts = await readdir(resolve(KIT, 'templates/vibekit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'vibe-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs']) {
+  const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -181,72 +181,72 @@ async function checkTemplates() {
   existsSync(resolve(KIT, 'templates/github/workflows/security.yml')) ? ok('security workflow template present') : bad('missing security workflow template');
   existsSync(resolve(KIT, 'templates/github/workflows/quality.yml')) ? ok('quality workflow template present') : bad('missing quality workflow template');
   for (const f of [
-    'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/vibekit/config.json',
-    'templates/vibekit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
+    'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
+    'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
-    'templates/vibekit/runtime/hooks/concurrency-guard.mjs', 'templates/vibekit/runtime/git-hooks/pre-push.mjs',
-    'templates/vibekit/runtime/hooks/safe-io.mjs', 'templates/vibekit/runtime/config/levels.mjs',
-    'templates/vibekit/runtime/statusline.mjs', 'templates/vibekit/runtime/config/presets.mjs',
-    'templates/vibekit/best-practices.md', 'templates/vibekit/pipeline/devpipeline.md',
-    'templates/vibekit/pipeline/working/.gitkeep',
-    'templates/vibekit/runtime/state/state-io.mjs',
-    'templates/vibekit/detectors/README.md', 'templates/vibekit/detectors/example-detector.mjs.example',
-    'templates/vibekit/memory/roadmap.md', 'templates/vibekit/CLAUDE.child.md.tpl',
-    'templates/vibekit/squads/README.md', 'templates/vibekit/squads/_BRIEFING.md.tpl',
-    'templates/vibekit/squads/agent-forge/README.md', 'templates/vibekit/squads/agent-forge/best-practices.md',
-    'templates/vibekit/squads/agent-forge/ROADMAP.md',
-    'templates/vibekit/squads/agent-forge/lib/yaml.mjs',
-    'templates/vibekit/squads/agent-forge/lib/router.mjs',
-    'templates/vibekit/squads/agent-forge/lib/architect.mjs',
-    'templates/vibekit/squads/agent-forge/lib/prompt-gen.mjs',
-    'templates/vibekit/squads/agent-forge/lib/tool-gen.mjs',
-    'templates/vibekit/squads/agent-forge/lib/packager.mjs',
-    'templates/vibekit/squads/agent-forge/router/capability-matrix.json',
-    'templates/vibekit/squads/agent-forge/router/decision-rules.json',
-    'templates/vibekit/squads/agent-forge/cli/forge-new.mjs',
-    'templates/vibekit/squads/agent-forge/cli/forge-ops.mjs',
-    'templates/vibekit/squads/agent-forge/cli/forge-eval-cli.mjs',
-    'templates/vibekit/squads/agent-forge/cli/forge-admin.mjs',
-    'templates/vibekit/squads/agent-forge/lib/package-ops.mjs',
-    'templates/vibekit/squads/agent-forge/lib/eval-designer.mjs',
-    'templates/vibekit/squads/agent-forge/lib/eval-runner.mjs',
-    'templates/vibekit/squads/agent-forge/lib/governance-officer.mjs',
-    'templates/vibekit/squads/agent-forge/lib/rag-designer.mjs',
-    'templates/vibekit/squads/agent-forge/pipeline.yaml',
+    'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
+    'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
+    'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/config/presets.mjs',
+    'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
+    'templates/contextkit/pipeline/working/.gitkeep',
+    'templates/contextkit/runtime/state/state-io.mjs',
+    'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
+    'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',
+    'templates/contextkit/squads/README.md', 'templates/contextkit/squads/_BRIEFING.md.tpl',
+    'templates/contextkit/squads/agent-forge/README.md', 'templates/contextkit/squads/agent-forge/best-practices.md',
+    'templates/contextkit/squads/agent-forge/ROADMAP.md',
+    'templates/contextkit/squads/agent-forge/lib/yaml.mjs',
+    'templates/contextkit/squads/agent-forge/lib/router.mjs',
+    'templates/contextkit/squads/agent-forge/lib/architect.mjs',
+    'templates/contextkit/squads/agent-forge/lib/prompt-gen.mjs',
+    'templates/contextkit/squads/agent-forge/lib/tool-gen.mjs',
+    'templates/contextkit/squads/agent-forge/lib/packager.mjs',
+    'templates/contextkit/squads/agent-forge/router/capability-matrix.json',
+    'templates/contextkit/squads/agent-forge/router/decision-rules.json',
+    'templates/contextkit/squads/agent-forge/cli/forge-new.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-ops.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-eval-cli.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-admin.mjs',
+    'templates/contextkit/squads/agent-forge/lib/package-ops.mjs',
+    'templates/contextkit/squads/agent-forge/lib/eval-designer.mjs',
+    'templates/contextkit/squads/agent-forge/lib/eval-runner.mjs',
+    'templates/contextkit/squads/agent-forge/lib/governance-officer.mjs',
+    'templates/contextkit/squads/agent-forge/lib/rag-designer.mjs',
+    'templates/contextkit/squads/agent-forge/pipeline.yaml',
     'tools/selfcheck-agent-forge-ops.mjs',
     'templates/claude/commands/forge/forge-new.md',
     'templates/claude/commands/README.md',
     'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
     'docs/SQUAD-PIPELINE-FORMAT.md',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/manifest.yaml',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/README.md',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/.agentforgerc',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/prompts/system.canonical.md',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/tools/schemas.canonical.json',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/evals/golden.jsonl',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/evals/thresholds.yaml',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/governance/cost.policy.yaml',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/governance/compliance.policy.yaml',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/governance/quality.policy.yaml',
-    'templates/vibekit/squads/agent-forge/templates/agent-package/governance/audit.schema.json',
-    'templates/vibekit/memory/business-rules/_TEMPLATE.md',
-    'templates/vibekit/memory/predictions/.gitkeep',
-    'templates/vibekit/memory/workflows/.gitkeep',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/manifest.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/README.md',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/.agentforgerc',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/prompts/system.canonical.md',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/tools/schemas.canonical.json',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/golden.jsonl',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/thresholds.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/cost.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/compliance.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/quality.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/audit.schema.json',
+    'templates/contextkit/memory/business-rules/_TEMPLATE.md',
+    'templates/contextkit/memory/predictions/.gitkeep',
+    'templates/contextkit/memory/workflows/.gitkeep',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }
-  const wf = await readdir(resolve(KIT, 'templates/vibekit/workflows')).catch(() => []);
+  const wf = await readdir(resolve(KIT, 'templates/contextkit/workflows')).catch(() => []);
   for (const f of ['README.md', 'L1-static-loading.md', 'L2-session-ledger.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
     wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
   }
-  const playbooks = await readdir(resolve(KIT, 'templates/vibekit/workflows/playbooks')).catch(() => []);
+  const playbooks = await readdir(resolve(KIT, 'templates/contextkit/workflows/playbooks')).catch(() => []);
   for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']) {
     playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
   }
 }
 
 async function main() {
-  console.log('\n🌀 VibeDevKit self-check\n');
+  console.log('\n🌀 ContextDevKit self-check\n');
   const mods = await importLibs();
   if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(mods['config/settings-compose.mjs'].composeSettings);
   if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);

@@ -1,5 +1,5 @@
 # Security checks — ADVISORY by default (they report, they don't block the merge).
-# Scaffolded by VibeDevKit (/security-setup). To ENFORCE: mark a job a required
+# Scaffolded by ContextDevKit (/security-setup). To ENFORCE: mark a job a required
 # status check in branch protection, or remove its `continue-on-error`.
 name: security
 
@@ -26,7 +26,7 @@ jobs:
           fail-on-severity: high
 
   deps-audit:
-    # VibeDevKit's deterministic supply-chain check (lockfile, pinning, license, CVEs).
+    # ContextDevKit's deterministic supply-chain check (lockfile, pinning, license, CVEs).
     runs-on: ubuntu-latest
     continue-on-error: true # advisory — remove to block
     steps:
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
-      - run: node vibekit/tools/scripts/deps-audit.mjs
+      - run: node contextkit/tools/scripts/deps-audit.mjs
 
   codeql:
     # SAST. Set `language` to your stack: c-cpp, csharp, go, java-kotlin,

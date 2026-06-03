@@ -1,5 +1,5 @@
 /**
- * File-system helpers for the VibeDevKit installer.
+ * File-system helpers for the ContextDevKit installer.
  *
  * Thin wrappers over `node:fs`: idempotent writes, BOM-stripped reads
  * (Windows-safe), recursive copies (clobbering vs write-if-missing), and

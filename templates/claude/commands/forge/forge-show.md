@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] [--json]
 
 # 🛠️ Mode: agent-forge — show package
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs show $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs show $ARGUMENTS`.
 
 Requires the optional `yaml` dep (ADR-0013) to parse `manifest.yaml`. If absent,
 suggest `npm i yaml`.

@@ -1,10 +1,10 @@
 {
-  "name": "vibedevkit",
+  "name": "contextdevkit",
   "version": "1.8.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
-    "vibedevkit": "install.mjs"
+    "contextdevkit": "install.mjs"
   },
   "scripts": {
     "install:here": "node install.mjs --target .",
@@ -27,11 +27,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/reiTavares/VibeDevKit.git"
+    "url": "git+https://github.com/reiTavares/ContextDevKit.git"
   },
-  "homepage": "https://github.com/reiTavares/VibeDevKit#readme",
+  "homepage": "https://github.com/reiTavares/ContextDevKit#readme",
   "bugs": {
-    "url": "https://github.com/reiTavares/VibeDevKit/issues"
+    "url": "https://github.com/reiTavares/ContextDevKit/issues"
   },
   "keywords": [
     "claude-code",

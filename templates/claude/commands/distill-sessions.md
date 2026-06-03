@@ -8,10 +8,10 @@ Analyze the recent session history and propose improvements to `CLAUDE.md` — b
 **apply nothing**. This is the review step; `/distill-apply` materializes it.
 
 1. Get a **compact digest** of the last N sessions instead of reading the raw
-   logs [ADR-0027]: `node vibekit/tools/scripts/session-digest.mjs --last N`
-   (N from `vibekit/config.json` → `l5.distill.observeWindow`, default 10),
+   logs [ADR-0027]: `node contextkit/tools/scripts/session-digest.mjs --last N`
+   (N from `contextkit/config.json` → `l5.distill.observeWindow`, default 10),
    newest first. Reason over the digests; open a full file in
-   `vibekit/memory/sessions/` only when a digest flags a pattern you must
+   `contextkit/memory/sessions/` only when a digest flags a pattern you must
    inspect verbatim.
 2. Look for **recurring signals**: corrections the user gave repeatedly, rules
    re-explained across sessions, conventions that emerged but aren't written

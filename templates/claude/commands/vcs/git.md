@@ -8,7 +8,7 @@ argument-hint: [status | setup-remote | new-branch <name> | commit | pr | sync |
 The disciplined git workflow for this project, integrated with the kit's hooks
 (`commit-msg` enforces Conventional Commits, `pre-push` blocks real conflicts)
 and commands (`/worktree-new`, `/close-version`). Always start by reading the
-facts: `node vibekit/tools/scripts/git.mjs status`.
+facts: `node contextkit/tools/scripts/git.mjs status`.
 
 Act on **$ARGUMENTS**:
 
@@ -64,7 +64,7 @@ Stage intentionally and commit with Conventional Commits
 hook enforces this; `[skip-cc]` bypasses. Keep commits small and coherent.
 
 ## pr
-**First, re-check sync** [ADR-0026]: `node vibekit/tools/scripts/sync-check.mjs
+**First, re-check sync** [ADR-0026]: `node contextkit/tools/scripts/sync-check.mjs
 prepr`. It re-confirms you are not behind the default branch (rebase first if you
 are) and detects whether an **open PR already exists for this branch** — if so,
 just push to update it instead of creating a duplicate. Then push the branch

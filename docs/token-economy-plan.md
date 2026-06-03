@@ -1,8 +1,8 @@
 # Token-Economy & Agility Plan
 
-> A plan to reduce token consumption **and** increase agility in VibeDevKit, by
+> A plan to reduce token consumption **and** increase agility in ContextDevKit, by
 > moving deterministic extraction out of the AI and into zero-dep scripts.
-> Companion to [ADR-0027](../vibekit/memory/decisions/0027-token-economy-digest-layer.md)
+> Companion to [ADR-0027](../contextkit/memory/decisions/0027-token-economy-digest-layer.md)
 > and the ROADMAP section *"Token economy: the digest layer"*.
 > Authored 2026-06-03.
 
@@ -97,7 +97,7 @@ Token count isn't the only cost — **round-trips and determinism** matter too:
 
 Sequenced so each slice ships independently, with a test (Rule 3) and a re-measure:
 
-- **Phase 0 — Baseline (measure first).** Capture `node vibekit/tools/scripts/token-report.mjs
+- **Phase 0 — Baseline (measure first).** Capture `node contextkit/tools/scripts/token-report.mjs
   --json` now, and note the `cache_read` share. You can't prove a saving you didn't
   baseline. *(No code.)*
 - **Phase 1 — Biggest single-run wins.** Build `lib/digest/` + `session-digest.mjs` +

@@ -36,9 +36,9 @@ async function checkBootReaders(rep, boot) {
   const bigBody = Array.from({ length: 80 }, (_, i) => `- change ${i}`).join('\n');
   /truncated/i.test(boot.extractUnreleased(`## [Unreleased]\n\n${bigBody}\n\n## [1.0.0]\n`) || '')
     ? ok('extractUnreleased flags a >60-line block as truncated') : bad('extractUnreleased truncated silently (no marker)');
-  const tmp = mkdtempSync(join(tmpdir(), 'vibekit-sc-'));
+  const tmp = mkdtempSync(join(tmpdir(), 'contextkit-sc-'));
   try {
-    const sdir = resolve(tmp, 'vibekit/memory/sessions');
+    const sdir = resolve(tmp, 'contextkit/memory/sessions');
     mkdirSync(sdir, { recursive: true });
     writeFileSync(resolve(sdir, '2026-01-02-09-older.md'), '# OLDER session pick\n');
     writeFileSync(resolve(sdir, '2026-05-09-09-newer.md'), '# NEWER session pick\n');
@@ -54,9 +54,9 @@ async function checkBootReaders(rep, boot) {
       digest?.mode === 'digest' && /Real session title/.test(digest.content || '')
         ? ok('digestLatestSession returns a compact digest for a well-formed log')
         : bad(`digestLatestSession digest wrong: ${digest?.mode} / ${digest?.content}`);
-      const gtmp = mkdtempSync(join(tmpdir(), 'vibekit-sg-'));
+      const gtmp = mkdtempSync(join(tmpdir(), 'contextkit-sg-'));
       try {
-        const gdir = resolve(gtmp, 'vibekit/memory/sessions');
+        const gdir = resolve(gtmp, 'contextkit/memory/sessions');
         mkdirSync(gdir, { recursive: true });
         writeFileSync(resolve(gdir, '2026-05-13-13-blank.md'), 'just some text, no heading or sections\n');
         const fb = await boot.digestLatestSession(gtmp);
@@ -80,7 +80,7 @@ async function checkConcurrencySafety(rep, safeio, ledger) {
   const { ok, bad } = rep;
   console.log('Checking atomic I/O + sid sanitization...');
   if (safeio?.writeFileAtomicSync && safeio?.writeFileAtomic) {
-    const tmp = mkdtempSync(join(tmpdir(), 'vibekit-io-'));
+    const tmp = mkdtempSync(join(tmpdir(), 'contextkit-io-'));
     try {
       const f = resolve(tmp, 'a.txt');
       safeio.writeFileAtomicSync(f, 'hello');
@@ -99,7 +99,7 @@ async function checkConcurrencySafety(rep, safeio, ledger) {
   if (safeio?.readJsonSafe && safeio?.parseJsonSafe) {
     safeio.parseJsonSafe('{"a":1}')?.a === 1 && safeio.parseJsonSafe('not json', 'fb') === 'fb'
       ? ok('parseJsonSafe parses + falls back') : bad('parseJsonSafe wrong');
-    const tmp2 = mkdtempSync(join(tmpdir(), 'vibekit-rj-'));
+    const tmp2 = mkdtempSync(join(tmpdir(), 'contextkit-rj-'));
     try {
       const jf = resolve(tmp2, 'x.json');
       writeFileSync(jf, '﻿' + JSON.stringify({ ok: true }));
@@ -115,8 +115,8 @@ async function checkConcurrencySafety(rep, safeio, ledger) {
 async function checkSquadMeta(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking shared squad detection...');
-  const { squadOf } = await import('file://' + resolve(KIT, 'templates/vibekit/tools/scripts/squad-meta.mjs').replaceAll('\\', '/'));
-  const dir = mkdtempSync(join(tmpdir(), 'vibekit-sq-'));
+  const { squadOf } = await import('file://' + resolve(KIT, 'templates/contextkit/tools/scripts/squad-meta.mjs').replaceAll('\\', '/'));
+  const dir = mkdtempSync(join(tmpdir(), 'contextkit-sq-'));
   try {
     writeFileSync(resolve(dir, 'infra-security.md'), '---\ndescription: Cloud security (security-team)\n---\n');
     squadOf(dir, 'qa-unit') === 'qa-team' ? ok('squadOf: qa-* → qa-team') : bad('squadOf qa-* wrong');

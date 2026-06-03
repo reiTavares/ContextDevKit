@@ -31,12 +31,12 @@ function checkLevels(rep, mods) {
     Object.keys(levels.LEVEL_LABELS).length === 7 ? ok('levels: 7 labels in the single table') : bad('LEVEL_LABELS count wrong');
   } else bad('config/levels.mjs not loaded');
   if (load?.getLevel) {
-    const root = mkdtempSync(join(tmpdir(), 'vibekit-lv-'));
+    const root = mkdtempSync(join(tmpdir(), 'contextkit-lv-'));
     try {
-      mkdirSync(resolve(root, 'vibekit'), { recursive: true });
-      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 7 }));
+      mkdirSync(resolve(root, 'contextkit'), { recursive: true });
+      writeFileSync(resolve(root, 'contextkit/config.json'), JSON.stringify({ level: 7 }));
       load.getLevel(root) === 7 ? ok('getLevel accepts L7') : bad('getLevel rejects L7');
-      writeFileSync(resolve(root, 'vibekit/config.json'), JSON.stringify({ level: 8 }));
+      writeFileSync(resolve(root, 'contextkit/config.json'), JSON.stringify({ level: 8 }));
       load.getLevel(root) === 2 ? ok('getLevel rejects an out-of-range level (fallback 2)') : bad('getLevel did not reject L8');
     } finally {
       rmSync(root, { recursive: true, force: true });

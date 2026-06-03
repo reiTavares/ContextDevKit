@@ -1,10 +1,10 @@
-# Customizing VibeDevKit
+# Customizing ContextDevKit
 
 The kit works out of the box, but a few tweaks make it fit your project well.
 
 ## 1. Tune which paths matter (do this first)
 
-`vibekit/config.json` → `ledger` drives drift detection. Defaults are generic
+`contextkit/config.json` → `ledger` drives drift detection. Defaults are generic
 (`src/`, `lib/`, `app/`, `packages/`, …). Adjust per stack:
 
 ```jsonc
@@ -12,13 +12,13 @@ The kit works out of the box, but a few tweaks make it fit your project well.
   "ledger": {
     "important":    ["app/", "tests/", "pyproject.toml"],   // edits here → drift nudge
     "irrelevant":   ["node_modules/", "dist/", "__pycache__/"], // never tracked
-    "registration": ["vibekit/memory/SESSIONS.md", "docs/CHANGELOG.md"] // counts as "registered"
+    "registration": ["contextkit/memory/SESSIONS.md", "docs/CHANGELOG.md"] // counts as "registered"
   }
 }
 ```
 
 Examples: Python → add `app/`, `tests/`; Go → `cmd/`, `internal/`; Rust →
-`src/`, `Cargo.toml`. Use `/vibe-config set ledger.important '["app/","tests/"]'`
+`src/`, `Cargo.toml`. Use `/context-config set ledger.important '["app/","tests/"]'`
 or edit the file directly. Arrays **replace** the defaults.
 
 ## 2. Protect high-risk paths (Level 5)
@@ -94,13 +94,13 @@ The kit ships two pluggable adapter surfaces. Both follow the same five-point
 contract: **no SDK dependency, refuse-on-missing-creds, typed errors,
 refuse-on-content-policy (where applicable), per-process cost cap (media only)**.
 
-### Review providers (`vibekit/runtime/providers/review/`)
+### Review providers (`contextkit/runtime/providers/review/`)
 
 Add an adapter for GitLab / Bitbucket / Gitea by creating a new `.mjs` file that
 shells out to the user-installed CLI:
 
 ```js
-// vibekit/runtime/providers/review/glab.mjs
+// contextkit/runtime/providers/review/glab.mjs
 import { spawnSync } from 'node:child_process';
 import { ProviderError } from './_adapter.mjs';
 
@@ -121,15 +121,15 @@ export async function postReviewComment({ prNumber, body }) { … }
 ```
 
 `detect.mjs` automatically discovers the file and routes by `origin` URL.
-Authority: [ADR-0021](../vibekit/memory/decisions/0021-provider-strategy-review-qa.md).
+Authority: [ADR-0021](../contextkit/memory/decisions/0021-provider-strategy-review-qa.md).
 
-### Media providers (`vibekit/runtime/providers/media/`)
+### Media providers (`contextkit/runtime/providers/media/`)
 
 Add an adapter for Runway / Luma / Midjourney following the contract in
 `_adapter.mjs`:
 
 ```js
-// vibekit/runtime/providers/media/my-provider.mjs
+// contextkit/runtime/providers/media/my-provider.mjs
 import { MediaProviderError, MEDIA_ERROR_CODES, assertCredentials, noteCostOrThrow } from './_adapter.mjs';
 
 export const id = 'my-provider';
@@ -145,35 +145,35 @@ export async function generate({ prompt, outPath, options }) {
 }
 ```
 
-Authority: [ADR-0024](../vibekit/memory/decisions/0024-media-generation-veo-nano-banana.md).
+Authority: [ADR-0024](../contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md).
 
-## 7. Credentials flow (`vibekit/.env.example`)
+## 7. Credentials flow (`contextkit/.env.example`)
 
-The kit ships an `.env.example` template at the installed `vibekit/` root with
-commented credentials for `/media-gen` and a tour of the other `VIBEDEVKIT_*`
+The kit ships an `.env.example` template at the installed `contextkit/` root with
+commented credentials for `/media-gen` and a tour of the other `CONTEXTDEVKIT_*`
 env vars. Setup:
 
-1. Copy `vibekit/.env.example` to `vibekit/.env`.
+1. Copy `contextkit/.env.example` to `contextkit/.env`.
 2. Fill in the keys you want (`GOOGLE_AI_API_KEY` for Nano Banana + Veo).
-3. (Optional) set `VIBEDEVKIT_MEDIA_MAX_USD=5.00` to cap per-process spend.
+3. (Optional) set `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00` to cap per-process spend.
 4. Run scripts via Node 20.6+'s built-in env-file loader:
 
 ```bash
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs image \
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs image \
   --prompt "..." --out hero.png
 ```
 
 Or copy the values into your project's existing dotenv setup (Astro / Next /
 Nuxt / Vite all already read `.env` from the project root).
 
-**The kit never writes secrets.** `vibekit/.env.example` is the only template;
-you fill in `vibekit/.env` and it stays out of git via the standard `.env`
+**The kit never writes secrets.** `contextkit/.env.example` is the only template;
+you fill in `contextkit/.env` and it stays out of git via the standard `.env`
 gitignore convention.
 
 ## 8. Rebrand the platform folder
 
-To rename `vibekit/` (e.g. to `devtools/`), change `PLATFORM_DIR` in
-`vibekit/runtime/config/paths.mjs`, rename the folder, and update the hook
+To rename `contextkit/` (e.g. to `devtools/`), change `PLATFORM_DIR` in
+`contextkit/runtime/config/paths.mjs`, rename the folder, and update the hook
 commands in `.claude/settings.json` (`node devtools/runtime/hooks/...`). Nothing
 else references the literal name.
 
@@ -183,29 +183,29 @@ Re-run the installer over the project. It overwrites only the engine and slash
 commands; it never touches your memory, config overrides, or `CLAUDE.md`:
 
 ```bash
-node /path/to/vibedevkit/install.mjs --target . --level <N> --yes
+node /path/to/contextdevkit/install.mjs --target . --level <N> --yes
 ```
 
 Or, even simpler:
 
 ```bash
-npx vibedevkit@latest --target . --update
+npx contextdevkit@latest --target . --update
 ```
 
 This refreshes engine + slash commands + hook wiring for your **current** level.
-It **never** touches `CLAUDE.md`, `vibekit/config.json`, memory (ADRs/sessions/
-roadmap), pipeline tasks, scoped module `CLAUDE.md`, or your `vibekit/.env`.
+It **never** touches `CLAUDE.md`, `contextkit/config.json`, memory (ADRs/sessions/
+roadmap), pipeline tasks, scoped module `CLAUDE.md`, or your `contextkit/.env`.
 
 ## Uninstall
 
-Delete the `vibekit/` folder and remove the VibeDevKit entries (the ones whose
-command contains `vibekit/runtime/hooks`) from `.claude/settings.json`. Your
-memory under `vibekit/memory/` is just markdown — keep a copy if you want the
+Delete the `contextkit/` folder and remove the ContextDevKit entries (the ones whose
+command contains `contextkit/runtime/hooks`) from `.claude/settings.json`. Your
+memory under `contextkit/memory/` is just markdown — keep a copy if you want the
 history.
 
 Or use the installer:
 
 ```bash
-node /path/to/vibedevkit/install.mjs --target . --uninstall          # keeps memory + CLAUDE.md
-node /path/to/vibedevkit/install.mjs --target . --uninstall --purge  # also removes the engine
+node /path/to/contextdevkit/install.mjs --target . --uninstall          # keeps memory + CLAUDE.md
+node /path/to/contextdevkit/install.mjs --target . --uninstall --purge  # also removes the engine
 ```

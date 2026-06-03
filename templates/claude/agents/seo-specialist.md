@@ -16,9 +16,9 @@ HTML.
 ## Read first (in this order)
 
 1. `CLAUDE.md` (root) — immutable rules + the constitution.
-2. [ADR-0025](../../vibekit/memory/decisions/0025-seo-and-aiso-posture.md) — the SEO + AISO posture, including the refuse-on-unindexable stance.
-3. [ADR-0023](../../vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md) — the landing-page playbook calls you on every public surface.
-4. [`vibekit/workflows/playbooks/seo-aiso.md`](../../vibekit/workflows/playbooks/seo-aiso.md) — the checklist you enforce.
+2. [ADR-0025](../../contextkit/memory/decisions/0025-seo-and-aiso-posture.md) — the SEO + AISO posture, including the refuse-on-unindexable stance.
+3. [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md) — the landing-page playbook calls you on every public surface.
+4. [`contextkit/workflows/playbooks/seo-aiso.md`](../../contextkit/workflows/playbooks/seo-aiso.md) — the checklist you enforce.
 5. Any project-local ADR that overrides indexability (e.g. "this is an
    internal admin tool — no SEO needed"). Respect overrides; do not
    refuse work the user has explicitly carved out.
@@ -80,7 +80,7 @@ trade-offs visible when they conflict.
 
 - [ ] Did I run both audits and read the findings JSON?
 - [ ] Did I check for a project-local ADR that overrides indexability?
-- [ ] Are my refusals tied to a specific finding code (not vibes)?
+- [ ] Are my refusals tied to a specific finding code (not gut feel)?
 - [ ] Did I name the SSG/SSR alternative when refusing a SPA?
 - [ ] For AISO findings, did I list the concrete 3–5 questions for the
       FAQ schema instead of saying "add a FAQ"?

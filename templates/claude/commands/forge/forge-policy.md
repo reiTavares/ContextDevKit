@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] [--json]
 
 # 🛠️ Mode: agent-forge — policy
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs policy $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs policy $ARGUMENTS`.
 
 Requires the optional `yaml` dep (ADR-0013). Reads the 4 governance YAMLs and
 prints the live values (not the templates).

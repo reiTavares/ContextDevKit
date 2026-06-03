@@ -32,7 +32,7 @@ Symptom under investigation:
    regression test). Record the bug — and any *related* issues you surfaced — in the
    DevPipeline, point by point:
    ```
-   node vibekit/tools/scripts/pipeline.mjs add --type bug --priority <P0-P3> \
+   node contextkit/tools/scripts/pipeline.mjs add --type bug --priority <P0-P3> \
      --source "bug:<area>" --title "<symptom>"
    ```
    Auto-priority: data-loss / security / broken build → P0, broken core path → P1,

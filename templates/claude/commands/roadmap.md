@@ -5,24 +5,24 @@ argument-hint: [show | new | from-existing | add | sync-pipeline]
 
 # 🗺️ Roadmap
 
-The product/business plan in `vibekit/memory/roadmap.md` — capabilities + milestones
+The product/business plan in `contextkit/memory/roadmap.md` — capabilities + milestones
 (P-IDs), ordered by value. **Not** bugs/tasks/SLA (those are the DevPipeline). The
 roadmap is **important** — keep it real and current.
 
-First, get the facts: `node vibekit/tools/scripts/roadmap.mjs find --json`
+First, get the facts: `node contextkit/tools/scripts/roadmap.mjs find --json`
 (tells you if the canonical roadmap is defined, and lists any existing
 roadmap/PRD/spec/vision files in the repo).
 
 Act on **$ARGUMENTS**:
 
 ## show (default)
-Read `vibekit/memory/roadmap.md`; summarize the phases, what's done/in-progress,
+Read `contextkit/memory/roadmap.md`; summarize the phases, what's done/in-progress,
 and the next highest-value milestone. If it's still the placeholder, say so and
 offer to create it (→ `new` or `from-existing`).
 
 ## new — build it WITH the user (greenfield or undefined)
 Co-create it, don't dump a template. Ask, in a short adaptive round:
-- the product vision + primary user journey (reuse `vibekit/memory/product.md` if present);
+- the product vision + primary user journey (reuse `contextkit/memory/product.md` if present);
 - the few **outcomes** that matter first, and roughly in what order;
 - any hard deadlines/constraints.
 Then draft phases `P1, P2, …` with items `P1.1, P1.2, …` — each a user-facing
@@ -30,7 +30,7 @@ capability + a one-line acceptance note. Show it, refine with the user, save.
 
 ## from-existing — existing project
 1. If `roadmap.mjs find` listed a roadmap/PRD/spec file → read it and **import /
-   normalize** it into `vibekit/memory/roadmap.md` (P-ID format), keeping intent.
+   normalize** it into `contextkit/memory/roadmap.md` (P-ID format), keeping intent.
 2. If nothing was found → **analyze** the codebase (structure, README,
    `product.md`, routes/features, open TODOs/issues) and **propose** a roadmap:
    what exists, gaps, and likely next milestones. Present it as suggestions.
@@ -45,4 +45,4 @@ Hand the next milestone to execution: `/pipeline from-roadmap` breaks it into
 backlog tasks (cross-referenced by P-ID). Keep the non-duplication rule —
 roadmap = capabilities; pipeline = the tasks to deliver them.
 
-After any change, save `vibekit/memory/roadmap.md` and offer `/log-session`.
+After any change, save `contextkit/memory/roadmap.md` and offer `/log-session`.

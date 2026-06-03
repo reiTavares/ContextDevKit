@@ -33,8 +33,8 @@ lands; only then do `ui-designer` and `ux-designer` shape the screen.
 
 ## `landing-architect` — the structural decision-maker *(new in v1.7)*
 
-Authority: [ADR-0023](../../vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md)
-+ [`landing-page.md`](../../templates/vibekit/workflows/playbooks/landing-page.md) playbook.
+Authority: [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)
++ [`landing-page.md`](../../templates/contextkit/workflows/playbooks/landing-page.md) playbook.
 
 ### Posture
 
@@ -74,8 +74,8 @@ Every `/landing-page` response is structured exactly:
 
 ## `seo-specialist` — the indexability + discoverability gate *(new in v1.7)*
 
-Authority: [ADR-0025](../../vibekit/memory/decisions/0025-seo-and-aiso-posture.md)
-+ [`seo-aiso.md`](../../templates/vibekit/workflows/playbooks/seo-aiso.md) playbook.
+Authority: [ADR-0025](../../contextkit/memory/decisions/0025-seo-and-aiso-posture.md)
++ [`seo-aiso.md`](../../templates/contextkit/workflows/playbooks/seo-aiso.md) playbook.
 
 ### Two index spaces, two rule sets
 
@@ -104,12 +104,12 @@ projects optimise the first while ignoring the second.
 
 ```bash
 # Classical SEO — 8 codes, exit 1 on critical (SPA_ENTRYPOINT)
-node vibekit/tools/scripts/seo-audit.mjs            # human-readable table
-node vibekit/tools/scripts/seo-audit.mjs --json     # machine-readable
+node contextkit/tools/scripts/seo-audit.mjs            # human-readable table
+node contextkit/tools/scripts/seo-audit.mjs --json     # machine-readable
 
 # AISO — 8 codes
-node vibekit/tools/scripts/aiso-audit.mjs           # human-readable table
-node vibekit/tools/scripts/aiso-audit.mjs --json    # machine-readable
+node contextkit/tools/scripts/aiso-audit.mjs           # human-readable table
+node contextkit/tools/scripts/aiso-audit.mjs --json    # machine-readable
 
 # Or the slash command runs both and summarises:
 /seo-audit
@@ -156,6 +156,6 @@ narrow** — see `seo-specialist.md` and `landing-architect.md` as references.
 
 - [`docs/SQUADS/agent-forge.md`](agent-forge.md) — the L6+ squad that *builds*
   Agent Packages portable across hosts.
-- Playbook [`landing-page.md`](../../templates/vibekit/workflows/playbooks/landing-page.md)
-  + [`seo-aiso.md`](../../templates/vibekit/workflows/playbooks/seo-aiso.md).
+- Playbook [`landing-page.md`](../../templates/contextkit/workflows/playbooks/landing-page.md)
+  + [`seo-aiso.md`](../../templates/contextkit/workflows/playbooks/seo-aiso.md).
 - [`docs/CUSTOMIZING.md`](../CUSTOMIZING.md) — adding agents to any squad.

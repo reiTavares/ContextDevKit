@@ -9,7 +9,7 @@ Produce a shift-left test plan for: **$ARGUMENTS** (if empty, infer from the
 current change / recent edits).
 
 Act as **qa-orchestrator**:
-1. Read `vibekit/config.json` → `qa` (`criticalPaths`, `coverageTarget`) and the
+1. Read `contextkit/config.json` → `qa` (`criticalPaths`, `coverageTarget`) and the
    project's existing test setup so the plan fits the stack.
 2. Identify the units, boundaries, and invariants in scope. Note which fall on
    `qa.criticalPaths` (these get priority).

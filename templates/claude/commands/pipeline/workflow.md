@@ -29,13 +29,13 @@ one story instead of four disconnected commands.
 ### Start a workflow
 
 ```
-node vibekit/tools/scripts/workflow.mjs new <slug>
+node contextkit/tools/scripts/workflow.mjs new <slug>
 ```
 
 Then run `/roadmap add …` yourself. Once the roadmap entry is recorded:
 
 ```
-node vibekit/tools/scripts/workflow.mjs advance <slug> <roadmap-section-ref>
+node contextkit/tools/scripts/workflow.mjs advance <slug> <roadmap-section-ref>
 ```
 
 …which marks `roadmap` done and points you at `adr`. Repeat for each phase.
@@ -45,13 +45,13 @@ node vibekit/tools/scripts/workflow.mjs advance <slug> <roadmap-section-ref>
 List all in-flight workflows:
 
 ```
-node vibekit/tools/scripts/workflow.mjs status
+node contextkit/tools/scripts/workflow.mjs status
 ```
 
 Show one:
 
 ```
-node vibekit/tools/scripts/workflow.mjs status <slug>
+node contextkit/tools/scripts/workflow.mjs status <slug>
 ```
 
 `--json` for machine-readable output.
@@ -59,10 +59,10 @@ node vibekit/tools/scripts/workflow.mjs status <slug>
 ### Resume from another session / machine
 
 ```
-node vibekit/tools/scripts/workflow.mjs status <slug>
+node contextkit/tools/scripts/workflow.mjs status <slug>
 ```
 
-The breadcrumb file (`vibekit/memory/workflows/<slug>.md`) carries the full
+The breadcrumb file (`contextkit/memory/workflows/<slug>.md`) carries the full
 history. The current phase is the resume point — invoke the matching native
 command (`/new-adr`, `/pipeline add`, `/ship`) and then `advance` when done.
 
@@ -76,7 +76,7 @@ command (`/new-adr`, `/pipeline add`, `/ship`) and then `advance` when done.
 
 ## Breadcrumb file
 
-Path: `vibekit/memory/workflows/<slug>.md`. Schema is YAML-ish frontmatter
+Path: `contextkit/memory/workflows/<slug>.md`. Schema is YAML-ish frontmatter
 parsed by hand (no `yaml` dep). One file per slug. The body keeps a bullet
 history of phase transitions for human inspection — you can hand-edit it
 without breaking the parser.

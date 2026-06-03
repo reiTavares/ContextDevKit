@@ -3,7 +3,7 @@
 > The portable, multi-provider, **zero-dep-at-consume-time** artefact that
 > `agent-forge` produces. One directory per agent + semver; consumed by a
 > client project's runtime adapter. The canonical template lives at
-> [`templates/vibekit/squads/agent-forge/templates/agent-package/`](../templates/vibekit/squads/agent-forge/templates/agent-package/).
+> [`templates/contextkit/squads/agent-forge/templates/agent-package/`](../templates/contextkit/squads/agent-forge/templates/agent-package/).
 
 ## Tree
 
@@ -67,7 +67,7 @@ agent-packages/
 ## manifest.yaml
 
 ```yaml
-apiVersion: agentforge.vibedevkit.io/v1
+apiVersion: agentforge.contextdevkit.io/v1
 kind: Agent
 metadata:
   name: <agent-name>
@@ -134,7 +134,7 @@ adapter stays thin.
 
 ## Approvals + decisions
 
-- **[ADR-0012](../vibekit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md)** — adoption + 7 binding constraints.
-- **[ADR-0013](../vibekit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md)** — YAML via optional dynamic import.
+- **[ADR-0012](../contextkit/memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md)** — adoption + 7 binding constraints.
+- **[ADR-0013](../contextkit/memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md)** — YAML via optional dynamic import.
 
 Full coverage map at the squad ROADMAP.

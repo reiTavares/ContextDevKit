@@ -16,7 +16,7 @@ import { resolve } from 'node:path';
 async function checkPackageOps(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge package-ops (Fase 4)...');
-  const opsUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/package-ops.mjs').replaceAll('\\', '/');
+  const opsUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/package-ops.mjs').replaceAll('\\', '/');
   let discoverPackages;
   let diagnosePackage;
   try {
@@ -59,7 +59,7 @@ async function checkPackageOps(rep, KIT) {
 async function checkRagDesigner(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking agent-forge rag-designer (Fase 5)...');
-  const ragUrl = 'file://' + resolve(KIT, 'templates/vibekit/squads/agent-forge/lib/rag-designer.mjs').replaceAll('\\', '/');
+  const ragUrl = 'file://' + resolve(KIT, 'templates/contextkit/squads/agent-forge/lib/rag-designer.mjs').replaceAll('\\', '/');
   let designRagConfig;
   try {
     ({ designRagConfig } = await import(ragUrl));
@@ -88,7 +88,7 @@ async function checkRagDesigner(rep, KIT) {
 async function checkL5ForgePath(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking L5 high-risk paths default (Fase 5)...');
-  const defaultsUrl = 'file://' + resolve(KIT, 'templates/vibekit/runtime/config/defaults.mjs').replaceAll('\\', '/');
+  const defaultsUrl = 'file://' + resolve(KIT, 'templates/contextkit/runtime/config/defaults.mjs').replaceAll('\\', '/');
   try {
     const { DEFAULT_CONFIG } = await import(defaultsUrl);
     DEFAULT_CONFIG?.l5?.highRiskPaths?.includes('agent-packages/**')

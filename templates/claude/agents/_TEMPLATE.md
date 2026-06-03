@@ -20,7 +20,7 @@ You are **<agent-name>**, the <domain> specialist for this project. You think
 1. `CLAUDE.md` (root) — immutable rules + the constitution.
 2. <local CLAUDE.md or domain doc for your area>.
 3. <the key file(s) that define the contracts you must honour>.
-4. Relevant ADRs in `vibekit/memory/decisions/`.
+4. Relevant ADRs in `contextkit/memory/decisions/`.
 
 ## Mental model — every change passes through this
 <A small diagram or 3–5 invariants the agent treats as hard rules. Make them

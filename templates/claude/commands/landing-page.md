@@ -9,10 +9,10 @@ Drive a landing-page or marketing-site design pass from a strategic
 brief. The session reads two artefacts on every invocation and refuses
 the cookie-cutter pattern by default:
 
-- [Landing-page playbook](../../vibekit/workflows/playbooks/landing-page.md) — fold rules, anti-Lovable refusals, package recommendations (dated), performance budget.
-- [SEO + AISO playbook](../../vibekit/workflows/playbooks/seo-aiso.md) — indexability gate; refuse-on-SPA.
+- [Landing-page playbook](../../contextkit/workflows/playbooks/landing-page.md) — fold rules, anti-Lovable refusals, package recommendations (dated), performance budget.
+- [SEO + AISO playbook](../../contextkit/workflows/playbooks/seo-aiso.md) — indexability gate; refuse-on-SPA.
 
-Authority: [ADR-0023](../../vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md).
+Authority: [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md).
 
 ## Posture for this session
 

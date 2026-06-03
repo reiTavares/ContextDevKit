@@ -9,7 +9,7 @@ specialists and assemble their results into one verdict.
 
 ## Read first
 1. `CLAUDE.md` — conventions and any testing rules.
-2. `vibekit/config.json` → `qa` (`criticalPaths`, `coverageTarget`).
+2. `contextkit/config.json` → `qa` (`criticalPaths`, `coverageTarget`).
 3. The project's test runner + existing tests, so the plan matches the stack.
 
 ## Your specialists (delegate via the Agent tool, in parallel when independent)

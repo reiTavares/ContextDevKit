@@ -26,9 +26,9 @@ State which mode you're running at the start.
 
 ## Pipeline
 
-1. **Scope & state.** Run `node vibekit/tools/scripts/context-pack.mjs` (latest-session
+1. **Scope & state.** Run `node contextkit/tools/scripts/context-pack.mjs` (latest-session
    digest + immutable rules + recent ADRs in one call) and
-   `node vibekit/tools/scripts/adr-digest.mjs --search "<objective keywords>"` for the
+   `node contextkit/tools/scripts/adr-digest.mjs --search "<objective keywords>"` for the
    ADRs relevant to the objective [ADR-0027] — open a full ADR only when needed.
    Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
 2. **Design** — delegate to `architect`: options, trade-offs, recommended path,

@@ -11,10 +11,10 @@ DevPipeline backlog. Run before a release, on a cadence, or on demand.
 
 1. **Deterministic pass** — aggregate every scanner:
    ```
-   node vibekit/tools/scripts/deep-analysis.mjs --write
+   node contextkit/tools/scripts/deep-analysis.mjs --write
    ```
    Merges tech-debt, dependency/supply-chain, and contract findings into
-   `vibekit/memory/deep-analysis-findings.json`.
+   `contextkit/memory/deep-analysis-findings.json`.
 
 2. **Judgment pass** — what regex can't see. Delegate in parallel (Agent tool):
    - `security` + `infra-security` → vulnerabilities, secrets, infra exposure.
@@ -30,13 +30,13 @@ DevPipeline backlog. Run before a release, on a cadence, or on demand.
 
 4. **Suggest ADRs** — for any finding implying an architectural decision (a pattern
    to adopt, a boundary to enforce, a dependency to drop), first scan existing
-   decisions with `node vibekit/tools/scripts/adr-digest.mjs --json` [ADR-0027] so
+   decisions with `node contextkit/tools/scripts/adr-digest.mjs --json` [ADR-0027] so
    you extend/reference an existing ADR instead of duplicating it; then draft a new
    one with `/new-adr` (Context / Decision / Consequences) only if none fits.
 
 5. **Fill the backlog** — every finding becomes a tracked, prioritized task:
    ```
-   node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deep-analysis-findings.json --type chore
+   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deep-analysis-findings.json --type chore
    ```
    Bugs found by judgment → `pipeline.mjs add --type bug --severity S1-S4
    --bug-type <t> --title "…"`. Priorities (WSJF / severity) + SLA are auto-set and

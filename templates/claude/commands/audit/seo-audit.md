@@ -14,12 +14,12 @@ first-class concerns:
 - **AISO** (AI Search Optimization) — GPTBot, ClaudeBot, PerplexityBot,
   the `llms.txt` + FAQ-schema family. Audited by `aiso-audit.mjs`.
 
-Authority: [ADR-0025](../../vibekit/memory/decisions/0025-seo-and-aiso-posture.md) + [seo-aiso playbook](../../vibekit/workflows/playbooks/seo-aiso.md).
+Authority: [ADR-0025](../../contextkit/memory/decisions/0025-seo-and-aiso-posture.md) + [seo-aiso playbook](../../contextkit/workflows/playbooks/seo-aiso.md).
 
 ## What this does
 
-1. Runs `node vibekit/tools/scripts/seo-audit.mjs` and
-   `node vibekit/tools/scripts/aiso-audit.mjs` (or only one, if
+1. Runs `node contextkit/tools/scripts/seo-audit.mjs` and
+   `node contextkit/tools/scripts/aiso-audit.mjs` (or only one, if
    `--seo-only` / `--aiso-only` is passed).
 2. Reads the findings. If `--json` was passed, prints raw JSON for CI
    consumption.
@@ -48,7 +48,7 @@ until either:
   site.
 - **On the design pass** when proposing a new public route.
 - **In CI** — the JSON output is gateable
-  (`node vibekit/tools/scripts/seo-audit.mjs --json > seo.json` +
+  (`node contextkit/tools/scripts/seo-audit.mjs --json > seo.json` +
   a tiny step that `jq`s for critical severity).
 
 ## What it does NOT do

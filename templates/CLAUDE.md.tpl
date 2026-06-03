@@ -2,7 +2,7 @@
 
 > Auto-loaded in every Claude Code session opened in this directory. Keep it
 > **short** — reference other docs instead of duplicating content.
-> Scaffolded by VibeDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
+> Scaffolded by ContextDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
 
 ## What this is
 
@@ -83,7 +83,7 @@ non-trivial logic? Fix any failure **before** showing the code.
 
 ### 8. Behavioral discipline (how you act, not just what you write)
 Beyond *what* the code looks like, *how* you produce it matters. Honor
-`vibekit/behaviors.md` (examples in `behaviors-examples.md`):
+`contextkit/behaviors.md` (examples in `behaviors-examples.md`):
 - **Think before coding** — surface your assumptions, present interpretations
   instead of picking one silently, and **ask when the request is ambiguous**.
   Push back on a worse approach rather than silently complying.
@@ -96,37 +96,37 @@ Beyond *what* the code looks like, *how* you produce it matters. Honor
 - **Goal-driven** — define a verifiable success criterion; for a fix, write the
   reproducing test first; loop until it's green.
 
-## 🤖 VibeDevKit — the context system (Level L{{LEVEL}})
+## 🤖 ContextDevKit — the context system (Level L{{LEVEL}})
 
-This project uses [VibeDevKit](https://github.com/) to survive across sessions.
-Layers active depend on the level (see `vibekit/README.md`):
+This project uses [ContextDevKit](https://github.com/) to survive across sessions.
+Layers active depend on the level (see `contextkit/README.md`):
 
 - **CLAUDE.md** (this file) + hooks load context automatically at session start.
-- **`vibekit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
+- **`contextkit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
   *what*, one file per session), `business-rules/` (domain rules, versioned),
   `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md` & `WORKSPACE.md` (auto-generated
   indices).
 - **`docs/CHANGELOG.md`** — factual release chronology.
-- **Hooks** (`.claude/settings.json` → `vibekit/runtime/hooks/`) inject boot
+- **Hooks** (`.claude/settings.json` → `contextkit/runtime/hooks/`) inject boot
   context, track edits, and nudge you to register the session on drift.
 
 ### Before non-trivial changes
-1. Read the latest `vibekit/memory/SESSIONS.md` entry + relevant ADR.
+1. Read the latest `contextkit/memory/SESSIONS.md` entry + relevant ADR.
 2. Check `GLOSSARY.md` before coining a domain identifier.
 3. Big decision (stack/library/pattern) → `/new-adr <title>` BEFORE implementing.
 4. At the end of a productive session → `/log-session`.
 
 ### Slash commands
-Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/state`
+Setup: `/aidevtool-from0` (empty) · `/setupcontextdevkit` (existing). Daily: `/state`
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
 · `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
 · `/contract-check` · `/deps-audit` · `/deep-analysis` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
-execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
+execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/context-stats`
 · `/distill-sessions` · `/distill-apply`.
 Structure & platform: `/squad` (squads) · `/git` (version control + remote)
-· `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level` · `/vibe-config`
-· `/vibe-doctor`.
+· `/claude-md` (scoped CLAUDE.md per module) · `/context-level` · `/context-config`
+· `/context-doctor`.
 
 ---
 

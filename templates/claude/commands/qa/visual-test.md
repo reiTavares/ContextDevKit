@@ -14,15 +14,15 @@ Act on **$ARGUMENTS** — route to **qa-e2e**, pair with **design-team** for bas
 
 ## status
 ```
-node vibekit/tools/scripts/visual-test.mjs status
+node contextkit/tools/scripts/visual-test.mjs status
 ```
 Reports whether a visual harness exists (Playwright/Cypress for JS, pytest-playwright
 for Python) and what's missing.
 
 ## scaffold
 ```
-node vibekit/tools/scripts/visual-test.mjs scaffold          # auto-detect stack
-node vibekit/tools/scripts/visual-test.mjs scaffold --python
+node contextkit/tools/scripts/visual-test.mjs scaffold          # auto-detect stack
+node contextkit/tools/scripts/visual-test.mjs scaffold --python
 ```
 Writes a starter (write-if-missing): a Playwright config + a `tests/visual/` screenshot
 baseline. Then install the runner (the command prints it):

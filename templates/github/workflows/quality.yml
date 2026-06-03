@@ -1,5 +1,5 @@
 # Quality gates — contract drift + tech-debt RED zone.
-# Scaffolded by VibeDevKit. Each job FAILS the run on a regression; to make it
+# Scaffolded by ContextDevKit. Each job FAILS the run on a regression; to make it
 # BLOCK merges, add it as a required status check in branch protection.
 name: quality
 
@@ -15,7 +15,7 @@ permissions:
 jobs:
   contract-drift:
     # Fails if a public export was removed/renamed since the committed baseline
-    # (vibekit/memory/contract-baseline.json). No-op until you set `l5.contractGlobs`
+    # (contextkit/memory/contract-baseline.json). No-op until you set `l5.contractGlobs`
     # and save a baseline (`contract-scan.mjs --save`).
     runs-on: ubuntu-latest
     steps:
@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
-      - run: node vibekit/tools/scripts/contract-scan.mjs
+      - run: node contextkit/tools/scripts/contract-scan.mjs
 
   tech-debt:
     # Fails on any RED-zone finding (a file over the hard line-budget limit).
@@ -33,4 +33,4 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
-      - run: node vibekit/tools/scripts/tech-debt-scan.mjs --ci
+      - run: node contextkit/tools/scripts/tech-debt-scan.mjs --ci

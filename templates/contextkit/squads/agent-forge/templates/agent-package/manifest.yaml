@@ -1,0 +1,91 @@
+# Agent Package manifest — the SINGLE source of truth for this agent.
+# Forged by agent-forge. Fill {{TOKENS}} from the blueprint; the packager stamps
+# provenance + model_selection. Portable: no ContextDevKit/runtime needed to consume.
+apiVersion: agentforge.contextdevkit.io/v1
+kind: Agent
+
+metadata:
+  name: {{AGENT_NAME}}                 # kebab-case, unique within the project
+  version: 0.1.0                       # semver — see CHANGELOG.md
+  description: >
+    {{ONE_PARAGRAPH_WHAT_THIS_AGENT_DOES}}
+  author: {{AUTHOR_EMAIL}}
+  created: {{YYYY-MM-DD}}
+  provenance:                          # stamped by the packager — do not hand-edit
+    forged_by: agent-forge@{{FORGE_VERSION}}
+    blueprint_hash: {{SHA256}}
+    eval_passed_at: {{ISO8601}}
+
+spec:
+  intent:
+    category: {{classification|extraction|generation|reasoning|coding|summarization|rag-answer|vision|agentic-multi-step|function-calling-heavy}}
+    sub_category: {{OPTIONAL}}
+    domain: {{e.g. legal-pt-br}}
+    complexity: {{low|medium|high}}
+    multimodal: false
+
+  sla:
+    latency_p95_ms: {{8000}}
+    availability_target: {{0.99}}
+
+  cost:
+    target_usd_per_call: {{0.015}}
+    max_usd_per_call: {{0.05}}
+    monthly_budget_usd: {{500}}
+    alert_at_pct: 80
+
+  volume:
+    expected_qpd: {{2000}}              # queries per day
+    burst_qps: {{5}}
+
+  privacy:
+    pii_present: {{true|false}}
+    pii_categories: [{{name, cpf, address}}]
+    lgpd_basis: {{legitimate_interest|consent|contract|legal_obligation}}
+    data_residency: {{br-or-eu|us|on-prem}}
+    allow_cloud_providers: {{true|false}}
+    require_zero_retention: {{true|false}}
+
+  model_selection:                     # produced by model-router; rationale in README.md
+    primary:
+      provider: {{anthropic}}
+      model: {{claude-sonnet-4-6}}
+      temperature: 0.0
+      max_tokens: {{4000}}
+    fallback:                          # ALWAYS >= 1 provider different from primary
+      - provider: {{google}}
+        model: {{gemini-2.5-pro}}
+        condition: primary_5xx OR primary_timeout
+    cheap_path:                        # for cheap sub-tasks
+      provider: {{anthropic}}
+      model: {{claude-haiku-4-5}}
+    premium_path:                      # for flagged-critical calls
+      provider: {{anthropic}}
+      model: {{claude-opus-4-7}}
+
+  capabilities:
+    tools: {{true|false}}
+    rag: {{true|false}}
+    streaming: false
+    structured_output: {{true|false}}
+
+  tools:                               # remove if capabilities.tools is false
+    - name: {{tool_name}}
+      schema: tools/schemas.canonical.json#/{{tool_name}}
+
+  rag:                                 # remove this block if capabilities.rag is false
+    enabled: {{true|false}}
+    config: rag/config.yaml
+
+  evals:
+    golden: evals/golden.jsonl
+    thresholds: evals/thresholds.yaml
+
+  governance:
+    cost: governance/cost.policy.yaml
+    compliance: governance/compliance.policy.yaml
+    quality: governance/quality.policy.yaml
+    fallback: governance/fallback-chain.yaml
+
+  runtime_adapters:                    # only the languages you need
+    - node

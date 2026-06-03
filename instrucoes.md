@@ -1,11 +1,11 @@
-# VibeDevKit — Guia de Uso (pt-BR)
+# ContextDevKit — Guia de Uso (pt-BR)
 
 > Guia prático em português. **Comandos, caminhos e chaves de config** ficam em
 > inglês de propósito (é o "principal" do projeto) — só a explicação é em pt-BR.
 
 ## O que é
 
-O VibeDevKit transforma "vibe coding" em **engenharia**: em vez de torcer para a
+O ContextDevKit transforma "AI-assisted coding" em **engenharia**: em vez de torcer para a
 IA lembrar do contexto, o kit faz o ambiente (hooks do Claude Code) **forçar**
 boas práticas e guardar o histórico no próprio repositório. Funciona em qualquer
 projeto — do zero (greenfield) ou já existente, qualquer stack.
@@ -14,10 +14,10 @@ projeto — do zero (greenfield) ou já existente, qualquer stack.
 
 | Feature | O que faz |
 |---|---|
-| **Skills de landing-page** ([ADR-0023](vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | Agente `landing-architect` + comando `/landing-page` + playbook anti-Lovable opinionado (regras de dobras: mín 3 / ideal 5–7 / máx 9; recomendações de pacotes datadas) |
-| **Geração de mídia** ([ADR-0024](vibekit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` com adapters Veo (vídeo) + Nano Banana (imagem); credenciais via `.env`; recusa-sem-credencial + cap de custo por processo |
-| **SEO + AISO** ([ADR-0025](vibekit/memory/decisions/0025-seo-and-aiso-posture.md)) | Agente `seo-specialist` + `/seo-audit` com 16 checagens estáticas (SEO + AI Search Optimization); recusa SPA não-indexável |
-| **GitHub sync awareness** ([ADR-0026](vibekit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` mostra PRs abertos com status de CI/review no `/dev-start` + detecta PR duplicado antes do push |
+| **Skills de landing-page** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | Agente `landing-architect` + comando `/landing-page` + playbook anti-Lovable opinionado (regras de dobras: mín 3 / ideal 5–7 / máx 9; recomendações de pacotes datadas) |
+| **Geração de mídia** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` com adapters Veo (vídeo) + Nano Banana (imagem); credenciais via `.env`; recusa-sem-credencial + cap de custo por processo |
+| **SEO + AISO** ([ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)) | Agente `seo-specialist` + `/seo-audit` com 16 checagens estáticas (SEO + AI Search Optimization); recusa SPA não-indexável |
+| **GitHub sync awareness** ([ADR-0026](contextkit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` mostra PRs abertos com status de CI/review no `/dev-start` + detecta PR duplicado antes do push |
 | **`/dashboard`** | Estado visual do projeto (kanban + ADRs + sessões + roadmap) — HTML único auto-contido ou modo `--watch` com SSE em tempo real |
 | **`/watch`** | Acompanha o ledger da sessão atual em tempo real; `--follow` faz streaming |
 | **`/workflow`** | Macro que encadeia roadmap → ADR → pipeline → ship com breadcrumbs |
@@ -30,10 +30,10 @@ projeto — do zero (greenfield) ou já existente, qualquer stack.
 
 ```bash
 # do npm (recomendado)
-npx vibedevkit --target . --yes
+npx contextdevkit --target . --yes
 
 # ou direto do GitHub (sem npm)
-npx github:reiTavares/VibeDevKit --target . --yes
+npx github:reiTavares/ContextDevKit --target . --yes
 ```
 
 Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
@@ -42,7 +42,7 @@ Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
 - **Projeto vazio (do zero):** rode **`/aidevtool-from0`** — questionário de
   produto interativo → visão, stack (sugere/refina), **roadmap**, boas práticas
   e DevPipeline. Ele te acompanha e fica ativo conforme o projeto cresce.
-- **Projeto existente:** rode **`/setupvibedevkit`** — detecta a stack, ajusta o
+- **Projeto existente:** rode **`/setupcontextdevkit`** — detecta a stack, ajusta o
   config, preenche o `CLAUDE.md`, marca paths de risco, **procura/propõe o
   roadmap**, cria um ADR base e registra a sessão.
 
@@ -55,13 +55,13 @@ Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
 | **L3 Multi** | claims, worktrees, índices auto-gerados, git hooks (Conventional Commits + pre-push que bloqueia conflito real) |
 | **L4 Squads** | sub-agentes especializados — devteam, qa-team, design-team (5 specialists com `seo-specialist` + `landing-architect`), compliance, ops |
 | **L5 Proactive** | gate `/simulate-impact`, `/tech-debt-sweep`, `/contract-check`, distill nudge |
-| **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas `/vibe-stats`, squad agent-forge |
+| **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas `/context-stats`, squad agent-forge |
 | **L7 Ecosystem** | `/fleet` (multi-repo), `/tune-agents`, testes visuais, playbook runner |
 
 Trocar de nível (de dentro do projeto):
 
 ```
-/vibe-level 4        # ou: node vibekit/tools/scripts/vibe-level.mjs 4
+/context-level 4        # ou: node contextkit/tools/scripts/context-level.mjs 4
 ```
 
 Reinicie o Claude Code depois de trocar (ele recarrega os hooks). O instalador
@@ -124,7 +124,7 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/pipeline` — DevPipeline (execução): bugs/increments/chores com prioridade,
   SLA, **DAG de dependências** e complexidade fluindo `backlog → working → testing → conclusion`.
 - `/retro` — learning loop (L6).
-- `/vibe-stats` — métricas (sessões, drift rate, ADRs, cadência).
+- `/context-stats` — métricas (sessões, drift rate, ADRs, cadência).
 - `/distill-sessions` + `/distill-apply` — propõe/aplica refinamentos no `CLAUDE.md`.
 - `/playbook list|run|track` — registro de procedimentos reutilizáveis.
 
@@ -134,9 +134,9 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/claude-md` — garante `CLAUDE.md` próprio em cada app/módulo.
 - `/fleet list|add|stats|audit` *(L7)* — control plane multi-repo.
 - `/tune-agents` *(L6)* — refina briefings de agentes (proposal-only).
-- `/vibe-doctor` — diagnóstico do install.
-- `/vibe-config show|set` — lê/edita `vibekit/config.json`.
-- `/vibe-level [1-7]` — vê/troca o nível.
+- `/context-doctor` — diagnóstico do install.
+- `/context-config show|set` — lê/edita `contextkit/config.json`.
+- `/context-level [1-7]` — vê/troca o nível.
 
 ### Agent-forge *(L6+)* — "o agente que constrói agentes"
 14 comandos `forge-*` para o ciclo de vida de Agent Packages portáveis:
@@ -159,7 +159,7 @@ Crie os seus a partir de `_BRIEFING.md.tpl` via `/squad`.
 
 ## Playbooks
 
-Procedimentos reutilizáveis em `vibekit/workflows/playbooks/`. Roda com
+Procedimentos reutilizáveis em `contextkit/workflows/playbooks/`. Roda com
 `/playbook run <nome>` ou lê sob demanda:
 
 | Playbook | Autoridade | O que cobre |
@@ -174,12 +174,12 @@ Procedimentos reutilizáveis em `vibekit/workflows/playbooks/`. Roda com
 
 ## Provider adapters — surface plugável
 
-### Review providers (`vibekit/runtime/providers/review/`)
+### Review providers (`contextkit/runtime/providers/review/`)
 Adapters thin sobre CLIs já instalados no host. Hoje: **`gh`** (GitHub CLI).
 Adicionar GitLab/Bitbucket é criar `glab.mjs`/`bb.mjs` seguindo o contrato em
 `_adapter.mjs`. `detect.mjs` resolve qual adapter usar a partir de `git remote get-url origin`.
 
-### Media providers (`vibekit/runtime/providers/media/`) *(novo)*
+### Media providers (`contextkit/runtime/providers/media/`) *(novo)*
 Dois adapters Google AI Studio:
 
 | Adapter | Tipo | Auth | Custo (datado 2026-06-02) |
@@ -189,9 +189,9 @@ Dois adapters Google AI Studio:
 
 Setup uma vez:
 1. Pega chave em https://aistudio.google.com/apikey
-2. Copia `vibekit/.env.example` pra `vibekit/.env`, cola a chave em `GOOGLE_AI_API_KEY=`
-3. (Opcional) `VIBEDEVKIT_MEDIA_MAX_USD=5.00` pra capar custo por processo
-4. Roda com `node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs ...` (Node 20.6+)
+2. Copia `contextkit/.env.example` pra `contextkit/.env`, cola a chave em `GOOGLE_AI_API_KEY=`
+3. (Opcional) `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00` pra capar custo por processo
+4. Roda com `node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs ...` (Node 20.6+)
 
 Refusa de cara sem credencial (rule 8 — default refuse), nunca substitui por
 placeholder silenciosamente.
@@ -209,15 +209,15 @@ placeholder silenciosamente.
 
 ## Boas práticas
 
-- **Onde começar:** projeto **novo/vazio** (vibe-code do zero) → **L3**; projeto
+- **Onde começar:** projeto **novo/vazio** (context-code do zero) → **L3**; projeto
   que **já tem código** → **L7** (use tudo; os gates ficam inertes até configurar
-  `highRiskPaths`). O instalador já escolhe L3/L7. Ajuste com `/vibe-level <n>`.
+  `highRiskPaths`). O instalador já escolhe L3/L7. Ajuste com `/context-level <n>`.
 - **ADR antes de decidir grande.** Stack, biblioteca, padrão → `/new-adr`. ADR
   aceito é **imutável**; para mudar, crie outro que o substitua.
-- **Registre a sessão.** O `drift rate` no `/vibe-stats` mostra se você está
+- **Registre a sessão.** O `drift rate` no `/context-stats` mostra se você está
   esquecendo o `/log-session`. Se perdeu o registro, `/resume`.
-- **Ajuste os paths ao seu stack.** Edite `vibekit/config.json` → `ledger.*`
-  (ou `/vibe-config`). Python → `app/`, `tests/`; Go → `cmd/`, `internal/`.
+- **Ajuste os paths ao seu stack.** Edite `contextkit/config.json` → `ledger.*`
+  (ou `/context-config`). Python → `app/`, `tests/`; Go → `cmd/`, `internal/`.
 - **Preencha o `CLAUDE.md`.** As regras imutáveis e a constituição de código são
   o que mais melhora a qualidade do que a IA produz. Mantenha-o curto.
 - **Não edite arquivos gerados** (`SESSIONS.md`, `WORKSPACE.md`,
@@ -231,21 +231,21 @@ placeholder silenciosamente.
 ## Manutenção
 
 ```bash
-node vibekit/tools/scripts/doctor.mjs        # saúde do install
-node vibekit/tools/scripts/stats.mjs         # métricas
-node vibekit/tools/scripts/tech-debt-scan.mjs --write
-node vibekit/tools/scripts/generate-context.mjs   # snapshot p/ refactor/IA externa
-node vibekit/tools/scripts/dashboard.mjs     # visual do estado
+node contextkit/tools/scripts/doctor.mjs        # saúde do install
+node contextkit/tools/scripts/stats.mjs         # métricas
+node contextkit/tools/scripts/tech-debt-scan.mjs --write
+node contextkit/tools/scripts/generate-context.mjs   # snapshot p/ refactor/IA externa
+node contextkit/tools/scripts/dashboard.mjs     # visual do estado
 ```
 
 **Atualizar com segurança (sem perder nada):**
 ```bash
-npx vibedevkit@latest --target . --update
+npx contextdevkit@latest --target . --update
 ```
 Atualiza só o engine + slash commands + wiring dos hooks para o **nível atual**.
-**Nunca** toca em `CLAUDE.md`, `vibekit/config.json`, memória (ADRs/sessões/
+**Nunca** toca em `CLAUDE.md`, `contextkit/config.json`, memória (ADRs/sessões/
 roadmap), tarefas do pipeline, nem nos `CLAUDE.md` de cada módulo. (Offline/
-GitHub: `npx github:reiTavares/VibeDevKit --target . --update`.)
+GitHub: `npx github:reiTavares/ContextDevKit --target . --update`.)
 
 Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória;
 `--purge` também remove o engine).
@@ -254,15 +254,15 @@ Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória
 
 - **Hook não dispara / pede aprovação** — aprove uma vez por hook; reinicie o
   Claude Code após trocar de nível.
-- **Wiring fora do nível** — `/vibe-doctor` aponta; corrija com `/vibe-level <n>`.
+- **Wiring fora do nível** — `/context-doctor` aponta; corrija com `/context-level <n>`.
 - **JSON do config quebrado** — os hooks caem nos defaults (não travam); conserte
   o arquivo (o loader tolera BOM do Windows).
 - **Git hooks no Windows** — precisam do Git for Windows (usam `#!/bin/sh`).
 - **`/media-gen` reclama de `NO_CREDENTIALS`** — preencha `GOOGLE_AI_API_KEY` em
-  `vibekit/.env` (template em `vibekit/.env.example`) e rode com `node
-  --env-file=vibekit/.env ...`.
+  `contextkit/.env` (template em `contextkit/.env.example`) e rode com `node
+  --env-file=contextkit/.env ...`.
 - **`/dashboard --watch` não abre em outra porta** — `--port=N` ou
-  `VIBEDEVKIT_DASHBOARD_PORT=N`. Binda só em `127.0.0.1` (sem acesso remoto por
+  `CONTEXTDEVKIT_DASHBOARD_PORT=N`. Binda só em `127.0.0.1` (sem acesso remoto por
   design).
 - **PR duplicado bloqueado pelo `sync-check prepr`** — outro chat seu já abriu
   PR pra essa branch; reabra ou ajuste título/branch.

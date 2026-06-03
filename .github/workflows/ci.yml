@@ -33,13 +33,13 @@ jobs:
         run: node tools/integration-test.mjs
 
       - name: Tech-debt gate (kit must pass its own constitution — no RED zone)
-        run: node templates/vibekit/tools/scripts/tech-debt-scan.mjs --ci
+        run: node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci
 
       - name: Installer dry sanity (greenfield install)
         run: |
-          mkdir -p /tmp/vibe-greenfield
-          git -C /tmp/vibe-greenfield init -b main
-          node install.mjs --target /tmp/vibe-greenfield --level 3 --name "CI Greenfield" --mode greenfield --yes
-          test -f /tmp/vibe-greenfield/CLAUDE.md
-          test -f /tmp/vibe-greenfield/vibekit/config.json
-          test -f /tmp/vibe-greenfield/.claude/settings.json
+          mkdir -p /tmp/context-greenfield
+          git -C /tmp/context-greenfield init -b main
+          node install.mjs --target /tmp/context-greenfield --level 3 --name "CI Greenfield" --mode greenfield --yes
+          test -f /tmp/context-greenfield/CLAUDE.md
+          test -f /tmp/context-greenfield/contextkit/config.json
+          test -f /tmp/context-greenfield/.claude/settings.json

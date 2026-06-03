@@ -44,7 +44,7 @@ export function reporter() {
  * runs a tool script; `cleanup()` removes the temp project.
  */
 export function installFixture(rep) {
-  const proj = mkdtempSync(join(tmpdir(), 'vibekit-it-'));
+  const proj = mkdtempSync(join(tmpdir(), 'contextkit-it-'));
   git(['init', '-b', 'main'], proj);
   git(['config', 'user.email', 'it@example.com'], proj);
   git(['config', 'user.name', 'IT'], proj);
@@ -52,9 +52,9 @@ export function installFixture(rep) {
   inst.status === 0 ? rep.ok('install at Level 5') : rep.bad(`install failed (status ${inst.status}): ${inst.stderr}`);
   return {
     proj,
-    cfgPath: join(proj, 'vibekit', 'config.json'),
-    hook: (name, payload) => run([join(proj, 'vibekit', 'runtime', 'hooks', name)], { cwd: proj, input: JSON.stringify(payload) }).stdout || '',
-    script: (rel, ...a) => run([join(proj, 'vibekit', 'tools', 'scripts', rel), ...a], { cwd: proj }),
+    cfgPath: join(proj, 'contextkit', 'config.json'),
+    hook: (name, payload) => run([join(proj, 'contextkit', 'runtime', 'hooks', name)], { cwd: proj, input: JSON.stringify(payload) }).stdout || '',
+    script: (rel, ...a) => run([join(proj, 'contextkit', 'tools', 'scripts', rel), ...a], { cwd: proj }),
     cleanup: () => rmSync(proj, { recursive: true, force: true }),
   };
 }

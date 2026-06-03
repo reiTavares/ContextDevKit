@@ -1,18 +1,18 @@
-# Contributing to VibeDevKit
+# Contributing to ContextDevKit
 
-Thanks for improving VibeDevKit. It's intentionally small and dependency-free —
+Thanks for improving ContextDevKit. It's intentionally small and dependency-free —
 keep it that way.
 
 ## Ground rules
 
 - **Zero runtime dependencies on the hot path.** The hooks (Levels 1–3) must run
   in a brand-new project with nothing installed. No npm packages in
-  `templates/vibekit/runtime/hooks/**` or `runtime/config/load.mjs`. `zod` is
+  `templates/contextkit/runtime/hooks/**` or `runtime/config/load.mjs`. `zod` is
   allowed only behind an optional dynamic import (see `schema.mjs`).
 - **Hooks never break real work.** Every hook exits 0 on error and stays silent
   unless it has something to say. Defensive I/O, always.
 - **The platform folder name lives in one place.** `PLATFORM_DIR` in
-  `templates/vibekit/runtime/config/paths.mjs`. Don't hardcode `vibekit/`
+  `templates/contextkit/runtime/config/paths.mjs`. Don't hardcode `contextkit/`
   elsewhere if a constant exists.
 - **Keep it portable.** No bash-isms in `.mjs`; use `node:*` APIs. Strip a BOM
   before `JSON.parse`. Forward-slash paths in config.
@@ -22,7 +22,7 @@ keep it that way.
 These surfaces other projects depend on are **stable**: a breaking change needs an
 ADR (`/new-adr`) and must show up in `/contract-check` before release.
 
-- **`vibekit/config.json` schema** — the keys hooks/scripts read (`level`,
+- **`contextkit/config.json` schema** — the keys hooks/scripts read (`level`,
   `ledger.*`, `l5.*`, `qa.*`, `practices.*`, `setup.*`). Add keys freely; never
   rename/remove without a migration.
 - **Installer flags** — `--target / --level / --name / --mode / --yes / --force /
@@ -30,7 +30,7 @@ ADR (`/new-adr`) and must show up in `/contract-check` before release.
   a flag's meaning.
 - **Hook payload contract** — hooks read `session_id` + the tool payload on stdin
   and exit 0 **silently** on anything they don't handle.
-- **The `vibekit/` layout** — `runtime/`, `tools/`, `memory/{decisions,sessions,
+- **The `contextkit/` layout** — `runtime/`, `tools/`, `memory/{decisions,sessions,
   business-rules}`, `squads/`, `pipeline/` — plus `.claude/{commands,agents,
   settings.json}`. Renames break installs.
 - **Slash-command & agent names** — removing/renaming one breaks muscle memory and
@@ -43,7 +43,7 @@ Point `l5.contractGlobs` at the export surface you consider public so
 
 - `install.mjs` — the installer (also the `npx`/`bin` entry).
 - `templates/` — everything copied into a target project (`claude/` → `.claude/`,
-  `vibekit/`, `CLAUDE.md.tpl`, `docs/CHANGELOG.md.tpl`, `gitattributes`).
+  `contextkit/`, `CLAUDE.md.tpl`, `docs/CHANGELOG.md.tpl`, `gitattributes`).
 - `tools/` — kit-dev tooling: `selfcheck.mjs` (static), `integration-test.mjs`
   (real hooks end-to-end).
 - `docs/` — LEVELS, ARCHITECTURE, CUSTOMIZING.

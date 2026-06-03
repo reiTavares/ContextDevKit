@@ -2,7 +2,7 @@
  * CLI surface for the installer: argument parsing, the `--help` text, the
  * interactive prompt helper, and the human-readable level labels.
  */
-export { LEVEL_LABELS } from '../../templates/vibekit/runtime/config/levels.mjs';
+export { LEVEL_LABELS } from '../../templates/contextkit/runtime/config/levels.mjs';
 
 export function parseArgs(argv) {
   const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false };
@@ -26,7 +26,7 @@ export function parseArgs(argv) {
 }
 
 export const HELP = `
-🌀 VibeDevKit installer
+🌀 ContextDevKit installer
 
 Usage:
   node install.mjs [--target <path>] [--level <1-7>] [--name <str>]
@@ -48,12 +48,12 @@ Flags:
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
                     the CURRENT level; never touches CLAUDE.md, config, or memory
   --rewire          only recompose settings.json for the given --level
-  --uninstall       remove VibeDevKit hook wiring + git hooks (keeps memory)
-  --purge           with --uninstall, also delete vibekit/ engine + commands/agents
+  --uninstall       remove ContextDevKit hook wiring + git hooks (keeps memory)
+  --purge           with --uninstall, also delete contextkit/ engine + commands/agents
   --help, -h        show this help
   --version, -v     print the kit version
 
-After installing, open the project in Claude Code and run /setupvibedevkit.
+After installing, open the project in Claude Code and run /setupcontextdevkit.
 `;
 
 export async function prompt(rl, q, def) {

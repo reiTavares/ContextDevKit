@@ -15,8 +15,8 @@ from the existing files. Zero deps; pure `node:` stdlib.
 ### Snapshot (default)
 
 ```
-node vibekit/tools/scripts/dashboard.mjs                    # writes ./dashboard.html
-node vibekit/tools/scripts/dashboard.mjs --out=tmp/state.html
+node contextkit/tools/scripts/dashboard.mjs                    # writes ./dashboard.html
+node contextkit/tools/scripts/dashboard.mjs --out=tmp/state.html
 ```
 
 Writes a self-contained HTML file and exits. Inline CSS + JS, no external
@@ -26,14 +26,14 @@ installed. Use this for share-by-email or commit-to-PR-preview.
 ### Live (`--watch`)
 
 ```
-node vibekit/tools/scripts/dashboard.mjs --watch            # serves http://127.0.0.1:4242
-node vibekit/tools/scripts/dashboard.mjs --watch --port=8080
-VIBEDEVKIT_DASHBOARD_PORT=5555 node vibekit/tools/scripts/dashboard.mjs --watch
+node contextkit/tools/scripts/dashboard.mjs --watch            # serves http://127.0.0.1:4242
+node contextkit/tools/scripts/dashboard.mjs --watch --port=8080
+CONTEXTDEVKIT_DASHBOARD_PORT=5555 node contextkit/tools/scripts/dashboard.mjs --watch
 ```
 
 Spawns a tiny `node:http` server bound to **127.0.0.1 only** (no network
 access). The page subscribes to `/events` via Server-Sent Events; an
-`fs.watch` on `vibekit/` (200 ms debounced) triggers a rebuild and pushes
+`fs.watch` on `contextkit/` (200 ms debounced) triggers a rebuild and pushes
 the new data object. The client patches the DOM in place — no full
 reload. Ctrl+C to stop.
 
@@ -45,7 +45,7 @@ reload. Ctrl+C to stop.
 - **Recent ADRs** — the 12 newest, status colour-coded.
 - **Recent sessions** — the 10 newest, with branch.
 - **`[Unreleased]` CHANGELOG** — collapsible.
-- **Roadmap** — collapsible, only if `vibekit/memory/roadmap.md` exists.
+- **Roadmap** — collapsible, only if `contextkit/memory/roadmap.md` exists.
 
 ## What it does NOT do
 

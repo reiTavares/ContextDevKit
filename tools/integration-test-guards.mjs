@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit integration test — GUARDS (git hooks + config robustness + installer).
+ * ContextDevKit integration test — GUARDS (git hooks + config robustness + installer).
  *
  * Covers the safety nets that REJECT bad input rather than produce features —
  * the parts most dangerous to leave untested:
@@ -19,18 +19,18 @@ import { KIT, run, git, readJson, reporter, installFixture } from './it-helpers.
 
 const rep = reporter();
 const { ok, bad } = rep;
-console.log('\n🌀 VibeDevKit integration test — guards\n');
+console.log('\n🌀 ContextDevKit integration test — guards\n');
 
 const importKit = (rel) => import('file://' + join(KIT, rel).replaceAll('\\', '/'));
-const tmp = (tag) => mkdtempSync(join(tmpdir(), `vibekit-${tag}-`));
+const tmp = (tag) => mkdtempSync(join(tmpdir(), `contextkit-${tag}-`));
 const seedConfig = (root, obj, { bom = false } = {}) => {
-  mkdirSync(join(root, 'vibekit'), { recursive: true });
-  writeFileSync(join(root, 'vibekit', 'config.json'), (bom ? '﻿' : '') + (typeof obj === 'string' ? obj : JSON.stringify(obj)));
+  mkdirSync(join(root, 'contextkit'), { recursive: true });
+  writeFileSync(join(root, 'contextkit', 'config.json'), (bom ? '﻿' : '') + (typeof obj === 'string' ? obj : JSON.stringify(obj)));
 };
 
 /** 017 — the zero-dep config loader's defensive behaviours (deep-merge / BOM / malformed). */
 async function testConfigLoader() {
-  const { loadConfigSync } = await importKit('templates/vibekit/runtime/config/load.mjs');
+  const { loadConfigSync } = await importKit('templates/contextkit/runtime/config/load.mjs');
 
   const partial = tmp('cfg-a');
   seedConfig(partial, { level: 3, ledger: { important: ['only/'] } });
@@ -53,7 +53,7 @@ async function testConfigLoader() {
 
 /** 018 — gh-alerts pure mappers (GitHub alert shape → finding). */
 async function testGhAlertMappers() {
-  const gha = await importKit('templates/vibekit/tools/scripts/gh-alerts.mjs');
+  const gha = await importKit('templates/contextkit/tools/scripts/gh-alerts.mjs');
   const dep = gha.mapDependabotAlert({ security_advisory: { severity: 'high', summary: 'XSS', ghsa_id: 'GHSA-x' }, dependency: { package: { name: 'lodash' }, manifest_path: 'package.json' } });
   dep.kind === 'dependabot' && dep.severity === 4 && dep.path === 'package.json' && dep.message.includes('lodash') && dep.source === 'gh:dependabot:package.json'
     ? ok('mapDependabotAlert shapes a finding (severity + source)') : bad(`mapDependabotAlert wrong: ${JSON.stringify(dep)}`);
@@ -66,7 +66,7 @@ async function testGhAlertMappers() {
 
 /** 015 — commit-msg Conventional-Commits validator (exit 0 allow / 1 block). */
 function testCommitMsg(proj) {
-  const hook = join(proj, 'vibekit', 'runtime', 'git-hooks', 'commit-msg.mjs');
+  const hook = join(proj, 'contextkit', 'runtime', 'git-hooks', 'commit-msg.mjs');
   const check = (msg) => {
     const f = join(proj, '_msg.txt');
     writeFileSync(f, msg + '\n');
@@ -87,7 +87,7 @@ function testCommitMsg(proj) {
 
 /** 018 — concurrency-guard branch 2: the file changed on disk since we last wrote it. */
 function testConcurrencyExternalEdit(proj) {
-  const hook = (name, payload) => run([join(proj, 'vibekit', 'runtime', 'hooks', name)], { cwd: proj, input: JSON.stringify(payload) });
+  const hook = (name, payload) => run([join(proj, 'contextkit', 'runtime', 'hooks', name)], { cwd: proj, input: JSON.stringify(payload) });
   const rel = 'src/ext.js';
   const abs = join(proj, rel);
   mkdirSync(join(proj, 'src'), { recursive: true });
@@ -121,7 +121,7 @@ function testPrePush() {
   const { proj } = fx;
   const remote = tmp('remote');
   const clone = tmp('clone');
-  const hook = join(proj, 'vibekit', 'runtime', 'git-hooks', 'pre-push.mjs');
+  const hook = join(proj, 'contextkit', 'runtime', 'git-hooks', 'pre-push.mjs');
   const pp = (env) => run([hook], { cwd: proj, env: { ...process.env, ...env } });
   const commit = (cwd, m) => {
     git(['add', '-A'], cwd);
@@ -162,7 +162,7 @@ function testPrePush() {
     pp().status === 1 ? ok('pre-push BLOCKS a real conflict') : bad('pre-push did not block a real conflict');
 
     // bypass: same conflicting state, audited override.
-    pp({ VIBE_ALLOW_CONFLICT_PUSH: '1' }).status === 0 ? ok('pre-push bypass (VIBE_ALLOW_CONFLICT_PUSH) allows') : bad('pre-push bypass did not allow');
+    pp({ CONTEXT_ALLOW_CONFLICT_PUSH: '1' }).status === 0 ? ok('pre-push bypass (CONTEXT_ALLOW_CONFLICT_PUSH) allows') : bad('pre-push bypass did not allow');
   } catch (err) {
     bad(`pre-push setup crashed: ${err?.message ?? err}`);
   } finally {
@@ -178,19 +178,19 @@ function testUninstall() {
   try {
     run([join(KIT, 'install.mjs'), '--target', fx1.proj, '--uninstall']);
     const settings = readJson(join(fx1.proj, '.claude', 'settings.json'));
-    const wired = Object.values(settings.hooks || {}).some((groups) => (groups || []).some((g) => (g.hooks || []).some((h) => String(h.command).includes('vibekit/runtime/hooks'))));
-    !wired ? ok('uninstall strips VibeDevKit hook wiring from settings.json') : bad('uninstall left hook wiring behind');
+    const wired = Object.values(settings.hooks || {}).some((groups) => (groups || []).some((g) => (g.hooks || []).some((h) => String(h.command).includes('contextkit/runtime/hooks'))));
+    !wired ? ok('uninstall strips ContextDevKit hook wiring from settings.json') : bad('uninstall left hook wiring behind');
     !existsSync(join(fx1.proj, '.git', 'hooks', 'pre-push')) ? ok('uninstall removes the git hooks') : bad('uninstall left git hooks');
-    existsSync(join(fx1.proj, 'vibekit', 'runtime')) && existsSync(join(fx1.proj, 'CLAUDE.md')) ? ok('uninstall keeps the engine + CLAUDE.md (non-purge)') : bad('uninstall wrongly removed engine/CLAUDE.md');
+    existsSync(join(fx1.proj, 'contextkit', 'runtime')) && existsSync(join(fx1.proj, 'CLAUDE.md')) ? ok('uninstall keeps the engine + CLAUDE.md (non-purge)') : bad('uninstall wrongly removed engine/CLAUDE.md');
   } finally {
     fx1.cleanup();
   }
   const fx2 = installFixture(rep);
   try {
     run([join(KIT, 'install.mjs'), '--target', fx2.proj, '--uninstall', '--purge']);
-    !existsSync(join(fx2.proj, 'vibekit', 'runtime')) && !existsSync(join(fx2.proj, '.claude', 'commands'))
+    !existsSync(join(fx2.proj, 'contextkit', 'runtime')) && !existsSync(join(fx2.proj, '.claude', 'commands'))
       ? ok('purge removes the engine + commands') : bad('purge left engine/commands');
-    existsSync(join(fx2.proj, 'vibekit', 'memory')) && existsSync(join(fx2.proj, 'CLAUDE.md'))
+    existsSync(join(fx2.proj, 'contextkit', 'memory')) && existsSync(join(fx2.proj, 'CLAUDE.md'))
       ? ok('purge KEEPS memory + CLAUDE.md (no data loss)') : bad('purge destroyed memory/CLAUDE.md');
   } finally {
     fx2.cleanup();
@@ -214,8 +214,8 @@ function testInstallerWorktreeGitPointer() {
     existsSync(join(gitdir, 'hooks', 'pre-commit'))
       ? ok('installer writes hooks into the resolved gitdir, not into `<target>/.git/hooks/`') : bad('hooks not found in resolved gitdir');
     const installed = existsSync(join(gitdir, 'hooks', 'pre-commit')) ? readFileSync(join(gitdir, 'hooks', 'pre-commit'), 'utf-8') : '';
-    installed.includes('vibekit/runtime/git-hooks')
-      ? ok('installed hook in worktree points at vibekit/runtime') : bad(`hook body wrong: ${installed}`);
+    installed.includes('contextkit/runtime/git-hooks')
+      ? ok('installed hook in worktree points at contextkit/runtime') : bad(`hook body wrong: ${installed}`);
   } finally {
     rmSync(target, { recursive: true, force: true });
     rmSync(gitdir, { recursive: true, force: true });
@@ -238,7 +238,7 @@ function testInstallerHookBackup() {
     run([join(KIT, 'install.mjs'), '--target', proj, '--level', '3', '--name', 'HookBak', '--yes']);
     const installed = readFileSync(join(hooksDir, 'pre-commit'), 'utf-8');
     const backup = existsSync(join(hooksDir, 'pre-commit.bak')) ? readFileSync(join(hooksDir, 'pre-commit.bak'), 'utf-8') : '';
-    installed.includes('vibekit/runtime/git-hooks') && backup.includes('my custom hook')
+    installed.includes('contextkit/runtime/git-hooks') && backup.includes('my custom hook')
       ? ok('installer backs up an existing non-ours git hook (.bak)') : bad(`installer hook backup failed: backup="${backup.trim()}"`);
   } finally {
     rmSync(proj, { recursive: true, force: true });

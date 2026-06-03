@@ -23,13 +23,13 @@ the per-session ledger. `/resume` is the third option: continue the
 List the unregistered candidates:
 
 ```
-node vibekit/tools/scripts/resume.mjs
+node contextkit/tools/scripts/resume.mjs
 ```
 
 Resume to a specific session id (full or a unique prefix is enough):
 
 ```
-node vibekit/tools/scripts/resume.mjs <session-id>
+node contextkit/tools/scripts/resume.mjs <session-id>
 ```
 
 After re-bind: subsequent track-edits append to the resumed session's
@@ -45,7 +45,7 @@ will register the resumed session normally.
   d48bdf9c-ab2 · 8 edit(s)  · started 4h ago
   04b759ee-ef9 · 12 edit(s) · started 2h ago
 
-  Resume with: node vibekit/tools/scripts/resume.mjs <session-id>
+  Resume with: node contextkit/tools/scripts/resume.mjs <session-id>
 ```
 
 ## Refusal modes

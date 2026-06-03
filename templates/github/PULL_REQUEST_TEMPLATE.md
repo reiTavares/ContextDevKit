@@ -1,4 +1,4 @@
-<!-- VibeDevKit PR template — edit freely for your project. -->
+<!-- ContextDevKit PR template — edit freely for your project. -->
 
 ## What & why
 

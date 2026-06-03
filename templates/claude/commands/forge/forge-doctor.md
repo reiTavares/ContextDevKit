@@ -5,7 +5,7 @@ argument-hint: [--root <dir>] [--json]
 
 # 🛠️ Mode: agent-forge — doctor
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs doctor $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs doctor $ARGUMENTS`.
 
 Walks every package, asserts the 11 expected files exist, and verifies the 3
 governance policies are *populated* (no `{{TOKEN}}` placeholders). Exits 1 if

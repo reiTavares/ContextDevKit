@@ -1,7 +1,7 @@
-# 🌀 VibeDevKit
+# 🌀 ContextDevKit
 
-[![CI](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/vibedevkit)](https://www.npmjs.com/package/vibedevkit)
+[![CI](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/contextdevkit)](https://www.npmjs.com/package/contextdevkit)
 ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
@@ -12,8 +12,8 @@
 > sub-agents, **opinionated playbooks** (TanStack, landing pages, SEO+AISO), and
 > proactive governance. Activate as much or as little as you want.
 
-VibeDevKit is the generalized, stack-agnostic distillation of a production context
-system. It treats "vibe coding" as **engineering**: instead of hoping the AI
+ContextDevKit is the generalized, stack-agnostic distillation of a production context
+system. It treats "AI-assisted coding" as **engineering**: instead of hoping the AI
 remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
@@ -22,10 +22,10 @@ where the last one left off.
 
 | Feature | What it does |
 |---|---|
-| **Landing-page skills** ([ADR-0023](vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | `landing-architect` agent + `/landing-page` command + opinionated anti-Lovable playbook (fold rules min 3 / ideal 5–7 / max 9; dated package recs) |
-| **Media generation** ([ADR-0024](vibekit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap |
-| **SEO + AISO** ([ADR-0025](vibekit/memory/decisions/0025-seo-and-aiso-posture.md)) | `seo-specialist` agent + `/seo-audit` running 16 static checks (SEO + AI Search Optimization); refuse-on-unindexable SPAs |
-| **GitHub sync awareness** ([ADR-0026](vibekit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` shows open PRs with CI/review status at `/dev-start` + detects duplicate PRs pre-push |
+| **Landing-page skills** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | `landing-architect` agent + `/landing-page` command + opinionated anti-Lovable playbook (fold rules min 3 / ideal 5–7 / max 9; dated package recs) |
+| **Media generation** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap |
+| **SEO + AISO** ([ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)) | `seo-specialist` agent + `/seo-audit` running 16 static checks (SEO + AI Search Optimization); refuse-on-unindexable SPAs |
+| **GitHub sync awareness** ([ADR-0026](contextkit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` shows open PRs with CI/review status at `/dev-start` + detects duplicate PRs pre-push |
 | **`/dashboard`** | Visual project state (kanban + ADRs + sessions + roadmap) — single self-contained HTML or live SSE-driven (`--watch`) |
 | **`/watch`** | Tail the active session ledger; optional `--follow` mode |
 | **`/workflow`** | Macro chaining roadmap → ADR → pipeline → ship with breadcrumbs |
@@ -36,7 +36,7 @@ where the last one left off.
 
 ## Why
 
-A plain `CLAUDE.md` is just instructions the AI can ignore. VibeDevKit adds the
+A plain `CLAUDE.md` is just instructions the AI can ignore. ContextDevKit adds the
 parts that don't depend on the AI's goodwill:
 
 - **Hooks** inject context at session start, track every edit, and *block* the
@@ -64,10 +64,10 @@ parts that don't depend on the AI's goodwill:
 
 ```bash
 # from npm (recommended) — auto-picks L3 for an empty folder, L7 if it already has code
-npx vibedevkit --target . --yes
+npx contextdevkit --target . --yes
 
 # or straight from GitHub (no npm needed)
-npx github:reiTavares/VibeDevKit --target . --yes
+npx github:reiTavares/ContextDevKit --target . --yes
 ```
 
 Or clone and run locally:
@@ -82,34 +82,34 @@ node install.mjs --target /path/to/your-project --name "My App" --yes
 
 Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the
 whole thing. Existing project? It detects your stack, never clobbers your
-`CLAUDE.md` (it writes `CLAUDE.vibedevkit.md` to merge by hand), and preserves
+`CLAUDE.md` (it writes `CLAUDE.contextdevkit.md` to merge by hand), and preserves
 any hooks you already had.
 
 ### Security & trust (read before installing)
 
-VibeDevKit is a code-execution tool — install it like any dependency you run:
+ContextDevKit is a code-execution tool — install it like any dependency you run:
 
 - **`npx` runs the installer**, which writes git hooks under `.git/hooks/` (at
   L≥3) and Claude Code hooks into `.claude/settings.json`. Those hooks then run
   `node` on each session/commit/push. **Pin a tag** for a reproducible install
   rather than tracking the moving default branch:
-  `npx github:reiTavares/VibeDevKit#v1.7.0 --target . --yes`.
+  `npx github:reiTavares/ContextDevKit#v1.7.0 --target . --yes`.
 - **An existing git hook is never clobbered** — the installer backs it up to
   `<hook>.bak` before writing its wrapper. Worktrees are detected via the
   `gitdir:` pointer and hooks are installed in the resolved real `.git/`.
 - **`/fleet`** reads/executes scripts across *other* repos you register, and
-  **custom detectors** in `vibekit/detectors/*.mjs` are executed by the tech-debt
+  **custom detectors** in `contextkit/detectors/*.mjs` are executed by the tech-debt
   scanner with full Node privileges. Only register repos and add detectors you
   trust — treat them as code review surface.
 
 ### Then: one-shot self-configuration
 
-Open the project in Claude Code, approve the hooks once — and **VibeDevKit tells
+Open the project in Claude Code, approve the hooks once — and **ContextDevKit tells
 you it isn't configured yet** (a first-run trigger fires from the boot hook).
 Run:
 
 ```
-/setupvibedevkit
+/setupcontextdevkit
 ```
 
 This inspects the project, tunes the config to your stack (`ledger` path lists,
@@ -121,23 +121,23 @@ in a single pass. After it finishes, the trigger stops nagging.
 ### What you'll see
 
 ```text
-$ npx vibedevkit --target . --yes
+$ npx contextdevkit --target . --yes
 ✓ .claude/settings.json wired for L7
-✓ engine installed (vibekit/runtime, vibekit/tools)
+✓ engine installed (contextkit/runtime, contextkit/tools)
 ✓ slash commands installed (.claude/commands)
 ✓ providers installed (review/, media/)
 ✓ CLAUDE.md created  ·  docs/CHANGELOG.md created
-✅ VibeDevKit installed at Level 7 (existing project — full toolkit)
+✅ ContextDevKit installed at Level 7 (existing project — full toolkit)
 
 # open in Claude Code → the boot hook greets you with:
-## 🚀 First run — VibeDevKit not configured yet  →  run /setupvibedevkit
+## 🚀 First run — ContextDevKit not configured yet  →  run /setupcontextdevkit
 
-> /setupvibedevkit
+> /setupcontextdevkit
   Phase 1 — Inspect ……  detected: TypeScript · Vite · React · vitest
   Phase 3 — Apply ……    ledger tuned (src/, tests/); high-risk: src/db/schema.ts
   Phase 4 — CLAUDE.md …  stack + immutable rules filled in
   Phase 7 — baseline ADR-0001 recorded; session logged
-  ✅ VibeDevKit fitted to this project.
+  ✅ ContextDevKit fitted to this project.
 ```
 
 ## The seven levels
@@ -149,17 +149,17 @@ $ npx vibedevkit --target . --yes
 | **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits + conflict-blocking pre-push) |
 | **4** | Squads | Specialized sub-agents — devteam, qa-team, design-team (5 specialists incl. `seo-specialist` + `landing-architect`), compliance-team, ops-team |
 | **5** | Proactive | `/simulate-impact` gate on high-risk paths, `/tech-debt-sweep` (deterministic), `/contract-check`, auto-distill nudge |
-| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/retro` (learning loop), `/vibe-stats`, agent-forge squad |
+| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/retro` (learning loop), `/context-stats`, agent-forge squad |
 | **7** | Ecosystem | `/fleet` multi-repo control plane, `/tune-agents`, visual tests, playbook runner |
 
 Change level anytime — from inside the project:
 
 ```bash
-node vibekit/tools/scripts/vibe-level.mjs        # show
-node vibekit/tools/scripts/vibe-level.mjs 4      # move to L4
+node contextkit/tools/scripts/context-level.mjs        # show
+node contextkit/tools/scripts/context-level.mjs 4      # move to L4
 ```
 
-…or via the `/vibe-level` slash command. Going up adds capability; going down
+…or via the `/context-level` slash command. Going up adds capability; going down
 cleanly removes the now-disabled hooks. See [docs/LEVELS.md](docs/LEVELS.md).
 
 ## What gets installed into your project
@@ -175,9 +175,9 @@ your-project/
       qa/                            # qa-signoff, test-plan, scaffold-tests, visual-test
       vcs/                           # git, claim, release, worktree-new
       forge/                         # 14 agent-forge lifecycle commands (L6+)
-      setup/                         # setupvibedevkit, vibe-doctor, vibe-level
+      setup/                         # setupcontextdevkit, context-doctor, context-level
     agents/                          # 28 sub-agent archetypes (L4+)
-  vibekit/
+  contextkit/
     .env.example                     # optional credentials template (media-gen)
     runtime/hooks/                   # the engine: boot, ledger, drift, L5 gate
     runtime/config/                  # zero-dep loader, defaults, settings composer
@@ -203,12 +203,12 @@ Organised into **domain packs** so the `/` menu doesn't read as a 60-file scroll
 The basename resolver is path-agnostic — `/qa-signoff` finds `qa/qa-signoff.md`
 exactly the same as a flat layout.
 
-**Setup:** `/aidevtool-from0` (empty project) · `/setupvibedevkit` (existing project)
+**Setup:** `/aidevtool-from0` (empty project) · `/setupcontextdevkit` (existing project)
 
 **Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/close-version`
 · `/context-refresh` · `/bug-hunt` · `/dashboard` · `/watch` · `/landing-page`
 · `/media-gen` · `/playbook` · `/predictions-review` · `/squad` · `/token-report`
-· `/tune-agents` · `/vibe-stats` · `/fleet` · `/distill-sessions` · `/distill-apply`
+· `/tune-agents` · `/context-stats` · `/fleet` · `/distill-sessions` · `/distill-apply`
 · `/simulate-impact` · `/roadmap`
 
 **`pipeline/`:** `/pipeline` · `/ship` · `/dev-start` · `/retro` · `/runs` · `/workflow`
@@ -224,8 +224,8 @@ exactly the same as a flat layout.
 (`forge-{list,show,doctor,policy,budget,audit,eval,redteam,route,
 fallback-test,refresh-matrix,killswitch,deprecate}`)
 
-**`setup/`:** `/setupvibedevkit` · `/aidevtool-from0` · `/vibe-doctor`
-· `/vibe-level` · `/vibe-config`
+**`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/context-doctor`
+· `/context-level` · `/context-config`
 
 ## Squads — sub-agents organised by domain
 
@@ -248,14 +248,14 @@ landing-page + SEO/AISO specialists in detail and
 
 ## Playbooks
 
-Reusable procedures in `vibekit/workflows/playbooks/`. Run with `/playbook
+Reusable procedures in `contextkit/workflows/playbooks/`. Run with `/playbook
 run <name>` or read on demand:
 
 | Playbook | Authority | What it covers |
 |---|---|---|
-| **`landing-page.md`** | [ADR-0023](vibekit/memory/decisions/0023-landing-page-and-conversion-posture.md) | Fold rules, anti-Lovable refusals, dated package recs (Astro, Tailwind, Motion, Lucide, Plausible, GrowthBook), Core Web Vitals budget |
-| **`seo-aiso.md`** | [ADR-0025](vibekit/memory/decisions/0025-seo-and-aiso-posture.md) | SEO checklist + AISO checklist (`llms.txt`, FAQ schema, semantic HTML5, AI-crawler robots.txt detection) |
-| **`tanstack.md`** | [ADR-0017](vibekit/memory/decisions/0017-tanstack-stack-recognition-and-opt-in-starter.md) | TanStack family (Query/Router/Table/Form/Virtual/Start), cache-key discipline, typed router params |
+| **`landing-page.md`** | [ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md) | Fold rules, anti-Lovable refusals, dated package recs (Astro, Tailwind, Motion, Lucide, Plausible, GrowthBook), Core Web Vitals budget |
+| **`seo-aiso.md`** | [ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md) | SEO checklist + AISO checklist (`llms.txt`, FAQ schema, semantic HTML5, AI-crawler robots.txt detection) |
+| **`tanstack.md`** | [ADR-0017](contextkit/memory/decisions/0017-tanstack-stack-recognition-and-opt-in-starter.md) | TanStack family (Query/Router/Table/Form/Virtual/Start), cache-key discipline, typed router params |
 | **`simulate-impact.md`** | L5 gate | Map blast radius before editing high-risk paths |
 | **`tech-debt-sweep.md`** | L5 audit | Deterministic constitution scan + interpretation |
 | **`distillation-cycle.md`** | L5 retro | Propose CLAUDE.md refinements from session history |
@@ -267,7 +267,7 @@ Pluggable runtime adapters that shell out to user-installed CLIs or external
 APIs. Each adapter is zero-dep (`node:fetch` or `child_process.spawn`) with a
 typed error contract and refuse-on-missing-creds posture.
 
-### Review providers — `vibekit/runtime/providers/review/`
+### Review providers — `contextkit/runtime/providers/review/`
 
 | Adapter | Binary | What |
 |---|---|---|
@@ -275,9 +275,9 @@ typed error contract and refuse-on-missing-creds posture.
 
 Add `glab.mjs` / `bb.mjs` / `tea.mjs` for GitLab / Bitbucket / Gitea — each
 follows the same `_adapter.mjs` contract. `detect.mjs` resolves the adapter
-from `git remote get-url origin` and records the choice in `vibekit/config.json`.
+from `git remote get-url origin` and records the choice in `contextkit/config.json`.
 
-### Media providers — `vibekit/runtime/providers/media/` *(new in v1.7)*
+### Media providers — `contextkit/runtime/providers/media/` *(new in v1.7)*
 
 | Adapter | Kind | Auth | Cost floor (dated 2026-06-02) |
 |---|---|---|---|
@@ -287,29 +287,29 @@ from `git remote get-url origin` and records the choice in `vibekit/config.json`
 Run via:
 
 ```bash
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs image \
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs image \
   --prompt "editorial product hero, asymmetric grid" --out public/hero.png
 
 # or video
-node --env-file=vibekit/.env vibekit/tools/scripts/media-gen.mjs video \
+node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs video \
   --prompt "macro slow-motion of ink hitting paper" --out public/hero.mp4 \
   --duration 8 --aspect-ratio 16:9
 
 # or dry-run first (no API call, no charge)
-node vibekit/tools/scripts/media-gen.mjs image --prompt "..." --out p.png --dry-run
+node contextkit/tools/scripts/media-gen.mjs image --prompt "..." --out p.png --dry-run
 ```
 
-Set `VIBEDEVKIT_MEDIA_MAX_USD=5.00` to cap per-process spend — the adapter
+Set `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00` to cap per-process spend — the adapter
 refuses the next call that would push the total over the cap.
 
 ## SEO + AISO audit
 
 Two static analysers callable as a single command. Audit-first, refuse-on-SPA
-on indexable surfaces (see [ADR-0025](vibekit/memory/decisions/0025-seo-and-aiso-posture.md)):
+on indexable surfaces (see [ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)):
 
 ```bash
-node vibekit/tools/scripts/seo-audit.mjs           # 8 SEO codes, exit 1 on SPA_ENTRYPOINT
-node vibekit/tools/scripts/aiso-audit.mjs --json   # 8 AISO codes, machine-readable
+node contextkit/tools/scripts/seo-audit.mjs           # 8 SEO codes, exit 1 on SPA_ENTRYPOINT
+node contextkit/tools/scripts/aiso-audit.mjs --json   # 8 AISO codes, machine-readable
 ```
 
 | SEO codes | AISO codes |
@@ -328,16 +328,16 @@ Two zero-dep visual surfaces over the kit's existing files:
   `--follow` streams new entries every 500ms.
 
 ```bash
-node vibekit/tools/scripts/dashboard.mjs              # snapshot → dashboard.html
-node vibekit/tools/scripts/dashboard.mjs --watch      # live on 127.0.0.1:4242
-node vibekit/tools/scripts/watch.mjs --follow         # tail the ledger
+node contextkit/tools/scripts/dashboard.mjs              # snapshot → dashboard.html
+node contextkit/tools/scripts/dashboard.mjs --watch      # live on 127.0.0.1:4242
+node contextkit/tools/scripts/watch.mjs --follow         # tail the ledger
 ```
 
 ## Roadmap vs DevPipeline
 
-Two different artifacts: **`vibekit/memory/roadmap.md`** is the *product/business
+Two different artifacts: **`contextkit/memory/roadmap.md`** is the *product/business
 plan* (capabilities, P-IDs, the what/why). The **DevPipeline**
-(`vibekit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
+(`contextkit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
 increments, chores, and roadmap items broken into tasks with priority, SLA, DAG
 dependencies, and complexity, flowing `backlog → working → testing → conclusion`.
 The roadmap says what to build; the pipeline runs the work.
@@ -348,27 +348,27 @@ The roadmap says what to build; the pipeline runs the work.
 
 ```bash
 # diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
-/vibe-doctor          # or: node vibekit/tools/scripts/doctor.mjs
+/context-doctor          # or: node contextkit/tools/scripts/doctor.mjs
 
 # safe update — refresh engine + slash commands + hook wiring for your CURRENT
-# level. NEVER touches CLAUDE.md, vibekit/config.json, memory (ADRs/sessions/
+# level. NEVER touches CLAUDE.md, contextkit/config.json, memory (ADRs/sessions/
 # roadmap), pipeline tasks, or scoped module CLAUDE.md files.
-npx vibedevkit@latest --target . --update
-#   (offline / from GitHub: npx github:reiTavares/VibeDevKit --target . --update)
+npx contextdevkit@latest --target . --update
+#   (offline / from GitHub: npx github:reiTavares/ContextDevKit --target . --update)
 
 # change level (rewires settings.json, installs git hooks at L>=3)
-/vibe-level 4
+/context-level 4
 
 # uninstall — keeps your memory (ADRs, sessions) and CLAUDE.md
-node /path/to/vibedevkit/install.mjs --target . --uninstall
+node /path/to/contextdevkit/install.mjs --target . --uninstall
 # ...or also remove the engine/commands/agents:
-node /path/to/vibedevkit/install.mjs --target . --uninstall --purge
+node /path/to/contextdevkit/install.mjs --target . --uninstall --purge
 ```
 
 ## Customizing for your stack
 
 The one thing worth tuning per project: **which paths matter**. Edit
-`vibekit/config.json` → `ledger.*` (or use `/vibe-config`). A Python project adds
+`contextkit/config.json` → `ledger.*` (or use `/context-config`). A Python project adds
 `app/`, `tests/`; a Go project adds `cmd/`, `internal/`. Everything else works
 out of the box. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for growing your
 own squad of sub-agents, adding slash commands, the provider-adapter pattern, and

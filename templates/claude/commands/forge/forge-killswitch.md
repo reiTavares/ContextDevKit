@@ -5,7 +5,7 @@ argument-hint: <agent>[@<version>] <on|off> [--write]
 
 # 🛠️ Mode: agent-forge — kill switch
 
-Run `node vibekit/squads/agent-forge/cli/forge-admin.mjs killswitch $ARGUMENTS`.
+Run `node contextkit/squads/agent-forge/cli/forge-admin.mjs killswitch $ARGUMENTS`.
 
 When `on`, the runtime adapter refuses every call until manually reset. Use
 this DURING an incident, not as a planned change.

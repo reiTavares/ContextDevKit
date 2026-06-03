@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to VibeDevKit are documented here.
+All notable changes to ContextDevKit are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/);
 this project follows [Semantic Versioning](https://semver.org/).
 
@@ -9,11 +9,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **agent-forge squad — Fase 6: declarative pipeline DSL + dry-run engine
   (ADR-0015 Part A).** The forge's orchestration is now a diffable, simulate-
-  impact-mappable plan. New `templates/vibekit/squads/agent-forge/pipeline.yaml`
+  impact-mappable plan. New `templates/contextkit/squads/agent-forge/pipeline.yaml`
   declares the 9 build steps (validate-blueprint → route →
   checkpoint-shortlist → generate-prompt → generate-tools? → generate-rag? →
   governance → eval-gate (on_reject → generate-prompt, max_cycles: 3) →
-  package). New `templates/vibekit/tools/scripts/squad-pipeline.mjs` engine
+  package). New `templates/contextkit/tools/scripts/squad-pipeline.mjs` engine
   parses via `lib/yaml.mjs` (ADR-0013 optional dynamic import) and refuses on
   missing `yaml` with **exit 0 + informative** message — pipelines are opt-in,
   not hot-path. New `squad-pipeline-condition.mjs` is the whitelisted
@@ -61,7 +61,7 @@ this project follows [Semantic Versioning](https://semver.org/).
   carrying its refusal conditions. The Node runtime adapter ships a
   `createShadowEval` scaffold (sample rate from
   `quality.policy.yaml.eval_gates.drift_monitoring.sample_pct`; real scoring
-  delegated to the package's `evals/`). `/vibe-stats` gains a **Forge Stats**
+  delegated to the package's `evals/`). `/context-stats` gains a **Forge Stats**
   section (package count, eval-stamp ratio, aggregate target + hard cap,
   distribution by primary provider). New reference docs:
   [`docs/SQUADS/agent-forge.md`](docs/SQUADS/agent-forge.md) +
@@ -140,7 +140,7 @@ this project follows [Semantic Versioning](https://semver.org/).
   in memory — CI proves correctness end-to-end either way.
 - **agent-forge squad — foundations (Fase 0).** New *factory* squad that forges
   portable, multi-provider Agent Packages for projects outside the kit. Scaffolded
-  `templates/vibekit/squads/agent-forge/` with its README (mandate, roster, boundary)
+  `templates/contextkit/squads/agent-forge/` with its README (mandate, roster, boundary)
   and `best-practices.md` (the bar every forged agent clears — five principles, the
   default catalogue, provider notes, three-pillar governance, eval lifecycle).
   Seeded `router/capability-matrix.json` (5 providers, 11 models, dated + ADR-gated)
@@ -169,7 +169,7 @@ test hardening, and single-source refactors. No public API removed.
 
 ### Fixed
 - **Network git calls now time out** (`git.mjs`, `pre-push.mjs`) — an unreachable
-  remote could hang `/git status` and any push. Bounded via `VIBE_GIT_TIMEOUT_MS`. (007)
+  remote could hang `/git status` and any push. Bounded via `CONTEXT_GIT_TIMEOUT_MS`. (007)
 - **Boot banner**: `[Unreleased]` clipped past 60 lines now shows a `(truncated)`
   marker (009); `extractLatestSession` breaks a session-number tie by the later date (010).
 - **`applyPreset`** no longer crashes on a partial/custom preset missing `l5`/`qa`/`ledger`. (013)
@@ -190,13 +190,13 @@ test hardening, and single-source refactors. No public API removed.
 - **Guards test suite** (`integration-test-guards.mjs`): commit-msg, pre-push
   (block/warn/allow/bypass), config-loader fallbacks, uninstall/purge, concurrency-guard
   external-edit, gh-alerts mappers, malformed-settings recovery. (014–018)
-- **Pluggable-detector seed** `vibekit/detectors/` (README + inert example), now installed. (026)
+- **Pluggable-detector seed** `contextkit/detectors/` (README + inert example), now installed. (026)
 
 ### Changed
 - **Single-source level taxonomy** (`config/levels.mjs`) + **passthrough config schema**
   (no more `max(5)` cap; keeps every section). [ADR-0010] (024, 025)
 - **Single-source platform paths** via `pathsFor(root)`; a selfcheck guard now fails on any
-  hardcoded `vibekit/` path construction (rule 4). [ADR-0011] (023)
+  hardcoded `contextkit/` path construction (rule 4). [ADR-0011] (023)
 - **Shared zero-dep helpers**: `readJsonSafe`/`parseJsonSafe` + `squadOf`, killing duplicated
   BOM-parse / squad-detection code. (027, 028)
 - Line-budget cohesion notes + constitution nits (dead imports, bare-var renames);
@@ -215,15 +215,15 @@ test hardening, and single-source refactors. No public API removed.
 ### Fixed
 - **Level cap stuck at 6.** `install.mjs` silently downgraded `--level 7` to 2, and
   `doctor.mjs` flagged a valid L7 project as "config.level out of range". Both now
-  accept **1–7**. Also corrected stale `1-5`/`1-6` range hints across `/vibe-level`,
-  `/setupvibedevkit`, `settings-compose`, and `docs/ARCHITECTURE.md`.
+  accept **1–7**. Also corrected stale `1-5`/`1-6` range hints across `/context-level`,
+  `/setupcontextdevkit`, `settings-compose`, and `docs/ARCHITECTURE.md`.
 
 ## [1.3.0] - 2026-05-25
 
 ### Added
 - **L7 "Ecosystem & Scale" — new capability tier.** The shipped Future-directions
   capabilities (fleet, agent-tuning, editor/CI, detectors/presets, token economy,
-  playbooks, visual tests) are now a real activation level: **`/vibe-level 7`**.
+  playbooks, visual tests) are now a real activation level: **`/context-level 7`**.
   Wiring only — `getLevel` 1→7, level labels + `--level 1-7`, `defaults` docs; **no
   new hook** (same capability-tier pattern as L6). [→ ADR-0008]
 - **Diverse & visual testing harness (MVP)** — `/visual-test` + `visual-test.mjs`
@@ -233,7 +233,7 @@ test hardening, and single-source refactors. No public API removed.
   `/qa-signoff`, `/ship`. The runner is a project dependency — the kit scaffolds, never
   bundles/runs browsers (zero-dep hot path). Roadmap *Future directions* #6.
 - **Fleet mode (MVP)** — `/fleet` + `fleet.mjs`: a control plane over many repos.
-  Registry outside any repo (`~/.vibedevkit/fleet.json`, override `VIBE_FLEET_FILE`);
+  Registry outside any repo (`~/.contextdevkit/fleet.json`, override `CONTEXT_FLEET_FILE`);
   `add`/`remove`/`list`, `stats` (aggregate each repo's `stats.mjs`), `audit`
   (aggregate `deep-analysis`), and `propagate <rule-file>` (report which repos'
   `CLAUDE.md` **lack** a rule — detect-only, no cross-repo edits). Zero-dep, defensive.
@@ -243,9 +243,9 @@ test hardening, and single-source refactors. No public API removed.
   (gitignored); applies nothing, mirroring `/distill-sessions`. Promotes roadmap
   *Future directions* #2/#3 from candidate to MVP.
 - **Playbook management** (roadmap #8) — `playbook.mjs` + **`/playbook`** turn
-  `vibekit/workflows/playbooks/` into a managed layer: **list** the registry, **show**
+  `contextkit/workflows/playbooks/` into a managed layer: **list** the registry, **show**
   a procedure, and **run** one (records a tracked entry in
-  `vibekit/memory/playbook-runs.md`, then prints the steps). `/ship` and the squads can
+  `contextkit/memory/playbook-runs.md`, then prints the steps). `/ship` and the squads can
   `run` a playbook instead of restating it. Zero-dep; covered by selfcheck + integration
   tests.
 - **Token economy & usage insight** (roadmap #7) — `token-report.mjs` + **`/token-report`**
@@ -262,7 +262,7 @@ test hardening, and single-source refactors. No public API removed.
   (`.github/workflows/quality.yml`: `contract-scan --ci` + `tech-debt --ci`). Roadmap
   *Future directions* #4. (The Claude-driven PR-review bot is deferred — needs Claude in CI.)
 - **Pluggable detectors & stack presets (MVP)** — `tech-debt-scan` loads drop-in
-  detectors from `vibekit/detectors/*.mjs` (defensive dynamic import); `install.mjs
+  detectors from `contextkit/detectors/*.mjs` (defensive dynamic import); `install.mjs
   --preset next|go|python` merges a stack preset (ledger / high-risk / QA paths) into
   config via `presets.mjs`. Roadmap *Future directions* #5.
 
@@ -274,7 +274,7 @@ test hardening, and single-source refactors. No public API removed.
   design — AST would need a parser dependency (see *Honest gaps* / ADR-0003). New
   integration test covers it.
 - **Optional AST contract drift** (`contract-scan.mjs`, roadmap #001) — when a parser is
-  importable (`acorn`, or a module named by `VIBE_CONTRACT_PARSER`), extraction uses the
+  importable (`acorn`, or a module named by `CONTEXT_CONTRACT_PARSER`), extraction uses the
   AST for precision; otherwise the deepened regex (the zero-dep default) is used. The kit
   ships no parser, so the default is unchanged. Integration test covers the AST path via a
   fake parser. [→ ADR-0003]
@@ -297,7 +297,7 @@ test hardening, and single-source refactors. No public API removed.
   *Actual* section from the session ledger (paths changed vs predicted, delta both
   ways); auto-run by `/log-session`. The v1.1.0 write-half was a stub; the review half
   is now implemented. Covered by selfcheck + integration tests.
-- **`workflows/` guides + playbooks** — installed `vibekit/workflows/` with per-level
+- **`workflows/` guides + playbooks** — installed `contextkit/workflows/` with per-level
   workflow docs (L1–L5, plus an L6 capability-tier note) and four reusable playbooks
   (`tech-debt-sweep`, `simulate-impact`, `distillation-cycle`, `security-batch`),
   generalized and translated from the source platform. Seeded write-if-missing by the
@@ -306,7 +306,7 @@ test hardening, and single-source refactors. No public API removed.
 
 ### Changed
 - **`/deps-audit` grown into a dependency policy** — adds **license allow/deny** (from
-  installed package metadata), a CycloneDX **SBOM** (`--sbom` → `vibekit/memory/sbom.json`),
+  installed package metadata), a CycloneDX **SBOM** (`--sbom` → `contextkit/memory/sbom.json`),
   and **lockfile-drift** detection, driven by a new `deps` config block (`defaults.mjs`
   + optional zod `schema.mjs`). Findings still flow into the DevPipeline backlog.
   Zero-dep and defensive (never throws).
@@ -326,7 +326,7 @@ test hardening, and single-source refactors. No public API removed.
 
 ### Added
 - **Two-tier squad briefings** — `squad.mjs brief <agent>` scaffolds a rich briefing
-  into `vibekit/squads/<squad>/<agent>.md` (squad auto-detected) behind the lean
+  into `contextkit/squads/<squad>/<agent>.md` (squad auto-detected) behind the lean
   `.claude/agents/` agent; `squad.mjs list` shows briefing coverage. Wired into
   `/squad`. Ancestor parity #2.
 - **`memory/predictions/`** — `/simulate-impact` (`mark-simulation.mjs`) now writes a
@@ -356,12 +356,12 @@ test hardening, and single-source refactors. No public API removed.
   `pipeline-prioritize.mjs`, rendering in `pipeline-board.mjs`.
 - **Bug taxonomy + known-bugs map.** Bug tasks carry `severity` (S1-S4) + `bugType`
   (functional/regression/security/performance/data/…); `pipeline.mjs sync` generates
-  `vibekit/pipeline/known-bugs.md` (registry grouped by severity, open vs resolved,
+  `contextkit/pipeline/known-bugs.md` (registry grouped by severity, open vs resolved,
   ⏰ overdue), and `pipeline.mjs bugs` prints/regenerates it.
-- **`business-rules/` memory folder** — `vibekit/memory/business-rules/` with a
+- **`business-rules/` memory folder** — `contextkit/memory/business-rules/` with a
   versioned-rule `_TEMPLATE.md`, scaffolded on install and surfaced in
-  `/setupvibedevkit`. Mirrors the source platform's `docs/business-rules/`, kept in
-  `vibekit/memory/` alongside the rest of the project's durable memory.
+  `/setupcontextdevkit`. Mirrors the source platform's `docs/business-rules/`, kept in
+  `contextkit/memory/` alongside the rest of the project's durable memory.
 - **`security-team` squad (security & infra / DevSecOps)** in the squads manifest —
   groups `security` (AppSec + dependency/supply-chain) and `devops` (infra, CI/CD,
   release safety), with veto on the L5/L6 gates for Critical/High findings.
@@ -396,7 +396,7 @@ test hardening, and single-source refactors. No public API removed.
   entry point). Roadmap 1.0 #5.
 
 ### Deprecated
-- `/state`, `/vibe-doctor`, `/context-refresh` now carry a deprecation banner
+- `/state`, `/context-doctor`, `/context-refresh` now carry a deprecation banner
   pointing to `/audit` (still fully functional); `/release` is noted as paired with
   `/claim`. Non-destructive first step of the 1.0 surface-trim (#1).
 
@@ -413,7 +413,7 @@ test hardening, and single-source refactors. No public API removed.
   browser-driven visual / regression testing with a **Python** option (Playwright /
   Selenium), owned by `qa-e2e` + `design-team`, gating "done" in `/ship`.
 - **CONTRIBUTING:** documented the **public contracts** (config schema, installer
-  flags, hook payload, `vibekit/` layout, command/agent names) as the 1.0 stability
+  flags, hook payload, `contextkit/` layout, command/agent names) as the 1.0 stability
   promise — breaking changes need an ADR + `/contract-check` (roadmap 1.0 #4).
 
 ### Security
@@ -426,7 +426,7 @@ test hardening, and single-source refactors. No public API removed.
 ## [0.5.2] - 2026-05-22
 
 ### Added
-- **Squads as a first-class concept** — `vibekit/squads/README.md` manifest
+- **Squads as a first-class concept** — `contextkit/squads/README.md` manifest
   (rosters, when-to-use, **sovereignty** rule, grow guide), `_BRIEFING.md.tpl`
   (optional two-tier rich briefings), and the `/squad` command (show/route/brief/
   new-squad). Agents are now grouped: **devteam** + **qa-team** (existing), plus
@@ -440,9 +440,9 @@ test hardening, and single-source refactors. No public API removed.
 ## [0.5.1] - 2026-05-22
 
 ### Added
-- **Safe `--update`** — `npx vibedevkit@latest --target . --update` refreshes the
+- **Safe `--update`** — `npx contextdevkit@latest --target . --update` refreshes the
   engine, slash commands, agents, and hook wiring **for the project's CURRENT
-  level**, and **never touches** user-owned content: `CLAUDE.md`, `vibekit/config.json`
+  level**, and **never touches** user-owned content: `CLAUDE.md`, `contextkit/config.json`
   (level + overrides preserved), memory (ADRs/sessions/roadmap/glossary), pipeline
   tasks, or scoped module `CLAUDE.md` files. New seed artifacts are added
   write-if-missing. Any plain re-run also now preserves the existing level instead
@@ -456,32 +456,32 @@ test hardening, and single-source refactors. No public API removed.
   direct push to default, rebase-sync, conflict handling via pre-push) and the
   **remote setup**: detects git/repo/remote/provider and whether `gh`/`glab` are
   installed+authed, and guides connecting GitHub/GitLab/other (install the CLI +
-  create the repo, private by default). Wired into `/setupvibedevkit` (6b),
+  create the repo, private by default). Wired into `/setupcontextdevkit` (6b),
   `/aidevtool-from0` (6b), the installer hint, and `doctor` (notes missing remote).
 - **Modular CLAUDE.md** — each app/module gets its own scoped CLAUDE.md (like the
   source platform's `apps/api/CLAUDE.md` + `apps/mobile/CLAUDE.md`). `claude-md.mjs`
   (find/scaffold) detects module roots (`backend/`, `frontend/`, `api/`, `web/`,
   `mobile/`, and `apps/*`/`packages/*`/`modules/*`/`services/*`), `/claude-md`
   scaffolds + fills them, a `CLAUDE.child.md.tpl` is seeded, and `doctor` notes
-  modules missing one. Wired into `/setupvibedevkit` (Phase 4b) + `/aidevtool-from0`.
-- **Product roadmap as a first-class artifact**: seeded `vibekit/memory/roadmap.md`
+  modules missing one. Wired into `/setupcontextdevkit` (Phase 4b) + `/aidevtool-from0`.
+- **Product roadmap as a first-class artifact**: seeded `contextkit/memory/roadmap.md`
   (P-ID format), `/roadmap` command (new project → build it WITH the user;
   existing project → find a roadmap/PRD/spec to import, or analyze the code and
   **propose** one + ask the user for objectives), and `roadmap.mjs`
-  (find/status/init). Wired into `/setupvibedevkit` (Phase 5b) and
+  (find/status/init). Wired into `/setupcontextdevkit` (Phase 5b) and
   `/aidevtool-from0` (Phase 4); `doctor` notes when the roadmap is undefined.
 - **`/aidevtool-from0`** — bootstrap an empty project from zero: intelligent
   interactive product questionnaire → product vision, stack suggestion/refine
   (ADR), product **roadmap** (P-IDs), best-practices constitution, and a seeded
   DevPipeline. First-run boot now routes empty projects here, existing ones to
-  `/setupvibedevkit`.
-- **Best-practices skill**: `vibekit/best-practices.md` (file-size budget +
+  `/setupcontextdevkit`.
+- **Best-practices skill**: `contextkit/best-practices.md` (file-size budget +
   **intelligent** refactor-by-responsibility, SoC, naming, errors, docs) and
   `/analyze-code-ia-practices` — runs the scanner then proposes the *right*
   refactor per file (never random splits). New `practices.active` config; boot
   reminds when active.
 - **DevPipeline** (execution control, distinct from the product roadmap):
-  `vibekit/pipeline/{backlog,testing,conclusion}/` task files + generated
+  `contextkit/pipeline/{backlog,testing,conclusion}/` task files + generated
   `devpipeline.md` dashboard; `pipeline.mjs` (`add`/`move`/`sync`) and the
   `/pipeline` manager command. Bugs/increments/chores + roadmap items broken into
   tasks with priority + SLA. Synced on pre-commit.
@@ -493,7 +493,7 @@ test hardening, and single-source refactors. No public API removed.
     check doesn't).
   - `pre-push.mjs` git hook: fetches the upstream and **blocks a push that has a
     real textual conflict** with what was pushed there (`git merge-tree`); warns
-    on auto-mergeable overlap. Bypass: `VIBE_ALLOW_CONFLICT_PUSH=1`.
+    on auto-mergeable overlap. Bypass: `CONTEXT_ALLOW_CONFLICT_PUSH=1`.
   - SessionStart now lists **other active branches** (local worktrees + recent
     remote branches with author/age) for cross-machine awareness.
   - New config `l3.mainBranch` (upstream the conflict check compares against).
@@ -502,7 +502,7 @@ test hardening, and single-source refactors. No public API removed.
   irreversible action.
 - **L6 — Autonomy & Insight** (new level): `/ship` (autonomous squad pipeline:
   design → implement → review → test → record, with checkpoints), `/retro`
-  (learning loop turning recurring drift/debt into rules + ADRs), `/vibe-stats`
+  (learning loop turning recurring drift/debt into rules + ADRs), `/context-stats`
   (platform telemetry). No new hook — a capability tier on top of L5.
 - **Deterministic tech-debt scanner** (`tech-debt-scan.mjs` + `tech-debt-detectors.mjs`):
   generic regex detectors (line budget, SRP "And/Or/E" names, TODO markers,
@@ -525,7 +525,7 @@ test hardening, and single-source refactors. No public API removed.
 - **Release workflow** (`.github/workflows/release.yml`): pushing a `v*` tag runs
   the test suite, publishes to npm via the `NPM_TOKEN` secret, and creates the
   GitHub Release automatically.
-- README demo/walkthrough of the `/setupvibedevkit` flow.
+- README demo/walkthrough of the `/setupcontextdevkit` flow.
 
 ### Note
 - First release cut by the automated tag pipeline (validating it end-to-end).
@@ -557,9 +557,9 @@ test hardening, and single-source refactors. No public API removed.
   first-run trigger, level rewire, doctor). Cross-platform, self-cleaning.
 - **`/distill-sessions` + `/distill-apply`** — the auto-distill cycle the L5 Stop
   nudge referenced (propose CLAUDE.md refinements, then apply with an ADR).
-- **`/vibe-doctor`** + `doctor.mjs` — diagnoses node version, config validity,
+- **`/context-doctor`** + `doctor.mjs` — diagnoses node version, config validity,
   hook wiring vs level, git hooks, memory scaffolding, and onboarding state.
-- **`vibe-config.mjs`** — robust `show`/`set` backing `/vibe-config` (type
+- **`context-config.mjs`** — robust `show`/`set` backing `/context-config` (type
   coercion + optional zod validation), replacing free-form JSON editing.
 - **Agent archetypes**: `test-engineer`, `security` (now 6 universal agents).
 - **Installer**: `--help`, `--version`, `--uninstall [--purge]`, and a
@@ -567,19 +567,19 @@ test hardening, and single-source refactors. No public API removed.
 - **Packaging**: `files`, `repository`, `homepage`, `bugs`, and `npm test`.
 
 ### Notes
-- `--uninstall` keeps your memory (`vibekit/memory/`) and `CLAUDE.md`; `--purge`
+- `--uninstall` keeps your memory (`contextkit/memory/`) and `CLAUDE.md`; `--purge`
   additionally removes the engine, commands, and agents.
 
 ## [0.2.0] - 2026-05-22
 
 ### Added
 - **First-run trigger** — the SessionStart hook surfaces a "First run" banner
-  until onboarding completes, prompting `/setupvibedevkit`.
-- **`/setupvibedevkit`** — one-shot self-configuring onboarding (detect stack,
+  until onboarding completes, prompting `/setupcontextdevkit`.
+- **`/setupcontextdevkit`** — one-shot self-configuring onboarding (detect stack,
   tune config, fill CLAUDE.md, seed glossary, scaffold agents, baseline ADR).
 - **`detect-stack.mjs`** + **`setup-complete.mjs`** — read-only stack analyzer
   with suggested ledger/high-risk paths, applied via `--detect`.
-- `npx github:reiTavares/VibeDevKit` import documented.
+- `npx github:reiTavares/ContextDevKit` import documented.
 
 ## [0.1.0] - 2026-05-22
 
