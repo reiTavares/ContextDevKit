@@ -234,6 +234,34 @@ per squad, dry-run as a first-class mode).
 zero-dep (yaml only behind the sanctioned optional import), and `condition`
 accepts a whitelisted grammar — no arbitrary expression evaluation.
 
+## Next — GitHub sync awareness in the dev flow (ADR-0026)
+
+The boot banner already shows **branch/commit** divergence (`checkGitDivergence`)
+and the 20 most-recent remote branches (`activeBranches`), and `pre-push` blocks
+real conflicts. The missing layer is **PR awareness** — nothing asks GitHub
+"what PRs are open, which are awaiting CI/review, is there already a PR for this
+branch?". Two moments are PR-blind: starting work (`/dev-start`) and opening a
+PR (`/git pr`).
+
+- ⏳ **`sync-check.mjs` — `preflight` + `prepr` modes** (ADR-0026). One zero-dep
+  script. `preflight` (run by `/dev-start`, before scope-lock): ahead/behind,
+  recent branches, and **open PRs with CI/review status**, flagging PRs
+  *awaiting status* that may overlap the objective. `prepr` (run by `/git pr`,
+  before push): re-check divergence vs `main` and **detect a duplicate open PR**
+  for the current branch. `gh` is optional — absent/unauthed degrades to the
+  git-only half and reports the PR check as **skipped, never a pass** (Rule 8);
+  offline ⇒ silent exit 0.
+- ⏳ **Wiring** — `/dev-start` gains a step 0 (preflight) and `/git pr` a
+  pre-step (prepr). PR queries stay **off** the `SessionStart` hot path (network
+  + `gh` auth would violate the never-block invariant, Rule 2).
+
+**Stays inside the invariants:** zero-dep script, `gh` optional with a graceful
+skip, PR discovery only in explicit opt-in commands (never the hot path), and
+the script is read-only — it never creates, edits, or merges a PR.
+
+*Deferred:* `glab` (GitLab) parity, a PR line in `/git status`, a `--watch`
+checks poll, and a latency cache.
+
 ## Design invariants (don't regress these)
 
 - **Zero runtime deps on the hot path.** Levels 1–3 run with nothing installed.
