@@ -63,6 +63,23 @@ try {
     readFileSync(join(proj, 'vibekit', 'pipeline', 'known-bugs.md'), 'utf-8').includes('sev bug')
     ? ok('known-bugs map generated + groups bug tasks') : bad('known-bugs map missing/empty');
 
+  // ─ Ticket 040: task metadata v2 (DAG dependencies + complexity + spike/docs) ─
+  script('pipeline.mjs', 'add', '--type', 'spike', '--title', 'spike-test', '--complexity', 'L', '--depends-on', '[001, 002]');
+  const meta = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'spike-test');
+  meta?.type === 'spike' && meta?.complexity === 'L' && Array.isArray(meta?.dependencies) && meta.dependencies.length === 2
+    ? ok('pipeline add accepts --type spike + --complexity + --depends-on (ticket 040)') : bad(`metadata v2 wrong: ${JSON.stringify(meta)}`);
+  const boardV2 = readFileSync(join(proj, 'vibekit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  boardV2.includes('blocked by') ? ok('board renders "blocked by N" hint when dependencies are open (ticket 040)') : bad('blocked-by hint missing from board');
+  // validate command: clean graph passes.
+  const validClean = script('pipeline.mjs', 'validate');
+  validClean.status === 0 ? ok('pipeline validate exits 0 on acyclic graph') : bad(`validate failed clean: ${validClean.stdout}${validClean.stderr}`);
+  // Manually inject a cycle and prove validate refuses.
+  const spikeFile = join(proj, 'vibekit', 'pipeline', 'backlog', `${meta.id}-spike-test.md`);
+  writeFileSync(spikeFile, readFileSync(spikeFile, 'utf-8').replace(/^dependencies:.*$/m, `dependencies: [${meta.id}]`));
+  const validCycle = script('pipeline.mjs', 'validate');
+  validCycle.status !== 0 && /cycle/i.test(validCycle.stdout + validCycle.stderr)
+    ? ok('pipeline validate refuses on dependency cycle (ticket 040)') : bad(`validate did not refuse cycle: status=${validCycle.status}`);
+
   // ─ ADR-0015 §B: working/ stage + tasks[] in workspace record + stale eviction ─
   existsSync(join(proj, 'vibekit', 'pipeline', 'working'))
     ? ok('working/ folder seeded post-install (ADR-0015 §B)')

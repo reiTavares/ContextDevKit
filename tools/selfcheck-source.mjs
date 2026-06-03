@@ -133,6 +133,15 @@ async function checkSourceInvariants(rep, KIT) {
     ['dashboard-server emits SSE Content-Type', 'templates/vibekit/tools/scripts/dashboard-server.mjs', /text\/event-stream/],
     ['dashboard.mjs dispatches snapshot vs --watch', 'templates/vibekit/tools/scripts/dashboard.mjs', /WANT_WATCH\s*\?\s*runLive/],
     ['dashboard command file ships (ticket 051)', 'templates/claude/commands/dashboard.md', /Visual dashboard/i],
+    // Ticket 040 — task metadata v2 (DAG dependencies + complexity + extended types).
+    ['pipeline-validate exports detectCycles (ticket 040)', 'templates/vibekit/tools/scripts/pipeline-validate.mjs', /export function detectCycles/],
+    ['pipeline-validate exports blockedBy', 'templates/vibekit/tools/scripts/pipeline-validate.mjs', /export function blockedBy/],
+    ['pipeline-validate exports parseInlineArray', 'templates/vibekit/tools/scripts/pipeline-validate.mjs', /export function parseInlineArray/],
+    ['pipeline-validate enum covers spike + docs (ticket 040)', 'templates/vibekit/tools/scripts/pipeline-validate.mjs', /VALID_TYPES.*spike.*docs|VALID_TYPES.*docs.*spike/s],
+    ['pipeline.mjs writes complexity + dependencies fields', 'templates/vibekit/tools/scripts/pipeline.mjs', /complexity:\s*\$\{complexity\}/],
+    ['pipeline.mjs parses dependencies inline array', 'templates/vibekit/tools/scripts/pipeline.mjs', /parseInlineArray\(fm\.dependencies\)/],
+    ['pipeline.mjs wires validate subcommand', 'templates/vibekit/tools/scripts/pipeline.mjs', /cmd === 'validate'/],
+    ['pipeline-board renders blocked-by hint', 'templates/vibekit/tools/scripts/pipeline-board.mjs', /blocked by/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
