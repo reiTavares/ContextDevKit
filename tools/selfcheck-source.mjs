@@ -142,6 +142,12 @@ async function checkSourceInvariants(rep, KIT) {
     ['pipeline.mjs parses dependencies inline array', 'templates/vibekit/tools/scripts/pipeline.mjs', /parseInlineArray\(fm\.dependencies\)/],
     ['pipeline.mjs wires validate subcommand', 'templates/vibekit/tools/scripts/pipeline.mjs', /cmd === 'validate'/],
     ['pipeline-board renders blocked-by hint', 'templates/vibekit/tools/scripts/pipeline-board.mjs', /blocked by/],
+    // Ticket 046 — /resume for interrupted sessions.
+    ['/resume reads listAllLedgers from runtime (ticket 046)', 'templates/vibekit/tools/scripts/resume.mjs', /import.*listAllLedgers.*runtime\/hooks\/ledger\.mjs/],
+    ['/resume refuses unknown session id', 'templates/vibekit/tools/scripts/resume.mjs', /not found among unregistered drift candidates/],
+    ['/resume refuses cross-session claim conflict', 'templates/vibekit/tools/scripts/resume.mjs', /claimed by another active session/],
+    ['/resume rewrites LAST_TOUCHED_PATH atomically', 'templates/vibekit/tools/scripts/resume.mjs', /writeFileAtomicSync\(LAST_TOUCHED_PATH/],
+    ['/resume command briefing ships', 'templates/claude/commands/pipeline/resume.md', /Re-bind the current Claude Code session/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
