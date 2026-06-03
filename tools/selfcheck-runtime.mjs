@@ -45,6 +45,28 @@ async function checkBootReaders(rep, boot) {
     const latest = await boot.extractLatestSession(tmp);
     latest?.content?.includes('NEWER')
       ? ok('extractLatestSession breaks a number tie by the later date') : bad(`extractLatestSession tie-break wrong: ${latest?.content}`);
+    // ADR-0027: digestLatestSession produces a compact digest for a well-formed log,
+    // and degrades to the raw view (never empty) when a log can't be parsed.
+    if (boot.digestLatestSession) {
+      writeFileSync(resolve(sdir, '2026-05-12-12-real.md'),
+        '# Real session title\n\n- **Session number**: 12\n- **Branch**: `main`\n\n## Request\nDo the thing.\n\n## Final state\nWorks.\n');
+      const digest = await boot.digestLatestSession(tmp);
+      digest?.mode === 'digest' && /Real session title/.test(digest.content || '')
+        ? ok('digestLatestSession returns a compact digest for a well-formed log')
+        : bad(`digestLatestSession digest wrong: ${digest?.mode} / ${digest?.content}`);
+      const gtmp = mkdtempSync(join(tmpdir(), 'vibekit-sg-'));
+      try {
+        const gdir = resolve(gtmp, 'vibekit/memory/sessions');
+        mkdirSync(gdir, { recursive: true });
+        writeFileSync(resolve(gdir, '2026-05-13-13-blank.md'), 'just some text, no heading or sections\n');
+        const fb = await boot.digestLatestSession(gtmp);
+        fb?.mode === 'raw' && (fb.content || '').length > 0
+          ? ok('digestLatestSession degrades to raw — never empties the banner (rule 2/8)')
+          : bad(`digestLatestSession fallback wrong: ${JSON.stringify(fb)}`);
+      } finally {
+        rmSync(gtmp, { recursive: true, force: true });
+      }
+    } else bad('boot-context-readers digestLatestSession not exported (ADR-0027)');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

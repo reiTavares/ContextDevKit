@@ -7,9 +7,10 @@ description: Quick summary of current project state (latest session + Unreleased
 
 Summarize the current state of this project in at most 12 lines. To do so:
 
-1. Read `vibekit/memory/SESSIONS.md` — take the most recent entry (top of the table).
-2. Read `docs/CHANGELOG.md` — take the `[Unreleased]` section.
-3. Read the top of `CLAUDE.md` — identify the current phase and the immutable rules.
+1. Run `node vibekit/tools/scripts/context-pack.mjs` [ADR-0027] — **one** bounded
+   bundle with the latest-session digest, `[Unreleased]`, the immutable rules, the
+   open backlog, and recent ADRs. Reason over the pack instead of opening those
+   files separately; open a full file only if the pack flags something to inspect.
 
 Structure the answer in 3 blocks:
 

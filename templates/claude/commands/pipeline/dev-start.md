@@ -22,10 +22,10 @@ You just entered **dev-start** mode with the objective:
    degrades to the git-only view; it never blocks. Behind upstream? `git pull`
    before editing.
 
-2. **Read the current state first** (run `/state` mentally):
-   - Latest `vibekit/memory/SESSIONS.md` entry
-   - `[Unreleased]` in `docs/CHANGELOG.md`
-   - Immutable rules in `CLAUDE.md`
+2. **Read the current state first** — run `node vibekit/tools/scripts/context-pack.mjs`
+   [ADR-0027]: **one** bounded bundle (latest-session digest + `[Unreleased]` +
+   immutable rules + open backlog + recent ADRs) in a single call instead of
+   opening each file. Open a full source only if the pack flags something to inspect.
 
 3. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```

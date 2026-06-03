@@ -8,6 +8,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
+import { parseSessionLog, renderDigest } from './session-digest-core.mjs';
 
 const SECTION_LIMIT = 60;
 
@@ -31,8 +32,8 @@ export async function exists(root, relPath) {
   }
 }
 
-/** Most recent registered session entry as a Markdown snippet + its path. */
-export async function extractLatestSession(root) {
+/** Newest session file (canonical number; later DATE breaks a numbering tie) + its content. */
+async function latestSessionEntry(root) {
   let files = [];
   try {
     files = await readdir(resolve(root, SESSIONS_DIR));
@@ -49,8 +50,30 @@ export async function extractLatestSession(root) {
   if (entries.length === 0) return null;
   const content = await readSafe(root, `${SESSIONS_DIR}/${entries[0].filename}`);
   if (!content) return null;
-  const lines = content.split('\n').slice(0, SECTION_LIMIT);
-  return { path: resolve(root, SESSIONS_DIR, entries[0].filename), content: lines.join('\n').trim() };
+  return { filename: entries[0].filename, content, path: resolve(root, SESSIONS_DIR, entries[0].filename) };
+}
+
+/** Most recent registered session as a raw-truncated Markdown snippet + its path. */
+export async function extractLatestSession(root) {
+  const entry = await latestSessionEntry(root);
+  if (!entry) return null;
+  const lines = entry.content.split('\n').slice(0, SECTION_LIMIT);
+  return { path: entry.path, content: lines.join('\n').trim() };
+}
+
+/**
+ * Compact ~6-line digest of the latest session for the boot banner [ADR-0027].
+ * Falls back to the raw-truncated snippet when the log can't be parsed — a digest
+ * miss degrades visibly, it never empties the banner (rules 2 & 8).
+ * @returns {Promise<?{path:string, content:string, mode:'digest'|'raw'}>}
+ */
+export async function digestLatestSession(root) {
+  const entry = await latestSessionEntry(root);
+  if (!entry) return null;
+  const digest = renderDigest(parseSessionLog(entry.content, entry.filename));
+  if (digest) return { path: entry.path, content: digest, mode: 'digest' };
+  const lines = entry.content.split('\n').slice(0, SECTION_LIMIT);
+  return { path: entry.path, content: lines.join('\n').trim(), mode: 'raw' };
 }
 
 /** Extracts the `[Unreleased]` block from a CHANGELOG-shaped string. */
