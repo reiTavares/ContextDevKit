@@ -66,6 +66,19 @@ Enable when the product has a user interface.
 | `ui-designer` | Visual design + design system/tokens, layout, responsive behaviour |
 | `accessibility` | WCAG 2.1 AA: semantics, keyboard, screen readers, contrast, focus |
 
+### 📈 growth-team — acquisition → activation → retention
+Enable when the product needs users to find it, reach value, and come back. Owns
+the `/advise` **growth** lane (ADR-0028).
+
+| Agent | When to use |
+| --- | --- |
+| `growth` | **Lead.** Activation, funnels, growth loops, referral/revenue, experimentation, instrumentation. Audit-first; refuses dark patterns |
+| `retention` | Cohort retention, churn (voluntary + involuntary), engagement loops, habit formation, lifecycle messaging, resurrection |
+| `seo-specialist` | Acquisition / discoverability (Google + LLM answer engines) — **shared** with design-team |
+
+`seo-specialist` is **shared** (it owns the page being indexable); `growth` and
+`retention` own what happens after the click — first value, then staying.
+
 ### 📋 product-team & ⚙️ ops-team (starters included)
 | Agent | Squad | When to use |
 | --- | --- | --- |
@@ -95,7 +108,6 @@ Enable when the product has a user interface.
 Scaffold any of these with `/squad new-squad <name>` when the project needs it:
 - **docs-team** — `tech-writer` (READMEs, API docs, ADR prose, changelog clarity).
 - **data-team** — `data-engineer` / `analytics` (schemas, pipelines, event tracking).
-- **growth-team** — `seo` / `growth` (acquisition, funnels, instrumentation).
 - **support-team** — `support-engineer` (triage, repro, runbooks from incidents).
 - jurisdiction add-ons for compliance-team — `gdpr`, `hipaa`, `soc2`.
 

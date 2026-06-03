@@ -337,10 +337,13 @@ fires automatically at the end of a change.
 the hot path; the Stop nudge is cheap, zero-dep, debounced, exit-0-on-error; the
 lane → owner map is config-driven; unowned lanes degrade to a visible skip.
 
-*Deferred (the two seams):* the **`growth-team`** squad (`growth` + `retention`
-agents) wired to `growth.owner`; an owner for **`deepen`** (a `product-owner`
-feature-depth lens or a dedicated agent); a `--since <ref>` diff scope for
-`--after`; and feeding recurring advisor findings into `/retro`.
+- ✅ **Both seams filled — 6/6 lanes owned.** The **`growth-team`** squad shipped
+  (`growth` lead + `retention`, with the shared `seo-specialist` for acquisition)
+  wired to `growth.owner`; and **`deepen`** got an owner — the `product-owner`
+  **depth lens** (maturing existing features, distinct from greenfield `features`).
+
+*Deferred:* a `--since <ref>` diff scope for `--after`; optional two-tier briefings
+for `growth` / `retention`; feeding recurring advisor findings into `/retro`.
 
 ## Design invariants (don't regress these)
 

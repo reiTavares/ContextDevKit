@@ -37,16 +37,16 @@ the owning agents/commands) and it does not write code (it's analysis).
    | --- | --- | --- | --- |
    | `architecture` | `architect` | `/analyze-code-ia-practices`, `/tech-debt-sweep` | Stack/code/tech: design risks, SRP, layering, the next pattern to adopt |
    | `features` | `product-owner` | `/roadmap` | New features the project/codebase makes natural and valuable |
-   | `deepen` | _(seam)_ | — | Depth on the **best existing** features (power-user paths, edge coverage) |
+   | `deepen` | `product-owner` | the depth lens (not greenfield `features`) | Depth on the **best existing** features (power-user paths, edge coverage) |
    | `security` | `security` | `/deep-analysis` (security pass), `/deps-audit` | Vulnerabilities, secrets, trust boundaries, supply chain |
    | `ux` | `ux-designer` | design-team (`ui-designer`, `accessibility`) | Friction, empty/error states, IA, a11y |
-   | `growth` | _(seam)_ | `seo-specialist` covers **acquisition** only | Retention, activation, funnels, growth loops, instrumentation |
+   | `growth` | `growth` | + `retention`; `seo-specialist` for acquisition | Activation, funnels, growth loops, retention, instrumentation |
 
-3. **Skip unowned lanes honestly (rule 8).** A lane whose `owner` is `null` is
-   printed as **`skipped — no owner`** with the fix
-   (`run /squad new-squad growth-team`, or assign `advisor.lanes.<id>.owner` via
-   `/vibe-config`). **Never** fabricate findings for a lane that has no owner — a
-   skip is a skip, never a false pass. Today `deepen` and `growth` are the two seams.
+3. **Skip a muted lane honestly (rule 8).** All six lanes ship with an owner
+   (architecture · features · deepen · security · ux · growth). A lane whose `owner`
+   is set to `null` — muted via `/vibe-config` — is printed as **`skipped — no
+   owner`**. **Never** fabricate findings for a muted lane: a skip is a skip, never
+   a false pass.
 
 4. **Emit ONE report, grouped by lane.** For each owned lane: the top findings,
    each as `impact (🔴/🟡/🟢) — what — why now — proposed action`. Lead with the

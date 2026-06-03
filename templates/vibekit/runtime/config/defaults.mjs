@@ -146,8 +146,10 @@ export const DEFAULT_CONFIG = Object.freeze({
    * whose findings flow into the DevPipeline backlog. `nudgeOnStop` makes the Stop
    * hook suggest `/advise` after a productive session (≥ 2 important paths touched,
    * debounced 24h). Each lane is `{ owner }` — the agent/command that owns it, or
-   * `null` for a lane with no owner yet, which `/advise` reports as *skipped*,
-   * never faked (rule 8/9). `deepen` and `growth` are the two declared seams.
+   * `null` to mute a lane. All six ship with an owner; a muted lane is reported as
+   * *skipped*, never faked (rule 8/9). `growth` is the growth-team lead (pairs with
+   * `retention` + `seo-specialist` for acquisition); `deepen` is product-owner's
+   * depth lens (maturing existing features, distinct from greenfield `features`).
    */
   advisor: {
     active: true,
@@ -155,10 +157,10 @@ export const DEFAULT_CONFIG = Object.freeze({
     lanes: {
       architecture: { owner: 'architect' },
       features: { owner: 'product-owner' },
-      deepen: { owner: null },
+      deepen: { owner: 'product-owner' },
       security: { owner: 'security' },
       ux: { owner: 'ux-designer' },
-      growth: { owner: null },
+      growth: { owner: 'growth' },
     },
   },
 
