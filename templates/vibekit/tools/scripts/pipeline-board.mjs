@@ -5,13 +5,17 @@
  * WSJF priority + SLA, and flags overdue items (⏰).
  */
 import { isOverdue } from './pipeline-prioritize.mjs';
+import { blockedBy } from './pipeline-validate.mjs';
 
-function table(tasks) {
+function table(tasks, allTasks) {
   if (tasks.length === 0) return '_(empty)_\n';
-  const rows = ['| ID | Pri | WSJF | Type | Title | SLA | Roadmap |', '| --- | --- | --- | --- | --- | --- | --- |'];
+  const rows = ['| ID | Pri | WSJF | Type | Cx | Title | SLA | Roadmap |', '| --- | --- | --- | --- | --- | --- | --- | --- |'];
   for (const t of tasks) {
     const sla = t.sla ? (isOverdue(t) ? `⏰ ${t.sla}` : t.sla) : '—';
-    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${t.title} | ${sla} | ${t.roadmap || '—'} |`);
+    const cx = t.complexity || '—';
+    const n = blockedBy(t, allTasks);
+    const title = n > 0 ? `${t.title} ↘ blocked by ${n}` : t.title;
+    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${cx} | ${title} | ${sla} | ${t.roadmap || '—'} |`);
   }
   return rows.join('\n') + '\n';
 }
@@ -31,16 +35,16 @@ export function renderBoard(tasks) {
   out.push('');
   out.push('## 🔵 Working (active, owned by a session)');
   out.push('');
-  out.push(table(by('working')));
+  out.push(table(by('working'), tasks));
   out.push('## 🟡 In testing (code written, awaiting QA)');
   out.push('');
-  out.push(table(by('testing')));
+  out.push(table(by('testing'), tasks));
   out.push('## 📋 Backlog (by priority)');
   out.push('');
-  out.push(table(by('backlog')));
+  out.push(table(by('backlog'), tasks));
   out.push('## ✅ Concluded (recent)');
   out.push('');
-  out.push(table(by('conclusion').slice(-15)));
+  out.push(table(by('conclusion').slice(-15), tasks));
   return out.join('\n');
 }
 

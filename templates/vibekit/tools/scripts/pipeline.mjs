@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 /**
- * DevPipeline engine — the production board (distinct from the product roadmap).
- *
- * Stages: `backlog/` → `working/` (ADR-0015 §B) → `testing/` → `conclusion/`.
- * One markdown file per task; `devpipeline.md` is the generated panel. Rendering
- * lives in `pipeline-board.mjs`, scoring in `pipeline-prioritize.mjs`, and the
- * session-coupled `start`/`stop` transitions in `pipeline-session.mjs` (they
- * write to the workspace record — different responsibility from pure CRUD).
- *
- * Subcommands: add · ingest · prioritize · wsjf · bugs · move · start · stop ·
- * sync · list. See README / `/pipeline` briefing for invocation examples.
+ * DevPipeline engine — execution board (≠ roadmap). Stages: backlog → working
+ * (ADR-0015 §B) → testing → conclusion. Renderer in pipeline-board.mjs,
+ * scoring in pipeline-prioritize.mjs, session-coupled start/stop in
+ * pipeline-session.mjs, schema-v2 validators in pipeline-validate.mjs.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -18,6 +12,7 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
+import { parseInlineArray, runValidate } from './pipeline-validate.mjs';
 
 const ROOT = process.cwd();
 const PIPE = pathsFor(ROOT).pipeline;
@@ -54,7 +49,7 @@ function listTasks() {
     }
     for (const f of files) {
       const fm = parseFrontmatter(readFileSync(resolve(PIPE, stage, f), 'utf-8'));
-      tasks.push({ stage, file: f, id: fm.id || f.split('-')[0], title: fm.title || f, type: fm.type || 'task', priority: fm.priority || 'P2', severity: fm.severity || '', wsjf: fm.wsjf || '', bugType: fm.bugType || '', sla: fm.sla || '', roadmap: fm.roadmap || '', source: fm.source || '', created: fm.created || '' });
+      tasks.push({ stage, file: f, id: fm.id || f.split('-')[0], title: fm.title || f, type: fm.type || 'task', priority: fm.priority || 'P2', severity: fm.severity || '', wsjf: fm.wsjf || '', bugType: fm.bugType || '', sla: fm.sla || '', roadmap: fm.roadmap || '', source: fm.source || '', created: fm.created || '', complexity: fm.complexity || '', dependencies: parseInlineArray(fm.dependencies) });
     }
   }
   return tasks.sort((a, b) => (a.priority + a.id).localeCompare(b.priority + b.id));
@@ -75,9 +70,10 @@ function getArg(name) {
 }
 
 /** Writes one backlog task file and returns its id. Shared by add + ingest. */
-function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = '', source = '', context = '', severity = '', wsjf = '', bugType = '' }) {
+function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = '', source = '', context = '', severity = '', wsjf = '', bugType = '', complexity = '', dependencies = [] }) {
   ensureDirs();
   const created = new Date().toISOString().slice(0, 10);
+  const deps = Array.isArray(dependencies) ? `[${dependencies.join(', ')}]` : '[]';
   const buildBody = (id) => [
     '---',
     `id: ${id}`,
@@ -87,6 +83,8 @@ function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = 
     `severity: ${severity}`,
     `wsjf: ${wsjf}`,
     `bugType: ${bugType}`,
+    `complexity: ${complexity}`,
+    `dependencies: ${deps}`,
     `status: backlog`,
     `created: ${created}`,
     `sla: ${sla || slaDue(priority, created, SLADAYS)}`,
@@ -138,7 +136,7 @@ function add() {
     priority = priority || bugSeverityToPriority(sev, SEVMAP);
   }
   priority = priority || 'P2';
-  const id = writeTask({ type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '', source: getArg('source') || '', severity: sev || '', wsjf, bugType: getArg('bug-type') || '' });
+  const id = writeTask({ type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '', source: getArg('source') || '', severity: sev || '', wsjf, bugType: getArg('bug-type') || '', complexity: getArg('complexity') || '', dependencies: parseInlineArray(getArg('depends-on')) });
   sync();
   console.log(`✅ Added ${type} ${id} (${priority}${wsjf ? `, WSJF ${wsjf}` : ''}${sev ? `, ${sev}` : ''}) to backlog: ${title}`);
 }
@@ -254,7 +252,8 @@ function move() {
   console.log(`✅ Moved ${task.id} → ${stage}`);
 }
 
-/** Session-coupled transitions (start/stop) — logic lives in `pipeline-session.mjs`. */
+
+/** Session-coupled transitions (start/stop) — see `pipeline-session.mjs`. */
 async function sessionCli(verb, marker, dest) {
   const id = process.argv[3];
   if (!id) { console.error(`Usage: pipeline.mjs ${verb} <id>`); process.exit(1); }
@@ -289,6 +288,7 @@ else if (cmd === 'bugs') bugs();
 else if (cmd === 'move') move();
 else if (cmd === 'start') await sessionCli('start', '▶', 'working/ (owner: this session)');
 else if (cmd === 'stop') await sessionCli('stop', '⏸', 'backlog/ (released)');
+else if (cmd === 'validate') { const t = listTasks(); const e = runValidate(t); e.length ? (e.forEach((m) => console.error(`✗ ${m}`)), process.exit(1)) : console.log(`✅ ${t.length} tickets validated.`); }
 else if (cmd === 'sync') {
   sync();
   console.log('✅ devpipeline.md regenerated.');
@@ -297,6 +297,6 @@ else if (cmd === 'sync') {
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|sync|list>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list>');
   process.exit(1);
 }
