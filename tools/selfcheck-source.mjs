@@ -148,6 +148,12 @@ async function checkSourceInvariants(rep, KIT) {
     ['/resume refuses cross-session claim conflict', 'templates/vibekit/tools/scripts/resume.mjs', /claimed by another active session/],
     ['/resume rewrites LAST_TOUCHED_PATH atomically', 'templates/vibekit/tools/scripts/resume.mjs', /writeFileAtomicSync\(LAST_TOUCHED_PATH/],
     ['/resume command briefing ships', 'templates/claude/commands/pipeline/resume.md', /Re-bind the current Claude Code session/],
+    // Ticket 043 — distill-detect proposal-only at /log-session end.
+    ['distill-detect exports detect (ticket 043)', 'templates/vibekit/tools/scripts/distill-detect.mjs', /export function detect/],
+    ['distill-detect surfaces "we decided" pattern', 'templates/vibekit/tools/scripts/distill-detect.mjs', /we\|i\)\\s\+decided/],
+    ['distill-detect surfaces "from now on" pattern', 'templates/vibekit/tools/scripts/distill-detect.mjs', /from now on/],
+    ['log-session briefing wires distill-detect (ticket 043)', 'templates/claude/commands/log-session.md', /distill-detect\.mjs/],
+    ['log-session briefing flags distill as proposal-only', 'templates/claude/commands/log-session.md', /proposal-only/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

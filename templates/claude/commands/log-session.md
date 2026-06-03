@@ -44,7 +44,16 @@ Register the current work session. Steps:
    prediction file from the ledger (paths actually changed vs predicted). No-op if there were
    no simulations.
 
-6. Confirm to the user: session number, file path, and CHANGELOG lines added.
+6. **Scan for rule-like phrases** (ticket 043 — *proposal-only*, never auto-applies). After the
+   session file is written, run:
+   ```
+   node vibekit/tools/scripts/distill-detect.mjs vibekit/memory/sessions/<the-file-you-just-wrote>.md
+   ```
+   If the detector surfaces candidates ("we decided X" / "from now on Y" / "always Z" / "convention:" /
+   "lesson learned"), pass the line through to the user verbatim. **Do not** invoke
+   `/distill-sessions` yourself — the user runs it (or doesn't). Silent on neutral sessions.
+
+7. Confirm to the user: session number, file path, and CHANGELOG lines added.
 
 Editing `vibekit/memory/SESSIONS.md` (via reindex) and `docs/CHANGELOG.md` marks the session as
 registered, which silences the Stop drift nudge.
