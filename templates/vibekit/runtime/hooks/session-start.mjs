@@ -147,6 +147,15 @@ async function main() {
     out.push('');
   }
 
+  if (loadConfigSync(ROOT)?.behaviors?.active === true) {
+    out.push('## 🧭 Behavioral discipline is ACTIVE');
+    out.push('');
+    out.push('Honor `vibekit/behaviors.md` while coding: **think before coding** (surface assumptions,');
+    out.push('ask when ambiguous), **simplicity first**, **surgical changes** (match the surrounding style,');
+    out.push('no drive-by refactor), **goal-driven** (reproduce-test first, loop to green).');
+    out.push('');
+  }
+
   if (secDue) {
     out.push('## 🛡️ Security mode — time for a deep sweep');
     out.push('');

@@ -233,6 +233,17 @@ async function checkSourceInvariants(rep, KIT) {
     ['retention agent splits voluntary vs involuntary churn', 'templates/claude/agents/retention.md', /involuntary/i],
     ['product-owner owns the deepen-existing-features lens (ADR-0028)', 'templates/claude/agents/product-owner.md', /deepen[- ]existing[- ]features/i],
     ['squads README registers the growth-team', 'templates/vibekit/squads/README.md', /growth-team/],
+    // ADR-0029 — Behavioral discipline layer (Karpathy-derived, MIT).
+    ['behaviors.md ships the four guidelines (ADR-0029)', 'templates/vibekit/behaviors.md', /Think before coding[\s\S]*Simplicity first[\s\S]*Surgical changes[\s\S]*Goal-driven execution/i],
+    ['behaviors.md credits the MIT Karpathy source', 'templates/vibekit/behaviors.md', /MIT-licensed[\s\S]*Karpathy|Karpathy[\s\S]*MIT-licensed/],
+    ['behaviors.md reconciles surgical vs deliberate refactor', 'templates/vibekit/behaviors.md', /deliberate.{0,24}task|opportunistic/i],
+    ['behaviors-examples ships before/after diffs (ADR-0029)', 'templates/vibekit/behaviors-examples.md', /Disciplined/],
+    ['constitution template adds the behavioral-discipline section (ADR-0029)', 'templates/CLAUDE.md.tpl', /Behavioral discipline/],
+    ['constitution names ask-when-ambiguous (think before coding)', 'templates/CLAUDE.md.tpl', /ask when the request is ambiguous/i],
+    ['defaults expose the behaviors flag (ADR-0029)', 'templates/vibekit/runtime/config/defaults.mjs', /behaviors:\s*\{\s*active:\s*true\s*\}/],
+    ['boot reminds behavioral discipline when active', 'templates/vibekit/runtime/hooks/session-start.mjs', /Behavioral discipline is ACTIVE/],
+    ['installer seeds behaviors.md (ADR-0029)', 'install.mjs', /'behaviors\.md'/],
+    ['installer seeds behaviors-examples.md', 'install.mjs', /'behaviors-examples\.md'/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

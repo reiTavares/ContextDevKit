@@ -81,6 +81,21 @@ business logic in the transport layer)? names descriptive? no "And"/"Or"
 functions? errors typed and handled? language policy respected? docs on
 non-trivial logic? Fix any failure **before** showing the code.
 
+### 8. Behavioral discipline (how you act, not just what you write)
+Beyond *what* the code looks like, *how* you produce it matters. Honor
+`vibekit/behaviors.md` (examples in `behaviors-examples.md`):
+- **Think before coding** — surface your assumptions, present interpretations
+  instead of picking one silently, and **ask when the request is ambiguous**.
+  Push back on a worse approach rather than silently complying.
+- **Simplicity first** — the minimum that solves the problem; no speculative
+  abstraction or unrequested options (the in-the-moment form of §1 + rule 9).
+- **Surgical changes** — touch only what the task needs; **match the surrounding
+  style even if you'd do it differently**; every changed line traces to the
+  request. Refactoring is a *deliberate* task (`/dev-start`,
+  `/analyze-code-ia-practices`), never a side effect of an unrelated change.
+- **Goal-driven** — define a verifiable success criterion; for a fix, write the
+  reproducing test first; loop until it's green.
+
 ## 🤖 VibeDevKit — the context system (Level L{{LEVEL}})
 
 This project uses [VibeDevKit](https://github.com/) to survive across sessions.
