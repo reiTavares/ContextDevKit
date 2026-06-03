@@ -201,6 +201,11 @@ async function checkSourceInvariants(rep, KIT) {
     ['aiso-audit exports runAisoAudit', 'templates/vibekit/tools/scripts/aiso-audit.mjs', /export function runAisoAudit/],
     ['aiso-audit names the AI crawlers list', 'templates/vibekit/tools/scripts/aiso-audit.mjs', /GPTBot.*ClaudeBot.*PerplexityBot/s],
     ['/seo-audit command in audit/ pack', 'templates/claude/commands/audit/seo-audit.md', /SEO \+ AISO audit/i],
+    // landing-architect agent — closes the gap left by ADR-0023 / ticket 052.
+    ['landing-architect agent ships (ADR-0023)', 'templates/claude/agents/landing-architect.md', /Landing-page & high-conversion site specialist/],
+    ['landing-architect refuses cookie-cutter on sight', 'templates/claude/agents/landing-architect.md', /refuses the cookie-cutter/],
+    ['landing-architect names the three decisions in order', 'templates/claude/agents/landing-architect.md', /three decisions, in order/],
+    ['landing-architect delegation matrix points at seo-specialist gate', 'templates/claude/agents/landing-architect.md', /seo-specialist.*mandatory gate/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
