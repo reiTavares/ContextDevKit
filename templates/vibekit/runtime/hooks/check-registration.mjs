@@ -37,6 +37,8 @@ const ROOT = process.cwd();
 const ARCHIVE_DIR = resolve(SESSIONS_DIR, '.archive');
 const DISTILL_NUDGE_PATH = resolve(SESSIONS_DIR, '.distill-nudge');
 const DISTILL_NUDGE_DEBOUNCE_MS = 24 * 60 * 60 * 1000;
+const ADVISOR_NUDGE_PATH = resolve(SESSIONS_DIR, '.advisor-nudge');
+const ADVISOR_NUDGE_DEBOUNCE_MS = 24 * 60 * 60 * 1000;
 
 async function readStdin() {
   return new Promise((res) => {
@@ -136,6 +138,47 @@ async function maybeProposeDistillation() {
   ].join('\n');
 }
 
+/**
+ * ADR-0028 — proactively suggests `/advise` after a PRODUCTIVE session.
+ * Mirrors `maybeProposeDistillation`: config-gated (`advisor.active` &&
+ * `advisor.nudgeOnStop`), fires only when ≥ 2 important paths were touched this
+ * session (real implementation), and debounced 24h. Nudge-only — never blocks,
+ * never runs the network or the AI (that lives in the `/advise` command).
+ *
+ * @param {object} ledger - this session's ledger (for the "real work" signal).
+ * @returns {Promise<string|null>} the nudge text, or null when it should stay silent.
+ */
+async function maybeProposeAdvisor(ledger) {
+  let config;
+  try {
+    config = await loadConfig(ROOT);
+  } catch {
+    return null;
+  }
+  const advisor = config?.advisor;
+  if (advisor?.active !== true || advisor?.nudgeOnStop !== true) return null;
+  const touched = pendingImportantPaths(ledger).length;
+  if (touched < 2) return null;
+  let lastNudgeAt = 0;
+  try {
+    lastNudgeAt = Number.parseInt((await readFile(ADVISOR_NUDGE_PATH, 'utf-8')).trim(), 10) || 0;
+  } catch {
+    /* no prior nudge */
+  }
+  if (Date.now() - lastNudgeAt < ADVISOR_NUDGE_DEBOUNCE_MS) return null;
+  try {
+    await mkdir(SESSIONS_DIR, { recursive: true });
+    await writeFile(ADVISOR_NUDGE_PATH, String(Date.now()), 'utf-8');
+  } catch {
+    return null;
+  }
+  return [
+    `💡 Proactive Advisor (L6): ${touched} important file(s) touched this session.`,
+    '   Run `/advise` for a six-lane improvement scan (architecture · features · deepen ·',
+    '   security · UX · growth) before you wrap up. Skipping is fine — reminded again in 24h.',
+  ].join('\n');
+}
+
 async function main() {
   const raw = await readStdin();
   let payload = {};
@@ -155,6 +198,8 @@ async function main() {
     await archiveOldRegisteredLedgers();
     const distill = await maybeProposeDistillation();
     if (distill) sideSuggestions.push(distill);
+    const advise = await maybeProposeAdvisor(ledger);
+    if (advise) sideSuggestions.push(advise);
   }
   const flushSide = () => {
     if (sideSuggestions.length > 0) process.stdout.write(sideSuggestions.join('\n\n') + '\n');

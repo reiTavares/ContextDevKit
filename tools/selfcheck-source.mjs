@@ -215,6 +215,24 @@ async function checkSourceInvariants(rep, KIT) {
     ['/dev-start runs sync-check preflight (ADR-0026)', 'templates/claude/commands/pipeline/dev-start.md', /sync-check\.mjs\s+preflight/],
     ['/dev-start re-checks with sync-check prepr before a PR', 'templates/claude/commands/pipeline/dev-start.md', /sync-check\.mjs\s+prepr/],
     ['/git pr runs sync-check prepr first (ADR-0026)', 'templates/claude/commands/vcs/git.md', /sync-check\.mjs\s+prepr/],
+    // ADR-0028 — Proactive Advisor (six-lane improvement engine).
+    ['defaults expose the advisor config block (ADR-0028)', 'templates/vibekit/runtime/config/defaults.mjs', /advisor:\s*\{/],
+    ['advisor config declares the six lanes in order', 'templates/vibekit/runtime/config/defaults.mjs', /architecture:[\s\S]*features:[\s\S]*deepen:[\s\S]*security:[\s\S]*ux:[\s\S]*growth:/],
+    ['advisor wires all six lanes to an owner (ADR-0028)', 'templates/vibekit/runtime/config/defaults.mjs', /deepen:\s*\{\s*owner:\s*'product-owner'\s*\},[\s\S]*growth:\s*\{\s*owner:\s*'growth'\s*\}/],
+    ['Stop hook proposes the advisor after real work (ADR-0028)', 'templates/vibekit/runtime/hooks/check-registration.mjs', /maybeProposeAdvisor/],
+    ['advisor nudge is debounced like distill', 'templates/vibekit/runtime/hooks/check-registration.mjs', /ADVISOR_NUDGE_DEBOUNCE_MS/],
+    ['/advise command ships the six lanes (ADR-0028)', 'templates/claude/commands/advise.md', /architecture[\s\S]*features[\s\S]*deepen[\s\S]*security[\s\S]*ux[\s\S]*growth/i],
+    ['/advise runs before/after modes', 'templates/claude/commands/advise.md', /--before|--after/],
+    ['/advise feeds the DevPipeline backlog', 'templates/claude/commands/advise.md', /pipeline\.mjs/],
+    ['/advise skips unowned lanes, never fakes them (rule 8)', 'templates/claude/commands/advise.md', /no\s+owner/i],
+    ['/advise growth lane routes to retention (ADR-0028)', 'templates/claude/commands/advise.md', /retention/i],
+    // ADR-0028 — growth-team squad (growth + retention) + product-owner deepen lens.
+    ['growth agent ships in growth-team (ADR-0028)', 'templates/claude/agents/growth.md', /\(growth-team squad\)/],
+    ['growth agent refuses dark patterns', 'templates/claude/agents/growth.md', /dark pattern/i],
+    ['retention agent ships in growth-team', 'templates/claude/agents/retention.md', /\(growth-team squad\)/],
+    ['retention agent splits voluntary vs involuntary churn', 'templates/claude/agents/retention.md', /involuntary/i],
+    ['product-owner owns the deepen-existing-features lens (ADR-0028)', 'templates/claude/agents/product-owner.md', /deepen[- ]existing[- ]features/i],
+    ['squads README registers the growth-team', 'templates/vibekit/squads/README.md', /growth-team/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);

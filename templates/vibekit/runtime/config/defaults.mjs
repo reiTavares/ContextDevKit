@@ -140,6 +140,31 @@ export const DEFAULT_CONFIG = Object.freeze({
   predictionsReview: { active: true, everyNSessions: 10 },
 
   /**
+   * Proactive Advisor (L6, ADR-0028) — the six-lane improvement engine. When
+   * `active`, `/advise` fans out to the owning agent per lane and emits ONE
+   * classified digest (`--before` = opportunities/risks, `--after` = improvements)
+   * whose findings flow into the DevPipeline backlog. `nudgeOnStop` makes the Stop
+   * hook suggest `/advise` after a productive session (≥ 2 important paths touched,
+   * debounced 24h). Each lane is `{ owner }` — the agent/command that owns it, or
+   * `null` to mute a lane. All six ship with an owner; a muted lane is reported as
+   * *skipped*, never faked (rule 8/9). `growth` is the growth-team lead (pairs with
+   * `retention` + `seo-specialist` for acquisition); `deepen` is product-owner's
+   * depth lens (maturing existing features, distinct from greenfield `features`).
+   */
+  advisor: {
+    active: true,
+    nudgeOnStop: true,
+    lanes: {
+      architecture: { owner: 'architect' },
+      features: { owner: 'product-owner' },
+      deepen: { owner: 'product-owner' },
+      security: { owner: 'security' },
+      ux: { owner: 'ux-designer' },
+      growth: { owner: 'growth' },
+    },
+  },
+
+  /**
    * Dependency policy for `/deps-audit` (security-team). All advisory — findings
    * flow into the DevPipeline backlog, they don't block by default.
    *   - `requireLockfile`: flag a manifest with deps but no committed lockfile.
