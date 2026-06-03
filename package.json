@@ -1,6 +1,6 @@
 {
   "name": "vibedevkit",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
