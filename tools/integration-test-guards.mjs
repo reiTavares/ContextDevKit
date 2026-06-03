@@ -222,43 +222,8 @@ function testInstallerWorktreeGitPointer() {
   }
 }
 
-/** 043 — distill-detect surfaces rule-like phrases (positive + negative + skip-headers). */
-async function testDistillDetect() {
-  const mod = await importKit('templates/vibekit/tools/scripts/distill-detect.mjs');
-  mod.detect('We decided that all auth flows must use refresh tokens. From now on, always validate JWTs.').length >= 2
-    ? ok('distill-detect surfaces multiple rule-like phrases (ticket 043)') : bad('seeded sentence produced no candidates');
-  mod.detect('Today we fixed a minor bug in the login flow.').length === 0
-    ? ok('distill-detect is quiet on neutral narrative (ticket 043 false-positive guard)') : bad('neutral paragraph triggered a candidate');
-  mod.detect('# We decided X\n> from now on Y').length === 0
-    ? ok('distill-detect skips headings + blockquotes (ticket 043)') : bad('heading/blockquote triggered');
-}
-
-/** 046 — /resume lists unregistered drift candidates, refuses unknown ids,
- *  refuses cross-session claim conflicts, and updates `.last-touched` on success. */
-function testResumeCommand() {
-  const proj = tmp('resume');
-  run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'ResumeIT', '--yes']);
-  mkdirSync(join(proj, '.claude', '.sessions'), { recursive: true });
-  mkdirSync(join(proj, '.claude', '.workspace'), { recursive: true });
-  const sess = (id, extra) => JSON.stringify({ sessionId: id, startedAt: Date.now() - 3600000, modifications: [{ path: 'src/a.js', tool: 'Edit', at: Date.now() }], registered: false, stopWarnedAt: null, simulations: [], ...extra });
-  const ws = (id, claims) => JSON.stringify({ sessionId: id, branch: 'main', user: 'rt', startedAt: Date.now() - 3600000, lastHeartbeat: Date.now(), claims });
-  writeFileSync(join(proj, '.claude', '.sessions', 'sess-target.json'), sess('sess-target'));
-  writeFileSync(join(proj, '.claude', '.workspace', 'sess-target.json'), ws('sess-target', [{ path: 'src/a.js', claimedAt: Date.now() }]));
-  writeFileSync(join(proj, '.claude', '.sessions', 'sess-other.json'), sess('sess-other'));
-  const cli = (...args) => run([join(proj, 'vibekit', 'tools', 'scripts', 'resume.mjs'), ...args], { cwd: proj });
-  const listOut = cli();
-  listOut.stdout.includes('sess-target') && listOut.stdout.includes('sess-other') ? ok('/resume lists unregistered drift candidates (ticket 046)') : bad(`list: ${listOut.stdout}`);
-  const badId = cli('nope-not-real');
-  badId.status === 1 && /not found among unregistered/.test(badId.stderr + badId.stdout) ? ok('/resume refuses unknown session id (rule 8)') : bad(`unknown-id: ${badId.stderr}`);
-  writeFileSync(join(proj, '.claude', '.workspace', 'sess-active.json'), ws('sess-active', [{ path: 'src/a.js', claimedAt: Date.now() }]));
-  const conflict = cli('sess-target');
-  conflict.status === 1 && /claimed by another active session/.test(conflict.stderr + conflict.stdout) ? ok('/resume refuses cross-session claim conflict (ticket 046)') : bad(`conflict: ${conflict.stderr}`);
-  writeFileSync(join(proj, '.claude', '.workspace', 'sess-active.json'), ws('sess-active', []));
-  const happy = cli('sess-target');
-  const pointer = existsSync(join(proj, '.claude', '.sessions', '.last-touched')) ? JSON.parse(readFileSync(join(proj, '.claude', '.sessions', '.last-touched'), 'utf-8')) : {};
-  happy.status === 0 && pointer.sessionId === 'sess-target' ? ok('/resume rewrites .last-touched on success') : bad(`happy: status=${happy.status}, pointer=${JSON.stringify(pointer)}`);
-  rmSync(proj, { recursive: true, force: true });
-}
+// Compozy follow-through lifecycle tests (workflow/041, distill-detect/043,
+// resume/046) live in the sibling `integration-test-compozy.mjs`.
 
 /** 021 — installer backs up a pre-existing non-ours git hook instead of clobbering it. */
 function testInstallerHookBackup() {
@@ -285,8 +250,6 @@ async function main() {
   await testGhAlertMappers();
   testInstallerHookBackup();
   testInstallerWorktreeGitPointer();
-  testResumeCommand();
-  await testDistillDetect();
   const fx = installFixture(rep);
   try {
     testCommitMsg(fx.proj);
