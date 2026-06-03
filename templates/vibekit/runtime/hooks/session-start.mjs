@@ -14,8 +14,8 @@
  */
 import { rm } from 'node:fs/promises';
 import {
+  digestLatestSession,
   exists,
-  extractLatestSession,
   extractUnreleased,
   readChangelog,
   readSessionsIndex,
@@ -105,7 +105,7 @@ async function main() {
   const drift = level >= 2 ? await analyzePriorLedgers(sessionId) : [];
   const sessions = await readSessionsIndex(ROOT);
   const changelog = await readChangelog(ROOT);
-  const latest = await extractLatestSession(ROOT);
+  const latest = await digestLatestSession(ROOT);
   const workspace = level >= 3 ? await readWorkspaceSummary(ROOT) : null;
   const branches = level >= 3 ? activeBranches(ROOT, getBranch(ROOT)) : null;
   const hasSnapshot = await exists(ROOT, CONTEXT_SNAPSHOT);
@@ -215,6 +215,7 @@ async function main() {
     out.push('## 🗓️ Last registered session');
     out.push('');
     out.push(latest.content);
+    if (latest.mode === 'digest') out.push('\n_(digest — open the full log in `vibekit/memory/sessions/` if you need detail) [ADR-0027]_');
     out.push('');
   }
 

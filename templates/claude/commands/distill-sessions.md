@@ -7,8 +7,12 @@ description: L5 — analyze recent sessions and propose refinements to CLAUDE.md
 Analyze the recent session history and propose improvements to `CLAUDE.md` — but
 **apply nothing**. This is the review step; `/distill-apply` materializes it.
 
-1. Read the last N session files in `vibekit/memory/sessions/` (N from
-   `vibekit/config.json` → `l5.distill.observeWindow`, default 10), newest first.
+1. Get a **compact digest** of the last N sessions instead of reading the raw
+   logs [ADR-0027]: `node vibekit/tools/scripts/session-digest.mjs --last N`
+   (N from `vibekit/config.json` → `l5.distill.observeWindow`, default 10),
+   newest first. Reason over the digests; open a full file in
+   `vibekit/memory/sessions/` only when a digest flags a pattern you must
+   inspect verbatim.
 2. Look for **recurring signals**: corrections the user gave repeatedly, rules
    re-explained across sessions, conventions that emerged but aren't written
    down, friction that a CLAUDE.md rule would prevent, and decisions that should

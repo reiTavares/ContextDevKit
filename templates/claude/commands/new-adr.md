@@ -5,6 +5,10 @@ argument-hint: <ADR title>
 
 Create a new Architecture Decision Record for: **$ARGUMENTS**
 
+0. **Check for an existing decision first** [ADR-0027]: run
+   `node vibekit/tools/scripts/adr-digest.mjs --search "<key terms from the title>"`.
+   If an ADR already covers this, extend or supersede it rather than create a duplicate.
+
 1. Find the next ADR number: list `vibekit/memory/decisions/`, take the highest `NNNN` + 1
    (zero-padded to 4 digits). The `0000` meta-ADR and `_TEMPLATE.md` do not count as the latest
    numbered decision beyond their own number.

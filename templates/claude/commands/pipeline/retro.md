@@ -10,8 +10,10 @@ to how this project is built. Output proposals — apply only with the user's OK
 1. **Gather signal:**
    - `node vibekit/tools/scripts/stats.mjs --json` (drift rate, cadence).
    - `node vibekit/tools/scripts/tech-debt-scan.mjs --json` (recurring smells).
-   - The last ~10 session files in `vibekit/memory/sessions/` (corrections the
-     user repeated, conventions that emerged, decisions made informally).
+   - The last ~10 sessions as a **compact digest** [ADR-0027]:
+     `node vibekit/tools/scripts/session-digest.mjs --last 10` (corrections the
+     user repeated, conventions that emerged, decisions made informally) — open a
+     full log only when a digest flags something to inspect.
    - `git log` since the last few sessions (what actually changed).
 
 2. **Find patterns**, not one-offs: the same correction 3×, a debt category that
