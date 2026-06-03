@@ -121,6 +121,18 @@ async function checkSourceInvariants(rep, KIT) {
     ['home.mjs writes atomically via renameSync (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /renameSync\(tmp, path\)/],
     ['home.mjs honours VIBEDEVKIT_HOME override (ADR-0020)', 'templates/vibekit/tools/scripts/home.mjs', /VIBEDEVKIT_HOME/],
     ['fleet.mjs delegates to home helper (ticket 048)', 'templates/vibekit/tools/scripts/fleet.mjs', /from '\.\/home\.mjs'/],
+    // Ticket 051 — /dashboard (snapshot + --watch live mode).
+    ['dashboard-data exports buildDashboardData (ticket 051)', 'templates/vibekit/tools/scripts/dashboard-data.mjs', /export function buildDashboardData/],
+    ['dashboard-data exports parseFrontmatter helper', 'templates/vibekit/tools/scripts/dashboard-data.mjs', /export function parseFrontmatter/],
+    ['dashboard-data single-sources PLATFORM_DIR (rule 4)', 'templates/vibekit/tools/scripts/dashboard-data.mjs', /PLATFORM_DIR/],
+    ['dashboard-html exports renderDashboardHTML (ticket 051)', 'templates/vibekit/tools/scripts/dashboard-html.mjs', /export function renderDashboardHTML/],
+    ['dashboard-html escapes user content', 'templates/vibekit/tools/scripts/dashboard-html.mjs', /escapeHtml/],
+    ['dashboard-server exports startDashboardServer', 'templates/vibekit/tools/scripts/dashboard-server.mjs', /export async function startDashboardServer/],
+    ['dashboard-server exports resolvePort', 'templates/vibekit/tools/scripts/dashboard-server.mjs', /export function resolvePort/],
+    ['dashboard-server binds 127.0.0.1 only (no remote access)', 'templates/vibekit/tools/scripts/dashboard-server.mjs', /listen\(port,\s*'127\.0\.0\.1'/],
+    ['dashboard-server emits SSE Content-Type', 'templates/vibekit/tools/scripts/dashboard-server.mjs', /text\/event-stream/],
+    ['dashboard.mjs dispatches snapshot vs --watch', 'templates/vibekit/tools/scripts/dashboard.mjs', /WANT_WATCH\s*\?\s*runLive/],
+    ['dashboard command file ships (ticket 051)', 'templates/claude/commands/dashboard.md', /Visual dashboard/i],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
