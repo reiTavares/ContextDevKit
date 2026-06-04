@@ -29,6 +29,7 @@ import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
+import { migrateLegacy } from './tools/install/migrate.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
@@ -62,6 +63,18 @@ async function main() {
     await uninstall(target, args.purge);
     return;
   }
+
+  // Standalone migration: carry a legacy vibekit/ install forward, then stop.
+  if (args.migrate) {
+    const { report } = await migrateLegacy(target, { dryRun: args.dryRun });
+    console.log(report.length ? '\n' + report.join('\n') + '\n' : '\nℹ️  no legacy vibekit/ install found — nothing to migrate.\n');
+    return;
+  }
+
+  // Auto-migration: before ANYTHING reads contextkit/ (config, settings), carry a
+  // legacy vibekit/ install forward so `npx contextdevkit --update` just works.
+  const migration = await migrateLegacy(target, { dryRun: false });
+  if (migration.report.length) console.log('\n' + migration.report.join('\n') + '\n');
 
   const interactive = !args.yes && process.stdout.isTTY;
   let level = Number.isInteger(args.level) ? args.level : undefined;

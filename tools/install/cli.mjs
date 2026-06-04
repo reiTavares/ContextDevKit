@@ -5,11 +5,13 @@
 export { LEVEL_LABELS } from '../../templates/contextkit/runtime/config/levels.mjs';
 
 export function parseArgs(argv) {
-  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false };
+  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false, migrate: false, dryRun: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--yes' || a === '-y') args.yes = true;
     else if (a === '--update') { args.update = true; args.yes = true; }
+    else if (a === '--migrate') args.migrate = true;
+    else if (a === '--dry-run') args.dryRun = true;
     else if (a === '--rewire') args.rewire = true;
     else if (a === '--force') args.force = true;
     else if (a === '--uninstall') args.uninstall = true;
@@ -33,6 +35,8 @@ Usage:
                    [--mode greenfield|existing] [--yes] [--force]
   node install.mjs --update                   safe update: refresh engine + commands,
                                               keep your level/config/memory/CLAUDE.md
+  node install.mjs --migrate [--dry-run]      carry a legacy vibekit/ install forward
+                                              to contextkit/ (preview with --dry-run)
   node install.mjs --rewire --level <1-7>     only recompose .claude/settings.json
   node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
   node install.mjs --help | --version
@@ -47,6 +51,9 @@ Flags:
   --force           overwrite CLAUDE.md / memory seeds if they exist
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
                     the CURRENT level; never touches CLAUDE.md, config, or memory
+  --migrate         carry a legacy vibekit/ install forward to contextkit/ (moves the
+                    folder, preserves memory/config, rewires settings/CLAUDE.md/hooks)
+  --dry-run         with --migrate: report what would change without writing
   --rewire          only recompose settings.json for the given --level
   --uninstall       remove ContextDevKit hook wiring + git hooks (keeps memory)
   --purge           with --uninstall, also delete contextkit/ engine + commands/agents
