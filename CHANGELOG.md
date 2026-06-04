@@ -7,6 +7,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Legacy-install migration (rename follow-through).** `install.mjs` now carries
+  an old `vibekit/` install forward to `contextkit/` automatically on `npx
+  contextdevkit --update` (and via an explicit `node install.mjs --migrate
+  [--dry-run]`). New `tools/install/migrate.mjs`: atomically MOVES the folder
+  (preserving memory/ADRs, config + level, pipeline tasks, `.env`), rewrites the
+  rename tokens in `settings.json` (killing the duplicate-hook trap),
+  `.gitignore`, `.gitattributes`, git-hook wrappers, `contextkit/.env`, and
+  `CLAUDE.md` (the last two backed up to `*.bak`), and deletes the stale
+  `/vibe-*` + `setupvibedevkit` command files. Refuses (no-op + warning) when
+  BOTH folders exist; idempotent; never throws into the installer (rule 2). New
+  `tools/integration-test-migrate.mjs` (25 asserts) wired into `test` +
+  `prepublishOnly`.
 - **agent-forge squad — Fase 6: declarative pipeline DSL + dry-run engine
   (ADR-0015 Part A).** The forge's orchestration is now a diffable, simulate-
   impact-mappable plan. New `templates/contextkit/squads/agent-forge/pipeline.yaml`
