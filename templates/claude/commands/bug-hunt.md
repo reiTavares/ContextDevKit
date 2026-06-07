@@ -28,8 +28,16 @@ Symptom under investigation:
 6. **Only after root cause is confirmed**: propose the minimal fix, get approval, then implement.
    Add a regression test if the stack supports it.
 
-7. **Report + backlog.** Write a short root-cause report (symptom → root cause → fix →
-   regression test). Record the bug — and any *related* issues you surfaced — in the
+7. **Report + backlog (RCA writeup).** Write a structured root-cause analysis —
+   not just a one-liner [ADR-0030]:
+   - **Symptom** — what was observed, with the exact error/repro.
+   - **Root cause** — the single underlying defect (the *why*, not the *where*).
+   - **Trigger** — what conditions surfaced it (why now / why here).
+   - **Fix** — the minimal change that removes the root cause.
+   - **Prevention** — the regression test + any guard (a selfcheck/lint rule) so
+     this class of bug can't silently return.
+
+   Record the bug — and any *related* issues you surfaced — in the
    DevPipeline, point by point:
    ```
    node contextkit/tools/scripts/pipeline.mjs add --type bug --priority <P0-P3> \

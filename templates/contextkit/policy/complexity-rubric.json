@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "_note": "Per-task complexity rubric (ADR-0030, adapted from EVO-METHOD/BMAD domain-complexity + project-types CSVs, MIT). Deterministic lookup — NOT LLM judgment. `tiers` right-size the ceremony per task; `domains` auto-route regulated work to the owning agents and force the architectural tier. Editing a row is an ADR act (constitution §9) — it is reviewable policy, not data. Levels (L1-L7) and tiers are ORTHOGONAL: a level is the platform ceiling, a tier is the per-task ceremony.",
+  "tiers": {
+    "trivial": {
+      "signals": ["typo", "rename", "comment", "bump version", "bump dep", "lint", "format", "whitespace", "changelog entry", "fix link", "docstring"],
+      "ceremony": { "adr": false, "story": false, "review": "light" },
+      "summary": "One cohesive low-risk edit. No ADR, no story — just do it and log if it touched an important path."
+    },
+    "feature": {
+      "signals": ["add", "feature", "endpoint", "component", "screen", "page", "command", "field", "report", "export"],
+      "ceremony": { "adr": false, "story": true, "review": "standard" },
+      "summary": "A user-visible increment. Roadmap entry + story + standard review. No ADR unless a structural decision surfaces."
+    },
+    "architectural": {
+      "signals": ["migrate", "migration", "new dependency", "add dependency", "auth", "authentication", "authorization", "schema", "breaking", "rewrite", "refactor architecture", "replace", "protocol", "data model", "multi-tenant", "encryption", "rename public", "deprecate"],
+      "ceremony": { "adr": true, "story": true, "review": "deep" },
+      "summary": "A decision with blast radius. /new-adr FIRST, then a story, then deep review. /simulate-impact if it crosses a high-risk path."
+    }
+  },
+  "defaultTier": "feature",
+  "domains": {
+    "lgpd": {
+      "signals": ["cpf", "cnpj", "rg", "dados pessoais", "personal data", "dado pessoal", "lgpd", "consent", "consentimento", "titular", "data subject", "pii", "anonymiz", "anonimiz", "encarregado", "dpo"],
+      "complexity": "high",
+      "requiredAgents": ["privacy-lgpd", "security"],
+      "requiredSections": ["data-inventory", "legal-basis", "retention", "data-subject-rights"],
+      "note": "Brazilian personal-data handling (Lei 13.709/2018). High-risk by default."
+    },
+    "fintech": {
+      "signals": ["payment", "pagamento", "banking", "trading", "investment", "crypto", "wallet", "transaction", "kyc", "aml", "pci", "pix", "boleto", "charge", "subscription billing"],
+      "complexity": "high",
+      "requiredAgents": ["security", "privacy-lgpd"],
+      "requiredSections": ["compliance-matrix", "security-architecture", "audit-trail", "fraud-prevention"],
+      "note": "Money movement / financial data. Regional compliance + audit trail are load-bearing."
+    },
+    "healthcare": {
+      "signals": ["medical", "clinical", "patient", "paciente", "diagnostic", "diagnostico", "hipaa", "prontuario", "health record", "treatment", "therapy"],
+      "complexity": "high",
+      "requiredAgents": ["privacy-lgpd", "security"],
+      "requiredSections": ["clinical-requirements", "data-privacy", "safety-measures", "regulatory-pathway"],
+      "note": "Health data is sensitive personal data — privacy + safety are non-negotiable."
+    },
+    "general": {
+      "signals": [],
+      "complexity": "low",
+      "requiredAgents": [],
+      "requiredSections": [],
+      "note": "No regulated domain detected. Standard practices apply."
+    }
+  }
+}

@@ -32,7 +32,10 @@ templates/claude/commands/
 │   ├── git.md
 │   ├── claim.md
 │   ├── release.md
-│   └── worktree-new.md
+│   ├── worktree-new.md
+│   ├── draft-changelog.md           ← commits → Keep-a-Changelog skeleton (ADR-0030)
+│   ├── gh-triage.md                 ← GitHub issues → backlog, classified (ADR-0030)
+│   └── changelog-social.md          ← release → announcement copy, drafts only (ADR-0030)
 │
 ├── forge/                           ← agent-forge squad lifecycle
 │   ├── forge-new.md
@@ -55,7 +58,8 @@ templates/claude/commands/
 │   ├── tech-debt-sweep.md
 │   ├── analyze-code-ia-practices.md
 │   ├── contract-check.md
-│   └── seo-audit.md                ← SEO + AISO static analysers (ADR-0025)
+│   ├── seo-audit.md                ← SEO + AISO static analysers (ADR-0025)
+│   └── validate-doc.md             ← ADR/roadmap quality rubric (ADR-0030)
 │
 └── setup/                           ← installer + diagnostics
     ├── setupcontextdevkit.md

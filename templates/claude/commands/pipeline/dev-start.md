@@ -27,35 +27,50 @@ You just entered **dev-start** mode with the objective:
    immutable rules + open backlog + recent ADRs) in a single call instead of
    opening each file. Open a full source only if the pack flags something to inspect.
 
-3. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
+3. **Right-size the work** [ADR-0030]. Classify the objective before committing
+   to a process — don't over-engineer a typo or under-plan a migration:
+   ```
+   node contextkit/tools/scripts/complexity-rubric.mjs classify "$ARGUMENTS"
+   ```
+   It returns a **tier** (trivial → no ADR/no story · feature → story · architectural
+   → `/new-adr` FIRST) and detects a **regulated domain**. If it flags a domain
+   (LGPD / fintech / healthcare …), **auto-route to the named agents** (e.g.
+   `@privacy-lgpd` + `@security`) and treat the work as architectural. The tier is
+   advisory, not a cage — state it and adjust with the user if it misreads.
+
+4. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```
    ✅ IN-SCOPE: <what we will touch>
    ❌ OUT-OF-SCOPE: <what we will NOT touch, even if tempting>
    ```
    Ask for confirmation before proceeding if there is ambiguity.
 
-4. **Scope lock during the session**:
+5. **Scope lock during the session**:
    - Do NOT suggest refactors in files outside IN-SCOPE.
    - Do NOT "while we're here" rename/reorganize adjacent code.
    - Do NOT add new dependencies without asking.
    - If you spot a problem out of scope, **note it** and mention it at the END
      ("for next session: X, Y, Z") — do not act on it now.
+   - **Correct-course checkpoint** [ADR-0030]: if mid-session the work clearly
+     outgrows the agreed scope (a feature turns out to need a migration, a new
+     dependency, or an auth change), STOP and re-classify with the user before
+     continuing — don't silently let scope creep past the tier you agreed on.
 
-5. **Break the objective into 3–7 concrete tasks** and track them with TodoWrite.
+6. **Break the objective into 3–7 concrete tasks** and track them with TodoWrite.
 
-6. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
+7. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
    ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
    `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
    `*.scratch.md` — scratches are local-only. At conclude time, summarise the
    useful parts into the ticket body and let the scratch be discarded.
 
-7. **Before opening a PR — re-check sync** [ADR-0026]. Run
+8. **Before opening a PR — re-check sync** [ADR-0026]. Run
    `node contextkit/tools/scripts/sync-check.mjs prepr` (or just use `/git pr`, which
    runs it): it re-confirms you are not behind `main` and that **no open PR
    already exists for this branch** before you create one. Don't duplicate a PR;
    push to update the existing one.
 
-8. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
+9. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
 
 ## Why this mode exists
 

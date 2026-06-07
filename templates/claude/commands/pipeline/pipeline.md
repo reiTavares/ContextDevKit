@@ -23,7 +23,11 @@ Act as the **manager** of this board based on **$ARGUMENTS**:
        --priority <P0-P3> --title "..." [--sla YYYY-MM-DD] [--roadmap P2.3]
   ```
   Then open the new file in `contextkit/pipeline/backlog/` and fill the context +
-  acceptance criteria.
+  acceptance criteria. **Right-size first** [ADR-0030]:
+  `node contextkit/tools/scripts/complexity-rubric.mjs classify "<title>"` — an
+  architectural tier means the task should reference (or trigger) an ADR; a
+  regulated domain means tagging the owning agents (`@privacy-lgpd`/`@security`)
+  in the acceptance criteria.
 - **move** — `node contextkit/tools/scripts/pipeline.mjs move <id> <backlog|testing|conclusion>`
   as work progresses (testing when you start; conclusion when accepted). For a
   concluded task, add a short outcome report to its file.
