@@ -18,6 +18,7 @@
  * Every function takes the reporter `rep` ({ ok, bad }) plus only what it
  * needs. Entry point: `runSourceChecks(rep, ctx)` where `ctx = { KIT }`.
  */
+import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -268,6 +269,38 @@ async function checkSourceInvariants(rep, KIT) {
     ['/ship scopes via the ADR catalog (ADR-0027)', 'templates/claude/commands/pipeline/ship.md', /adr-digest\.mjs/],
     ['/new-adr checks for an existing decision first (ADR-0027)', 'templates/claude/commands/new-adr.md', /adr-digest\.mjs/],
     ['/deep-analysis scans existing ADRs before drafting (ADR-0027)', 'templates/claude/commands/audit/deep-analysis.md', /adr-digest\.mjs/],
+    // ADR-0030 — per-task complexity rubric (EVO-METHOD/BMAD-derived, MIT).
+    ['complexity-rubric loader exports classify (ADR-0030)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classify/],
+    ['complexity-rubric loader exports loadRubric', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function loadRubric/],
+    ['complexity-rubric falls back to an embedded default (never throws)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /DEFAULT_RUBRIC/],
+    ['complexity-rubric single-sources the path via pathsFor (rule 4)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /pathsFor\(root\)\.complexityRubric/],
+    ['rubric seed declares the lgpd domain → privacy-lgpd (ADR-0030)', 'templates/contextkit/policy/complexity-rubric.json', /"lgpd":[\s\S]*"privacy-lgpd"/],
+    ['rubric seed declares the three ceremony tiers', 'templates/contextkit/policy/complexity-rubric.json', /"trivial":[\s\S]*"feature":[\s\S]*"architectural":/],
+    ['paths.mjs exposes complexityRubric (ADR-0030)', 'templates/contextkit/runtime/config/paths.mjs', /complexityRubric:/],
+    ['/dev-start right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /complexity-rubric\.mjs classify/],
+    ['/dev-start has a correct-course checkpoint (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /Correct-course checkpoint/],
+    ['/ship right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/ship.md', /complexity-rubric\.mjs classify/],
+    ['/pipeline right-sizes a new task (ADR-0030)', 'templates/claude/commands/pipeline/pipeline.md', /complexity-rubric\.mjs classify/],
+    ['installer seeds the complexity rubric (ADR-0030)', 'install.mjs', /policy\/complexity-rubric\.json/],
+    ['installer seeds review-protocol.md — closes ADR-0029 gap (ADR-0030)', 'install.mjs', /'review-protocol\.md'/],
+    // ADR-0030 — document-quality validation (EVO steps-v adaptation, MIT).
+    ['validate-doc validates ADR sections (ADR-0030)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /function validateAdr/],
+    ['validate-doc flags template placeholders', 'templates/contextkit/tools/scripts/validate-doc.mjs', /PLACEHOLDERS/],
+    ['validate-doc checks consequences own a trade-off', 'templates/contextkit/tools/scripts/validate-doc.mjs', /TRADEOFF_HINTS/],
+    ['validate-doc is advisory — never blocks (rule 8)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /never blocks a push/],
+    ['/validate-doc command briefing ships (ADR-0030)', 'templates/claude/commands/audit/validate-doc.md', /document-quality rubric/],
+    // ADR-0030 — OSS repo-ops (gh-triage / draft-changelog / changelog-social + RCA).
+    ['draft-changelog groups Conventional Commits (ADR-0030)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /const SECTION = \{/],
+    ['draft-changelog times out git calls (rule 2)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /timeout:\s*\d/],
+    ['draft-changelog never writes the file (drafts only)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /never writes/],
+    ['/draft-changelog command briefing ships', 'templates/claude/commands/vcs/draft-changelog.md', /Draft a \[Unreleased\]/i],
+    ['/gh-triage classifies via the complexity rubric (ADR-0030)', 'templates/claude/commands/vcs/gh-triage.md', /complexity-rubric\.mjs classify/],
+    ['/gh-triage degrades cleanly without gh (rule 8)', 'templates/claude/commands/vcs/gh-triage.md', /skip, never fake/],
+    ['/changelog-social drafts only — never posts', 'templates/claude/commands/vcs/changelog-social.md', /never posts/i],
+    ['bug-hunt emits a structured RCA writeup (ADR-0030)', 'templates/claude/commands/bug-hunt.md', /root-cause analysis/i],
+    // ADR-0030 — mid-flight elicitation (advanced-elicitation + correct-course).
+    ['/roadmap new does advanced elicitation (ADR-0030)', 'templates/claude/commands/roadmap.md', /Advanced elicitation/],
+    ['/forge-new does advanced elicitation (ADR-0030)', 'templates/claude/commands/forge/forge-new.md', /Advanced elicitation/],
   ];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
@@ -318,9 +351,48 @@ async function checkWorkflowsPinned(rep, KIT) {
     ? ok('ci.yml declares least-privilege permissions (contents: read)') : bad('ci.yml missing contents:read permissions');
 }
 
+/**
+ * ADR-0030 — cross-doc link integrity. Scans the seeded top-level engine docs for
+ * relative markdown links to other `.md` files and asserts each target exists, so a
+ * deleted/renamed doc (the kind of rot the `review-protocol.md` seed gap caused)
+ * fails the build instead of shipping a dangling link. Scoped to the controlled set
+ * `templates/contextkit/*.md`; widening to `docs/` is an ADR-0030 follow-up.
+ */
+async function checkDocLinks(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking cross-doc markdown links resolve (ADR-0030)...');
+  const dir = resolve(KIT, 'templates/contextkit');
+  const linkRe = /\[[^\]]*\]\(([^)]+)\)/g;
+  const offenders = [];
+  let checked = 0;
+  let entries = [];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    /* no dir — nothing to check */
+  }
+  for (const e of entries) {
+    if (!e.isFile() || !e.name.endsWith('.md')) continue;
+    const text = await readFile(resolve(dir, e.name), 'utf-8').catch(() => '');
+    let m;
+    while ((m = linkRe.exec(text))) {
+      let target = m[1].trim().split(/\s+/)[0]; // drop an optional "title"
+      if (!target || target.startsWith('http') || target.startsWith('#') || target.startsWith('<')) continue;
+      target = target.split('#')[0]; // strip an anchor
+      if (!target.endsWith('.md')) continue;
+      checked += 1;
+      if (!existsSync(resolve(dir, target))) offenders.push(`${e.name} → ${target}`);
+    }
+  }
+  offenders.length === 0
+    ? ok(`cross-doc markdown links resolve (${checked} checked)`)
+    : offenders.forEach((o) => bad(`dangling doc link: ${o}`));
+}
+
 /** Runs every source/structural check in order. `ctx` = { KIT }. */
 export async function runSourceChecks(rep, { KIT }) {
   await checkSourceInvariants(rep, KIT);
   await checkNoHardcodedPaths(rep, KIT);
   await checkWorkflowsPinned(rep, KIT);
+  await checkDocLinks(rep, KIT);
 }

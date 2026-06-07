@@ -121,10 +121,11 @@ Setup: `/aidevtool-from0` (empty) · `/setupcontextdevkit` (existing). Daily: `/
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
 · `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/deps-audit` · `/deep-analysis` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
+· `/contract-check` · `/deps-audit` · `/deep-analysis` · `/validate-doc` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/context-stats`
 · `/distill-sessions` · `/distill-apply`.
 Structure & platform: `/squad` (squads) · `/git` (version control + remote)
+· `/draft-changelog` · `/gh-triage` · `/changelog-social` (OSS repo-ops)
 · `/claude-md` (scoped CLAUDE.md per module) · `/context-level` · `/context-config`
 · `/context-doctor`.
 

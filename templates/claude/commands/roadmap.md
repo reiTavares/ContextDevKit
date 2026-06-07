@@ -25,8 +25,17 @@ Co-create it, don't dump a template. Ask, in a short adaptive round:
 - the product vision + primary user journey (reuse `contextkit/memory/product.md` if present);
 - the few **outcomes** that matter first, and roughly in what order;
 - any hard deadlines/constraints.
+
+**Advanced elicitation** [ADR-0030] — before drafting, surface what the user left
+*unstated*: the assumed target user, the success metric, the riskiest assumption,
+and what is explicitly OUT of scope for v1. Reflect these back as "here's what I'm
+assuming — correct me" rather than guessing silently. A wrong assumption caught
+here is worth ten reworked milestones.
+
 Then draft phases `P1, P2, …` with items `P1.1, P1.2, …` — each a user-facing
-capability + a one-line acceptance note. Show it, refine with the user, save.
+capability + a one-line **measurable** acceptance note (a number/date/target, not
+an aspiration — it's what `/validate-doc --roadmap` checks). Show it, refine with
+the user, save.
 
 ## from-existing — existing project
 1. If `roadmap.mjs find` listed a roadmap/PRD/spec file → read it and **import /

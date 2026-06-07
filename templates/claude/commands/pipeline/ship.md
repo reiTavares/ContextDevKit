@@ -30,7 +30,12 @@ State which mode you're running at the start.
    digest + immutable rules + recent ADRs in one call) and
    `node contextkit/tools/scripts/adr-digest.mjs --search "<objective keywords>"` for the
    ADRs relevant to the objective [ADR-0027] — open a full ADR only when needed.
-   Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
+   Then **right-size the pipeline** [ADR-0030]:
+   `node contextkit/tools/scripts/complexity-rubric.mjs classify "$ARGUMENTS"`. A
+   **regulated domain** (LGPD / fintech / healthcare) makes the design + review
+   stages MANDATORY and pulls the named agents (e.g. `@privacy-lgpd`, `@security`)
+   into the squad; an **architectural** tier means the ADR in step 8 is required,
+   not optional. Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
 2. **Design** — delegate to `architect`: options, trade-offs, recommended path,
    blast radius. If it crosses high-risk paths (L5), run `/simulate-impact` first.
    ◆ Checkpoint: confirm the design with the user.

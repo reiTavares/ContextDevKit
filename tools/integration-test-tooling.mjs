@@ -22,7 +22,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
+import { KIT, run, git, readJson, reporter, installFixture } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -47,6 +47,30 @@ try {
   const gitStatus = script('git.mjs', 'status', '--json');
   (() => { try { const g = JSON.parse(gitStatus.stdout); return g.isRepo === true && g.remoteUrl === null; } catch { return false; } })()
     ? ok('git.mjs reports repo + missing remote') : bad(`git.mjs failed: ${gitStatus.stdout || gitStatus.stderr}`);
+
+  // ADR-0030 — complexity rubric: regulated domain auto-routes + forces architectural tier.
+  const clsLgpd = script('complexity-rubric.mjs', 'classify', 'store user CPF and consent', '--json');
+  (() => { try { const j = JSON.parse(clsLgpd.stdout); return j.domain === 'lgpd' && j.requiredAgents.includes('privacy-lgpd') && j.tier === 'architectural' && j.needsAdr === true; } catch { return false; } })()
+    ? ok('complexity-rubric routes a regulated (LGPD) task to privacy-lgpd + architectural tier')
+    : bad(`complexity-rubric LGPD classify failed: ${clsLgpd.stdout || clsLgpd.stderr}`);
+  const clsTrivial = script('complexity-rubric.mjs', 'classify', 'fix typo in readme', '--json');
+  (() => { try { const j = JSON.parse(clsTrivial.stdout); return j.tier === 'trivial' && j.needsAdr === false && j.domain === 'general'; } catch { return false; } })()
+    ? ok('complexity-rubric classifies a trivial task with no ceremony')
+    : bad(`complexity-rubric trivial classify failed: ${clsTrivial.stdout || clsTrivial.stderr}`);
+
+  // ADR-0030 — validate-doc flags an unfilled ADR template (placeholders), runs the adr rubric.
+  const vdTpl = script('validate-doc.mjs', 'contextkit/memory/decisions/_TEMPLATE.md', '--json');
+  (() => { try { const j = JSON.parse(vdTpl.stdout); return j.type === 'adr' && j.errorCount > 0 && j.findings.some((f) => f.code === 'PLACEHOLDER'); } catch { return false; } })()
+    ? ok('validate-doc flags an unfilled ADR template (placeholders)')
+    : bad(`validate-doc template check failed: ${vdTpl.stdout || vdTpl.stderr}`);
+
+  // ADR-0030 — draft-changelog groups Conventional Commits since the last tag.
+  git(['add', '-A'], proj);
+  git(['commit', '-m', 'feat(x): add a thing', '--no-verify'], proj);
+  const dc = script('draft-changelog.mjs', '--json');
+  (() => { try { const j = JSON.parse(dc.stdout); return Array.isArray(j.groups?.Added) && j.groups.Added.some((i) => i.text.includes('add a thing')); } catch { return false; } })()
+    ? ok('draft-changelog groups Conventional Commits into Keep-a-Changelog sections')
+    : bad(`draft-changelog failed: ${dc.stdout || dc.stderr}`);
 
   // DevPipeline tests live in `integration-test-tooling-pipeline.mjs` (sibling).
 

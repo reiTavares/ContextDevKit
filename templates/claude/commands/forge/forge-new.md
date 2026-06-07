@@ -18,6 +18,12 @@ Package for **$ARGUMENTS** (or for the name the developer gives during the inter
    - `packager` assembles + stamps provenance.
 
 2. **Refuse to skip the interview.** Defaults are safe, not informed.
+   **Advanced elicitation** [ADR-0030]: don't just collect the answers to
+   `INTERVIEW_QUESTIONS` — probe the *unstated* edges that decide the package's
+   quality: the failure modes the agent must refuse, the cost ceiling, whether it
+   touches regulated data (run `complexity-rubric.mjs classify` on the role — an
+   LGPD/fintech domain pulls compliance requirements into the blueprint), and the
+   single hardest input it will face. Reflect assumptions back before the router runs.
 
 3. **Verify before writing** — show the dev:
    - The Agent Blueprint (YAML).

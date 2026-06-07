@@ -88,5 +88,7 @@ export function pathsFor(root = process.cwd()) {
     roadmap: at(`${MEMORY_DIR}/roadmap.md`),
     contractBaseline: at(`${MEMORY_DIR}/contract-baseline.json`),
     bestPractices: at(`${PLATFORM_DIR}/best-practices.md`),
+    policy: at(`${PLATFORM_DIR}/policy`),
+    complexityRubric: at(`${PLATFORM_DIR}/policy/complexity-rubric.json`),
   };
 }
