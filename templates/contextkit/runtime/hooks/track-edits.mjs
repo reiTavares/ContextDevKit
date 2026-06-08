@@ -48,7 +48,11 @@ async function renewHeartbeat(sessionId) {
   const path = resolve(WORKSPACE_DIR, `${sanitizeSid(sessionId)}.json`);
   try {
     const claimRecord = JSON.parse(await readFile(path, 'utf-8'));
-    claimRecord.lastHeartbeat = Date.now();
+    const now = Date.now();
+    claimRecord.lastHeartbeat = now;
+    // ADR-0034 — renew each owned working task's heartbeat too, so a task you're
+    // actively editing is never stale-evicted from working/ by workspace-sync.
+    if (Array.isArray(claimRecord.tasks)) for (const t of claimRecord.tasks) t.lastHeartbeat = now;
     await writeFileAtomic(path, JSON.stringify(claimRecord, null, 2));
   } catch {
     /* no claim file — nothing to renew */

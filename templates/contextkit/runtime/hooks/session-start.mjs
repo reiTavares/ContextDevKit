@@ -27,6 +27,7 @@ import {
   engineUpdateSignal,
   getBranch,
   isGreenfield,
+  openBugsDue,
   predictionsReviewDue,
   projectName,
   securityModeDue,
@@ -118,8 +119,9 @@ async function main() {
   const predDue = predictionsReviewDue(ROOT);
   const engineSignal = engineUpdateSignal(ROOT);
   const value = valueLine(ROOT);
+  const bugs = level >= 2 ? openBugsDue(ROOT) : null;
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -181,6 +183,14 @@ async function main() {
     out.push(`**${predDue} sessions** in with **unreviewed** \`/simulate-impact\` predictions. Run`);
     out.push('**`/predictions-review`** to fill their *Actual* section (predicted vs actual). It also');
     out.push('auto-runs at `/log-session`; disable the reminder via `predictionsReview.active`.');
+    out.push('');
+  }
+
+  if (bugs) {
+    out.push('## 🐞 Open bugs awaiting resolution');
+    out.push('');
+    out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in backlog/working.`);
+    out.push('Resolve pending bugs (P0/P1 first) before new feature work — `/pipeline` to triage, `/bug-hunt <id>` to fix.');
     out.push('');
   }
 

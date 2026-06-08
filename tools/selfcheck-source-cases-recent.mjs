@@ -1,0 +1,88 @@
+/**
+ * Self-check — SOURCE invariant CASES (the recent program: ADR-0030+).
+ *
+ * Sharded from `selfcheck-source-cases.mjs` (ADR-0034 — the data table crossed the
+ * constitution's RED line budget; the EVO-patterns / close-the-loop program cases
+ * live here, the legacy cases stay in the sibling). Same `[label, path, regex]`
+ * shape; `runSourceChecks` concatenates both. Add a new ADR-era invariant here.
+ */
+export const SOURCE_INVARIANT_CASES_RECENT = [
+    // ADR-0030 — per-task complexity rubric (EVO-METHOD/BMAD-derived, MIT).
+    ['complexity-rubric loader exports classify (ADR-0030)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classify/],
+    ['complexity-rubric loader exports loadRubric', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function loadRubric/],
+    ['complexity-rubric falls back to an embedded default (never throws)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /DEFAULT_RUBRIC/],
+    ['complexity-rubric single-sources the path via pathsFor (rule 4)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /pathsFor\(root\)\.complexityRubric/],
+    ['rubric seed declares the lgpd domain → privacy-lgpd (ADR-0030)', 'templates/contextkit/policy/complexity-rubric.json', /"lgpd":[\s\S]*"privacy-lgpd"/],
+    ['rubric seed declares the three ceremony tiers', 'templates/contextkit/policy/complexity-rubric.json', /"trivial":[\s\S]*"feature":[\s\S]*"architectural":/],
+    ['paths.mjs exposes complexityRubric (ADR-0030)', 'templates/contextkit/runtime/config/paths.mjs', /complexityRubric:/],
+    ['/dev-start right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /complexity-rubric\.mjs classify/],
+    ['/dev-start has a correct-course checkpoint (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /Correct-course checkpoint/],
+    ['/ship right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/ship.md', /complexity-rubric\.mjs classify/],
+    ['/pipeline right-sizes a new task (ADR-0030)', 'templates/claude/commands/pipeline/pipeline.md', /complexity-rubric\.mjs classify/],
+    ['installer seeds the complexity rubric (ADR-0030)', 'install.mjs', /policy\/complexity-rubric\.json/],
+    ['installer seeds review-protocol.md — closes ADR-0029 gap (ADR-0030)', 'install.mjs', /'review-protocol\.md'/],
+    // ADR-0030 — document-quality validation (EVO steps-v adaptation, MIT).
+    ['validate-doc validates ADR sections (ADR-0030)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /function validateAdr/],
+    ['validate-doc flags template placeholders', 'templates/contextkit/tools/scripts/validate-doc.mjs', /PLACEHOLDERS/],
+    ['validate-doc checks consequences own a trade-off', 'templates/contextkit/tools/scripts/validate-doc.mjs', /TRADEOFF_HINTS/],
+    ['validate-doc is advisory — never blocks (rule 8)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /never blocks a push/],
+    ['/validate-doc command briefing ships (ADR-0030)', 'templates/claude/commands/audit/validate-doc.md', /document-quality rubric/],
+    // ADR-0030 — OSS repo-ops (gh-triage / draft-changelog / changelog-social + RCA).
+    ['draft-changelog groups Conventional Commits (ADR-0030)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /const SECTION = \{/],
+    ['draft-changelog times out git calls (rule 2)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /timeout:\s*\d/],
+    ['draft-changelog never writes the file (drafts only)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /never writes/],
+    ['/draft-changelog command briefing ships', 'templates/claude/commands/vcs/draft-changelog.md', /Draft a \[Unreleased\]/i],
+    ['/gh-triage classifies via the complexity rubric (ADR-0030)', 'templates/claude/commands/vcs/gh-triage.md', /complexity-rubric\.mjs classify/],
+    ['/gh-triage degrades cleanly without gh (rule 8)', 'templates/claude/commands/vcs/gh-triage.md', /skip, never fake/],
+    ['/changelog-social drafts only — never posts', 'templates/claude/commands/vcs/changelog-social.md', /never posts/i],
+    ['bug-hunt emits a structured RCA writeup (ADR-0030)', 'templates/claude/commands/bug-hunt.md', /root-cause analysis/i],
+    // ADR-0030 — mid-flight elicitation (advanced-elicitation + correct-course).
+    ['/roadmap new does advanced elicitation (ADR-0030)', 'templates/claude/commands/roadmap.md', /Advanced elicitation/],
+    ['/forge-new does advanced elicitation (ADR-0030)', 'templates/claude/commands/forge/forge-new.md', /Advanced elicitation/],
+    // ADR-0030 follow-up — Diátaxis docs spine + reindex-on-update.
+    ['docs-reindex exports reindexDocs (ADR-0030)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /export function reindexDocs/],
+    ['docs-reindex declares the four Diátaxis buckets', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /BUCKETS\s*=\s*\['tutorials',\s*'how-to',\s*'reference',\s*'explanation'\]/],
+    ['docs-reindex preserves a hand-written index (marker guard)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /INDEX_MARKER/],
+    ['docs-reindex never moves content files (reorganize without losing)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /never move/i],
+    ['installer runs the docs reindex on install/update (ADR-0030)', 'install.mjs', /reindexDocs\(target\)/],
+    ['/docs-reindex command briefing ships (ADR-0030)', 'templates/claude/commands/docs-reindex.md', /Diátaxis/],
+    // ADR-0031 — single quality gate; protected release path.
+    ['package.json defines the unified ci gate (ADR-0031)', 'package.json', /"ci":\s*"npm test &&[^"]*tech-debt-scan\.mjs --ci/],
+    ['package.json prepublishOnly delegates to the ci gate', 'package.json', /"prepublishOnly":\s*"npm run ci"/],
+    ['package.json defines preflight-release (ADR-0031)', 'package.json', /"preflight-release":\s*"npm run ci &&[^"]*preflight-version\.mjs/],
+    ['ci.yml delegates to npm run ci (ADR-0031)', '.github/workflows/ci.yml', /run:\s*npm run ci/],
+    ['release.yml runs the full gate before publish (ADR-0031)', '.github/workflows/release.yml', /run:\s*npm run ci/],
+    ['release.yml publishes with npm provenance (ADR-0031)', '.github/workflows/release.yml', /npm publish --provenance/],
+    ['release.yml grants id-token for provenance (ADR-0031)', '.github/workflows/release.yml', /id-token:\s*write/],
+    ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
+    // ADR-0032 — connect the substrate: classification + closed loops.
+    ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],
+    ['pipeline add auto-classifies via the rubric (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline.mjs', /classifyTask\(title/],
+    ['session-draft drafts the Done section from the ledger (ADR-0032)', 'templates/contextkit/tools/scripts/session-draft.mjs', /export async function draftSession/],
+    ['/log-session pre-fills from session-draft (ADR-0032)', 'templates/claude/commands/log-session.md', /session-draft\.mjs/],
+    ['advise-review computes per-lane hit-rate (ADR-0032)', 'templates/contextkit/tools/scripts/advise-review.mjs', /export function reviewAdvice/],
+    ['/retro consumes advise-review (ADR-0032)', 'templates/claude/commands/pipeline/retro.md', /advise-review\.mjs/],
+    ['/tune-agents consumes advise-review (ADR-0032)', 'templates/claude/commands/tune-agents.md', /advise-review\.mjs/],
+    ['pipeline start enforces the ADR gate (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ADR-0032 gate/],
+    ['check-registration emits a diff-aware signal (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /function diffSignal/],
+    ['check-registration nudge points at the ledger auto-draft (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /session-draft\.mjs/],
+    // ADR-0033 — boot as a budget.
+    ['boot-signals exposes engineUpdateSignal (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function engineUpdateSignal/],
+    ['boot-signals exposes valueLine (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function valueLine/],
+    ['session-start caps the drift banner to 2 freshest (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /drift\.slice\(0, 2\)/],
+    ['session-start renders the engine-update signal (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /engineUpdateSignal\(ROOT\)/],
+    ['session-start renders the weekly value line (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /valueLine\(ROOT\)/],
+    ['defaults expose boot.valueLine (ADR-0033)', 'templates/contextkit/runtime/config/defaults.mjs', /boot:\s*\{\s*valueLine:\s*true\s*\}/],
+    ['installer stamps the engine version (ADR-0033)', 'install.mjs', /'\.engine-version'/],
+    // ADR-0034 — DevPipeline lifecycle automation.
+    ['adr-tasks parses the Decision into backlog tasks (ADR-0034)', 'templates/contextkit/tools/scripts/adr-tasks.mjs', /export function parseAdrTasks/],
+    ['adr-tasks is dry-run by default; --write creates (rule 8)', 'templates/contextkit/tools/scripts/adr-tasks.mjs', /pass --write to create/],
+    ['/new-adr generates the backlog from the decision (ADR-0034)', 'templates/claude/commands/new-adr.md', /adr-tasks\.mjs/],
+    ['track-edits renews per-task heartbeat (ADR-0034)', 'templates/contextkit/runtime/hooks/track-edits.mjs', /claimRecord\.tasks/],
+    ['pipeline-session auto-advances owned working tasks (ADR-0034)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /export function autoAdvanceSessionTasks/],
+    ['auto-advance requires ALL acceptance boxes checked (rule 8)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /allChecked/],
+    ['Stop hook auto-advances session tasks (ADR-0034)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /autoAdvanceSessionTasks/],
+    ['boot-signals exposes openBugsDue (ADR-0034)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function openBugsDue/],
+    ['session-start surfaces open bugs (ADR-0034)', 'templates/contextkit/runtime/hooks/session-start.mjs', /openBugsDue\(ROOT\)/],
+    ['/dev-start auto-starts a referenced task (ADR-0034)', 'templates/claude/commands/pipeline/dev-start.md', /pipeline\.mjs start <id>/],
+];

@@ -38,6 +38,16 @@ You just entered **dev-start** mode with the objective:
    `@privacy-lgpd` + `@security`) and treat the work as architectural. The tier is
    advisory, not a cage — state it and adjust with the user if it misreads.
 
+   **Auto-start a referenced task** [ADR-0034]: if the objective names a backlog
+   task id (e.g. "fix 042" / "ticket 058"), move it into `working/` and attach it
+   to this session so the board tracks it live:
+   ```
+   node contextkit/tools/scripts/pipeline.mjs start <id>
+   ```
+   While you work, the task's heartbeat is renewed on every edit; when you finish,
+   **check off its acceptance criteria** — the Stop hook then auto-concludes it
+   (working → conclusion). No manual `move` needed.
+
 4. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```
    ✅ IN-SCOPE: <what we will touch>

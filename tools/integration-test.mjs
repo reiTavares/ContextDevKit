@@ -233,6 +233,23 @@ try {
   hook('session-start.mjs', {}).includes('ContextDevKit here:')
     ? ok('boot value line surfaces accrued value (ADR-0033)')
     : bad('boot value line not emitted');
+
+  // ADR-0034 — open bugs surface at boot.
+  script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P0', '--title', 'boot bug signal test');
+  hook('session-start.mjs', {}).includes('Open bugs awaiting resolution')
+    ? ok('session-start surfaces open bugs (ADR-0034)')
+    : bad('open-bugs boot signal missing');
+
+  // ADR-0034 — Stop hook auto-concludes a working task whose acceptance criteria are all checked.
+  mkdirSync(join(proj, 'contextkit', 'pipeline', 'working'), { recursive: true });
+  writeFileSync(join(proj, 'contextkit', 'pipeline', 'working', '077-autoadv.md'),
+    '---\nid: 077\ntitle: autoadv\ntype: chore\nstatus: working\n---\n\n## autoadv\n\n**Acceptance criteria:**\n- [x] one\n- [x] two\n');
+  mkdirSync(join(proj, '.claude', '.workspace'), { recursive: true });
+  writeFileSync(join(proj, '.claude', '.workspace', 'autoadv.json'), JSON.stringify({ sessionId: 'autoadv', tasks: [{ id: '077' }], claims: [] }));
+  hook('check-registration.mjs', { session_id: 'autoadv' });
+  existsSync(join(proj, 'contextkit', 'pipeline', 'conclusion', '077-autoadv.md')) && !existsSync(join(proj, 'contextkit', 'pipeline', 'working', '077-autoadv.md'))
+    ? ok('Stop hook auto-concludes a fully-checked task (ADR-0034)')
+    : bad('auto-advance did not conclude the all-checked task');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
