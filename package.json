@@ -1,6 +1,6 @@
 {
   "name": "contextdevkit",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
