@@ -81,6 +81,26 @@ try {
     ? ok('docs-reindex regenerates the index idempotently')
     : bad(`docs-reindex failed: ${dr.stdout || dr.stderr}`);
 
+  // ADR-0032 — pipeline `add` auto-classifies the title (regulated domain → route + architectural tier).
+  const addOut = script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'store user CPF and consent').stdout || '';
+  addOut.includes('privacy-lgpd') && addOut.includes('architectural')
+    ? ok('pipeline add auto-classifies + routes a regulated task (ADR-0032)')
+    : bad(`pipeline add auto-classify failed: ${addOut}`);
+
+  // ADR-0032 — session-draft pre-fills Done from the ledger.
+  hook('track-edits.mjs', { session_id: 'sd', tool_name: 'Write', tool_input: { file_path: 'src/feature/x.js' } });
+  const sd = script('session-draft.mjs', '--json');
+  (() => { try { return JSON.parse(sd.stdout).files.includes('src/feature/x.js'); } catch { return false; } })()
+    ? ok('session-draft drafts the Done section from the ledger (ADR-0032)')
+    : bad(`session-draft failed: ${sd.stdout || sd.stderr}`);
+
+  // ADR-0032 — advise-review tallies advise:<lane> tasks into a per-lane hit-rate.
+  script('pipeline.mjs', 'add', '--type', 'chore', '--source', 'advise:ux', '--title', 'cap the boot drift banner');
+  const ar = script('advise-review.mjs', '--json');
+  (() => { try { const j = JSON.parse(ar.stdout); return j.rows.some((r) => r.lane === 'ux' && r.open >= 1) && typeof j.hitRatePct === 'number'; } catch { return false; } })()
+    ? ok('advise-review computes per-lane advisor hit-rate (ADR-0032)')
+    : bad(`advise-review failed: ${ar.stdout || ar.stderr}`);
+
   // DevPipeline tests live in `integration-test-tooling-pipeline.mjs` (sibling).
 
   // Deep analysis: aggregates the deterministic scanners into one report.

@@ -32,6 +32,7 @@ import {
 } from './ledger.mjs';
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX } from '../config/paths.mjs';
+import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 
 const ROOT = process.cwd();
 const ARCHIVE_DIR = resolve(SESSIONS_DIR, '.archive');
@@ -50,6 +51,24 @@ async function readStdin() {
   });
 }
 
+/**
+ * ADR-0032 — diff-aware escalation. Classifies the touched paths through the
+ * complexity rubric so the nudge can flag architectural/regulated work instead of
+ * treating every drift the same. A bonus hint — wrapped so it NEVER blocks the
+ * nudge (rule 2): any failure degrades to an empty string.
+ */
+function diffSignal(paths) {
+  try {
+    const r = classify(paths.join(' '), loadRubric(ROOT));
+    const bits = [];
+    if (r.needsAdr) bits.push('architectural-tier changes (consider /new-adr)');
+    if (r.requiredAgents.length) bits.push(`regulated domain — loop in ${r.requiredAgents.map((a) => `@${a}`).join(' + ')}`);
+    return bits.length ? `\n⚠️  Diff signal [ADR-0032]: ${bits.join('; ')}.` : '';
+  } catch {
+    return '';
+  }
+}
+
 function buildReason(paths, sessionId) {
   const list = paths.slice(0, 12).map((p) => `  - ${p}`).join('\n');
   const overflow = paths.length > 12 ? `\n  (… and ${paths.length - 12} more)` : '';
@@ -59,9 +78,11 @@ function buildReason(paths, sessionId) {
     '',
     'Modified paths:',
     list + overflow,
+    diffSignal(paths),
     '',
     'Before finalizing, do ONE of the following and then stop again:',
-    '  1. Run /log-session to register this session and update the CHANGELOG.',
+    '  1. Run /log-session — its first step auto-drafts the entry from the ledger',
+    '     (session-draft.mjs), so registering is one confirm, not a blank page.',
     '  2. If this session is intentionally discardable (experiment that will be',
     '     reverted), tell the user and confirm before stopping.',
     '',

@@ -115,6 +115,27 @@ export function classify(input, rubric = DEFAULT_RUBRIC) {
   };
 }
 
+/**
+ * Pipeline convenience (ADR-0032): classify a task title → the frontmatter
+ * `complexity` value (the tier) + a one-line routing hint for the `add` output.
+ * Lets `pipeline.mjs add` auto-classify deterministically instead of relying on
+ * the AI to run the rubric. Never throws (delegates to the never-throw classify).
+ *
+ * @param {string} title task title
+ * @param {string} [root] project root
+ * @returns {{ complexity: string, route: string }}
+ */
+export function classifyTask(title, root = process.cwd()) {
+  const r = classify(title, loadRubric(root));
+  // Map the ceremony tier → the pipeline's t-shirt `complexity` field (S|M|L|XL,
+  // ticket 040) so the schema stays valid; the TIER/ADR/agent signal rides the
+  // returned object (the gate re-derives it; the `add` line surfaces it).
+  const complexity = { trivial: 'S', feature: 'M', architectural: 'L' }[r.tier] || 'M';
+  const adr = r.needsAdr ? ' · ⚠️ architectural → /new-adr first' : '';
+  const agents = r.requiredAgents.length ? ` · route: ${r.requiredAgents.map((a) => `@${a}`).join(' ')}` : '';
+  return { complexity, tier: r.tier, needsAdr: r.needsAdr, requiredAgents: r.requiredAgents, route: `${adr}${agents}` };
+}
+
 /** Human-readable report. */
 function formatHuman(r) {
   const lines = [];
