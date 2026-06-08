@@ -145,4 +145,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Ticket 065 — read-only git diagnostics; fetch gated behind --fetch.
     ['sync-check divergence is read-only by default (ticket 065)', 'templates/contextkit/tools/scripts/sync-check.mjs', /if \(doFetch\) run\('git', \['fetch'/],
     ['git.mjs status only fetches on --fetch (ticket 065)', 'templates/contextkit/tools/scripts/git.mjs', /if \(doFetch\) run\('git', \['fetch'/],
+    // Data-loss guard — the cross-device migration must verify the copy before deleting the source.
+    ['migration verifies a cross-device copy before rm (data-loss guard)', 'tools/install/migrate.mjs', /missingAfterCopy\(from, to\)/],
+    ['migration refuses to delete the source on a partial copy', 'tools/install/migrate.mjs', /copy incomplete/],
 ];
