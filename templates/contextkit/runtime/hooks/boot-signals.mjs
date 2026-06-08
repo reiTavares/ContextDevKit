@@ -8,7 +8,7 @@
  * a signal never blocks a session. Zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
@@ -94,6 +94,73 @@ function sessionCount(root) {
     return readdirSync(pathsFor(root).sessions).filter((f) => f.endsWith('.md')).length;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * ADR-0033 — cross-session engine-update signal. The installer (`--update`) stamps
+ * `contextkit/.engine-version`; this compares it to a hook-side "seen" marker and
+ * announces the bump ONCE on the next session (a SessionStart hook can't detect a
+ * mid-session update, so the honest signal is cross-session). First observation is
+ * set silently to avoid a banner on a fresh install. Returns a line or null.
+ */
+export function engineUpdateSignal(root) {
+  try {
+    const verPath = resolve(pathsFor(root).platform, '.engine-version');
+    if (!existsSync(verPath)) return null;
+    const current = readFileSync(verPath, 'utf-8').trim();
+    if (!current) return null;
+    const seenPath = resolve(pathsFor(root).ledgerDir, '.engine-seen');
+    let seen = '';
+    try {
+      seen = readFileSync(seenPath, 'utf-8').trim();
+    } catch {
+      /* never seen */
+    }
+    if (seen === current) return null;
+    try {
+      writeFileSync(seenPath, current);
+    } catch {
+      return null; // can't persist → don't risk re-announcing every boot
+    }
+    return seen ? `🔄 ContextDevKit engine updated to **v${current}** since your last session — new commands/hooks are active (restart Claude Code if a command seems missing).` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ADR-0033 — weekly local value line (config-gated via `boot.valueLine`, default on;
+ * local-only, no PII). Reflects the kit's accrued value back so the dev can see it.
+ * Debounced to once per 7 days via a marker in the ledger dir. Returns a line or null.
+ */
+export function valueLine(root) {
+  try {
+    if (loadConfigSync(root)?.boot?.valueLine === false) return null;
+    const markerPath = resolve(pathsFor(root).ledgerDir, '.value-nudge');
+    let last = 0;
+    try {
+      last = Number.parseInt(readFileSync(markerPath, 'utf-8').trim(), 10) || 0;
+    } catch {
+      /* no prior */
+    }
+    if (Date.now() - last < 7 * 24 * 60 * 60 * 1000) return null;
+    const sessions = sessionCount(root);
+    let adrs = 0;
+    try {
+      adrs = readdirSync(pathsFor(root).decisions).filter((f) => /^\d{4}-.+\.md$/.test(f) && f !== '0000-record-architecture-decisions.md').length;
+    } catch {
+      /* no decisions dir */
+    }
+    if (sessions === 0 && adrs === 0) return null;
+    try {
+      writeFileSync(markerPath, String(Date.now()));
+    } catch {
+      return null;
+    }
+    return `📈 ContextDevKit here: **${sessions}** session(s) logged · **${adrs}** ADR(s) recorded — the kit is keeping this project's memory.`;
+  } catch {
+    return null;
   }
 }
 

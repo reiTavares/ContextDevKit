@@ -24,11 +24,13 @@ import {
 import {
   activeBranches,
   checkGitDivergence,
+  engineUpdateSignal,
   getBranch,
   isGreenfield,
   predictionsReviewDue,
   projectName,
   securityModeDue,
+  valueLine,
 } from './boot-signals.mjs';
 import {
   freshLedger,
@@ -82,8 +84,10 @@ async function analyzePriorLedgers(currentSessionId) {
       if (!maybeLive) await rm(ledgerPathFor(sessionId), { force: true }).catch(() => {});
       continue;
     }
-    drift.push({ sessionId, paths: pending });
+    drift.push({ sessionId, paths: pending, at: lastActivityAt(ledger) });
   }
+  // ADR-0033 — freshest first, so the cap keeps what matters.
+  drift.sort((a, b) => b.at - a.at);
   return drift;
 }
 
@@ -112,8 +116,10 @@ async function main() {
   const divergence = checkGitDivergence(ROOT);
   const secDue = securityModeDue(ROOT);
   const predDue = predictionsReviewDue(ROOT);
+  const engineSignal = engineUpdateSignal(ROOT);
+  const value = valueLine(ROOT);
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -121,6 +127,11 @@ async function main() {
   out.push('');
   out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · ContextDevKit level: \`L${level}\``);
   out.push('');
+
+  if (engineSignal) {
+    out.push(engineSignal);
+    out.push('');
+  }
 
   if (needsSetup) {
     const empty = isGreenfield(ROOT);
@@ -184,10 +195,16 @@ async function main() {
   if (drift.length > 0) {
     out.push('## 🚨 Drift from previous session(s)');
     out.push('');
-    for (const d of drift) {
+    // ADR-0033 — cap to the 2 freshest; collapse the rest so a few abandoned
+    // ledgers don't bury the rest of the boot context.
+    for (const d of drift.slice(0, 2)) {
       out.push(`Session \`${d.sessionId.slice(0, 8)}\` ended without \`/log-session\` and left ${d.paths.length} important file(s) modified:`);
-      for (const p of d.paths.slice(0, 8)) out.push(`  - ${p}`);
-      if (d.paths.length > 8) out.push(`  (… and ${d.paths.length - 8} more)`);
+      for (const p of d.paths.slice(0, 6)) out.push(`  - ${p}`);
+      if (d.paths.length > 6) out.push(`  (… and ${d.paths.length - 6} more)`);
+      out.push('');
+    }
+    if (drift.length > 2) {
+      out.push(`_+ ${drift.length - 2} older unregistered session(s) — \`/log-session\` to reconcile, or leave them if abandoned._`);
       out.push('');
     }
     out.push('If those changes still matter, **offer to retroactively register them** before new work.');
@@ -227,6 +244,11 @@ async function main() {
       out.push(unreleased);
       out.push('');
     }
+  }
+
+  if (value) {
+    out.push(value);
+    out.push('');
   }
 
   out.push('## ⚠️ Process rules');

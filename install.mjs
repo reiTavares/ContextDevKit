@@ -142,6 +142,9 @@ async function main() {
   // 2. Engine: always overwrite (kit code; updates should propagate).
   await copyTree(join(TPL, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
   await copyTree(join(TPL, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
+  // Stamp the installed engine version (ADR-0033) — SessionStart compares it to a
+  // per-session "seen" marker and announces an update on the next session.
+  await overwrite(join(target, 'contextkit', '.engine-version'), `${await kitVersion()}\n`);
   report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
 
   // 3. Slash commands: always overwrite.

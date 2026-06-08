@@ -9,7 +9,7 @@
  *
  * Run:  node tools/integration-test.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { KIT, run, readJson, reporter, installFixture } from './it-helpers.mjs';
 
@@ -219,6 +219,20 @@ try {
   const rm = script('roadmap.mjs', 'find', '--json');
   (() => { try { return JSON.parse(rm.stdout).canonicalDefined === false; } catch { return false; } })()
     ? ok('roadmap find reports undefined (seed placeholder)') : bad(`roadmap find failed: ${rm.stderr || rm.stdout}`);
+
+  // ADR-0033 — engine-update signal: a changed .engine-version is announced once on the next boot.
+  hook('session-start.mjs', {}); // establish the "seen" marker for the current version
+  writeFileSync(join(proj, 'contextkit', '.engine-version'), '9.9.9\n');
+  hook('session-start.mjs', {}).includes('engine updated to **v9.9.9**')
+    ? ok('session-start announces an engine update across sessions (ADR-0033)')
+    : bad('engine-update signal not emitted');
+
+  // ADR-0033 — weekly value line surfaces sessions + ADRs (local-only, no PII).
+  writeFileSync(join(proj, 'contextkit', 'memory', 'decisions', '0099-x.md'), '# x\n');
+  rmSync(join(proj, '.claude', '.sessions', '.value-nudge'), { force: true });
+  hook('session-start.mjs', {}).includes('ContextDevKit here:')
+    ? ok('boot value line surfaces accrued value (ADR-0033)')
+    : bad('boot value line not emitted');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
