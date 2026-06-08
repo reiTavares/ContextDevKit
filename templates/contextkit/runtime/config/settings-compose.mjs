@@ -10,7 +10,7 @@
  *   1  SessionStart
  *   2  + PostToolUse (Edit|Write|MultiEdit), Stop
  *   3  + PreToolUse  (concurrency-guard) — and git hooks (installed separately)
- *   5  + PreToolUse  (simulate-gate)
+ *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
  * (Level 4 adds agents — not Claude hooks.)
  *
  * @param {Record<string, any> | null} existing parsed settings.json (or null)
@@ -48,7 +48,10 @@ export function composeSettings(existing, level) {
     add('Stop', null, 'check-registration.mjs');
   }
   if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
-  if (level >= 5) add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
+  if (level >= 5) {
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs'); // ADR-0035 — soft nudge, never blocks
+  }
 
   settings.hooks = hooks;
   return settings;

@@ -32,6 +32,10 @@ function main() {
     safeRun('node contextkit/tools/scripts/session-reindex.mjs');
     safeRun('git add contextkit/memory/SESSIONS.md');
   }
+  if (existsSync(P.deliberations)) {
+    safeRun('node contextkit/tools/scripts/deliberations-reindex.mjs');
+    safeRun('git add contextkit/memory/DELIBERATIONS.md');
+  }
   if (existsSync(resolve(ROOT, '.claude/.workspace'))) {
     safeRun('node contextkit/tools/scripts/workspace-sync.mjs');
     safeRun('git add contextkit/memory/WORKSPACE.md');

@@ -88,4 +88,26 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Ticket 062 — media providers send the API key in a header, never the URL query.
     ['nano-banana sends the key in x-goog-api-key header (ticket 062)', 'templates/contextkit/runtime/providers/media/nano-banana.mjs', /'x-goog-api-key'/],
     ['veo sends the key in x-goog-api-key header (ticket 062)', 'templates/contextkit/runtime/providers/media/veo.mjs', /'x-goog-api-key'/],
+    // ADR-0035 — Deliberations: multi-agent debate artifact feeding ADRs.
+    ['defaults expose the deliberations toggle (ADR-0035)', 'templates/contextkit/runtime/config/defaults.mjs', /deliberations:\s*\{\s*active:\s*true,\s*voices:\s*3,\s*minLevel:\s*5/],
+    ['config schema models deliberations (ADR-0035)', 'templates/contextkit/runtime/config/schema.mjs', /deliberations:\s*DeliberationsSchema/],
+    ['schema bounds the voice count (ADR-0035)', 'templates/contextkit/runtime/config/schema.mjs', /voices:\s*z\.number\(\)\.int\(\)\.min\(2\)\.max\(5\)/],
+    ['paths.mjs exposes deliberations + index (ADR-0035, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /deliberationsIndex:\s*at\(DELIBERATIONS_INDEX\)/],
+    ['deliberations-reindex derives the index from filesystem state (ADR-0035)', 'templates/contextkit/tools/scripts/deliberations-reindex.mjs', /Deliberation History/],
+    ['deliberations-reindex surfaces the unresolved status (ADR-0035)', 'templates/contextkit/tools/scripts/deliberations-reindex.mjs', /unresolved/],
+    ['pre-commit reindexes deliberations when present (ADR-0035)', 'templates/contextkit/runtime/git-hooks/pre-commit.mjs', /deliberations-reindex\.mjs/],
+    ['installer seeds the deliberations template (ADR-0035)', 'install.mjs', /memory\/deliberations\/_TEMPLATE\.md/],
+    ['installer ensures the deliberations dir (ADR-0035)', 'install.mjs', /'memory',\s*'deliberations'/],
+    ['/debate dispatches GENUINELY INDEPENDENT voices (ADR-0035)', 'templates/claude/commands/debate.md', /blind to the others/],
+    ['/debate keeps unresolved a first-class outcome (ADR-0035)', 'templates/claude/commands/debate.md', /VALID outcome, not a failure/],
+    ['/debate is dry-run ADR by default; --approve applies (rule 8)', 'templates/claude/commands/debate.md', /--approve/],
+    // ADR-0035 (task 080) — high-risk-path nudge hook: the deterministic second trigger.
+    ['deliberation-nudge emits a banner, never a block decision (rule 2)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /<deliberation-nudge>/],
+    ['deliberation-nudge documents it never blocks (rule 2)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /NEVER blocks/],
+    ['deliberation-nudge gates on level >= minLevel (ADR-0035)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /getLevel\(ROOT\) < minLevel/],
+    ['deliberation-nudge honors the active + nudgeOnHighRisk toggles', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /nudgeOnHighRisk === false/],
+    ['deliberation-nudge single-sources the path set from l5.highRiskPaths', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /l5\?\.highRiskPaths/],
+    ['deliberation-nudge debounces once per session (ADR-0035)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /deliberation-nudged/],
+    ['deliberation-nudge sanitizes the session id (path safety)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /sanitizeSid/],
+    ['settings wire the deliberation nudge at L5 (ADR-0035)', 'templates/contextkit/runtime/config/settings-compose.mjs', /deliberation-nudge\.mjs/],
 ];

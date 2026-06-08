@@ -156,6 +156,20 @@ export const DEFAULT_CONFIG = Object.freeze({
   predictionsReview: { active: true, everyNSessions: 10 },
 
   /**
+   * Deliberations (L5+, ADR-0035) — multi-agent debate artifact that feeds ADRs.
+   * `/debate <question>` fans out to genuinely independent voices, a separate
+   * synthesizer converges (or records an explicit `unresolved`), and the result
+   * lands in `contextkit/memory/deliberations/`, optionally pre-filling a `/new-adr`.
+   *   - `active`: master switch — when false, the command and nudge stay silent.
+   *   - `voices`: default count of independent positions (the synthesizer is extra).
+   *   - `minLevel`: the nudge hook is inert below this level (born active at L5).
+   *   - `nudgeOnHighRisk`: when true, editing an `l5.highRiskPaths` target suggests
+   *     `/debate` first (a soft nudge — it NEVER blocks the edit; rule 2). The path
+   *     set is single-sourced from `l5.highRiskPaths`, not duplicated here.
+   */
+  deliberations: { active: true, voices: 3, minLevel: 5, nudgeOnHighRisk: true },
+
+  /**
    * Proactive Advisor (L6, ADR-0028) — the six-lane improvement engine. When
    * `active`, `/advise` fans out to the owning agent per lane and emits ONE
    * classified digest (`--before` = opportunities/risks, `--after` = improvements)

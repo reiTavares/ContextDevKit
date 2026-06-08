@@ -163,7 +163,7 @@ async function main() {
 
   // 5. Memory seeds: write only if missing. `.env.example` is seeded here so the
   //    user's edits survive re-install (ADR-0024 — media-gen credentials template).
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example']) {
+  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example']) {
     const src = join(TPL, 'contextkit', rel);
     if (!existsSync(src)) continue;
     const wrote = await writeIfMissing(join(target, 'contextkit', rel), await read(src), args.force);
@@ -174,6 +174,7 @@ async function main() {
   await ensureDir(join(target, 'contextkit', 'memory', 'decisions'));
   await ensureDir(join(target, 'contextkit', 'memory', 'business-rules'));
   await ensureDir(join(target, 'contextkit', 'memory', 'predictions'));
+  await ensureDir(join(target, 'contextkit', 'memory', 'deliberations'));
   // DevPipeline scaffolding (write-if-missing so existing tasks survive re-install).
   const pipeCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
   if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);

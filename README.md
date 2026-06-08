@@ -205,7 +205,7 @@ exactly the same as a flat layout.
 
 **Setup:** `/aidevtool-from0` (empty project) · `/setupcontextdevkit` (existing project)
 
-**Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/close-version`
+**Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/debate` · `/close-version`
 · `/context-refresh` · `/bug-hunt` · `/dashboard` · `/watch` · `/landing-page`
 · `/media-gen` · `/playbook` · `/predictions-review` · `/squad` · `/token-report`
 · `/tune-agents` · `/context-stats` · `/fleet` · `/distill-sessions` · `/distill-apply`
