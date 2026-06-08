@@ -132,14 +132,18 @@ async function listMdFiles(absDir) {
  * (`templates/contextkit/*.md`) plus the whole `docs/` tree for relative markdown
  * links to other `.md` files and asserts each target exists, so deleted/renamed
  * docs (the rot the `review-protocol.md` seed gap caused) fail the build. Links
- * resolve relative to the SOURCE file's directory. `CHANGELOG.md` is the dogfood
- * artifact (gitignored, local-only) — skipped as both source and target so a local
- * run matches CI (where it isn't checked out).
+ * resolve relative to the SOURCE file's directory.
+ *
+ * Gitignored dogfood artifacts are NOT in the repo (CI never checks them out), so a
+ * link into them resolves locally but not in CI — skip them so local matches CI:
+ * `CHANGELOG.md`, and any target under the ROOT `contextkit/` (the self-install).
+ * The tracked SOURCE tree `templates/contextkit/` is deliberately NOT skipped.
  */
 async function checkDocLinks(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking cross-doc markdown links resolve (ADR-0030)...');
   const linkRe = /\[[^\]]*\]\(([^)]+)\)/g;
+  const dogfoodDir = resolve(KIT, 'contextkit');
   const files = [...(await topLevelMd(resolve(KIT, 'templates/contextkit'))), ...(await listMdFiles(resolve(KIT, 'docs')))];
   const offenders = [];
   let checked = 0;
@@ -152,8 +156,11 @@ async function checkDocLinks(rep, KIT) {
       if (!target || target.startsWith('http') || target.startsWith('#') || target.startsWith('<') || target.startsWith('mailto')) continue;
       target = target.split('#')[0]; // strip an anchor
       if (!target.endsWith('.md') || target.endsWith('CHANGELOG.md')) continue;
+      const abs = resolve(dirname(file), target);
+      const fromDogfood = relative(dogfoodDir, abs); // '' or no leading '..' ⇒ inside the gitignored install
+      if (fromDogfood === '' || !fromDogfood.startsWith('..')) continue;
       checked += 1;
-      if (!existsSync(resolve(dirname(file), target))) offenders.push(`${relative(KIT, file).replaceAll('\\', '/')} → ${target}`);
+      if (!existsSync(abs)) offenders.push(`${relative(KIT, file).replaceAll('\\', '/')} → ${target}`);
     }
   }
   offenders.length === 0
