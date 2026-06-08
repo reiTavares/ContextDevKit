@@ -269,4 +269,13 @@ export const SOURCE_INVARIANT_CASES = [
     ['docs-reindex never moves content files (reorganize without losing)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /never move/i],
     ['installer runs the docs reindex on install/update (ADR-0030)', 'install.mjs', /reindexDocs\(target\)/],
     ['/docs-reindex command briefing ships (ADR-0030)', 'templates/claude/commands/docs-reindex.md', /Diátaxis/],
+    // ADR-0031 — single quality gate; protected release path.
+    ['package.json defines the unified ci gate (ADR-0031)', 'package.json', /"ci":\s*"npm test &&[^"]*tech-debt-scan\.mjs --ci/],
+    ['package.json prepublishOnly delegates to the ci gate', 'package.json', /"prepublishOnly":\s*"npm run ci"/],
+    ['package.json defines preflight-release (ADR-0031)', 'package.json', /"preflight-release":\s*"npm run ci &&[^"]*preflight-version\.mjs/],
+    ['ci.yml delegates to npm run ci (ADR-0031)', '.github/workflows/ci.yml', /run:\s*npm run ci/],
+    ['release.yml runs the full gate before publish (ADR-0031)', '.github/workflows/release.yml', /run:\s*npm run ci/],
+    ['release.yml publishes with npm provenance (ADR-0031)', '.github/workflows/release.yml', /npm publish --provenance/],
+    ['release.yml grants id-token for provenance (ADR-0031)', '.github/workflows/release.yml', /id-token:\s*write/],
+    ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
 ];

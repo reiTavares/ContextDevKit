@@ -168,10 +168,31 @@ async function checkDocLinks(rep, KIT) {
     : offenders.forEach((o) => bad(`dangling doc link: ${o}`));
 }
 
+/**
+ * ADR-0031 — enforce the zero-runtime-dependency invariant (rule 1) as a TEST, not
+ * a promise: `package.json` must declare no `dependencies`. `zod` is optional and
+ * lives behind a dynamic import / optionalDependencies, never a hard runtime dep.
+ */
+async function checkZeroRuntimeDeps(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking the zero-runtime-dependency invariant (rule 1)...');
+  let pkg = {};
+  try {
+    pkg = JSON.parse(await readFile(resolve(KIT, 'package.json'), 'utf-8'));
+  } catch {
+    /* unreadable — handled below */
+  }
+  const deps = Object.keys(pkg.dependencies || {});
+  deps.length === 0
+    ? ok('package.json declares zero runtime dependencies (rule 1)')
+    : bad(`runtime dependencies present (rule 1 violated): ${deps.join(', ')}`);
+}
+
 /** Runs every source/structural check in order. `ctx` = { KIT }. */
 export async function runSourceChecks(rep, { KIT }) {
   await checkSourceInvariants(rep, KIT);
   await checkNoHardcodedPaths(rep, KIT);
   await checkWorkflowsPinned(rep, KIT);
   await checkDocLinks(rep, KIT);
+  await checkZeroRuntimeDeps(rep, KIT);
 }

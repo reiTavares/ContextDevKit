@@ -26,14 +26,12 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Self-check (static engine smoke test)
-        run: node tools/selfcheck.mjs
-
-      - name: Integration test (real hooks, end-to-end)
-        run: node tools/integration-test.mjs
-
-      - name: Tech-debt gate (kit must pass its own constitution — no RED zone)
-        run: node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci
+      # One gate set, defined once in package.json, shared by ci + release +
+      # prepublishOnly so the three can never drift apart [ADR-0031]. `npm run ci`
+      # = the full suite (selfcheck incl. doc-link + all integration tests) + the
+      # tech-debt RED-zone gate.
+      - name: CI gate (npm run ci)
+        run: npm run ci
 
       - name: Installer dry sanity (greenfield install)
         run: |
