@@ -20,7 +20,7 @@
  */
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { SOURCE_INVARIANT_CASES } from './selfcheck-source-cases.mjs';
 
 const srcTextFor = (KIT) => (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
@@ -97,37 +97,63 @@ async function checkWorkflowsPinned(rep, KIT) {
     ? ok('ci.yml declares least-privilege permissions (contents: read)') : bad('ci.yml missing contents:read permissions');
 }
 
+/** Top-level `.md` files of a dir (non-recursive). */
+async function topLevelMd(absDir) {
+  const out = [];
+  let entries = [];
+  try {
+    entries = await readdir(absDir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) if (e.isFile() && e.name.endsWith('.md')) out.push(resolve(absDir, e.name));
+  return out;
+}
+
+/** All `.md` under a dir, recursively. */
+async function listMdFiles(absDir) {
+  const out = [];
+  let entries = [];
+  try {
+    entries = await readdir(absDir, { withFileTypes: true });
+  } catch {
+    return out;
+  }
+  for (const e of entries) {
+    const p = resolve(absDir, e.name);
+    if (e.isDirectory()) out.push(...(await listMdFiles(p)));
+    else if (e.name.endsWith('.md')) out.push(p);
+  }
+  return out;
+}
+
 /**
- * ADR-0030 — cross-doc link integrity. Scans the seeded top-level engine docs for
- * relative markdown links to other `.md` files and asserts each target exists, so a
- * deleted/renamed doc (the kind of rot the `review-protocol.md` seed gap caused)
- * fails the build instead of shipping a dangling link. Scoped to the controlled set
- * `templates/contextkit/*.md`; widening to `docs/` is an ADR-0030 follow-up.
+ * ADR-0030 — cross-doc link integrity. Scans the seeded engine docs
+ * (`templates/contextkit/*.md`) plus the whole `docs/` tree for relative markdown
+ * links to other `.md` files and asserts each target exists, so deleted/renamed
+ * docs (the rot the `review-protocol.md` seed gap caused) fail the build. Links
+ * resolve relative to the SOURCE file's directory. `CHANGELOG.md` is the dogfood
+ * artifact (gitignored, local-only) — skipped as both source and target so a local
+ * run matches CI (where it isn't checked out).
  */
 async function checkDocLinks(rep, KIT) {
   const { ok, bad } = rep;
   console.log('Checking cross-doc markdown links resolve (ADR-0030)...');
-  const dir = resolve(KIT, 'templates/contextkit');
   const linkRe = /\[[^\]]*\]\(([^)]+)\)/g;
+  const files = [...(await topLevelMd(resolve(KIT, 'templates/contextkit'))), ...(await listMdFiles(resolve(KIT, 'docs')))];
   const offenders = [];
   let checked = 0;
-  let entries = [];
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    /* no dir — nothing to check */
-  }
-  for (const e of entries) {
-    if (!e.isFile() || !e.name.endsWith('.md')) continue;
-    const text = await readFile(resolve(dir, e.name), 'utf-8').catch(() => '');
+  for (const file of files) {
+    if (file.endsWith('CHANGELOG.md')) continue;
+    const text = await readFile(file, 'utf-8').catch(() => '');
     let m;
     while ((m = linkRe.exec(text))) {
       let target = m[1].trim().split(/\s+/)[0]; // drop an optional "title"
-      if (!target || target.startsWith('http') || target.startsWith('#') || target.startsWith('<')) continue;
+      if (!target || target.startsWith('http') || target.startsWith('#') || target.startsWith('<') || target.startsWith('mailto')) continue;
       target = target.split('#')[0]; // strip an anchor
-      if (!target.endsWith('.md')) continue;
+      if (!target.endsWith('.md') || target.endsWith('CHANGELOG.md')) continue;
       checked += 1;
-      if (!existsSync(resolve(dir, target))) offenders.push(`${e.name} → ${target}`);
+      if (!existsSync(resolve(dirname(file), target))) offenders.push(`${relative(KIT, file).replaceAll('\\', '/')} → ${target}`);
     }
   }
   offenders.length === 0

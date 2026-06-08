@@ -262,4 +262,11 @@ export const SOURCE_INVARIANT_CASES = [
     // ADR-0030 — mid-flight elicitation (advanced-elicitation + correct-course).
     ['/roadmap new does advanced elicitation (ADR-0030)', 'templates/claude/commands/roadmap.md', /Advanced elicitation/],
     ['/forge-new does advanced elicitation (ADR-0030)', 'templates/claude/commands/forge/forge-new.md', /Advanced elicitation/],
+    // ADR-0030 follow-up — Diátaxis docs spine + reindex-on-update.
+    ['docs-reindex exports reindexDocs (ADR-0030)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /export function reindexDocs/],
+    ['docs-reindex declares the four Diátaxis buckets', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /BUCKETS\s*=\s*\['tutorials',\s*'how-to',\s*'reference',\s*'explanation'\]/],
+    ['docs-reindex preserves a hand-written index (marker guard)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /INDEX_MARKER/],
+    ['docs-reindex never moves content files (reorganize without losing)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /never move/i],
+    ['installer runs the docs reindex on install/update (ADR-0030)', 'install.mjs', /reindexDocs\(target\)/],
+    ['/docs-reindex command briefing ships (ADR-0030)', 'templates/claude/commands/docs-reindex.md', /Diátaxis/],
 ];

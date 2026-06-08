@@ -31,6 +31,7 @@ import { installGitHooks, patchGitignore, patchGitattributes } from './tools/ins
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
+import { reindexDocs } from './templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -239,6 +240,18 @@ async function main() {
     const clTpl = await read(join(TPL, 'docs', 'CHANGELOG.md.tpl'));
     await overwrite(changelogPath, render(clTpl, { PROJECT_NAME: name, DATE: new Date().toISOString().slice(0, 10) }));
     report.push('✓ docs/CHANGELOG.md created');
+  }
+
+  // 8b. Diátaxis docs spine (ADR-0030): ensure the four buckets + regenerate the
+  //     navigation index. Idempotent and non-destructive — it never moves/deletes a
+  //     content file and never clobbers a hand-written index. Runs on --update too,
+  //     so the docs stay organized as they grow. Defensive: never breaks an install.
+  try {
+    const docs = reindexDocs(target);
+    if (docs.seeded.length) report.push(`✓ seeded Diátaxis docs spine (${docs.seeded.length} bucket README(s))`);
+    if (docs.indexWritten) report.push(`✓ regenerated docs/README.md (Diátaxis index — ${docs.indexed} doc(s))`);
+  } catch (err) {
+    report.push(`ℹ️  docs reindex skipped: ${err?.message ?? err}`);
   }
 
   // 9. .gitignore + .gitattributes + GitHub templates + git hooks.
