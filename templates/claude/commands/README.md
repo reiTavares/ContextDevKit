@@ -14,7 +14,7 @@ templates/claude/commands/
 │
 │   Daily commands at the root — discovered first when you type `/`
 ├── state.md, log-session.md, new-adr.md, bug-hunt.md
-├── roadmap.md, close-version.md, context-refresh.md
+├── roadmap.md, close-version.md, context-refresh.md, docs-reindex.md
 ├── claude-md.md, distill-apply.md, distill-sessions.md
 ├── fleet.md, playbook.md, predictions-review.md, simulate-impact.md
 ├── squad.md, token-report.md, tune-agents.md, context-stats.md

@@ -126,8 +126,8 @@ execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/context-stats`
 · `/distill-sessions` · `/distill-apply`.
 Structure & platform: `/squad` (squads) · `/git` (version control + remote)
 · `/draft-changelog` · `/gh-triage` · `/changelog-social` (OSS repo-ops)
-· `/claude-md` (scoped CLAUDE.md per module) · `/context-level` · `/context-config`
-· `/context-doctor`.
+· `/claude-md` (scoped CLAUDE.md per module) · `/docs-reindex` (Diátaxis docs spine)
+· `/context-level` · `/context-config` · `/context-doctor`.
 
 ---
 

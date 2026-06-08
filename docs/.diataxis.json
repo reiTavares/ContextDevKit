@@ -1,0 +1,11 @@
+{
+  "_note": "Diátaxis classification for docs-reindex.mjs (ADR-0030). Maps each doc (path relative to docs/) to a mode: tutorials | how-to | reference | explanation. ROADMAP.md + CHANGELOG.md are auto-listed under Planning & meta. Edit + run /docs-reindex to regenerate docs/README.md.",
+  "CUSTOMIZING.md": "how-to",
+  "LEVELS.md": "reference",
+  "AGENT-PACKAGE-FORMAT.md": "reference",
+  "SQUAD-PIPELINE-FORMAT.md": "reference",
+  "SQUADS/agent-forge.md": "reference",
+  "SQUADS/design-team.md": "reference",
+  "ARCHITECTURE.md": "explanation",
+  "token-economy-plan.md": "explanation"
+}

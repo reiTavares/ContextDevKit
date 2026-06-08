@@ -56,7 +56,7 @@ Read `/context-stats` for the aggregate Forge Stats section.
 - **Status map** — [`ROADMAP.md`](../../templates/contextkit/squads/agent-forge/ROADMAP.md) (the section-by-section blueprint coverage)
 - **Best-practices bar** — [`best-practices.md`](../../templates/contextkit/squads/agent-forge/best-practices.md)
 - **APF v1 template** — [`templates/contextkit/squads/agent-forge/templates/agent-package/`](../../templates/contextkit/squads/agent-forge/templates/agent-package/) (45 files)
-- **APF format reference** — [`docs/AGENT-PACKAGE-FORMAT.md`](AGENT-PACKAGE-FORMAT.md)
+- **APF format reference** — [`docs/AGENT-PACKAGE-FORMAT.md`](../AGENT-PACKAGE-FORMAT.md)
 
 ## Boundary
 

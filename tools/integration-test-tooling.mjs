@@ -72,6 +72,15 @@ try {
     ? ok('draft-changelog groups Conventional Commits into Keep-a-Changelog sections')
     : bad(`draft-changelog failed: ${dc.stdout || dc.stderr}`);
 
+  // ADR-0030 follow-up — installer scaffolds the Diátaxis docs spine; reindex is idempotent.
+  existsSync(join(proj, 'docs', 'README.md')) && existsSync(join(proj, 'docs', 'reference', 'README.md'))
+    ? ok('installer scaffolds the Diátaxis docs spine (buckets + index)')
+    : bad('Diátaxis docs spine not scaffolded by installer');
+  const dr = script('docs-reindex.mjs', '--json');
+  (() => { try { const j = JSON.parse(dr.stdout); return j.ok === true && typeof j.buckets?.reference === 'number' && j.indexWritten === true; } catch { return false; } })()
+    ? ok('docs-reindex regenerates the index idempotently')
+    : bad(`docs-reindex failed: ${dr.stdout || dr.stderr}`);
+
   // DevPipeline tests live in `integration-test-tooling-pipeline.mjs` (sibling).
 
   // Deep analysis: aggregates the deterministic scanners into one report.
