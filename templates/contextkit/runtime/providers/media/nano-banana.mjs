@@ -30,6 +30,11 @@ const DEFAULT_MODEL = 'imagen-3.0-generate-002';
 const COST_ESTIMATE_USD = 0.04;
 const ENDPOINT = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict`;
 
+/** Estimated USD cost of one generation — used by the media cache to report savings on a hit. */
+export function estimateCostUsd() {
+  return COST_ESTIMATE_USD;
+}
+
 /**
  * Generate an image and write it to disk.
  *

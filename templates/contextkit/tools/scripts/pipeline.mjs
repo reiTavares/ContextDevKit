@@ -5,7 +5,7 @@
  * scoring in pipeline-prioritize.mjs, session-coupled start/stop in
  * pipeline-session.mjs, schema-v2 validators in pipeline-validate.mjs.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
@@ -13,6 +13,7 @@ import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 import { parseInlineArray, runValidate } from './pipeline-validate.mjs';
+import { listTasks } from './pipeline-tasks.mjs';
 import { classifyTask } from './complexity-rubric.mjs';
 
 const ROOT = process.cwd();
@@ -28,36 +29,11 @@ function ensureDirs() {
   for (const s of Object.keys(STAGES)) mkdirSync(resolve(PIPE, s), { recursive: true });
 }
 
-function parseFrontmatter(text) {
-  const m = text.match(/^---\n([\s\S]*?)\n---/);
-  const fm = {};
-  if (m) for (const line of m[1].split('\n')) {
-    const i = line.indexOf(':');
-    if (i > 0) fm[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-  }
-  return fm;
-}
-
-function listTasks() {
-  ensureDirs();
-  const tasks = [];
-  for (const stage of Object.keys(STAGES)) {
-    let files = [];
-    try {
-      files = readdirSync(resolve(PIPE, stage)).filter((f) => f.endsWith('.md'));
-    } catch {
-      /* none */
-    }
-    for (const f of files) {
-      const fm = parseFrontmatter(readFileSync(resolve(PIPE, stage, f), 'utf-8'));
-      tasks.push({ stage, file: f, id: fm.id || f.split('-')[0], title: fm.title || f, type: fm.type || 'task', priority: fm.priority || 'P2', severity: fm.severity || '', wsjf: fm.wsjf || '', bugType: fm.bugType || '', sla: fm.sla || '', roadmap: fm.roadmap || '', source: fm.source || '', created: fm.created || '', complexity: fm.complexity || '', dependencies: parseInlineArray(fm.dependencies) });
-    }
-  }
-  return tasks.sort((a, b) => (a.priority + a.id).localeCompare(b.priority + b.id));
-}
+/** Read-only task listing — delegated to the shared task-I/O module. */
+const tasks = () => listTasks(PIPE);
 
 function nextId() {
-  const ids = listTasks().map((t) => parseInt(t.id, 10)).filter((n) => !Number.isNaN(n));
+  const ids = tasks().map((t) => parseInt(t.id, 10)).filter((n) => !Number.isNaN(n));
   return String((ids.length ? Math.max(...ids) : 0) + 1).padStart(3, '0');
 }
 
@@ -106,7 +82,7 @@ function writeTask({ type = 'task', priority = 'P2', title, sla = '', roadmap = 
   // the id already taken) and retries with the next id — two tasks never share one.
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const id = nextId();
-    if (listTasks().some((t) => t.id === id)) continue;
+    if (tasks().some((t) => t.id === id)) continue;
     try {
       writeFileSync(resolve(PIPE, 'backlog', `${id}-${slug(title)}.md`), buildBody(id), { encoding: 'utf-8', flag: 'wx' });
       return id;
@@ -166,7 +142,7 @@ function ingest() {
   }
   const findings = Array.isArray(data) ? data : data.findings || [];
   const type = getArg('type') || 'chore';
-  const taken = new Set(listTasks().filter((t) => t.stage !== 'conclusion').map((t) => t.source).filter(Boolean));
+  const taken = new Set(tasks().filter((t) => t.stage !== 'conclusion').map((t) => t.source).filter(Boolean));
   let added = 0;
   let skipped = 0;
   for (const f of findings) {
@@ -194,7 +170,7 @@ function prioritize() {
     console.error('Usage: pipeline.mjs prioritize <id> <P0|P1|P2|P3>');
     process.exit(1);
   }
-  const task = listTasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
+  const task = tasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
   if (!task) {
     console.error(`No task with id ${id}.`);
     process.exit(1);
@@ -213,7 +189,7 @@ function setWsjf() {
     console.error('Usage: pipeline.mjs wsjf <id> <userValue> <timeCriticality> <riskReduction> <jobSize>  (each 1-10)');
     process.exit(1);
   }
-  const task = listTasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
+  const task = tasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
   if (!task) {
     console.error(`No task with id ${id}.`);
     process.exit(1);
@@ -237,7 +213,7 @@ function move() {
     console.error('Usage: pipeline.mjs move <id> <backlog|working|testing|conclusion>');
     process.exit(1);
   }
-  const task = listTasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
+  const task = tasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
   if (!task) {
     console.error(`No task with id ${id}.`);
     process.exit(1);
@@ -270,7 +246,7 @@ async function sessionCli(verb, marker, dest) {
 
 function sync() {
   ensureDirs();
-  const all = listTasks();
+  const all = tasks();
   writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all));
   writeFileAtomicSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all));
 }
@@ -278,7 +254,7 @@ function sync() {
 /** Print + regenerate the known-bugs map. */
 function bugs() {
   sync();
-  const open = listTasks().filter((t) => t.type === 'bug' && t.stage !== 'conclusion');
+  const open = tasks().filter((t) => t.type === 'bug' && t.stage !== 'conclusion');
   console.log(`🐞 Known bugs: ${open.length} open. Map → contextkit/pipeline/known-bugs.md`);
   for (const b of open) console.log(`   ${b.severity || '—'} ${b.priority} ${b.id} ${b.bugType || ''} — ${b.title}`);
 }
@@ -292,12 +268,12 @@ else if (cmd === 'bugs') bugs();
 else if (cmd === 'move') move();
 else if (cmd === 'start') await sessionCli('start', '▶', 'working/ (owner: this session)');
 else if (cmd === 'stop') await sessionCli('stop', '⏸', 'backlog/ (released)');
-else if (cmd === 'validate') { const t = listTasks(); const e = runValidate(t); e.length ? (e.forEach((m) => console.error(`✗ ${m}`)), process.exit(1)) : console.log(`✅ ${t.length} tickets validated.`); }
+else if (cmd === 'validate') { const t = tasks(); const e = runValidate(t); e.length ? (e.forEach((m) => console.error(`✗ ${m}`)), process.exit(1)) : console.log(`✅ ${t.length} tickets validated.`); }
 else if (cmd === 'sync') {
   sync();
   console.log('✅ devpipeline.md regenerated.');
 } else if (cmd === 'list') {
-  const all = listTasks();
+  const all = tasks();
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else {

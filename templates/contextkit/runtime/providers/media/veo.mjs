@@ -26,6 +26,12 @@ export const requiredEnv = ['GOOGLE_AI_API_KEY'];
 
 const DEFAULT_MODEL = 'veo-3.0-generate-preview';
 const COST_PER_SECOND_USD = 0.50;
+
+/** Estimated USD cost for the requested clip length — used by the media cache to report savings on a hit. */
+export function estimateCostUsd(options = {}) {
+  return Math.max(1, Math.min(60, options.durationSeconds || 8)) * COST_PER_SECOND_USD;
+}
+
 const POLL_INTERVAL_MS = 5000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const PREDICT_ENDPOINT = (model) => `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning`;

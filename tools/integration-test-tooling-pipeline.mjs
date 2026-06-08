@@ -155,6 +155,56 @@ try {
   const noStateOut = run([join(KIT, 'templates/contextkit/tools/scripts/runs.mjs')], { cwd: emptyDir });
   String(noStateOut?.stdout || '').includes('No runs yet')
     ? ok('/runs prints clean refusal when no state files exist') : bad(`/runs no-state output: ${noStateOut?.stdout || noStateOut?.stderr}`);
+
+  const idByTitle = (title) => JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === title)?.id;
+
+  // ─ Ticket 073: /plan-week ranks the backlog by priority × SLA × lane ─
+  script('pipeline.mjs', 'add', '--type', 'chore', '--priority', 'P3', '--title', 'plan-low');
+  script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P0', '--severity', 'S1', '--title', 'plan-high');
+  const plan = JSON.parse(script('plan-next.mjs', '--json').stdout || '[]');
+  const hi = plan.findIndex((p) => p.title === 'plan-high');
+  const lo = plan.findIndex((p) => p.title === 'plan-low');
+  hi >= 0 && lo >= 0 && hi < lo ? ok('plan-next ranks P0 above P3 (ticket 073)') : bad(`plan-next ranking wrong: hi=${hi} lo=${lo}`);
+  plan[0] && typeof plan[0].score === 'number' && plan[0].rationale ? ok('plan-next emits score + rationale per ticket (073)') : bad('plan-next missing score/rationale');
+
+  // ─ Ticket 072: start refuses a task with an open dependency ─
+  script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'dep-blocker');
+  const blockerId = idByTitle('dep-blocker');
+  script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'dep-blocked', '--depends-on', `[${blockerId}]`);
+  const blockedId = idByTitle('dep-blocked');
+  const refused = script('pipeline.mjs', 'start', blockedId);
+  refused.status !== 0 && /blocked by/i.test(refused.stdout + refused.stderr)
+    ? ok('pipeline start refuses a task with an open dependency (ticket 072)') : bad(`start did not refuse blocked task: status=${refused.status}`);
+  script('pipeline.mjs', 'move', blockerId, 'conclusion');
+  const allowed = script('pipeline.mjs', 'start', blockedId);
+  allowed.status === 0 ? ok('pipeline start succeeds once the dependency is concluded (ticket 072)') : bad(`start failed after dep concluded: ${allowed.stdout}${allowed.stderr}`);
+
+  // ─ Ticket 074: /ship resume — begin → step → current → end ─
+  script('ship-state.mjs', 'begin', 'ship a thing');
+  const ship1 = JSON.parse(script('ship-state.mjs', 'current', '--json').stdout || '[]');
+  ship1.length === 1 && ship1[0].step?.current === 'scope' ? ok('ship-state begin opens a run at scope (ticket 074)') : bad(`ship begin wrong: ${JSON.stringify(ship1)}`);
+  script('ship-state.mjs', 'step', 'implement');
+  const ship2 = JSON.parse(script('ship-state.mjs', 'current', '--json').stdout || '[]');
+  ship2[0]?.step?.current === 'implement' ? ok('ship-state step advances the live stage (ticket 074)') : bad(`ship step wrong: ${JSON.stringify(ship2)}`);
+  script('ship-state.mjs', 'end', 'done');
+  JSON.parse(script('ship-state.mjs', 'current', '--json').stdout || '[]').length === 0
+    ? ok('ship-state end closes the run — nothing to resume (ticket 074)') : bad('ship end did not close the run');
+
+  // ─ Ticket 075: gh-triage incremental watermark + dedupe ─
+  writeFileSync(join(proj, 'issues.json'), JSON.stringify([
+    { number: 201, title: 'old issue', createdAt: '2026-01-01T00:00:00Z' },
+    { number: 202, title: 'new issue', createdAt: '2026-12-01T00:00:00Z' },
+  ]));
+  const sel = JSON.parse(script('gh-triage.mjs', 'select', 'issues.json', '--since', '2026-06-01T00:00:00Z').stdout || '{}');
+  sel.new?.length === 1 && sel.new[0].number === 202 && sel.skipped?.old === 1
+    ? ok('gh-triage select drops issues before the watermark (ticket 075)') : bad(`gh-triage filter wrong: ${JSON.stringify(sel)}`);
+  script('pipeline.mjs', 'add', '--type', 'bug', '--source', 'gh#202', '--title', 'already-tracked-issue');
+  const sel2 = JSON.parse(script('gh-triage.mjs', 'select', 'issues.json', '--since', '2026-06-01T00:00:00Z').stdout || '{}');
+  sel2.new?.length === 0 && sel2.skipped?.duplicate === 1
+    ? ok('gh-triage select dedupes against tracked gh# tasks (ticket 075)') : bad(`gh-triage dedupe wrong: ${JSON.stringify(sel2)}`);
+  script('gh-triage.mjs', 'commit', '2026-12-01T00:00:00Z');
+  (script('gh-triage.mjs', 'watermark').stdout || '').trim() === '2026-12-01T00:00:00Z'
+    ? ok('gh-triage commit persists the watermark (ticket 075)') : bad('gh-triage watermark did not persist');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

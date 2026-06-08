@@ -65,8 +65,9 @@ hook enforces this; `[skip-cc]` bypasses. Keep commits small and coherent.
 
 ## pr
 **First, re-check sync** [ADR-0026]: `node contextkit/tools/scripts/sync-check.mjs
-prepr`. It re-confirms you are not behind the default branch (rebase first if you
-are) and detects whether an **open PR already exists for this branch** — if so,
+prepr --fetch` (the `--fetch` refreshes remote refs — read-only checks don't fetch
+by default, ticket 065, so pass it here when a fresh ahead/behind matters). It
+re-confirms you are not behind the default branch (rebase first if you are) and detects whether an **open PR already exists for this branch** — if so,
 just push to update it instead of creating a duplicate. Then push the branch
 (`git push -u origin <branch>` — the `pre-push` hook checks for conflicts first)
 and open a PR: `gh pr create` / `glab mr create`. Summarize the change; wait for

@@ -45,6 +45,39 @@ function isoWeek(ms) {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+/** UTC-midnight epoch ms for every registered session, parsed from its filename date. */
+function sessionDates(dir) {
+  try {
+    return readdirSync(dir)
+      .map((f) => /^(\d{4}-\d{2}-\d{2})-\d{2,}-.+\.md$/.exec(f)?.[1])
+      .filter(Boolean)
+      .map((iso) => Date.parse(`${iso}T00:00:00Z`))
+      .filter(Number.isFinite);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Time-to-value (ticket 079): how long from `setup.completedAt` until the first
+ * registered session — the first durable artifact the practice produced. Returns
+ * `ttvDays: null` with a note when setup isn't marked or no session exists yet
+ * (rule 8 — report "not reached", never a fake zero).
+ *
+ * @param {object|null} cfg — parsed config.json
+ * @param {number[]} dates — session epoch-ms list from `sessionDates`
+ */
+function timeToValue(cfg, dates) {
+  const completedISO = cfg?.setup?.completedAt;
+  const completedAt = completedISO ? Date.parse(completedISO) : NaN;
+  if (!Number.isFinite(completedAt)) return { setupAt: null, firstSessionAt: null, ttvDays: null, note: 'setup not marked complete' };
+  if (!dates.length) {
+    return { setupAt: completedISO, firstSessionAt: null, ttvDays: null, note: `no value yet — ${Math.max(0, Math.round((Date.now() - completedAt) / 86400000))}d since setup` };
+  }
+  const first = Math.min(...dates);
+  return { setupAt: completedISO, firstSessionAt: new Date(first).toISOString().slice(0, 10), ttvDays: Math.max(0, Math.round((first - completedAt) / 86400000)), note: null };
+}
+
 function collectForge() {
   const root = resolve(ROOT, 'agent-packages');
   let entries = [];
@@ -81,6 +114,7 @@ function collect() {
   const agents = count(resolve(ROOT, '.claude/agents'), /\.md$/);
   const commands = count(resolve(ROOT, '.claude/commands'), /\.md$/);
   const forge = collectForge();
+  const ttv = timeToValue(readJson(P.config), sessionDates(P.sessions));
 
   const perWeek = {};
   let totalFiles = 0;
@@ -102,6 +136,7 @@ function collect() {
     commands,
     perWeek,
     forge,
+    timeToValue: ttv,
   };
 }
 
@@ -119,6 +154,9 @@ function main() {
   console.log(`Ledgers analyzed:      ${s.ledgersSeen}`);
   console.log(`Avg files / session:   ${s.avgFilesPerSession}`);
   console.log(`Drift rate (nudged):   ${s.driftRatePct}%`);
+  const ttv = s.timeToValue;
+  if (ttv.ttvDays !== null) console.log(`Time to first value:   ${ttv.ttvDays} day(s)  (setup ${ttv.setupAt?.slice(0, 10)} → first session ${ttv.firstSessionAt})`);
+  else console.log(`Time to first value:   — (${ttv.note})`);
   const weeks = Object.entries(s.perWeek).sort();
   if (weeks.length) {
     console.log('\nSessions per ISO week:');

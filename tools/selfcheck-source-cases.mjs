@@ -101,7 +101,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['pipeline-validate exports parseInlineArray', 'templates/contextkit/tools/scripts/pipeline-validate.mjs', /export function parseInlineArray/],
     ['pipeline-validate enum covers spike + docs (ticket 040)', 'templates/contextkit/tools/scripts/pipeline-validate.mjs', /VALID_TYPES.*spike.*docs|VALID_TYPES.*docs.*spike/s],
     ['pipeline.mjs writes complexity + dependencies fields', 'templates/contextkit/tools/scripts/pipeline.mjs', /complexity:\s*\$\{complexity\}/],
-    ['pipeline.mjs parses dependencies inline array', 'templates/contextkit/tools/scripts/pipeline.mjs', /parseInlineArray\(fm\.dependencies\)/],
+    ['pipeline-tasks parses dependencies inline array', 'templates/contextkit/tools/scripts/pipeline-tasks.mjs', /parseInlineArray\(fm\.dependencies\)/],
     ['pipeline.mjs wires validate subcommand', 'templates/contextkit/tools/scripts/pipeline.mjs', /cmd === 'validate'/],
     ['pipeline-board renders blocked-by hint', 'templates/contextkit/tools/scripts/pipeline-board.mjs', /blocked by/],
     // Ticket 046 — /resume for interrupted sessions.
@@ -169,8 +169,8 @@ export const SOURCE_INVARIANT_CASES = [
     ['landing-architect names the three decisions in order', 'templates/claude/agents/landing-architect.md', /three decisions, in order/],
     ['landing-architect delegation matrix points at seo-specialist gate', 'templates/claude/agents/landing-architect.md', /seo-specialist.*mandatory gate/],
     // ADR-0026 — GitHub sync awareness (sync-check.mjs: preflight + prepr).
-    ['sync-check exposes preflight mode (ADR-0026)', 'templates/contextkit/tools/scripts/sync-check.mjs', /function preflight\(\)/],
-    ['sync-check exposes prepr mode (ADR-0026)', 'templates/contextkit/tools/scripts/sync-check.mjs', /function prepr\(\)/],
+    ['sync-check exposes preflight mode (ADR-0026)', 'templates/contextkit/tools/scripts/sync-check.mjs', /function preflight\(/],
+    ['sync-check exposes prepr mode (ADR-0026)', 'templates/contextkit/tools/scripts/sync-check.mjs', /function prepr\(/],
     ['sync-check times out network calls (ADR-0026)', 'templates/contextkit/tools/scripts/sync-check.mjs', /timeout:\s*\w/],
     ['sync-check degrades without gh — skip, not pass (rule 8)', 'templates/contextkit/tools/scripts/sync-check.mjs', /PR checks skipped/],
     ['sync-check queries PR status fields', 'templates/contextkit/tools/scripts/sync-check.mjs', /PR_FIELDS\s*=/],

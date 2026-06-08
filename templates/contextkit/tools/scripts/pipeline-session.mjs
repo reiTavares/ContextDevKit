@@ -20,6 +20,23 @@ import { readState, writeState } from '../../runtime/state/state-io.mjs';
 import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
 import { attachTask, detachTask } from './claim.mjs';
 import { classifyTask } from './complexity-rubric.mjs';
+import { parseInlineArray } from './pipeline-validate.mjs';
+
+/**
+ * Returns the ids of a task's dependencies that are still open (stage ≠
+ * conclusion). Dangling references (a dep id that no longer exists) are ignored.
+ * Pure-ish: only reads the pipeline dir via `findTaskFile`.
+ *
+ * @param {string} pipeDir
+ * @param {string[]} deps — dependency ids from the ticket frontmatter
+ * @returns {string[]} open blocker ids
+ */
+function openBlockers(pipeDir, deps) {
+  return deps.filter((dep) => {
+    const found = findTaskFile(pipeDir, dep);
+    return found && found.stage !== 'conclusion';
+  });
+}
 
 function gitOut(args, cwd, fallback) {
   try {
@@ -76,6 +93,14 @@ export async function startTask(pipeDir, rawId, sync) {
   const title = (taskText.match(/^title:\s*(.+)$/m)?.[1] || '').trim();
   if (title && classifyTask(title).needsAdr && !/ADR-\d{4}/.test(taskText) && !process.argv.includes('--force')) {
     throw new Error(`Task ${rawId} is architectural-tier but cites no ADR. Run /new-adr first and reference it in the task, or re-run with --force. (ADR-0032 gate)`);
+  }
+  // ADR-0022 dependency gate (ticket 072): a task with still-open dependencies
+  // can't be started — its prerequisites aren't done. The board already renders
+  // the "↘ blocked by N" edge; this turns that inert metadata into a real refusal
+  // (constitution §8). Override with --force.
+  const blockers = openBlockers(pipeDir, parseInlineArray(taskText.match(/^dependencies:\s*(.+)$/m)?.[1]));
+  if (blockers.length && !process.argv.includes('--force')) {
+    throw new Error(`Task ${rawId} is blocked by ${blockers.length} open dependenc${blockers.length === 1 ? 'y' : 'ies'} (${blockers.join(', ')}). Conclude ${blockers.length === 1 ? 'it' : 'them'} first, or re-run with --force. (ticket 072 dependency gate)`);
   }
   moveStage(pipeDir, 'backlog', 'working', found.file, 'working');
   sync();

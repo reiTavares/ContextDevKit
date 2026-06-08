@@ -9,12 +9,19 @@ Turn unstructured GitHub issues into actionable, prioritized backlog tasks
 [ADR-0030, OSS repo-ops]. This reads from GitHub and writes to the local
 DevPipeline — it does **not** close, label, or comment on issues without your OK.
 
-1. **Fetch.** Requires `gh` (the existing review provider — [ADR-0021]). If it's
-   missing or unauthed, say so and stop (rule 8 — skip, never fake):
+1. **Fetch (incremental by default — ticket 075).** Requires `gh` (the existing
+   review provider — [ADR-0021]). If it's missing or unauthed, say so and stop
+   (rule 8 — skip, never fake):
    ```
-   gh issue list --state open --json number,title,body,labels,createdAt,author
+   gh issue list --state open --json number,title,body,labels,createdAt,author > /tmp/gh-issues.json
+   node contextkit/tools/scripts/gh-triage.mjs select /tmp/gh-issues.json > /tmp/gh-new.json
    ```
-   For a single issue: `gh issue view <number> --json number,title,body,labels`.
+   `select` filters to issues **created after the stored watermark** and not
+   already tracked (`source: gh#<n>`), so a re-run only processes what's new — use
+   the `new[]` array of `/tmp/gh-new.json`; `skipped` reports how many were
+   already-seen / duplicates. (For a single issue:
+   `gh issue view <number> --json number,title,body,labels` — triage it directly,
+   no watermark.) To re-triage everything, pass `--since ""`.
 
 2. **Classify each issue** with the complexity rubric [ADR-0030]:
    ```
@@ -37,5 +44,14 @@ DevPipeline — it does **not** close, label, or comment on issues without your 
    ```
    Fill each new file's context + acceptance criteria from the issue body.
 
-5. **Report.** Summarise: triaged N issues → M new tasks (K duplicates skipped),
-   the priority spread, and any issue that needs a human decision before triage.
+5. **Commit the watermark.** After a successful triage, advance the cursor so the
+   next run starts where this one ended (use the `watermark` from `/tmp/gh-new.json`):
+   ```
+   node contextkit/tools/scripts/gh-triage.mjs commit "<watermark-iso>"
+   ```
+   Skip this only if you bailed mid-triage (so the next run re-pulls the unfinished
+   issues).
+
+6. **Report.** Summarise: triaged N issues → M new tasks (K duplicates / J already-
+   seen skipped), the priority spread, and any issue that needs a human decision
+   before triage.
