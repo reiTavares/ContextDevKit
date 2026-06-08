@@ -13,7 +13,12 @@ you apply the edits with your own OK.
    node contextkit/tools/scripts/agent-tuning.mjs --json
    ```
    Gives the roster, tier-2 briefing coverage, and per-agent mention counts across
-   the session history (a usage proxy).
+   the session history (a usage proxy). Then add the **outcome** signal [ADR-0032]:
+   ```
+   node contextkit/tools/scripts/advise-review.mjs --json
+   ```
+   per-lane hit-rate of that owner's `/advise` findings — a low hit-rate with high
+   volume is evidence the owner is noisy (dampen it), not just a hunch.
 
 2. **Outcomes** (judgment): read the recent session files + the DevPipeline
    (`/pipeline`, the known-bugs map, ingested findings) and look, per agent, for:

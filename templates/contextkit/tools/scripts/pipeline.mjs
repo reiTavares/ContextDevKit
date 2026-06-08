@@ -13,6 +13,7 @@ import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, severityToPriority, bugSeverityToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
 import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
 import { parseInlineArray, runValidate } from './pipeline-validate.mjs';
+import { classifyTask } from './complexity-rubric.mjs';
 
 const ROOT = process.cwd();
 const PIPE = pathsFor(ROOT).pipeline;
@@ -136,9 +137,12 @@ function add() {
     priority = priority || bugSeverityToPriority(sev, SEVMAP);
   }
   priority = priority || 'P2';
-  const id = writeTask({ type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '', source: getArg('source') || '', severity: sev || '', wsjf, bugType: getArg('bug-type') || '', complexity: getArg('complexity') || '', dependencies: parseInlineArray(getArg('depends-on')) });
+  // Auto right-size (ADR-0032): when --complexity is absent, the rubric classifies
+  // the title into a tier (stamped into `complexity`) and surfaces the ADR/agent route.
+  const auto = getArg('complexity') ? { complexity: getArg('complexity'), route: '' } : classifyTask(title, ROOT);
+  const id = writeTask({ type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '', source: getArg('source') || '', severity: sev || '', wsjf, bugType: getArg('bug-type') || '', complexity: auto.complexity, dependencies: parseInlineArray(getArg('depends-on')) });
   sync();
-  console.log(`✅ Added ${type} ${id} (${priority}${wsjf ? `, WSJF ${wsjf}` : ''}${sev ? `, ${sev}` : ''}) to backlog: ${title}`);
+  console.log(`✅ Added ${type} ${id} (${priority}${wsjf ? `, WSJF ${wsjf}` : ''}${sev ? `, ${sev}` : ''}) to backlog: ${title}${auto.route}`);
 }
 
 /**

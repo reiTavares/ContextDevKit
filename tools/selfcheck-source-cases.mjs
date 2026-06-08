@@ -278,4 +278,15 @@ export const SOURCE_INVARIANT_CASES = [
     ['release.yml publishes with npm provenance (ADR-0031)', '.github/workflows/release.yml', /npm publish --provenance/],
     ['release.yml grants id-token for provenance (ADR-0031)', '.github/workflows/release.yml', /id-token:\s*write/],
     ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
+    // ADR-0032 — connect the substrate: classification + closed loops.
+    ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],
+    ['pipeline add auto-classifies via the rubric (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline.mjs', /classifyTask\(title/],
+    ['session-draft drafts the Done section from the ledger (ADR-0032)', 'templates/contextkit/tools/scripts/session-draft.mjs', /export async function draftSession/],
+    ['/log-session pre-fills from session-draft (ADR-0032)', 'templates/claude/commands/log-session.md', /session-draft\.mjs/],
+    ['advise-review computes per-lane hit-rate (ADR-0032)', 'templates/contextkit/tools/scripts/advise-review.mjs', /export function reviewAdvice/],
+    ['/retro consumes advise-review (ADR-0032)', 'templates/claude/commands/pipeline/retro.md', /advise-review\.mjs/],
+    ['/tune-agents consumes advise-review (ADR-0032)', 'templates/claude/commands/tune-agents.md', /advise-review\.mjs/],
+    ['pipeline start enforces the ADR gate (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ADR-0032 gate/],
+    ['check-registration emits a diff-aware signal (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /function diffSignal/],
+    ['check-registration nudge points at the ledger auto-draft (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /session-draft\.mjs/],
 ];

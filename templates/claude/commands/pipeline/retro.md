@@ -15,6 +15,10 @@ to how this project is built. Output proposals — apply only with the user's OK
      user repeated, conventions that emerged, decisions made informally) — open a
      full log only when a digest flags something to inspect.
    - `git log` since the last few sessions (what actually changed).
+   - **Advisor outcomes** [ADR-0032]: `node contextkit/tools/scripts/advise-review.mjs`
+     — per-lane hit-rate of `/advise` findings (acted-on vs still-open). A lane with
+     many open + low hit-rate is a pattern: either the owner is noisy (tune it down)
+     or the lane is under-served (schedule the work).
 
 2. **Find patterns**, not one-offs: the same correction 3×, a debt category that
    keeps growing, a rule that's implied but unwritten, a decision never recorded.

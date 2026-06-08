@@ -18,6 +18,7 @@ import { resolve } from 'node:path';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { readState, writeState } from '../../runtime/state/state-io.mjs';
 import { attachTask, detachTask } from './claim.mjs';
+import { classifyTask } from './complexity-rubric.mjs';
 
 function gitOut(args, cwd, fallback) {
   try {
@@ -67,6 +68,14 @@ export async function startTask(pipeDir, rawId, sync) {
   const found = findTaskFile(pipeDir, rawId);
   if (!found) throw new Error(`No task with id ${rawId}.`);
   if (found.stage !== 'backlog') throw new Error(`Task ${rawId} is in '${found.stage}', not backlog — refusing to start.`);
+  // ADR-0032 gate: re-classify the task title; an architectural-tier task must
+  // reference a recorded decision BEFORE it enters working/. Dry-run-safe — refuses
+  // unless an ADR is cited or `--force` is passed (constitution §8).
+  const taskText = readFileSync(resolve(pipeDir, 'backlog', found.file), 'utf-8');
+  const title = (taskText.match(/^title:\s*(.+)$/m)?.[1] || '').trim();
+  if (title && classifyTask(title).needsAdr && !/ADR-\d{4}/.test(taskText) && !process.argv.includes('--force')) {
+    throw new Error(`Task ${rawId} is architectural-tier but cites no ADR. Run /new-adr first and reference it in the task, or re-run with --force. (ADR-0032 gate)`);
+  }
   moveStage(pipeDir, 'backlog', 'working', found.file, 'working');
   sync();
   await attachTask(rawId);
