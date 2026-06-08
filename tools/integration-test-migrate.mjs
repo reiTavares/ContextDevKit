@@ -15,6 +15,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KIT, node, run, git, reporter } from './it-helpers.mjs';
+import { missingAfterCopy } from './install/migrate.mjs';
 
 const rep = reporter();
 const read = (p) => readFileSync(p, 'utf-8');
@@ -34,7 +35,11 @@ function makeLegacy(proj, { withGit = false } = {}) {
   };
   w('vibekit/config.json', JSON.stringify({ level: 5, setup: { completed: true }, ledger: {} }, null, 2));
   w('vibekit/runtime/hooks/session-start.mjs', '// legacy dummy engine\n');
+  // Several ADRs with different numbers — the migration must carry ALL of them,
+  // never "some but not all" (the reported data-loss symptom).
   w('vibekit/memory/decisions/0001-user-decision.md', '# 0001 — a precious user ADR\nkeep me\n');
+  w('vibekit/memory/decisions/0002-second-decision.md', '# 0002 — second ADR\nkeep me too\n');
+  w('vibekit/memory/decisions/0017-seventeenth-decision.md', '# 0017 — a later ADR\nalso precious\n');
   w('vibekit/.env', 'GOOGLE_AI_API_KEY=secret\nVIBE_GIT_TIMEOUT_MS=5000\n');
   w('.claude/settings.json', JSON.stringify({
     hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'node vibekit/runtime/hooks/session-start.mjs' }] }] } },
@@ -71,9 +76,15 @@ function makeLegacy(proj, { withGit = false } = {}) {
     !existsSync(join(proj, 'vibekit')) ? rep.ok('vibekit/ is gone') : rep.bad('vibekit/ still present');
     existsSync(join(proj, 'contextkit')) ? rep.ok('contextkit/ exists') : rep.bad('contextkit/ missing');
 
-    // user data preserved
-    const adr = join(proj, 'contextkit', 'memory', 'decisions', '0001-user-decision.md');
-    existsSync(adr) && read(adr).includes('precious user ADR') ? rep.ok('user ADR preserved through the move') : rep.bad('user ADR lost');
+    // user data preserved — EVERY ADR, not just the first (regression guard for
+    // the cross-device partial-copy data loss).
+    const decDir = join(proj, 'contextkit', 'memory', 'decisions');
+    const adrsSurvive = [
+      ['0001-user-decision.md', 'precious user ADR'],
+      ['0002-second-decision.md', 'second ADR'],
+      ['0017-seventeenth-decision.md', 'a later ADR'],
+    ].every(([file, marker]) => existsSync(join(decDir, file)) && read(join(decDir, file)).includes(marker));
+    adrsSurvive ? rep.ok('ALL user ADRs preserved through the move (0001, 0002, 0017)') : rep.bad('an ADR was lost in the migration');
     try {
       JSON.parse(read(join(proj, 'contextkit', 'config.json'))).level === 5 ? rep.ok('config level 5 preserved') : rep.bad('config level changed');
     } catch { rep.bad('config.json unreadable after migration'); }
@@ -145,6 +156,40 @@ function makeLegacy(proj, { withGit = false } = {}) {
   try {
     const out = run([join(KIT, 'install.mjs'), '--target', proj, '--migrate']);
     out.status === 0 && /nothing to migrate/i.test(out.stdout) ? rep.ok('no-legacy --migrate is a clean no-op') : rep.bad('no-legacy --migrate misbehaved');
+  } finally { rmSync(proj, { recursive: true, force: true }); }
+})();
+
+// ── Scenario F: the cross-device data-loss guard detects a partial copy ──────
+// moveFolder's EXDEV fallback must VERIFY every source file landed before it
+// removes the source. We can't force a real EXDEV in CI, so we test the guard
+// (`missingAfterCopy`) directly: a destination missing a file is reported, which
+// is what makes moveFolder throw-and-preserve instead of rm-ing the source.
+(() => {
+  const proj = tmp();
+  try {
+    const from = join(proj, 'src');
+    const to = join(proj, 'dst');
+    for (const rel of ['memory/decisions/0001-a.md', 'memory/decisions/0002-b.md', 'config.json']) {
+      const p = join(from, rel);
+      mkdirSync(join(p, '..'), { recursive: true });
+      writeFileSync(p, `# ${rel}\n`, 'utf-8');
+    }
+    // Simulate a PARTIAL copy: everything but 0002-b.md landed.
+    for (const rel of ['memory/decisions/0001-a.md', 'config.json']) {
+      const p = join(to, rel);
+      mkdirSync(join(p, '..'), { recursive: true });
+      writeFileSync(p, `# ${rel}\n`, 'utf-8');
+    }
+    const missing = missingAfterCopy(from, to);
+    missing.length === 1 && missing[0].replace(/\\/g, '/') === 'memory/decisions/0002-b.md'
+      ? rep.ok('partial-copy guard flags the file that did not land (source would be preserved)')
+      : rep.bad(`partial-copy guard wrong: ${JSON.stringify(missing)}`);
+    // A complete copy reports nothing missing → the rm is allowed.
+    const p = join(to, 'memory/decisions/0002-b.md');
+    writeFileSync(p, '# memory/decisions/0002-b.md\n', 'utf-8');
+    missingAfterCopy(from, to).length === 0
+      ? rep.ok('complete copy reports nothing missing (rm allowed)')
+      : rep.bad('guard false-positive on a complete copy');
   } finally { rmSync(proj, { recursive: true, force: true }); }
 })();
 

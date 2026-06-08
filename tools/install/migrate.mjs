@@ -21,8 +21,8 @@
  * warning and leaves the project untouched.
  */
 import { rename, cp, rm, readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 
 const LEGACY_DIR = 'vibekit';
 const NEW_DIR = 'contextkit';
@@ -86,18 +86,56 @@ async function rewriteFile(path, { backup, dryRun }) {
   return true;
 }
 
+/** Lists every file (repo-relative to `base`) under `dir`, recursing into subdirs. */
+function listFilesRel(dir, base = dir) {
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const abs = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listFilesRel(abs, base));
+    else out.push(relative(base, abs));
+  }
+  return out;
+}
+
+/**
+ * Source files that did NOT land at `to` after a copy. Exported so the
+ * migration's data-loss guarantee — never delete the source on a partial copy —
+ * is directly testable without having to force a real cross-device `EXDEV`.
+ *
+ * @param {string} from source dir (the legacy `vibekit/`)
+ * @param {string} to destination dir (the new `contextkit/`)
+ * @returns {string[]} repo-relative paths present in `from` but missing from `to`
+ */
+export function missingAfterCopy(from, to) {
+  if (!existsSync(from)) return [];
+  return listFilesRel(from).filter((rel) => !existsSync(join(to, rel)));
+}
+
+/**
+ * Moves `from` → `to`. Same volume uses an atomic `rename` (all-or-nothing).
+ * Cross-device (`EXDEV` — network / mounted volume / cloud-synced folder like
+ * OneDrive) falls back to copy, but VERIFIES every source file landed BEFORE
+ * removing the source. A partial copy (locked file, cloud-only placeholder,
+ * `fs.cp` quirk) must NEVER trigger the `rm` — that is exactly how user ADRs
+ * silently vanished. On any gap we keep BOTH trees and throw, so `migrateLegacy`
+ * reports "aborted, nothing changed" and the user loses nothing.
+ */
 async function moveFolder(from, to) {
   try {
     await rename(from, to);
+    return;
   } catch (err) {
-    if (err && err.code === 'EXDEV') {
-      // Cross-device (e.g. target on another volume): copy then remove.
-      await cp(from, to, { recursive: true, force: true });
-      await rm(from, { recursive: true, force: true });
-      return;
-    }
-    throw err;
+    if (!err || err.code !== 'EXDEV') throw err;
   }
+  await cp(from, to, { recursive: true, force: true });
+  const missing = missingAfterCopy(from, to);
+  if (missing.length > 0) {
+    throw new Error(
+      `cross-device copy incomplete — ${missing.length} file(s) did not land ` +
+        `(e.g. ${missing.slice(0, 3).join(', ')}); source preserved at ${from}`,
+    );
+  }
+  await rm(from, { recursive: true, force: true });
 }
 
 /**
