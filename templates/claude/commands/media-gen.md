@@ -69,13 +69,19 @@ cap is configured before the first paid call.
 - **Cost-cap guard.** When `CONTEXTDEVKIT_MEDIA_MAX_USD` is set, the
   adapters keep a per-process running total and refuse the next call
   that would push it over the cap.
+- **Content-addressed cache (ticket 056).** The result is keyed by
+  `sha256(provider + prompt + options)` and stored under
+  `contextkit/.cache/media/<sha>.<ext>`. Re-running the **same** prompt +
+  options copies the cached file to `--out` and makes **no API call** (it logs
+  `cache hit (~$X saved)`). Pass `--no-cache` to force a fresh call (bypasses
+  both the read and the write). The cache dir is gitignored; `rm -rf` to clear.
 - **Atomic file write.** The output file is written with the parent
   directory created on demand (`mkdir -p`-style).
 
 ## What this does NOT do
 
-- **No cache.** Re-running the same prompt re-charges the API.
-  Content-addressed cache is a follow-up (ticket 056).
+- **No cache eviction.** The cache never expires or LRU-evicts — it is local
+  and small by design; `rm -rf contextkit/.cache/media` to clear it.
 - **No third provider.** Runway, Luma, Midjourney are not in scope.
   Rule 9 — next consumer justifies the next adapter.
 - **No automatic invocation.** This command never runs by itself.

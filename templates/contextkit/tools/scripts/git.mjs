@@ -7,7 +7,11 @@
  * installed and authenticated, the current branch, dirtiness, and ahead/behind
  * vs upstream. `/git` reads this and suggests the exact next commands.
  *
- * Usage:  node contextkit/tools/scripts/git.mjs status [--json]
+ * Read-only by default (ticket 065): the ahead/behind count uses local
+ * remote-tracking refs and is flagged `stale`; pass `--fetch` to refresh from the
+ * network first (the only flag that performs a write/network side-effect).
+ *
+ * Usage:  node contextkit/tools/scripts/git.mjs status [--json] [--fetch]
  */
 import { execFileSync } from 'node:child_process';
 
@@ -39,7 +43,7 @@ function providerFromUrl(url) {
   return 'other';
 }
 
-function collect() {
+function collect(doFetch) {
   const gitV = run('git', ['--version']);
   const isRepo = run('git', ['rev-parse', '--is-inside-work-tree']).ok;
   const hasCommits = isRepo && run('git', ['rev-parse', 'HEAD']).ok;
@@ -54,16 +58,18 @@ function collect() {
   const glab = run('glab', ['--version']).ok;
   const glabAuth = glab ? run('glab', ['auth', 'status']).ok : false;
 
-  // ahead/behind vs upstream.
+  // ahead/behind vs upstream. Read-only by default — only fetch on --fetch (065).
   let ahead = null;
   let behind = null;
+  let stale = false;
   if (remoteUrl && branch) {
-    run('git', ['fetch', 'origin', '--quiet']);
+    if (doFetch) run('git', ['fetch', 'origin', '--quiet']);
     const counts = run('git', ['rev-list', '--left-right', '--count', 'HEAD...@{u}']);
     if (counts.ok) {
       const [a, b] = counts.out.split(/\s+/);
       ahead = Number.parseInt(a ?? '0', 10);
       behind = Number.parseInt(b ?? '0', 10);
+      stale = !doFetch;
     }
   }
 
@@ -78,10 +84,11 @@ function collect() {
     cli: { gh, ghAuth, glab, glabAuth },
     ahead,
     behind,
+    stale,
   };
 }
 
-const s = collect();
+const s = collect(process.argv.includes('--fetch'));
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify(s, null, 2));
 } else {
@@ -90,7 +97,7 @@ if (process.argv.includes('--json')) {
   console.log(`repo:        ${s.isRepo ? (s.hasCommits ? 'yes (has commits)' : 'yes (no commits yet)') : 'NOT a git repo'}`);
   console.log(`branch:      ${s.branch ?? '—'}${s.dirty ? ' (uncommitted changes)' : ''}`);
   console.log(`remote:      ${s.remoteUrl ?? 'NONE'}${s.provider ? ` [${s.provider}]` : ''}`);
-  if (s.ahead != null) console.log(`sync:        ahead ${s.ahead} / behind ${s.behind}`);
+  if (s.ahead != null) console.log(`sync:        ahead ${s.ahead} / behind ${s.behind}${s.stale ? ' · local refs, may be stale (pass --fetch to refresh)' : ''}`);
   console.log(`gh CLI:      ${s.cli.gh ? (s.cli.ghAuth ? 'installed + authed' : 'installed, NOT authed') : 'not installed'}`);
   console.log(`glab CLI:    ${s.cli.glab ? (s.cli.glabAuth ? 'installed + authed' : 'installed, NOT authed') : 'not installed'}`);
   if (!s.remoteUrl) console.log('\n→ No remote. Run /git to set one up (GitHub/GitLab/other) + install the CLI.');

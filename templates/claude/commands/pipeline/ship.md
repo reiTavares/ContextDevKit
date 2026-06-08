@@ -24,9 +24,23 @@ The stages marked ◆ are checkpoints. Pick the mode from the arguments:
 
 State which mode you're running at the start.
 
+## Resume & progress tracking (ticket 074)
+
+Before anything else, check for an **interrupted ship** to resume:
+`node contextkit/tools/scripts/ship-state.mjs current`. If it reports an in-flight
+run, offer to **resume from the stage it names** instead of restarting from scope —
+pick up at that stage and continue. Otherwise open a fresh run at the start of
+step 1: `ship-state.mjs begin "$ARGUMENTS"`.
+
+As you enter each stage below, stamp it:
+`ship-state.mjs step <scope|design|plan-tests|implement|self-review|test|quality-gates|record|report>`.
+At a checkpoint pause, mark `ship-state.mjs block`; on a red gate, `ship-state.mjs end failed`
+and STOP. When step 9 completes, `ship-state.mjs end done`. This keeps the live
+stage in `state.json` so a crash, context loss, or `/clear` never loses your place.
+
 ## Pipeline
 
-1. **Scope & state.** Run `node contextkit/tools/scripts/context-pack.mjs` (latest-session
+1. **Scope & state.** (`ship-state.mjs step scope`) Run `node contextkit/tools/scripts/context-pack.mjs` (latest-session
    digest + immutable rules + recent ADRs in one call) and
    `node contextkit/tools/scripts/adr-digest.mjs --search "<objective keywords>"` for the
    ADRs relevant to the objective [ADR-0027] — open a full ADR only when needed.

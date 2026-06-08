@@ -223,6 +223,32 @@ try {
   (() => { try { const d = JSON.parse(tuning.stdout); return Array.isArray(d.agents) && d.agents.length >= 1 && typeof d.sessionsAnalyzed === 'number'; } catch { return false; } })()
     ? ok('agent-tuning aggregates the agent roster + signals') : bad(`agent-tuning failed: ${tuning.stdout || tuning.stderr}`);
 
+  // ─ Ticket 056: media-gen content-addressed cache (fake adapter, no network) ─
+  const mediaDir = join(proj, 'contextkit', 'runtime', 'providers', 'media');
+  const callLog = join(proj, '.fake-media-calls.log');
+  writeFileSync(join(mediaDir, 'zz-fake.mjs'), [
+    "import { writeFileSync, appendFileSync } from 'node:fs';",
+    "export const id = 'fake-img'; export const kind = 'image';",
+    "export const envVar = 'FAKE_MEDIA_KEY'; export const requiredEnv = ['FAKE_MEDIA_KEY'];",
+    'export function estimateCostUsd() { return 1.23; }',
+    'export async function generate({ prompt, outPath }) {',
+    "  appendFileSync(process.env.FAKE_CALL_LOG, 'x');",
+    "  writeFileSync(outPath, 'IMG:' + prompt);",
+    "  return { outPath, durationMs: 1, costEstimateUsd: 1.23, providerRequestId: 'fake' };",
+    '}',
+  ].join('\n'));
+  const mgEnv = { ...process.env, FAKE_MEDIA_KEY: 'set', FAKE_CALL_LOG: callLog };
+  const mg = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'media-gen.mjs'), ...a], { cwd: proj, env: mgEnv });
+  const calls = () => (existsSync(callLog) ? readFileSync(callLog, 'utf-8').length : 0);
+  mg('image', '--provider', 'fake-img', '--prompt', 'hello world', '--out', 'out1.png');
+  const callsAfterFirst = calls();
+  mg('image', '--provider', 'fake-img', '--prompt', 'hello world', '--out', 'out2.png');
+  callsAfterFirst === 1 && calls() === 1 && existsSync(join(proj, 'out2.png'))
+    ? ok('media-gen serves a cache hit on the 2nd identical call — no provider call (ticket 056)')
+    : bad(`media cache miss: after1=${callsAfterFirst} after2=${calls()}`);
+  mg('image', '--provider', 'fake-img', '--prompt', 'hello world', '--out', 'out3.png', '--no-cache');
+  calls() === 2 ? ok('media-gen --no-cache bypasses the cache (ticket 056)') : bad(`--no-cache did not bypass: calls=${calls()}`);
+
   // agent-forge round-trip + Fase 6 pipeline DSL → integration-test-tooling-agent-forge.mjs.
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);

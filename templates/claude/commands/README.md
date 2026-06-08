@@ -46,6 +46,7 @@ templates/claude/commands/
 │
 ├── pipeline/                        ← DevPipeline + autonomy
 │   ├── pipeline.md
+│   ├── plan-week.md                 ← rank the backlog: WSJF × SLA × lane → top-N (ticket 073)
 │   ├── ship.md
 │   ├── dev-start.md
 │   ├── retro.md

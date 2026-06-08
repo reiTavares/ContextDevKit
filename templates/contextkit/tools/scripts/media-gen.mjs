@@ -17,6 +17,7 @@ import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateAdapter, MediaProviderError, MEDIA_ERROR_CODES, readCostCapUsd } from '../../runtime/providers/media/_adapter.mjs';
+import { cachePathFor, isCached, serveFromCache, storeInCache } from './media-cache.mjs';
 
 const ADAPTERS_DIR = resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'runtime', 'providers', 'media');
 
@@ -31,6 +32,7 @@ Common options:
   --duration N           seconds (video only; default 8)
   --model ID             override the adapter's default model
   --sample-count N       image only; 1..4 (only the first is written)
+  --no-cache             bypass the content-addressed cache (force a fresh call)
   --dry-run              show what would be called; make no network request
   --help                 this message
 
@@ -137,8 +139,20 @@ if (isMain) {
       process.exit(0);
     }
 
+    const outPath = resolve(args.out);
+    // Content-addressed cache (ticket 056): a re-run of the same prompt+options
+    // serves the cached artifact instead of paying the API again. `--no-cache`
+    // bypasses both the read and the write.
+    const slot = args.noCache ? null : cachePathFor({ providerId: adapter.id, kind: adapter.kind, prompt: args.prompt, options });
+    if (slot && isCached(slot) && serveFromCache(slot, outPath)) {
+      const saved = adapter.estimateCostUsd?.(options);
+      process.stdout.write(`🗃️  ${adapter.id}: cache hit → wrote ${outPath}${saved ? ` (~$${saved.toFixed(2)} saved)` : ' (no API call)'}\n`);
+      process.exit(0);
+    }
+
     try {
-      const r = await adapter.generate({ prompt: args.prompt, outPath: resolve(args.out), options });
+      const r = await adapter.generate({ prompt: args.prompt, outPath, options });
+      if (slot) storeInCache(slot, r.outPath); // populate the cache for next time (best-effort)
       process.stdout.write(`✅ ${adapter.id}: wrote ${r.outPath}\n`);
       process.stdout.write(`   duration: ${r.durationMs} ms · est. cost: $${r.costEstimateUsd.toFixed(2)}${r.providerRequestId ? ` · req: ${r.providerRequestId}` : ''}\n`);
       process.exit(0);

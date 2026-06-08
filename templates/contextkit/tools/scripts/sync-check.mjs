@@ -71,21 +71,27 @@ function mainBranch() {
 }
 
 /**
- * ahead/behind after a best-effort fetch. Prefers the branch's own upstream
- * (`@{u}`); a branch with no upstream (fresh feature branch) falls back to
- * `origin/<main>` so "am I behind the trunk?" still answers. null when unknowable.
+ * ahead/behind vs the remote. **Read-only by default** (ticket 065): a diagnostic
+ * must not mutate refs or hit the network behind the user's back, so the
+ * `git fetch` only runs when `doFetch` is true (`--fetch`). Without it, the count
+ * is against the *already-fetched* remote-tracking refs and is flagged `stale`.
+ * Prefers the branch's own upstream (`@{u}`); a branch with no upstream falls back
+ * to `origin/<main>`. null when unknowable.
+ *
+ * @param {string} main — default branch name
+ * @param {boolean} doFetch — refresh remote refs first (network + ref write)
  */
-function divergence(main) {
-  run('git', ['fetch', 'origin', '--quiet']);
+function divergence(main, doFetch) {
+  if (doFetch) run('git', ['fetch', 'origin', '--quiet']);
   const upstream = run('git', ['rev-list', '--left-right', '--count', 'HEAD...@{u}']);
   if (upstream.ok) {
     const [a, b] = upstream.out.split(/\s+/);
-    return { ahead: int(a), behind: int(b), against: '@{u}' };
+    return { ahead: int(a), behind: int(b), against: '@{u}', stale: !doFetch };
   }
   const trunk = run('git', ['rev-list', '--left-right', '--count', `HEAD...origin/${main}`]);
   if (!trunk.ok) return null;
   const [a, b] = trunk.out.split(/\s+/);
-  return { ahead: int(a), behind: int(b), against: `origin/${main}` };
+  return { ahead: int(a), behind: int(b), against: `origin/${main}`, stale: !doFetch };
 }
 
 /** The 20 most-recent OTHER remote branches (in-flight work), newest first. */
@@ -142,7 +148,7 @@ function listOpenPRs(extraArgs = []) {
   return Array.isArray(parsed) ? parsed.map(summarizePr) : null;
 }
 
-function preflight() {
+function preflight(doFetch) {
   const branch = currentBranch();
   const remote = hasRemote();
   const main = mainBranch();
@@ -151,14 +157,14 @@ function preflight() {
     mode: 'preflight',
     branch,
     remote,
-    divergence: remote ? divergence(main) : null,
+    divergence: remote ? divergence(main, doFetch) : null,
     recentBranches: remote ? recentBranches(branch) : [],
     ghReady: ghOk,
     prs: ghOk ? listOpenPRs() : null,
   };
 }
 
-function prepr() {
+function prepr(doFetch) {
   const branch = currentBranch();
   const remote = hasRemote();
   const main = mainBranch();
@@ -169,7 +175,7 @@ function prepr() {
     branch,
     main,
     remote,
-    divergence: remote ? divergence(main) : null,
+    divergence: remote ? divergence(main, doFetch) : null,
     ghReady: ghOk,
     existingPr: Array.isArray(branchPrs) && branchPrs.length ? branchPrs[0] : (ghOk ? null : undefined),
   };
@@ -179,7 +185,7 @@ function printPreflight(s) {
   console.log('🔄 Sync preflight\n');
   console.log(`branch:      ${s.branch ?? '—'}`);
   if (!s.remote) { console.log('remote:      NONE → nothing to sync against yet.'); return; }
-  if (s.divergence) console.log(`sync:        ahead ${s.divergence.ahead} / behind ${s.divergence.behind} (vs ${s.divergence.against})`);
+  if (s.divergence) console.log(`sync:        ahead ${s.divergence.ahead} / behind ${s.divergence.behind} (vs ${s.divergence.against})${s.divergence.stale ? ' · local refs, may be stale (pass --fetch to refresh)' : ''}`);
   if (s.recentBranches.length) {
     console.log('\nRecent remote branches (in flight):');
     for (const b of s.recentBranches.slice(0, 8)) console.log(`  - ${b.ref} — ${b.age} by ${b.author}`);
@@ -201,7 +207,7 @@ function printPrepr(s) {
   console.log(`branch:      ${s.branch ?? '—'}`);
   if (!s.remote) { console.log('remote:      NONE → set one up with /git before opening a PR.'); return; }
   if (s.divergence) {
-    console.log(`sync:        ahead ${s.divergence.ahead} / behind ${s.divergence.behind} (vs ${s.divergence.against})`);
+    console.log(`sync:        ahead ${s.divergence.ahead} / behind ${s.divergence.behind} (vs ${s.divergence.against})${s.divergence.stale ? ' · local refs, may be stale (pass --fetch to refresh)' : ''}`);
     if (s.divergence.behind > 0) console.log(`  ⚠️  behind by ${s.divergence.behind} — rebase first: git pull --rebase origin ${s.main}`);
   }
   if (!s.ghReady) { console.log('\nPR dedupe skipped (gh not installed/authed) — verify manually before opening.'); return; }
@@ -216,14 +222,15 @@ function printPrepr(s) {
 
 const mode = process.argv[2];
 const asJson = process.argv.includes('--json');
+const doFetch = process.argv.includes('--fetch'); // ticket 065: opt-in to the network fetch
 
 if (mode !== 'preflight' && mode !== 'prepr') {
-  console.error('Usage: sync-check.mjs <preflight|prepr> [--json]');
+  console.error('Usage: sync-check.mjs <preflight|prepr> [--json] [--fetch]');
   process.exit(2);
 }
 
 try {
-  const summary = mode === 'preflight' ? preflight() : prepr();
+  const summary = mode === 'preflight' ? preflight(doFetch) : prepr(doFetch);
   if (asJson) console.log(JSON.stringify(summary, null, 2));
   else if (mode === 'preflight') printPreflight(summary);
   else printPrepr(summary);

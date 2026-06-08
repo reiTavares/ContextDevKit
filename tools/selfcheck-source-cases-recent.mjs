@@ -110,4 +110,39 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['deliberation-nudge debounces once per session (ADR-0035)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /deliberation-nudged/],
     ['deliberation-nudge sanitizes the session id (path safety)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /sanitizeSid/],
     ['settings wire the deliberation nudge at L5 (ADR-0035)', 'templates/contextkit/runtime/config/settings-compose.mjs', /deliberation-nudge\.mjs/],
+    // Backlog-zero batch — shared task I/O seam (extracted from pipeline.mjs).
+    ['pipeline task I/O is single-sourced in pipeline-tasks', 'templates/contextkit/tools/scripts/pipeline-tasks.mjs', /export function listTasks/],
+    ['pipeline.mjs consumes the shared task lister', 'templates/contextkit/tools/scripts/pipeline.mjs', /from '\.\/pipeline-tasks\.mjs'/],
+    // Ticket 073 — /plan-week deterministic backlog ranking.
+    ['plan-next exports rankBacklog (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /export function rankBacklog/],
+    ['plan-next scores by priority/SLA/lane (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /export function planScore/],
+    ['plan-next sinks blocked tickets below actionable (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /BLOCKED_PENALTY/],
+    ['/plan-week command briefing ships (ticket 073)', 'templates/claude/commands/pipeline/plan-week.md', /plan-next\.mjs/],
+    // Ticket 072 — DevPipeline dependency enforcement (board edge already covered above).
+    ['pipeline start refuses on open dependencies (ticket 072)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ticket 072 dependency gate/],
+    ['pipeline-session computes open blockers (ticket 072)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /function openBlockers/],
+    // Ticket 074 — /ship resume from a stamped current stage.
+    ['ship-state declares the 9 ship stages (ticket 074)', 'templates/contextkit/tools/scripts/ship-state.mjs', /export const SHIP_STAGES/],
+    ['ship-state surfaces in-flight runs for resume (ticket 074)', 'templates/contextkit/tools/scripts/ship-state.mjs', /export function inflightRuns/],
+    ['/ship offers resume of an in-flight ship (ticket 074)', 'templates/claude/commands/pipeline/ship.md', /ship-state\.mjs current/],
+    // Ticket 075 — gh-triage incremental watermark.
+    ['gh-triage selects only new issues past the watermark (ticket 075)', 'templates/contextkit/tools/scripts/gh-triage.mjs', /export function selectNewIssues/],
+    ['gh-triage dedupes against tracked gh# sources (ticket 075)', 'templates/contextkit/tools/scripts/gh-triage.mjs', /export function trackedIssueNumbers/],
+    ['/gh-triage fetches incrementally via the watermark (ticket 075)', 'templates/claude/commands/vcs/gh-triage.md', /gh-triage\.mjs select/],
+    // Ticket 079 — setup completedAt → time-to-value in /context-stats.
+    ['stats computes time-to-value (ticket 079)', 'templates/contextkit/tools/scripts/stats.mjs', /function timeToValue/],
+    ['setup-complete stamps completedAt (ticket 079)', 'templates/contextkit/tools/scripts/setup-complete.mjs', /completedAt:/],
+    // Ticket 056 — media-gen content-addressed cache.
+    ['media-cache is content-addressed by sha256 (ticket 056)', 'templates/contextkit/tools/scripts/media-cache.mjs', /createHash\('sha256'\)/],
+    ['media-cache slots live under the single-sourced platform dir (ticket 056)', 'templates/contextkit/tools/scripts/media-cache.mjs', /pathsFor\(root\)\.platform/],
+    ['media-gen consults the cache before generate (ticket 056)', 'templates/contextkit/tools/scripts/media-gen.mjs', /isCached\(slot\)/],
+    ['media-gen honours --no-cache (ticket 056)', 'templates/contextkit/tools/scripts/media-gen.mjs', /args\.noCache/],
+    ['installer gitignores the media cache (ticket 056)', 'tools/install/git.mjs', /contextkit\/\.cache\//],
+    // Ticket 057 — SEO refuse-gate in code-reviewer.
+    ['code-reviewer enforces the SEO refuse-gate (ticket 057)', 'templates/claude/agents/code-reviewer.md', /SEO[ /]+.*refuse-gate/i],
+    ['code-reviewer reads the seo-aiso playbook (ticket 057)', 'templates/claude/agents/code-reviewer.md', /seo-aiso\.md/],
+    ['code-reviewer honours an indexability carve-out ADR (ticket 057)', 'templates/claude/agents/code-reviewer.md', /carve-out/],
+    // Ticket 065 — read-only git diagnostics; fetch gated behind --fetch.
+    ['sync-check divergence is read-only by default (ticket 065)', 'templates/contextkit/tools/scripts/sync-check.mjs', /if \(doFetch\) run\('git', \['fetch'/],
+    ['git.mjs status only fetches on --fetch (ticket 065)', 'templates/contextkit/tools/scripts/git.mjs', /if \(doFetch\) run\('git', \['fetch'/],
 ];

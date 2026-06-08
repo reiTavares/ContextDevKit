@@ -90,6 +90,7 @@ const GITIGNORE_BLOCK = [
   'contextkit/memory/tech-debt-findings.json',
   'contextkit/memory/deps-findings.json',
   'contextkit/memory/deep-analysis-findings.json',
+  'contextkit/.cache/',
 ].join('\n');
 
 export async function patchGitignore(target) {

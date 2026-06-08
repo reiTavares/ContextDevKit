@@ -75,9 +75,10 @@ You just entered **dev-start** mode with the objective:
    useful parts into the ticket body and let the scratch be discarded.
 
 8. **Before opening a PR — re-check sync** [ADR-0026]. Run
-   `node contextkit/tools/scripts/sync-check.mjs prepr` (or just use `/git pr`, which
-   runs it): it re-confirms you are not behind `main` and that **no open PR
-   already exists for this branch** before you create one. Don't duplicate a PR;
+   `node contextkit/tools/scripts/sync-check.mjs prepr --fetch` (or just use `/git pr`,
+   which runs it): it re-confirms you are not behind `main` and that **no open PR
+   already exists for this branch** before you create one. (`--fetch` refreshes
+   remote refs — read-only checks skip the fetch by default, ticket 065.) Don't duplicate a PR;
    push to update the existing one.
 
 9. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
