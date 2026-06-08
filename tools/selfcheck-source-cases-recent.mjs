@@ -85,4 +85,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['boot-signals exposes openBugsDue (ADR-0034)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function openBugsDue/],
     ['session-start surfaces open bugs (ADR-0034)', 'templates/contextkit/runtime/hooks/session-start.mjs', /openBugsDue\(ROOT\)/],
     ['/dev-start auto-starts a referenced task (ADR-0034)', 'templates/claude/commands/pipeline/dev-start.md', /pipeline\.mjs start <id>/],
+    // Ticket 062 — media providers send the API key in a header, never the URL query.
+    ['nano-banana sends the key in x-goog-api-key header (ticket 062)', 'templates/contextkit/runtime/providers/media/nano-banana.mjs', /'x-goog-api-key'/],
+    ['veo sends the key in x-goog-api-key header (ticket 062)', 'templates/contextkit/runtime/providers/media/veo.mjs', /'x-goog-api-key'/],
 ];

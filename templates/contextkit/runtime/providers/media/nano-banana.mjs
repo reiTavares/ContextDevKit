@@ -64,9 +64,11 @@ export async function generate({ prompt, outPath, options = {} }) {
   const t0 = Date.now();
   let resp;
   try {
-    resp = await fetch(`${ENDPOINT(model)}?key=${encodeURIComponent(process.env[envVar])}`, {
+    // Key in the `x-goog-api-key` header, never the URL query (ADR-0034 follow-up,
+    // ticket 062): a `?key=` leaks into proxy/access logs + error traces.
+    resp = await fetch(ENDPOINT(model), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env[envVar] },
       body: JSON.stringify(body),
     });
   } catch (err) {

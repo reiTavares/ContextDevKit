@@ -71,9 +71,10 @@ export async function generate({ prompt, outPath, options = {} }) {
   const t0 = Date.now();
   let initResp;
   try {
-    initResp = await fetch(`${PREDICT_ENDPOINT(model)}?key=${apiKey}`, {
+    // Key in the header, never the URL (ticket 062 — avoids leaking it into logs).
+    initResp = await fetch(PREDICT_ENDPOINT(model), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(body),
     });
   } catch (err) {
@@ -105,7 +106,7 @@ export async function generate({ prompt, outPath, options = {} }) {
     await sleep(POLL_INTERVAL_MS);
     let pollResp;
     try {
-      pollResp = await fetch(`${OPERATION_ENDPOINT(opName)}?key=${apiKey}`);
+      pollResp = await fetch(OPERATION_ENDPOINT(opName), { headers: { 'x-goog-api-key': apiKey } });
     } catch (err) {
       continue;
     }
@@ -133,7 +134,7 @@ export async function generate({ prompt, outPath, options = {} }) {
     bytes = Buffer.from(b64, 'base64');
   } else if (uri) {
     try {
-      const dl = await fetch(`${uri}${uri.includes('?') ? '&' : '?'}key=${apiKey}`);
+      const dl = await fetch(uri, { headers: { 'x-goog-api-key': apiKey } });
       if (!dl.ok) {
         throw new MediaProviderError(MEDIA_ERROR_CODES.PROVIDER_ERROR, `Veo video download returned ${dl.status}`);
       }
