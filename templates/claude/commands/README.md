@@ -21,6 +21,7 @@ templates/claude/commands/
 ├── dashboard.md, watch.md
 ├── landing-page.md, media-gen.md   ← landing architect + media generation (ADR-0023/0024)
 ├── advise.md                       ← proactive six-lane improvement engine (ADR-0028)
+├── debate.md                       ← multi-agent deliberation → feeds an ADR (ADR-0035)
 │
 ├── qa/                              ← test strategy + execution
 │   ├── qa-signoff.md

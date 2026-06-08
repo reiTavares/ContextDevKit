@@ -36,6 +36,12 @@ export const GLOSSARY = `${MEMORY_DIR}/GLOSSARY.md`;
 /** L5 prediction artifacts (Blast Radius Reports). */
 export const PREDICTIONS_DIR = `${MEMORY_DIR}/predictions`;
 
+/** Multi-agent deliberation artifacts (ADR-0035) — pre-decision debate, feeds ADRs. */
+export const DELIBERATIONS_DIR = `${MEMORY_DIR}/deliberations`;
+
+/** Auto-generated reverse-chronological index of deliberations. */
+export const DELIBERATIONS_INDEX = `${MEMORY_DIR}/DELIBERATIONS.md`;
+
 /** Factual release chronology (Keep a Changelog format). */
 export const CHANGELOG = 'docs/CHANGELOG.md';
 
@@ -71,6 +77,8 @@ export function pathsFor(root = process.cwd()) {
     decisions: at(DECISIONS_DIR),
     glossary: at(GLOSSARY),
     predictions: at(PREDICTIONS_DIR),
+    deliberations: at(DELIBERATIONS_DIR),
+    deliberationsIndex: at(DELIBERATIONS_INDEX),
     changelog: at(CHANGELOG),
     config: at(CONFIG_FILE),
     ledgerDir: at(LEDGER_DIR),

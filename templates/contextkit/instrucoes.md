@@ -37,9 +37,9 @@ Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
 ## Comandos principais
 
 - **Setup:** `/aidevtool-from0` (vazio) · `/setupcontextdevkit` (existente)
-- **Diário:** `/state` · `/log-session` (no fim) · `/new-adr` · `/close-version` ·
-  `/context-refresh` · `/bug-hunt` · `/dashboard` · `/watch` · `/playbook` ·
-  `/context-stats` · `/distill-sessions` · `/distill-apply`
+- **Diário:** `/state` · `/log-session` (no fim) · `/new-adr` · `/debate` ·
+  `/close-version` · `/context-refresh` · `/bug-hunt` · `/dashboard` · `/watch` ·
+  `/playbook` · `/context-stats` · `/distill-sessions` · `/distill-apply`
 - **Trabalho focado:** `/dev-start` (mostra PRs abertos via sync-check) ·
   `/workflow` · `/ship` · `/resume`
 - **Coordenação (L3):** `/claim` · `/release` · `/worktree-new` · `/git`

@@ -73,6 +73,8 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/state` — resumo do estado atual.
 - `/log-session` — registra a sessão (use **no fim**). O Stop hook cobra você.
 - `/new-adr <título>` — cria um ADR **antes** de uma decisão grande.
+- `/debate <questão>` — deliberação multi-agente: vozes independentes debatem,
+  um sintetizador converge (ou registra `unresolved`) e o resultado alimenta um ADR.
 - `/close-version <x.y.z>` — fecha versão no CHANGELOG.
 - `/context-refresh` — gera o snapshot completo do projeto.
 - `/resume <session-id>` — re-vincula a uma sessão drift não registrada.

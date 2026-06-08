@@ -50,6 +50,17 @@ const L5Schema = z
   })
   .default({});
 
+// ADR-0035 — Deliberations toggle. Modelled (not just passed through) so
+// `/context-config` validates the voice count and level gate before persisting.
+const DeliberationsSchema = z
+  .object({
+    active: z.boolean().default(true),
+    voices: z.number().int().min(2).max(5).default(3),
+    minLevel: z.number().int().min(MIN_LEVEL).max(MAX_LEVEL).default(5),
+    nudgeOnHighRisk: z.boolean().default(true),
+  })
+  .default({});
+
 const DepsSchema = z
   .object({
     requireLockfile: z.boolean().default(true),
@@ -71,6 +82,7 @@ export const ConfigSchema = z
     ledger: LedgerSchema,
     l5: L5Schema,
     deps: DepsSchema,
+    deliberations: DeliberationsSchema,
   })
   .passthrough()
   .default({});

@@ -250,6 +250,46 @@ try {
   existsSync(join(proj, 'contextkit', 'pipeline', 'conclusion', '077-autoadv.md')) && !existsSync(join(proj, 'contextkit', 'pipeline', 'working', '077-autoadv.md'))
     ? ok('Stop hook auto-concludes a fully-checked task (ADR-0034)')
     : bad('auto-advance did not conclude the all-checked task');
+
+  // ADR-0035 (task 080) — deliberation nudge: soft, never-blocks, level-gated, debounced.
+  const setDelib = (extra) => {
+    const c = readJson(cfgPath);
+    c.level = 5;
+    c.l5.highRiskPaths = ['src/secure/'];
+    c.deliberations = { active: true, voices: 3, minLevel: 5, nudgeOnHighRisk: true, ...extra };
+    writeFileSync(cfgPath, JSON.stringify(c, null, 2));
+  };
+  setDelib();
+  const dn1 = hook('deliberation-nudge.mjs', { session_id: 'delibA', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } });
+  dn1.includes('<deliberation-nudge>') && !dn1.includes('"decision"')
+    ? ok('deliberation-nudge suggests /debate on a high-risk edit, never blocks (ADR-0035)')
+    : bad(`deliberation-nudge missing or blocked: ${dn1}`);
+  hook('deliberation-nudge.mjs', { session_id: 'delibA', tool_name: 'Write', tool_input: { file_path: 'src/secure/y.js' } }).trim() === ''
+    ? ok('deliberation-nudge debounces to once per session (ADR-0035)')
+    : bad('deliberation-nudge fired twice in one session');
+  hook('deliberation-nudge.mjs', { session_id: 'delibB', tool_name: 'Write', tool_input: { file_path: 'src/normal.js' } }).trim() === ''
+    ? ok('deliberation-nudge silent on a non-high-risk path')
+    : bad('deliberation-nudge fired on a non-high-risk path');
+  setDelib({ minLevel: 6 });
+  hook('deliberation-nudge.mjs', { session_id: 'delibC', tool_name: 'Write', tool_input: { file_path: 'src/secure/z.js' } }).trim() === ''
+    ? ok('deliberation-nudge is silent below minLevel (ADR-0035)')
+    : bad('deliberation-nudge fired below minLevel');
+  setDelib({ nudgeOnHighRisk: false });
+  hook('deliberation-nudge.mjs', { session_id: 'delibD', tool_name: 'Write', tool_input: { file_path: 'src/secure/w.js' } }).trim() === ''
+    ? ok('deliberation-nudge respects nudgeOnHighRisk:false (toggle)')
+    : bad('deliberation-nudge ignored the off toggle');
+
+  // ADR-0035 (task 082) — deliberations reindex: filesystem → DELIBERATIONS.md, badges, ordering.
+  const delibDir = join(proj, 'contextkit', 'memory', 'deliberations');
+  mkdirSync(delibDir, { recursive: true });
+  writeFileSync(join(delibDir, '2026-02-01-01-alpha.md'), '# Deliberation: Alpha\n\n- **Status**: resolved\n');
+  writeFileSync(join(delibDir, '2026-02-02-02-beta.md'), '# Deliberation: Beta\n\n- **Status**: unresolved\n');
+  writeFileSync(join(delibDir, 'not-a-deliberation.md'), '# junkentry\n'); // malformed name → ignored
+  script('deliberations-reindex.mjs');
+  const delibIndex = readFileSync(join(proj, 'contextkit', 'memory', 'DELIBERATIONS.md'), 'utf-8');
+  delibIndex.includes('Alpha') && delibIndex.includes('Beta') && delibIndex.includes('✅ resolved') && delibIndex.includes('⚖️ unresolved') && delibIndex.indexOf('Beta') < delibIndex.indexOf('Alpha') && !delibIndex.includes('junkentry')
+    ? ok('deliberations-reindex: both entries, status badges, newest-first, malformed ignored (ADR-0035)')
+    : bad(`deliberations-reindex output wrong: ${delibIndex}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
