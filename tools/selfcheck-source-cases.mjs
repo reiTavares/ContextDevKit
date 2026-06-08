@@ -289,4 +289,12 @@ export const SOURCE_INVARIANT_CASES = [
     ['pipeline start enforces the ADR gate (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ADR-0032 gate/],
     ['check-registration emits a diff-aware signal (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /function diffSignal/],
     ['check-registration nudge points at the ledger auto-draft (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /session-draft\.mjs/],
+    // ADR-0033 — boot as a budget.
+    ['boot-signals exposes engineUpdateSignal (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function engineUpdateSignal/],
+    ['boot-signals exposes valueLine (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function valueLine/],
+    ['session-start caps the drift banner to 2 freshest (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /drift\.slice\(0, 2\)/],
+    ['session-start renders the engine-update signal (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /engineUpdateSignal\(ROOT\)/],
+    ['session-start renders the weekly value line (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /valueLine\(ROOT\)/],
+    ['defaults expose boot.valueLine (ADR-0033)', 'templates/contextkit/runtime/config/defaults.mjs', /boot:\s*\{\s*valueLine:\s*true\s*\}/],
+    ['installer stamps the engine version (ADR-0033)', 'install.mjs', /'\.engine-version'/],
 ];

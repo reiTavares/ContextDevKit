@@ -49,6 +49,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   behaviors: { active: true },
 
   /**
+   * Boot banner budget (ADR-0033). `valueLine` shows a once-a-week, local-only,
+   * no-PII line reflecting the kit's accrued value (sessions logged · ADRs
+   * recorded) so the dev can see the payoff. Set `false` to mute.
+   */
+  boot: { valueLine: true },
+
+  /**
    * Path classification for the L2 ledger. Override per stack via config.
    *   - `important`: an edit here can trigger the Stop drift nudge.
    *   - `irrelevant`: never tracked (build output, caches, runtime state).
