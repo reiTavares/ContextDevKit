@@ -31,8 +31,9 @@ import {
   writeLedger,
 } from './ledger.mjs';
 import { getLevel, loadConfig } from '../config/load.mjs';
-import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX } from '../config/paths.mjs';
+import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX, pathsFor } from '../config/paths.mjs';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
+import { autoAdvanceSessionTasks } from '../../tools/scripts/pipeline-session.mjs';
 
 const ROOT = process.cwd();
 const ARCHIVE_DIR = resolve(SESSIONS_DIR, '.archive');
@@ -215,6 +216,17 @@ async function main() {
   const level = getLevel(ROOT);
 
   const sideSuggestions = [];
+  // ADR-0034 — auto-advance the session's working tasks whose acceptance criteria
+  // are all checked (working/ → conclusion/). Defensive: never blocks the Stop hook.
+  if (level >= 3) {
+    try {
+      const { concluded, pending } = autoAdvanceSessionTasks(pathsFor(ROOT).pipeline, sessionId);
+      if (concluded.length) sideSuggestions.push(`✅ Auto-concluded ${concluded.length} task(s) — all acceptance criteria met [ADR-0034]: ${concluded.join(', ')}.`);
+      for (const p of pending) if (p.total > 0) sideSuggestions.push(`🔵 Task ${p.id} in working — ${p.done}/${p.total} acceptance criteria done; check the rest to auto-conclude [ADR-0034].`);
+    } catch {
+      /* lifecycle automation is best-effort — never blocks the Stop hook */
+    }
+  }
   if (level >= 5) {
     await archiveOldRegisteredLedgers();
     const distill = await maybeProposeDistillation();

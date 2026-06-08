@@ -26,5 +26,15 @@ Create a new Architecture Decision Record for: **$ARGUMENTS**
 
 4. Show the user the draft and ask for confirmation before marking it `Accepted`.
 
+5. **Generate the backlog from the decision** [ADR-0034] — a decision with no tasks is
+   decorative. Once `Accepted`, preview the work it implies and create it:
+   ```
+   node contextkit/tools/scripts/adr-tasks.mjs <NNNN>            # preview (dry-run)
+   node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --write    # create, tagged source: adr:NNNN
+   ```
+   It parses the **Decision** points into backlog tasks (auto-classified, ADR-tagged).
+   Review the preview, prune/merge as needed, then `--write`. The tasks then flow
+   through the pipeline (`/pipeline start` → working → conclusion on accepted criteria).
+
 ADRs are immutable once `Accepted` — to change a decision, write a new ADR that supersedes it.
 Never delete or rewrite an accepted ADR.

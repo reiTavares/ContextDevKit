@@ -101,6 +101,14 @@ try {
     ? ok('advise-review computes per-lane advisor hit-rate (ADR-0032)')
     : bad(`advise-review failed: ${ar.stdout || ar.stderr}`);
 
+  // ADR-0034 — adr-tasks parses an ADR's Decision into proposed backlog tasks.
+  writeFileSync(join(proj, 'contextkit', 'memory', 'decisions', '0050-x.md'),
+    '# ADR-0050: x\n\n## Decision\n\n1. **Do the first thing.**\n2. **Do the second thing.**\n\n## Consequences\n- ok\n');
+  const at = script('adr-tasks.mjs', '0050', '--json');
+  (() => { try { const j = JSON.parse(at.stdout); return j.adrId === '0050' && j.tasks.length === 2; } catch { return false; } })()
+    ? ok('adr-tasks parses the Decision into backlog tasks (ADR-0034)')
+    : bad(`adr-tasks failed: ${at.stdout || at.stderr}`);
+
   // DevPipeline tests live in `integration-test-tooling-pipeline.mjs` (sibling).
 
   // Deep analysis: aggregates the deterministic scanners into one report.

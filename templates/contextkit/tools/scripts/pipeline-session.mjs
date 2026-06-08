@@ -17,6 +17,7 @@ import { existsSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { readState, writeState } from '../../runtime/state/state-io.mjs';
+import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
 import { attachTask, detachTask } from './claim.mjs';
 import { classifyTask } from './complexity-rubric.mjs';
 
@@ -86,6 +87,58 @@ export async function startTask(pipeDir, rawId, sync) {
     writeState(pipeDir, id, { kind: 'task', status: 'working', branch: gitOut(['symbolic-ref', '--short', 'HEAD'], cwd, null), ownerUser: gitOut(['config', 'user.name'], cwd, null), endedAt: null });
   } catch { /* best-effort: state.json is observability, not the source of truth */ }
   return { id, stage: 'working' };
+}
+
+/** Acceptance-criteria checkbox status for a task body. */
+function criteriaStatus(text) {
+  const boxes = [...text.matchAll(/^\s*-\s*\[( |x|X)\]/gm)].map((m) => m[1].toLowerCase() === 'x');
+  const done = boxes.filter(Boolean).length;
+  return { done, total: boxes.length, allChecked: boxes.length > 0 && done === boxes.length };
+}
+
+/**
+ * ADR-0034 — auto-advance the session's owned working tasks. A task moves
+ * `working/ → conclusion/` ONLY when every acceptance-criteria checkbox is `[x]`
+ * (a verified, intentional signal — never on file activity alone, rule 8). Pure
+ * sync, defensive; the Stop hook calls it and reports the result.
+ *
+ * @param {string} pipeDir
+ * @param {string} sessionId
+ * @returns {{ concluded: string[], pending: Array<{id,done,total}> }}
+ */
+export function autoAdvanceSessionTasks(pipeDir, sessionId) {
+  const concluded = [];
+  const pending = [];
+  let record;
+  try {
+    const root = pipeDir.split(/[\\/]+contextkit[\\/]+/)[0] || process.cwd();
+    record = JSON.parse(readFileSync(resolve(root, '.claude', '.workspace', `${sanitizeSid(sessionId)}.json`), 'utf-8'));
+  } catch {
+    return { concluded, pending };
+  }
+  for (const t of Array.isArray(record.tasks) ? record.tasks : []) {
+    const found = findTaskFile(pipeDir, t.id);
+    if (!found || found.stage !== 'working') continue;
+    let text = '';
+    try {
+      text = readFileSync(resolve(pipeDir, 'working', found.file), 'utf-8');
+    } catch {
+      continue;
+    }
+    const cs = criteriaStatus(text);
+    if (cs.allChecked) {
+      try {
+        moveStage(pipeDir, 'working', 'conclusion', found.file, 'done');
+        try {
+          if (readState(pipeDir, String(t.id).padStart(3, '0'))) writeState(pipeDir, String(t.id).padStart(3, '0'), { status: 'done', endedAt: Date.now() });
+        } catch { /* state.json is observability */ }
+        concluded.push(String(t.id).padStart(3, '0'));
+      } catch { /* leave it in working on any failure */ }
+    } else {
+      pending.push({ id: String(t.id).padStart(3, '0'), done: cs.done, total: cs.total });
+    }
+  }
+  return { concluded, pending };
 }
 
 /**

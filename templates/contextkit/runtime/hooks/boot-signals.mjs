@@ -164,6 +164,44 @@ export function valueLine(root) {
   }
 }
 
+/**
+ * ADR-0034 — open bugs awaiting resolution in backlog/working. Surfaces them at
+ * boot so a pending bug isn't buried under new feature work. Returns
+ * `{ total, p0, p1 }` or null when there are none. Best-effort, silent on error.
+ */
+export function openBugsDue(root) {
+  try {
+    const pipe = pathsFor(root).pipeline;
+    let total = 0;
+    let p0 = 0;
+    let p1 = 0;
+    for (const stage of ['backlog', 'working']) {
+      let files = [];
+      try {
+        files = readdirSync(resolve(pipe, stage));
+      } catch {
+        continue;
+      }
+      for (const f of files) {
+        if (!f.endsWith('.md')) continue;
+        let text = '';
+        try {
+          text = readFileSync(resolve(pipe, stage, f), 'utf-8');
+        } catch {
+          continue;
+        }
+        if (!/^type:\s*bug\s*$/m.test(text)) continue;
+        total += 1;
+        if (/^priority:\s*P0\b/m.test(text)) p0 += 1;
+        else if (/^priority:\s*P1\b/m.test(text)) p1 += 1;
+      }
+    }
+    return total > 0 ? { total, p0, p1 } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Security mode (config): returns the cadence N when a /deep-analysis is due, else 0. */
 export function securityModeDue(root) {
   const cfg = loadConfigSync(root)?.securityMode;
