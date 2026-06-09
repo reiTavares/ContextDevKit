@@ -17,7 +17,7 @@ const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
   'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md',
   'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md',
-  'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
+  'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
   'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example',
 ];
@@ -38,7 +38,7 @@ async function seedSubstrate(target, tplDir, io, force, report) {
     if (!existsSync(src)) continue;
     if (await io.writeIfMissing(join(target, 'contextkit', rel), await io.read(src), force)) report.push(`✓ seeded contextkit/${rel}`);
   }
-  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations']) {
+  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations', 'project-map']) {
     await io.ensureDir(join(target, 'contextkit', 'memory', d));
   }
   const pipeCount = await io.copyTreeIfMissing(join(tplDir, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));

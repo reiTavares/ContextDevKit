@@ -7,6 +7,19 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`/project-map` — deterministic, stack-agnostic structural map (durable memory).**
+  A new zero-AI-token mapper (`contextkit/tools/scripts/project-map{,-core,-render}.mjs`)
+  scans the project and writes a committed map under `contextkit/memory/project-map/`:
+  `00-index.md` (one-screen overview — stack + modules classified 🎨 frontend /
+  ⚙️ backend / 🔗 shared / 🛠️ config), `01-modules.md`, `02-inventory.md` (sampled
+  exported symbols), and a `manifest.json` signature. The agent reads the index
+  INSTEAD of re-greping the tree each session. `--check` diffs the saved signature
+  (`--strict` exits 1 for CI), and the SessionStart boot context nudges 🗺️ when the
+  map is older than the newest source edit (bounded mtime walk, ≤400 stats — rule 2).
+  Output path single-sourced via `pathsFor().projectMap` (rule 4); the installer
+  seeds `memory/project-map/`. Claude host this release; the Antigravity mirror
+  follows with the host-modular pass. Covered by selfcheck + a frontend/backend
+  classification round-trip in the tooling integration test.
 - **Legacy-install migration (rename follow-through).** `install.mjs` now carries
   an old `vibekit/` install forward to `contextkit/` automatically on `npx
   contextdevkit --update` (and via an explicit `node install.mjs --migrate

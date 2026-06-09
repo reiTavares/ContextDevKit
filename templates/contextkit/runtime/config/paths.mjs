@@ -36,6 +36,9 @@ export const GLOSSARY = `${MEMORY_DIR}/GLOSSARY.md`;
 /** L5 prediction artifacts (Blast Radius Reports). */
 export const PREDICTIONS_DIR = `${MEMORY_DIR}/predictions`;
 
+/** Durable structural project map — modules/frontend/backend inventory (deterministic). */
+export const PROJECT_MAP_DIR = `${MEMORY_DIR}/project-map`;
+
 /** Multi-agent deliberation artifacts (ADR-0035) — pre-decision debate, feeds ADRs. */
 export const DELIBERATIONS_DIR = `${MEMORY_DIR}/deliberations`;
 
@@ -77,6 +80,7 @@ export function pathsFor(root = process.cwd()) {
     decisions: at(DECISIONS_DIR),
     glossary: at(GLOSSARY),
     predictions: at(PREDICTIONS_DIR),
+    projectMap: at(PROJECT_MAP_DIR),
     deliberations: at(DELIBERATIONS_DIR),
     deliberationsIndex: at(DELIBERATIONS_INDEX),
     changelog: at(CHANGELOG),

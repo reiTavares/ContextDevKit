@@ -49,6 +49,27 @@ try {
   existsSync(join(proj, 'apps', 'api', 'CLAUDE.md')) && existsSync(join(proj, 'apps', 'web', 'CLAUDE.md'))
     ? ok('claude-md scaffolds scoped CLAUDE.md per module') : bad('module CLAUDE.md not scaffolded');
 
+  // project-map — deterministic structural map over a frontend (.tsx) + backend (.ts) split.
+  mkdirSync(join(proj, 'apps', 'web', 'src'), { recursive: true });
+  mkdirSync(join(proj, 'apps', 'api', 'src'), { recursive: true });
+  writeFileSync(join(proj, 'apps', 'web', 'src', 'App.tsx'), 'export function App() { return null; }\n');
+  writeFileSync(join(proj, 'apps', 'api', 'src', 'server.ts'), 'export function startServer() {}\n');
+  const pmGen = script('project-map.mjs');
+  const pmIndex = join(proj, 'contextkit', 'memory', 'project-map', '00-index.md');
+  const pmManifest = join(proj, 'contextkit', 'memory', 'project-map', 'manifest.json');
+  existsSync(pmIndex) && existsSync(pmManifest)
+    ? ok('project-map generates the index + manifest under memory/project-map/')
+    : bad(`project-map did not write its artifacts: ${pmGen.stdout || pmGen.stderr}`);
+  (() => { try { const idx = readFileSync(pmIndex, 'utf-8'); return /🎨 frontend/.test(idx) && /⚙️ backend/.test(idx) && idx.includes('apps/web') && idx.includes('apps/api'); } catch { return false; } })()
+    ? ok('project-map classifies frontend (.tsx) and backend (.ts) modules')
+    : bad('project-map did not classify the frontend/backend split');
+  (() => { try { return JSON.parse(readFileSync(pmManifest, 'utf-8')).signature?.length > 0; } catch { return false; } })()
+    ? ok('project-map writes a signature into manifest.json (powers staleness)')
+    : bad('project-map manifest missing a signature');
+  script('project-map.mjs', '--check').stdout.includes('fresh')
+    ? ok('project-map --check reports a fresh map right after generation')
+    : bad('project-map --check did not report fresh');
+
   // Version control: git.mjs reports a repo with no remote (temp project has none).
   const gitStatus = script('git.mjs', 'status', '--json');
   (() => { try { const g = JSON.parse(gitStatus.stdout); return g.isRepo === true && g.remoteUrl === null; } catch { return false; } })()
