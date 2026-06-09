@@ -148,4 +148,13 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Data-loss guard — the cross-device migration must verify the copy before deleting the source.
     ['migration verifies a cross-device copy before rm (data-loss guard)', 'tools/install/migrate.mjs', /missingAfterCopy\(from, to\)/],
     ['migration refuses to delete the source on a partial copy', 'tools/install/migrate.mjs', /copy incomplete/],
+    // Antigravity integration — second native host alongside Claude Code (skills/agents/playbooks/workflows + ctx runner).
+    ['installer copies the Antigravity assets into .antigravity', 'install.mjs', /copyTree\(join\(TPL, 'antigravity'\), join\(target, '\.antigravity'\)\)/],
+    ['installer installs the ctx.mjs central CLI runner', 'install.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await read\(join\(TPL, 'ctx\.mjs'\)\)\)/],
+    ['installer renders INSTRUCTIONS.md from the template', 'install.mjs', /read\(join\(TPL, 'INSTRUCTIONS\.md\.tpl'\)\)/],
+    ['package.json declares the agy bin → ctx.mjs', 'package.json', /"agy":\s*"ctx\.mjs"/],
+    ['ctx.mjs is the central CLI runner for Antigravity', 'templates/ctx.mjs', /central CLI runner for Antigravity/],
+    ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
+    ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
+    ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],
 ];
