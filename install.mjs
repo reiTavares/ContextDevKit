@@ -28,6 +28,7 @@ import { applyPreset, listPresets } from './templates/contextkit/runtime/config/
 import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
 import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
+import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
@@ -147,42 +148,12 @@ async function main() {
   await overwrite(join(target, 'contextkit', '.engine-version'), `${await kitVersion()}\n`);
   report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
 
-  // 2b. Central CLI Runner (ctx.mjs): always copy/overwrite (kit runner)
-  await overwrite(join(target, 'ctx.mjs'), await read(join(TPL, 'ctx.mjs')));
-  report.push('✓ central CLI runner installed (ctx.mjs)');
-
-  // 2c. Patch target package.json if it exists
-  const pkgPath = join(target, 'package.json');
-  if (existsSync(pkgPath)) {
-    try {
-      const raw = await read(pkgPath);
-      const pkg = JSON.parse(raw);
-      if (!pkg.scripts) pkg.scripts = {};
-      let modified = false;
-      if (pkg.scripts.ctx !== 'node ctx.mjs') {
-        pkg.scripts.ctx = 'node ctx.mjs';
-        modified = true;
-      }
-      if (pkg.scripts.agy !== 'node ctx.mjs') {
-        pkg.scripts.agy = 'node ctx.mjs';
-        modified = true;
-      }
-      if (modified) {
-        await overwrite(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-        report.push('✓ package.json patched with "ctx" and "agy" script shortcuts');
-      }
-    } catch (err) {
-      report.push(`⚠️  failed to patch package.json: ${err.message}`);
-    }
-  }
+  // 2b. Antigravity host (CLI runner + assets + INSTRUCTIONS) — second native host [ADR-0036].
+  await installAntigravityHost(target, TPL, { read, overwrite, copyTree, render }, { name, level, mode, args }, report);
 
   // 3. Slash commands: always overwrite.
   await copyTree(join(TPL, 'claude', 'commands'), join(target, '.claude', 'commands'));
   report.push('✓ slash commands installed (.claude/commands)');
-
-  // 3b. Antigravity skills, agents, playbooks and workflows: always overwrite.
-  await copyTree(join(TPL, 'antigravity'), join(target, '.antigravity'));
-  report.push('✓ Antigravity skills, agents, playbooks and workflows installed (.antigravity/)');
 
   // 4. Agents + L4+ squads: only at L >= 4.
   if (level >= 4) {
@@ -268,28 +239,6 @@ async function main() {
     } else {
       await overwrite(join(target, 'CLAUDE.contextdevkit.md'), claudeOut);
       report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.contextdevkit.md to merge by hand');
-    }
-  }
-
-  // 7b. INSTRUCTIONS.md: render if missing; else drop a side file to merge.
-  //    On --update we NEVER touch INSTRUCTIONS.md.
-  const instPath = join(target, 'INSTRUCTIONS.md');
-  if (args.update && existsSync(instPath)) {
-    /* update: leave the user's INSTRUCTIONS.md untouched */
-  } else {
-    const instTpl = await read(join(TPL, 'INSTRUCTIONS.md.tpl'));
-    const instOut = render(instTpl, {
-      PROJECT_NAME: name,
-      DATE: new Date().toISOString().slice(0, 10),
-      LEVEL: String(level),
-      MODE: mode,
-    });
-    if (!existsSync(instPath) || args.force) {
-      await overwrite(instPath, instOut);
-      report.push('✓ INSTRUCTIONS.md created');
-    } else {
-      await overwrite(join(target, 'INSTRUCTIONS.contextdevkit.md'), instOut);
-      report.push('⚠️  INSTRUCTIONS.md exists — wrote INSTRUCTIONS.contextdevkit.md to merge by hand');
     }
   }
 
