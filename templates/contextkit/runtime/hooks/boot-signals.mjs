@@ -8,7 +8,7 @@
  * a signal never blocks a session. Zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
@@ -197,6 +197,62 @@ export function openBugsDue(root) {
       }
     }
     return total > 0 ? { total, p0, p1 } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Bounded newest-mtime walk over a module dir (caps total stats to stay cheap). */
+function newestMtimeUnder(absDir, budget) {
+  let newest = 0;
+  let entries = [];
+  try {
+    entries = readdirSync(absDir, { withFileTypes: true });
+  } catch {
+    return { newest, budget };
+  }
+  for (const e of entries) {
+    if (budget.n <= 0) break;
+    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+    const full = resolve(absDir, e.name);
+    if (e.isDirectory()) {
+      const r = newestMtimeUnder(full, budget);
+      if (r.newest > newest) newest = r.newest;
+    } else {
+      budget.n -= 1;
+      try {
+        const mt = statSync(full).mtimeMs;
+        if (mt > newest) newest = mt;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return { newest, budget };
+}
+
+/**
+ * project-map staleness — nudge when the committed structural map is older than
+ * the newest source edit. Reads the saved `manifest.json` (generatedAt) and does
+ * a BOUNDED mtime walk over the mapped module dirs (cap 400 stats) so boot stays
+ * fast. Returns a line or null. Silent when no map exists (never opted in) or on
+ * any error. Self-contained — no dependency on the tools/ layer.
+ */
+export function projectMapStale(root) {
+  try {
+    const dir = pathsFor(root).projectMap;
+    const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json'), 'utf-8'));
+    const generatedAt = Number(manifest?.generatedAt) || 0;
+    if (!generatedAt || !Array.isArray(manifest.modules)) return null;
+    const budget = { n: 400 };
+    let newest = 0;
+    for (const mod of manifest.modules) {
+      if (budget.n <= 0) break;
+      const r = newestMtimeUnder(resolve(root, String(mod.path)), budget);
+      if (r.newest > newest) newest = r.newest;
+    }
+    // 2s margin avoids flapping on the generation write itself.
+    return newest > generatedAt + 2000 ? '🗺️  Project map is **stale** — source changed since it was generated. Run `/project-map` to refresh it (or `/project-map --check` to diff).' : null;
   } catch {
     return null;
   }

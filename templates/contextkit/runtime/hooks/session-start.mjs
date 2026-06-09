@@ -29,6 +29,7 @@ import {
   isGreenfield,
   openBugsDue,
   predictionsReviewDue,
+  projectMapStale,
   projectName,
   securityModeDue,
   valueLine,
@@ -120,8 +121,9 @@ async function main() {
   const engineSignal = engineUpdateSignal(ROOT);
   const value = valueLine(ROOT);
   const bugs = level >= 2 ? openBugsDue(ROOT) : null;
+  const mapStale = level >= 2 ? projectMapStale(ROOT) : null;
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -191,6 +193,13 @@ async function main() {
     out.push('');
     out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in backlog/working.`);
     out.push('Resolve pending bugs (P0/P1 first) before new feature work — `/pipeline` to triage, `/bug-hunt <id>` to fix.');
+    out.push('');
+  }
+
+  if (mapStale) {
+    out.push('## 🗺️ Project map');
+    out.push('');
+    out.push(mapStale);
     out.push('');
   }
 
