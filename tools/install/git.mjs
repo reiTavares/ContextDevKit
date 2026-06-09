@@ -5,7 +5,7 @@
 import { writeFile, chmod, rename, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
-import { ensureDir, read } from './fs.mjs';
+import { ensureDir, read, copyTreeIfMissing } from './fs.mjs';
 
 /**
  * Resolves a `.git` path to the *actual* git directory.
@@ -112,4 +112,31 @@ export async function patchGitattributes(target, tplDir) {
   if (current.includes('ContextDevKit — keep engine scripts')) return false;
   await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + block, 'utf-8');
   return true;
+}
+
+/**
+ * VCS integration step: patch .gitignore/.gitattributes, seed GitHub templates,
+ * install the L≥3 git hooks, and hint at connecting a remote. Defensive — a missing
+ * `.git` degrades to a hint, never a failure (rule 2) [ADR-0037].
+ * @param {string} target - project root
+ * @param {string} tplDir - templates dir
+ * @param {number} level - active level (git hooks only at L≥3)
+ * @param {string[]} report - mutated with progress lines
+ */
+export async function installVcsIntegration(target, tplDir, level, report) {
+  if (await patchGitignore(target)) report.push('✓ .gitignore patched');
+  if (await patchGitattributes(target, tplDir)) report.push('✓ .gitattributes patched (LF for engine scripts)');
+  const ghCount = await copyTreeIfMissing(join(tplDir, 'github'), join(target, '.github'));
+  if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
+  if (level >= 3) {
+    const gitHooks = await installGitHooks(target);
+    if (gitHooks.installed) {
+      report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
+      if (gitHooks.backedUp.length) report.push(`  ↳ backed up your existing ${gitHooks.backedUp.join(', ')} hook(s) → *.bak`);
+    } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
+  }
+  // Version-control hint: suggest connecting a remote if there isn't one.
+  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
+    report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
+  }
 }
