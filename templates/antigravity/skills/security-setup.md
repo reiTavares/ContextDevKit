@@ -18,8 +18,8 @@ GitHub's own alerts into owned backlog tasks. Idempotent — safe to re-run.
 
 3. **Close the loop (alerts → backlog)** — pull GitHub's own alerts in and prioritize them:
    ```
-   node vibekit/tools/scripts/gh-alerts.mjs --write
-   node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/gh-alerts-findings.json --type chore
+   node contextkit/tools/scripts/gh-alerts.mjs --write
+   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/gh-alerts-findings.json --type chore
    ```
    Needs an authenticated `gh` CLI (`gh auth login`). Degrades silently if absent — never blocks.
 

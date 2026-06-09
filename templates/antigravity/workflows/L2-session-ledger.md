@@ -20,11 +20,11 @@ real state and the documented one. L2 instruments the system with hooks that
 `.claude/.sessions/<sessionId>.json` — gitignored, isolated between parallel chats.
 It records each modification (path, tool, timestamp), whether the session was
 registered, and anti-loop flags. Shared helpers live in
-[`vibekit/runtime/hooks/ledger.mjs`](../runtime/hooks/ledger.mjs).
+[`contextkit/runtime/hooks/ledger.mjs`](../runtime/hooks/ledger.mjs).
 
 ### Claude Code hooks
 
-Wired in `.claude/settings.json` — every script lives in `vibekit/runtime/hooks/`:
+Wired in `.claude/settings.json` — every script lives in `contextkit/runtime/hooks/`:
 
 | Hook | Matcher | Script | Job |
 | --- | --- | --- | --- |
@@ -46,11 +46,11 @@ otherwise                           → decision: "block"
 ## What counts as an "important path"
 
 Drift detection classifies paths via
-[`vibekit/runtime/hooks/path-classification.mjs`](../runtime/hooks/path-classification.mjs),
-driven by `vibekit/config.json` — **not hardcoded per stack**. By default, source
+[`contextkit/runtime/hooks/path-classification.mjs`](../runtime/hooks/path-classification.mjs),
+driven by `contextkit/config.json` — **not hardcoded per stack**. By default, source
 code, the platform folder, and CI/config files trigger drift; generated output
 (`node_modules/`, `dist/`, build caches) and the platform's own runtime state
-(`.claude/.sessions/`, `.claude/.workspace/`) do not. Tune the lists with `/vibe-config`.
+(`.claude/.sessions/`, `.claude/.workspace/`) do not. Tune the lists with `/context-config`.
 
 ## A full session flow
 
@@ -69,9 +69,9 @@ code, the platform folder, and CI/config files trigger drift; generated output
 ## When something goes wrong
 
 - **Hook doesn't run** → check `.claude/settings.json` points to the
-  `vibekit/runtime/hooks/<name>.mjs` file and that it exists.
+  `contextkit/runtime/hooks/<name>.mjs` file and that it exists.
 - **False-positive drift** → a classification may be too broad; adjust via
-  `/vibe-config` (record an ADR if it's a real policy change).
+  `/context-config` (record an ADR if it's a real policy change).
 - **Stop hook re-nudging** → the anti-loop flag lives in the ledger; if it repeats,
   the ledger may be getting recreated each Stop — investigate.
 - **Two chats in one worktree** → use a `git worktree` (L3); the ledger is

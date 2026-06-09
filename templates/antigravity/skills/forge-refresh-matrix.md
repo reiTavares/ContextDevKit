@@ -4,7 +4,7 @@
 > Argument: [--write] [--json]
 # 🛠️ Mode: agent-forge — refresh capability matrix
 
-Run `node vibekit/squads/agent-forge/cli/forge-admin.mjs refresh-matrix <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-admin.mjs refresh-matrix <user-specified argument>`.
 
 This command only stamps the `updated` field — adding/removing models or
 changing prices is intentionally out of scope (ADR-0012 §6: matrix-freshness

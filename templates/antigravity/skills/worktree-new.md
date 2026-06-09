@@ -8,7 +8,7 @@ ledger or on live file edits.
 Run:
 
 ```
-node vibekit/tools/scripts/worktree-new.mjs <user-specified argument>
+node contextkit/tools/scripts/worktree-new.mjs <user-specified argument>
 ```
 
 This creates branch `feat/<feature>` and a sibling worktree directory `../<repo>-<feature>`. Show

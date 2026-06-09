@@ -21,8 +21,8 @@ the foundation here.
 
 ### 2. SESSIONS.md as a generated index
 
-`vibekit/memory/SESSIONS.md` is no longer hand-edited. Each session writes its **own
-file** at `vibekit/memory/sessions/<YYYY-MM-DD>-<NN>-<slug>.md`; the index is
+`contextkit/memory/SESSIONS.md` is no longer hand-edited. Each session writes its **own
+file** at `contextkit/memory/sessions/<YYYY-MM-DD>-<NN>-<slug>.md`; the index is
 regenerated and refreshed by the `pre-commit` git hook. Two sessions can register in
 parallel — different files, recomposed index.
 
@@ -31,7 +31,7 @@ parallel — different files, recomposed index.
 A session reserves paths with `/claim <path…>`:
 - writes/updates `.claude/.workspace/<sid>.json` (gitignored) with session, branch,
   claims, and heartbeat;
-- the aggregate is rendered into `vibekit/memory/WORKSPACE.md` (versioned) and
+- the aggregate is rendered into `contextkit/memory/WORKSPACE.md` (versioned) and
   refreshed by the pre-commit hook;
 - the `PostToolUse` hook (L2, `concurrency-guard.mjs`) reads **other** sessions'
   `.workspace/*.json` and emits a cross-claim warning if your edit lands inside

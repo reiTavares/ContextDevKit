@@ -5,8 +5,8 @@
 # Playbook — TanStack
 
 > Operational entry points: `/aidevtool-from0` Phase 3 (proposing the stack),
-> `/setupvibedevkit` Phase 4 (writing rules when detected), and the opt-in
-> starter under `templates/vibekit/starters/tanstack/`. This page is **why**
+> `/setupcontextdevkit` Phase 4 (writing rules when detected), and the opt-in
+> starter under `templates/contextkit/starters/tanstack/`. This page is **why**
 > TanStack, **when** to pick it, **how** to live with it, and the
 > **anti-patterns** we will not write.
 >
@@ -70,7 +70,7 @@ the Query conventions below are identical.
 
 ## Core conventions (these go into the user's CLAUDE.md)
 
-When TanStack is detected (or chosen on greenfield), `/setupvibedevkit` /
+When TanStack is detected (or chosen on greenfield), `/setupcontextdevkit` /
 `/aidevtool-from0` writes the following block into the project's `CLAUDE.md`
 under "Stack" or "Immutable rules":
 
@@ -122,7 +122,7 @@ under "Stack" or "Immutable rules":
 
 ## The opt-in starter
 
-`templates/vibekit/starters/tanstack/` is a **minimal wiring scaffold** the
+`templates/contextkit/starters/tanstack/` is a **minimal wiring scaffold** the
 user explicitly accepts during `/aidevtool-from0` Phase 6. It contains:
 
 - `package.json` with the TanStack family chosen for the project (Start +
@@ -136,9 +136,9 @@ user explicitly accepts during `/aidevtool-from0` Phase 6. It contains:
 What the starter **does not** ship: a fake domain, a CSS framework, an auth
 provider, a backend client, or example queries. See ADR-0017 for the five
 constraints that govern any future stack-starter under
-`templates/vibekit/starters/`.
+`templates/contextkit/starters/`.
 
-`/setupvibedevkit` (existing projects) **never** copies the starter — it
+`/setupcontextdevkit` (existing projects) **never** copies the starter — it
 detects, writes rules, and stops.
 
 ## Freshness
@@ -154,7 +154,7 @@ as of **2026-05**. Before relying on a specific API named here:
 
 ## Relation to other parts of the kit
 
-- **Detection** — `templates/vibekit/tools/scripts/detect-stack.mjs` surfaces
+- **Detection** — `templates/contextkit/tools/scripts/detect-stack.mjs` surfaces
   any `@tanstack/*` dep in `frameworks`. Consumers branch on
   `frameworks.some(f => f.startsWith('@tanstack/'))`.
 - **CLAUDE.md scoping** — when the kit detects TanStack inside a sub-app of a

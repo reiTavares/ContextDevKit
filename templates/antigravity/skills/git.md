@@ -7,7 +7,7 @@
 The disciplined git workflow for this project, integrated with the kit's hooks
 (`commit-msg` enforces Conventional Commits, `pre-push` blocks real conflicts)
 and commands (`/worktree-new`, `/close-version`). Always start by reading the
-facts: `node vibekit/tools/scripts/git.mjs status`.
+facts: `node contextkit/tools/scripts/git.mjs status`.
 
 Act on **<user-specified argument>**:
 

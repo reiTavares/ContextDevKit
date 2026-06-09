@@ -4,7 +4,7 @@
 > Argument: <agent>[@<version>] [--json]
 # 🛠️ Mode: agent-forge — show package
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs show <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs show <user-specified argument>`.
 
 Requires the optional `yaml` dep (ADR-0013) to parse `manifest.yaml`. If absent,
 suggest `npm i yaml`.

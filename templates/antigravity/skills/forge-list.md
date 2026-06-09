@@ -4,7 +4,7 @@
 > Argument: [--root <dir>] [--json]
 # 🛠️ Mode: agent-forge — list packages
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs list <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs list <user-specified argument>`.
 
 Read-only. Walks the registry, doesn't need the `yaml` dep for discovery — but
 `primary model` + `eval-stamp` columns require it (ADR-0013). If `yaml` is

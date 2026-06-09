@@ -20,15 +20,15 @@ three frictions remain:
 
 An architectural pre-flight before cross-domain features. It fans `Agent()` out to
 the squad in parallel and aggregates a **Blast Radius Report** shown before any edit.
-It persists a file in `vibekit/memory/predictions/` and marks the ledger via
+It persists a file in `contextkit/memory/predictions/` and marks the ledger via
 `mark-simulation.mjs`. Playbook: [`playbooks/simulate-impact.md`](playbooks/simulate-impact.md).
 
 ### 2. `/tech-debt-sweep [profile]` — audit as a versioned artifact
 
 Runs deterministic detectors against the constitution (file-size budget, "And/Or"
 naming, orphan JSDoc, framework state loops) and writes a board under
-`vibekit/memory/`. Profiles are config-driven. CLI: `node
-vibekit/tools/scripts/tech-debt-scan.mjs`. Playbook:
+`contextkit/memory/`. Profiles are config-driven. CLI: `node
+contextkit/tools/scripts/tech-debt-scan.mjs`. Playbook:
 [`playbooks/tech-debt-sweep.md`](playbooks/tech-debt-sweep.md).
 
 ### 3. Contract-drift gate — shift-left on breaking changes
@@ -39,7 +39,7 @@ exports without a `BREAKING CHANGE:` footer. Wire it as a CI job to fail the bui
 
 ### 4. PreToolUse gate + staged auto-distill
 
-- **PreToolUse gate** (`vibekit/runtime/hooks/simulate-gate.mjs`) blocks
+- **PreToolUse gate** (`contextkit/runtime/hooks/simulate-gate.mjs`) blocks
   `Edit|Write|MultiEdit` on `highRiskPaths` (config) when this session has no
   `/simulate-impact` recorded in the ledger. Auditable bypass: a simulation marked
   `"BYPASS: <reason>"`.
@@ -50,11 +50,11 @@ exports without a `BREAKING CHANGE:` footer. Wire it as a CI job to fail the bui
   (`.distillation-proposal.md`); `/distill-apply` applies it and records an ADR.
   Playbook: [`playbooks/distillation-cycle.md`](playbooks/distillation-cycle.md).
 
-### 5. `vibekit/config.json` + `/vibe-config` — cross-cutting configuration
+### 5. `contextkit/config.json` + `/context-config` — cross-cutting configuration
 
 Replaces hardcoded allowlists, cadences, and L5 parameters. Validated by an optional
 zod schema (dynamic import only — the loader stays zero-dep). Inspect/edit with
-`/vibe-config show|set`.
+`/context-config show|set`.
 
 ## The golden rule
 

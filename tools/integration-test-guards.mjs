@@ -115,6 +115,16 @@ function testMalformedSettingsRecovery(proj) {
     ? ok('installer recovers from a malformed settings.json (--update)') : bad(`malformed-settings recovery failed (status ${res.status})`);
 }
 
+/** --update REFRESHES kit-owned workflows/playbooks (not user data — a stale copy must be overwritten, never seed-once kept). */
+function testUpdateRefreshesKitOwned(proj) {
+  const stale = join(proj, 'contextkit', 'workflows', 'playbooks', 'simulate-impact.md');
+  writeFileSync(stale, '# STALE FROM OLD KIT\nvibekit/memory/predictions/...\n');
+  run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+  const fresh = readFileSync(stale, 'utf-8');
+  !fresh.includes('STALE FROM OLD KIT') && !fresh.includes('vibekit/')
+    ? ok('--update refreshes kit-owned playbooks (no stale content survives)') : bad('--update left a stale playbook unrefreshed');
+}
+
 /** 016 — pre-push conflict gate: allow disjoint, warn on auto-merge, block real conflict, bypass. */
 function testPrePush() {
   const fx = installFixture(rep);
@@ -255,6 +265,7 @@ async function main() {
     testCommitMsg(fx.proj);
     testConcurrencyExternalEdit(fx.proj);
     testMalformedSettingsRecovery(fx.proj);
+    testUpdateRefreshesKitOwned(fx.proj);
   } finally {
     fx.cleanup();
   }

@@ -7,8 +7,8 @@
 
 Release path claims for this session.
 
-- To release a specific path: `node vibekit/tools/scripts/release.mjs <user-specified argument>`
-- To release everything (no argument): `node vibekit/tools/scripts/release.mjs`
+- To release a specific path: `node contextkit/tools/scripts/release.mjs <user-specified argument>`
+- To release everything (no argument): `node contextkit/tools/scripts/release.mjs`
 
 Run the appropriate command based on whether `<user-specified argument>` is empty, then confirm to the user what
-was released. This also regenerates `vibekit/memory/WORKSPACE.md`.
+was released. This also regenerates `contextkit/memory/WORKSPACE.md`.

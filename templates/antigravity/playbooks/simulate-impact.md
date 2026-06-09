@@ -51,7 +51,7 @@ Use it when the objective crosses **≥ 2** high-risk surfaces, e.g.:
 ## Prediction-file lifecycle
 
 ```
-the `simulate-impact` skill "<obj>"  → vibekit/memory/predictions/<date>-<sid>-<slug>.md  (pending, coveredPaths)
+the `simulate-impact` skill "<obj>"  → contextkit/memory/predictions/<date>-<sid>-<slug>.md  (pending, coveredPaths)
 implementation in the same session (or discard)
 the `predictions-review` skill       → fills "Actual": paths changed, delta vs predicted, risk note
        (auto-run by the `log-session` skill at session end)

@@ -37,7 +37,7 @@ Os sub-agentes especialistas de squads (como `devteam`, `qa-team`, `design-team`
 
 ## 3. Runner Central de CLI (`ctx.mjs` / `agy`)
 
-Para simplificar a execução dos 61 scripts do motor do ContextDevKit localizados em `contextkit/tools/scripts/`, foi introduzido o runner unificado **[ctx.mjs](file:///d:/devtool_ia_antigravity/ctx.mjs)**.
+Para simplificar a execução dos 61 scripts do motor do ContextDevKit localizados em `contextkit/tools/scripts/`, foi introduzido o runner unificado **[ctx.mjs](../ctx.mjs)**.
 
 ### Atalhos e Execução
 O runner pode ser acionado por meio de scripts do npm ou chamadas diretas ao binário global `agy`:
@@ -63,7 +63,7 @@ O runner pode ser acionado por meio de scripts do npm ou chamadas diretas ao bin
 
 ## 4. Gerenciamento de Sessão (`session-manager.mjs`)
 
-O ciclo de vida das sessões no Antigravity é controlado pelo script [session-manager.mjs](file:///d:/devtool_ia_antigravity/contextkit/runtime/antigravity/session-manager.mjs).
+O ciclo de vida das sessões no Antigravity é controlado pelo script [session-manager.mjs](../contextkit/runtime/antigravity/session-manager.mjs).
 
 ### Ciclo de Trabalho
 1. **`agy session start`:** Executa o gancho de boot (`boot-context.mjs`), que lê a configuração do projeto, inicializa o arquivo de sessão em `contextkit/memory/sessions/` e extrai o contexto atual do git.
@@ -88,7 +88,7 @@ graph TD
 ```
 
 * **Sem Conflitos de Estado:** Ambos os sistemas usam o mesmo ledger de detecção de drift. Uma alteração iniciada no Claude Code e continuada no Antigravity não gerará avisos de drift incompatíveis, mantendo o histórico de desenvolvimento linear.
-* **Configuração Não Intrusiva:** O instalador [install.mjs](file:///d:/devtool_ia_antigravity/install.mjs) injeta ganchos independentes para o Antigravity sem alterar os arquivos `.claude/settings.json` dedicados ao Claude Code.
+* **Configuração Não Intrusiva:** O instalador [install.mjs](../install.mjs) injeta ganchos independentes para o Antigravity sem alterar os arquivos `.claude/settings.json` dedicados ao Claude Code.
 
 ---
 
@@ -96,7 +96,7 @@ graph TD
 
 De acordo com a **Constituição de Código do ContextDevKit**, os scripts e ganchos em templates não devem possuir caminhos hardcoded para o diretório `contextkit/`.
 
-Para garantir que a verificação estática do [selfcheck.mjs](file:///d:/devtool_ia_antigravity/tools/selfcheck.mjs) passe com sucesso, todos os scripts do Antigravity importam caminhos configurados dinamicamente a partir de um utilitário de caminhos comuns:
+Para garantir que a verificação estática do [selfcheck.mjs](../tools/selfcheck.mjs) passe com sucesso, todos os scripts do Antigravity importam caminhos configurados dinamicamente a partir de um utilitário de caminhos comuns:
 
 ```javascript
 import { PLATFORM_DIR } from '../config/paths.mjs';

@@ -18,7 +18,6 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
 - [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
-- [Integração e Especificações do Antigravity](ANTIGRAVITY.md) — Este documento descreve as especificações técnicas, a arquitetura e a integração do **ContextDevKit** com a plataform…
 - [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
 - [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
@@ -34,3 +33,8 @@ _Background and rationale — the why behind the decisions._
 
 - [Changelog](CHANGELOG.md) — All notable changes to VibeDevKit are documented here.
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
+
+## ❓ Unclassified
+_Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
+
+- [Integração e Especificações do Antigravity](ANTIGRAVITY.md) — Este documento descreve as especificações técnicas, a arquitetura e a integração do **ContextDevKit** com a plataform…

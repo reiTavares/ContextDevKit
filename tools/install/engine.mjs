@@ -31,7 +31,7 @@ async function copyEngine(target, tplDir, io, version, report) {
   report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
 }
 
-/** Seeds memory, pipeline, workflows, detectors and starters (write-if-missing where user-owned). */
+/** Seeds memory, pipeline and detectors (write-if-missing, user-owned); overwrites workflows + starters (kit-owned). */
 async function seedSubstrate(target, tplDir, io, force, report) {
   for (const rel of MEMORY_SEEDS) {
     const src = join(tplDir, 'contextkit', rel);
@@ -44,8 +44,11 @@ async function seedSubstrate(target, tplDir, io, force, report) {
   const pipeCount = await io.copyTreeIfMissing(join(tplDir, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
   if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);
   for (const s of ['backlog', 'testing', 'conclusion']) await io.ensureDir(join(target, 'contextkit', 'pipeline', s));
-  const wfCount = await io.copyTreeIfMissing(join(tplDir, 'contextkit', 'workflows'), join(target, 'contextkit', 'workflows'));
-  if (wfCount > 0) report.push(`✓ seeded contextkit/workflows (${wfCount} file(s))`);
+  // Workflow guides + playbooks: pure kit content (user run-tracking lives in
+  // memory/workflows/), so always overwrite — otherwise renamed/edited playbooks
+  // never reach an existing install on --update. Mirrors `starters` below.
+  await io.copyTree(join(tplDir, 'contextkit', 'workflows'), join(target, 'contextkit', 'workflows'));
+  report.push('✓ workflow guides + playbooks installed (contextkit/workflows)');
   const detCount = await io.copyTreeIfMissing(join(tplDir, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
   if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
   // Curated-stack starters: always overwrite — pure templates, copied OUT by /aidevtool-from0.

@@ -4,7 +4,7 @@
 > Argument: <agent>[@<version>] [--json]
 # 🛠️ Mode: agent-forge — audit
 
-Run `node vibekit/squads/agent-forge/cli/forge-ops.mjs audit <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-ops.mjs audit <user-specified argument>`.
 
 Reads `audit/<agent>.jsonl` (the runtime adapter writes it per
 `governance/compliance.policy.yaml.audit.destination`) and reports totals.

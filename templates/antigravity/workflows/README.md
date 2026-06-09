@@ -1,10 +1,10 @@
-# vibekit/workflows — the levels (L1–L6) + playbooks
+# contextkit/workflows — the levels (L1–L6) + playbooks
 
-VibeDevKit's context system operates in **levels**. Each one solves a distinct
+ContextDevKit's context system operates in **levels**. Each one solves a distinct
 problem of humans + Claude sharing one codebase across many sessions. These docs
 are the *narrative* layer — the **why** and **how it fits together** — behind the
-executable hooks (`vibekit/runtime/hooks/`), skills (`.antigravity/skills/`),
-and config (`vibekit/config.json`).
+executable hooks (`contextkit/runtime/hooks/`), skills (`.antigravity/skills/`),
+and config (`contextkit/config.json`).
 
 > These are reference docs; they never run. Behaviour lives in the hooks and
 > scripts — this folder explains the design so a human (or Claude) can reason about
@@ -22,7 +22,7 @@ and config (`vibekit/config.json`).
 | **L6** | Insight, autonomy, and a learning loop on top of the L5 gates. | *capability tier — see below* |
 
 **L6 adds no new hook** — same wiring as L5. It's a capability tier: insight
-(`/vibe-stats`), autonomy (`/ship`), and a learning loop (`/retro` +
+(`/context-stats`), autonomy (`/ship`), and a learning loop (`/retro` +
 `/distill-sessions`). See [`docs/ROADMAP.md`](../../docs/ROADMAP.md) for the rationale.
 
 ## Playbooks
