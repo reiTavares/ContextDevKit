@@ -11,7 +11,7 @@ You just entered **dev-start** mode with the objective:
 ## Posture for this session (until told otherwise)
 
 1. **Read the current state first** (run `/state` mentally):
-   - Latest `vibekit/memory/SESSIONS.md` entry
+   - Latest `contextkit/memory/SESSIONS.md` entry
    - `[Unreleased]` in `docs/CHANGELOG.md`
    - Immutable rules in `CLAUDE.md`
 
@@ -32,7 +32,7 @@ You just entered **dev-start** mode with the objective:
 4. **Break the objective into 3–7 concrete tasks** and track them with task.md artifact (or equivalent tracking).
 
 5. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
-   ticket is in `vibekit/pipeline/testing/`, drop them in a sibling file named
+   ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
    `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
    `*.scratch.md` — scratches are local-only. At conclude time, summarise the
    useful parts into the ticket body and let the scratch be discarded.

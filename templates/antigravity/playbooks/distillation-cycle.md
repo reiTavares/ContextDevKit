@@ -72,7 +72,7 @@ after the manual stage has proven itself.
 
 | Event | Artifact | Lifecycle |
 | --- | --- | --- |
-| `/log-session` | `vibekit/memory/sessions/<file>.md` | Immutable after creation |
-| `/simulate-impact` | `vibekit/memory/predictions/<file>.md` | Updated by `/log-session` |
+| `/log-session` | `contextkit/memory/sessions/<file>.md` | Immutable after creation |
+| `/simulate-impact` | `contextkit/memory/predictions/<file>.md` | Updated by `/log-session` |
 | `/distill-sessions` | `.distillation-proposal.md` | Temporary, gitignored |
-| `/distill-apply` | `vibekit/memory/decisions/NNNN-distillation-cycle-X.md` + CLAUDE.md diff | Permanent, versioned, revertible |
+| `/distill-apply` | `contextkit/memory/decisions/NNNN-distillation-cycle-X.md` + CLAUDE.md diff | Permanent, versioned, revertible |

@@ -7,22 +7,22 @@ Run the **security-team's** dependency / supply-chain check, then feed the backl
 
 1. **Audit** (writes findings for ingestion):
    ```
-   node vibekit/tools/scripts/deps-audit.mjs --write
+   node contextkit/tools/scripts/deps-audit.mjs --write
    ```
    Detects: missing lockfile (non-reproducible installs), unbounded version
    ranges, **license-policy** violations (deny-list / allow-list from
-   `vibekit/config.json` → `deps.licenses`), **lockfile drift** (a declared dep
+   `contextkit/config.json` → `deps.licenses`), **lockfile drift** (a declared dep
    missing from the lockfile), and — when the toolchain is present —
    `npm`/`pnpm`/`yarn audit` CVEs (severity-mapped critical→5 … info→1).
 
    Generate a CycloneDX **SBOM** (provenance):
    ```
-   node vibekit/tools/scripts/deps-audit.mjs --sbom   # → vibekit/memory/sbom.json
+   node contextkit/tools/scripts/deps-audit.mjs --sbom   # → contextkit/memory/sbom.json
    ```
 
 2. **Feed the DevPipeline backlog** — each issue becomes an auto-prioritized task:
    ```
-   node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/deps-findings.json --type chore
+   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deps-findings.json --type chore
    ```
    Idempotent (re-runs don't duplicate). Priorities are **always editable**
    (`pipeline.mjs prioritize <id> <P>` or `/pipeline`).
@@ -38,8 +38,8 @@ Run the **security-team's** dependency / supply-chain check, then feed the backl
    **Dependabot + code-scanning alerts** into the same backlog (needs the `gh` CLI,
    authenticated):
    ```
-   node vibekit/tools/scripts/gh-alerts.mjs --write
-   node vibekit/tools/scripts/pipeline.mjs ingest vibekit/memory/gh-alerts-findings.json --type chore
+   node contextkit/tools/scripts/gh-alerts.mjs --write
+   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/gh-alerts-findings.json --type chore
    ```
    Set up the scaffolding (`.github/dependabot.yml` + the security workflow) with
    `/security-setup`.

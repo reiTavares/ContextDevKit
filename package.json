@@ -1,7 +1,7 @@
 {
   "name": "contextdevkit",
-  "version": "1.15.0",
-  "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
+  "version": "1.15.1",
+  "description": "Portable, level-based AI-assisted development platform for Claude Code and Google Antigravity — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
     "contextdevkit": "install.mjs",
@@ -40,6 +40,10 @@
   },
   "keywords": [
     "claude-code",
+    "antigravity",
+    "google-antigravity",
+    "agy",
+    "dual-host",
     "ai",
     "hooks",
     "agents",

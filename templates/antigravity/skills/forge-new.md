@@ -23,7 +23,7 @@ Package for **<user-specified argument>** (or for the name the developer gives d
    - The Provider Selection rationale (verbatim from the router).
    - The package target path: `agent-packages/<agent-name>@0.1.0/`.
 
-4. **Run the CLI when the dev approves**: `node vibekit/squads/agent-forge/cli/forge-new.mjs --blueprint <path>`. The CLI requires the optional `yaml` dep (ADR-0013) — if absent, suggest `npm i yaml`.
+4. **Run the CLI when the dev approves**: `node contextkit/squads/agent-forge/cli/forge-new.mjs --blueprint <path>`. The CLI requires the optional `yaml` dep (ADR-0013) — if absent, suggest `npm i yaml`.
 
 5. **At the end**: confirm the APF passes its self-check (manifest parses; provider adapters import; canonical → variant round-trips). Eval gates land in Fase 3.
 

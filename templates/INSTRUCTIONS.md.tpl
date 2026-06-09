@@ -21,7 +21,7 @@ At the start of the session, run the Session Manager:
 ```bash
 node ctx.mjs session start
 ```
-*(Or run the global shortcut `agy session start` if installed).*
+*(`agy session start` also works if you installed `contextdevkit` globally; otherwise use `node ctx.mjs`.)*
 This runs the hook that fetches upstream git status, detects workspace claims, identifies prior unregistered sessions (drift), and injects the boot context.
 
 ### 🤖 Autonomous Execution Guidelines (For AI Agents)
@@ -118,7 +118,7 @@ All 105 slash commands from Claude Code have been adapted into skills. The most 
 | **Forge** | `forge/forge-new.md` | Create new custom sub-agent definitions |
 | | `forge/forge-eval.md` | Benchmark prompt performances and routes |
 
-*For the complete list and documentation of all 105 skills, refer to the [Skills README](file:///d:/devtool_ia_antigravity/.antigravity/skills/README.md) or load the `contextdevkit-skills-index` Knowledge Item.*
+*For the complete list and documentation of all 105 skills, refer to the [Skills README](.antigravity/skills/README.md) or load the `contextdevkit-skills-index` Knowledge Item.*
 
 ---
 

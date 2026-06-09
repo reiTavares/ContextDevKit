@@ -18,11 +18,15 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v1.7
+## What's new in v1.14
+
+> **Dual-host.** Your project memory, ADRs, and squads now work identically whether
+> your team uses **Claude Code** or **Google Antigravity** — same engine, same ledger,
+> zero drift between them. (A differentiator single-host `CLAUDE.md` tools can't copy.)
 
 | Feature | What it does |
 |---|---|
-| **Antigravity integration** | Full native support for the Antigravity agent: 105 skills, 34 personas, 7 playbooks, 6 workflows, and a session manager (`session-manager.mjs`) |
+| **Antigravity integration** | Full native support for the Antigravity agent: skills, personas, playbooks, workflows, and a session manager (`session-manager.mjs`) |
 | **`ctx.mjs` / `agy` CLI runner** | Central script runner to search and run any of the 61 engine scripts with fuzzy matching, descriptions, and aliases |
 | **Landing-page skills** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | `landing-architect` agent + `/landing-page` command + opinionated anti-Lovable playbook (fold rules min 3 / ideal 5–7 / max 9; dated package recs) |
 | **Media generation** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap |

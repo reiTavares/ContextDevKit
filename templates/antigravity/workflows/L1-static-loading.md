@@ -24,15 +24,15 @@ claims, and ahead/behind divergence vs `origin/<main>`.
   `.antigravity/agents/`. **Do not move** these folders.
 - `.claude/.sessions/` and `.claude/.workspace/` are runtime state (gitignored).
   They persist between sessions but never reach the repo.
-- Everything the platform owns lives under `vibekit/` — the single `PLATFORM_DIR`
-  (`vibekit/runtime/config/paths.mjs`). Never hardcode the folder name elsewhere.
+- Everything the platform owns lives under `contextkit/` — the single `PLATFORM_DIR`
+  (`contextkit/runtime/config/paths.mjs`). Never hardcode the folder name elsewhere.
 
 ## End-to-end flow when Claude opens
 
 1. Claude Code reads root `CLAUDE.md` (the whole system, described tersely).
 2. Reads `.antigravity/agents/*.md` — squad agents become available for delegation (L4+).
 3. Reads `.antigravity/skills/*.md` — skills become available in the input.
-4. The `SessionStart` hook (`vibekit/runtime/hooks/session-start.mjs`) runs via
+4. The `SessionStart` hook (`contextkit/runtime/hooks/session-start.mjs`) runs via
    `.claude/settings.json`:
    - silent `git fetch origin` (short timeout, never blocks);
    - drift analysis of previous sessions;
@@ -47,13 +47,13 @@ claims, and ahead/behind divergence vs `origin/<main>`.
 - **Don't duplicate** between root and scoped `CLAUDE.md` — the child complements,
   never repeats.
 - **Don't inflate** `.antigravity/agents/<name>.md` — the frontmatter is executable; the
-  rich briefing lives in `vibekit/squads/<team>/<name>.md` (L4).
+  rich briefing lives in `contextkit/squads/<team>/<name>.md` (L4).
 - skills stay in `.antigravity/skills/`; their narrative playbooks live in
-  `vibekit/workflows/playbooks/`.
+  `contextkit/workflows/playbooks/`.
 
 ## When to update
 
 - Stack change (lib, framework, runtime) → root `CLAUDE.md` **and** an ADR.
-- New squad agent → `.antigravity/agents/<name>.md` + `vibekit/squads/<team>/<name>.md`.
+- New squad agent → `.antigravity/agents/<name>.md` + `contextkit/squads/<team>/<name>.md`.
 - New skill → `.antigravity/skills/<name>.md` (+ a playbook here if it carries
   judgment) + update the command list in root `CLAUDE.md`.

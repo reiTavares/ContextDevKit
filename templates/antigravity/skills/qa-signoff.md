@@ -6,7 +6,7 @@
 Act as **qa-orchestrator** and produce the final QA verdict.
 
 1. Run the project's test suite (and coverage if the runner supports it).
-2. Read `vibekit/config.json` → `qa.criticalPaths` and `qa.coverageTarget`.
+2. Read `contextkit/config.json` → `qa.criticalPaths` and `qa.coverageTarget`.
 3. Assess:
    - Do all tests pass?
    - Are the `criticalPaths` covered (happy + failure modes), not just the easy

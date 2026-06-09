@@ -15,7 +15,7 @@ the trend, and each session re-discovers the same problem.
 
 The debt board is the pulse of code health:
 - **versioned** — it shows up in PR review, the boot context, and `git log -p`;
-- **sectioned by bounded context** — product code vs the platform (`vibekit/`);
+- **sectioned by bounded context** — product code vs the platform (`contextkit/`);
 - **trended** — red/yellow/info counts let you see the delta between sweeps.
 
 ## The detectors (deterministic, regex-based)
@@ -47,7 +47,7 @@ human review, not a verdict.
 
 ```
 the `tech-debt-sweep` skill [profile]
-  → node vibekit/tools/scripts/tech-debt-scan.mjs --profile=X --write
+  → node contextkit/tools/scripts/tech-debt-scan.mjs --profile=X --write
      → regenerates the board
         → commit with the feature, or as "chore: refresh tech-debt board"
 Resolution:
@@ -70,7 +70,7 @@ the `dev-start` skill "refactor: split <path>"  → read board → split → re-
 
 ## Cadence & configuration
 
-Profiles and cadence come from `vibekit/config.json`. Edit via `/vibe-config set`,
+Profiles and cadence come from `contextkit/config.json`. Edit via `/context-config set`,
 never by hand. Add a custom profile under the sweep config the same way.
 
 ## Relation to other L5 components

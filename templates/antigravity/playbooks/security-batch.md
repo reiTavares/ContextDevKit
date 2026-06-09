@@ -59,8 +59,8 @@ that touches a sensitive surface.
 
 ## Cadence & configuration
 
-`securityMode` lives in `vibekit/config.json` (`active`, `everyNSessions`). Tune via
-`/vibe-config set`. Pair the batch with a release: run it before closing a version
+`securityMode` lives in `contextkit/config.json` (`active`, `everyNSessions`). Tune via
+`/context-config set`. Pair the batch with a release: run it before closing a version
 (`/close-version`) that touched auth, crypto, dependencies, or infra.
 
 ## Relation to other components

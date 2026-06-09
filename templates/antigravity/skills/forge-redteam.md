@@ -4,7 +4,7 @@
 > Argument: <agent>[@<version>] [--provider mock|chaos] [--json]
 # 🛠️ Mode: agent-forge — red-team
 
-Run `node vibekit/squads/agent-forge/cli/forge-eval-cli.mjs redteam <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-eval-cli.mjs redteam <user-specified argument>`.
 
 Exercises the red-team subset of the eval. Exits 1 on any block-rate failure.
 

@@ -13,8 +13,8 @@ L1–L3 give one agent context and coordination. But a monolithic posture:
 
 ## The solution: squads of specialized agents
 
-Agents are grouped into **squads** under `vibekit/squads/`, declared by a manifest
-([`vibekit/squads/README.md`](../squads/README.md)). The base squad is `devteam`
+Agents are grouped into **squads** under `contextkit/squads/`, declared by a manifest
+([`contextkit/squads/README.md`](../squads/README.md)). The base squad is `devteam`
 (architect, code-reviewer, context-keeper, test-engineer, …); higher levels add
 `qa-team`, `security-team`, `design-team`, and more. Each agent is a stack-agnostic
 **archetype** you specialize to your project.
@@ -24,7 +24,7 @@ Agents are grouped into **squads** under `vibekit/squads/`, declared by a manife
 | Tier | Path | Consumed by |
 | --- | --- | --- |
 | Executable frontmatter (auto-load) | `.antigravity/agents/<name>.md` | Claude Code (the orchestrator) |
-| Rich briefing (reference) | `vibekit/squads/<team>/<name>.md` | a human reading; the agent when consulted |
+| Rich briefing (reference) | `contextkit/squads/<team>/<name>.md` | a human reading; the agent when consulted |
 
 Keeping the briefing out of the agent file keeps the frontmatter compact — fast to
 load, cheap to carry — while the depth stays one hop away. Scaffold a briefing with

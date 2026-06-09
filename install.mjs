@@ -158,6 +158,8 @@ async function main() {
   console.log('     The first-run trigger will remind you automatically.');
   console.log('  4. Then work normally. /log-session at the end.');
   if (level < 5) console.log(`  5. Level up later:  /context-level ${Math.min(level + 1, 5)}`);
+  console.log('\n  Using Antigravity instead? Read INSTRUCTIONS.md, then run `node ctx.mjs`');
+  console.log('  to list commands — or `node ctx.mjs session start` to begin a session.');
   console.log('');
 }
 

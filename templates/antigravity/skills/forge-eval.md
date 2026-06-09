@@ -4,7 +4,7 @@
 > Argument: <agent>[@<version>] [--provider mock|chaos] [--json]
 # 🛠️ Mode: agent-forge — eval
 
-Run `node vibekit/squads/agent-forge/cli/forge-eval-cli.mjs eval <user-specified argument>`.
+Run `node contextkit/squads/agent-forge/cli/forge-eval-cli.mjs eval <user-specified argument>`.
 
 This is the Fase 3 gate, re-runnable on demand. Exits 1 on any threshold
 breach so it can chain into a CI step.
