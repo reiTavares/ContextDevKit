@@ -7,31 +7,27 @@
  * updates. It never clobbers your own content (CLAUDE.md, memory, config
  * overrides); it only overwrites the kit's own engine code and slash commands.
  *
- * The mechanics live in focused modules under `tools/install/` (cli, fs,
- * project, git, uninstall); this file just wires the steps together.
+ * This file is a THIN ORCHESTRATOR [ADR-0037]: it resolves the install context
+ * (level / name / mode / --update), then calls the focused installers under
+ * `tools/install/` — wireClaudeSettings + installClaudeHost (claude.mjs),
+ * installEngine (engine.mjs), installAntigravityHost (antigravity.mjs), and
+ * installVcsIntegration (git.mjs). It detects --update and owns the summary; the
+ * per-file update guards live next to the writes they protect. Adding a third host
+ * is a new module + one call here, not more interleaving.
  * Run `node install.mjs --help` for usage and the full flag list.
- *
- * Cohesion note (line budget): this file is intentionally a single linear
- * orchestrator — the ordered install steps (settings → engine → commands →
- * agents → memory seeds → GitHub → git hooks → config) share one `target` +
- * `report` and must run in sequence. Splitting the sequence into more modules
- * would scatter the one thing this file exists to express (the install order)
- * and add indirection without reducing real complexity. The heavy lifting is
- * already delegated to `tools/install/*`; what remains is the recipe.
  */
-import { existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-import { composeSettings } from './templates/contextkit/runtime/config/settings-compose.mjs';
-import { applyPreset, listPresets } from './templates/contextkit/runtime/config/presets.mjs';
 import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
-import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
-import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
+import { requireBasename, looksGreenfield } from './tools/install/project.mjs';
+import { installVcsIntegration } from './tools/install/git.mjs';
+import { installEngine } from './tools/install/engine.mjs';
+import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
+import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
-import { reindexDocs } from './templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -119,166 +115,34 @@ async function main() {
   mode = effMode;
 
   const report = [];
+  const version = await kitVersion();
+  const io = { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render };
+  const ctx = { name, level, mode, version, args };
 
-  // 1. settings.json (always — this is the wiring).
-  const settingsPath = join(target, '.claude', 'settings.json');
-  let existingSettings = null;
-  if (existsSync(settingsPath)) {
-    try {
-      existingSettings = JSON.parse(await read(settingsPath));
-    } catch {
-      report.push('⚠️  existing .claude/settings.json was malformed — recreated');
-    }
-  }
-  await overwrite(settingsPath, JSON.stringify(composeSettings(existingSettings, level), null, 2) + '\n');
-  report.push(`✓ .claude/settings.json wired for L${level}`);
-
+  // 1. Claude Code settings.json (the hook wiring). `--rewire` stops right after this.
+  await wireClaudeSettings(target, level, io, report);
   if (args.rewire) {
     console.log(report.join('\n'));
     console.log(`\n✅ Rewired to Level ${level}. Restart Claude Code to load the new hooks.`);
     return;
   }
 
-  // 2. Engine: always overwrite (kit code; updates should propagate).
-  await copyTree(join(TPL, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
-  await copyTree(join(TPL, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
-  // Stamp the installed engine version (ADR-0033) — SessionStart compares it to a
-  // per-session "seen" marker and announces an update on the next session.
-  await overwrite(join(target, 'contextkit', '.engine-version'), `${await kitVersion()}\n`);
-  report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
+  // 2. Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
+  await installEngine(target, TPL, io, ctx, report);
 
-  // 3. Slash commands: always overwrite.
-  await copyTree(join(TPL, 'claude', 'commands'), join(target, '.claude', 'commands'));
-  report.push('✓ slash commands installed (.claude/commands)');
+  // 3. Antigravity host — second native host [ADR-0036].
+  await installAntigravityHost(target, TPL, io, ctx, report);
 
-  // 4. Agents + L4+ squads: only at L >= 4.
-  if (level >= 4) {
-    await copyTree(join(TPL, 'claude', 'agents'), join(target, '.claude', 'agents'));
-    report.push('✓ agent archetypes installed (.claude/agents)');
-    // agent-forge factory squad: engine code + matrix + APF templates (ADR-0012).
-    // Always overwrite — engine kit code, not user-editable.
-    await copyTree(join(TPL, 'contextkit', 'squads', 'agent-forge'), join(target, 'contextkit', 'squads', 'agent-forge'));
-    report.push('✓ agent-forge squad installed (contextkit/squads/agent-forge)');
-  }
+  // 4. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
+  await installClaudeHost(target, TPL, io, ctx, report);
 
-  // 5. Memory seeds: write only if missing. `.env.example` is seeded here so the
-  //    user's edits survive re-install (ADR-0024 — media-gen credentials template).
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md', 'memory/predictions/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example']) {
-    const src = join(TPL, 'contextkit', rel);
-    if (!existsSync(src)) continue;
-    const wrote = await writeIfMissing(join(target, 'contextkit', rel), await read(src), args.force);
-    if (wrote) report.push(`✓ seeded contextkit/${rel}`);
-  }
-  // Ensure memory dirs exist even if a packager stripped the .gitkeep seed.
-  await ensureDir(join(target, 'contextkit', 'memory', 'sessions'));
-  await ensureDir(join(target, 'contextkit', 'memory', 'decisions'));
-  await ensureDir(join(target, 'contextkit', 'memory', 'business-rules'));
-  await ensureDir(join(target, 'contextkit', 'memory', 'predictions'));
-  await ensureDir(join(target, 'contextkit', 'memory', 'deliberations'));
-  // DevPipeline scaffolding (write-if-missing so existing tasks survive re-install).
-  const pipeCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
-  if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);
-  for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'contextkit', 'pipeline', s));
-  // Workflow guides (L1–L6) + reusable playbooks (write-if-missing so customizations survive).
-  const wfCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'workflows'), join(target, 'contextkit', 'workflows'));
-  if (wfCount > 0) report.push(`✓ seeded contextkit/workflows (${wfCount} file(s))`);
-  // Pluggable-detector seed (README + inert example) so the extension point is discoverable.
-  const detCount = await copyTreeIfMissing(join(TPL, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
-  if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
-  // Curated-stack starters (always overwrite — pure templates, no user edits expected here;
-  // /aidevtool-from0 copies them OUT of contextkit/starters/ into the project root, not in-place).
-  await copyTree(join(TPL, 'contextkit', 'starters'), join(target, 'contextkit', 'starters'));
-  report.push('✓ curated-stack starters installed (contextkit/starters)');
-
-  // 6. config.json: create with level + first-run flag, or update level
-  //    (preserving an already-completed setup so re-installs don't re-trigger).
-  const cfgPath = join(target, 'contextkit', 'config.json');
-  const preset = args.preset && listPresets().includes(args.preset) ? args.preset : null;
-  if (args.preset && !preset) report.push(`⚠️  unknown --preset "${args.preset}" (have: ${listPresets().join(', ')}) — ignored`);
-  if (existsSync(cfgPath)) {
-    try {
-      let cfg = JSON.parse(await read(cfgPath));
-      cfg.level = level;
-      if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
-      if (preset) cfg = applyPreset(cfg, preset);
-      await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-      report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
-    } catch {
-      /* leave malformed file for the user */
-    }
-  } else {
-    let cfg = JSON.parse(await read(join(TPL, 'contextkit', 'config.json')));
-    cfg.level = level;
-    cfg.setup = { completed: false, installedAt: new Date().toISOString() };
-    if (preset) cfg = applyPreset(cfg, preset);
-    await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-    report.push(`✓ created contextkit/config.json (level ${level}, first-run pending${preset ? `, preset ${preset}` : ''})`);
-  }
-
-  // 7. CLAUDE.md: render if missing; else drop a side file to merge.
-  //    On --update we NEVER touch CLAUDE.md (it's user-owned content).
-  const claudePath = join(target, 'CLAUDE.md');
-  if (args.update && existsSync(claudePath)) {
-    /* update: leave the user's CLAUDE.md untouched */
-  } else {
-    const claudeTpl = await read(join(TPL, 'CLAUDE.md.tpl'));
-    const claudeOut = render(claudeTpl, {
-      PROJECT_NAME: name,
-      DATE: new Date().toISOString().slice(0, 10),
-      LEVEL: String(level),
-      MODE: mode,
-      STACK_NOTES: mode === 'existing' ? await detectStack(target) : 'Greenfield — define the stack as the first architectural decision (`/new-adr`).',
-    });
-    if (!existsSync(claudePath) || args.force) {
-      await overwrite(claudePath, claudeOut);
-      report.push('✓ CLAUDE.md created');
-    } else {
-      await overwrite(join(target, 'CLAUDE.contextdevkit.md'), claudeOut);
-      report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.contextdevkit.md to merge by hand');
-    }
-  }
-
-  // 8. CHANGELOG: render if missing.
-  const changelogPath = join(target, 'docs', 'CHANGELOG.md');
-  if (!existsSync(changelogPath)) {
-    const clTpl = await read(join(TPL, 'docs', 'CHANGELOG.md.tpl'));
-    await overwrite(changelogPath, render(clTpl, { PROJECT_NAME: name, DATE: new Date().toISOString().slice(0, 10) }));
-    report.push('✓ docs/CHANGELOG.md created');
-  }
-
-  // 8b. Diátaxis docs spine (ADR-0030): ensure the four buckets + regenerate the
-  //     navigation index. Idempotent and non-destructive — it never moves/deletes a
-  //     content file and never clobbers a hand-written index. Runs on --update too,
-  //     so the docs stay organized as they grow. Defensive: never breaks an install.
-  try {
-    const docs = reindexDocs(target);
-    if (docs.seeded.length) report.push(`✓ seeded Diátaxis docs spine (${docs.seeded.length} bucket README(s))`);
-    if (docs.indexWritten) report.push(`✓ regenerated docs/README.md (Diátaxis index — ${docs.indexed} doc(s))`);
-  } catch (err) {
-    report.push(`ℹ️  docs reindex skipped: ${err?.message ?? err}`);
-  }
-
-  // 9. .gitignore + .gitattributes + GitHub templates + git hooks.
-  if (await patchGitignore(target)) report.push('✓ .gitignore patched');
-  if (await patchGitattributes(target, TPL)) report.push('✓ .gitattributes patched (LF for engine scripts)');
-  const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
-  if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
-  if (level >= 3) {
-    const gitHooks = await installGitHooks(target);
-    if (gitHooks.installed) {
-      report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
-      if (gitHooks.backedUp.length) report.push(`  ↳ backed up your existing ${gitHooks.backedUp.join(', ')} hook(s) → *.bak`);
-    } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
-  }
-  // Version-control hint: suggest connecting a remote if there isn't one.
-  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
-    report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
-  }
+  // 5. VCS integration (.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
+  await installVcsIntegration(target, TPL, level, report);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
   if (args.update) {
-    console.log(`\n✅ ContextDevKit UPDATED to v${await kitVersion()} (Level ${level} preserved) in ${target}`);
+    console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
     console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
     console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files.');
     console.log('   Restart Claude Code to load the refreshed hooks.');

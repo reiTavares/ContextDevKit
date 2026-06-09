@@ -19,8 +19,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['/dev-start has a correct-course checkpoint (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /Correct-course checkpoint/],
     ['/ship right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/ship.md', /complexity-rubric\.mjs classify/],
     ['/pipeline right-sizes a new task (ADR-0030)', 'templates/claude/commands/pipeline/pipeline.md', /complexity-rubric\.mjs classify/],
-    ['installer seeds the complexity rubric (ADR-0030)', 'install.mjs', /policy\/complexity-rubric\.json/],
-    ['installer seeds review-protocol.md — closes ADR-0029 gap (ADR-0030)', 'install.mjs', /'review-protocol\.md'/],
+    ['installer seeds the complexity rubric (ADR-0030)', 'tools/install/engine.mjs', /policy\/complexity-rubric\.json/],
+    ['installer seeds review-protocol.md — closes ADR-0029 gap (ADR-0030)', 'tools/install/engine.mjs', /'review-protocol\.md'/],
     // ADR-0030 — document-quality validation (EVO steps-v adaptation, MIT).
     ['validate-doc validates ADR sections (ADR-0030)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /function validateAdr/],
     ['validate-doc flags template placeholders', 'templates/contextkit/tools/scripts/validate-doc.mjs', /PLACEHOLDERS/],
@@ -44,7 +44,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['docs-reindex declares the four Diátaxis buckets', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /BUCKETS\s*=\s*\['tutorials',\s*'how-to',\s*'reference',\s*'explanation'\]/],
     ['docs-reindex preserves a hand-written index (marker guard)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /INDEX_MARKER/],
     ['docs-reindex never moves content files (reorganize without losing)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /never move/i],
-    ['installer runs the docs reindex on install/update (ADR-0030)', 'install.mjs', /reindexDocs\(target\)/],
+    ['installer runs the docs reindex on install/update (ADR-0030)', 'tools/install/engine.mjs', /reindexDocs\(target\)/],
     ['/docs-reindex command briefing ships (ADR-0030)', 'templates/claude/commands/docs-reindex.md', /Diátaxis/],
     // ADR-0031 — single quality gate; protected release path.
     ['package.json defines the unified ci gate (ADR-0031)', 'package.json', /"ci":\s*"npm test &&[^"]*tech-debt-scan\.mjs --ci/],
@@ -73,7 +73,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['session-start renders the engine-update signal (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /engineUpdateSignal\(ROOT\)/],
     ['session-start renders the weekly value line (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /valueLine\(ROOT\)/],
     ['defaults expose boot.valueLine (ADR-0033)', 'templates/contextkit/runtime/config/defaults.mjs', /boot:\s*\{\s*valueLine:\s*true\s*\}/],
-    ['installer stamps the engine version (ADR-0033)', 'install.mjs', /'\.engine-version'/],
+    ['installer stamps the engine version (ADR-0033)', 'tools/install/engine.mjs', /'\.engine-version'/],
     // ADR-0034 — DevPipeline lifecycle automation.
     ['adr-tasks parses the Decision into backlog tasks (ADR-0034)', 'templates/contextkit/tools/scripts/adr-tasks.mjs', /export function parseAdrTasks/],
     ['adr-tasks is dry-run by default; --write creates (rule 8)', 'templates/contextkit/tools/scripts/adr-tasks.mjs', /pass --write to create/],
@@ -96,8 +96,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['deliberations-reindex derives the index from filesystem state (ADR-0035)', 'templates/contextkit/tools/scripts/deliberations-reindex.mjs', /Deliberation History/],
     ['deliberations-reindex surfaces the unresolved status (ADR-0035)', 'templates/contextkit/tools/scripts/deliberations-reindex.mjs', /unresolved/],
     ['pre-commit reindexes deliberations when present (ADR-0035)', 'templates/contextkit/runtime/git-hooks/pre-commit.mjs', /deliberations-reindex\.mjs/],
-    ['installer seeds the deliberations template (ADR-0035)', 'install.mjs', /memory\/deliberations\/_TEMPLATE\.md/],
-    ['installer ensures the deliberations dir (ADR-0035)', 'install.mjs', /'memory',\s*'deliberations'/],
+    ['installer seeds the deliberations template (ADR-0035)', 'tools/install/engine.mjs', /memory\/deliberations\/_TEMPLATE\.md/],
+    ['installer ensures the deliberations dir (ADR-0035)', 'tools/install/engine.mjs', /'predictions', 'deliberations'\]/],
     ['/debate dispatches GENUINELY INDEPENDENT voices (ADR-0035)', 'templates/claude/commands/debate.md', /blind to the others/],
     ['/debate keeps unresolved a first-class outcome (ADR-0035)', 'templates/claude/commands/debate.md', /VALID outcome, not a failure/],
     ['/debate is dry-run ADR by default; --approve applies (rule 8)', 'templates/claude/commands/debate.md', /--approve/],
@@ -148,4 +148,23 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Data-loss guard — the cross-device migration must verify the copy before deleting the source.
     ['migration verifies a cross-device copy before rm (data-loss guard)', 'tools/install/migrate.mjs', /missingAfterCopy\(from, to\)/],
     ['migration refuses to delete the source on a partial copy', 'tools/install/migrate.mjs', /copy incomplete/],
+    // Antigravity integration — second native host alongside Claude Code (skills/agents/playbooks/workflows + ctx runner).
+    ['install.mjs wires the Antigravity host installer (extracted helper)', 'install.mjs', /installAntigravityHost\(target, TPL,/],
+    ['Antigravity installer copies the assets into .antigravity', 'tools/install/antigravity.mjs', /copyTree\(join\(tplDir, 'antigravity'\), join\(target, '\.antigravity'\)\)/],
+    ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await io\.read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
+    ['Antigravity installer renders INSTRUCTIONS.md from the template', 'tools/install/antigravity.mjs', /read\(join\(tplDir, 'INSTRUCTIONS\.md\.tpl'\)\)/],
+    ['package.json declares the agy bin → ctx.mjs', 'package.json', /"agy":\s*"ctx\.mjs"/],
+    ['ctx.mjs is the central CLI runner for Antigravity', 'templates/ctx.mjs', /central CLI runner for Antigravity/],
+    ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
+    ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
+    ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],
+    // ADR-0037 — host-modular installer: install.mjs orchestrates, hosts/engine in tools/install/.
+    ['install.mjs wires the host-neutral engine installer (ADR-0037)', 'install.mjs', /installEngine\(target, TPL,/],
+    ['install.mjs wires the Claude host installer (ADR-0037)', 'install.mjs', /installClaudeHost\(target, TPL,/],
+    ['install.mjs wires Claude settings on the rewire path (ADR-0037)', 'install.mjs', /wireClaudeSettings\(target, level,/],
+    ['install.mjs wires the VCS integration step (ADR-0037)', 'install.mjs', /installVcsIntegration\(target, TPL, level,/],
+    ['engine installer exports installEngine (ADR-0037)', 'tools/install/engine.mjs', /export async function installEngine/],
+    ['Claude host installer exports installClaudeHost (ADR-0037)', 'tools/install/claude.mjs', /export async function installClaudeHost/],
+    ['Claude host installer exports wireClaudeSettings (ADR-0037)', 'tools/install/claude.mjs', /export async function wireClaudeSettings/],
+    ['git installer exports installVcsIntegration (ADR-0037)', 'tools/install/git.mjs', /export async function installVcsIntegration/],
 ];

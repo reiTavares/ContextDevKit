@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
 
-> A portable, **level-based AI-assisted development platform** for Claude Code.
+> A portable, **level-based AI-assisted development platform** for **Claude Code** and **Antigravity**.
 > Drop it into any project — greenfield or existing, any stack — and get durable
 > project memory, automatic context loading, drift detection, specialized
 > sub-agents, **opinionated playbooks** (TanStack, landing pages, SEO+AISO), and
@@ -22,6 +22,8 @@ where the last one left off.
 
 | Feature | What it does |
 |---|---|
+| **Antigravity integration** | Full native support for the Antigravity agent: 105 skills, 34 personas, 7 playbooks, 6 workflows, and a session manager (`session-manager.mjs`) |
+| **`ctx.mjs` / `agy` CLI runner** | Central script runner to search and run any of the 61 engine scripts with fuzzy matching, descriptions, and aliases |
 | **Landing-page skills** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | `landing-architect` agent + `/landing-page` command + opinionated anti-Lovable playbook (fold rules min 3 / ideal 5–7 / max 9; dated package recs) |
 | **Media generation** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap |
 | **SEO + AISO** ([ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)) | `seo-specialist` agent + `/seo-audit` running 16 static checks (SEO + AI Search Optimization); refuse-on-unindexable SPAs |
@@ -54,7 +56,7 @@ parts that don't depend on the AI's goodwill:
   npm packages). Node 20.6+ unlocks `--env-file` for the media-gen credentials
   flow.
 - **git** (for divergence detection and the Level 3 git hooks).
-- **Claude Code** (CLI, desktop, web, or IDE extension).
+- **Claude Code** or **Antigravity** (IDE agent, CLI, desktop, web).
 - *Optional:* `gh` (GitHub CLI) for sync-check PR awareness; `GOOGLE_AI_API_KEY`
   for `/media-gen`.
 
@@ -177,6 +179,8 @@ your-project/
       forge/                         # 14 agent-forge lifecycle commands (L6+)
       setup/                         # setupcontextdevkit, context-doctor, context-level
     agents/                          # 28 sub-agent archetypes (L4+)
+  .antigravity/                      # Antigravity assets (skills, agents, playbooks, workflows)
+  ctx.mjs                            # Central CLI runner (accessible as agy <command> or npm run ctx)
   contextkit/
     .env.example                     # optional credentials template (media-gen)
     runtime/hooks/                   # the engine: boot, ledger, drift, L5 gate
@@ -186,7 +190,7 @@ your-project/
       review/                        # PR/review CLI adapters (gh)
       media/                         # Veo + Nano Banana adapters
     runtime/state/                   # canonical state.json substrate (ADR-0015)
-    tools/scripts/                   # 50+ helpers (reindex, dashboard, sync-check, audits, …)
+    tools/scripts/                   # 60+ helpers (reindex, dashboard, sync-check, audits, …)
     memory/decisions/                # ADRs (the why)
     memory/sessions/                 # one file per session (the what)
     memory/GLOSSARY.md
@@ -348,20 +352,18 @@ The roadmap says what to build; the pipeline runs the work.
 
 ```bash
 # diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
-/context-doctor          # or: node contextkit/tools/scripts/doctor.mjs
+/context-doctor          # or: agy doctor / node contextkit/tools/scripts/doctor.mjs
 
-# safe update — refresh engine + slash commands + hook wiring for your CURRENT
-# level. NEVER touches CLAUDE.md, contextkit/config.json, memory (ADRs/sessions/
-# roadmap), pipeline tasks, or scoped module CLAUDE.md files.
+# safe update — refresh engine, commands, agents, and configs.
+# NEVER touches CLAUDE.md, memory, or local custom settings.
 npx contextdevkit@latest --target . --update
-#   (offline / from GitHub: npx github:reiTavares/ContextDevKit --target . --update)
 
 # change level (rewires settings.json, installs git hooks at L>=3)
-/context-level 4
+/context-level 4         # or: agy context-level 4
 
 # uninstall — keeps your memory (ADRs, sessions) and CLAUDE.md
 node /path/to/contextdevkit/install.mjs --target . --uninstall
-# ...or also remove the engine/commands/agents:
+# ...or also remove the engine/commands/agents/antigravity assets:
 node /path/to/contextdevkit/install.mjs --target . --uninstall --purge
 ```
 
@@ -387,6 +389,7 @@ never break work, add a test for anything you add).
 
 ## Docs
 
+- [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md) — Specifications and architecture of the Antigravity integration.
 - [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally (hooks, providers, state substrate).
 - [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, provider adapters, rebrand.

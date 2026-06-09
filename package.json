@@ -4,9 +4,12 @@
   "description": "Portable, level-based AI-assisted development platform for Claude Code — hooks, slash commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
-    "contextdevkit": "install.mjs"
+    "contextdevkit": "install.mjs",
+    "agy": "ctx.mjs"
   },
   "scripts": {
+    "agy": "node ctx.mjs",
+    "ctx": "node ctx.mjs",
     "install:here": "node install.mjs --target .",
     "check": "node tools/selfcheck.mjs",
     "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-tooling-pipeline.mjs && node tools/integration-test-tooling-agent-forge.mjs && node tools/integration-test-guards.mjs && node tools/integration-test-compozy.mjs && node tools/integration-test-migrate.mjs",
