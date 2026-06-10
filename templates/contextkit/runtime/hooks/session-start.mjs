@@ -45,24 +45,9 @@ import {
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
-import { readAutonomyOverride, resolveAutonomy } from '../config/resolve-autonomy.mjs';
-import { consumePendingDigest } from './autonomy-signals.mjs';
+import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 
 const ROOT = process.cwd();
-
-/**
- * Dial segment for the banner header — DISPLAY ONLY, derived from the resolver
- * so displayed grade ≡ enforced grade (ADR-0042 §6). This hook never branches
- * its own behavior on the grade (grade-blind invariant); degrades to ''.
- */
-function autonomyBadge(config) {
-  try {
-    const dial = resolveAutonomy('edit', config, readAutonomyOverride(ROOT));
-    return ` · Autonomy: \`A${dial.grade} ${dial.mode}\`${dial.source === 'session' ? ' (session)' : ''}`;
-  } catch {
-    return '';
-  }
-}
 
 async function readStdin() {
   return new Promise((res) => {
@@ -147,7 +132,7 @@ async function main() {
   out.push('<project-context-boot>');
   out.push(`# 📚 Boot context — ${await projectName(ROOT)}`);
   out.push('');
-  out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · ContextDevKit level: \`L${level}\`${autonomyBadge(loadConfigSync(ROOT))}`);
+  out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · ContextDevKit level: \`L${level}\`${autonomyBadge(ROOT)}`);
   out.push('');
 
   if (engineSignal) {

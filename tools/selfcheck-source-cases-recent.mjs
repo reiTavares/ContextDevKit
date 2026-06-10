@@ -230,7 +230,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['/autonomy command briefing ships on the Claude host (task 107)', 'templates/claude/commands/setup/autonomy.md', /Never run the setter on your own initiative/],
     ['override read has one owner — readAutonomyOverride in the dial module (task 108, rule 4)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /export function readAutonomyOverride/],
     ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
-    ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(loadConfigSync\(ROOT\)\)/],
+    ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(ROOT\)/],
     ['qa-reject is the only testing→working path (task 110, ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /qa-reject is the testing→working bounce only/],
     ['auto transitions exist only on the event log (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /exists ONLY on top of the append-only/],
     // ADR-0043 F2 — observable substrate (task 111).

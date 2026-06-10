@@ -52,6 +52,19 @@ function debounced(root, name, windowMs) {
 }
 
 /**
+ * Banner-header badge (task 108) — DISPLAY ONLY, derived from the resolver so
+ * displayed grade ≡ enforced grade (ADR-0042 §6). Degrades to ''.
+ */
+export function autonomyBadge(root) {
+  try {
+    const dial = effectiveDial(root);
+    return ` · Autonomy: \`A${dial.grade} ${dial.mode}\`${dial.source === 'session' ? ' (session)' : ''}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
  * The Stop-hook consent receipt (grade ≥3 only): files touched without
  * per-edit consent + undo pointers. Also persists the receipt so it replays at
  * the next boot if this emission goes unseen. Returns null when silent.
