@@ -218,9 +218,30 @@ try {
   const bouncedBody = readFileSync(join(proj, 'contextkit', 'pipeline', 'working', bounced?.file ?? ''), 'utf-8');
   bounced?.stage === 'working' && bouncedBody.includes('## QA Feedback') && bouncedBody.includes('expected X got Y')
     ? ok('qa-reject bounces testing→working with the feedback block on the card (task 110)') : bad('qa-reject bounce missing stage move or feedback');
-  const unknownVerb = script('pipeline.mjs', 'auto-transition');
-  unknownVerb.status !== 0
-    ? ok('auto-transition verb does not exist pre-substrate (ADR-0043: F2 only)') : bad('auto-transition verb exists before state.json events');
+  // ─ Task 111 (ADR-0043): auto-transition — consent-gated, conclusion-fenced, evented ─
+  script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'auto-move-target');
+  const autoId = idByTitle('auto-move-target');
+  const cfgPath = join(proj, 'contextkit', 'config.json');
+  const atDefault = script('pipeline.mjs', 'auto-transition', autoId, 'working');
+  atDefault.status !== 0 && /grade 2/.test(atDefault.stdout + atDefault.stderr)
+    ? ok('auto-transition refuses at the default grade 2 (consent gate, ADR-0042)') : bad(`auto-transition ran without consent: ${atDefault.stdout}${atDefault.stderr}`);
+  const cfgRaw = JSON.parse(readFileSync(cfgPath, 'utf-8'));
+  cfgRaw.autonomy = { grade: 3 };
+  writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
+  script('pipeline.mjs', 'auto-transition', autoId, 'working');
+  const autoState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', autoId, 'state.json'), 'utf-8'));
+  const autoEvent = (autoState.events || []).at(-1);
+  autoEvent?.actor === 'auto' && autoEvent?.inverse === 'backlog' && autoEvent?.to === 'working'
+    ? ok('auto-transition at grade 3 appends an actor=auto event with its inverse (ADR-0043)') : bad(`auto event wrong: ${JSON.stringify(autoState.events)}`);
+  const toConclusion = script('pipeline.mjs', 'auto-transition', autoId, 'conclusion');
+  toConclusion.status !== 0
+    ? ok('auto-transition never enters conclusion (legality fence, ADR-0043)') : bad('auto-transition crossed into conclusion');
+  script('pipeline.mjs', 'move', autoId, 'testing');
+  const movedState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', autoId, 'state.json'), 'utf-8'));
+  movedState.events?.at(-1)?.actor === 'human' && movedState.events.length === 2
+    ? ok('human move appends its event — log is append-only across actors') : bad(`event log broken: ${JSON.stringify(movedState.events)}`);
+  delete cfgRaw.autonomy;
+  writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
