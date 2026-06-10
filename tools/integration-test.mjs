@@ -43,6 +43,15 @@ try {
   hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).includes('"decision":"block"')
     ? ok('L5 gate blocks an unsimulated high-risk edit')
     : bad('L5 gate did not block');
+  // ADR-0041/0042 regression: the gate is autonomy-grade-blind — no consent
+  // setting (new `grade` or legacy `level`, any value) may weaken L5 enforcement.
+  cfg.autonomy = { grade: 4, level: 4 };
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+  hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).includes('"decision":"block"')
+    ? ok('L5 gate blocks regardless of any autonomy config (grade-blind)')
+    : bad('L5 gate weakened by autonomy config — bypass regression');
+  delete cfg.autonomy;
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
   script('mark-simulation.mjs', 'cover secure', 'src/secure/');
   hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).trim() === ''
     ? ok('L5 gate allows after /simulate-impact')
