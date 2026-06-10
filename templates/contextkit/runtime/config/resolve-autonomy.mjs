@@ -16,9 +16,13 @@
  *   - Degenerate input fails safe: unparseable grade → 1; contradictions throw
  *     (constitution §8 — a validator, not a warner).
  *
- * Pure and zero-dep: no I/O — callers load config and pass it in.
+ * `resolveAutonomy` is pure — callers load config and pass it in. The one I/O
+ * companion lives here too (`readAutonomyOverride`) so the override file's
+ * location + TTL semantics have exactly one owner (rule 4).
  */
+import { join } from 'node:path';
 import { matchSecret } from '../hooks/path-classification.mjs';
+import { readJsonSafe } from '../hooks/safe-io.mjs';
 
 /** Closed area enum (ADR-0042 §1). */
 export const AREAS = Object.freeze([
@@ -44,6 +48,20 @@ export const CONSEQUENCE_TEXT = Object.freeze({
   3: 'Grade 3 — Auto except decisions: I edit, test and move pipeline cards without asking; ADRs, pushes and high-risk paths still come to you.',
   4: 'Grade 4 — Full-auto (EXPERIMENTAL): I run /ship checkpoints through deliberation quorums and push to feature branches; ADRs, secrets, force-push and merges to the default branch remain yours. Budget- and telemetry-gated (ADR-0045).',
 });
+
+/**
+ * Reads the live session override (written by `/autonomy N --session`), or null
+ * when absent/expired. The single owner of the file location + TTL semantics —
+ * the setter writes it, every display/consumer surface reads it through here.
+ *
+ * @param {string} root project root
+ * @returns {number|null}
+ */
+export function readAutonomyOverride(root) {
+  const override = readJsonSafe(join(root, '.claude', '.workspace', 'autonomy-session.json'), null);
+  if (!override || !Number.isInteger(override.grade)) return null;
+  return Date.now() < Number(override.expiresAt || 0) ? override.grade : null;
+}
 
 function parseGrade(value) {
   const grade = Number(value);

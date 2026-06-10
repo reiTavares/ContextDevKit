@@ -21,21 +21,14 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { CONSEQUENCE_TEXT } from '../../runtime/config/resolve-autonomy.mjs';
-import { writeFileAtomicSync, readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { CONSEQUENCE_TEXT, readAutonomyOverride } from '../../runtime/config/resolve-autonomy.mjs';
+import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const PATHS = pathsFor(ROOT);
 const OVERRIDE_FILE = join(ROOT, '.claude', '.workspace', 'autonomy-session.json');
 const AUDIT_FILE = join(PATHS.memory, 'autonomy-audit.jsonl');
 const OVERRIDE_TTL_MS = 8 * 60 * 60 * 1000;
-
-/** Returns the live session override grade, or null when absent/expired. */
-export function readSessionOverride(root = ROOT) {
-  const override = readJsonSafe(join(root, '.claude', '.workspace', 'autonomy-session.json'), null);
-  if (!override || !Number.isInteger(override.grade)) return null;
-  return Date.now() < Number(override.expiresAt || 0) ? override.grade : null;
-}
 
 function audit(from, to, scope) {
   const line = JSON.stringify({ ts: new Date().toISOString(), actor: 'human', from, to, scope });
@@ -56,7 +49,7 @@ function main() {
   const argv = process.argv.slice(2);
   const config = loadConfigSync(ROOT);
   const configGrade = Number.isInteger(config?.autonomy?.grade) ? config.autonomy.grade : 2;
-  const overrideGrade = readSessionOverride();
+  const overrideGrade = readAutonomyOverride(ROOT);
 
   if (argv.includes('--clear')) {
     if (overrideGrade !== null) {
