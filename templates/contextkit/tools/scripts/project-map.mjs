@@ -48,7 +48,7 @@ async function generate(dir) {
     generatedAt: model.generatedAt,
     signature: model.signature,
     fileCount: model.fileCount,
-    modules: model.modules.map((m) => ({ path: m.path, role: m.role, files: m.files })),
+    modules: model.modules.map((m) => ({ path: m.path, role: m.role, files: m.files, bytes: m.bytes })),
   };
   await writeFile(resolve(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
   console.log(`✅ Project map written to contextkit/memory/project-map/ (${model.modules.length} modules · ${model.fileCount} files).`);

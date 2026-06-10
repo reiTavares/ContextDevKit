@@ -202,57 +202,66 @@ export function openBugsDue(root) {
   }
 }
 
-/** Bounded newest-mtime walk over a module dir (caps total stats to stay cheap). */
-function newestMtimeUnder(absDir, budget) {
-  let newest = 0;
+/** Source extensions the map counts — kept in sync with project-map-core's EXT_LANG. */
+const MAP_SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte', '.py', '.go', '.rs', '.java', '.kt', '.rb', '.php', '.cs', '.sql']);
+
+/** Bounded files+bytes walk over a module dir (caps total stats to stay cheap). */
+function filesAndBytesUnder(absDir, budget) {
+  let files = 0;
+  let bytes = 0;
   let entries = [];
   try {
     entries = readdirSync(absDir, { withFileTypes: true });
   } catch {
-    return { newest, budget };
+    return { files, bytes };
   }
   for (const e of entries) {
     if (budget.n <= 0) break;
     if (e.name.startsWith('.') || e.name === 'node_modules') continue;
     const full = resolve(absDir, e.name);
     if (e.isDirectory()) {
-      const r = newestMtimeUnder(full, budget);
-      if (r.newest > newest) newest = r.newest;
+      const r = filesAndBytesUnder(full, budget);
+      files += r.files;
+      bytes += r.bytes;
     } else {
+      const dot = e.name.lastIndexOf('.');
+      if (dot < 0 || !MAP_SOURCE_EXTS.has(e.name.slice(dot).toLowerCase())) continue;
       budget.n -= 1;
+      files += 1;
       try {
-        const mt = statSync(full).mtimeMs;
-        if (mt > newest) newest = mt;
+        bytes += statSync(full).size;
       } catch {
         /* ignore */
       }
     }
   }
-  return { newest, budget };
+  return { files, bytes };
 }
 
 /**
- * project-map staleness — nudge when the committed structural map is older than
- * the newest source edit. Reads the saved `manifest.json` (generatedAt) and does
- * a BOUNDED mtime walk over the mapped module dirs (cap 400 stats) so boot stays
- * fast. Returns a line or null. Silent when no map exists (never opted in) or on
- * any error. Self-contained — no dependency on the tools/ layer.
+ * project-map staleness — nudge when the committed structural map no longer
+ * matches the tree. Compares each mapped module's saved `{files, bytes}` against
+ * a BOUNDED (cap 400 stats) recompute. Structural, not mtime-based: it survives
+ * a clone (which resets mtimes) and never churns. Stops once the budget is spent
+ * so a truncated module is never falsely flagged (refuse-to-false-positive, rule
+ * 8). Returns a line or null. Silent when no map exists or on error. Self-contained.
  */
 export function projectMapStale(root) {
   try {
     const dir = pathsFor(root).projectMap;
     const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json'), 'utf-8'));
-    const generatedAt = Number(manifest?.generatedAt) || 0;
-    if (!generatedAt || !Array.isArray(manifest.modules)) return null;
+    if (!Array.isArray(manifest.modules) || manifest.modules.length === 0) return null;
     const budget = { n: 400 };
-    let newest = 0;
     for (const mod of manifest.modules) {
       if (budget.n <= 0) break;
-      const r = newestMtimeUnder(resolve(root, String(mod.path)), budget);
-      if (r.newest > newest) newest = r.newest;
+      const cur = filesAndBytesUnder(resolve(root, String(mod.path)), budget);
+      // Budget exhausted during this module → its count may be truncated; don't trust it.
+      if (budget.n <= 0) break;
+      if (cur.files !== Number(mod.files) || cur.bytes !== Number(mod.bytes)) {
+        return '🗺️  Project map is **stale** — source changed since it was generated. Run `/project-map` to refresh it (or `/project-map --check` to diff).';
+      }
     }
-    // 2s margin avoids flapping on the generation write itself.
-    return newest > generatedAt + 2000 ? '🗺️  Project map is **stale** — source changed since it was generated. Run `/project-map` to refresh it (or `/project-map --check` to diff).' : null;
+    return null;
   } catch {
     return null;
   }

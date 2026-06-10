@@ -6,6 +6,20 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **`/project-map` staleness via a deterministic structural fingerprint (ADR-0039).**
+  The map signature was `modules:files:mtime` — printed in every doc header — so
+  regenerating an unchanged project **churned** the committed docs, and the boot
+  nudge (which compared `generatedAt` to the newest mtime) **false-fired after
+  every clone** (clone resets mtimes). The signature is now a `sha256` over each
+  module's `path:files:bytes` (no mtime, no clock): an unchanged tree renders
+  **byte-identical** docs (zero churn) and `--check` is exact. The date is dropped
+  from the doc bodies (kept in `manifest.json` + console). `projectMapStale` now
+  compares each module's saved `{files, bytes}` against a bounded (≤400-stat)
+  recompute — structural, clone-safe, and it **skips** a cap-truncated module
+  rather than false-flag it (rule 8). Self-contained (no `git`, no `tools/` import).
+  Covered by selfcheck + churn-free + stale-on-edit integration asserts.
+
 ### Added
 - **`/project-map` — deterministic, stack-agnostic structural map (durable memory).**
   A new zero-AI-token mapper (`contextkit/tools/scripts/project-map{,-core,-render}.mjs`)
