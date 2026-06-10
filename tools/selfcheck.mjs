@@ -7,23 +7,15 @@
  * - Asserts `composeSettings` wires the right hooks per level + config defaults.
  * - Confirms the expected template files are present.
  * - Delegates the deeper invariants to sibling modules split by category
- *   (ADR-0016 H1 / task 037):
+ *   (ADR-0016 H1 / task 037; inventory extracted in ADR-0041 F0 / task 104):
  *     - `selfcheck-runtime.mjs`     — boot readers, atomic I/O, sid, squad meta.
  *     - `selfcheck-config.mjs`      — level taxonomy + zod schema agreement.
  *     - `selfcheck-source.mjs`      — source-level patterns, rule 4, SHA-pinning.
  *     - `selfcheck-agent-forge.mjs` / `-ops.mjs` — agent-forge squad checks.
- *
- * Cohesion note (line budget): this file is the harness — engine-module
- * loading, settings composition, config/loader checks, paths/presets,
- * template inventory, plus dispatch to the five runners. They share one
- * `ok`/`bad` reporter and run in a single `main()`. Splitting harness from
- * inventory would scatter the one concern this file exists to express
- * (smoke-test the kit before ship). Kept whole within the +10% tolerance.
+ *     - `selfcheck-templates.mjs`   — shipped template-tree inventory.
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { existsSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runRuntimeChecks } from './selfcheck-runtime.mjs';
@@ -31,11 +23,26 @@ import { runConfigChecks } from './selfcheck-config.mjs';
 import { runSourceChecks } from './selfcheck-source.mjs';
 import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
+import { runTemplateChecks } from './selfcheck-templates.mjs';
+import { runGateChecks } from './selfcheck-gates.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
+
+/**
+ * Floor for the total number of executed checks (passes + failures). Guards
+ * the runner wiring itself: losing a whole sibling module in a future split
+ * (the silent failure mode of task-104-style refactors) drops the count far
+ * below the floor and fails loudly. Raise as the suite grows; lowering it
+ * requires an ADR (ADR-0041 F0, task 104 — count was 666 at extraction).
+ */
+const MIN_CHECKS = 660;
 let failures = 0;
-const ok = (m) => console.log(`  ✓ ${m}`);
+let passes = 0;
+const ok = (m) => {
+  passes++;
+  console.log(`  ✓ ${m}`);
+};
 const bad = (m) => {
   console.error(`  ✗ ${m}`);
   failures++;
@@ -138,113 +145,6 @@ function checkPaths(paths) {
     ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
 }
 
-async function checkTemplates() {
-  console.log('Checking template inventory...');
-  // Ticket 047 — commands live in domain subfolders + at root. Walk recursively
-  // and assert (a) every expected command resolves by basename, (b) no two
-  // commands collide on basename (Claude Code resolves by basename).
-  async function walkCmds(dir, acc = []) {
-    for (const ent of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
-      const full = resolve(dir, ent.name);
-      if (ent.isDirectory()) await walkCmds(full, acc);
-      else if (ent.name.endsWith('.md') && ent.name !== 'README.md') acc.push(ent.name);
-    }
-    return acc;
-  }
-  const cmds = await walkCmds(resolve(KIT, 'templates/claude/commands'));
-  cmds.length >= 35 ? ok(`${cmds.length} slash commands present (across packs + root)`) : bad(`only ${cmds.length} slash commands`);
-  const seen = new Map();
-  for (const c of cmds) seen.set(c, (seen.get(c) || 0) + 1);
-  const collisions = [...seen.entries()].filter(([, n]) => n > 1);
-  collisions.length === 0 ? ok('no command basename collides across packs (ticket 047)') : bad(`basename collisions: ${collisions.map(([n]) => n).join(', ')}`);
-  for (const c of ['setupcontextdevkit.md', 'distill-sessions.md', 'distill-apply.md', 'context-doctor.md', 'context-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'context-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
-    'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
-    'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
-    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md']) {
-    cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
-  }
-  const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
-  agents.length >= 20 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
-  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md',
-    'forge-orchestrator.md', 'agent-architect.md', 'model-router.md', 'prompt-engineer.md', 'tool-designer.md', 'packager.md',
-    'eval-designer.md', 'governance-officer.md', 'rag-designer.md']) {
-    agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
-  }
-  existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
-  const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs']) {
-    scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
-  }
-  const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
-  ghTpl.includes('PULL_REQUEST_TEMPLATE.md') ? ok('GitHub PR template present') : bad('missing PR template');
-  ghTpl.includes('dependabot.yml') ? ok('Dependabot config template present') : bad('missing dependabot.yml');
-  existsSync(resolve(KIT, 'templates/github/workflows/security.yml')) ? ok('security workflow template present') : bad('missing security workflow template');
-  existsSync(resolve(KIT, 'templates/github/workflows/quality.yml')) ? ok('quality workflow template present') : bad('missing quality workflow template');
-  for (const f of [
-    'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
-    'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
-    '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
-    'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
-    'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
-    'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/config/presets.mjs',
-    'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
-    'templates/contextkit/pipeline/working/.gitkeep',
-    'templates/contextkit/runtime/state/state-io.mjs',
-    'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
-    'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',
-    'templates/contextkit/squads/README.md', 'templates/contextkit/squads/_BRIEFING.md.tpl',
-    'templates/contextkit/squads/agent-forge/README.md', 'templates/contextkit/squads/agent-forge/best-practices.md',
-    'templates/contextkit/squads/agent-forge/ROADMAP.md',
-    'templates/contextkit/squads/agent-forge/lib/yaml.mjs',
-    'templates/contextkit/squads/agent-forge/lib/router.mjs',
-    'templates/contextkit/squads/agent-forge/lib/architect.mjs',
-    'templates/contextkit/squads/agent-forge/lib/prompt-gen.mjs',
-    'templates/contextkit/squads/agent-forge/lib/tool-gen.mjs',
-    'templates/contextkit/squads/agent-forge/lib/packager.mjs',
-    'templates/contextkit/squads/agent-forge/router/capability-matrix.json',
-    'templates/contextkit/squads/agent-forge/router/decision-rules.json',
-    'templates/contextkit/squads/agent-forge/cli/forge-new.mjs',
-    'templates/contextkit/squads/agent-forge/cli/forge-ops.mjs',
-    'templates/contextkit/squads/agent-forge/cli/forge-eval-cli.mjs',
-    'templates/contextkit/squads/agent-forge/cli/forge-admin.mjs',
-    'templates/contextkit/squads/agent-forge/lib/package-ops.mjs',
-    'templates/contextkit/squads/agent-forge/lib/eval-designer.mjs',
-    'templates/contextkit/squads/agent-forge/lib/eval-runner.mjs',
-    'templates/contextkit/squads/agent-forge/lib/governance-officer.mjs',
-    'templates/contextkit/squads/agent-forge/lib/rag-designer.mjs',
-    'templates/contextkit/squads/agent-forge/pipeline.yaml',
-    'tools/selfcheck-agent-forge-ops.mjs',
-    'templates/claude/commands/forge/forge-new.md',
-    'templates/claude/commands/README.md',
-    'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
-    'docs/SQUAD-PIPELINE-FORMAT.md',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/manifest.yaml',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/README.md',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/.agentforgerc',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/prompts/system.canonical.md',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/tools/schemas.canonical.json',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/golden.jsonl',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/thresholds.yaml',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/cost.policy.yaml',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/compliance.policy.yaml',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/quality.policy.yaml',
-    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/audit.schema.json',
-    'templates/contextkit/memory/business-rules/_TEMPLATE.md',
-    'templates/contextkit/memory/predictions/.gitkeep',
-    'templates/contextkit/memory/workflows/.gitkeep',
-  ]) {
-    existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
-  }
-  const wf = await readdir(resolve(KIT, 'templates/contextkit/workflows')).catch(() => []);
-  for (const f of ['README.md', 'L1-static-loading.md', 'L2-session-ledger.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
-    wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
-  }
-  const playbooks = await readdir(resolve(KIT, 'templates/contextkit/workflows/playbooks')).catch(() => []);
-  for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']) {
-    playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
-  }
-}
-
 async function main() {
   console.log('\n🌀 ContextDevKit self-check\n');
   const mods = await importLibs();
@@ -257,7 +157,11 @@ async function main() {
   await runSourceChecks({ ok, bad }, { KIT });
   await runAgentForgeChecks({ ok, bad }, KIT);
   await runAgentForgeOpsChecks({ ok, bad }, KIT);
-  await checkTemplates();
+  await runTemplateChecks({ ok, bad }, { KIT });
+  await runGateChecks({ ok, bad }, { KIT, RT, mods });
+  const executed = passes + failures;
+  if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
+  else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }

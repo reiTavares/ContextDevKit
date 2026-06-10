@@ -216,4 +216,10 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['project-map core links module deps after the scan (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-core.mjs', /linkDeps\(root, modules\)/],
     ['project-map render emits the dependency adjacency list (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-render.mjs', /Module dependencies \(who imports whom\)/],
     ['symbol extraction lives in its own module (cohesion, sibling of deps)', 'templates/contextkit/tools/scripts/project-map-symbols.mjs', /export function extractSymbols/],
+    // ADR-0041 F0 — autonomy dial trust floor (tasks 100/102).
+    ['simulate-gate documents the grade-blind invariant (task 100, ADR-0041)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /autonomy-grade-blind/],
+    ['defaults ship autonomy as a consent grade only — no dead flags (task 102, ADR-0041)', 'templates/contextkit/runtime/config/defaults.mjs', /autonomy: \{ grade: 2 \},/],
+    ['schema validates autonomy.grade 1–4 and nothing else (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),\s*\}\)/],
+    ['path-classification exports the secret-bearing class (task 103, ADR-0041 floor)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchSecret/],
+    ['secret class is extendable, never removable (task 103, ADR-0041)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /never remove/],
 ];

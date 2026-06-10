@@ -43,6 +43,8 @@ try {
   hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).includes('"decision":"block"')
     ? ok('L5 gate blocks an unsimulated high-risk edit')
     : bad('L5 gate did not block');
+  // ADR-0041/0042: the grade-blind regression cell lives in
+  // integration-test-guards.mjs (testGateGradeBlind) — line budget here.
   script('mark-simulation.mjs', 'cover secure', 'src/secure/');
   hook('simulate-gate.mjs', { session_id: 'it', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } }).trim() === ''
     ? ok('L5 gate allows after /simulate-impact')

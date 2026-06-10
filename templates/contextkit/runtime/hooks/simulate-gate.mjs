@@ -86,6 +86,8 @@ async function main() {
   const ledger = await readLedger(resolveSessionId(payload));
   if (hasSimulationFor(ledger, targetPath)) return;
 
+  // The gate is autonomy-grade-blind by design (ADR-0041/0042): no consent
+  // setting may weaken L5 enforcement — only a covering /simulate-impact does.
   process.stdout.write(JSON.stringify({ decision: 'block', reason: buildBlockReason(targetPath, matched) }));
 }
 
