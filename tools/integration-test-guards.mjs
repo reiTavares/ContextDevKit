@@ -125,6 +125,23 @@ function testUpdateRefreshesKitOwned(proj) {
     ? ok('--update refreshes kit-owned playbooks (no stale content survives)') : bad('--update left a stale playbook unrefreshed');
 }
 
+/** ADR-0041/0042 — the L5 gate is autonomy-grade-blind: no consent setting (new
+ * `grade` or legacy `level`, any value) may weaken enforcement. Regression for
+ * the level-4 bypass incident (task 100). */
+function testGateGradeBlind(fx) {
+  const { cfgPath, hook } = fx;
+  const cfg = readJson(cfgPath);
+  cfg.l5.highRiskPaths = ['src/secure/'];
+  cfg.autonomy = { grade: 4, level: 4 };
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+  const out = hook('simulate-gate.mjs', { session_id: 'gb', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } });
+  out.includes('"decision":"block"')
+    ? ok('L5 gate blocks regardless of any autonomy config (grade-blind)')
+    : bad('L5 gate weakened by autonomy config — bypass regression');
+  delete cfg.autonomy;
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+}
+
 /** 016 — pre-push conflict gate: allow disjoint, warn on auto-merge, block real conflict, bypass. */
 function testPrePush() {
   const fx = installFixture(rep);
@@ -263,6 +280,7 @@ async function main() {
   const fx = installFixture(rep);
   try {
     testCommitMsg(fx.proj);
+    testGateGradeBlind(fx);
     testConcurrencyExternalEdit(fx.proj);
     testMalformedSettingsRecovery(fx.proj);
     testUpdateRefreshesKitOwned(fx.proj);
