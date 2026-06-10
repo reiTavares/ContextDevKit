@@ -82,3 +82,34 @@ export function matchHighRisk(targetPath, highRiskPaths) {
   }
   return null;
 }
+
+/**
+ * Secret-bearing path class (ADR-0041 floor, task 103). Built-ins are frozen —
+ * config may EXTEND the class (extra patterns), never remove from it: this is
+ * the grade-invariant denylist the autonomy resolver (ADR-0042) consults, so no
+ * consent grade can auto-touch credential material. Deliberately narrower than
+ * a bare `*key*` glob (a `keyboard.mjs` must not match): exact basenames,
+ * credential extensions, a `secrets/` dir segment, and CI workflow files.
+ *
+ * @param {string} targetPath repo-relative, forward-slashed
+ * @param {string[]} [extraPatterns] additive basename/prefix entries from config
+ * @returns {string|null} the matched pattern label, or null
+ */
+export function matchSecret(targetPath, extraPatterns = []) {
+  const norm = normalize(targetPath || '');
+  if (!norm) return null;
+  const base = norm.slice(norm.lastIndexOf('/') + 1).toLowerCase();
+  if (base === '.env' || base.startsWith('.env.')) return '.env*';
+  if (base === '.npmrc' || base === '.netrc') return base;
+  if (base.startsWith('credentials') || base.startsWith('secrets.')) return 'credentials*';
+  const SECRET_EXTENSIONS = ['.pem', '.key', '.keystore', '.p12', '.pfx', '.jks'];
+  const matchedExtension = SECRET_EXTENSIONS.find((ext) => base.endsWith(ext));
+  if (matchedExtension) return `*${matchedExtension}`;
+  if (norm.includes('/secrets/') || norm.startsWith('secrets/')) return 'secrets/';
+  if (norm.startsWith('.github/workflows/')) return '.github/workflows/';
+  for (const extra of extraPatterns) {
+    if (typeof extra !== 'string' || extra.length === 0) continue;
+    if (extra.endsWith('/') ? norm.startsWith(extra) : base === extra.toLowerCase()) return extra;
+  }
+  return null;
+}
