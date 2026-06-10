@@ -13,8 +13,9 @@
  *   node contextkit/tools/scripts/runs.mjs --kind pipeline-run
  *   node contextkit/tools/scripts/runs.mjs --all          # no limit
  *   node contextkit/tools/scripts/runs.mjs --json         # JSON for tooling
+ *   node contextkit/tools/scripts/runs.mjs --events <id>  # one item's transition log (ADR-0043)
  */
-import { listStates } from '../../runtime/state/state-io.mjs';
+import { listStates, readState } from '../../runtime/state/state-io.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
@@ -80,7 +81,23 @@ function renderPipelineRuns(runs) {
   return out.join('\n');
 }
 
+/** ADR-0043 — prints one item's append-only transition log, newest last. */
+function showEvents(id) {
+  const state = readState(PIPE, id);
+  if (!state || (state.events || []).length === 0) {
+    console.log(`  No transition events for "${id}" yet (events exist from F2 moves onward).`);
+    return;
+  }
+  console.log(`\n🧾 ${id} — ${state.events.length} transition(s), actor-attributed, each with its inverse:\n`);
+  for (const e of state.events) {
+    const when = new Date(e.ts).toISOString().replace('T', ' ').slice(0, 16);
+    console.log(`  ${when}  ${String(e.actor).padEnd(5)}  ${e.from || '∅'} → ${e.to}` + (e.note ? `  · ${e.note}` : '') + `  (undo → ${e.inverse || '∅'})`);
+  }
+}
+
 function main() {
+  const eventsId = arg('events');
+  if (eventsId) return showEvents(eventsId);
   const kindFilter = arg('kind');
   if (kindFilter && !['task', 'pipeline-run'].includes(kindFilter)) {
     console.error(`Invalid --kind "${kindFilter}". Use "task" or "pipeline-run".`);

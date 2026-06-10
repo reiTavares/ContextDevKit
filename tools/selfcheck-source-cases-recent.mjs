@@ -232,5 +232,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
     ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(loadConfigSync\(ROOT\)\)/],
     ['qa-reject is the only testing→working path (task 110, ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /qa-reject is the testing→working bounce only/],
-    ['transitions module defers auto moves to the F2 substrate (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC transitions \(actor `auto`\)/],
+    ['auto transitions exist only on the event log (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /exists ONLY on top of the append-only/],
+    // ADR-0043 F2 — observable substrate (task 111).
+    ['appendEvent is the only events writer (task 111, ADR-0043)', 'templates/contextkit/runtime/state/state-io.mjs', /export function appendEvent/],
+    ['writeState can never rewrite past events (append-only, ADR-0043)', 'templates/contextkit/runtime/state/state-io.mjs', /a patch can never rewrite or drop them/],
+    ['auto-transition is consent-gated through the resolver (task 111)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /resolveAutonomy\('pipeline-move'/],
+    ['stats telemetry derives only from state events (ADR-0043/0045)', 'templates/contextkit/tools/scripts/stats.mjs', /function collectAutonomy/],
+    ['runs exposes the per-item transition log (task 111)', 'templates/contextkit/tools/scripts/runs.mjs', /function showEvents/],
 ];
