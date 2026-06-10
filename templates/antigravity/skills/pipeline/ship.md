@@ -49,14 +49,14 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    stages MANDATORY and pulls the named agents (e.g. `@privacy-lgpd`, `@security`)
    into the squad; an **architectural** tier means the ADR in step 8 is required,
    not optional. Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
-2. **Design** — adopt the posture of `architect` (see `.antigravity/agents/architect.md`): options, trade-offs, recommended path,
+2. **Design** — adopt the posture of `architect` (see `.agents/agents/architect.md`): options, trade-offs, recommended path,
    blast radius. If it crosses high-risk paths (L5), run `/simulate-impact` first.
    ◆ Checkpoint: confirm the design with the user.
-3. **Plan tests** — adopt the posture of `qa-orchestrator` (see `.antigravity/agents/qa-orchestrator.md`) (`/test-plan`): happy / edge /
+3. **Plan tests** — adopt the posture of `qa-orchestrator` (see `.agents/agents/qa-orchestrator.md`) (`/test-plan`): happy / edge /
    failure for the scope.
 4. **Implement** — route to the right domain agent(s) (backend/frontend/db/…).
    Keep changes within scope and the constitution (file size, SRP, naming, docs).
-5. **Self-review** — adopt the posture of `code-reviewer` (see `.antigravity/agents/code-reviewer.md`): constitution + immutable rules.
+5. **Self-review** — adopt the posture of `code-reviewer` (see `.agents/agents/code-reviewer.md`): constitution + immutable rules.
    Fix blockers before continuing.
 6. **Test** — `/scaffold-tests` then run the suite; `/qa-signoff` against
    `qa.criticalPaths` + `coverageTarget`. If the UI's *look* is part of the change,

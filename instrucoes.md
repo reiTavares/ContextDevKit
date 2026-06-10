@@ -25,7 +25,7 @@ o histórico no próprio repositório. Funciona em qualquer projeto — do zero
 | **Dispatch seguro no `ctx.mjs`/`agy`** | Só nome exato + aliases declarados (sem adivinhação por prefixo); comando desconhecido ganha did-you-mean (3 mais próximos) e `agy help <comando>` mostra o card individual |
 | **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) commitado em `contextkit/memory/project-map/` — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** (quem importa quem) para raciocínio de blast radius |
 | **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Deliberação multi-agente: vozes independentes debatem, um sintetizador converge (ou registra `unresolved`) e o artefato alimenta o Context de um ADR |
-| **`/context-doctor` ciente do Antigravity** | Verifica o runner, os atalhos `ctx`/`agy`, as 4 árvores `.antigravity`, o `INSTRUCTIONS.md` e placeholders `{{TOKEN}}` esquecidos |
+| **`/context-doctor` ciente do Antigravity** | Verifica o runner, os atalhos `ctx`/`agy`, as 4 árvores `.agents`, o `INSTRUCTIONS.md` e placeholders `{{TOKEN}}` esquecidos |
 | **Build determinístico do host** | `npm run build:antigravity` regenera as skills/personas a partir das fontes Claude (limpa antes); um drift-guard no selfcheck falha o build se os dois hosts divergirem |
 | **Migração de install legado** | `npx contextdevkit --update` carrega um install `vibekit/` antigo para `contextkit/` automaticamente — memória, config, nível e `.env` preservados |
 
@@ -204,7 +204,7 @@ placeholder silenciosamente.
 
 ## Antigravity — o segundo host nativo
 
-O instalador já deixa tudo pronto: `.antigravity/` (73 skills + 32 personas +
+O instalador já deixa tudo pronto: `.agents/` (73 skills + 32 personas +
 playbooks + workflows), o runner `ctx.mjs` na raiz e o `INSTRUCTIONS.md` (o
 "CLAUDE.md" do Antigravity). O Claude Code não é tocado — os dois hosts
 coexistem no mesmo projeto, compartilhando o mesmo ledger e a mesma memória.

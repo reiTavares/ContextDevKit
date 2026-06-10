@@ -150,7 +150,15 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['migration refuses to delete the source on a partial copy', 'tools/install/migrate.mjs', /copy incomplete/],
     // Antigravity integration — second native host alongside Claude Code (skills/agents/playbooks/workflows + ctx runner).
     ['install.mjs wires the Antigravity host installer (extracted helper)', 'install.mjs', /installAntigravityHost\(target, TPL,/],
-    ['Antigravity installer copies the assets into .antigravity', 'tools/install/antigravity.mjs', /copyTree\(join\(tplDir, 'antigravity'\), join\(target, '\.antigravity'\)\)/],
+    // ADR-0048 — assets live in the agy-native `.agents/`, single-sourced via ANTIGRAVITY_DIR.
+    ['Antigravity installer copies the assets into the agy-native dir (ADR-0048)', 'tools/install/antigravity.mjs', /copyTree\(join\(tplDir, 'antigravity'\), join\(target, ANTIGRAVITY_DIR\)\)/],
+    ['Antigravity installer removes the legacy .antigravity tree (ADR-0048)', 'tools/install/antigravity.mjs', /rm\(legacyTree, \{ recursive: true, force: true \}\)/],
+    ['paths.mjs single-sources the agy host dir as .agents (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /export const ANTIGRAVITY_DIR = '\.agents'/],
+    ['pathsFor exposes the antigravity host dir (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /antigravity:\s*at\(ANTIGRAVITY_DIR\)/],
+    ['uninstall --purge removes the agy host dirs, new + legacy (ADR-0048)', 'tools/install/uninstall.mjs', /ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR\]/],
+    ['convert-all installed mode targets ANTIGRAVITY_DIR (ADR-0048)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE \? 'templates\/antigravity' : ANTIGRAVITY_DIR/],
+    ['doctor flags a leftover legacy .antigravity tree (ADR-0048)', 'templates/contextkit/tools/scripts/doctor.mjs', /ANTIGRAVITY_LEGACY_DIR/],
+    ['.agents README ships the host-coexistence rule (ADR-0048)', 'templates/antigravity/README.md', /Host-coexistence rule/],
     ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
     ['Antigravity installer renders INSTRUCTIONS.md from the template', 'tools/install/antigravity.mjs', /read\(join\(tplDir, 'INSTRUCTIONS\.md\.tpl'\)\)/],
     ['package.json agy bin points at the published templates/ctx.mjs (bug 097)', 'package.json', /"agy":\s*"templates\/ctx\.mjs"/],

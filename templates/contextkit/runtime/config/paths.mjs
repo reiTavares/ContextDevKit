@@ -15,6 +15,16 @@ import { resolve } from 'node:path';
 /** Platform bounded-context folder (everything except `.claude/`). */
 export const PLATFORM_DIR = 'contextkit';
 
+/**
+ * Antigravity host folder — the name is dictated by the `agy` binary, which
+ * resolves skills/hooks strictly from `.agents/` at the workspace root
+ * [ADR-0048]. Single-sourced here (rule 4); never hardcode it elsewhere.
+ */
+export const ANTIGRAVITY_DIR = '.agents';
+
+/** Pre-ADR-0048 Antigravity host folder — kept only for legacy cleanup. */
+export const ANTIGRAVITY_LEGACY_DIR = '.antigravity';
+
 /** Memory root — ADRs, sessions, glossary, indices. */
 export const MEMORY_DIR = `${PLATFORM_DIR}/memory`;
 
@@ -73,6 +83,7 @@ export function pathsFor(root = process.cwd()) {
   return {
     root,
     platform: at(PLATFORM_DIR),
+    antigravity: at(ANTIGRAVITY_DIR),
     memory: at(MEMORY_DIR),
     sessions: at(SESSIONS_DIR),
     sessionsIndex: at(SESSIONS_INDEX),

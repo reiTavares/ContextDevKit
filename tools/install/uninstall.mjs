@@ -6,6 +6,7 @@
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { read, overwrite } from './fs.mjs';
 
 export async function uninstall(target, purge) {
@@ -40,7 +41,7 @@ export async function uninstall(target, purge) {
   }
   // 3. With --purge, delete the engine + commands/agents (KEEP memory).
   if (purge) {
-    for (const rel of ['contextkit/runtime', 'contextkit/tools', '.claude/commands', '.claude/agents']) {
+    for (const rel of ['contextkit/runtime', 'contextkit/tools', '.claude/commands', '.claude/agents', ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR]) {
       const p = join(target, rel);
       if (existsSync(p)) {
         await rm(p, { recursive: true, force: true });

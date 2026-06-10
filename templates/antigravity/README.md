@@ -1,54 +1,49 @@
-# .antigravity/ — Antigravity Adaptation Layer
+# `.agents/` — Google Antigravity host (agy CLI + IDE)
 
-This directory contains the **Antigravity adaptation** of ContextDevKit's Claude Code
-features. It bridges the gap between Claude Code's hook-based architecture and
-Antigravity's KI/skill-based architecture.
+This directory is ContextDevKit's **Antigravity adaptation layer** [ADR-0036,
+ADR-0048]. The name `.agents/` is **dictated by the Google `agy` binary** — it
+resolves workspace skills, hooks and MCP config strictly from this folder.
 
-## What's here
+## ⚠️ Host-coexistence rule
+
+- **Do not remove or rename this folder.** The `agy` CLI requires the literal
+  name `.agents/` to register native slash commands and hooks.
+- **Claude Code** reads exclusively from `.claude/` — it never looks here.
+- **Google Antigravity (`agy`)** reads exclusively from `.agents/` — it never
+  looks at `.claude/`.
+- The two hosts coexist independently; ContextDevKit keeps them in parity
+  (`.claude/commands/` ↔ `.agents/skills/`) via its generator. Treat this tree
+  as **kit-owned and always-overwritten on update** — put your own custom agy
+  skills in nested files the kit doesn't ship, or they belong in
+  `.claude/commands/` first and get converted.
+
+## Directory map
 
 ```
-.antigravity/
-  skills/           ← Antigravity skills (equivalent to .claude/commands/)
-    state.md        ← Quick project state summary
-    log-session.md  ← Register work at session end
-    new-adr.md      ← Create an Architecture Decision Record
-    dev-start.md    ← Start a focused, scope-locked session
-    bug-hunt.md     ← Investigate a bug with disciplined RCA
-    audit.md        ← One-pass project health check
+.agents/
+  skills/      ← slash commands in the agy TUI (/state, /pipeline, /log-session …)
+  agents/      ← specialist persona briefings (devteam / qa / security squads)
+  playbooks/   ← reusable procedures the agent can follow
+  workflows/   ← level-activation guides (L1–L7)
+  hooks.json   ← lifecycle automation (boot context, edit tracking, L5 gate) [ADR-0049]
 ```
 
-## How to use skills
+## How skills work
 
-In Antigravity, you can ask the agent to follow a skill by referencing the file.
-For example:
-- "Follow the dev-start skill to begin a focused session on X"
-- "Use the log-session skill to register this session"
-- "Run the audit skill"
+Every Markdown file under `skills/` becomes a native slash command: typing `/`
+in the agy prompt autocompletes them (e.g. `skills/state.md` → `/state`).
+Nested folders are preserved (e.g. `skills/pipeline/ship.md`).
 
-## What's NOT here (and why)
+## Hooks
 
-The following Claude Code features have **no Antigravity equivalent** and are
-intentionally omitted:
-
-| Feature | Why it's missing |
-|---|---|
-| **Hooks** (SessionStart, PostToolUse, etc.) | Antigravity doesn't support lifecycle hooks |
-| **Automatic drift detection** | Requires PostToolUse hook to track edits |
-| **Concurrency guard** | Requires PreToolUse hook |
-| **Status line** | Antigravity doesn't support custom status bars |
-| **Sub-agents** (.claude/agents/) | Antigravity doesn't have dedicated sub-agent dispatch |
-
-These features still work in Claude Code via the `.claude/` directory. This
-adaptation is an **additive layer** — it doesn't remove or modify anything
-that Claude Code uses.
+`hooks.json` wires ContextDevKit's lifecycle hooks (the same scripts Claude
+Code runs from `.claude/settings.json`) into agy events — boot context at
+session start, edit tracking, the L5 high-risk gate. The hook **scripts** live
+in `contextkit/runtime/hooks/`; this file only registers them. Hooks always
+fail open: a broken hook never blocks your real work.
 
 ## Knowledge Items
 
-The project's durable memory is also available as **Knowledge Items** (KIs)
-in `<appDataDir>/knowledge/`:
-
-- `contextdevkit-boot/` — Boot context, coding constitution, project structure
-- `contextdevkit-architecture/` — Architecture reference, glossary, level system
-
-These KIs are automatically loaded by Antigravity at session start (when the
-KI summaries match the task at hand).
+The project's durable memory is also available as **Knowledge Items** in
+`<appDataDir>/knowledge/` (`contextdevkit-boot/`, `contextdevkit-architecture/`),
+auto-loaded by the Antigravity IDE when their summaries match the task.

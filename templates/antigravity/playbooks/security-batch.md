@@ -4,8 +4,8 @@
 
 # Playbook — Security batch (recurring security sweep)
 
-> Operational specs: [`.antigravity/skills/deep-analysis.md`](../../../.antigravity/skills/deep-analysis.md)
-> and [`.antigravity/skills/deps-audit.md`](../../../.antigravity/skills/deps-audit.md).
+> Operational specs: [`.agents/skills/deep-analysis.md`](../../../.agents/skills/deep-analysis.md)
+> and [`.agents/skills/deps-audit.md`](../../../.agents/skills/deps-audit.md).
 > This page is the **why**, the **recurring rhythm**, and how to **triage** the output.
 
 ## Why it exists

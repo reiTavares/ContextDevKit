@@ -22,7 +22,7 @@ export const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out', '.next', '.nuxt',
   '.turbo', '.expo', '.svelte-kit', 'coverage', '__pycache__', '.pytest_cache',
   'target', 'vendor', '.venv', 'venv', 'bin', 'obj', '.cache', '.idea', '.vscode',
-  'contextkit', '.claude', '.antigravity', '.tmp',
+  'contextkit', '.claude', '.agents', '.antigravity', '.tmp',
 ]);
 
 const CAP_FILES_PER_MODULE = 600;

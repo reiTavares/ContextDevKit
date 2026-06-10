@@ -13,7 +13,7 @@ that the context machinery keeps working.
   (both auto-generated), predictions, tech-debt board.
 - `contextkit/runtime/` — the hooks, the config loader/schema, settings composition.
 - `contextkit/tools/scripts/` — reindex, workspace-sync, snapshot, helpers.
-- `.antigravity/skills/` and `.antigravity/agents/` — skills and squad definitions.
+- `.agents/skills/` and `.agents/agents/` — skills and squad definitions.
 - `docs/CHANGELOG.md` — the factual release chronology.
 
 ## Principles

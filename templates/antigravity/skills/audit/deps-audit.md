@@ -27,7 +27,7 @@ Run the **security-team's** dependency / supply-chain check, then feed the backl
    Idempotent (re-runs don't duplicate). Priorities are **always editable**
    (`pipeline.mjs prioritize <id> <P>` or `/pipeline`).
 
-3. **Interpret with judgment** (adopt the posture of `the` (see `.antigravity/agents/the.md`) `security` agent): which advisories
+3. **Interpret with judgment** (adopt the posture of `the` (see `.agents/agents/the.md`) `security` agent): which advisories
    are actually reachable/exploitable in THIS app vs transitive noise? Recommend the
    fix (upgrade · pin · replace · accept-with-reason). On a Critical/High, the
    security-team can block the release.

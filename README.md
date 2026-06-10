@@ -32,8 +32,8 @@ where the last one left off.
 | **Safer `ctx.mjs` / `agy` dispatch** | Exact names + declared aliases only (no more silent prefix guessing); unknown commands get did-you-mean (closest 3) and `agy help <command>` prints a per-command card |
 | **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map committed under `contextkit/memory/project-map/` — stack, modules (🎨/⚙️/🔗/🛠️), exported symbols, and a **module dependency graph** (who imports whom) for blast-radius reasoning. Churn-free fingerprint; clone-safe staleness nudge at boot |
 | **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Multi-agent deliberations: independent voices argue a hard question, a synthesizer converges (or records `unresolved`), the artifact feeds an ADR's Context |
-| **Antigravity-aware `/context-doctor`** | Verifies the runner, the `ctx`/`agy` shortcuts, the four `.antigravity` asset trees, `INSTRUCTIONS.md`, and leftover `{{TOKEN}}` placeholders |
-| **Deterministic host build** | `npm run build:antigravity` regenerates `.antigravity` skills/personas from the Claude sources (clean-first); a selfcheck **parity drift-guard** fails the build if the hosts diverge |
+| **Antigravity-aware `/context-doctor`** | Verifies the runner, the `ctx`/`agy` shortcuts, the four `.agents` asset trees, `INSTRUCTIONS.md`, and leftover `{{TOKEN}}` placeholders |
+| **Deterministic host build** | `npm run build:antigravity` regenerates `.agents` skills/personas from the Claude sources (clean-first); a selfcheck **parity drift-guard** fails the build if the hosts diverge |
 | **Legacy migration** | `npx contextdevkit --update` carries an old `vibekit/` install forward to `contextkit/` automatically — memory, config, level, `.env` preserved |
 | **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` (engine / claude / antigravity / git) — adding a future host is one module + one call |
 
@@ -196,7 +196,7 @@ your-project/
       forge/                         # 14 agent-forge lifecycle commands (L6+)
       setup/                         # setupcontextdevkit, context-doctor, context-level
     agents/                          # 32 sub-agent archetypes (L4+)
-  .antigravity/                      # Antigravity host (73 skills, 32 personas, playbooks, workflows)
+  .agents/                      # Antigravity host (73 skills, 32 personas, playbooks, workflows)
   INSTRUCTIONS.md                    # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs                            # Central CLI runner (accessible as agy <command> or npm run ctx)
   contextkit/
@@ -253,7 +253,7 @@ fallback-test,refresh-matrix,killswitch,deprecate}`)
 **`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/context-doctor`
 · `/context-level` · `/context-config`
 
-On **Antigravity** every command above is a **skill** under `.antigravity/skills/`
+On **Antigravity** every command above is a **skill** under `.agents/skills/`
 (same names, no `/` prefix), and the engine scripts run through the `agy` runner —
 see [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
 
@@ -408,7 +408,7 @@ the media-gen credentials flow.
 npm test                      # selfcheck + 8 integration suites (what CI runs)
 node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
 node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
-npm run build:antigravity     # regenerate .antigravity skills/personas from templates/claude
+npm run build:antigravity     # regenerate .agents skills/personas from templates/claude
                               # (selfcheck fails if the two hosts drift)
 ```
 

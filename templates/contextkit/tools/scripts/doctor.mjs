@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
-import { pathsFor } from '../../runtime/config/paths.mjs';
+import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
@@ -147,14 +147,19 @@ function checkZod(level) {
 }
 
 /**
- * Antigravity host health (ticket 086). Advisory only — the second host is
- * optional, so a Claude-only project never fails doctor over it. Verifies the
- * ctx.mjs runner, the package.json shortcuts, the four .antigravity asset
- * trees, INSTRUCTIONS.md, and that no {{TOKEN}} placeholder survived rendering.
+ * Antigravity host health (ticket 086, ADR-0048). Advisory only — the second
+ * host is optional, so a Claude-only project never fails doctor over it.
+ * Verifies the ctx.mjs runner, the package.json shortcuts, the four asset
+ * trees under the agy-native dir (`.agents/`), INSTRUCTIONS.md, and that no
+ * {{TOKEN}} placeholder survived rendering. A leftover pre-ADR-0048
+ * `.antigravity/` tree is flagged as migratable.
  */
 function checkAntigravityHost() {
-  if (!existsSync(resolve(ROOT, '.antigravity'))) {
-    note('Antigravity host not installed (.antigravity/ missing)', 'npx contextdevkit --update installs it alongside .claude/');
+  if (existsSync(resolve(ROOT, ANTIGRAVITY_LEGACY_DIR))) {
+    note(`legacy ${ANTIGRAVITY_LEGACY_DIR}/ tree found — agy reads ${ANTIGRAVITY_DIR}/ instead (ADR-0048)`, 'npx contextdevkit --update migrates and removes it');
+  }
+  if (!existsSync(P.antigravity)) {
+    note(`Antigravity host not installed (${ANTIGRAVITY_DIR}/ missing)`, 'npx contextdevkit --update installs it alongside .claude/');
     return;
   }
   existsSync(resolve(ROOT, 'ctx.mjs')) ? pass('ctx.mjs runner present') : note('ctx.mjs runner missing', 're-run the installer (npx contextdevkit --update)');
@@ -168,14 +173,14 @@ function checkAntigravityHost() {
 
   const emptyTrees = ['skills', 'agents', 'playbooks', 'workflows'].filter((d) => {
     try {
-      return readdirSync(resolve(ROOT, '.antigravity', d)).filter((f) => f.endsWith('.md')).length === 0;
+      return readdirSync(resolve(P.antigravity, d)).filter((f) => f.endsWith('.md')).length === 0;
     } catch {
       return true;
     }
   });
   emptyTrees.length === 0
-    ? pass('.antigravity asset trees populated (skills, agents, playbooks, workflows)')
-    : note(`.antigravity tree(s) empty or missing: ${emptyTrees.join(', ')}`, 're-run the installer (npx contextdevkit --update)');
+    ? pass(`${ANTIGRAVITY_DIR} asset trees populated (skills, agents, playbooks, workflows)`)
+    : note(`${ANTIGRAVITY_DIR} tree(s) empty or missing: ${emptyTrees.join(', ')}`, 're-run the installer (npx contextdevkit --update)');
 
   try {
     const instructions = readFileSync(resolve(ROOT, 'INSTRUCTIONS.md'), 'utf-8');

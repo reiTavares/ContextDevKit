@@ -31,7 +31,7 @@ trade-off is deliberate and documented.
 your-project/
   INSTRUCTIONS.md     # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs             # central CLI runner (also exposed as the `agy` bin)
-  .antigravity/
+  .agents/
     skills/           # 73 skills — the slash commands, converted (same names)
     agents/           # 32 personas — the sub-agent archetypes
     playbooks/        # 7 reusable engineering procedures
@@ -41,14 +41,14 @@ your-project/
 The installer also patches the target `package.json` with `"ctx"`/`"agy"` script
 shortcuts (silent no-op when there is no package.json).
 
-### Skills (`.antigravity/skills/`)
+### Skills (`.agents/skills/`)
 
 Claude Code slash commands converted to Antigravity **skills**: frontmatter
 stripped into a header, `$ARGUMENTS` and `.claude/` paths adapted, same domain
 taxonomy (`audit/`, `pipeline/`, `qa/`, `vcs/`, `forge/`, `setup/`). Invoke by
 name — "run the `audit` skill".
 
-### Personas (`.antigravity/agents/`)
+### Personas (`.agents/agents/`)
 
 The squad sub-agents (devteam, qa-team, design-team, security-team,
 compliance-team, ops-team, agent-forge) exposed as **personas**: focused system
@@ -152,7 +152,7 @@ npm run build:antigravity   # kit build step — clean-first regeneration
   `templates/antigravity` and `templates/claude` diverge (missing twins or
   orphans, both directions).
 - Inside an installed project, the same script without `--templates` converts
-  the project's own custom `.claude/commands` → `.antigravity/skills`.
+  the project's own custom `.claude/commands` → `.agents/skills`.
 
 ## 8. Health check
 

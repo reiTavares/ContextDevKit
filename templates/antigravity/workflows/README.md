@@ -3,7 +3,7 @@
 ContextDevKit's context system operates in **levels**. Each one solves a distinct
 problem of humans + Claude sharing one codebase across many sessions. These docs
 are the *narrative* layer — the **why** and **how it fits together** — behind the
-executable hooks (`contextkit/runtime/hooks/`), skills (`.antigravity/skills/`),
+executable hooks (`contextkit/runtime/hooks/`), skills (`.agents/skills/`),
 and config (`contextkit/config.json`).
 
 > These are reference docs; they never run. Behaviour lives in the hooks and
@@ -29,7 +29,7 @@ and config (`contextkit/config.json`).
 
 Files in [`playbooks/`](playbooks/) describe **reusable working procedures** Claude
 follows during a session. Each is the detailed *why / how to read / anti-patterns*
-behind a skill — the file in `.antigravity/skills/` is the operational spec;
+behind a skill — the file in `.agents/skills/` is the operational spec;
 the playbook is the judgment around it.
 
 | Playbook | skill(s) | What it governs |
