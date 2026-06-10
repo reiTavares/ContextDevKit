@@ -188,4 +188,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['manifest stores per-module bytes for staleness (ADR-0039)', 'templates/contextkit/tools/scripts/project-map.mjs', /files: m\.files, bytes: m\.bytes/],
     ['projectMapStale compares files\\+bytes vs the manifest, not mtime (ADR-0039)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /cur\.bytes !== Number\(mod\.bytes\)/],
     ['projectMapStale skips a cap-truncated module (refuse-to-false-positive, rule 8)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /Budget exhausted during this module/],
+    // project-map ADR-0040 — module dependency graph (blast-radius edges).
+    ['project-map-deps exports extractImports + linkDeps (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-deps.mjs', /export function extractImports[\s\S]*export function linkDeps/],
+    ['project-map-deps resolves workspace package names via package.json (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-deps.mjs', /function packageIndex/],
+    ['project-map-deps keeps deps sorted for determinism (no churn, ADR-0040)', 'templates/contextkit/tools/scripts/project-map-deps.mjs', /\[\.\.\.deps\]\.sort\(\)/],
+    ['project-map core links module deps after the scan (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-core.mjs', /linkDeps\(root, modules\)/],
+    ['project-map render emits the dependency adjacency list (ADR-0040)', 'templates/contextkit/tools/scripts/project-map-render.mjs', /Module dependencies \(who imports whom\)/],
+    ['symbol extraction lives in its own module (cohesion, sibling of deps)', 'templates/contextkit/tools/scripts/project-map-symbols.mjs', /export function extractSymbols/],
 ];

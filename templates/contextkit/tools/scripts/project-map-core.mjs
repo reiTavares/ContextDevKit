@@ -13,7 +13,9 @@
  */
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, extname, resolve } from 'node:path';
+import { basename, dirname, extname, resolve } from 'node:path';
+import { DEP_EXTS, extractImports, linkDeps } from './project-map-deps.mjs';
+import { extractSymbols } from './project-map-symbols.mjs';
 
 /** Dirs never worth mapping (deps, build output, VCS, the platform itself). */
 export const IGNORE_DIRS = new Set([
@@ -64,28 +66,6 @@ function classifyRole(dirName, extCounts) {
   return 'shared';
 }
 
-/** Symbol extractors per language — cheap regex, capped by the caller. */
-const SYMBOL_RES = {
-  javascript: [/export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g, /export\s+(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/g, /export\s+const\s+([A-Za-z_$][\w$]*)\s*=/g],
-  typescript: [/export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g, /export\s+(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/g, /export\s+const\s+([A-Za-z_$][\w$]*)\s*[:=]/g, /export\s+(?:type|interface)\s+([A-Za-z_$][\w$]*)/g],
-  python: [/^\s*def\s+([a-z_]\w*)/gm, /^\s*class\s+([A-Za-z_]\w*)/gm],
-  go: [/^func\s+(?:\([^)]*\)\s*)?([A-Z]\w*)/gm, /^type\s+([A-Z]\w*)/gm],
-  rust: [/pub\s+fn\s+([a-z_]\w*)/g, /pub\s+struct\s+([A-Za-z_]\w*)/g],
-  ruby: [/^\s*def\s+([a-z_]\w*)/gm, /^\s*class\s+([A-Za-z_]\w*)/gm],
-};
-SYMBOL_RES.vue = SYMBOL_RES.typescript;
-SYMBOL_RES.svelte = SYMBOL_RES.typescript;
-
-function extractSymbols(text, lang, file, cap) {
-  const out = [];
-  for (const re of SYMBOL_RES[lang] || []) {
-    re.lastIndex = 0;
-    let m;
-    while ((m = re.exec(text)) && out.length < cap) out.push({ file, name: m[1] });
-  }
-  return out;
-}
-
 /** Recursively collect source files under a module dir (bounded). */
 function walkModule(absDir, acc) {
   if (acc.files.length >= CAP_FILES_PER_MODULE) return;
@@ -116,25 +96,33 @@ function walkModule(absDir, acc) {
   }
 }
 
-/** Build the per-module record: role, languages, file count, sampled symbols. */
+/**
+ * Build the per-module record: role, languages, file count, sampled symbols, and
+ * the raw import specifiers (resolved to edges later by `linkDeps`). Reads EVERY
+ * walked file for imports (top-of-file, cheap on-demand); symbols stay sampled to
+ * the first CAP_SAMPLE_FILES to keep the inventory bounded.
+ */
 function buildModule(root, absDir, relPath) {
   const acc = { files: [], extCounts: {}, bytes: 0 };
   walkModule(absDir, acc);
   if (acc.files.length === 0) return null;
   const languages = [...new Set(acc.files.map((f) => EXT_LANG[extname(f).toLowerCase()]))].sort();
   const symbols = [];
-  for (const file of acc.files.slice(0, CAP_SAMPLE_FILES)) {
-    if (symbols.length >= CAP_SYMBOLS_PER_MODULE) break;
-    const lang = EXT_LANG[extname(file).toLowerCase()];
+  const imports = [];
+  acc.files.forEach((file, i) => {
+    const ext = extname(file).toLowerCase();
     let text = '';
     try {
       text = readFileSync(file, 'utf-8');
     } catch {
-      continue;
+      return;
     }
-    const rel = file.slice(root.length + 1).replaceAll('\\', '/');
-    symbols.push(...extractSymbols(text, lang, rel, CAP_SYMBOLS_PER_MODULE - symbols.length));
-  }
+    if (DEP_EXTS.has(ext)) for (const spec of extractImports(text)) imports.push({ dir: dirname(file), spec });
+    if (i < CAP_SAMPLE_FILES && symbols.length < CAP_SYMBOLS_PER_MODULE) {
+      const rel = file.slice(root.length + 1).replaceAll('\\', '/');
+      symbols.push(...extractSymbols(text, EXT_LANG[ext], rel, CAP_SYMBOLS_PER_MODULE - symbols.length));
+    }
+  });
   return {
     path: relPath,
     role: classifyRole(basename(relPath), acc.extCounts),
@@ -142,6 +130,7 @@ function buildModule(root, absDir, relPath) {
     files: acc.files.length,
     bytes: acc.bytes,
     capped: acc.files.length >= CAP_FILES_PER_MODULE,
+    imports,
     symbols: symbols.slice(0, CAP_SYMBOLS_PER_MODULE),
   };
 }
@@ -241,6 +230,7 @@ export function scanProject(root, nowMs = Date.now()) {
     if (mod) modules.push(mod);
   }
   modules.sort((a, b) => b.files - a.files);
+  linkDeps(root, modules); // resolve raw imports → sorted `deps` edges (ADR-0040)
   const fileCount = modules.reduce((n, m) => n + m.files, 0);
   return {
     name: projectName(root),

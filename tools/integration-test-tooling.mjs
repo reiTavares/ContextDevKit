@@ -52,7 +52,7 @@ try {
   // project-map — deterministic structural map over a frontend (.tsx) + backend (.ts) split.
   mkdirSync(join(proj, 'apps', 'web', 'src'), { recursive: true });
   mkdirSync(join(proj, 'apps', 'api', 'src'), { recursive: true });
-  writeFileSync(join(proj, 'apps', 'web', 'src', 'App.tsx'), 'export function App() { return null; }\n');
+  writeFileSync(join(proj, 'apps', 'web', 'src', 'App.tsx'), "import { startServer } from '../../api/src/server';\nexport function App() { return startServer; }\n");
   writeFileSync(join(proj, 'apps', 'api', 'src', 'server.ts'), 'export function startServer() {}\n');
   const pmGen = script('project-map.mjs');
   const pmIndex = join(proj, 'contextkit', 'memory', 'project-map', '00-index.md');
@@ -63,6 +63,10 @@ try {
   (() => { try { const idx = readFileSync(pmIndex, 'utf-8'); return /🎨 frontend/.test(idx) && /⚙️ backend/.test(idx) && idx.includes('apps/web') && idx.includes('apps/api'); } catch { return false; } })()
     ? ok('project-map classifies frontend (.tsx) and backend (.ts) modules')
     : bad('project-map did not classify the frontend/backend split');
+  // ADR-0040 — the dependency graph resolves a relative cross-module import into an edge.
+  (() => { try { const idx = readFileSync(pmIndex, 'utf-8'); return /## Module dependencies/.test(idx) && /`apps\/web\/`\s*→[^\n]*`apps\/api\/`/.test(idx); } catch { return false; } })()
+    ? ok('project-map resolves a cross-module import into a dependency edge (ADR-0040)')
+    : bad('project-map did not render the apps/web → apps/api edge');
   (() => { try { return JSON.parse(readFileSync(pmManifest, 'utf-8')).signature?.length > 0; } catch { return false; } })()
     ? ok('project-map writes a signature into manifest.json (powers staleness)')
     : bad('project-map manifest missing a signature');
