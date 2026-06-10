@@ -10,7 +10,7 @@
  *
  * Run:  node tools/integration-test-antigravity.mjs   (exit 0 = healthy)
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run, reporter, installFixture } from './it-helpers.mjs';
 
@@ -76,6 +76,28 @@ try {
   /Pending drift.*1 session/i.test(status.stdout) && /agdrift/.test(status.stdout) && !/agnoise/.test(status.stdout)
     ? ok('session status counts drift via the shared ledger predicate — noise-only ledger ignored (092)')
     : bad(`session status drift mismatch: ${status.stdout.slice(0, 300)}`);
+
+  // ── agy guard — explicit L5 pre-edit checkpoint (ticket 095) ──
+  const cfgPath = join(proj, 'contextkit', 'config.json');
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
+  cfg.l5.highRiskPaths = ['src/secure/'];
+  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+
+  const safe = ctx('guard', 'src/app.js');
+  safe.status === 0 && /allowed/i.test(safe.stdout)
+    ? ok('guard allows a non-high-risk path (095)')
+    : bad(`guard blocked a safe path (status ${safe.status}): ${safe.stdout.slice(0, 150)}`);
+
+  const blocked = ctx('guard', 'src/secure/auth.js');
+  blocked.status === 1 && /BLOCKED/i.test(blocked.stdout) && /simulate-impact/i.test(blocked.stdout)
+    ? ok('guard blocks a high-risk path with no simulation — exit 1 (095)')
+    : bad(`guard did not block (status ${blocked.status}): ${blocked.stdout.slice(0, 150)}`);
+
+  run([join(proj, 'contextkit', 'tools', 'scripts', 'mark-simulation.mjs'), 'cover secure', 'src/secure/'], { cwd: proj });
+  const covered = ctx('guard', 'src/secure/auth.js');
+  covered.status === 0 && /covered/i.test(covered.stdout)
+    ? ok('guard allows after a covering /simulate-impact record (095)')
+    : bad(`guard still blocked after simulation (status ${covered.status}): ${covered.stdout.slice(0, 150)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

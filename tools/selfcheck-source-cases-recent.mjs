@@ -162,6 +162,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['session-manager documents the project-local trust model (ticket 090)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Trust model/],
     ['ctx.mjs suggests the closest commands on a miss (ticket 096)', 'templates/ctx.mjs', /suggestClosest/],
     ['ctx-menu.mjs carries the categorised registry (ticket 096)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /export const CATEGORIES/],
+    // Ticket 095 — explicit guard checkpoint shares the hook's gate logic.
+    ['guard.mjs exists as the explicit pre-edit checkpoint (ticket 095)', 'templates/contextkit/tools/scripts/guard.mjs', /governance parity/],
+    ['guard.mjs and simulate-gate share matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchHighRisk/],
+    ['simulate-gate imports the shared matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /matchHighRisk.*from '\.\/path-classification\.mjs'/],
+    ['INSTRUCTIONS.md.tpl tells the agent to run the guard before high-risk edits (ticket 095)', 'templates/INSTRUCTIONS.md.tpl', /ctx\.mjs guard <path>/],
     // Ticket 092 — single drift predicate: session-manager consumes the Stop hook's ledger module.
     ['session-manager reuses the canonical drift predicate (ticket 092)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /pendingImportantPaths.*from '\.\.\/hooks\/ledger\.mjs'/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],

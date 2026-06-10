@@ -16,6 +16,7 @@
  */
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { hasSimulationFor, readLedger, resolveSessionId, toRepoRelative } from './ledger.mjs';
+import { matchHighRisk } from './path-classification.mjs';
 
 const ROOT = process.cwd();
 
@@ -34,20 +35,6 @@ function extractFilePath(payload) {
   const input = payload?.tool_input ?? {};
   if ((tool === 'Edit' || tool === 'Write' || tool === 'MultiEdit') && typeof input.file_path === 'string') {
     return input.file_path;
-  }
-  return null;
-}
-
-/** Returns the matching high-risk entry (or null). Dir entries match by prefix. */
-function matchHighRisk(targetPath, highRiskPaths) {
-  if (!Array.isArray(highRiskPaths)) return null;
-  for (const entry of highRiskPaths) {
-    if (typeof entry !== 'string' || entry.length === 0) continue;
-    if (entry.endsWith('/')) {
-      if (targetPath.startsWith(entry)) return entry;
-    } else if (targetPath === entry) {
-      return entry;
-    }
   }
   return null;
 }

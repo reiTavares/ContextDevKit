@@ -121,8 +121,9 @@ async function actionStart() {
   out.push('');
   out.push('1. Read SESSIONS index + relevant ADR before non-trivial changes.');
   out.push('2. New architectural decision → use the `new-adr` skill BEFORE implementing.');
-  out.push('3. End of productive session → use the `log-session` skill.');
-  out.push('4. Use the `state` skill for a quick state summary at any time.');
+  out.push('3. Before editing a sensitive file → `node ctx.mjs guard <path>` (L5 gate; exit 1 = simulate first).');
+  out.push('4. End of productive session → use the `log-session` skill.');
+  out.push('5. Use the `state` skill for a quick state summary at any time.');
   out.push('');
 
   console.log(out.join('\n'));
