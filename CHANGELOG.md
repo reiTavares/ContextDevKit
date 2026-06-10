@@ -6,6 +6,53 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (backlog-zero batch — tickets 084–096)
+- **`agy guard <path>` — explicit L5 pre-edit checkpoint (095).** Governance
+  parity for the hook-less Antigravity host: exit 0 = allowed, exit 1 = high-risk
+  path with no covering `/simulate-impact` record (refuse-by-default, including
+  on errors). Shares `matchHighRisk` with the PreToolUse hook via
+  `path-classification.mjs`; documented in `INSTRUCTIONS.md.tpl` and the
+  session-start rules.
+- **`help <command>` + did-you-mean in `ctx.mjs` (096).** Unknown commands print
+  the closest 3 matches instead of dumping the six-category menu; `help <cmd>`
+  prints a single-command card. The categorised registry moved to
+  `runtime/antigravity/ctx-menu.mjs` (graceful fallback when the engine is absent).
+- **Antigravity-aware `/context-doctor` (086).** Verifies `ctx.mjs`, the
+  `ctx`/`agy` package.json shortcuts, the four `.antigravity` asset trees,
+  `INSTRUCTIONS.md`, and leftover `{{TOKEN}}` placeholders — advisory-only, a
+  Claude-only project never fails doctor over the optional host.
+- **Antigravity parity drift-guard in selfcheck (084).** `templates/antigravity`
+  must track `templates/claude` 1:1 (both directions, by relative path) or
+  selfcheck fails pointing at `npm run build:antigravity`.
+- **New integration suite `tools/integration-test-antigravity.mjs`** covering the
+  `ctx.mjs` dispatch contract, the guard checkpoint, the shared drift predicate
+  and the doctor checks; joined the `npm test` chain.
+
+### Fixed (backlog-zero batch)
+- **`ctx.mjs` silent prefix dispatch (089).** `agy tech` no longer guesses
+  `tech-debt-scan.mjs` via `startsWith` — exact names and declared aliases only;
+  a near-miss fails loudly with suggestions.
+- **`convert-all.mjs` generated the Antigravity host from the wrong source (085).**
+  It read the CURRENT project's `.claude/` (the kit's dogfood install), shipping a
+  kit-local agent, missing newer commands (`debate`, `plan-week`, `project-map`)
+  and keeping 33 stale flat duplicates after the taxonomy reorg. New `--templates`
+  mode reads `templates/claude` + `templates/contextkit/workflows` with a
+  clean-first build (top-level README.md preserved), wired as
+  `npm run build:antigravity` — a kit build step, never the user `--update` path.
+  Tree regenerated: 73 skills / 33 agents / 7 playbooks / 6 workflows, 1:1.
+- **Antigravity drift detection disagreed with the Stop hook (092).**
+  `session-manager` carried its own inline "important file" filter (it wrongly
+  ignored `.claude/` edits, under-reporting drift); it now consumes the canonical
+  config-driven predicate (`pendingImportantPaths`) from `hooks/ledger.mjs`.
+- **Dispatch confinement + trust model (090).** Resolved scripts must stay under
+  `contextkit/tools/scripts`; the project-local trust assumption both runners
+  share with npm scripts / git hooks is documented in their headers.
+
+### Changed (backlog-zero batch)
+- **Installer io convention unified (091).** The `engine`/`claude`/`antigravity`
+  installers import `fs.mjs` directly; the pass-through `io` object and parameter
+  are gone (half the modules already imported directly — one convention now).
+
 ### Added
 - **`/project-map` module dependency graph — blast-radius edges (ADR-0040).**
   The map gains a **"Module dependencies (who imports whom)"** section in

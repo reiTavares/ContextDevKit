@@ -151,12 +151,28 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Antigravity integration — second native host alongside Claude Code (skills/agents/playbooks/workflows + ctx runner).
     ['install.mjs wires the Antigravity host installer (extracted helper)', 'install.mjs', /installAntigravityHost\(target, TPL,/],
     ['Antigravity installer copies the assets into .antigravity', 'tools/install/antigravity.mjs', /copyTree\(join\(tplDir, 'antigravity'\), join\(target, '\.antigravity'\)\)/],
-    ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await io\.read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
+    ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
     ['Antigravity installer renders INSTRUCTIONS.md from the template', 'tools/install/antigravity.mjs', /read\(join\(tplDir, 'INSTRUCTIONS\.md\.tpl'\)\)/],
-    ['package.json declares the agy bin → ctx.mjs', 'package.json', /"agy":\s*"ctx\.mjs"/],
+    ['package.json agy bin points at the published templates/ctx.mjs (bug 097)', 'package.json', /"agy":\s*"templates\/ctx\.mjs"/],
     ['ctx.mjs is the central CLI runner for Antigravity', 'templates/ctx.mjs', /central CLI runner for Antigravity/],
+    // Tickets 089/090/096 — dispatch contract: no prefix guess, SCRIPTS_DIR confinement, did-you-mean.
+    ['ctx.mjs has no prefix-match dispatch fallback (ticket 089)', 'templates/ctx.mjs', /no prefix fallback/],
+    ['ctx.mjs confines resolved scripts to SCRIPTS_DIR (ticket 090)', 'templates/ctx.mjs', /resolved\.startsWith\(SCRIPTS_DIR \+ sep\)/],
+    ['ctx.mjs documents the project-local trust model (ticket 090)', 'templates/ctx.mjs', /Trust model/],
+    ['session-manager documents the project-local trust model (ticket 090)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Trust model/],
+    ['ctx.mjs suggests the closest commands on a miss (ticket 096)', 'templates/ctx.mjs', /suggestClosest/],
+    ['ctx-menu.mjs carries the categorised registry (ticket 096)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /export const CATEGORIES/],
+    // Ticket 095 — explicit guard checkpoint shares the hook's gate logic.
+    ['guard.mjs exists as the explicit pre-edit checkpoint (ticket 095)', 'templates/contextkit/tools/scripts/guard.mjs', /governance parity/],
+    ['guard.mjs and simulate-gate share matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchHighRisk/],
+    ['simulate-gate imports the shared matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /matchHighRisk.*from '\.\/path-classification\.mjs'/],
+    ['INSTRUCTIONS.md.tpl tells the agent to run the guard before high-risk edits (ticket 095)', 'templates/INSTRUCTIONS.md.tpl', /ctx\.mjs guard <path>/],
+    // Ticket 092 — single drift predicate: session-manager consumes the Stop hook's ledger module.
+    ['session-manager reuses the canonical drift predicate (ticket 092)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /pendingImportantPaths.*from '\.\.\/hooks\/ledger\.mjs'/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
-    ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
+    ['convert-all builds the skills tree from the mode-resolved base (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /resolve\(ROOT, DST_BASE, 'skills'\)/],
+    ['convert-all has the --templates kit-build mode (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE/],
+    ['package.json wires the antigravity build step (ticket 085)', 'package.json', /"build:antigravity":\s*"node templates\/contextkit\/runtime\/antigravity\/convert-all\.mjs --templates"/],
     ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],
     // ADR-0037 — host-modular installer: install.mjs orchestrates, hosts/engine in tools/install/.
     ['install.mjs wires the host-neutral engine installer (ADR-0037)', 'install.mjs', /installEngine\(target, TPL,/],
@@ -164,6 +180,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['install.mjs wires Claude settings on the rewire path (ADR-0037)', 'install.mjs', /wireClaudeSettings\(target, level,/],
     ['install.mjs wires the VCS integration step (ADR-0037)', 'install.mjs', /installVcsIntegration\(target, TPL, level,/],
     ['engine installer exports installEngine (ADR-0037)', 'tools/install/engine.mjs', /export async function installEngine/],
+    // Ticket 091 — one io convention: installers import fs.mjs directly (no pass-through io object).
+    ['engine installer imports fs helpers directly (ticket 091)', 'tools/install/engine.mjs', /from '\.\/fs\.mjs'/],
+    ['Claude host installer imports fs helpers directly (ticket 091)', 'tools/install/claude.mjs', /from '\.\/fs\.mjs'/],
+    ['Antigravity installer imports fs helpers directly (ticket 091)', 'tools/install/antigravity.mjs', /from '\.\/fs\.mjs'/],
+    ['install.mjs passes ctx without an io object (ticket 091)', 'install.mjs', /installEngine\(target, TPL, ctx, report\)/],
     ['Claude host installer exports installClaudeHost (ADR-0037)', 'tools/install/claude.mjs', /export async function installClaudeHost/],
     ['Claude host installer exports wireClaudeSettings (ADR-0037)', 'tools/install/claude.mjs', /export async function wireClaudeSettings/],
     ['git installer exports installVcsIntegration (ADR-0037)', 'tools/install/git.mjs', /export async function installVcsIntegration/],

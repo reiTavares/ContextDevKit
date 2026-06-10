@@ -2,110 +2,28 @@
 /**
  * ContextDevKit central CLI runner for Antigravity.
  *
- * Automatically routes commands to scripts in contextkit/tools/scripts/
- * and provides a categorised, easy-to-identify help system.
+ * Routes commands to scripts in contextkit/tools/scripts/ (exact name or
+ * declared alias only — never a prefix guess), prints pure-prompt slash
+ * commands, and suggests the closest commands on a miss. The categorised
+ * menu lives in contextkit/runtime/antigravity/ctx-menu.mjs (engine); this
+ * file stays a thin dispatcher and degrades to a minimal usage text when
+ * the engine is absent.
+ *
+ * Trust model: like npm scripts or git hooks, this runner executes code from
+ * the CURRENT project (contextkit/tools/scripts under cwd). Only run it inside
+ * a project you trust.
  *
  * Usage:
  *   node ctx.mjs <command> [...args]
- *   node ctx.mjs (displays categorised help menu)
+ *   node ctx.mjs help [command]
  */
 import { spawn } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
-import { resolve, join, basename, dirname } from 'node:path';
+import { resolve, join, basename, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const ROOT = process.cwd();
 const SCRIPTS_DIR = resolve(ROOT, 'contextkit/tools/scripts');
-
-// Categorised description registry for ease of identification
-const CATEGORIES = [
-  {
-    name: '⚙️  Configuration & Diagnostics',
-    scripts: {
-      'context-level': 'Query or set current project level (L1–L7)',
-      'context-config': 'Query or modify configuration parameters in config.json',
-      'doctor': 'Diagnose installation health (git hooks, configs, paths, directories)',
-      'setup-complete': 'Verifies setup execution matches expected level configuration'
-    }
-  },
-  {
-    name: '🧠 Memory & Sessions',
-    scripts: {
-      'log-session': 'Create a new session log and record details of recent work',
-      'session': 'Start, check status, or conclude active work sessions',
-      'new-adr': 'Generate a new Architecture Decision Record (ADR) file',
-      'session-reindex': 'Rebuild the master sessions index (SESSIONS.md)',
-      'session-digest': 'Generates a summarized digest of a session\'s changes',
-      'adr-digest': 'Build and search indices of existing ADR records',
-      'distill-sessions': 'Condense past session records into high-level summaries',
-      'distill-apply': 'Apply distilled memory back to the boot context',
-      'clean-drive': 'Cleans the registry ledger of registered/temporary paths',
-      'draft-changelog': 'Drafts a changelog based on unregistered ledger logs'
-    }
-  },
-  {
-    name: '📋 DevPipeline & Workflows',
-    scripts: {
-      'pipeline': 'CLI board to manage lanes (backlog, working, testing, conclusion)',
-      'pipeline-board': 'Formats and displays the DevPipeline task board',
-      'pipeline-session': 'Integrates session lifecycle with DevPipeline tasks',
-      'pipeline-prioritize': 'Automates backlog card prioritization (WSJF/due-dates)',
-      'pipeline-validate': 'Validates task backlog directory integrity',
-      'dev-start': 'Bootstraps a focused task lane, checking branch rules',
-      'ship': 'Orchestrates squad verification, runs test suites, pushes and cleans up',
-      'resume': 'Resumes a paused lane or branch',
-      'runs': 'Log or list active execution runs',
-      'roadmap': 'Manage roadmap features and business requirements',
-      'complexity-rubric': 'Computes complexity category of a task to determine lane checks',
-      'workflow': 'CLI helper to interact with levels/workflows'
-    }
-  },
-  {
-    name: '🔍 Audits & Code Quality',
-    scripts: {
-      'tech-debt-scan': 'Scan codebase for TODO/FIXME markers and code smells',
-      'analyze-code-ia-practices': 'Evaluate files against file-size budgets and SRP',
-      'deps-audit': 'Checks third-party packages for outdated versions or licensing',
-      'contract-scan': 'Scan codebase interface contracts and invariants',
-      'seo-audit': 'Audit meta tags, titles, headings, and semantic markup',
-      'aiso-audit': 'Audit AI Search Engine Optimization compliance and visibility',
-      'validate-doc': 'Audit markdown documentation against completeness standards',
-      'security-setup': 'Setup/run vulnerability detection and secret exposure scans',
-      'deep-analysis': 'Scans import graphs, code coupling, and structural debt',
-      'detect-stack': 'Detects stack technologies (Next.js, Vite, Nest, etc.)'
-    }
-  },
-  {
-    name: '👥 Squads & Agent Forge',
-    scripts: {
-      'squad': 'Manage squad allocations and metadata',
-      'squad-pipeline': 'Orchestrates multi-agent pipeline executions',
-      'agent-tuning': 'Evaluates performance profiles of personas',
-      'forge-new': 'Define and bootstrap a new specialized sub-agent',
-      'forge-list': 'List defined agent manifests',
-      'forge-show': 'Shows details of a specific agent',
-      'forge-doctor': 'Checks agent health and policy constraints',
-      'forge-policy': 'Configures agent permissions and boundaries',
-      'forge-budget': 'Track token budgets per agent',
-      'forge-audit': 'Audits agent actions against policy',
-      'forge-eval': 'Runs agent evaluation benchmarks',
-      'forge-redteam': 'Executes red-team security audits on agents',
-      'forge-route': 'Route requests to the optimal model based on prompt complexity'
-    }
-  },
-  {
-    name: '🔌 VCS, Git & Synchronization',
-    scripts: {
-      'claim': 'Register a lock on a file path to prevent concurrent conflicts',
-      'release': 'Release a claimed file lock',
-      'sync-check': 'Verifies workspace directories alignment',
-      'workspace-sync': 'Syncs workspaces across local setups',
-      'worktree-new': 'Scaffold git worktrees',
-      'watch': 'Watch workspace for modifications',
-      'fleet': 'Orchestrate control commands across multi-repo fleets',
-      'gh-alerts': 'Integrates GitHub notifications and issues triage'
-    }
-  }
-];
 
 // Helper aliases for quick commands
 const ALIASES = {
@@ -119,78 +37,104 @@ const ALIASES = {
   'validation': 'validate-doc.mjs'
 };
 
+/** Loads the categorised menu module from the installed engine; null when absent. */
+async function loadMenu() {
+  try {
+    return await import(pathToFileURL(resolve(ROOT, 'contextkit/runtime/antigravity/ctx-menu.mjs')).href);
+  } catch {
+    return null;
+  }
+}
+
+/** Minimal help when the engine (and so the categorised menu) is not installed. */
+function printFallbackHelp(scriptNames) {
+  console.log('\n🛡️  ContextDevKit Command Runner (Antigravity)\n');
+  console.log('Usage: node ctx.mjs <command> [...args] | node ctx.mjs help [command]\n');
+  if (scriptNames.length) console.log(`Available scripts:\n  ${scriptNames.join(', ')}\n`);
+  else console.log('No contextkit/tools/scripts directory found — run the installer first.\n');
+}
+
+async function listScriptNames() {
+  try {
+    return (await readdir(SCRIPTS_DIR)).filter(f => f.endsWith('.mjs')).map(f => basename(f, '.mjs'));
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Searches for a script matching the given command argument.
- * Supports exact name, prefix, and common aliases.
+ * Resolves the command argument to a script path — exact name or declared alias
+ * ONLY. There is deliberately no prefix fallback: `agy tech` silently running
+ * `tech-debt-scan.mjs` is a wrong-script hazard (ticket 089); a near-miss should
+ * fail loudly and suggest, never guess. The resolved path is confined to
+ * SCRIPTS_DIR (defense-in-depth, ticket 090).
  *
  * @param {string} cmd  user command input
  * @returns {Promise<string | null>} absolute path to script if found, or null
  */
 async function findScript(cmd) {
   try {
-    const files = await readdir(SCRIPTS_DIR);
-    const mjsFiles = files.filter(f => f.endsWith('.mjs'));
+    const mjsFiles = (await readdir(SCRIPTS_DIR)).filter(f => f.endsWith('.mjs'));
     const cleanCmd = cmd.toLowerCase().replace(/\.mjs$/, '');
 
-    // 1. Exact match (e.g. "doctor" -> "doctor.mjs")
     const exact = mjsFiles.find(f => basename(f, '.mjs').toLowerCase() === cleanCmd);
-    if (exact) return join(SCRIPTS_DIR, exact);
+    const aliasTarget = !exact && ALIASES[cleanCmd] && mjsFiles.includes(ALIASES[cleanCmd]) ? ALIASES[cleanCmd] : null;
+    const file = exact || aliasTarget;
+    if (!file) return null;
 
-    // 2. Prefix match (e.g. "tech-debt" -> "tech-debt-scan.mjs")
-    const prefix = mjsFiles.find(f => basename(f, '.mjs').toLowerCase().startsWith(cleanCmd));
-    if (prefix) return join(SCRIPTS_DIR, prefix);
-
-    // 3. Shorthand maps for common aliases
-    if (ALIASES[cleanCmd]) {
-      const aliasTarget = ALIASES[cleanCmd];
-      if (mjsFiles.includes(aliasTarget)) return join(SCRIPTS_DIR, aliasTarget);
-    }
+    const resolved = resolve(SCRIPTS_DIR, file);
+    return resolved.startsWith(SCRIPTS_DIR + sep) ? resolved : null;
   } catch {
     return null;
   }
-  return null;
+}
+
+/** Classic Levenshtein edit distance (small inputs — command names). */
+function editDistance(a, b) {
+  const rows = a.length + 1, cols = b.length + 1;
+  const dist = Array.from({ length: rows }, (_, i) => [i, ...Array(cols - 1).fill(0)]);
+  for (let j = 1; j < cols; j++) dist[0][j] = j;
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      dist[i][j] = Math.min(
+        dist[i - 1][j] + 1,
+        dist[i][j - 1] + 1,
+        dist[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+    }
+  }
+  return dist[rows - 1][cols - 1];
 }
 
 /**
- * Prints the categorised command menu to console.
- *
- * @param {string[]} availableFiles list of available files in scripts directory
+ * Returns up to 3 known commands closest to the input (ticket 096): substring
+ * matches first, then edit distance ≤ half the input length.
  */
-function printHelp(availableFiles = []) {
-  console.log('\n==================================================');
-  console.log('🛡️  ContextDevKit Command Runner (Antigravity)');
-  console.log('==================================================\n');
-  console.log('Usage:');
-  console.log('  node ctx.mjs <command> [...args]\n');
-  console.log('Example:');
-  console.log('  node ctx.mjs doctor');
-  console.log('  node ctx.mjs pipeline list');
-  console.log('  node ctx.mjs tech-debt --write\n');
-  console.log('Note: Pure prompt slash commands (e.g. bug-hunt, advise) are also supported');
-  console.log('      and will print their instructions to the console.\n');
+function suggestClosest(input, knownNames) {
+  const needle = input.toLowerCase();
+  const scored = knownNames.map((name) => ({
+    name,
+    score: name.includes(needle) ? 0 : editDistance(needle, name.toLowerCase()),
+  }));
+  return scored
+    .filter(({ score }) => score <= Math.max(2, Math.floor(needle.length / 2)))
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3)
+    .map(({ name }) => name);
+}
 
-  console.log('Commands by category:\n');
-  for (const cat of CATEGORIES) {
-    console.log(`\x1b[36m${cat.name}\x1b[0m`);
-    for (const [key, desc] of Object.entries(cat.scripts)) {
-      console.log(`  \x1b[1m${key.padEnd(25)}\x1b[0m : ${desc}`);
-    }
-    console.log('');
-  }
-
-  // Find other scripts that exist in the directory but are not in the categories list
-  const catalogued = new Set(CATEGORIES.flatMap(c => Object.keys(c.scripts)));
-  const uncatalogued = [];
-  for (const f of availableFiles) {
-    const name = basename(f, '.mjs');
-    if (!catalogued.has(name) && name !== 'home') {
-      uncatalogued.push(name);
-    }
-  }
-  if (uncatalogued.length > 0) {
-    console.log('\x1b[33mUncategorized Utilities:\x1b[0m');
-    console.log(`  ${uncatalogued.join(', ')}\n`);
-  }
+/** `help <command>`: description from the menu registry + how to invoke it. */
+async function printCommandHelp(cmd) {
+  const menu = await loadMenu();
+  const clean = cmd.toLowerCase().replace(/\.mjs$/, '');
+  const described = menu?.describeCommand?.(clean) ?? null;
+  const scriptPath = await findScript(clean);
+  if (!described && !scriptPath) return false;
+  console.log(`\n📖 ${clean}`);
+  if (described) console.log(`   ${described.description}\n   Category: ${described.category.trim()}`);
+  if (ALIASES[clean]) console.log(`   Alias of: ${ALIASES[clean]}`);
+  console.log(`   Run: node ctx.mjs ${clean} [...args]\n`);
+  return true;
 }
 
 async function walkDir(dir, filterFn) {
@@ -214,7 +158,7 @@ async function findCommandMd(cmd) {
 }
 
 function printMarkdownCommand(filePath, fileContent, args = []) {
-  let content = fileContent.replace(/\$ARGUMENTS/g, args.join(' ') || '[Nenhum argumento fornecido]');
+  let content = fileContent.replace(/\$ARGUMENTS/g, args.join(' ') || '[no argument provided]');
   let fm = '';
   if (content.startsWith('---')) {
     const parts = content.split('---');
@@ -228,15 +172,33 @@ function printMarkdownCommand(filePath, fileContent, args = []) {
   console.log(`\n\x1b[32mInstructions:\x1b[0m\n${content}\n==================================================\n`);
 }
 
+async function printMenu() {
+  const names = await listScriptNames();
+  const menu = await loadMenu();
+  if (menu?.printHelp) menu.printHelp(names.map(n => n + '.mjs'));
+  else printFallbackHelp(names);
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const cmd = args[0];
 
   if (!cmd || cmd === '--help' || cmd === '-h') {
-    let files = [];
-    try { files = await readdir(SCRIPTS_DIR); } catch {}
-    printHelp(files.filter(f => f.endsWith('.mjs')));
+    await printMenu();
     process.exit(0);
+  }
+
+  // `help` with no argument shows the menu; `help <command>` shows one entry (096).
+  if (cmd === 'help') {
+    if (!args[1]) {
+      await printMenu();
+      process.exit(0);
+    }
+    if (await printCommandHelp(args[1])) process.exit(0);
+    console.error(`\n❌ Unknown command: "${args[1]}"`);
+    const tips = suggestClosest(args[1], [...await listScriptNames(), ...Object.keys(ALIASES)]);
+    if (tips.length) console.error(`   Did you mean: ${tips.join(', ')}?\n`);
+    process.exit(1);
   }
 
   if (cmd === 'session') {
@@ -265,10 +227,11 @@ async function main() {
     return;
   }
 
+  // Unknown command: suggest the closest 3 instead of dumping the full menu (096).
   console.error(`\n❌ Unknown command: "${cmd}"`);
-  let files = [];
-  try { files = await readdir(SCRIPTS_DIR); } catch {}
-  printHelp(files.filter(f => f.endsWith('.mjs')));
+  const tips = suggestClosest(cmd, [...await listScriptNames(), ...Object.keys(ALIASES)]);
+  if (tips.length) console.error(`   Did you mean: ${tips.join(', ')}?`);
+  console.error('   Run `node ctx.mjs help` for the full menu.\n');
   process.exit(1);
 }
 
@@ -276,4 +239,3 @@ main().catch(err => {
   console.error('❌ Runner error:', err);
   process.exit(1);
 });
-

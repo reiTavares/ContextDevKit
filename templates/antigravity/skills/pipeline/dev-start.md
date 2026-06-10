@@ -37,6 +37,16 @@ You just entered **dev-start** mode with the objective:
    `@privacy-lgpd` + `@security`) and treat the work as architectural. The tier is
    advisory, not a cage — state it and adjust with the user if it misreads.
 
+   **Auto-start a referenced task** [ADR-0034]: if the objective names a backlog
+   task id (e.g. "fix 042" / "ticket 058"), move it into `working/` and attach it
+   to this session so the board tracks it live:
+   ```
+   node contextkit/tools/scripts/pipeline.mjs start <id>
+   ```
+   While you work, the task's heartbeat is renewed on every edit; when you finish,
+   **check off its acceptance criteria** — the Stop hook then auto-concludes it
+   (working → conclusion). No manual `move` needed.
+
 4. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```
    ✅ IN-SCOPE: <what we will touch>
@@ -64,9 +74,10 @@ You just entered **dev-start** mode with the objective:
    useful parts into the ticket body and let the scratch be discarded.
 
 8. **Before opening a PR — re-check sync** [ADR-0026]. Run
-   `node contextkit/tools/scripts/sync-check.mjs prepr` (or just use `/git pr`, which
-   runs it): it re-confirms you are not behind `main` and that **no open PR
-   already exists for this branch** before you create one. Don't duplicate a PR;
+   `node contextkit/tools/scripts/sync-check.mjs prepr --fetch` (or just use `/git pr`,
+   which runs it): it re-confirms you are not behind `main` and that **no open PR
+   already exists for this branch** before you create one. (`--fetch` refreshes
+   remote refs — read-only checks skip the fetch by default, ticket 065.) Don't duplicate a PR;
    push to update the existing one.
 
 9. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).

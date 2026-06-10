@@ -60,3 +60,25 @@ export function isRegistrationFile(relPath) {
   const norm = normalize(relPath);
   return REGISTRATION_PATHS.includes(norm);
 }
+
+/**
+ * Returns the `l5.highRiskPaths` entry matching the target (or null). Directory
+ * entries (trailing `/`) match by prefix, file entries match exactly. Shared by
+ * the PreToolUse simulate-gate (Claude Code) and the explicit `guard` checkpoint
+ * (Antigravity) so both hosts enforce the same gate (ticket 095).
+ *
+ * @param {string} targetPath repo-relative, forward-slashed
+ * @param {string[]} highRiskPaths from config.l5.highRiskPaths
+ */
+export function matchHighRisk(targetPath, highRiskPaths) {
+  if (!Array.isArray(highRiskPaths)) return null;
+  for (const entry of highRiskPaths) {
+    if (typeof entry !== 'string' || entry.length === 0) continue;
+    if (entry.endsWith('/')) {
+      if (targetPath.startsWith(entry)) return entry;
+    } else if (targetPath === entry) {
+      return entry;
+    }
+  }
+  return null;
+}
