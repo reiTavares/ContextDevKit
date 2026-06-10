@@ -162,6 +162,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['session-manager documents the project-local trust model (ticket 090)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Trust model/],
     ['ctx.mjs suggests the closest commands on a miss (ticket 096)', 'templates/ctx.mjs', /suggestClosest/],
     ['ctx-menu.mjs carries the categorised registry (ticket 096)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /export const CATEGORIES/],
+    // Ticket 092 — single drift predicate: session-manager consumes the Stop hook's ledger module.
+    ['session-manager reuses the canonical drift predicate (ticket 092)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /pendingImportantPaths.*from '\.\.\/hooks\/ledger\.mjs'/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
     ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
     ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],

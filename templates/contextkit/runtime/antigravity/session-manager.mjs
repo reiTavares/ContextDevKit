@@ -20,11 +20,11 @@
  * the action argument is resolved against a fixed allow-map (start|status|end),
  * never against the filesystem.
  */
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { PLATFORM_DIR } from '../config/paths.mjs';
+import { listAllLedgers, pendingImportantPaths, wasRegisteredDuringSession } from '../hooks/ledger.mjs';
 
 const ROOT = process.cwd();
 const action = process.argv[2] ?? 'start';
@@ -75,24 +75,20 @@ async function projectName() {
   } catch { return 'project'; }
 }
 
+/**
+ * Lists sessions with unregistered drift, using the SAME predicate as the Stop
+ * hook (`pendingImportantPaths` in hooks/ledger.mjs) — ticket 092. Both surfaces
+ * now agree by construction on which paths count as important; only the nudge
+ * threshold differs (the hook stays quiet below 2 paths, the status report
+ * lists every pending session).
+ */
 async function pendingSessions() {
-  const sessDir = resolve(ROOT, '.claude/.sessions');
   try {
-    const files = await readdir(sessDir);
     const pending = [];
-    for (const f of files) {
-      if (!f.endsWith('.json')) continue;
-      try {
-        const ledger = JSON.parse(await readFile(join(sessDir, f), 'utf-8'));
-        if (!ledger.registered && Array.isArray(ledger.modifications) && ledger.modifications.length > 0) {
-          const important = ledger.modifications.filter(m => {
-            const p = m.path ?? '';
-            return !p.includes('node_modules/') && !p.includes('.git/') &&
-                   !p.includes('.claude/') && !p.includes('contextkit/runtime/');
-          });
-          if (important.length > 0) pending.push({ id: f.replace('.json', ''), paths: important.map(m => m.path) });
-        }
-      } catch { /* skip malformed */ }
+    for (const { sessionId, ledger } of await listAllLedgers()) {
+      if (ledger.registered || wasRegisteredDuringSession(ledger)) continue;
+      const paths = pendingImportantPaths(ledger);
+      if (paths.length > 0) pending.push({ id: sessionId, paths });
     }
     return pending;
   } catch { return []; }

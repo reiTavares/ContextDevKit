@@ -10,6 +10,7 @@
  *
  * Run:  node tools/integration-test-antigravity.mjs   (exit 0 = healthy)
  */
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run, reporter, installFixture } from './it-helpers.mjs';
 
@@ -61,6 +62,20 @@ try {
   traversal.status !== 0 && /Unknown command/i.test(traversal.stderr)
     ? ok('ctx.mjs refuses a path-shaped command — dispatch confined to SCRIPTS_DIR (090)')
     : bad('ctx.mjs dispatched a path-shaped command outside SCRIPTS_DIR');
+
+  // ── shared drift predicate (ticket 092): session status agrees with the Stop hook ──
+  const ledgerDir = join(proj, '.claude', '.sessions');
+  mkdirSync(ledgerDir, { recursive: true });
+  const mkLedger = (id, paths) => writeFileSync(join(ledgerDir, `${id}.json`), JSON.stringify({
+    sessionId: id, startedAt: Date.now(), registered: false, stopWarnedAt: null, simulations: [],
+    modifications: paths.map((p) => ({ path: p, at: Date.now() })),
+  }));
+  mkLedger('agdrift', ['src/app.js', 'src/lib/core.js']);
+  mkLedger('agnoise', ['scratch/notes.txt']); // matches no ledger.important prefix
+  const status = ctx('session', 'status');
+  /Pending drift.*1 session/i.test(status.stdout) && /agdrift/.test(status.stdout) && !/agnoise/.test(status.stdout)
+    ? ok('session status counts drift via the shared ledger predicate — noise-only ledger ignored (092)')
+    : bad(`session status drift mismatch: ${status.stdout.slice(0, 300)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
