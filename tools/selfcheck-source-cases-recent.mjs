@@ -151,9 +151,9 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Antigravity integration — second native host alongside Claude Code (skills/agents/playbooks/workflows + ctx runner).
     ['install.mjs wires the Antigravity host installer (extracted helper)', 'install.mjs', /installAntigravityHost\(target, TPL,/],
     ['Antigravity installer copies the assets into .antigravity', 'tools/install/antigravity.mjs', /copyTree\(join\(tplDir, 'antigravity'\), join\(target, '\.antigravity'\)\)/],
-    ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await io\.read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
+    ['Antigravity installer installs the ctx.mjs central CLI runner', 'tools/install/antigravity.mjs', /overwrite\(join\(target, 'ctx\.mjs'\), await read\(join\(tplDir, 'ctx\.mjs'\)\)\)/],
     ['Antigravity installer renders INSTRUCTIONS.md from the template', 'tools/install/antigravity.mjs', /read\(join\(tplDir, 'INSTRUCTIONS\.md\.tpl'\)\)/],
-    ['package.json declares the agy bin → ctx.mjs', 'package.json', /"agy":\s*"ctx\.mjs"/],
+    ['package.json agy bin points at the published templates/ctx.mjs (bug 097)', 'package.json', /"agy":\s*"templates\/ctx\.mjs"/],
     ['ctx.mjs is the central CLI runner for Antigravity', 'templates/ctx.mjs', /central CLI runner for Antigravity/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
     ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
@@ -164,6 +164,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['install.mjs wires Claude settings on the rewire path (ADR-0037)', 'install.mjs', /wireClaudeSettings\(target, level,/],
     ['install.mjs wires the VCS integration step (ADR-0037)', 'install.mjs', /installVcsIntegration\(target, TPL, level,/],
     ['engine installer exports installEngine (ADR-0037)', 'tools/install/engine.mjs', /export async function installEngine/],
+    // Ticket 091 — one io convention: installers import fs.mjs directly (no pass-through io object).
+    ['engine installer imports fs helpers directly (ticket 091)', 'tools/install/engine.mjs', /from '\.\/fs\.mjs'/],
+    ['Claude host installer imports fs helpers directly (ticket 091)', 'tools/install/claude.mjs', /from '\.\/fs\.mjs'/],
+    ['Antigravity installer imports fs helpers directly (ticket 091)', 'tools/install/antigravity.mjs', /from '\.\/fs\.mjs'/],
+    ['install.mjs passes ctx without an io object (ticket 091)', 'install.mjs', /installEngine\(target, TPL, ctx, report\)/],
     ['Claude host installer exports installClaudeHost (ADR-0037)', 'tools/install/claude.mjs', /export async function installClaudeHost/],
     ['Claude host installer exports wireClaudeSettings (ADR-0037)', 'tools/install/claude.mjs', /export async function wireClaudeSettings/],
     ['git installer exports installVcsIntegration (ADR-0037)', 'tools/install/git.mjs', /export async function installVcsIntegration/],

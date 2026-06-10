@@ -19,7 +19,7 @@
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
+import { ensureDir, read } from './tools/install/fs.mjs';
 import { requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installVcsIntegration } from './tools/install/git.mjs';
 import { installEngine } from './tools/install/engine.mjs';
@@ -116,11 +116,10 @@ async function main() {
 
   const report = [];
   const version = await kitVersion();
-  const io = { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render };
   const ctx = { name, level, mode, version, args };
 
   // 1. Claude Code settings.json (the hook wiring). `--rewire` stops right after this.
-  await wireClaudeSettings(target, level, io, report);
+  await wireClaudeSettings(target, level, report);
   if (args.rewire) {
     console.log(report.join('\n'));
     console.log(`\n✅ Rewired to Level ${level}. Restart Claude Code to load the new hooks.`);
@@ -128,13 +127,13 @@ async function main() {
   }
 
   // 2. Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
-  await installEngine(target, TPL, io, ctx, report);
+  await installEngine(target, TPL, ctx, report);
 
   // 3. Antigravity host — second native host [ADR-0036].
-  await installAntigravityHost(target, TPL, io, ctx, report);
+  await installAntigravityHost(target, TPL, ctx, report);
 
   // 4. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
-  await installClaudeHost(target, TPL, io, ctx, report);
+  await installClaudeHost(target, TPL, ctx, report);
 
   // 5. VCS integration (.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
   await installVcsIntegration(target, TPL, level, report);
