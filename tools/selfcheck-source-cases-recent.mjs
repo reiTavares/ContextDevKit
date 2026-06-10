@@ -57,7 +57,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
     // ADR-0032 — connect the substrate: classification + closed loops.
     ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],
-    ['pipeline add auto-classifies via the rubric (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline.mjs', /classifyTask\(title/],
+    ['pipeline add auto-classifies via the rubric (ADR-0032; split: pipeline-add)', 'templates/contextkit/tools/scripts/pipeline-add.mjs', /classifyTask\(title/],
     ['session-draft drafts the Done section from the ledger (ADR-0032)', 'templates/contextkit/tools/scripts/session-draft.mjs', /export async function draftSession/],
     ['/log-session pre-fills from session-draft (ADR-0032)', 'templates/claude/commands/log-session.md', /session-draft\.mjs/],
     ['advise-review computes per-lane hit-rate (ADR-0032)', 'templates/contextkit/tools/scripts/advise-review.mjs', /export function reviewAdvice/],
@@ -231,4 +231,6 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['override read has one owner — readAutonomyOverride in the dial module (task 108, rule 4)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /export function readAutonomyOverride/],
     ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
     ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(loadConfigSync\(ROOT\)\)/],
+    ['qa-reject is the only testing→working path (task 110, ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /qa-reject is the testing→working bounce only/],
+    ['transitions module defers auto moves to the F2 substrate (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC transitions \(actor `auto`\)/],
 ];

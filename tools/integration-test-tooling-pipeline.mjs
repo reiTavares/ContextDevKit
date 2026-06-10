@@ -205,6 +205,22 @@ try {
   script('gh-triage.mjs', 'commit', '2026-12-01T00:00:00Z');
   (script('gh-triage.mjs', 'watermark').stdout || '').trim() === '2026-12-01T00:00:00Z'
     ? ok('gh-triage commit persists the watermark (ticket 075)') : bad('gh-triage watermark did not persist');
+
+  // ─ Task 110 (ADR-0043 legality): qa-reject — the ONLY testing→working path ─
+  script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'qa-bounce-target');
+  const bounceId = idByTitle('qa-bounce-target');
+  const early = script('pipeline.mjs', 'qa-reject', bounceId, 'not even in testing');
+  early.status !== 0 && /not 'testing'/.test(early.stdout + early.stderr)
+    ? ok('qa-reject refuses a card outside testing (legality, ADR-0043)') : bad(`qa-reject accepted an illegal stage: ${early.stdout}${early.stderr}`);
+  script('pipeline.mjs', 'move', bounceId, 'testing');
+  script('pipeline.mjs', 'qa-reject', bounceId, 'stack trace: expected X got Y');
+  const bounced = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === bounceId);
+  const bouncedBody = readFileSync(join(proj, 'contextkit', 'pipeline', 'working', bounced?.file ?? ''), 'utf-8');
+  bounced?.stage === 'working' && bouncedBody.includes('## QA Feedback') && bouncedBody.includes('expected X got Y')
+    ? ok('qa-reject bounces testing→working with the feedback block on the card (task 110)') : bad('qa-reject bounce missing stage move or feedback');
+  const unknownVerb = script('pipeline.mjs', 'auto-transition');
+  unknownVerb.status !== 0
+    ? ok('auto-transition verb does not exist pre-substrate (ADR-0043: F2 only)') : bad('auto-transition verb exists before state.json events');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
