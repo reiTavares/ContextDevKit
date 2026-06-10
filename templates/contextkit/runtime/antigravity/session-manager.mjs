@@ -13,6 +13,12 @@
  *
  * All output goes to stdout as Markdown so the Antigravity agent can consume it.
  * Defensive: any error exits 0 (never breaks a session).
+ *
+ * Trust model (ticket 090): like the ctx.mjs runner, npm scripts, or git hooks,
+ * this script executes project-local code — it spawns boot-context.mjs from the
+ * CURRENT project's platform dir (cwd). Only run it inside a project you trust;
+ * the action argument is resolved against a fixed allow-map (start|status|end),
+ * never against the filesystem.
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve, join } from 'node:path';

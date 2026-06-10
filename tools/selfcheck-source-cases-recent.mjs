@@ -155,6 +155,13 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['Antigravity installer renders INSTRUCTIONS.md from the template', 'tools/install/antigravity.mjs', /read\(join\(tplDir, 'INSTRUCTIONS\.md\.tpl'\)\)/],
     ['package.json agy bin points at the published templates/ctx.mjs (bug 097)', 'package.json', /"agy":\s*"templates\/ctx\.mjs"/],
     ['ctx.mjs is the central CLI runner for Antigravity', 'templates/ctx.mjs', /central CLI runner for Antigravity/],
+    // Tickets 089/090/096 — dispatch contract: no prefix guess, SCRIPTS_DIR confinement, did-you-mean.
+    ['ctx.mjs has no prefix-match dispatch fallback (ticket 089)', 'templates/ctx.mjs', /no prefix fallback/],
+    ['ctx.mjs confines resolved scripts to SCRIPTS_DIR (ticket 090)', 'templates/ctx.mjs', /resolved\.startsWith\(SCRIPTS_DIR \+ sep\)/],
+    ['ctx.mjs documents the project-local trust model (ticket 090)', 'templates/ctx.mjs', /Trust model/],
+    ['session-manager documents the project-local trust model (ticket 090)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Trust model/],
+    ['ctx.mjs suggests the closest commands on a miss (ticket 096)', 'templates/ctx.mjs', /suggestClosest/],
+    ['ctx-menu.mjs carries the categorised registry (ticket 096)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /export const CATEGORIES/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
     ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
     ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],

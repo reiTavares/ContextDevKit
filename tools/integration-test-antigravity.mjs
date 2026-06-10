@@ -55,6 +55,12 @@ try {
   /Commands by category/i.test(menu.stdout)
     ? ok('bare ctx.mjs prints the categorised menu from the engine module (096)')
     : bad('categorised menu missing — ctx-menu.mjs not loaded');
+
+  // ── path confinement (ticket 090): a traversal-shaped command must not dispatch ──
+  const traversal = ctx('../../runtime/hooks/session-start');
+  traversal.status !== 0 && /Unknown command/i.test(traversal.stderr)
+    ? ok('ctx.mjs refuses a path-shaped command — dispatch confined to SCRIPTS_DIR (090)')
+    : bad('ctx.mjs dispatched a path-shaped command outside SCRIPTS_DIR');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
