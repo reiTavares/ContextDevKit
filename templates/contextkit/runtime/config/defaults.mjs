@@ -28,6 +28,16 @@ export const DEFAULT_CONFIG = Object.freeze({
   level: 2,
 
   /**
+   * Autonomy dial (ADR-0041/0042) — a CONSENT axis orthogonal to `level` (L1–L7
+   * capability): `grade` says what the AI may do without asking, never what it
+   * can do. 1 manual · 2 suggest+supervise (default) · 3 auto-except-ADR ·
+   * 4 full-auto (experimental, ADR-0045). Read ONLY through the resolver
+   * (ADR-0042); hooks are grade-blind by invariant — no hook consults this key.
+   * The non-negotiable floor lives in code, not in config.
+   */
+  autonomy: { grade: 2 },
+
+  /**
    * First-run onboarding state. The installer writes `completed: false` into a
    * fresh project's config so the SessionStart hook fires the `/setupcontextdevkit`
    * trigger on the first session. `/setupcontextdevkit` flips it to `true` when

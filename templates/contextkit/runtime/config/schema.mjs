@@ -61,6 +61,12 @@ const DeliberationsSchema = z
   })
   .default({});
 
+const AutonomySchema = z
+  .object({
+    grade: z.number().int().min(1).max(4).default(2),
+  })
+  .default({});
+
 const DepsSchema = z
   .object({
     requireLockfile: z.boolean().default(true),
@@ -83,6 +89,7 @@ export const ConfigSchema = z
     l5: L5Schema,
     deps: DepsSchema,
     deliberations: DeliberationsSchema,
+    autonomy: AutonomySchema,
   })
   .passthrough()
   .default({});
