@@ -98,6 +98,18 @@ try {
   covered.status === 0 && /covered/i.test(covered.stdout)
     ? ok('guard allows after a covering /simulate-impact record (095)')
     : bad(`guard still blocked after simulation (status ${covered.status}): ${covered.stdout.slice(0, 150)}`);
+
+  // ── antigravity-aware doctor (ticket 086) ──
+  const healthy = ctx('doctor');
+  /ctx\.mjs runner present/.test(healthy.stdout) && /asset trees populated/.test(healthy.stdout) && /INSTRUCTIONS\.md present, fully rendered/.test(healthy.stdout)
+    ? ok('doctor verifies the Antigravity host on a fresh install (086)')
+    : bad(`doctor missing antigravity checks: ${healthy.stdout.slice(-400)}`);
+
+  writeFileSync(join(proj, 'INSTRUCTIONS.md'), '# {{PROJECT_NAME}}\nbroken render\n');
+  const stale = ctx('doctor');
+  /unrendered placeholder.*\{\{PROJECT_NAME\}\}/.test(stale.stdout)
+    ? ok('doctor flags a leftover {{TOKEN}} in INSTRUCTIONS.md (086)')
+    : bad('doctor did not flag the unrendered placeholder');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

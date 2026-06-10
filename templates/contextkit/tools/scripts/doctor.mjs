@@ -146,6 +146,48 @@ function checkZod(level) {
   hasZod ? pass('zod present (strict /context-config validation enabled)') : note('zod not installed (optional)', 'add zod for strict config validation, or ignore');
 }
 
+/**
+ * Antigravity host health (ticket 086). Advisory only — the second host is
+ * optional, so a Claude-only project never fails doctor over it. Verifies the
+ * ctx.mjs runner, the package.json shortcuts, the four .antigravity asset
+ * trees, INSTRUCTIONS.md, and that no {{TOKEN}} placeholder survived rendering.
+ */
+function checkAntigravityHost() {
+  if (!existsSync(resolve(ROOT, '.antigravity'))) {
+    note('Antigravity host not installed (.antigravity/ missing)', 'npx contextdevkit --update installs it alongside .claude/');
+    return;
+  }
+  existsSync(resolve(ROOT, 'ctx.mjs')) ? pass('ctx.mjs runner present') : note('ctx.mjs runner missing', 're-run the installer (npx contextdevkit --update)');
+
+  const pkg = readJson('package.json');
+  if (pkg) {
+    pkg?.scripts?.agy === 'node ctx.mjs' && pkg?.scripts?.ctx === 'node ctx.mjs'
+      ? pass('package.json has the ctx/agy script shortcuts')
+      : note('package.json missing the ctx/agy script shortcuts', 're-run the installer to patch them');
+  }
+
+  const emptyTrees = ['skills', 'agents', 'playbooks', 'workflows'].filter((d) => {
+    try {
+      return readdirSync(resolve(ROOT, '.antigravity', d)).filter((f) => f.endsWith('.md')).length === 0;
+    } catch {
+      return true;
+    }
+  });
+  emptyTrees.length === 0
+    ? pass('.antigravity asset trees populated (skills, agents, playbooks, workflows)')
+    : note(`.antigravity tree(s) empty or missing: ${emptyTrees.join(', ')}`, 're-run the installer (npx contextdevkit --update)');
+
+  try {
+    const instructions = readFileSync(resolve(ROOT, 'INSTRUCTIONS.md'), 'utf-8');
+    const leftover = instructions.match(/\{\{[A-Z_]+\}\}/g);
+    !leftover
+      ? pass('INSTRUCTIONS.md present, fully rendered')
+      : note(`INSTRUCTIONS.md has unrendered placeholder(s): ${[...new Set(leftover)].join(', ')}`, 'regenerate it (delete + npx contextdevkit --update) or fill them in');
+  } catch {
+    note('INSTRUCTIONS.md missing (Antigravity boot context)', 're-run the installer');
+  }
+}
+
 console.log('\n🩺 ContextDevKit doctor\n');
 checkNode();
 const level = checkConfig();
@@ -157,6 +199,7 @@ checkRoadmap();
 checkModuleClaudeMd();
 checkRemote();
 checkZod(level);
+checkAntigravityHost();
 console.log(
   crit === 0
     ? `\n✅ Healthy${warn ? ` (${warn} advisory note${warn > 1 ? 's' : ''})` : ''}.\n`
