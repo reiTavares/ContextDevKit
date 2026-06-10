@@ -13,6 +13,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from './config/paths.mjs';
+import { readAutonomyOverride, resolveAutonomy } from './config/resolve-autonomy.mjs';
 import { readJsonSafe } from './hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
@@ -31,6 +32,16 @@ function level() {
   return Number.isInteger(lvl) ? lvl : null;
 }
 
+/** Effective dial grade for display — derived from the resolver (ADR-0042 §6:
+ * displayed grade ≡ enforced grade); degrades to null, never breaks the line. */
+function autonomyGrade() {
+  try {
+    return resolveAutonomy('edit', readJsonSafe(P.config, {}), readAutonomyOverride(ROOT)).grade;
+  } catch {
+    return null;
+  }
+}
+
 function main() {
   try {
     if (!existsSync(P.platform)) {
@@ -41,7 +52,8 @@ function main() {
     const sess = count('contextkit/memory/sessions', /^\d{4}-\d{2}-\d{2}-\d{2,}-.+\.md$/);
     const adrs = count('contextkit/memory/decisions', /^\d{4}-.+\.md$/);
     const bklog = count('contextkit/pipeline/backlog', /\.md$/);
-    const parts = [lvl ? `L${lvl}` : null, `${sess} sess`, `${adrs} ADR`, `${bklog} bklog`].filter(Boolean);
+    const grade = autonomyGrade();
+    const parts = [lvl ? `L${lvl}` : null, grade ? `A${grade}` : null, `${sess} sess`, `${adrs} ADR`, `${bklog} bklog`].filter(Boolean);
     process.stdout.write(`🌀 ${parts.join(' · ')}`);
   } catch {
     process.stdout.write('🌀 contextdevkit');

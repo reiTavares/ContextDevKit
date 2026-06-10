@@ -32,6 +32,7 @@ import {
 } from './ledger.mjs';
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX, pathsFor } from '../config/paths.mjs';
+import { readAutonomyOverride, resolveAutonomy } from '../config/resolve-autonomy.mjs';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { autoAdvanceSessionTasks } from '../../tools/scripts/pipeline-session.mjs';
 
@@ -201,6 +202,32 @@ async function maybeProposeAdvisor(ledger) {
   ].join('\n');
 }
 
+/**
+ * ADR-0042 §6 / task 109 — the autonomous-actions digest. At grade ≥3 the agent
+ * edits without per-change consent, so the Stop digest is the consent receipt:
+ * what changed + an undo pointer per line. DISPLAY ONLY — derived from the
+ * resolver; this hook never changes its blocking behavior on the grade
+ * (grade-blind invariant). Degrades to null, never blocks (rule 2).
+ */
+async function autonomyDigest(ledger) {
+  try {
+    const config = await loadConfig(ROOT);
+    const dial = resolveAutonomy('edit', config, readAutonomyOverride(ROOT));
+    if (dial.grade < 3) return null;
+    const touched = pendingImportantPaths(ledger);
+    if (touched.length === 0) return null;
+    const list = touched.slice(0, 10).map((p) => `   - ${p}  (undo: git checkout -- "${p}")`).join('\n');
+    const overflow = touched.length > 10 ? `\n   (… and ${touched.length - 10} more — see the session ledger)` : '';
+    return [
+      `🎚️ Autonomy digest (A${dial.grade}) — ${touched.length} file(s) changed without per-edit consent this session:`,
+      list + overflow,
+      '   Review or undo any line above. Grade: /autonomy · audit trail: contextkit/memory/autonomy-audit.jsonl',
+    ].join('\n');
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const raw = await readStdin();
   let payload = {};
@@ -234,6 +261,8 @@ async function main() {
     const advise = await maybeProposeAdvisor(ledger);
     if (advise) sideSuggestions.push(advise);
   }
+  const dialDigest = await autonomyDigest(ledger);
+  if (dialDigest) sideSuggestions.push(dialDigest);
   const flushSide = () => {
     if (sideSuggestions.length > 0) process.stdout.write(sideSuggestions.join('\n\n') + '\n');
   };

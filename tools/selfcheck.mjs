@@ -57,6 +57,7 @@ async function importLibs() {
     'config/load.mjs',
     'config/settings-compose.mjs',
     'config/presets.mjs',
+    'config/resolve-autonomy.mjs',
     'hooks/path-classification.mjs',
     'hooks/safe-io.mjs',
     'hooks/boot-context-readers.mjs',

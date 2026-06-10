@@ -122,8 +122,8 @@ try {
   // Status-line widget: wired into settings.json + runs and prints a line.
   readJson(join(proj, '.claude', 'settings.json')).statusLine?.command?.includes('contextkit/runtime/statusline')
     ? ok('statusLine widget wired into settings.json') : bad('statusLine not wired into settings.json');
-  (run([join(proj, 'contextkit', 'runtime', 'statusline.mjs')], { cwd: proj }).stdout || '').includes('🌀')
-    ? ok('statusline.mjs prints a status line') : bad('statusline.mjs produced no output');
+  /🌀 .*\bA2\b/.test(run([join(proj, 'contextkit', 'runtime', 'statusline.mjs')], { cwd: proj }).stdout || '')
+    ? ok('statusline prints the line incl. the dial badge A2 (ADR-0042 §6)') : bad('statusline missing the A<grade> dial badge');
 
   // context-config show/set round-trip.
   script('context-config.mjs', 'set', 'qa.coverageTarget.lines', '90');

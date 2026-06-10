@@ -57,7 +57,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
     // ADR-0032 — connect the substrate: classification + closed loops.
     ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],
-    ['pipeline add auto-classifies via the rubric (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline.mjs', /classifyTask\(title/],
+    ['pipeline add auto-classifies via the rubric (ADR-0032; split: pipeline-add)', 'templates/contextkit/tools/scripts/pipeline-add.mjs', /classifyTask\(title/],
     ['session-draft drafts the Done section from the ledger (ADR-0032)', 'templates/contextkit/tools/scripts/session-draft.mjs', /export async function draftSession/],
     ['/log-session pre-fills from session-draft (ADR-0032)', 'templates/claude/commands/log-session.md', /session-draft\.mjs/],
     ['advise-review computes per-lane hit-rate (ADR-0032)', 'templates/contextkit/tools/scripts/advise-review.mjs', /export function reviewAdvice/],
@@ -219,7 +219,18 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // ADR-0041 F0 — autonomy dial trust floor (tasks 100/102).
     ['simulate-gate documents the grade-blind invariant (task 100, ADR-0041)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /autonomy-grade-blind/],
     ['defaults ship autonomy as a consent grade only — no dead flags (task 102, ADR-0041)', 'templates/contextkit/runtime/config/defaults.mjs', /autonomy: \{ grade: 2 \},/],
-    ['schema validates autonomy.grade 1–4 and nothing else (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),\s*\}\)/],
+    ['schema validates autonomy.grade 1–4 (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),/],
     ['path-classification exports the secret-bearing class (task 103, ADR-0041 floor)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchSecret/],
     ['secret class is extendable, never removable (task 103, ADR-0041)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /never remove/],
+    // ADR-0042 F1 — dial core (tasks 106/107).
+    ['schema allows additive floor extension only (task 107, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /extraSecretPaths: z\.array\(z\.string\(\)\)\.default\(\[\]\)/],
+    ['the setter is the only autonomy.grade writer and audits every change (task 107)', 'templates/contextkit/tools/scripts/autonomy.mjs', /autonomy-audit\.jsonl/],
+    ['consequence text is single-sourced from the resolver module (task 107, ADR-0042)', 'templates/contextkit/tools/scripts/autonomy.mjs', /CONSEQUENCE_TEXT.*resolve-autonomy\.mjs/],
+    ['ctx-menu lists the autonomy dial for the Antigravity host (task 107)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /'autonomy': 'Show\/set the autonomy dial/],
+    ['/autonomy command briefing ships on the Claude host (task 107)', 'templates/claude/commands/setup/autonomy.md', /Never run the setter on your own initiative/],
+    ['override read has one owner — readAutonomyOverride in the dial module (task 108, rule 4)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /export function readAutonomyOverride/],
+    ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
+    ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(loadConfigSync\(ROOT\)\)/],
+    ['qa-reject is the only testing→working path (task 110, ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /qa-reject is the testing→working bounce only/],
+    ['transitions module defers auto moves to the F2 substrate (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC transitions \(actor `auto`\)/],
 ];
