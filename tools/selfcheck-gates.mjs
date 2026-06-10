@@ -97,4 +97,55 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
   matchSecret('vault/.env.ci', []) === '.env*' && matchSecret('x/custom.token', ['custom.token']) === 'custom.token'
     ? ok('matchSecret built-ins hold with extras present (extend, never replace)')
     : bad('matchSecret extras replaced the built-ins — floor must be additive');
+
+  // Resolver contract matrix (ADR-0042, task 106) — floor pinned at EVERY grade.
+  const resolver = mods['config/resolve-autonomy.mjs'];
+  if (typeof resolver?.resolveAutonomy !== 'function') {
+    bad('resolveAutonomy not exported (ADR-0042, task 106)');
+    return;
+  }
+  const { resolveAutonomy } = resolver;
+  const at = (grade) => ({ autonomy: { grade } });
+  const floorCells = [];
+  for (let grade = 1; grade <= 4; grade++) {
+    floorCells.push(['adr', resolveAutonomy('adr', at(grade)).mode]);
+    floorCells.push(['grade-change', resolveAutonomy('grade-change', at(grade)).mode]);
+    floorCells.push(['secret edit', resolveAutonomy('edit', at(grade), null, { path: 'config/.env.prod' }).mode]);
+    floorCells.push(['gate self-edit', resolveAutonomy('edit', at(grade), null, { path: 'contextkit/runtime/hooks/x.mjs' }).mode]);
+    floorCells.push(['force-push', resolveAutonomy('push', at(grade), null, { force: true }).mode]);
+  }
+  floorCells.every(([, mode]) => mode === 'manual')
+    ? ok(`resolver floor holds at every grade (${floorCells.length} cells → manual, ADR-0042)`)
+    : bad(`resolver floor broken: ${floorCells.filter(([, m]) => m !== 'manual').map(([n]) => n).join(', ')}`);
+  const expectedModes = [
+    [resolveAutonomy('edit', {}).mode, 'suggest', 'default grade 2 → suggest'],
+    [resolveAutonomy('edit', {}).source, 'default', 'missing config → source default'],
+    [resolveAutonomy('edit', at('weird')).grade, 1, 'unparseable grade resolves to 1'],
+    [resolveAutonomy('edit', at(1), 3).grade, 3, 'session override beats config'],
+    [resolveAutonomy('edit', at(1), 3, { flagGrade: 2 }).grade, 2, 'per-run flag beats session override'],
+    [resolveAutonomy('ship-checkpoint', at(4)).mode, 'debate', 'grade-4 checkpoint → debate'],
+    [resolveAutonomy('ship-checkpoint', at(3)).mode, 'auto', 'grade-3 checkpoint → auto'],
+    [resolveAutonomy('push', at(4), null, { targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'auto', 'grade-4 push to a branch → auto'],
+    [resolveAutonomy('push', at(4), null, { targetRef: 'main', defaultBranch: 'main' }).mode, 'manual', 'grade-4 push to default branch → manual'],
+    [resolveAutonomy('session-log', at(2)).mode, 'auto', 'grade-2 session-log → auto'],
+  ];
+  const wrong = expectedModes.filter(([got, want]) => got !== want);
+  wrong.length === 0
+    ? ok(`resolver precedence + mode table hold (${expectedModes.length} cells, ADR-0042)`)
+    : bad(`resolver cells wrong: ${wrong.map(([, , name]) => name).join('; ')}`);
+  let threwOnContradiction = false;
+  try {
+    resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: false } });
+  } catch {
+    threwOnContradiction = true;
+  }
+  let threwOnUnknownArea = false;
+  try {
+    resolveAutonomy('deploy-to-prod', {});
+  } catch {
+    threwOnUnknownArea = true;
+  }
+  threwOnContradiction && threwOnUnknownArea
+    ? ok('resolver throws on contradiction (grade 4 sans deliberations) and unknown area (closed enum)')
+    : bad(`resolver failed to refuse: contradiction=${threwOnContradiction} unknownArea=${threwOnUnknownArea}`);
 }
