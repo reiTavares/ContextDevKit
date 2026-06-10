@@ -42,6 +42,33 @@ try {
     ? ok('Stop emits the autonomy digest with undo pointers at grade 3 (task 109)')
     : bad('autonomy digest missing from the Stop output at grade 3');
 
+  // Task 112 — the unseen receipt replays once at the next boot, then clears.
+  const pendingPath = join(proj, '.claude', '.workspace', 'autonomy-digest-pending.json');
+  existsSync(pendingPath)
+    ? ok('Stop digest persists the pending receipt for replay (task 112)')
+    : bad('no pending receipt written at grade 3');
+  const boot1 = hook('session-start.mjs', { session_id: 'replay' });
+  boot1.includes('Unacknowledged autonomy receipt') && boot1.includes('src/auto1.js')
+    ? ok('next boot replays the unacknowledged receipt (task 112)')
+    : bad('boot did not replay the pending receipt');
+  !existsSync(pendingPath) && !hook('session-start.mjs', { session_id: 'replay2' }).includes('Unacknowledged autonomy receipt')
+    ? ok('replayed receipt is consumed — shown exactly once')
+    : bad('pending receipt not consumed after replay');
+
+  // Task 112 — step-down nudge after ≥2 recent QA bounces at grade ≥3 (suggest-only).
+  script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'bounce-a');
+  script('pipeline.mjs', 'add', '--type', 'bug', '--title', 'bounce-b');
+  const ids = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').filter((t) => /^bounce-/.test(t.title)).map((t) => t.id);
+  for (const id of ids) {
+    script('pipeline.mjs', 'move', id, 'testing');
+    script('pipeline.mjs', 'qa-reject', id, 'flaky assertion');
+  }
+  hook('track-edits.mjs', { session_id: 'sd', tool_name: 'Write', tool_input: { file_path: 'src/sd1.js' } });
+  hook('track-edits.mjs', { session_id: 'sd', tool_name: 'Write', tool_input: { file_path: 'src/sd2.js' } });
+  hook('check-registration.mjs', { session_id: 'sd' }).includes('consider stepping the dial down')
+    ? ok('step-down nudge fires after 2 QA bounces at grade 3 (suggest-only, task 112)')
+    : bad('step-down nudge missing after QA bounces');
+
   // Task 107 — setter round-trip: persist, session override, audit trail.
   script('autonomy.mjs', '1');
   readJson(cfgPath).autonomy?.grade === 1

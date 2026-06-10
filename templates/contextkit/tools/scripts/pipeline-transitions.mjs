@@ -1,17 +1,21 @@
 /**
  * DevPipeline stage transitions — extracted from pipeline.mjs (280-budget split,
- * ADR-0041 F1 / task 110).
+ * ADR-0041 F1 / task 110; event log + auto verb in F2 / task 111).
  *
- * Legality (ADR-0043): the verbs here are HUMAN verbs — a human may move a card
- * anywhere (`move`), and `qa-reject` is the ONLY testing→working path, always
- * carrying a feedback block on the card. AUTOMATIC transitions (actor `auto`)
- * do not exist yet by design: they land in F2 (ADR-0043) only on top of the
- * append-only state.json event log — an auto-move with no transition ledger is
- * an unobservable mutation (the refused `auto-transition` draft).
+ * Legality (ADR-0043): `move` is the free-form HUMAN verb; `qa-reject` is the
+ * ONLY testing→working path, always carrying a feedback block on the card; and
+ * `auto-transition` (actor `auto`) exists ONLY on top of the append-only
+ * state.json event log — it is consent-gated through `resolveAutonomy`
+ * ('pipeline-move' must resolve `auto`) and may NEVER enter or leave
+ * `conclusion` (sign-off stays human/QA). Every transition appends one event
+ * with its recorded inverse (ADR-0043: reversible by construction).
  */
 import { readFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
+import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { readAutonomyOverride, resolveAutonomy } from '../../runtime/config/resolve-autonomy.mjs';
+import { appendEvent, readState, writeState } from '../../runtime/state/state-io.mjs';
 import { listTasks } from './pipeline-tasks.mjs';
 
 const STAGES = { backlog: 'backlog', working: 'working', testing: 'testing', conclusion: 'conclusion' };
@@ -26,6 +30,26 @@ function findTask(PIPE, id) {
   return task;
 }
 
+/** Shared file-move mechanics + the ADR-0043 event append (best-effort, never fatal). */
+function relocate(PIPE, task, stage, sync, actor, note) {
+  const from = resolve(PIPE, task.stage, task.file);
+  const to = resolve(PIPE, stage, task.file);
+  let text = readFileSync(from, 'utf-8').replace(/^(status:).*$/m, `status: ${STATUS[stage]}`);
+  if (stage === 'conclusion' && !/^concluded:/m.test(text)) {
+    text = text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${new Date().toISOString().slice(0, 10)}\n---`);
+  }
+  if (note) text += `\n## QA Feedback (${new Date().toISOString()})\n\n\`\`\`text\n${note}\n\`\`\`\n`;
+  writeFileAtomicSync(from, text);
+  renameSync(from, to);
+  sync();
+  try {
+    appendEvent(PIPE, task.id, { from: task.stage, to: stage, actor, note: note ? 'qa-feedback on card' : undefined });
+    if (readState(PIPE, task.id)) writeState(PIPE, task.id, stage === 'conclusion' ? { status: STATUS[stage], endedAt: Date.now() } : { status: STATUS[stage] });
+  } catch {
+    /* observability is best-effort — the board move itself never fails on it */
+  }
+}
+
 /** Free-form human move: `pipeline.mjs move <id> <stage>`. */
 export function move({ PIPE, sync }) {
   const id = process.argv[3];
@@ -35,17 +59,7 @@ export function move({ PIPE, sync }) {
     process.exit(1);
   }
   const task = findTask(PIPE, id);
-  const from = resolve(PIPE, task.stage, task.file);
-  const to = resolve(PIPE, stage, task.file);
-  let text = readFileSync(from, 'utf-8').replace(/^(status:).*$/m, `status: ${STATUS[stage]}`);
-  if (stage === 'conclusion' && !/^concluded:/m.test(text)) {
-    text = text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${new Date().toISOString().slice(0, 10)}\n---`);
-  }
-  writeFileAtomicSync(from, text);
-  renameSync(from, to);
-  sync();
-  // ADR-0015 §C — fire-and-forget state.json mirror (observability, best-effort).
-  import('../../runtime/state/state-io.mjs').then((m) => m.readState(PIPE, task.id) && m.writeState(PIPE, task.id, stage === 'conclusion' ? { status: STATUS[stage], endedAt: Date.now() } : { status: STATUS[stage] })).catch(() => {});
+  relocate(PIPE, task, stage, sync, 'human');
   console.log(`✅ Moved ${task.id} → ${stage}`);
 }
 
@@ -66,13 +80,39 @@ export function qaReject({ PIPE, sync }) {
     console.error(`Task ${id} is in stage '${task.stage}', not 'testing'. qa-reject is the testing→working bounce only (ADR-0043).`);
     process.exit(1);
   }
-  const from = resolve(PIPE, task.stage, task.file);
-  const to = resolve(PIPE, 'working', task.file);
-  let text = readFileSync(from, 'utf-8').replace(/^(status:).*$/m, 'status: working');
-  text += `\n## QA Feedback (${new Date().toISOString()})\n\n\`\`\`text\n${feedback}\n\`\`\`\n`;
-  writeFileAtomicSync(from, text);
-  renameSync(from, to);
-  sync();
-  import('../../runtime/state/state-io.mjs').then((m) => m.readState(PIPE, task.id) && m.writeState(PIPE, task.id, { status: 'working' })).catch(() => {});
+  relocate(PIPE, task, 'working', sync, 'qa', feedback);
   console.log(`✅ Rejected ${task.id} → working (with feedback)`);
+}
+
+/**
+ * AUTOMATIC transition (actor `auto`, ADR-0043) — consent-gated and
+ * conclusion-fenced: refuses unless `resolveAutonomy('pipeline-move')` says
+ * `auto` (grade ≥3, no floor hit), and never enters or leaves `conclusion`.
+ * Per-id and explicit — there is deliberately no bulk sweep.
+ */
+export function autoTransition({ ROOT, PIPE, sync }) {
+  const id = process.argv[3];
+  const stage = process.argv[4];
+  if (!id || !STAGES[stage]) {
+    console.error('Usage: pipeline.mjs auto-transition <id> <backlog|working|testing>');
+    process.exit(1);
+  }
+  let dial;
+  try {
+    dial = resolveAutonomy('pipeline-move', loadConfigSync(ROOT), readAutonomyOverride(ROOT));
+  } catch (err) {
+    console.error(`auto-transition refused: ${err?.message ?? err}`);
+    process.exit(1);
+  }
+  if (dial.mode !== 'auto') {
+    console.error(`auto-transition refused: pipeline-move resolves "${dial.mode}" at grade ${dial.grade} (${dial.reason}). Move it yourself or raise the dial: /autonomy.`);
+    process.exit(1);
+  }
+  const task = findTask(PIPE, id);
+  if (stage === 'conclusion' || task.stage === 'conclusion') {
+    console.error('auto-transition refused: conclusion is human/QA sign-off territory at every grade (ADR-0043 legality).');
+    process.exit(1);
+  }
+  relocate(PIPE, task, stage, sync, 'auto');
+  console.log(`✅ Auto-moved ${task.id} → ${stage} (actor=auto, grade ${dial.grade}; inverse recorded)`);
 }

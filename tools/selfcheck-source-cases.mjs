@@ -54,7 +54,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['pipeline-session stamps state.json on start (ADR-0015 §C)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /writeState\(pipeDir,\s*id,\s*\{\s*kind:\s*'task'/],
     ['pipeline-session stamps endedAt on stop', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /endedAt:\s*Date\.now\(\)/],
     ['workspace-sync mirrors heartbeat into state.json', 'templates/contextkit/tools/scripts/workspace-sync.mjs', /lastHeartbeat:\s*task\.lastHeartbeat/],
-    ['/runs reads listStates from state-io (ADR-0015 §C follow-up)', 'templates/contextkit/tools/scripts/runs.mjs', /import\s*\{\s*listStates\s*\}\s*from\s*['"]\.\.\/\.\.\/runtime\/state\/state-io\.mjs/],
+    ['/runs reads listStates from state-io (ADR-0015 §C follow-up)', 'templates/contextkit/tools/scripts/runs.mjs', /import\s*\{\s*listStates,\s*readState\s*\}\s*from\s*['"]\.\.\/\.\.\/runtime\/state\/state-io\.mjs/],
     ['/runs supports --kind filter', 'templates/contextkit/tools/scripts/runs.mjs', /\bkind:\s*kindFilter/],
     ['/runs supports --json output', 'templates/contextkit/tools/scripts/runs.mjs', /flag\(['"]json['"]\)/],
     ['/runs refuses cleanly when no states exist', 'templates/contextkit/tools/scripts/runs.mjs', /No runs yet/],

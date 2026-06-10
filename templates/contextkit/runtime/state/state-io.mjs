@@ -21,8 +21,15 @@
  *     startedAt: number,
  *     lastHeartbeat: number,
  *     endedAt: number|null,
- *     cycles: Record<string, number>                          // pipeline-run only
+ *     cycles: Record<string, number>,                         // pipeline-run only
+ *     events: Array<{ ts, from, to, actor, inverse, note? }>  // ADR-0043: append-only
  *   }
+ *
+ * The `events` log is APPEND-ONLY (ADR-0043): `appendEvent` is the only writer;
+ * `writeState` can never rewrite or drop past events. `inverse` records the
+ * stage to restore — every transition is reversible by construction, and the
+ * telemetry the grade-4 eligibility bar reads (ADR-0045) derives ONLY from
+ * these events ("if it isn't an event, it didn't happen").
  *
  * Zero-dep, pure ESM over `node:*`. The hot path may import this — it never
  * pulls in the optional `yaml` dep.
@@ -33,6 +40,7 @@ import { writeFileAtomicSync } from '../hooks/safe-io.mjs';
 
 const VALID_KINDS = new Set(['task', 'pipeline-run']);
 const VALID_STATUSES = new Set(['backlog', 'working', 'testing', 'done', 'running', 'blocked-on-checkpoint', 'failed']);
+const VALID_ACTORS = new Set(['human', 'auto', 'qa', 'evict']);
 let warnedOnce = false;
 
 /**
@@ -84,10 +92,38 @@ export function writeState(pipeDir, id, patch) {
   if (!patch || typeof patch !== 'object') throw new Error('writeState: patch must be an object');
   const previous = readState(pipeDir, id) || {};
   const merged = { ...previous, ...patch, id: String(id) };
+  // ADR-0043: events are append-only — a patch can never rewrite or drop them.
+  merged.events = Array.isArray(previous.events) ? previous.events : [];
   if (merged.kind != null && !VALID_KINDS.has(merged.kind)) throw new Error(`writeState: invalid kind "${merged.kind}"`);
   if (merged.status != null && !VALID_STATUSES.has(merged.status)) throw new Error(`writeState: invalid status "${merged.status}"`);
   if (typeof merged.startedAt !== 'number') merged.startedAt = Date.now();
   merged.lastHeartbeat = typeof patch.lastHeartbeat === 'number' ? patch.lastHeartbeat : Date.now();
+  const file = fileFor(pipeDir, id);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileAtomicSync(file, JSON.stringify(merged, null, 2));
+  return merged;
+}
+
+/**
+ * Appends ONE transition event (ADR-0043) — the only writer of `events`.
+ * `inverse` is recorded automatically as the from-stage, making every
+ * transition reversible by construction. Throws on an unknown actor
+ * (refuse-by-default — telemetry from forged actors would be worse than none).
+ *
+ * @param {string} pipeDir
+ * @param {string} id
+ * @param {{ from: string, to: string, actor: 'human'|'auto'|'qa'|'evict', note?: string }} event
+ * @returns {object} the updated record
+ */
+export function appendEvent(pipeDir, id, { from, to, actor, note }) {
+  if (!VALID_ACTORS.has(actor)) throw new Error(`appendEvent: invalid actor "${actor}" — one of ${[...VALID_ACTORS].join(', ')}`);
+  const previous = readState(pipeDir, id) || {};
+  const events = Array.isArray(previous.events) ? previous.events : [];
+  const entry = { ts: Date.now(), from: String(from ?? ''), to: String(to ?? ''), actor, inverse: String(from ?? '') };
+  if (note) entry.note = String(note).slice(0, 300);
+  const merged = { ...previous, id: String(id), events: [...events, entry] };
+  if (typeof merged.startedAt !== 'number') merged.startedAt = Date.now();
+  merged.lastHeartbeat = Date.now();
   const file = fileFor(pipeDir, id);
   mkdirSync(dirname(file), { recursive: true });
   writeFileAtomicSync(file, JSON.stringify(merged, null, 2));
@@ -168,5 +204,6 @@ function normalize(obj) {
     lastHeartbeat: typeof safe.lastHeartbeat === 'number' ? safe.lastHeartbeat : 0,
     endedAt: typeof safe.endedAt === 'number' ? safe.endedAt : null,
     cycles: safe.cycles && typeof safe.cycles === 'object' ? safe.cycles : {},
+    events: Array.isArray(safe.events) ? safe.events : [],
   };
 }

@@ -14,6 +14,7 @@ import { resolve } from 'node:path';
 import { getLevel } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { listStates } from '../../runtime/state/state-io.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -104,6 +105,32 @@ function collectForge() {
   return { packages: pkgs.length, evaluated, unevaluated: pkgs.length - evaluated, monthlyTarget, monthlyHardCap, byPrimary };
 }
 
+/**
+ * Autonomy telemetry (ADR-0043) — derived ONLY from the append-only state.json
+ * events ("if it isn't an event, it didn't happen"). These are the numbers the
+ * grade-4 eligibility bar reads (ADR-0045): transitions, actor breakdown,
+ * QA bounces, and the backward-move (rollback) rate. Returns null when no
+ * events exist yet — reported as "no data", never as a passing zero (rule 8).
+ */
+function collectAutonomy() {
+  const STAGE_ORDER = { backlog: 0, working: 1, testing: 2, conclusion: 3 };
+  const events = listStates(P.pipeline).flatMap((s) => s.events || []);
+  if (events.length === 0) return null;
+  const byActor = {};
+  let backward = 0;
+  for (const e of events) {
+    byActor[e.actor] = (byActor[e.actor] || 0) + 1;
+    if ((STAGE_ORDER[e.to] ?? 0) < (STAGE_ORDER[e.from] ?? 0)) backward += 1;
+  }
+  return {
+    transitions: events.length,
+    byActor,
+    qaBounces: byActor.qa || 0,
+    autoSharePct: +(((byActor.auto || 0) / events.length) * 100).toFixed(1),
+    rollbackRatePct: +((backward / events.length) * 100).toFixed(1),
+  };
+}
+
 function collect() {
   const ledgers = [
     ...listJson(resolve(ROOT, '.claude/.sessions')),
@@ -137,6 +164,7 @@ function collect() {
     perWeek,
     forge,
     timeToValue: ttv,
+    autonomy: collectAutonomy(),
   };
 }
 
@@ -161,6 +189,16 @@ function main() {
   if (weeks.length) {
     console.log('\nSessions per ISO week:');
     for (const [w, c] of weeks) console.log(`  ${w}  ${'█'.repeat(c)} (${c})`);
+  }
+  if (s.autonomy) {
+    console.log('\n🎚️ Autonomy telemetry (state.json events — the ADR-0045 eligibility inputs)');
+    console.log(`  Transitions:        ${s.autonomy.transitions}`);
+    console.log(`  By actor:           ${Object.entries(s.autonomy.byActor).map(([a, c]) => `${a}=${c}`).join(', ')}`);
+    console.log(`  QA bounces:         ${s.autonomy.qaBounces}`);
+    console.log(`  Auto share:         ${s.autonomy.autoSharePct}%`);
+    console.log(`  Rollback rate:      ${s.autonomy.rollbackRatePct}%  (bar: <10%, ≥30 transitions, ≥20 sessions)`);
+  } else {
+    console.log('\n🎚️ Autonomy telemetry:  no transition events yet (grade-4 bar: no data ⇒ not eligible)');
   }
   if (s.forge) {
     console.log('\n🔥 Forge Stats (agent-packages/)');
