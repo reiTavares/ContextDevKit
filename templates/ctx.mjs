@@ -120,31 +120,24 @@ const ALIASES = {
 };
 
 /**
- * Searches for a script matching the given command argument.
- * Supports exact name, prefix, and common aliases.
+ * Resolves the command argument to a script path — exact name or declared alias
+ * ONLY. There is deliberately no prefix fallback: `agy tech` silently running
+ * `tech-debt-scan.mjs` is a wrong-script hazard (ticket 089); a near-miss should
+ * fail loudly and suggest, never guess.
  *
  * @param {string} cmd  user command input
  * @returns {Promise<string | null>} absolute path to script if found, or null
  */
 async function findScript(cmd) {
   try {
-    const files = await readdir(SCRIPTS_DIR);
-    const mjsFiles = files.filter(f => f.endsWith('.mjs'));
+    const mjsFiles = (await readdir(SCRIPTS_DIR)).filter(f => f.endsWith('.mjs'));
     const cleanCmd = cmd.toLowerCase().replace(/\.mjs$/, '');
 
-    // 1. Exact match (e.g. "doctor" -> "doctor.mjs")
     const exact = mjsFiles.find(f => basename(f, '.mjs').toLowerCase() === cleanCmd);
     if (exact) return join(SCRIPTS_DIR, exact);
 
-    // 2. Prefix match (e.g. "tech-debt" -> "tech-debt-scan.mjs")
-    const prefix = mjsFiles.find(f => basename(f, '.mjs').toLowerCase().startsWith(cleanCmd));
-    if (prefix) return join(SCRIPTS_DIR, prefix);
-
-    // 3. Shorthand maps for common aliases
-    if (ALIASES[cleanCmd]) {
-      const aliasTarget = ALIASES[cleanCmd];
-      if (mjsFiles.includes(aliasTarget)) return join(SCRIPTS_DIR, aliasTarget);
-    }
+    const aliasTarget = ALIASES[cleanCmd];
+    if (aliasTarget && mjsFiles.includes(aliasTarget)) return join(SCRIPTS_DIR, aliasTarget);
   } catch {
     return null;
   }
