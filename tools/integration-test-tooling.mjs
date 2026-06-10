@@ -69,6 +69,17 @@ try {
   script('project-map.mjs', '--check').stdout.includes('fresh')
     ? ok('project-map --check reports a fresh map right after generation')
     : bad('project-map --check did not report fresh');
+  // ADR-0039 — deterministic fingerprint: regenerating an unchanged tree is byte-identical (no git churn).
+  const pmBefore = readFileSync(pmIndex, 'utf-8');
+  script('project-map.mjs');
+  readFileSync(pmIndex, 'utf-8') === pmBefore
+    ? ok('project-map regenerates byte-identical docs when nothing changed (no churn, ADR-0039)')
+    : bad('project-map docs churned on a no-op regenerate');
+  // ADR-0039 — a real source edit (more bytes) flips --check to STALE.
+  writeFileSync(join(proj, 'apps', 'api', 'src', 'server.ts'), 'export function startServer() { return 42; }\n');
+  script('project-map.mjs', '--check').stdout.includes('STALE')
+    ? ok('project-map --check detects a source edit as STALE (structural, ADR-0039)')
+    : bad('project-map --check did not detect a source edit');
 
   // Version control: git.mjs reports a repo with no remote (temp project has none).
   const gitStatus = script('git.mjs', 'status', '--json');

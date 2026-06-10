@@ -11,6 +11,7 @@
  * unreadable file is skipped, never thrown. Bounded: caps files-per-module and
  * symbols-per-module so the OUTPUT stays a map, not a full index.
  */
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, extname, resolve } from 'node:path';
 
@@ -107,8 +108,7 @@ function walkModule(absDir, acc) {
       acc.files.push(full);
       acc.extCounts[ext] = (acc.extCounts[ext] || 0) + 1;
       try {
-        const mt = statSync(full).mtimeMs;
-        if (mt > acc.newest) acc.newest = mt;
+        acc.bytes += statSync(full).size;
       } catch {
         /* ignore */
       }
@@ -118,7 +118,7 @@ function walkModule(absDir, acc) {
 
 /** Build the per-module record: role, languages, file count, sampled symbols. */
 function buildModule(root, absDir, relPath) {
-  const acc = { files: [], extCounts: {}, newest: 0 };
+  const acc = { files: [], extCounts: {}, bytes: 0 };
   walkModule(absDir, acc);
   if (acc.files.length === 0) return null;
   const languages = [...new Set(acc.files.map((f) => EXT_LANG[extname(f).toLowerCase()]))].sort();
@@ -140,8 +140,8 @@ function buildModule(root, absDir, relPath) {
     role: classifyRole(basename(relPath), acc.extCounts),
     languages,
     files: acc.files.length,
+    bytes: acc.bytes,
     capped: acc.files.length >= CAP_FILES_PER_MODULE,
-    newest: acc.newest,
     symbols: symbols.slice(0, CAP_SYMBOLS_PER_MODULE),
   };
 }
@@ -242,7 +242,6 @@ export function scanProject(root, nowMs = Date.now()) {
   }
   modules.sort((a, b) => b.files - a.files);
   const fileCount = modules.reduce((n, m) => n + m.files, 0);
-  const newest = modules.reduce((mx, m) => Math.max(mx, m.newest), 0);
   return {
     name: projectName(root),
     root,
@@ -251,6 +250,25 @@ export function scanProject(root, nowMs = Date.now()) {
     dataLayer: detectDataLayer(root),
     modules,
     fileCount,
-    signature: `${modules.length}:${fileCount}:${Math.round(newest)}`,
+    signature: structuralSignature(modules),
   };
+}
+
+/**
+ * Deterministic structural fingerprint — a sha256 over each module's
+ * `path:files:bytes` (module set sorted for stability). DELIBERATELY excludes
+ * mtime and the clock: an unchanged tree yields an identical signature, so the
+ * committed docs don't churn and the staleness check survives a clone (which
+ * resets mtimes). A content edit changes a module's byte total; an add/remove
+ * changes its file count or the module set. [project-map / ADR-0039]
+ *
+ * @param {Array<{path:string, files:number, bytes:number}>} modules
+ * @returns {string} 12-hex-char fingerprint
+ */
+export function structuralSignature(modules) {
+  const lines = modules
+    .map((m) => `${m.path}:${m.files}:${m.bytes}`)
+    .sort()
+    .join('|');
+  return createHash('sha256').update(lines).digest('hex').slice(0, 12);
 }

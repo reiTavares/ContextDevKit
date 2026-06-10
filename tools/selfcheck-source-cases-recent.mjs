@@ -176,9 +176,16 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['project-map CLI supports the --check staleness diff', 'templates/contextkit/tools/scripts/project-map.mjs', /flag\('--check'\)/],
     ['paths.mjs exposes projectMap (project-map, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /projectMap:\s*at\(PROJECT_MAP_DIR\)/],
     ['boot-signals exposes projectMapStale (project-map)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function projectMapStale/],
-    ['projectMapStale bounds the boot mtime walk (rule 2 — boot stays fast)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /budget\s*=\s*\{\s*n:\s*400\s*\}/],
+    ['projectMapStale bounds the boot size walk (rule 2 — boot stays fast)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /budget\s*=\s*\{\s*n:\s*400\s*\}/],
     ['session-start surfaces a stale project map (project-map)', 'templates/contextkit/runtime/hooks/session-start.mjs', /projectMapStale\(ROOT\)/],
     ['installer seeds the project-map memory dir (project-map)', 'tools/install/engine.mjs', /memory\/project-map\/\.gitkeep/],
     ['installer ensures the project-map dir (project-map)', 'tools/install/engine.mjs', /'deliberations', 'project-map'\]/],
     ['/project-map command briefing ships (project-map)', 'templates/claude/commands/project-map.md', /deterministic filesystem scan/],
+    // project-map ADR-0039 — deterministic structural fingerprint (no mtime → no churn, clone-safe).
+    ['project-map signature is a content sha256, not mtime (ADR-0039)', 'templates/contextkit/tools/scripts/project-map-core.mjs', /export function structuralSignature[\s\S]*createHash\('sha256'\)/],
+    ['project-map core accumulates bytes, drops mtime from the signature (ADR-0039)', 'templates/contextkit/tools/scripts/project-map-core.mjs', /acc\.bytes \+= statSync\(full\)\.size/],
+    ['project-map render header carries no date (deterministic docs, ADR-0039)', 'templates/contextkit/tools/scripts/project-map-render.mjs', /carries no date/],
+    ['manifest stores per-module bytes for staleness (ADR-0039)', 'templates/contextkit/tools/scripts/project-map.mjs', /files: m\.files, bytes: m\.bytes/],
+    ['projectMapStale compares files\\+bytes vs the manifest, not mtime (ADR-0039)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /cur\.bytes !== Number\(mod\.bytes\)/],
+    ['projectMapStale skips a cap-truncated module (refuse-to-false-positive, rule 8)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /Budget exhausted during this module/],
 ];
