@@ -6,6 +6,21 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`/project-map` module dependency graph — blast-radius edges (ADR-0040).**
+  The map gains a **"Module dependencies (who imports whom)"** section in
+  `00-index.md` — deterministic edges between mapped modules, resolved from import
+  statements (zero AI tokens). New `project-map-deps.mjs` extracts JS/TS-family
+  imports (`import … from`, `require()`, dynamic `import()`) and resolves each to a
+  target module by **relative path** or **workspace package name** (from each
+  module's `package.json`); externals (node_modules) are ignored. Edges are sorted
+  → the committed docs stay churn-free (ADR-0039), and deps are deliberately kept
+  OUT of the structural signature. Symbol extraction moved to a sibling
+  `project-map-symbols.mjs` (cohesion — keeps `project-map-core.mjs` under budget).
+  v1 covers the JS/TS family; other languages' edges are deferred (documented, not
+  silent). Pairs with `/simulate-impact`. Covered by selfcheck + a cross-module
+  edge round-trip in the tooling integration test.
+
 ### Changed
 - **`/project-map` staleness via a deterministic structural fingerprint (ADR-0039).**
   The map signature was `modules:files:mtime` — printed in every doc header — so

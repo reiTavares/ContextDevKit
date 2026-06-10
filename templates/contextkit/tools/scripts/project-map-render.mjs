@@ -28,6 +28,28 @@ function header(model, title) {
   ];
 }
 
+/** Per-module display cap for the dependency adjacency list (keeps it scannable). */
+const DEP_DISPLAY_CAP = 20;
+
+/**
+ * "Module dependencies" adjacency list (blast-radius edges). Sorted → diff-stable.
+ * JS/TS-family edges only (ADR-0040); a note makes the absence honest. [project-map]
+ */
+function renderDependencies(model) {
+  const withDeps = model.modules.filter((m) => (m.deps || []).length > 0);
+  const out = ['', '## Module dependencies (who imports whom)', ''];
+  if (withDeps.length === 0) {
+    out.push('_No intra-repo edges detected (JS/TS imports). Other languages: deferred (ADR-0040)._');
+    return out;
+  }
+  for (const m of withDeps) {
+    const shown = m.deps.slice(0, DEP_DISPLAY_CAP).map((d) => `\`${d}/\``).join(', ');
+    const more = m.deps.length > DEP_DISPLAY_CAP ? ` _(+${m.deps.length - DEP_DISPLAY_CAP} more)_` : '';
+    out.push(`- \`${m.path}/\` → ${shown}${more}`);
+  }
+  return out;
+}
+
 /** 00-index.md — the one-screen overview the agent reads at the start of work. */
 export function renderIndex(model) {
   const out = header(model, 'Project map');
@@ -43,6 +65,7 @@ export function renderIndex(model) {
   for (const m of model.modules) {
     out.push(`| ${ROLE_EMOJI[m.role] || ''} ${m.role} | \`${m.path}/\` | ${m.files}${m.capped ? '+' : ''} | ${m.languages.join(', ')} |`);
   }
+  out.push(...renderDependencies(model));
   out.push('', '## How to use this map', '');
   out.push('- Read this index FIRST to orient — it replaces re-greping the tree.');
   out.push('- `01-modules.md` — per-module detail (role, languages, size).');
