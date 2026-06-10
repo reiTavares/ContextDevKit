@@ -46,6 +46,7 @@ import {
 import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 import { readAutonomyOverride, resolveAutonomy } from '../config/resolve-autonomy.mjs';
+import { consumePendingDigest } from './autonomy-signals.mjs';
 
 const ROOT = process.cwd();
 
@@ -137,8 +138,10 @@ async function main() {
   const value = valueLine(ROOT);
   const bugs = level >= 2 ? openBugsDue(ROOT) : null;
   const mapStale = level >= 2 ? projectMapStale(ROOT) : null;
+  // Task 112 — an unseen grade-≥3 consent receipt replays once at the next boot.
+  const pendingDigest = consumePendingDigest(ROOT);
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest) return;
 
   const out = [];
   out.push('<project-context-boot>');
@@ -149,6 +152,11 @@ async function main() {
 
   if (engineSignal) {
     out.push(engineSignal);
+    out.push('');
+  }
+
+  if (pendingDigest) {
+    out.push(pendingDigest);
     out.push('');
   }
 

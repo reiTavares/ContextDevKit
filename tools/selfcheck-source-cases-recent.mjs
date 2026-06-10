@@ -239,4 +239,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['auto-transition is consent-gated through the resolver (task 111)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /resolveAutonomy\('pipeline-move'/],
     ['stats telemetry derives only from state events (ADR-0043/0045)', 'templates/contextkit/tools/scripts/stats.mjs', /function collectAutonomy/],
     ['runs exposes the per-item transition log (task 111)', 'templates/contextkit/tools/scripts/runs.mjs', /function showEvents/],
+    // ADR-0043 F2 — trust signals (task 112).
+    ['autonomy signals live in one display-only module (task 112)', 'templates/contextkit/runtime/hooks/autonomy-signals.mjs', /it never gates/],
+    ['graduation is suggested, never auto-applied (task 112, 06-H)', 'templates/contextkit/runtime/hooks/autonomy-signals.mjs', /never auto-applied/],
+    ['session-start replays the unseen consent receipt once (task 112)', 'templates/contextkit/runtime/hooks/session-start.mjs', /consumePendingDigest\(ROOT\)/],
 ];
