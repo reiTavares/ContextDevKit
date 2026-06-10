@@ -125,32 +125,8 @@ function testUpdateRefreshesKitOwned(proj) {
     ? ok('--update refreshes kit-owned playbooks (no stale content survives)') : bad('--update left a stale playbook unrefreshed');
 }
 
-/** ADR-0041/0042 — the L5 gate is autonomy-grade-blind: no consent setting (new
- * `grade` or legacy `level`, any value) may weaken enforcement. Regression for
- * the level-4 bypass incident (task 100). */
-function testGateGradeBlind(fx) {
-  const { cfgPath, hook } = fx;
-  const cfg = readJson(cfgPath);
-  cfg.l5.highRiskPaths = ['src/secure/'];
-  cfg.autonomy = { grade: 4, level: 4 };
-  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
-  const out = hook('simulate-gate.mjs', { session_id: 'gb', tool_name: 'Write', tool_input: { file_path: 'src/secure/x.js' } });
-  out.includes('"decision":"block"')
-    ? ok('L5 gate blocks regardless of any autonomy config (grade-blind)')
-    : bad('L5 gate weakened by autonomy config — bypass regression');
-  // Task 109 — at grade ≥3 the Stop hook emits the autonomous-actions digest
-  // (consent receipt: touched files + undo pointers). Display-only, never blocks.
-  cfg.autonomy = { grade: 3 };
-  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
-  hook('track-edits.mjs', { session_id: 'dg', tool_name: 'Write', tool_input: { file_path: 'src/auto1.js' } });
-  hook('track-edits.mjs', { session_id: 'dg', tool_name: 'Write', tool_input: { file_path: 'src/auto2.js' } });
-  const stopOut = hook('check-registration.mjs', { session_id: 'dg' });
-  stopOut.includes('Autonomy digest (A3)') && stopOut.includes('undo: git checkout')
-    ? ok('Stop emits the autonomy digest with undo pointers at grade 3 (task 109)')
-    : bad('autonomy digest missing from the Stop output at grade 3');
-  delete cfg.autonomy;
-  writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
-}
+// The autonomy-dial cells (grade-blind gate, Stop digest, setter round-trip)
+// live in their own sibling: integration-test-autonomy.mjs (line-budget seam).
 
 /** 016 — pre-push conflict gate: allow disjoint, warn on auto-merge, block real conflict, bypass. */
 function testPrePush() {
@@ -290,7 +266,6 @@ async function main() {
   const fx = installFixture(rep);
   try {
     testCommitMsg(fx.proj);
-    testGateGradeBlind(fx);
     testConcurrencyExternalEdit(fx.proj);
     testMalformedSettingsRecovery(fx.proj);
     testUpdateRefreshesKitOwned(fx.proj);
