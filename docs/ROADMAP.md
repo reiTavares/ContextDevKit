@@ -197,7 +197,7 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
    Turns repeatable procedures into first-class, auditable assets — same "plain files,
    advisory, inspectable" posture as the rest of the kit.
 
-## Next — DevPipeline `working/` stage + declarative squad pipelines (ADR-0015)
+## DevPipeline `working/` stage + declarative squad pipelines (ADR-0015) — ✅ SHIPPED (v1.9.0–v1.13.0)
 
 A single ADR opens two adjacent moves, sharing one substrate (`state.json` per
 in-flight item). Inspired by a read of [opensquad](https://github.com/renatoasse/opensquad)'s
@@ -205,7 +205,7 @@ declarative pipeline, *not* a copy — the kit's zero-dep + model-router + simul
 invariants reshape the grammar (no full expression eval, no vendor model names, opt-in
 per squad, dry-run as a first-class mode).
 
-- 📋 **DevPipeline gains a `working/` stage** (task **037**, ADR-0015 §B). Today
+- ✅ **DevPipeline gains a `working/` stage** (task **037**, ADR-0015 §B). Today
   `testing/` carries two meanings — "actively being worked on" and "code written,
   awaiting QA". That conflation hides cross-session conflicts: session A can be
   hammering on task `031` while session B has no idea unless A manually `/claim`ed
@@ -213,28 +213,36 @@ per squad, dry-run as a first-class mode).
   sign-off meaning. `/pipeline start <id>` and `/pipeline stop <id>` move tasks
   in/out; the workspace record (`.claude/.workspace/<sid>.json`) gains a `tasks[]`
   array so the dashboard surfaces *which session owns which task, right now*. Stale
-  auto-eviction (default 90m without a heartbeat) keeps the lane honest. The
-  pre-push hook already refuses cross-session conflicts on paths; ADR-0015 extends
-  it to task ids.
-- 📋 **Declarative `pipeline.yaml` per squad + engine** (task **036**, ADR-0015 §A).
+  auto-eviction (default 90m without a heartbeat) keeps the lane honest. *Shipped:
+  `pipeline-session.mjs` (start/stop + ADR-0032/072 gates), `claim.mjs`
+  attach/detach, stale sweep in `workspace-sync.mjs`; lifecycle automation
+  (auto-start / auto-conclude) followed in ADR-0034 (v1.12.0). Residual: the
+  pre-push hook still refuses on paths only — the task-id extension wasn't done.*
+- ✅ **Declarative `pipeline.yaml` per squad + engine** (task **036**, ADR-0015 §A).
   Optional file per squad declaring steps, `condition`, `on_reject`,
   `max_review_cycles`, `model_tier`, `execution`, and `type: checkpoint`. Parsed
   via `lib/yaml.mjs` (ADR-0013 optional dynamic import); engine refuses *with a
   clear message* when `yaml` is absent — pipelines are opt-in, not a hot-path
-  feature. First consumer is `agent-forge` (Fase 6); `/ship` adopts the same DSL
-  when ready. Dry-run is a first-class mode — `squad-pipeline.mjs <squad>
-  --dry-run` prints the would-be execution order so `/simulate-impact` can map
-  pipeline-edit blast radius before changes ship.
-- 📋 **Canonical `state.json` substrate** (task **038**, ADR-0015 §C). One schema
+  feature. First consumer is `agent-forge` (Fase 6). Dry-run is a first-class
+  mode — `squad-pipeline.mjs <squad> --dry-run` prints the would-be execution
+  order so `/simulate-impact` can map pipeline-edit blast radius before changes
+  ship. *Shipped: `squad-pipeline.mjs` + `squad-pipeline-condition.mjs` +
+  `agent-forge/pipeline.yaml` + `docs/SQUAD-PIPELINE-FORMAT.md` (session 30).
+  Residual: `/ship` still runs its own staged flow (`ship-state.mjs`), it hasn't
+  adopted the DSL.*
+- ✅ **Canonical `state.json` substrate** (task **038**, ADR-0015 §C). One schema
   for both "task in flight" and "pipeline run", recording owner session/user/branch,
-  current step, heartbeat, retry cycles. Forge Stats v2 reads it for success rate
-  + retry distribution; `/runs` (task **039**) lists the last N across squads.
+  current step, heartbeat, retry cycles. *Shipped: `runtime/state/state-io.mjs`,
+  stamped by `pipeline start/stop` (`kind: task`) and `/ship` resume
+  (`kind: pipeline-run`, ticket 074); `/runs` (task **039**, `runs.mjs`) lists
+  recent transitions + runs. Residual: Forge Stats v2 doesn't read it yet
+  (success rate + retry distribution).*
 
 **Stays inside the invariants:** the DSL is opt-in per squad, hot-path stays
 zero-dep (yaml only behind the sanctioned optional import), and `condition`
 accepts a whitelisted grammar — no arbitrary expression evaluation.
 
-## Next — GitHub sync awareness in the dev flow (ADR-0026)
+## GitHub sync awareness in the dev flow (ADR-0026) — ✅ SHIPPED (v1.9.0, session 35)
 
 The boot banner already shows **branch/commit** divergence (`checkGitDivergence`)
 and the 20 most-recent remote branches (`activeBranches`), and `pre-push` blocks
@@ -243,15 +251,16 @@ real conflicts. The missing layer is **PR awareness** — nothing asks GitHub
 branch?". Two moments are PR-blind: starting work (`/dev-start`) and opening a
 PR (`/git pr`).
 
-- ⏳ **`sync-check.mjs` — `preflight` + `prepr` modes** (ADR-0026). One zero-dep
+- ✅ **`sync-check.mjs` — `preflight` + `prepr` modes** (ADR-0026). One zero-dep
   script. `preflight` (run by `/dev-start`, before scope-lock): ahead/behind,
   recent branches, and **open PRs with CI/review status**, flagging PRs
   *awaiting status* that may overlap the objective. `prepr` (run by `/git pr`,
   before push): re-check divergence vs `main` and **detect a duplicate open PR**
   for the current branch. `gh` is optional — absent/unauthed degrades to the
   git-only half and reports the PR check as **skipped, never a pass** (Rule 8);
-  offline ⇒ silent exit 0.
-- ⏳ **Wiring** — `/dev-start` gains a step 0 (preflight) and `/git pr` a
+  offline ⇒ silent exit 0. *Refined in v1.13.0 (ticket 065): no implicit
+  `git fetch` on read-only checks — network is opt-in via `--fetch`.*
+- ✅ **Wiring** — `/dev-start` gained a step 0 (preflight) and `/git pr` a
   pre-step (prepr). PR queries stay **off** the `SessionStart` hot path (network
   + `gh` auth would violate the never-block invariant, Rule 2).
 
@@ -308,7 +317,7 @@ re-measured against `/token-report`.
 *Deferred:* per-command/agent token attribution in `/token-report`; a DevPipeline
 board digest for `/pipeline`; an mtime-keyed digest cache if extraction cost ever shows.
 
-## Next — Proactive Advisor: a six-lane improvement engine (ADR-0028)
+## Proactive Advisor: a six-lane improvement engine (ADR-0028) — ✅ SHIPPED
 
 The kit ships strong *individual* analysis surfaces but no single capability that
 reads the project and — **proactively, not reactively** — surfaces improvement
@@ -372,9 +381,43 @@ assumptions and ask when ambiguous before coding** — the biggest gap).
 guidance is single-sourced in one doc referenced by the constitution + boot
 (Rule 4), and we adopted the proven four rather than inventing a fifth (Rule 9).
 
-*Noticed, not fixed (surgical):* `best-practices.md` links to `review-protocol.md`,
-which the installer's seed list doesn't copy — a pre-existing broken link, left as
-a separate one-line fix.
+*Noticed, since fixed:* `best-practices.md` links to `review-protocol.md`, which
+the installer's seed list didn't copy — `review-protocol.md` now ships in
+`templates/contextkit/` and is in the engine installer's seed list (selfcheck
+asserts it).
+
+## Next — Autonomy dial: a consent axis orthogonal to levels (ADR-0041)
+
+Six same-day deliberations (4 Gemini rounds + 2 full-staff Claude rounds, 8 voices
+each — see `contextkit/memory/deliberations/2026-06-10-06-…`) converged: the kit
+gains a user-configurable **autonomy degree** — `autonomy.grade` (1 manual ·
+2 suggest+supervise *default* · 3 auto-except-ADR · 4 full-auto, experimental) —
+as a **consent axis orthogonal to L1–L7** (levels = what the kit *can* do; grade =
+what it *may* do without asking). One pure `resolveAutonomy(area)` resolver is the
+only read path; **hooks stay grade-blind** (only commands + `/ship` checkpoints
+consult it); a **non-negotiable floor in code** (secrets path-class, no force-push,
+no gate self-edit, ADR-class always human, grade escalation always human) that
+config can never lower. Five phases, hard gates between them:
+
+The implementation sequence — ADR-0041 is the umbrella; each phase's *new*
+technical contracts live in a delta-only continuation ADR (nothing repeated):
+
+| # | Etapa | ADR | Motivo (why now) | Impacto | Tasks | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **F0 — Trust floor & hygiene** | 0041 (direct — fully specified there) | No autonomy can be built on a bypassable gate; the accidental level-4 bypass proved the failure *pattern* | Kills the "silently-disabled gate" regression class (wiring-drift selfcheck = highest-leverage control of the package); secrets path-class exists before any grade can act; selfcheck regains constitutional room | 100–105 (P0/P1) | 📋 |
+| 2 | **F1 — Dial core (grades 1–3)** | **0042** — resolver contract, precedence (flag > session > config, floor clamps last), floor API, derived surfaces | The user's single trust decision is today shattered across ≥5 surfaces; displayed grade must ≡ enforced grade by construction | One stable function for every consumer; `--session` makes trying a grade cheap and reversible; repeated re-consent disappears | 106–110 (P2) | 📋 |
+| 3 | **F2 — Observable substrate** | **0043** — state.json schema v1 + transition-legality matrix (accepts ADR-0015 §C) | Grade ≥3 without an append-only trail = "the LLM narrating its own success"; auto-moves were rejected precisely for lacking it | Every autonomous action gets a record, an inverse (undo) and a metric; the board becomes an observable state machine; feeds the grade-4 bar | 110 (legality), 111–112 (P3) | 📋 |
+| 4 | **F3 — Token fan-out economy** | **0044** — subagent pack contract, per-command attribution (first), budget-gate semantics, deterministic memory retriever | Fan-outs are the dominant cost post-ADR-0027 (~25–80K/deliberation); the grade-4 budget gate cannot govern spend nobody attributes | ~25–80K saved per multi-agent run + ~10–20K/wk at boot; more context headroom in every session; the distill-memory seam is re-owned without inflation risk | 113–115 (P2/P3) | 📋 |
+| 5 | **F4 — Grade 4, experimental** | **0045** — eligibility bar (numbers), hardened quorum (deterministic voice + security veto), session-scoping, kill-switch | Inter-AI review only becomes a *control* with deterministic anchors and a veto; eligibility must be measured, not vibed | Delivers "full-auto with rigorous inter-AI control" without inverting advisory-by-default; one-line kill-switch; branch-only blast radius | 116 (P3) | 📋 |
+
+**Refused, on record:** ambient idle-escalation (absence ≠ consent), AI-written
+self-registering plugins, Wasm sandboxing / genetic swarms / local LoRA
+(deliberation 03 — violate the zero-dep and filesystem invariants).
+
+**Stays inside the invariants:** the dial never changes hook behavior (rule 2);
+the floor is code, not config (rule 8); every phase ships merge-blocking tests
+(rule 3); grades 1–3 are plumbing of existing flags through one single-sourced
+resolver (rule 4); grade 4 is opt-in, experimental, and reversible.
 
 ## Design invariants (don't regress these)
 
