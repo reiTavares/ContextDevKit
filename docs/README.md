@@ -31,10 +31,10 @@ _Background and rationale — the why behind the decisions._
 
 ## 🗂️ Planning & meta
 
-- [Changelog](CHANGELOG.md) — All notable changes to VibeDevKit are documented here.
+- [Changelog](CHANGELOG.md) — All notable changes to ContextDevKit are documented here.
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
 
 ## ❓ Unclassified
 _Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
 
-- [Integração e Especificações do Antigravity](ANTIGRAVITY.md) — Este documento descreve as especificações técnicas, a arquitetura e a integração do **ContextDevKit** com a plataform…
+- [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
