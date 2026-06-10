@@ -34,7 +34,7 @@ This runs the hook that fetches upstream git status, detects workspace claims, i
   - Run `node ctx.mjs doctor` or `node ctx.mjs tech-debt` autonomously to perform health and tech-debt audits.
 
 ### 2. Adopting a Posture (Squad Sub-agents)
-If your task requires specialized knowledge, check the agent definitions in `.antigravity/agents/` and adopt that posture. The 34 personas are organized into specialized squads:
+If your task requires specialized knowledge, check the agent definitions in `.antigravity/agents/` and adopt that posture. The personas are organized into specialized squads:
 - **devteam**: `architect`, `code-reviewer`, `context-keeper`, `test-engineer`
 - **qa-team**: `qa-orchestrator`, `qa-unit`, `qa-integration`, `qa-fuzzer`, `qa-perf`, `qa-e2e`
 - **design-team**: `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`
@@ -119,7 +119,7 @@ All 105 slash commands from Claude Code have been adapted into skills. The most 
 | **Forge** | `forge/forge-new.md` | Create new custom sub-agent definitions |
 | | `forge/forge-eval.md` | Benchmark prompt performances and routes |
 
-*For the complete list and documentation of all 105 skills, refer to the [Skills README](.antigravity/skills/README.md) or load the `contextdevkit-skills-index` Knowledge Item.*
+*For the complete list and documentation of every skill, refer to the [Skills README](.antigravity/skills/README.md) or load the `contextdevkit-skills-index` Knowledge Item.*
 
 ---
 

@@ -30,8 +30,14 @@ Register the current work session. Steps:
    <what works, what is pending, the natural next step>
    ```
 
-   Derive "Done" from the actual edits this session (check the ledger at
-   `.claude/.sessions/` if useful) — be factual, do not inflate.
+   **Pre-fill from the ledger** [ADR-0032] — don't start from a blank page:
+   ```
+   node contextkit/tools/scripts/session-draft.mjs
+   ```
+   It reads the active ledger and emits a grouped **Done** scaffold (files by area)
+   + the branch + a suggested slug. Start from that draft, then **rewrite it into a
+   factual narrative of WHAT changed and WHY** — be factual, do not inflate, never
+   ship the bare file list.
 
 3. **Update `docs/CHANGELOG.md`** — add bullet(s) under `## [Unreleased]` describing user-facing
    or structural changes (Keep a Changelog style: Added / Changed / Fixed / Removed).

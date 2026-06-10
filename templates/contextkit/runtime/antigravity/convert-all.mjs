@@ -1,29 +1,43 @@
 #!/usr/bin/env node
 /**
- * Batch converter: .claude/commands/ + .claude/agents/ → .antigravity/skills/ + .antigravity/agents/
+ * Batch converter: Claude Code commands/agents → Antigravity skills/personas.
  *
- * Reads every .md file from Claude Code's command/agent directories, strips the
+ * Reads every .md file from the source command/agent directories, strips the
  * frontmatter, adapts Claude-specific references, and writes the Antigravity
  * equivalent preserving directory structure.
  *
- * Usage: node contextkit/runtime/antigravity/convert-all.mjs [--dry-run]
+ * Two modes (ticket 085):
+ *   - default — INSTALLED project: .claude/ + contextkit/workflows → .antigravity/.
+ *     For users converting their own custom commands.
+ *   - --templates — KIT build step: templates/claude/ + templates/contextkit/workflows
+ *     → templates/antigravity/. Run via `npm run build:antigravity` whenever a
+ *     command/agent/playbook changes; NEVER part of the user install/--update path
+ *     (the installer just copies templates/antigravity). Destinations are cleaned
+ *     first (a top-level README.md is preserved) so renamed sources leave no orphans.
+ *
+ * Usage: node contextkit/runtime/antigravity/convert-all.mjs [--templates] [--dry-run]
  */
-import { readdir, readFile, writeFile, mkdir, stat } from 'node:fs/promises';
+import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { resolve, join, relative, dirname, basename } from 'node:path';
 import { existsSync } from 'node:fs';
 import { PLATFORM_DIR } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
 const DRY_RUN = process.argv.includes('--dry-run');
+const TEMPLATES_MODE = process.argv.includes('--templates');
 
-const COMMANDS_SRC = resolve(ROOT, '.claude/commands');
-const AGENTS_SRC = resolve(ROOT, '.claude/agents');
-const SKILLS_DST = resolve(ROOT, '.antigravity/skills');
-const AGENTS_DST = resolve(ROOT, '.antigravity/agents');
-const PLAYBOOKS_SRC = resolve(ROOT, PLATFORM_DIR, 'workflows/playbooks');
-const PLAYBOOKS_DST = resolve(ROOT, '.antigravity/playbooks');
-const WORKFLOWS_SRC = resolve(ROOT, PLATFORM_DIR, 'workflows');
-const WORKFLOWS_DST = resolve(ROOT, '.antigravity/workflows');
+const SRC_BASE = TEMPLATES_MODE ? 'templates/claude' : '.claude';
+const WF_BASE = TEMPLATES_MODE ? `templates/${PLATFORM_DIR}` : PLATFORM_DIR;
+const DST_BASE = TEMPLATES_MODE ? 'templates/antigravity' : '.antigravity';
+
+const COMMANDS_SRC = resolve(ROOT, SRC_BASE, 'commands');
+const AGENTS_SRC = resolve(ROOT, SRC_BASE, 'agents');
+const SKILLS_DST = resolve(ROOT, DST_BASE, 'skills');
+const AGENTS_DST = resolve(ROOT, DST_BASE, 'agents');
+const PLAYBOOKS_SRC = resolve(ROOT, WF_BASE, 'workflows/playbooks');
+const PLAYBOOKS_DST = resolve(ROOT, DST_BASE, 'playbooks');
+const WORKFLOWS_SRC = resolve(ROOT, WF_BASE, 'workflows');
+const WORKFLOWS_DST = resolve(ROOT, DST_BASE, 'workflows');
 
 /**
  * Strips YAML frontmatter (--- ... ---) from the content and extracts the
@@ -131,10 +145,29 @@ async function writeOutput(path, content) {
   await writeFile(path, content, 'utf-8');
 }
 
+/**
+ * Empties a generated destination tree, preserving a top-level README.md
+ * (hand-written index, e.g. skills/README.md). Templates mode only — the
+ * trees are fully generated there, so a clean build is what prevents
+ * renamed/removed sources from leaving stale orphans behind (ticket 085).
+ */
+async function cleanDst(dir) {
+  if (DRY_RUN || !existsSync(dir)) return;
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() && entry.name === 'README.md') continue;
+    await rm(join(dir, entry.name), { recursive: true, force: true });
+  }
+}
+
 // ── main ──
 
 async function main() {
   const report = { skills: 0, agents: 0, playbooks: 0, workflows: 0, errors: [] };
+
+  if (TEMPLATES_MODE) {
+    console.log('\n🧹 Templates mode: cleaning generated trees (top-level README.md kept)...');
+    for (const d of [SKILLS_DST, AGENTS_DST, PLAYBOOKS_DST, WORKFLOWS_DST]) await cleanDst(d);
+  }
 
   // 1. Convert slash commands → skills
   console.log('\n🔄 Converting slash commands → skills...');
