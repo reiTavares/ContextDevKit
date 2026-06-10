@@ -170,7 +170,9 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // Ticket 092 — single drift predicate: session-manager consumes the Stop hook's ledger module.
     ['session-manager reuses the canonical drift predicate (ticket 092)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /pendingImportantPaths.*from '\.\.\/hooks\/ledger\.mjs'/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
-    ['convert-all targets the .antigravity/skills tree', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /'\.antigravity\/skills'/],
+    ['convert-all builds the skills tree from the mode-resolved base (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /resolve\(ROOT, DST_BASE, 'skills'\)/],
+    ['convert-all has the --templates kit-build mode (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE/],
+    ['package.json wires the antigravity build step (ticket 085)', 'package.json', /"build:antigravity":\s*"node templates\/contextkit\/runtime\/antigravity\/convert-all\.mjs --templates"/],
     ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],
     // ADR-0037 — host-modular installer: install.mjs orchestrates, hosts/engine in tools/install/.
     ['install.mjs wires the host-neutral engine installer (ADR-0037)', 'install.mjs', /installEngine\(target, TPL,/],

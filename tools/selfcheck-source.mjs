@@ -189,6 +189,76 @@ async function checkZeroRuntimeDeps(rep, KIT) {
     : bad(`runtime dependencies present (rule 1 violated): ${deps.join(', ')}`);
 }
 
+/**
+ * Every `bin` target must EXIST and be PUBLISHED (covered by `files`). A bin pointing
+ * at a gitignored / files-excluded path ships a broken global command — npm only
+ * warns ("No bin file found"), so it slips through. Caught the `agy` → root `ctx.mjs`
+ * (dogfood, never in the tarball) regression [bug 097].
+ */
+async function checkBinTargets(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking package.json bin targets exist + are published...');
+  let pkg = {};
+  try {
+    pkg = JSON.parse(await readFile(resolve(KIT, 'package.json'), 'utf-8'));
+  } catch {
+    bad('package.json unreadable — cannot verify bin targets');
+    return;
+  }
+  const files = pkg.files || [];
+  const isPublished = (p) => files.some((f) => f === p || p.startsWith(f.endsWith('/') ? f : `${f}/`));
+  for (const [name, target] of Object.entries(pkg.bin || {})) {
+    if (!existsSync(resolve(KIT, target))) bad(`bin "${name}" → ${target} does not exist`);
+    else if (!isPublished(target)) bad(`bin "${name}" → ${target} is NOT covered by package.json files (won't ship)`);
+    else ok(`bin "${name}" → ${target} exists + ships`);
+  }
+}
+
+/**
+ * Drift-guard (ticket 084): templates/antigravity is GENERATED from
+ * templates/claude (+ contextkit/workflows) by `npm run build:antigravity`.
+ * Every Claude command/agent must have its Antigravity twin at the same
+ * relative path, and the generated trees must carry no orphans (a hand-written
+ * top-level README.md is the one allowed extra). Catches "edited the Claude
+ * source, forgot to regenerate" before it ships a stale host again.
+ */
+async function checkAntigravityParity(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking templates/antigravity tracks templates/claude (ticket 084)...');
+  const listMd = async (dir, base = dir) => {
+    let out = [];
+    let entries = [];
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return out;
+    }
+    for (const e of entries) {
+      const full = resolve(dir, e.name);
+      if (e.isDirectory()) out = out.concat(await listMd(full, base));
+      else if (e.name.endsWith('.md')) out.push(relative(base, full).replaceAll('\\', '/'));
+    }
+    return out;
+  };
+  const pairs = [
+    ['templates/claude/commands', 'templates/antigravity/skills', (f) => f !== 'README.md'],
+    ['templates/claude/agents', 'templates/antigravity/agents', () => true],
+  ];
+  for (const [srcRel, dstRel, includeSrc] of pairs) {
+    const src = (await listMd(resolve(KIT, srcRel))).filter(includeSrc);
+    const dst = await listMd(resolve(KIT, dstRel));
+    const missing = src.filter((f) => !dst.includes(f));
+    const orphans = dst.filter((f) => !src.includes(f) && f !== 'README.md');
+    missing.length === 0 && orphans.length === 0
+      ? ok(`${dstRel} tracks ${srcRel} 1:1 (${src.length} file(s))`)
+      : bad(
+          `${dstRel} drifted from ${srcRel} — run \`npm run build:antigravity\`` +
+            (missing.length ? `; missing: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}` : '') +
+            (orphans.length ? `; orphans: ${orphans.slice(0, 5).join(', ')}${orphans.length > 5 ? '…' : ''}` : ''),
+        );
+  }
+}
+
 /** Runs every source/structural check in order. `ctx` = { KIT }. */
 export async function runSourceChecks(rep, { KIT }) {
   await checkSourceInvariants(rep, KIT);
@@ -196,4 +266,6 @@ export async function runSourceChecks(rep, { KIT }) {
   await checkWorkflowsPinned(rep, KIT);
   await checkDocLinks(rep, KIT);
   await checkZeroRuntimeDeps(rep, KIT);
+  await checkBinTargets(rep, KIT);
+  await checkAntigravityParity(rep, KIT);
 }
