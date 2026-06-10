@@ -39,6 +39,22 @@ try {
   prefix.status !== 0 && !/tech-debt-scan ran/i.test(prefix.stdout)
     ? ok('ctx.mjs refuses a bare prefix instead of guessing (089)')
     : bad('ctx.mjs silently dispatched a prefix match');
+
+  // ── did-you-mean + per-command help (ticket 096) ──
+  const typo = ctx('doctr');
+  typo.status !== 0 && /Did you mean:.*doctor/i.test(typo.stderr) && !/Commands by category/i.test(typo.stderr + typo.stdout)
+    ? ok('unknown command suggests the closest matches, no full menu dump (096)')
+    : bad(`did-you-mean missing for "doctr": ${typo.stderr.slice(0, 200)}`);
+
+  const helpOne = ctx('help', 'doctor');
+  helpOne.status === 0 && /doctor/i.test(helpOne.stdout) && /Run: node ctx\.mjs doctor/.test(helpOne.stdout)
+    ? ok('help <command> prints the single-command card (096)')
+    : bad(`help doctor failed: ${(helpOne.stdout + helpOne.stderr).slice(0, 200)}`);
+
+  const menu = ctx();
+  /Commands by category/i.test(menu.stdout)
+    ? ok('bare ctx.mjs prints the categorised menu from the engine module (096)')
+    : bad('categorised menu missing — ctx-menu.mjs not loaded');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
