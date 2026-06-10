@@ -60,7 +60,7 @@ Good agents do one domain extremely well and delegate the rest. The shipped
 before writing your own. Add domain agents (frontend, db, security, …) as your
 codebase grows.
 
-The kit ships **28 sub-agents** across 7 squads — see
+The kit ships **32 sub-agents** across 7 squads — see
 [`docs/SQUADS/design-team.md`](SQUADS/design-team.md) for the UI/UX/SEO/landing
 specialists and [`docs/SQUADS/agent-forge.md`](SQUADS/agent-forge.md) for the
 L6+ agent-forge squad.

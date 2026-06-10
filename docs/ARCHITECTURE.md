@@ -2,7 +2,7 @@
 
 How ContextDevKit works internally — for anyone extending the engine.
 
-## Two install locations
+## Install locations (two hosts, one engine)
 
 Claude Code reads settings, slash commands, and agents from **hardcoded** paths
 under `.claude/`. Everything else — the engine, memory, scripts, providers —
@@ -10,18 +10,26 @@ lives under a single rebrandable folder, `contextkit/` (a "bounded context"
 separate from your product code). The only literal reference to that folder
 name is `PLATFORM_DIR` in `contextkit/runtime/config/paths.mjs`.
 
+Since v1.14 the same engine also powers a second native host, **Google
+Antigravity** (`.antigravity/` assets + the `ctx.mjs`/`agy` runner +
+`INSTRUCTIONS.md` boot context, generated 1:1 from the Claude sources) — see
+[ANTIGRAVITY.md](ANTIGRAVITY.md). The tree below shows the Claude host plus the
+shared engine:
+
 ```
+.antigravity/             # Antigravity host (skills/personas/playbooks/workflows)
+INSTRUCTIONS.md           # Antigravity boot context · ctx.mjs = the agy runner
 .claude/                  # fixed by Claude Code
   settings.json           # hook wiring (composed by the installer per level)
-  commands/               # 60+ slash commands, organised in domain packs
+  commands/               # 73 slash commands, organised in domain packs
     audit/                # tech-debt, security, deps, SEO/AISO
-    pipeline/             # DevPipeline + ship + dev-start + retro + runs
+    pipeline/             # DevPipeline + ship + dev-start + plan-week + retro + runs
     qa/                   # qa-signoff, test-plan, scaffold-tests, visual-test
-    vcs/                  # git, claim, release, worktree-new
+    vcs/                  # git, claim, release, worktree-new, gh-triage, draft-changelog
     forge/                # 14 agent-forge lifecycle commands
     setup/                # setupcontextdevkit, context-doctor, context-level
     *.md                  # daily commands at root
-  agents/                 # 28 sub-agent archetypes (frontmatter: name + description)
+  agents/                 # 32 sub-agent archetypes (frontmatter: name + description)
   .sessions/              # per-session ledgers (gitignored runtime state)
   .workspace/             # per-session claim files (gitignored runtime state)
 contextkit/
@@ -33,7 +41,8 @@ contextkit/
     review/               # PR/review CLI adapters (gh ships; glab/bb adapters fit the contract)
     media/                # Veo + Nano Banana image/video adapters
   runtime/state/          # canonical state.json substrate for tasks + runs
-  tools/scripts/          # 50+ helpers (reindex, dashboard, sync-check, audits, …)
+  tools/scripts/          # 76 helpers (reindex, dashboard, sync-check, guard, audits, …)
+  runtime/antigravity/    # session-manager (explicit lifecycle), ctx-menu, convert-all
   memory/                 # decisions/, sessions/, business-rules/, GLOSSARY.md, generated indices
   pipeline/               # DevPipeline lanes: backlog / working / testing / conclusion
   workflows/playbooks/    # tanstack, landing-page, seo-aiso, tech-debt-sweep, …
@@ -150,7 +159,7 @@ export async function postReviewComment({ prNumber, body }) { … }
 `detectsRemote` matches, then records the choice in `contextkit/config.json` →
 `providers.review`. Authority: [ADR-0021](../contextkit/memory/decisions/0021-provider-strategy-review-qa.md).
 
-### Media providers (`runtime/providers/media/`) *(new in v1.7)*
+### Media providers (`runtime/providers/media/`)
 
 Adapters for image and video generation via `node:fetch` against external APIs.
 Two ship today: **`nano-banana`** (Imagen 3 image) and **`veo`** (Veo 3 video),

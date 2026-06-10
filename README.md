@@ -18,27 +18,40 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v1.14
+## What's new in v1.17
 
-> **Dual-host.** Your project memory, ADRs, and squads now work identically whether
-> your team uses **Claude Code** or **Google Antigravity** — same engine, same ledger,
-> zero drift between them. (A differentiator single-host `CLAUDE.md` tools can't copy.)
+> **Dual-host, hardened.** Your project memory, ADRs, and squads work identically
+> whether your team uses **Claude Code** or **Google Antigravity** — same engine,
+> same ledger, zero drift between them. v1.15–v1.17 made the second host
+> production-grade: governance parity, a deterministic build pipeline, and a
+> drift-guard so the two hosts can never silently diverge.
 
 | Feature | What it does |
 |---|---|
-| **Antigravity integration** | Full native support for the Antigravity agent: skills, personas, playbooks, workflows, and a session manager (`session-manager.mjs`) |
-| **`ctx.mjs` / `agy` CLI runner** | Central script runner to search and run any of the 61 engine scripts with fuzzy matching, descriptions, and aliases |
+| **`agy guard <path>`** | Explicit L5 pre-edit checkpoint for the hook-less Antigravity host — exit 0 = allowed, exit 1 = run `/simulate-impact` first. Same gate definition as Claude Code's automatic PreToolUse hook |
+| **Safer `ctx.mjs` / `agy` dispatch** | Exact names + declared aliases only (no more silent prefix guessing); unknown commands get did-you-mean (closest 3) and `agy help <command>` prints a per-command card |
+| **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map committed under `contextkit/memory/project-map/` — stack, modules (🎨/⚙️/🔗/🛠️), exported symbols, and a **module dependency graph** (who imports whom) for blast-radius reasoning. Churn-free fingerprint; clone-safe staleness nudge at boot |
+| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Multi-agent deliberations: independent voices argue a hard question, a synthesizer converges (or records `unresolved`), the artifact feeds an ADR's Context |
+| **Antigravity-aware `/context-doctor`** | Verifies the runner, the `ctx`/`agy` shortcuts, the four `.antigravity` asset trees, `INSTRUCTIONS.md`, and leftover `{{TOKEN}}` placeholders |
+| **Deterministic host build** | `npm run build:antigravity` regenerates `.antigravity` skills/personas from the Claude sources (clean-first); a selfcheck **parity drift-guard** fails the build if the hosts diverge |
+| **Legacy migration** | `npx contextdevkit --update` carries an old `vibekit/` install forward to `contextkit/` automatically — memory, config, level, `.env` preserved |
+| **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` (engine / claude / antigravity / git) — adding a future host is one module + one call |
+
+<details>
+<summary><strong>Earlier highlights (v1.7–v1.14)</strong></summary>
+
+| Feature | What it does |
+|---|---|
+| **Antigravity integration** ([ADR-0036](contextkit/memory/decisions/0036-antigravity-second-native-host.md)) | Native second host: skills, personas, playbooks, workflows, `session-manager.mjs` explicit lifecycle, `INSTRUCTIONS.md` boot context |
 | **Landing-page skills** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | `landing-architect` agent + `/landing-page` command + opinionated anti-Lovable playbook (fold rules min 3 / ideal 5–7 / max 9; dated package recs) |
-| **Media generation** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap |
+| **Media generation** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` with Veo (video) + Nano Banana (image) adapters; `.env`-based; refuse-on-missing-creds + per-process cost cap + content-addressed cache |
 | **SEO + AISO** ([ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)) | `seo-specialist` agent + `/seo-audit` running 16 static checks (SEO + AI Search Optimization); refuse-on-unindexable SPAs |
 | **GitHub sync awareness** ([ADR-0026](contextkit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` shows open PRs with CI/review status at `/dev-start` + detects duplicate PRs pre-push |
-| **`/dashboard`** | Visual project state (kanban + ADRs + sessions + roadmap) — single self-contained HTML or live SSE-driven (`--watch`) |
-| **`/watch`** | Tail the active session ledger; optional `--follow` mode |
-| **`/workflow`** | Macro chaining roadmap → ADR → pipeline → ship with breadcrumbs |
-| **`/resume`** | Re-bind to a previously unregistered drift session |
-| **`/runs`** | List recent task transitions + pipeline runs across squads |
+| **`/dashboard` + `/watch`** | Visual project state (kanban + ADRs + sessions + roadmap) — self-contained HTML or live SSE (`--watch`); ledger tail |
+| **Pipeline lifecycle automation** ([ADR-0034](contextkit/memory/decisions/0034-pipeline-lifecycle-automation.md)) | ADR → backlog tasks, `/dev-start` auto-starts, Stop hook auto-concludes when acceptance criteria are all checked |
 | **Provider adapters** | `runtime/providers/review/` (gh) + `runtime/providers/media/` (Veo + Nano Banana) — same five-point contract |
-| **Task metadata v2** | Strict DAG `dependencies: []` + `complexity: S\|M\|L\|XL` + `spike` / `docs` types |
+
+</details>
 
 ## Why
 
@@ -99,7 +112,7 @@ ContextDevKit is a code-execution tool — install it like any dependency you ru
   L≥3) and Claude Code hooks into `.claude/settings.json`. Those hooks then run
   `node` on each session/commit/push. **Pin a tag** for a reproducible install
   rather than tracking the moving default branch:
-  `npx github:reiTavares/ContextDevKit#v1.7.0 --target . --yes`.
+  `npx github:reiTavares/ContextDevKit#v1.17.0 --target . --yes`.
 - **An existing git hook is never clobbered** — the installer backs it up to
   `<hook>.bak` before writing its wrapper. Worktrees are detected via the
   `gitdir:` pointer and hooks are installed in the resolved real `.git/`.
@@ -175,15 +188,16 @@ your-project/
   CLAUDE.md                          # boot context + your coding constitution
   .claude/
     settings.json                    # hook wiring (composed for your level)
-    commands/                        # 60+ slash commands, organised in packs
-      audit/                         # security + tech-debt + SEO/AISO audits
-      pipeline/                      # DevPipeline + ship + dev-start + retro + runs
+    commands/                        # 73 slash commands, organised in packs
+      audit/                         # security + tech-debt + SEO/AISO audits + validate-doc
+      pipeline/                      # DevPipeline + ship + dev-start + plan-week + retro + runs
       qa/                            # qa-signoff, test-plan, scaffold-tests, visual-test
-      vcs/                           # git, claim, release, worktree-new
+      vcs/                           # git, claim, release, worktree-new, gh-triage, draft-changelog
       forge/                         # 14 agent-forge lifecycle commands (L6+)
       setup/                         # setupcontextdevkit, context-doctor, context-level
-    agents/                          # 28 sub-agent archetypes (L4+)
-  .antigravity/                      # Antigravity assets (skills, agents, playbooks, workflows)
+    agents/                          # 32 sub-agent archetypes (L4+)
+  .antigravity/                      # Antigravity host (73 skills, 32 personas, playbooks, workflows)
+  INSTRUCTIONS.md                    # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs                            # Central CLI runner (accessible as agy <command> or npm run ctx)
   contextkit/
     .env.example                     # optional credentials template (media-gen)
@@ -194,7 +208,7 @@ your-project/
       review/                        # PR/review CLI adapters (gh)
       media/                         # Veo + Nano Banana adapters
     runtime/state/                   # canonical state.json substrate (ADR-0015)
-    tools/scripts/                   # 60+ helpers (reindex, dashboard, sync-check, audits, …)
+    tools/scripts/                   # 76 helpers (reindex, dashboard, sync-check, guard, audits, …)
     memory/decisions/                # ADRs (the why)
     memory/sessions/                 # one file per session (the what)
     memory/GLOSSARY.md
@@ -213,20 +227,24 @@ exactly the same as a flat layout.
 
 **Setup:** `/aidevtool-from0` (empty project) · `/setupcontextdevkit` (existing project)
 
-**Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/debate` · `/close-version`
-· `/context-refresh` · `/bug-hunt` · `/dashboard` · `/watch` · `/landing-page`
-· `/media-gen` · `/playbook` · `/predictions-review` · `/squad` · `/token-report`
-· `/tune-agents` · `/context-stats` · `/fleet` · `/distill-sessions` · `/distill-apply`
-· `/simulate-impact` · `/roadmap`
+**Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/debate` · `/advise`
+· `/close-version` · `/context-refresh` · `/project-map` · `/bug-hunt` · `/dashboard`
+· `/watch` · `/landing-page` · `/media-gen` · `/playbook` · `/predictions-review`
+· `/squad` · `/token-report` · `/tune-agents` · `/context-stats` · `/fleet`
+· `/distill-sessions` · `/distill-apply` · `/simulate-impact` · `/roadmap`
+· `/claude-md` · `/docs-reindex`
 
-**`pipeline/`:** `/pipeline` · `/ship` · `/dev-start` · `/retro` · `/runs` · `/workflow`
+**`pipeline/`:** `/pipeline` · `/ship` · `/dev-start` · `/plan-week` · `/retro`
+· `/runs` · `/workflow` · `/resume`
 
-**`vcs/`:** `/git` · `/claim` · `/release` · `/worktree-new` · `/resume`
+**`vcs/`:** `/git` · `/claim` · `/release` · `/worktree-new` · `/gh-triage`
+· `/draft-changelog` · `/changelog-social`
 
 **`qa/`:** `/qa-signoff` · `/test-plan` · `/scaffold-tests` · `/visual-test`
 
 **`audit/`:** `/audit` · `/deep-analysis` · `/security-setup` · `/deps-audit` ·
 `/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check` · `/seo-audit`
+· `/validate-doc`
 
 **`forge/`** (L6+, agent-forge squad): `/forge-new` and 13 lifecycle commands
 (`forge-{list,show,doctor,policy,budget,audit,eval,redteam,route,
@@ -234,6 +252,10 @@ fallback-test,refresh-matrix,killswitch,deprecate}`)
 
 **`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/context-doctor`
 · `/context-level` · `/context-config`
+
+On **Antigravity** every command above is a **skill** under `.antigravity/skills/`
+(same names, no `/` prefix), and the engine scripts run through the `agy` runner —
+see [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
 
 ## Squads — sub-agents organised by domain
 
@@ -243,7 +265,7 @@ Each squad has a **router agent** that picks specialists by intent.
 |---|---|---|
 | **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Cross-cutting design + PR review + memory hygiene |
 | **qa-team** | `qa-orchestrator` + `qa-unit` / `qa-integration` / `qa-fuzzer` / `qa-perf` / `qa-e2e` | Testing strategy + execution |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, **`seo-specialist`** *(new in v1.7)*, **`landing-architect`** *(new in v1.7)* | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages |
+| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages |
 | **security-team** | `security`, `code-security`, `infra-security` | Auth, secrets, dependencies, IaC, supply chain |
 | **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD (Brazilian data protection), policy |
 | **ops-team** | `devops` | CI/CD, deploys, environments, observability |
@@ -285,7 +307,7 @@ Add `glab.mjs` / `bb.mjs` / `tea.mjs` for GitLab / Bitbucket / Gitea — each
 follows the same `_adapter.mjs` contract. `detect.mjs` resolves the adapter
 from `git remote get-url origin` and records the choice in `contextkit/config.json`.
 
-### Media providers — `contextkit/runtime/providers/media/` *(new in v1.7)*
+### Media providers — `contextkit/runtime/providers/media/`
 
 | Adapter | Kind | Auth | Cost floor (dated 2026-06-02) |
 |---|---|---|---|
@@ -383,9 +405,11 @@ the media-gen credentials flow.
 ## Develop the kit itself
 
 ```bash
-npm test                      # selfcheck + 6 integration suites (what CI runs)
+npm test                      # selfcheck + 8 integration suites (what CI runs)
 node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
 node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
+npm run build:antigravity     # regenerate .antigravity skills/personas from templates/claude
+                              # (selfcheck fails if the two hosts drift)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules (zero hot-path deps, hooks
