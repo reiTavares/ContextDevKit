@@ -6,25 +6,28 @@
 ## O que é
 
 O ContextDevKit transforma "AI-assisted coding" em **engenharia**: em vez de torcer para a
-IA lembrar do contexto, o kit faz o ambiente (hooks do Claude Code) **forçar**
-boas práticas e guardar o histórico no próprio repositório. Funciona em qualquer
-projeto — do zero (greenfield) ou já existente, qualquer stack.
+IA lembrar do contexto, o kit faz o ambiente **forçar** boas práticas e guardar
+o histórico no próprio repositório. Funciona em qualquer projeto — do zero
+(greenfield) ou já existente, qualquer stack — e em **dois hosts nativos**:
+**Claude Code** (hooks automáticos) e **Google Antigravity** (CLI explícito via
+`agy`/`ctx.mjs` — veja a seção Antigravity abaixo).
 
-## Novidades na v1.7
+## Novidades na v1.17
+
+> **Dual-host, agora endurecido.** A memória do projeto, os ADRs e os squads
+> funcionam igualzinho no **Claude Code** e no **Google Antigravity** — mesmo
+> engine, mesmo ledger, zero divergência. As versões v1.15–v1.17 deixaram o
+> segundo host pronto para produção.
 
 | Feature | O que faz |
 |---|---|
-| **Skills de landing-page** ([ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md)) | Agente `landing-architect` + comando `/landing-page` + playbook anti-Lovable opinionado (regras de dobras: mín 3 / ideal 5–7 / máx 9; recomendações de pacotes datadas) |
-| **Geração de mídia** ([ADR-0024](contextkit/memory/decisions/0024-media-generation-veo-nano-banana.md)) | `/media-gen` com adapters Veo (vídeo) + Nano Banana (imagem); credenciais via `.env`; recusa-sem-credencial + cap de custo por processo |
-| **SEO + AISO** ([ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md)) | Agente `seo-specialist` + `/seo-audit` com 16 checagens estáticas (SEO + AI Search Optimization); recusa SPA não-indexável |
-| **GitHub sync awareness** ([ADR-0026](contextkit/memory/decisions/0026-github-sync-awareness-dev-flow.md)) | `sync-check.mjs` mostra PRs abertos com status de CI/review no `/dev-start` + detecta PR duplicado antes do push |
-| **`/dashboard`** | Estado visual do projeto (kanban + ADRs + sessões + roadmap) — HTML único auto-contido ou modo `--watch` com SSE em tempo real |
-| **`/watch`** | Acompanha o ledger da sessão atual em tempo real; `--follow` faz streaming |
-| **`/workflow`** | Macro que encadeia roadmap → ADR → pipeline → ship com breadcrumbs |
-| **`/resume`** | Re-vincula a uma sessão drift que ficou sem registro |
-| **`/runs`** | Lista transições de tarefas + runs do pipeline entre squads |
-| **Provider adapters** | `runtime/providers/review/` (gh) + `runtime/providers/media/` (Veo + Nano Banana) — mesmo contrato de 5 pontos |
-| **Task metadata v2** | DAG estrito `dependencies: []` + `complexity: S\|M\|L\|XL` + tipos `spike` e `docs` |
+| **`agy guard <path>`** | Checkpoint L5 explícito pré-edição no host sem hooks — exit 0 = liberado, exit 1 = rode `/simulate-impact` antes. Mesma definição de gate do hook PreToolUse do Claude Code |
+| **Dispatch seguro no `ctx.mjs`/`agy`** | Só nome exato + aliases declarados (sem adivinhação por prefixo); comando desconhecido ganha did-you-mean (3 mais próximos) e `agy help <comando>` mostra o card individual |
+| **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) commitado em `contextkit/memory/project-map/` — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** (quem importa quem) para raciocínio de blast radius |
+| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Deliberação multi-agente: vozes independentes debatem, um sintetizador converge (ou registra `unresolved`) e o artefato alimenta o Context de um ADR |
+| **`/context-doctor` ciente do Antigravity** | Verifica o runner, os atalhos `ctx`/`agy`, as 4 árvores `.antigravity`, o `INSTRUCTIONS.md` e placeholders `{{TOKEN}}` esquecidos |
+| **Build determinístico do host** | `npm run build:antigravity` regenera as skills/personas a partir das fontes Claude (limpa antes); um drift-guard no selfcheck falha o build se os dois hosts divergirem |
+| **Migração de install legado** | `npx contextdevkit --update` carrega um install `vibekit/` antigo para `contextkit/` automaticamente — memória, config, nível e `.env` preservados |
 
 ## Instalação
 
@@ -109,9 +112,10 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 ### Auditoria (pack `audit/`)
 - `/audit` · `/deep-analysis` · `/security-setup` · `/deps-audit`
 - `/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check`
-- **`/seo-audit`** *(novo)* — roda SEO + AISO; falha em `SPA_ENTRYPOINT` crítico.
+- `/seo-audit` — roda SEO + AISO; falha em `SPA_ENTRYPOINT` crítico.
+- `/validate-doc` — gate de qualidade dos artefatos de planejamento (ADRs/roadmap).
 
-### Landing pages e mídia *(novo)*
+### Landing pages e mídia
 - **`/landing-page <briefing>`** — invoca o `landing-architect`: decide
   indexabilidade primeiro, escolhe fold count (3/5–7/9), recusa cookie-cutter,
   monta plano com pacotes datados (Astro, Tailwind, Motion, Lucide, Plausible,
@@ -151,7 +155,7 @@ route,fallback-test,refresh-matrix,killswitch,deprecate}`.
 |---|---|---|
 | **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Design cross-cutting + revisão de PR + higiene de memória |
 | **qa-team** | `qa-orchestrator` + unit/integration/fuzzer/perf/e2e | Estratégia + execução de testes |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, **`seo-specialist`** *(v1.7)*, **`landing-architect`** *(v1.7)* | UI/UX, WCAG AA, SEO+AISO, landing pages de alta conversão |
+| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect` | UI/UX, WCAG AA, SEO+AISO, landing pages de alta conversão |
 | **security-team** | `security`, `code-security`, `infra-security` | Auth, segredos, deps, IaC, supply chain |
 | **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD, políticas |
 | **ops-team** | `devops` | CI/CD, deploys, ambientes, observabilidade |
@@ -181,7 +185,7 @@ Adapters thin sobre CLIs já instalados no host. Hoje: **`gh`** (GitHub CLI).
 Adicionar GitLab/Bitbucket é criar `glab.mjs`/`bb.mjs` seguindo o contrato em
 `_adapter.mjs`. `detect.mjs` resolve qual adapter usar a partir de `git remote get-url origin`.
 
-### Media providers (`contextkit/runtime/providers/media/`) *(novo)*
+### Media providers (`contextkit/runtime/providers/media/`)
 Dois adapters Google AI Studio:
 
 | Adapter | Tipo | Auth | Custo (datado 2026-06-02) |
@@ -197,6 +201,27 @@ Setup uma vez:
 
 Refusa de cara sem credencial (rule 8 — default refuse), nunca substitui por
 placeholder silenciosamente.
+
+## Antigravity — o segundo host nativo
+
+O instalador já deixa tudo pronto: `.antigravity/` (73 skills + 32 personas +
+playbooks + workflows), o runner `ctx.mjs` na raiz e o `INSTRUCTIONS.md` (o
+"CLAUDE.md" do Antigravity). O Claude Code não é tocado — os dois hosts
+coexistem no mesmo projeto, compartilhando o mesmo ledger e a mesma memória.
+
+Como o Antigravity não tem hooks, a governança roda como comandos explícitos:
+
+```bash
+node ctx.mjs session start    # início da sessão (boot context) — ou: agy session start
+node ctx.mjs session status   # drift pendente + estado
+node ctx.mjs guard <path>     # gate L5 antes de editar path de risco (exit 1 = simule antes)
+node ctx.mjs session end      # checagem de drift antes de encerrar
+node ctx.mjs help [comando]   # menu por categorias ou card de um comando
+```
+
+O dispatch é seguro por design: só nome exato ou alias declarado (errou o nome,
+ele sugere os 3 mais próximos — nunca executa um script "parecido"). Detalhes em
+[docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
 
 ## Fluxo recomendado por sessão
 
@@ -272,5 +297,5 @@ Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória
 ---
 
 Documentação completa (em inglês): `README.md`, `docs/LEVELS.md`,
-`docs/ARCHITECTURE.md`, `docs/CUSTOMIZING.md`, `docs/SQUADS/design-team.md`,
-`docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`.
+`docs/ARCHITECTURE.md`, `docs/ANTIGRAVITY.md`, `docs/CUSTOMIZING.md`,
+`docs/SQUADS/design-team.md`, `docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`.

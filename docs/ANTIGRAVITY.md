@@ -1,115 +1,171 @@
-# Integração e Especificações do Antigravity
+# Antigravity Integration — Architecture & Specification
 
-Este documento descreve as especificações técnicas, a arquitetura e a integração do **ContextDevKit** com a plataforma **Antigravity**. Ele detalha como a infraestrutura projetada originalmente para o Claude Code foi estendida de forma transparente para coexistir e funcionar nativamente com o agente Antigravity.
-
----
-
-## 1. Visão Geral
-
-A integração com o Antigravity foi projetada sob o princípio de **100% de paridade de recursos e zero interferência**. Isso significa que:
-1. Todas as capacidades do ContextDevKit (slash commands, sub-agentes, playbooks e workflows) estão disponíveis no Antigravity.
-2. O funcionamento do Claude Code não sofreu nenhuma alteração, permitindo o uso simultâneo de ambas as ferramentas no mesmo projeto sem divergência de estado.
+How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
+same engine, same memory, zero drift between the two hosts.
+Decision record: [ADR-0036](../contextkit/memory/decisions/0036-antigravity-second-native-host.md)
+(host) and [ADR-0037](../contextkit/memory/decisions/0037-host-modular-installer.md)
+(host-modular installer).
 
 ---
 
-## 2. Estrutura de Diretórios (.antigravity/)
+## 1. Overview
 
-Durante a instalação ou atualização do ContextDevKit, uma pasta oculta `.antigravity/` é criada na raiz do repositório contendo a versão adaptada dos recursos do kit para o Antigravity:
+The integration follows two principles:
+
+1. **Feature parity.** Every ContextDevKit capability — slash commands,
+   sub-agents, playbooks, workflows, the L5 governance gate — has an Antigravity
+   equivalent.
+2. **Zero interference.** Claude Code's surface (`.claude/`, hooks,
+   `CLAUDE.md`) is untouched; both hosts can be used in the same project
+   simultaneously without state divergence.
+
+The key difference between the hosts: Claude Code enforces governance
+**automatically via hooks** (SessionStart, PostToolUse, PreToolUse, Stop);
+Antigravity has no hook lifecycle, so the same governance runs as **explicit CLI
+checkpoints** the agent is instructed (by `INSTRUCTIONS.md`) to call. That
+trade-off is deliberate and documented.
+
+## 2. What gets installed
 
 ```text
 your-project/
+  INSTRUCTIONS.md     # Antigravity boot context (the host's CLAUDE.md)
+  ctx.mjs             # central CLI runner (also exposed as the `agy` bin)
   .antigravity/
-    skills/         # 105 Skills convertidas (anteriormente slash commands)
-    agents/         # 34 Personas/Sub-agentes configurados
-    playbooks/      # 7 Playbooks de engenharia de software
-    workflows/      # 6 Workflows de ciclo de vida do DevPipeline
+    skills/           # 73 skills — the slash commands, converted (same names)
+    agents/           # 32 personas — the sub-agent archetypes
+    playbooks/        # 7 reusable engineering procedures
+    workflows/        # 6 level lifecycle guides (L1–L5 + README)
 ```
 
+The installer also patches the target `package.json` with `"ctx"`/`"agy"` script
+shortcuts (silent no-op when there is no package.json).
+
 ### Skills (`.antigravity/skills/`)
-Os slash commands originais do Claude Code são documentos Markdown simples. Para o Antigravity, esses arquivos foram convertidos para o formato de **Skills**, onde o frontmatter e os blocos de instruções são adaptados para a engine de habilidades do agente.
-* **Resolução de Caminhos:** O runner do Antigravity processa as chamadas de skill de forma idêntica à do Claude Code.
-* **Índice Taxonômico:** O índice completo de skills e seu mapeamento por pacotes (QA, Audit, Pipeline, VCS, Forge, Setup, etc.) está documentado no Knowledge Item **contextdevkit-skills-index**.
+
+Claude Code slash commands converted to Antigravity **skills**: frontmatter
+stripped into a header, `$ARGUMENTS` and `.claude/` paths adapted, same domain
+taxonomy (`audit/`, `pipeline/`, `qa/`, `vcs/`, `forge/`, `setup/`). Invoke by
+name — "run the `audit` skill".
 
 ### Personas (`.antigravity/agents/`)
-Os sub-agentes especialistas de squads (como `devteam`, `qa-team`, `design-team` etc.) são expostos como **Personas** dentro de `.antigravity/agents/`. Cada persona contém instruções focadas de sistema que ensinam o agente a agir conforme o papel designado (ex: `seo-specialist`, `landing-architect`).
 
----
+The squad sub-agents (devteam, qa-team, design-team, security-team,
+compliance-team, ops-team, agent-forge) exposed as **personas**: focused system
+instructions the agent adopts on demand (e.g. `seo-specialist`,
+`landing-architect`).
 
-## 3. Runner Central de CLI (`ctx.mjs` / `agy`)
+## 3. The `ctx.mjs` / `agy` runner
 
-Para simplificar a execução dos 61 scripts do motor do ContextDevKit localizados em `contextkit/tools/scripts/`, foi introduzido o runner unificado **[ctx.mjs](../ctx.mjs)**.
+Antigravity has no slash commands, so the **runner** is the single entry point
+to the 76 engine scripts under `contextkit/tools/scripts/`:
 
-### Atalhos e Execução
-O runner pode ser acionado por meio de scripts do npm ou chamadas diretas ao binário global `agy`:
+```bash
+node ctx.mjs <command> [...args]   # always works
+npm run agy <command>              # via the patched package.json shortcut
+agy <command>                      # if contextdevkit is installed globally
+```
 
-* **Atalho local via npm:**
-  ```bash
-  npm run ctx <comando>
-  # ou
-  npm run agy <comando>
-  ```
-* **Comando global (`agy`):**
-  Definido no `package.json` através do mapeamento `"bin": { "agy": "ctx.mjs" }`. Após publicação ou linkagem local (`npm link`), pode ser usado diretamente:
-  ```bash
-  agy <comando>
-  ```
+Dispatch contract (tickets 089/090/096):
 
-### Funcionalidades do Runner
-* **Busca Aproximada (Fuzzy Matching):** Se você digitar `agy reindex`, o runner localiza automaticamente `contextkit/tools/scripts/session-reindex.mjs`.
-* **Ajuda Integrada e Listagem:** Executar `agy` ou `agy --help` lista todos os 61 comandos organizados por categorias (Core, VCS, QA, Pipeline, Audit, Forge, Setup, etc.) com suas respectivas descrições e caminhos.
-* **Resolução Inteligente de Parâmetros:** Passa todos os argumentos extras diretamente para o script final.
+- **Exact names and declared aliases only** — there is deliberately no prefix
+  guessing (`agy tech` does NOT silently run `tech-debt-scan.mjs`).
+- **Did-you-mean** — an unknown command prints the closest 3 matches
+  (substring, then Levenshtein) instead of dumping the full menu.
+- **`agy help`** prints the categorised menu; **`agy help <command>`** prints a
+  single-command card (description, category, alias, invocation). The menu
+  registry lives in `contextkit/runtime/antigravity/ctx-menu.mjs`; the runner
+  degrades to a minimal usage text when the engine is absent.
+- **Path confinement** — a resolved script must live under
+  `contextkit/tools/scripts/`; path-shaped commands are refused.
 
----
+**Trust model:** like npm scripts or git hooks, the runner executes code from
+the *current* project. Only run it inside a project you trust.
 
-## 4. Gerenciamento de Sessão (`session-manager.mjs`)
+## 4. Session lifecycle (`session-manager.mjs`)
 
-O ciclo de vida das sessões no Antigravity é controlado pelo script [session-manager.mjs](../contextkit/runtime/antigravity/session-manager.mjs).
+Claude Code's hook lifecycle is replaced by three explicit commands
+([session-manager.mjs](../templates/contextkit/runtime/antigravity/session-manager.mjs)):
 
-### Ciclo de Trabalho
-1. **`agy session start`:** Executa o gancho de boot (`boot-context.mjs`), que lê a configuração do projeto, inicializa o arquivo de sessão em `contextkit/memory/sessions/` e extrai o contexto atual do git.
-2. **`agy session status`:** Verifica os arquivos editados e o ledger de drift local para identificar se há modificações que ainda não foram documentadas ou registradas na sessão ativa.
-3. **`agy session end`:** Valida regras do projeto (como arquivos não rastreados de forma inadequada), fecha formalmente a sessão e dispara o script `session-reindex.mjs` para reconstruir o índice de sessões do projeto.
+| Command | Replaces | What it does |
+|---|---|---|
+| `agy session start` | SessionStart hook | Runs `boot-context.mjs` (memory digest, branch, drift, unreleased changes) + prints the Antigravity process rules |
+| `agy session status` | — | Pending drift, last session, unreleased changes |
+| `agy session end` | Stop hook | Drift check before ending: register via the `log-session` skill, or confirm the work is discardable |
 
----
+Drift detection uses the **same predicate as the Claude Code Stop hook**
+(`pendingImportantPaths` from `runtime/hooks/ledger.mjs`, config-driven via
+`ledger.important`) — the two hosts agree by construction on what counts as
+unregistered work (ticket 092).
 
-## 5. Coexistência com Claude Code
+## 5. Governance parity — `agy guard`
 
-Uma das premissas fundamentais da integração é a **Coexistência Pacífica**. Claude Code e Antigravity compartilham exatamente os mesmos dados de memória de projeto e infraestrutura técnica:
+The L5 high-risk gate (PreToolUse `simulate-gate` hook on Claude Code) exists on
+Antigravity as an **explicit pre-edit checkpoint** (ticket 095):
+
+```bash
+node ctx.mjs guard src/db/schema.ts
+# exit 0 — allowed (below L5, not high-risk, or covered by /simulate-impact)
+# exit 1 — blocked: run the simulate-impact skill first (refuse-by-default)
+```
+
+Both hosts share one gate definition (`matchHighRisk` in
+`runtime/hooks/path-classification.mjs`) and one coverage source (the session
+ledger's simulation records). `INSTRUCTIONS.md` instructs the agent to run the
+guard before touching any `l5.highRiskPaths` entry.
+
+## 6. Coexistence with Claude Code
+
+Both hosts read and write the **same substrate**:
 
 ```mermaid
 graph TD
     subgraph Claude Code
-        CC[Claude CLI] -->|Lê/Escreve| LEDGER[.claude/.sessions/ & contextkit/memory/sessions/]
+        CC[Claude Code + hooks] -->|reads/writes| LEDGER[.claude/.sessions/ ledger]
     end
     subgraph Antigravity
-        AG[Antigravity IDE/CLI] -->|Lê/Escreve| LEDGER
+        AG[Antigravity + agy CLI] -->|reads/writes| LEDGER
     end
-    LEDGER -->|Sincronia| MEM[contextkit/memory/SESSIONS.md]
+    LEDGER --> MEM[contextkit/memory/ — sessions, ADRs, GLOSSARY, pipeline]
 ```
 
-* **Sem Conflitos de Estado:** Ambos os sistemas usam o mesmo ledger de detecção de drift. Uma alteração iniciada no Claude Code e continuada no Antigravity não gerará avisos de drift incompatíveis, mantendo o histórico de desenvolvimento linear.
-* **Configuração Não Intrusiva:** O instalador [install.mjs](../install.mjs) injeta ganchos independentes para o Antigravity sem alterar os arquivos `.claude/settings.json` dedicados ao Claude Code.
+- One drift ledger: a session started in Claude Code and continued in
+  Antigravity produces a single coherent history.
+- The installer wires each host independently — `.claude/settings.json` is never
+  touched by the Antigravity steps and vice versa.
 
----
+## 7. Build pipeline — how the host stays in sync
 
-## 6. Portabilidade e Regra Estática (Rule 4)
+`templates/antigravity/` is **generated** from the Claude sources by
+[convert-all.mjs](../templates/contextkit/runtime/antigravity/convert-all.mjs)
+(ticket 085):
 
-De acordo com a **Constituição de Código do ContextDevKit**, os scripts e ganchos em templates não devem possuir caminhos hardcoded para o diretório `contextkit/`.
-
-Para garantir que a verificação estática do [selfcheck.mjs](../tools/selfcheck.mjs) passe com sucesso, todos os scripts do Antigravity importam caminhos configurados dinamicamente a partir de um utilitário de caminhos comuns:
-
-```javascript
-import { PLATFORM_DIR } from '../config/paths.mjs';
-// O PLATFORM_DIR resolve dinamicamente para o diretório de instalação ativo,
-// evitando strings estáticas proibidas no código-fonte dos templates.
+```bash
+npm run build:antigravity   # kit build step — clean-first regeneration
+                            # templates/claude + templates/contextkit/workflows
+                            # → templates/antigravity (top-level README.md kept)
 ```
 
----
+- Run it whenever a command/agent/playbook changes. It is a **kit build/release
+  step** — the user `install`/`--update` path only copies the generated tree.
+- A selfcheck **parity drift-guard** (ticket 084) fails the build when
+  `templates/antigravity` and `templates/claude` diverge (missing twins or
+  orphans, both directions).
+- Inside an installed project, the same script without `--templates` converts
+  the project's own custom `.claude/commands` → `.antigravity/skills`.
 
-## 7. Instalação e Atualização
+## 8. Health check
 
-Quando o instalador `install.mjs` é executado com a flag de instalação (`--target`) ou atualização (`--update`):
-1. **Instalação do Runner:** O arquivo `ctx.mjs` é copiado para a raiz do projeto alvo.
-2. **Cópia de Recursos:** A pasta `.antigravity/` é copiada de forma recursiva para a raiz do projeto.
-3. **Patching de `package.json`:** O instalador lê o `package.json` do projeto de destino e insere as chaves `"ctx"` e `"agy"` na seção `scripts`, além de registrar a propriedade `bin` se necessário.
-4. **Instruções Personalizadas:** Cria ou atualiza o arquivo `INSTRUCTIONS.md` com base no template `INSTRUCTIONS.md.tpl`, detalhando o uso do Antigravity específico para aquele repositório.
+`/context-doctor` (or `agy doctor`) is Antigravity-aware (ticket 086): it
+verifies the runner, the package.json shortcuts, the four asset trees,
+`INSTRUCTIONS.md`, and that no `{{TOKEN}}` placeholder survived rendering —
+advisory-only, so a Claude-only project never fails doctor over the optional
+host.
+
+## 9. Portability (rule 4)
+
+No Antigravity script hardcodes the platform folder: paths come from
+`PLATFORM_DIR` / `pathsFor()` (`runtime/config/paths.mjs`), enforced by the
+static selfcheck. The integration is covered end-to-end by
+`tools/integration-test-antigravity.mjs` (dispatch contract, guard, drift
+predicate, doctor) in the `npm test` chain.
