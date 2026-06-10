@@ -219,7 +219,13 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // ADR-0041 F0 — autonomy dial trust floor (tasks 100/102).
     ['simulate-gate documents the grade-blind invariant (task 100, ADR-0041)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /autonomy-grade-blind/],
     ['defaults ship autonomy as a consent grade only — no dead flags (task 102, ADR-0041)', 'templates/contextkit/runtime/config/defaults.mjs', /autonomy: \{ grade: 2 \},/],
-    ['schema validates autonomy.grade 1–4 and nothing else (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),\s*\}\)/],
+    ['schema validates autonomy.grade 1–4 (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),/],
     ['path-classification exports the secret-bearing class (task 103, ADR-0041 floor)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchSecret/],
     ['secret class is extendable, never removable (task 103, ADR-0041)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /never remove/],
+    // ADR-0042 F1 — dial core (tasks 106/107).
+    ['schema allows additive floor extension only (task 107, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /extraSecretPaths: z\.array\(z\.string\(\)\)\.default\(\[\]\)/],
+    ['the setter is the only autonomy.grade writer and audits every change (task 107)', 'templates/contextkit/tools/scripts/autonomy.mjs', /autonomy-audit\.jsonl/],
+    ['consequence text is single-sourced from the resolver module (task 107, ADR-0042)', 'templates/contextkit/tools/scripts/autonomy.mjs', /CONSEQUENCE_TEXT.*resolve-autonomy\.mjs/],
+    ['ctx-menu lists the autonomy dial for the Antigravity host (task 107)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /'autonomy': 'Show\/set the autonomy dial/],
+    ['/autonomy command briefing ships on the Claude host (task 107)', 'templates/claude/commands/setup/autonomy.md', /Never run the setter on your own initiative/],
 ];

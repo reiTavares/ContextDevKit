@@ -11,6 +11,7 @@ export const CATEGORIES = [
   {
     name: '⚙️  Configuration & Diagnostics',
     scripts: {
+      'autonomy': 'Show/set the autonomy dial — consent grade 1-4 (ADR-0041)',
       'context-level': 'Query or set current project level (L1–L7)',
       'context-config': 'Query or modify configuration parameters in config.json',
       'doctor': 'Diagnose installation health (git hooks, configs, paths, directories)',

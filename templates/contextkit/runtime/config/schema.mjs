@@ -64,6 +64,7 @@ const DeliberationsSchema = z
 const AutonomySchema = z
   .object({
     grade: z.number().int().min(1).max(4).default(2),
+    extraSecretPaths: z.array(z.string()).default([]),
   })
   .default({});
 
