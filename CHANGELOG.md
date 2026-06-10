@@ -6,7 +6,9 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added (backlog-zero batch — tickets 084–096)
+## [1.17.0] - 2026-06-10
+
+### Added — backlog-zero batch (tickets 084–096)
 - **`agy guard <path>` — explicit L5 pre-edit checkpoint (095).** Governance
   parity for the hook-less Antigravity host: exit 0 = allowed, exit 1 = high-risk
   path with no covering `/simulate-impact` record (refuse-by-default, including
@@ -28,7 +30,7 @@ this project follows [Semantic Versioning](https://semver.org/).
   `ctx.mjs` dispatch contract, the guard checkpoint, the shared drift predicate
   and the doctor checks; joined the `npm test` chain.
 
-### Fixed (backlog-zero batch)
+### Fixed
 - **`ctx.mjs` silent prefix dispatch (089).** `agy tech` no longer guesses
   `tech-debt-scan.mjs` via `startsWith` — exact names and declared aliases only;
   a near-miss fails loudly with suggestions.
@@ -48,7 +50,7 @@ this project follows [Semantic Versioning](https://semver.org/).
   `contextkit/tools/scripts`; the project-local trust assumption both runners
   share with npm scripts / git hooks is documented in their headers.
 
-### Changed (backlog-zero batch)
+### Changed
 - **Installer io convention unified (091).** The `engine`/`claude`/`antigravity`
   installers import `fs.mjs` directly; the pass-through `io` object and parameter
   are gone (half the modules already imported directly — one convention now).
@@ -81,6 +83,7 @@ this project follows [Semantic Versioning](https://semver.org/).
   recompute — structural, clone-safe, and it **skips** a cap-truncated module
   rather than false-flag it (rule 8). Self-contained (no `git`, no `tools/` import).
   Covered by selfcheck + churn-free + stale-on-edit integration asserts.
+
 
 ### Added
 - **`/project-map` — deterministic, stack-agnostic structural map (durable memory).**
