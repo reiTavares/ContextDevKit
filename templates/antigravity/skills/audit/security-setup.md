@@ -23,7 +23,7 @@ GitHub's own alerts into owned backlog tasks. Idempotent — safe to re-run.
    ```
    Needs an authenticated `gh` CLI (`gh auth login`). Degrades silently if absent — never blocks.
 
-4. **Triage with judgment** (adopt the posture of `the` (see `.antigravity/agents/the.md`) `code-security` agent): which alerts are actually
+4. **Triage with judgment** (adopt the posture of `the` (see `.agents/agents/the.md`) `code-security` agent): which alerts are actually
    reachable/exploitable in THIS app vs transitive noise? Recommend the fix — upgrade · pin ·
    replace · accept-with-reason. On a Critical/High, the security-team can block the release.
 

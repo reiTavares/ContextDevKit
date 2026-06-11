@@ -7,7 +7,7 @@
  * equivalent preserving directory structure.
  *
  * Two modes (ticket 085):
- *   - default — INSTALLED project: .claude/ + contextkit/workflows → .antigravity/.
+ *   - default — INSTALLED project: .claude/ + contextkit/workflows → .agents/ [ADR-0048].
  *     For users converting their own custom commands.
  *   - --templates — KIT build step: templates/claude/ + templates/contextkit/workflows
  *     → templates/antigravity/. Run via `npm run build:antigravity` whenever a
@@ -20,7 +20,7 @@
 import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { resolve, join, relative, dirname, basename } from 'node:path';
 import { existsSync } from 'node:fs';
-import { PLATFORM_DIR } from '../config/paths.mjs';
+import { PLATFORM_DIR, ANTIGRAVITY_DIR } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -28,7 +28,7 @@ const TEMPLATES_MODE = process.argv.includes('--templates');
 
 const SRC_BASE = TEMPLATES_MODE ? 'templates/claude' : '.claude';
 const WF_BASE = TEMPLATES_MODE ? `templates/${PLATFORM_DIR}` : PLATFORM_DIR;
-const DST_BASE = TEMPLATES_MODE ? 'templates/antigravity' : '.antigravity';
+const DST_BASE = TEMPLATES_MODE ? 'templates/antigravity' : ANTIGRAVITY_DIR;
 
 const COMMANDS_SRC = resolve(ROOT, SRC_BASE, 'commands');
 const AGENTS_SRC = resolve(ROOT, SRC_BASE, 'agents');
@@ -74,12 +74,14 @@ function adaptContent(body, type, filename) {
   // Replace "delegate to `agent-name`" patterns with persona references
   adapted = adapted.replace(
     /delegate to [`']?(\w[\w-]*)['`]?/gi,
-    'adopt the posture of `$1` (see `.antigravity/agents/$1.md`)'
+    `adopt the posture of \`$1\` (see \`${ANTIGRAVITY_DIR}/agents/$1.md\`)`
   );
 
-  // Replace .claude/ paths with .antigravity/ paths
-  adapted = adapted.replace(/\.claude\/commands\//g, '.antigravity/skills/');
-  adapted = adapted.replace(/\.claude\/agents\//g, '.antigravity/agents/');
+  // Replace .claude/ paths with the agy host paths [ADR-0048]
+  adapted = adapted.replace(/\.claude\/commands\//g, `${ANTIGRAVITY_DIR}/skills/`);
+  adapted = adapted.replace(/\.claude\/agents\//g, `${ANTIGRAVITY_DIR}/agents/`);
+  // Pre-ADR-0048 references in hand-written sources (playbooks/workflows)
+  adapted = adapted.replace(/\.antigravity\//g, `${ANTIGRAVITY_DIR}/`);
 
   // Replace "slash command" terminology
   adapted = adapted.replace(/slash command/gi, 'skill');

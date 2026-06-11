@@ -19,11 +19,11 @@ The integration follows two principles:
    `CLAUDE.md`) is untouched; both hosts can be used in the same project
    simultaneously without state divergence.
 
-The key difference between the hosts: Claude Code enforces governance
-**automatically via hooks** (SessionStart, PostToolUse, PreToolUse, Stop);
-Antigravity has no hook lifecycle, so the same governance runs as **explicit CLI
-checkpoints** the agent is instructed (by `INSTRUCTIONS.md`) to call. That
-trade-off is deliberate and documented.
+Both hosts now enforce governance **automatically via hooks** (ADR-0049):
+Claude Code through `.claude/settings.json`, agy through `.agents/hooks.json`
+(SessionStart, PostToolUse, PreToolUse, Stop — same scripts, one host-adapter
+seam). The **explicit CLI checkpoints** (`agy session …`, `agy guard`) remain
+as belt-and-braces for hook-less agy versions and on-demand checks.
 
 ## 2. What gets installed
 
@@ -31,24 +31,25 @@ trade-off is deliberate and documented.
 your-project/
   INSTRUCTIONS.md     # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs             # central CLI runner (also exposed as the `agy` bin)
-  .antigravity/
+  .agents/
     skills/           # 73 skills — the slash commands, converted (same names)
     agents/           # 32 personas — the sub-agent archetypes
     playbooks/        # 7 reusable engineering procedures
     workflows/        # 6 level lifecycle guides (L1–L5 + README)
+    hooks.json        # native agy lifecycle hooks, composed per level (ADR-0049)
 ```
 
 The installer also patches the target `package.json` with `"ctx"`/`"agy"` script
 shortcuts (silent no-op when there is no package.json).
 
-### Skills (`.antigravity/skills/`)
+### Skills (`.agents/skills/`)
 
 Claude Code slash commands converted to Antigravity **skills**: frontmatter
 stripped into a header, `$ARGUMENTS` and `.claude/` paths adapted, same domain
 taxonomy (`audit/`, `pipeline/`, `qa/`, `vcs/`, `forge/`, `setup/`). Invoke by
 name — "run the `audit` skill".
 
-### Personas (`.antigravity/agents/`)
+### Personas (`.agents/agents/`)
 
 The squad sub-agents (devteam, qa-team, design-team, security-team,
 compliance-team, ops-team, agent-forge) exposed as **personas**: focused system
@@ -84,14 +85,18 @@ the *current* project. Only run it inside a project you trust.
 
 ## 4. Session lifecycle (`session-manager.mjs`)
 
-Claude Code's hook lifecycle is replaced by three explicit commands
+The lifecycle is wired natively in `.agents/hooks.json` (ADR-0049): the agy
+`SessionStart` event runs `session-manager.mjs start` (which also mints the
+stable session id in `.claude/.sessions/.agy-active.json` that the per-event
+hooks share), and `Stop` runs `session-manager.mjs end`. The same three
+commands stay available explicitly
 ([session-manager.mjs](../templates/contextkit/runtime/antigravity/session-manager.mjs)):
 
-| Command | Replaces | What it does |
+| Command | Hook event | What it does |
 |---|---|---|
-| `agy session start` | SessionStart hook | Runs `boot-context.mjs` (memory digest, branch, drift, unreleased changes) + prints the Antigravity process rules |
+| `agy session start` | SessionStart | Runs `boot-context.mjs` (memory digest, branch, drift, unreleased changes) + prints the Antigravity process rules + mints the agy session id |
 | `agy session status` | — | Pending drift, last session, unreleased changes |
-| `agy session end` | Stop hook | Drift check before ending: register via the `log-session` skill, or confirm the work is discardable |
+| `agy session end` | Stop | Drift check before ending: register via the `log-session` skill, or confirm the work is discardable |
 
 Drift detection uses the **same predicate as the Claude Code Stop hook**
 (`pendingImportantPaths` from `runtime/hooks/ledger.mjs`, config-driven via
@@ -100,8 +105,11 @@ unregistered work (ticket 092).
 
 ## 5. Governance parity — `agy guard`
 
-The L5 high-risk gate (PreToolUse `simulate-gate` hook on Claude Code) exists on
-Antigravity as an **explicit pre-edit checkpoint** (ticket 095):
+The L5 high-risk gate fires automatically on both hosts: as the Claude Code
+PreToolUse `simulate-gate` hook, and on agy via the same script registered in
+`.agents/hooks.json` per write tool (`--host agy` makes it answer in the agy
+dialect — `decision: "deny"`). The **explicit pre-edit checkpoint** remains
+(ticket 095):
 
 ```bash
 node ctx.mjs guard src/db/schema.ts
@@ -152,7 +160,7 @@ npm run build:antigravity   # kit build step — clean-first regeneration
   `templates/antigravity` and `templates/claude` diverge (missing twins or
   orphans, both directions).
 - Inside an installed project, the same script without `--templates` converts
-  the project's own custom `.claude/commands` → `.antigravity/skills`.
+  the project's own custom `.claude/commands` → `.agents/skills`.
 
 ## 8. Health check
 

@@ -4,7 +4,7 @@
 
 # Playbook — `/tech-debt-sweep`
 
-> Operational spec: [`.antigravity/skills/tech-debt-sweep.md`](../../../.antigravity/skills/tech-debt-sweep.md).
+> Operational spec: [`.agents/skills/tech-debt-sweep.md`](../../../.agents/skills/tech-debt-sweep.md).
 > This page is **why** the board exists, **how to read it**, and the **anti-patterns**.
 
 ## Why it exists

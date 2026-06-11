@@ -23,7 +23,7 @@ Agents are grouped into **squads** under `contextkit/squads/`, declared by a man
 
 | Tier | Path | Consumed by |
 | --- | --- | --- |
-| Executable frontmatter (auto-load) | `.antigravity/agents/<name>.md` | Claude Code (the orchestrator) |
+| Executable frontmatter (auto-load) | `.agents/agents/<name>.md` | Claude Code (the orchestrator) |
 | Rich briefing (reference) | `contextkit/squads/<team>/<name>.md` | a human reading; the agent when consulted |
 
 Keeping the briefing out of the agent file keeps the frontmatter compact — fast to

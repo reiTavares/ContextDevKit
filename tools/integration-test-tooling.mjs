@@ -31,11 +31,7 @@ const fx = installFixture(rep);
 const { proj, cfgPath, hook, script } = fx;
 
 try {
-  // Antigravity integration: the install produced the agent assets, CLI runner, and instructions.
-  existsSync(join(proj, '.antigravity', 'agents')) && existsSync(join(proj, '.antigravity', 'skills')) &&
-    existsSync(join(proj, 'ctx.mjs')) && existsSync(join(proj, 'INSTRUCTIONS.md'))
-    ? ok('Antigravity assets installed (.antigravity/{agents,skills} + ctx.mjs + INSTRUCTIONS.md)')
-    : bad('Antigravity assets not installed by the installer');
+  // Antigravity host assertions live in integration-test-antigravity.mjs (ADR-0048).
 
   // Modular CLAUDE.md: two apps lacking CLAUDE.md → scaffold creates both.
   mkdirSync(join(proj, 'apps', 'api'), { recursive: true });

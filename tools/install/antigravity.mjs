@@ -3,12 +3,16 @@
  *
  * Extracted from install.mjs when the Antigravity wiring pushed the installer past
  * the constitution's RED line (> 308). One cohesive unit: the `ctx.mjs` CLI runner
- * (`agy`), the target package.json script shortcuts, the `.antigravity` asset tree
- * (skills/agents/playbooks/workflows), and the `INSTRUCTIONS.md` boot context. The
- * Claude Code host (settings, slash commands, agents) stays in install.mjs.
+ * (`agy`), the target package.json script shortcuts, the `.agents` asset tree the
+ * agy binary natively reads (skills/agents/playbooks/workflows) [ADR-0048], and
+ * the `INSTRUCTIONS.md` boot context. The Claude Code host (settings, slash
+ * commands, agents) stays in install.mjs.
  */
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
+import { composeAgentHooks } from '../../templates/contextkit/runtime/config/agent-hooks-compose.mjs';
 import { read, overwrite, copyTree, render } from './fs.mjs';
 
 /**
@@ -67,6 +71,29 @@ async function installInstructions(target, tplDir, ctx, report) {
 }
 
 /**
+ * Wires the agy lifecycle hooks into `.agents/hooks.json` for the level
+ * [ADR-0049], preserving any user-owned hook groups. An unparsable existing
+ * file is left untouched (refuse over clobber) with a warning.
+ * @param {string} target - project root
+ * @param {number} level - activation level 1–7
+ * @param {string[]} report - mutated with a progress line
+ */
+async function wireAntigravityHooks(target, level, report) {
+  const hooksPath = join(target, ANTIGRAVITY_DIR, 'hooks.json');
+  let existing = null;
+  if (existsSync(hooksPath)) {
+    try {
+      existing = JSON.parse((await read(hooksPath)).replace(/^\uFEFF/, ''));
+    } catch {
+      report.push(`⚠️  ${ANTIGRAVITY_DIR}/hooks.json is not valid JSON — left untouched, fix or delete it and re-run`);
+      return;
+    }
+  }
+  await overwrite(hooksPath, JSON.stringify(composeAgentHooks(existing, level), null, 2) + '\n');
+  report.push(`✓ agy lifecycle hooks wired (${ANTIGRAVITY_DIR}/hooks.json, level ${level})`);
+}
+
+/**
  * Installs the full Antigravity host into the target (runner + assets + boot file).
  * Ordering-independent of the Claude Code steps — call once after the engine lands.
  * @param {string} target - project root
@@ -82,8 +109,20 @@ export async function installAntigravityHost(target, tplDir, ctx, report) {
   await patchPackageScripts(target, report);
 
   // Antigravity assets (skills/agents/playbooks/workflows): always overwrite.
-  await copyTree(join(tplDir, 'antigravity'), join(target, '.antigravity'));
-  report.push('✓ Antigravity skills, agents, playbooks and workflows installed (.antigravity/)');
+  // `.agents/` is the directory the agy binary actually resolves [ADR-0048].
+  await copyTree(join(tplDir, 'antigravity'), join(target, ANTIGRAVITY_DIR));
+  report.push(`✓ Antigravity skills, agents, playbooks and workflows installed (${ANTIGRAVITY_DIR}/)`);
+
+  // Pre-ADR-0048 installs used `.antigravity/` — a kit-owned, always-overwrite
+  // tree (never user content), so removing the stale twin is safe and prevents
+  // the two trees from drifting apart.
+  const legacyTree = join(target, ANTIGRAVITY_LEGACY_DIR);
+  if (existsSync(legacyTree)) {
+    await rm(legacyTree, { recursive: true, force: true });
+    report.push(`✓ legacy ${ANTIGRAVITY_LEGACY_DIR}/ tree removed (assets migrated to ${ANTIGRAVITY_DIR}/, ADR-0048)`);
+  }
+
+  await wireAntigravityHooks(target, ctx.level, report);
 
   await installInstructions(target, tplDir, ctx, report);
 }

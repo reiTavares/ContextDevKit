@@ -11,8 +11,8 @@ When Claude Code opens a session in this directory, it automatically loads:
 | --- | --- | --- |
 | `CLAUDE.md` (root) | Always | Stack, immutable rules, the coding constitution, active level. |
 | `<module>/CLAUDE.md` | When editing that subtree | Local rules scoped to a module (see `/claude-md`). |
-| `.antigravity/agents/<name>.md` | Always (frontmatter) | Squad agents — auto-dispatched when the domain matches (L4+). |
-| `.antigravity/skills/<name>.md` | Always (frontmatter) | skills available in the chat. |
+| `.agents/agents/<name>.md` | Always (frontmatter) | Squad agents — auto-dispatched when the domain matches (L4+). |
+| `.agents/skills/<name>.md` | Always (frontmatter) | skills available in the chat. |
 
 On top of that, the `SessionStart` hook (L2) injects **dynamic** boot context: the
 last registered session, `[Unreleased]` from the changelog, detected drift, active
@@ -20,8 +20,8 @@ claims, and ahead/behind divergence vs `origin/<main>`.
 
 ## Hard technical constraints
 
-- Claude Code reads from fixed paths: `.claude/settings.json`, `.antigravity/skills/`,
-  `.antigravity/agents/`. **Do not move** these folders.
+- Claude Code reads from fixed paths: `.claude/settings.json`, `.agents/skills/`,
+  `.agents/agents/`. **Do not move** these folders.
 - `.claude/.sessions/` and `.claude/.workspace/` are runtime state (gitignored).
   They persist between sessions but never reach the repo.
 - Everything the platform owns lives under `contextkit/` — the single `PLATFORM_DIR`
@@ -30,8 +30,8 @@ claims, and ahead/behind divergence vs `origin/<main>`.
 ## End-to-end flow when Claude opens
 
 1. Claude Code reads root `CLAUDE.md` (the whole system, described tersely).
-2. Reads `.antigravity/agents/*.md` — squad agents become available for delegation (L4+).
-3. Reads `.antigravity/skills/*.md` — skills become available in the input.
+2. Reads `.agents/agents/*.md` — squad agents become available for delegation (L4+).
+3. Reads `.agents/skills/*.md` — skills become available in the input.
 4. The `SessionStart` hook (`contextkit/runtime/hooks/session-start.mjs`) runs via
    `.claude/settings.json`:
    - silent `git fetch origin` (short timeout, never blocks);
@@ -46,14 +46,14 @@ claims, and ahead/behind divergence vs `origin/<main>`.
   docs. The file warns when it grows past ~200 lines.
 - **Don't duplicate** between root and scoped `CLAUDE.md` — the child complements,
   never repeats.
-- **Don't inflate** `.antigravity/agents/<name>.md` — the frontmatter is executable; the
+- **Don't inflate** `.agents/agents/<name>.md` — the frontmatter is executable; the
   rich briefing lives in `contextkit/squads/<team>/<name>.md` (L4).
-- skills stay in `.antigravity/skills/`; their narrative playbooks live in
+- skills stay in `.agents/skills/`; their narrative playbooks live in
   `contextkit/workflows/playbooks/`.
 
 ## When to update
 
 - Stack change (lib, framework, runtime) → root `CLAUDE.md` **and** an ADR.
-- New squad agent → `.antigravity/agents/<name>.md` + `contextkit/squads/<team>/<name>.md`.
-- New skill → `.antigravity/skills/<name>.md` (+ a playbook here if it carries
+- New squad agent → `.agents/agents/<name>.md` + `contextkit/squads/<team>/<name>.md`.
+- New skill → `.agents/skills/<name>.md` (+ a playbook here if it carries
   judgment) + update the command list in root `CLAUDE.md`.

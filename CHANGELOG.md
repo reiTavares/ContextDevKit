@@ -25,6 +25,42 @@ this project follows [Semantic Versioning](https://semver.org/).
   { autoRefresh, enforce }` config block. Covered by selfcheck + integration
   (cycle, violation→exit-1, opt-in-off, `--for`).
 
+### Changed — Antigravity host goes native (ADR-0048 + ADR-0049)
+- **Host assets moved `.antigravity/` → `.agents/` (ADR-0048).** The agy binary
+  resolves workspace skills strictly from `.agents/`, so the kit-invented
+  `.antigravity/` was never read — typing `/` in the agy TUI showed *"No
+  matching results"*. The installer now targets `.agents/` (single-sourced as
+  `ANTIGRAVITY_DIR` in `paths.mjs`, rule 4), auto-removes the kit-owned legacy
+  tree on update, purges both on `--uninstall --purge`, and ships a
+  host-coexistence README (`.claude/` = Claude Code, `.agents/` = agy; neither
+  reads the other). `/context-doctor` flags a leftover legacy tree as
+  migratable. Slash commands now autocomplete natively in the agy TUI.
+
+### Added — native agy lifecycle hooks (ADR-0049)
+- **`.agents/hooks.json` composer.** New
+  `runtime/config/agent-hooks-compose.mjs` (`composeAgentHooks` /
+  `stripAgentHooks`) — the agy twin of `settings-compose.mjs`, owning a single
+  `contextdevkit` group and preserving user groups. Level rules mirror the
+  Claude wiring 1:1 (L1 SessionStart · L2 +PostToolUse +Stop · L3
+  +concurrency-guard · L5 +simulate-gate +deliberation-nudge); wired by the
+  installer, re-wired by `/context-level`, stripped by `--uninstall`.
+- **Host adapter — one seam, no forked hooks.** New
+  `runtime/hooks/host-adapter.mjs` normalizes both wire formats (Claude
+  `tool_input.file_path` ⇄ agy `toolCall.args.TargetFile`), emits the
+  host-correct blocking key (`block` ⇄ `deny`), rides advisories on an explicit
+  `decision: allow` under agy, and resolves the agy session id from the
+  `.agy-active.json` marker `session-manager start` now mints (one ledger per
+  agy session instead of one per hook event). `track-edits`,
+  `concurrency-guard`, `simulate-gate` and `deliberation-nudge` swapped their
+  private extractors for the adapter — the L5 gate, edit ledger, cross-claim
+  warnings and the deliberation nudge now fire automatically in agy.
+- **Tests.** Selfcheck: composer level table, per-tool matchers, idempotence +
+  user-group preservation, payload-normalization table, ADR-0048/0049 source
+  cases (check floor 660 → 711+ executed). Integration: `.agents/` install +
+  no-legacy-tree + coexistence README cells (tooling suite); hooks.json wiring,
+  agy session minting, `track-edits --host agy` ledgering and the
+  `simulate-gate --host agy` deny verdict (antigravity suite).
+
 ## [1.17.0] - 2026-06-10
 
 ### Added — backlog-zero batch (tickets 084–096)

@@ -23,9 +23,11 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { writeFileAtomic } from './safe-io.mjs';
-import { resolveSessionId, sanitizeSid, SESSIONS_DIR, toRepoRelative } from './ledger.mjs';
+import { sanitizeSid, SESSIONS_DIR, toRepoRelative } from './ledger.mjs';
+import { emitAdvisory, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
 
 async function readStdin() {
   return new Promise((res) => {
@@ -35,15 +37,6 @@ async function readStdin() {
     process.stdin.on('end', () => res(buf));
     setTimeout(() => res(buf), 500).unref?.();
   });
-}
-
-function extractFilePath(payload) {
-  const tool = payload?.tool_name;
-  const input = payload?.tool_input ?? {};
-  if ((tool === 'Edit' || tool === 'Write' || tool === 'MultiEdit') && typeof input.file_path === 'string') {
-    return input.file_path;
-  }
-  return null;
 }
 
 /** Returns the matching high-risk entry (or null) — same semantics as simulate-gate. */
@@ -93,7 +86,7 @@ async function main() {
     return;
   }
 
-  const filePath = extractFilePath(payload);
+  const filePath = normalizeToolPayload(payload).filePaths[0];
   if (!filePath) return;
   const targetPath = toRepoRelative(filePath);
   if (!targetPath) return;
@@ -102,10 +95,10 @@ async function main() {
   if (!matched) return;
 
   // Debounce: nudge at most once per session (a burst of edits stays quiet).
-  const marker = nudgeMarkerPath(resolveSessionId(payload));
+  const marker = nudgeMarkerPath(resolveHookSessionId(payload, HOST));
   if (existsSync(marker)) return;
 
-  process.stdout.write(buildNudge(targetPath, matched));
+  emitAdvisory(buildNudge(targetPath, matched), HOST);
   try {
     await mkdir(SESSIONS_DIR, { recursive: true });
     await writeFileAtomic(marker, String(Date.now()));

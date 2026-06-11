@@ -4,7 +4,7 @@
 
 # Playbook — `/simulate-impact`
 
-> Operational spec: [`.antigravity/skills/simulate-impact.md`](../../../.antigravity/skills/simulate-impact.md).
+> Operational spec: [`.agents/skills/simulate-impact.md`](../../../.agents/skills/simulate-impact.md).
 > This page explains **why** it exists, **when** to fire it, **how to read the
 > report**, and the common **anti-patterns**.
 

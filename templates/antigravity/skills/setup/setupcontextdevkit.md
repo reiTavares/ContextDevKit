@@ -77,7 +77,7 @@ Single-package project → the root CLAUDE.md is enough; skip.
 - Capture any explicit **domain rules** you can infer as versioned files in
   `contextkit/memory/business-rules/` (copy `_TEMPLATE.md`) — e.g. pricing, eligibility,
   scheduling, gamification. One cohesive rule per file.
-- At **level ≥ 4** the squads install (`.antigravity/agents/`): **devteam**, **qa-team**,
+- At **level ≥ 4** the squads install (`.agents/agents/`): **devteam**, **qa-team**,
   **compliance-team** (LGPD), **design-team** (UI/UX), plus starter product/ops
   agents. Review `contextkit/squads/README.md`. Enable the squads relevant to this
   project (e.g. compliance-team if it handles Brazilian residents' personal data;

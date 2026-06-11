@@ -6,14 +6,14 @@
 
 The sub-agents are organized into **squads** (see `contextkit/squads/README.md`):
 **devteam** (constructive — build + review) and **qa-team** (adversarial — verify
-behaviour). Agents live in `.antigravity/agents/` and install at **Level 4**.
+behaviour). Agents live in `.agents/agents/` and install at **Level 4**.
 
 Act on **<user-specified argument>**:
 
 ## show (default)
 Run `node contextkit/tools/scripts/squad.mjs list` (agents + which already have a
 tier-2 briefing) and read `contextkit/squads/README.md`; summarize the squads, their
-members, and when to use each. If `.antigravity/agents/` isn't present, note the project
+members, and when to use each. If `.agents/agents/` isn't present, note the project
 is below Level 4 — suggest `/context-level 4` to enable the squads.
 
 ## route <task>
@@ -30,12 +30,12 @@ node contextkit/tools/scripts/squad.mjs brief <agent>
 It auto-detects the agent's squad and creates `contextkit/squads/<squad>/<agent>.md`
 from `_BRIEFING.md.tpl` (idempotent). Then **fill it** with real, specific content
 for this project — anti-patterns, end-to-end recipes, edge cases — the deep
-reference behind the lean `.antigravity/agents/<agent>.md`.
+reference behind the lean `.agents/agents/<agent>.md`.
 
 ## new-squad <name>
 Add a new squad (e.g. `design-team`, `product-team`, `ops-team`): create a
 section in `contextkit/squads/README.md` with its mandate + roster, and scaffold its
-agents from `.antigravity/agents/_TEMPLATE.md` (sharp `description`s). Keep the
+agents from `.agents/agents/_TEMPLATE.md` (sharp `description`s). Keep the
 sovereignty rule clear (who decides on conflict).
 
 Remember the conflict rule: `code-reviewer` owns style/constitution;

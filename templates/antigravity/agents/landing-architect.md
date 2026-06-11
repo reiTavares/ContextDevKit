@@ -83,12 +83,12 @@ writes the code.
 | Three feature cards in a row with icon + 2-line description | the icons are decorative; the descriptions are generic; tells nothing | one feature shown in context (screenshot + 1-sentence outcome), repeated 2–3 times, each tied to a real user moment |
 | Three-tier pricing table (Basic / Pro / Enterprise) as the default | most products do not have three tiers; the table is performative | start with one price + a "is this for me?" decision tree; if multi-tier, lay out as recommendation engine, not table |
 | Testimonial slider at the bottom | sliders hide content; visitors do not interact with them | in-context quotes *next to the feature they validate* + one hero testimonial above the fold with a real photo |
-| FAQ accordion at the bottom | hidden by default; never read; useless for AISO | FAQ as scannable Q&A headings near the relevant section + `FAQPage` JSON-LD for AISO (adopt the posture of `seo-specialist` (see `.antigravity/agents/seo-specialist.md`)) |
+| FAQ accordion at the bottom | hidden by default; never read; useless for AISO | FAQ as scannable Q&A headings near the relevant section + `FAQPage` JSON-LD for AISO (adopt the posture of `seo-specialist` (see `.agents/agents/seo-specialist.md`)) |
 | Full-width newsletter signup in the footer | nobody signs up for a newsletter from a landing page in 2026 | offer one specific resource (guide, calculator, template) gated by email — earned, not begged |
 | Generic stock photos of people at laptops | reads as fake; same Unsplash bucket as everyone else | real product screenshots, custom illustrations, or `/media-gen` renders of the *domain* (ADR-0024) |
 | `Inter` font, Heroicons, tailwindui.com patterns | the "AI tells" of 2026 — recognised instantly | pair a display face (Fraunces / Schibsted Grotesk / Migra) with a clean body (Geist / SF Pro Web fallback). Lucide or hand-rolled SVG. |
 | 12+ folds with "history", "team", "blog teasers", "as featured in" rows | every extra fold past 9 has to fight for attention already past it | cut to ≤ 9; move history / team to an `/about` route; move blog teasers to a separate route; "as featured in" earns one row only with real logos |
-| Plain client-rendered SPA on a public route | empty initial HTML body → unindexable → invisible | refuse; propose Astro (or Next App Router / Nuxt / Remix / SvelteKit); adopt the posture of `seo-specialist` (see `.antigravity/agents/seo-specialist.md`) to verify |
+| Plain client-rendered SPA on a public route | empty initial HTML body → unindexable → invisible | refuse; propose Astro (or Next App Router / Nuxt / Remix / SvelteKit); adopt the posture of `seo-specialist` (see `.agents/agents/seo-specialist.md`) to verify |
 
 ## Self-audit before responding
 

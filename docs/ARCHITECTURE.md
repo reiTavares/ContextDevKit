@@ -11,13 +11,13 @@ separate from your product code). The only literal reference to that folder
 name is `PLATFORM_DIR` in `contextkit/runtime/config/paths.mjs`.
 
 Since v1.14 the same engine also powers a second native host, **Google
-Antigravity** (`.antigravity/` assets + the `ctx.mjs`/`agy` runner +
+Antigravity** (`.agents/` assets + the `ctx.mjs`/`agy` runner +
 `INSTRUCTIONS.md` boot context, generated 1:1 from the Claude sources) — see
 [ANTIGRAVITY.md](ANTIGRAVITY.md). The tree below shows the Claude host plus the
 shared engine:
 
 ```
-.antigravity/             # Antigravity host (skills/personas/playbooks/workflows)
+.agents/             # Antigravity host (skills/personas/playbooks/workflows)
 INSTRUCTIONS.md           # Antigravity boot context · ctx.mjs = the agy runner
 .claude/                  # fixed by Claude Code
   settings.json           # hook wiring (composed by the installer per level)

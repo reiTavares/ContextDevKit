@@ -4,7 +4,7 @@
 
 # Playbook — Distillation cycle (L5 Stage 2)
 
-> Operational: `.antigravity/skills/{distill-sessions,distill-apply}.md` + the Stage 2
+> Operational: `.agents/skills/{distill-sessions,distill-apply}.md` + the Stage 2
 > nudge in `check-registration.mjs`. This page is the **end-to-end flow**,
 > **anti-patterns**, and **calibration**.
 

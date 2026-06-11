@@ -3,12 +3,12 @@
 This directory contains the **Antigravity adaptation** of ContextDevKit's Claude Code slash commands, converted to skills.
 Unlike Claude Code which uses `/` command prefix, in Antigravity these files are executed as **Skills**.
 
-To use a skill, you can refer to it by name. For example: "run the `audit` skill" or "execute `.antigravity/skills/audit/audit.md`".
+To use a skill, you can refer to it by name. For example: "run the `audit` skill" or "execute `.agents/skills/audit/audit.md`".
 
 ## Layout
 
 ```
-.antigravity/skills/
+.agents/skills/
 ├── README.md                        ← you are here
 │
 │   Daily skills at the root — discovered first when you need daily workflows
