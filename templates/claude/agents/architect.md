@@ -1,5 +1,6 @@
 ---
 name: architect
+model: opus
 description: Cross-cutting design specialist. Use for decisions that span multiple modules — choosing a pattern, designing a subsystem, planning a migration, or whether to adopt a dependency (fit, maintenance, lock-in) — BEFORE code is written. (A dependency's security/supply-chain risk is the security agent's call.) Pairs with /new-adr and /simulate-impact. (devteam squad)
 ---
 

@@ -122,6 +122,16 @@ Both hosts share one gate definition (`matchHighRisk` in
 ledger's simulation records). `INSTRUCTIONS.md` instructs the agent to run the
 guard before touching any `l5.highRiskPaths` entry.
 
+### Known host gap — model-tier routing (ADR-0052)
+
+Cost-tiered model routing is **Claude Code only**. Kit agents declare a
+`model: haiku|sonnet|opus|inherit` tier in their Claude frontmatter (cheap models
+execute, expensive models think — ADR-0052); agy exposes no per-agent or
+per-dispatch model API the kit knows of, and `.agents/` personas are
+frontmatter-less conversions, so agy runs its session model for everything.
+Revisit when agy exposes per-dispatch model selection — the kit refuses to fake a
+Gemini mapping it cannot enforce (rule 8).
+
 ## 6. Coexistence with Claude Code
 
 Both hosts read and write the **same substrate**:

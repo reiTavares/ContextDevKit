@@ -1,5 +1,6 @@
 ---
 name: forge-orchestrator
+model: inherit
 description: Runs the agent-forge pipeline end-to-end — invokes architect→router→prompt-engineer→tool-designer→(eval+governance Fase 3)→packager and refuses to ship if a gate fails. Use when a new Agent Package is requested (typically through /forge-new). Touches templates/contextkit/squads/agent-forge/lib/* and writes the package under agent-packages/<name>@<semver>/. (agent-forge squad)
 ---
 

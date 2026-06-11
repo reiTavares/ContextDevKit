@@ -1,5 +1,6 @@
 ---
 name: ui-designer
+model: sonnet
 description: UI / visual & design-system specialist — layout, spacing, typography, color, components, responsive behaviour, and visual consistency via tokens. Use to design or polish the look of a screen and keep the design system coherent. (design-team squad)
 ---
 

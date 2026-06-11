@@ -21,6 +21,7 @@
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { SOURCE_INVARIANT_CASES } from './selfcheck-source-cases.mjs';
 import { SOURCE_INVARIANT_CASES_RECENT } from './selfcheck-source-cases-recent.mjs';
 import { SOURCE_INVARIANT_CASES_LATEST } from './selfcheck-source-cases-latest.mjs';
@@ -216,16 +217,28 @@ async function checkBinTargets(rep, KIT) {
 }
 
 /**
- * Drift-guard (ticket 084): templates/antigravity is GENERATED from
+ * Drift-guard (ticket 084 + 140): templates/antigravity is GENERATED from
  * templates/claude (+ contextkit/workflows) by `npm run build:antigravity`.
- * Every Claude command/agent must have its Antigravity twin at the same
- * relative path, and the generated trees must carry no orphans (a hand-written
- * top-level README.md is the one allowed extra). Catches "edited the Claude
- * source, forgot to regenerate" before it ships a stale host again.
+ * Two layers:
+ *   1. NAME parity — every Claude command/agent has its Antigravity twin at
+ *      the same relative path, no orphans (a top-level README.md is the one
+ *      allowed extra).
+ *   2. CONTENT parity (ticket 140) — each twin is byte-identical to an
+ *      in-memory conversion of the current Claude source through the SAME
+ *      convert-core functions convert-all.mjs uses. Name parity alone let
+ *      body edits ship a stale host with CI green.
  */
 async function checkAntigravityParity(rep, KIT) {
   const { ok, bad } = rep;
-  console.log('Checking templates/antigravity tracks templates/claude (ticket 084)...');
+  console.log('Checking templates/antigravity tracks templates/claude (ticket 084 + 140)...');
+  let core = null;
+  try {
+    core = await import(
+      pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/antigravity/convert-core.mjs')).href
+    );
+  } catch (err) {
+    bad(`convert-core.mjs unimportable — content-parity gate cannot run: ${err.message}`);
+  }
   const listMd = async (dir, base = dir) => {
     let out = [];
     let entries = [];
@@ -242,10 +255,10 @@ async function checkAntigravityParity(rep, KIT) {
     return out;
   };
   const pairs = [
-    ['templates/claude/commands', 'templates/antigravity/skills', (f) => f !== 'README.md'],
-    ['templates/claude/agents', 'templates/antigravity/agents', () => true],
+    ['templates/claude/commands', 'templates/antigravity/skills', (f) => f !== 'README.md', core?.convertCommandToSkill],
+    ['templates/claude/agents', 'templates/antigravity/agents', () => true, core?.convertAgentToPersona],
   ];
-  for (const [srcRel, dstRel, includeSrc] of pairs) {
+  for (const [srcRel, dstRel, includeSrc, convert] of pairs) {
     const src = (await listMd(resolve(KIT, srcRel))).filter(includeSrc);
     const dst = await listMd(resolve(KIT, dstRel));
     const missing = src.filter((f) => !dst.includes(f));
@@ -256,6 +269,21 @@ async function checkAntigravityParity(rep, KIT) {
           `${dstRel} drifted from ${srcRel} — run \`npm run build:antigravity\`` +
             (missing.length ? `; missing: ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}` : '') +
             (orphans.length ? `; orphans: ${orphans.slice(0, 5).join(', ')}${orphans.length > 5 ? '…' : ''}` : ''),
+        );
+
+    // Layer 2 (ticket 140): regenerate each twin in memory and demand identity.
+    if (!convert) continue; // core unimportable already reported above — skip ≠ pass
+    const stale = [];
+    for (const rel of src.filter((f) => dst.includes(f))) {
+      const raw = await readFile(resolve(KIT, srcRel, rel), 'utf-8').catch(() => null);
+      const twin = await readFile(resolve(KIT, dstRel, rel), 'utf-8').catch(() => null);
+      if (raw === null || twin === null || convert(raw, rel) !== twin) stale.push(rel);
+    }
+    stale.length === 0
+      ? ok(`${dstRel} content matches an in-memory rebuild of ${srcRel} (ticket 140)`)
+      : bad(
+          `${dstRel} content is STALE vs ${srcRel} — run \`npm run build:antigravity\`; ` +
+            `stale: ${stale.slice(0, 5).join(', ')}${stale.length > 5 ? ` …+${stale.length - 5}` : ''}`,
         );
   }
 }

@@ -1,5 +1,6 @@
 ---
 name: ux-designer
+model: sonnet
 description: UX specialist — user flows, information architecture, interaction design, and usability. Use when designing or critiquing a screen/flow, reducing friction, or deciding how something should behave for the user. (design-team squad)
 ---
 

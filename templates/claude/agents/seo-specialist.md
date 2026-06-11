@@ -1,5 +1,6 @@
 ---
 name: seo-specialist
+model: sonnet
 description: SEO + AISO specialist — indexability, structured data, Core Web Vitals, llms.txt, FAQ schema. Use when reviewing or building a public-facing landing page, marketing site, or any surface the user wants discoverable by Google AND by LLM answer engines (ChatGPT, Perplexity, Claude search, Gemini). Pairs with landing-architect and code-reviewer; refuses unindexable SPAs by default. (design-team squad)
 # Optional MCP servers (ADR-0019) — none shipped today. A future Google
 # Search Console MCP could land here with a `rationale: cross-reference

@@ -7,8 +7,11 @@
  * playbooks. Pure presence checks — behavioral invariants live in the siblings.
  */
 import { existsSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+
+/** Model-alias whitelist for agent frontmatter (ADR-0052 — aliases only, never versioned IDs). */
+const VALID_MODEL_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
 
 /**
  * Runs the template-inventory checks.
@@ -48,6 +51,17 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'eval-designer.md', 'governance-officer.md', 'rag-designer.md']) {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
+  // ADR-0052 — every agent declares a cost-tier model ALIAS in frontmatter.
+  // A versioned model ID (e.g. claude-haiku-4-5-20251001) would rot with model
+  // generations; the dated capability matrix owns concrete IDs, so it fails here.
+  let modelTierFailures = 0;
+  for (const a of agents.filter((f) => f.endsWith('.md') && f !== '_TEMPLATE.md')) {
+    const frontmatter = (await readFile(resolve(KIT, 'templates/claude/agents', a), 'utf-8')).split('\n---')[0];
+    const modelLine = frontmatter.match(/^model:\s*(\S+)/m);
+    if (!modelLine) { bad(`agent ${a} has no model: tier (ADR-0052)`); modelTierFailures++; continue; }
+    if (!VALID_MODEL_ALIASES.has(modelLine[1])) { bad(`agent ${a} model "${modelLine[1]}" is not an alias (ADR-0052: haiku|sonnet|opus|inherit)`); modelTierFailures++; }
+  }
+  if (modelTierFailures === 0) ok(`all agents declare a valid model: tier alias (ADR-0052)`);
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
   for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'autonomy-readiness.mjs', 'lp-scaffold.mjs', 'lp-build.mjs']) {

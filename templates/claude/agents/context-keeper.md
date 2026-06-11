@@ -1,5 +1,6 @@
 ---
 name: context-keeper
+model: haiku
 description: Specialist for the ContextDevKit platform itself. Use when the task touches session logs, ADRs, the glossary, slash commands, hooks (Claude Code or git), the SESSIONS/WORKSPACE indices, the config, or any change to the context system under contextkit/. (devteam squad)
 ---
 

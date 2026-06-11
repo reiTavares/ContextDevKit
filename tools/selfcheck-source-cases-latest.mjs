@@ -31,4 +31,10 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['deps-audit reports an unreachable registry as SKIPPED, never a pass (rule 8)', 'templates/contextkit/tools/scripts/deps-audit.mjs', /'registry-skipped'/],
     ['deps-audit registry URL is env-overridable for offline tests', 'templates/contextkit/tools/scripts/deps-audit.mjs', /CONTEXT_NPM_REGISTRY/],
     ['deps-audit registry fetch is bounded (timeout, abbreviated metadata)', 'templates/contextkit/tools/scripts/deps-audit.mjs', /AbortSignal\.timeout\(8000\)/],
+    // Antigravity host hardening (tickets 140-143).
+    ['ctx.mjs interpolates arguments via function replacement — $&/$`/$\' stay literal (ticket 141)', 'templates/ctx.mjs', /\.replace\(\/\\\$ARGUMENTS\/g, \(\) => replacement\)/],
+    ['ctx.mjs resolves the agy-adapted skill tree before the raw Claude source (ticket 142)', 'templates/ctx.mjs', /walkDir\(resolve\(ROOT, '\.agents\/skills'\), filter\)\)\[0\]\s*\|\|\s*\(await walkDir\(resolve\(ROOT, '\.claude\/commands'\)/],
+    ['convert-all delegates the transformation to the shared convert-core (ticket 140)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /import \{ adaptContent, convertCommandToSkill, convertAgentToPersona \} from '\.\/convert-core\.mjs'/],
+    ['INSTRUCTIONS.md.tpl carries no rot-prone skill count (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*\b\d+ slash commands)[\s\S]*$/],
+    ['INSTRUCTIONS.md.tpl references no nonexistent engine-keeper persona (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*engine-keeper)[\s\S]*$/],
 ];

@@ -27,6 +27,8 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 _Background and rationale — the why behind the decisions._
 
 - [Architecture](ARCHITECTURE.md) — How ContextDevKit works internally — for anyone extending the engine.
+- [Model-tier routing study — expensive models think, cheap models execute](explanation/model-tier-routing-study.md) — the kit, wired together, give ~80% of the value with zero new engine code:
+- [Swarm feasibility study — a coordinated agent swarm on the autonomy substrate](explanation/swarm-feasibility-study.md) — Can ContextDevKit host a **strong agent swarm** — one coordinator pulling several
 - [Token-Economy & Agility Plan](token-economy-plan.md) — In this kit, **tokens are spent when the AI (Claude) reads files and reasons over
 
 ## 🗂️ Planning & meta

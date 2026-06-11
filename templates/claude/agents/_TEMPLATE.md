@@ -1,5 +1,6 @@
 ---
 name: <agent-name>
+model: <haiku|sonnet|opus|inherit — cost tier per ADR-0052. Aliases ONLY, never a versioned model ID. opus = judgment work (design/review/security), sonnet = skilled specialist work, haiku = mechanical execution guarded by QA gates, inherit = dispatchers that need session-grade judgment. Changing a tier = amending ADR-0052.>
 description: <ONE precise sentence — WHEN to invoke. The router matches on this. Name the concrete files/dirs/patterns this agent owns, e.g. "Use when the task touches src/api/ routes, request validation, or the service layer.">
 # Optional — declared MCP servers this agent expects (ADR-0019).
 # Each entry requires a `rationale`. `optional: true` (default) means the

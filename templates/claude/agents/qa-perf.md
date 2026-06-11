@@ -1,5 +1,6 @@
 ---
 name: qa-perf
+model: sonnet
 description: QA squad (Tier 2) — performance specialist. Use when a hot path is identified, a latency/throughput regression is suspected, or before scaling a critical flow. Benchmarks and profiles; does not micro-optimize on a hunch.
 ---
 

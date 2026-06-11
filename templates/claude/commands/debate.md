@@ -30,6 +30,9 @@ feeds an ADR's Context. It is NOT the canonical record of the *why* — the ADR 
    Assign genuinely different axes (e.g. correctness vs. cost vs. reversibility/blast-radius),
    not three shades of the same take. Each voice returns its strongest one-paragraph case +
    the trade-off it accepts. Keep them CONCISE, OBJECTIVE, HIGHLY TECHNICAL.
+   Voices are think-class — never downgrade them to a cheap model (ADR-0052's
+   tier override applies to execution dispatches only; deliberation quality IS
+   the product here).
 
 3. **Synthesize (you, not the voices).** You are the orchestrator — you argued no
    position, so you declare the outcome. Weigh the cases: which wins on which axis,

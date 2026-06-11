@@ -15,6 +15,11 @@ for independent slices via the Agent tool when available):
 - **qa-e2e** → critical user journeys, plus **visual / screenshot** checks where the
   UI's *look* is the contract (scaffold with `/visual-test`).
 
+Dispatches inherit each specialist's frontmatter `model:` tier (ADR-0052 —
+qa-unit/qa-integration run on the fast tier; their output is guarded by rule 4
+below). If a specialist's output fails the suite twice, re-dispatch exactly once,
+one tier up, and report the escalation.
+
 Rules:
 1. Match the project's existing test runner and file conventions. Never add a
    second framework.

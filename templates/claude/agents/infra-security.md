@@ -1,5 +1,6 @@
 ---
 name: infra-security
+model: opus
 description: Infrastructure & cloud security specialist (security-team). Use for the threat model of the platform the app RUNS on — IaC (Terraform/k8s/CloudFormation) misconfig, IAM & least-privilege, network exposure, secrets management, container/runtime hardening, and CI/CD supply-chain. Pairs with devops (who builds it) and security (who owns AppSec). (security-team)
 ---
 

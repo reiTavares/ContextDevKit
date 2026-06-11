@@ -144,8 +144,8 @@ JSON) and **config-driven** (ecosystems + license policy in `config.json`).
 `/deps-audit` grown with license policy + CycloneDX SBOM (`--sbom`) + lockfile-drift
 and a `deps` config block, `.github/` scaffolding (Dependabot + an advisory
 `security.yml`), and `gh-alerts.mjs` (GitHub alerts → DevPipeline backlog) behind a
-new `/security-setup`. *Deferred:* registry-backed staleness, scheduled alert-sync,
-required-check enforcement.
+new `/security-setup`. *Deferred (→ ADR-0047):* registry-backed staleness, scheduled
+alert-sync, required-check enforcement.
 
 ## L7 — Ecosystem & Scale (the former "Future directions", now shipped)
 
@@ -160,35 +160,38 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
 2. ✅ **Fleet mode (MVP).** One control plane over many repos via `/fleet` +
    `fleet.mjs` — registry at `~/.contextdevkit/fleet.json`; aggregate `stats` / `audit`
    across a portfolio; detect CLAUDE.md rule drift (`propagate --check`, detect-only).
-   *Deferred: auto-applying rule edits across repos; remote repos.*
+   *Deferred (→ ADR-0047, trigger-gated): auto-applying rule edits across repos; remote repos.*
 3. ✅ **Outcome-driven agent tuning (MVP).** `/tune-agents` + `agent-tuning.mjs`
    aggregate per-agent signals (briefing coverage, usage) and **propose** briefing
-   refinements (mirrors `/distill-sessions`; applies nothing). *Deferred: a closed
-   auto-loop + real per-agent outcome capture (PR-review / test attribution).*
+   refinements (mirrors `/distill-sessions`; applies nothing). *Deferred (→ ADR-0047,
+   re-evaluate after ADR-0044/F3 ships attribution): a closed auto-loop + real
+   per-agent outcome capture (PR-review / test attribution).*
 4. ✅ **Editor/CI surfaces (MVP).** Status-line widget (`statusline.mjs`, wired as
    `settings.statusLine`, preserves a user's own) + a **quality CI workflow**
    (`contract-scan --ci` + `tech-debt --ci`, shipped to `.github/workflows/`).
-   *Deferred: the Claude-driven PR-review bot (needs Claude in CI); making the
-   checks **required** is a branch-protection setting, not code.*
+   *Deferred (→ ADR-0047, trigger-gated): the Claude-driven PR-review bot (needs
+   Claude in CI); making the checks **required** is a branch-protection setting,
+   not code (refused as kit code in ADR-0047).*
 5. ✅ **Pluggable detectors & language packs (MVP).** Drop-in detectors from
    `contextkit/detectors/*.mjs` (loaded by `tech-debt-scan`) + stack **presets**
-   (`install.mjs --preset next|go|python`, merged into config). *Deferred: a larger
-   preset library.*
+   (`install.mjs --preset next|go|python`, merged into config). *Deferred (→ ADR-0047,
+   demand-driven): a larger preset library.*
 6. ✅ **Diverse & visual testing harness (MVP).** `/visual-test` + `visual-test.mjs`
    **scaffold** a browser-driven, visual layer (screenshot / visual-regression) for
    the detected stack — **Playwright JS** (`@playwright/test`) + **Python**
    (pytest-playwright); `status` detects an existing harness. Owned by `qa-e2e`
    (+ `design-team` for baselines), wired into `/scaffold-tests`, `/qa-signoff`, and
    the `/ship` gate. The runner is a **project** dependency (the kit scaffolds, never
-   bundles/runs browsers) — true to the zero-dep hot-path invariant. *Deferred:
-   running browsers in the kit's own CI; real baselines/diffing; a hosted diff service.*
+   bundles/runs browsers) — true to the zero-dep hot-path invariant. *Deferred
+   (→ ADR-0047): real baselines/diffing (trigger-gated); browsers in the kit's own
+   CI and a hosted diff service are **refused** there (invariant violations).*
 7. ✅ **Token economy & usage insight.** *Shipped (first cut):* `/token-report` +
    `token-report.mjs` read Claude Code's local session transcripts and aggregate
    **per-session token usage** (input / output / cache) and **per ISO week**, with a
    configurable **budget** (`tokens.budgetPerSession`) that flags hot sessions — the
    cost extension of L6 **Insight**. Read-only, local, zero-dep, aggregated counts
-   only. Next refinements (not yet done): per-agent/command breakdown and feeding the
-   data into automated optimization hints.
+   only. Next refinements: the per-agent/command breakdown is now owned by
+   **ADR-0044** (autonomy F3, task 113); automated optimization hints remain open.
 8. ✅ **Playbook management.** *Shipped:* the `workflows/playbooks/` foundation is now a
    **managed, runnable** layer — `playbook.mjs` + **`/playbook`** to **list** the
    registry (discover what exists), **show** a procedure, and **run** one (records a
@@ -268,8 +271,8 @@ PR (`/git pr`).
 skip, PR discovery only in explicit opt-in commands (never the hot path), and
 the script is read-only — it never creates, edits, or merges a PR.
 
-*Deferred:* `glab` (GitLab) parity, a PR line in `/git status`, a `--watch`
-checks poll, and a latency cache.
+*Deferred (→ ADR-0047):* `glab` (GitLab) parity, a PR line in `/git status`
+(bucket A — implement), a `--watch` checks poll, and a latency cache.
 
 ## Token economy: the digest layer (ADR-0027) — ✅ SHIPPED (PR #41, 2026-06-03)
 
@@ -314,8 +317,9 @@ summaries (reproducible, free); a digest miss is a **visible raw-fallback**, nev
 silent drop; each slice ships with a `selfcheck`/`integration-test` assertion and is
 re-measured against `/token-report`.
 
-*Deferred:* per-command/agent token attribution in `/token-report`; a DevPipeline
-board digest for `/pipeline`; an mtime-keyed digest cache if extraction cost ever shows.
+*Deferred:* per-command/agent token attribution in `/token-report` — now owned by
+**ADR-0044** (autonomy F3, task 113); the DevPipeline board digest for `/pipeline`
+and an mtime-keyed digest cache → **ADR-0047**.
 
 ## Proactive Advisor: a six-lane improvement engine (ADR-0028) — ✅ SHIPPED
 
@@ -352,10 +356,12 @@ lane → owner map is config-driven; unowned lanes degrade to a visible skip.
   wired to `growth.owner`; and **`deepen`** got an owner — the `product-owner`
   **depth lens** (maturing existing features, distinct from greenfield `features`).
 
-*Deferred:* a `--since <ref>` diff scope for `--after`; optional two-tier briefings
-for `growth` / `retention`; feeding recurring advisor findings into `/retro`.
+*Deferred (→ ADR-0047):* a `--since <ref>` diff scope for `--after`; optional
+two-tier briefings for `growth` / `retention`. *Since shipped:* recurring advisor
+findings now feed `/retro` + `/tune-agents` — `advise-review.mjs` reports per-lane
+hit-rate (ticket 070, PR #50).
 
-## Next — Behavioral discipline layer (ADR-0029)
+## Behavioral discipline layer (ADR-0029) — ✅ SHIPPED
 
 A review of the MIT-licensed [`andrej-karpathy-skills`](https://github.com/multica-ai/andrej-karpathy-skills)
 repo surfaced a clean asymmetry: the kit is strong on the **structural** layer
@@ -418,6 +424,84 @@ self-registering plugins, Wasm sandboxing / genetic swarms / local LoRA
 the floor is code, not config (rule 8); every phase ships merge-blocking tests
 (rule 3); grades 1–3 are plumbing of existing flags through one single-sourced
 resolver (rule 4); grade 4 is opt-in, experimental, and reversible.
+
+## Next — Deferred-items consolidation (ADR-0047)
+
+📋 A roadmap verification pass (2026-06-10) confirmed every section above as
+shipped and gathered the surviving *Deferred:* footnotes (from ADR-0002 / 0005 /
+0006 / 0007 / 0026 / 0027 / 0028) into one decision — **ADR-0047** — explicitly
+**excluding** everything the autonomy package (ADR-0041…0045, tasks 100–116)
+already owns. Three buckets:
+
+- 📋 **Bucket A — implement now** (each has a real consumer today): a PR line in
+  `/git status` (facts already computed by `sync-check.mjs`) · `/advise --after
+  --since <ref>` diff scope · a DevPipeline **board digest** (extends the
+  ADR-0027 layer for `/pipeline` + `/plan-week`) · **scheduled alert-sync**
+  (opt-in cron in the scaffolded `security.yml`, runs in the *project's* CI) ·
+  **registry-backed staleness** in `/deps-audit` (opt-in `--registry`; no
+  network ⇒ skipped, never a pass).
+- **Bucket B — stays deferred, trigger named:** `glab` parity · `--watch` poll +
+  latency cache · fleet `--apply`/remote repos · tuning closed-loop (after
+  ADR-0044/F3 attribution) · PR-review bot (Claude in CI) · preset library
+  (demand-driven) · visual baselines (first committed baseline) ·
+  growth/retention briefings.
+- **Bucket C — refused, on record:** hosted visual-diff service, browsers in the
+  kit's own CI, required-check enforcement as kit code (it's branch protection).
+
+## Conversion squad + deterministic LP scaffold (ADR-0050) — ✅ SHIPPED (PR #69, 2026-06-11)
+
+The landing surface (ADR-0023/0025) gained its missing four fronts in one
+package — strategy, legal, instrumentation and token economy:
+
+- ✅ **`lp-scaffold.mjs` + `lp-build.mjs` + `starters/landing/`** — componentized
+  source (one fold per file; `content/copy.json` is the AI's only editing
+  surface) assembled into one atomic indexable `dist/`; `--check` refuses
+  leftover tokens/sentinels and runs `seo-audit` + `aiso-audit` on the output
+  (born green, asserted in CI). Resolves ADR-0023's deferred starter without
+  inventing domain content. *Estimated ~30–60K → ~5–10K tokens per LP; baseline
+  to be measured via `/token-report` on the first real page.*
+- ✅ **LGPD by default** — consent banner ON (Consent Mode default-denied), GTM
+  direct but ID-less (inert, consent-gated), pixels as commented consent-wrapped
+  models only, privacy policy + terms generated as drafts (non-removable
+  lawyer-review disclaimer), webhook-decoupled lead forms.
+- ✅ **`conversion-strategist` + `tracking-integrator`** (design-team) — interview-
+  first neurodesign (refuses invented proof) and consent-first instrumentation
+  (pairs with `privacy-lgpd`); lean agents + tier-2 briefings.
+- ✅ **Playbook + `/landing-page` v2** — fold-anatomy menu, neurodesign
+  verify-don't-vibe table, legal & consent defaults, deterministic path.
+  *Refused, on record: fixed Next/React stack mandate, parallel 150-line cap,
+  7-fold minimum, example social proof, auto-wired pixels.*
+
+*Deferred:* EN-language legal templates (pt-BR/LGPD market first, rule 9);
+framework-variant (Astro/Next) scaffold parity; measuring the real token delta.
+
+## Next — Agent swarm + cost-tiered model routing (ADR-0051 + ADR-0052)
+
+Two linked decisions (session 52, 2026-06-11) ride on the completed autonomy
+substrate (F0–F4, v2.0.0). Full analyses:
+`docs/explanation/swarm-feasibility-study.md` and
+`docs/explanation/model-tier-routing-study.md`.
+
+**ADR-0052 — cost-tiered model routing** (Accepted; Phase 1 ✅ shipped, session 52):
+expensive models think, cheap models execute. All 34 agents declare a `model:`
+tier alias (7 opus · 21 sonnet · 4 haiku · 2 inherit, selfcheck-pinned);
+`/ship`/`/advise`/`/debate`/`/scaffold-tests` classify think-vs-execute at
+dispatch with floors (security ≥ sonnet), one-step QA escalation and budget
+de-escalation; capability-matrix refreshed to 2026-06 prices (+ Fable 5).
+Deterministic-first — no LLM-judge per dispatch; agy host gap on record.
+
+| # | Etapa | ADR | Motivo (why now) | Impacto | Tasks | Status |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **Routing Phase 1 — frontmatter tiers + dispatch rules + matrix refresh** | 0052 | Every subagent burned session-model (premium) tokens; Claude Code enforces `model:` natively, zero engine code | Execution fan-outs ~5–10× cheaper per call (Haiku $0.275 vs Fable $2.75 on a typical /ship fan-out); cache-safe by construction | — | ✅ session 52 |
+| 2 | **Routing Phase 2 — deterministic resolver + per-model attribution** | 0052 (follow-up) | The ≥60%-savings acceptance needs `byModel` data on top of D3; floors/escalation deserve code, not only skill text | `routing-policy.json` + `model-policy.mjs` (reuses router `loadMatrix`) + `selfcheck-model-policy` + `byModel` in token attribution | 139 | 📋 |
+| 3 | **Swarm P0 — zero-code validation run** | 0051 §9 | One afternoon answers the two killer questions (cost/task, conflict rate) before any engine code | Baseline row in the swarm study; kill criteria armed (>2× /ship cost → stop at v1; >20% overlap → receipts become mandatory input) | 123 (precondition) | 📋 |
+| 4 | **Swarm v1 — grade-3 coordinator** | **0051** | The substrate is complete; what's missing is the coordinator: nothing pulls N backlog tasks into parallel governed workstreams | `/swarm` + pure `swarm-plan.mjs` + `swarm-state.mjs` manifest; `swarm-dispatch` area; `by` field on events; worktree-per-workstream; **finishes at `testing`, never `done`** — `/swarm review` batches human approval | 123 | 📋 |
+| 5 | **Swarm v2 — grade-4** | 0051 §8 | Only after the ADR-0045 bar **plus ≥3 clean grade-3 swarm runs** (eligibility data accumulates passively — the real bottleneck) | Per-workstream hardened quorum, branch-only auto-push; permanently-grade-3 is an acceptable outcome | post-123 | 📋 |
+
+**Refused / deferred, on record (ADR-0052 §7):** LLM-judge per dispatch (costs
+what it saves + frozen quality opinions, ADR-0012 §5) · cross-CLI delegation
+(spend invisible to `/token-report` ⇒ unmeasurable savings) · invented agy
+Gemini mapping (host exposes no per-dispatch model API — rule 8).
 
 ## Design invariants (don't regress these)
 

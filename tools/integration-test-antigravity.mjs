@@ -54,14 +54,24 @@ try {
     ? ok('ctx.mjs refuses a bare prefix instead of guessing (089)')
     : bad('ctx.mjs silently dispatched a prefix match');
 
+  // Dual-host: the agy runner prints the agy-ADAPTED skill, not the raw Claude
+  // command — `# Skill:` header instead of Claude frontmatter (ticket 142).
+  const dualHost = ctx('debate', 'which cache strategy');
+  dualHost.status === 0 && /# Skill: debate/.test(dualHost.stdout) && !/Metadata:/.test(dualHost.stdout)
+    ? ok('ctx.mjs prefers the .agents/skills adapted variant in a dual-host install (142)')
+    : bad(`dual-host preference failed (status ${dualHost.status}): ${(dualHost.stdout + dualHost.stderr).slice(0, 300)}`);
+
   // Pure prompt command should be found in .agents/skills/ when .claude/ is absent (ADR-0048, ticket 085)
   const claudeDir = join(proj, '.claude');
   if (existsSync(claudeDir)) {
     rmSync(claudeDir, { recursive: true, force: true });
   }
-  const purePrompt = ctx('bug-hunt', 'weird memory leak');
-  purePrompt.status === 0 && /Skill: bug-hunt/i.test(purePrompt.stdout) && /weird memory leak/.test(purePrompt.stdout)
-    ? ok('ctx.mjs finds and runs pure-prompt commands from .agents/skills when .claude is absent')
+  // Argument carries JS replacement patterns on purpose: $& / $` must stay
+  // literal in the output, not re-inject the match or the preceding text (141).
+  const trickyArg = 'weird memory leak $& costs $100 $` literal';
+  const purePrompt = ctx('bug-hunt', trickyArg);
+  purePrompt.status === 0 && /Skill: bug-hunt/i.test(purePrompt.stdout) && purePrompt.stdout.includes(trickyArg)
+    ? ok('ctx.mjs finds pure-prompt commands from .agents/skills, argument verbatim incl. $&/$` (085 + 141)')
     : bad(`pure-prompt command loading failed (status ${purePrompt.status}): ${purePrompt.stdout + purePrompt.stderr}`);
 
   // ── did-you-mean + per-command help (ticket 096) ──

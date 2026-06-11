@@ -21,6 +21,7 @@ import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { resolve, join, relative, dirname, basename } from 'node:path';
 import { existsSync } from 'node:fs';
 import { PLATFORM_DIR, ANTIGRAVITY_DIR } from '../config/paths.mjs';
+import { adaptContent, convertCommandToSkill, convertAgentToPersona } from './convert-core.mjs';
 
 const ROOT = process.cwd();
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -38,87 +39,6 @@ const PLAYBOOKS_SRC = resolve(ROOT, WF_BASE, 'workflows/playbooks');
 const PLAYBOOKS_DST = resolve(ROOT, DST_BASE, 'playbooks');
 const WORKFLOWS_SRC = resolve(ROOT, WF_BASE, 'workflows');
 const WORKFLOWS_DST = resolve(ROOT, DST_BASE, 'workflows');
-
-/**
- * Strips YAML frontmatter (--- ... ---) from the content and extracts the
- * description for use as a header comment.
- */
-function stripFrontmatter(content) {
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!fmMatch) return { body: content, description: null, argumentHint: null };
-
-  const fm = fmMatch[1];
-  const body = fmMatch[2];
-  const descMatch = fm.match(/^description:\s*(.+)$/m);
-  const argMatch = fm.match(/^argument-hint:\s*(.+)$/m);
-
-  return {
-    body: body.trimStart(),
-    description: descMatch?.[1]?.trim() ?? null,
-    argumentHint: argMatch?.[1]?.trim() ?? null,
-  };
-}
-
-/**
- * Adapts Claude Code-specific references for Antigravity.
- */
-function adaptContent(body, type, filename) {
-  let adapted = body;
-
-  // Replace $ARGUMENTS with instruction
-  adapted = adapted.replace(/\$ARGUMENTS/g, '<user-specified argument>');
-
-  // Replace TodoWrite references with Antigravity task tracking
-  adapted = adapted.replace(/\bTodoWrite\b/g, 'task.md artifact (or equivalent tracking)');
-
-  // Replace "delegate to `agent-name`" patterns with persona references
-  adapted = adapted.replace(
-    /delegate to [`']?(\w[\w-]*)['`]?/gi,
-    `adopt the posture of \`$1\` (see \`${ANTIGRAVITY_DIR}/agents/$1.md\`)`
-  );
-
-  // Replace .claude/ paths with the agy host paths [ADR-0048]
-  adapted = adapted.replace(/\.claude\/commands\//g, `${ANTIGRAVITY_DIR}/skills/`);
-  adapted = adapted.replace(/\.claude\/agents\//g, `${ANTIGRAVITY_DIR}/agents/`);
-  // Pre-ADR-0048 references in hand-written sources (playbooks/workflows)
-  adapted = adapted.replace(/\.antigravity\//g, `${ANTIGRAVITY_DIR}/`);
-
-  // Replace "slash command" terminology
-  adapted = adapted.replace(/slash command/gi, 'skill');
-
-  // Replace `/command-name` invocations with skill references  
-  // (but NOT in code blocks or paths)
-  adapted = adapted.replace(
-    /(?<![`\/\w])\/(\w[\w-]*)\b(?!\.\w|\/)/g,
-    (match, name) => `the \`${name}\` skill`
-  );
-
-  return adapted;
-}
-
-/**
- * Builds the Antigravity skill header from extracted frontmatter.
- */
-function buildSkillHeader(filename, description, argumentHint) {
-  const name = basename(filename, '.md');
-  const lines = [`# Skill: ${name}`];
-  if (description) lines.push('', `> ${description}`);
-  if (argumentHint) lines.push(`> Argument: ${argumentHint}`);
-  lines.push('');
-  return lines.join('\n');
-}
-
-/**
- * Builds the Antigravity agent/persona header.
- */
-function buildAgentHeader(filename, description) {
-  const name = basename(filename, '.md');
-  const lines = [`# Agent Persona: ${name}`];
-  if (description) lines.push('', `> ${description}`);
-  lines.push('', '> When asked to adopt this persona, follow the posture and rules below.');
-  lines.push('');
-  return lines.join('\n');
-}
 
 /**
  * Recursively lists all .md files in a directory.
@@ -178,12 +98,8 @@ async function main() {
     if (cmd.relative === 'README.md') continue; // skip the index
     try {
       const raw = await readFile(cmd.absolute, 'utf-8');
-      const { body, description, argumentHint } = stripFrontmatter(raw);
-      const adapted = adaptContent(body, 'skill', cmd.relative);
-      const header = buildSkillHeader(cmd.relative, description, argumentHint);
-      const output = header + adapted;
       const dst = join(SKILLS_DST, cmd.relative);
-      await writeOutput(dst, output);
+      await writeOutput(dst, convertCommandToSkill(raw, cmd.relative));
       console.log(`  ✓ ${cmd.relative}`);
       report.skills++;
     } catch (err) {
@@ -198,12 +114,8 @@ async function main() {
   for (const agent of agents) {
     try {
       const raw = await readFile(agent.absolute, 'utf-8');
-      const { body, description } = stripFrontmatter(raw);
-      const adapted = adaptContent(body, 'agent', agent.relative);
-      const header = buildAgentHeader(agent.relative, description);
-      const output = header + adapted;
       const dst = join(AGENTS_DST, agent.relative);
-      await writeOutput(dst, output);
+      await writeOutput(dst, convertAgentToPersona(raw, agent.relative));
       console.log(`  ✓ ${agent.relative}`);
       report.agents++;
     } catch (err) {
@@ -218,7 +130,7 @@ async function main() {
   for (const pb of playbooks) {
     try {
       const raw = await readFile(pb.absolute, 'utf-8');
-      const adapted = adaptContent(raw, 'playbook', pb.relative);
+      const adapted = adaptContent(raw);
       const header = `# Playbook: ${basename(pb.relative, '.md')}\n\n> Reusable procedure. Follow the steps below when invoked.\n\n`;
       const dst = join(PLAYBOOKS_DST, pb.relative);
       await writeOutput(dst, header + adapted);
@@ -238,7 +150,7 @@ async function main() {
       if (!f.endsWith('.md')) continue;
       try {
         const raw = await readFile(join(WORKFLOWS_SRC, f), 'utf-8');
-        const adapted = adaptContent(raw, 'workflow', f);
+        const adapted = adaptContent(raw);
         const dst = join(WORKFLOWS_DST, f);
         await writeOutput(dst, adapted);
         console.log(`  ✓ ${f}`);

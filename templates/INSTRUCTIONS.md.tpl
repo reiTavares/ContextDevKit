@@ -42,7 +42,7 @@ If your task requires specialized knowledge, check the agent definitions in `.ag
 - **compliance-team**: `privacy-lgpd`, `governance-officer`
 - **ops-team**: `devops`
 - **agent-forge** (L6+): `forge-orchestrator`, `model-router`, `prompt-engineer`, `tool-designer`, `eval-designer`, `packager`, `rag-designer`, `agent-architect`
-- **independent**: `engine-keeper`, `growth`, `retention`, `product-owner`
+- **independent**: `growth`, `retention`, `product-owner`
 
 ### 3. Executing a Task (DevPipeline & Playbooks)
 - Run the `pipeline` skill to list outstanding backlog cards.
@@ -96,7 +96,7 @@ Before finishing:
 
 ## 📋 Available Skills Index (`.agents/skills/`)
 
-All 105 slash commands from Claude Code have been adapted into skills. The most common ones are:
+Every Claude Code slash command has been adapted into a skill (same relative path). The most common ones are:
 
 | Pack | Skill Path | Description |
 |---|---|---|
