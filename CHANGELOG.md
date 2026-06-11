@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Add your changes here._
+
+## [2.0.0] - 2026-06-11
+
 ### Added — F4 grade-4 control plane (ADR-0045, task 116 — completes the autonomy package F0–F4)
 - **Deterministic eligibility bar.** `/autonomy 4` now consults
   `autonomy-eligibility.mjs` and **refuses naming the failing criterion** unless
