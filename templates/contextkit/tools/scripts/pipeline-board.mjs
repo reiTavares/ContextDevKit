@@ -50,7 +50,10 @@ export function renderBoard(tasks) {
 
 /** One compact task line for the digest. Bounded: title clipped at 60 chars. */
 function digestLine(t) {
-  const title = t.title.length > 60 ? `${t.title.slice(0, 57)}…` : t.title;
+  // Defensive: a hand-edited/malformed card may lack a title — the digest is a
+  // never-crash summary (ADR-0027 posture), so coerce instead of throwing.
+  const raw = String(t.title || '(untitled)');
+  const title = raw.length > 60 ? `${raw.slice(0, 57)}…` : raw;
   return `${t.id} ${t.priority}${isOverdue(t) ? ' ⏰' : ''} ${t.type} — ${title}`;
 }
 

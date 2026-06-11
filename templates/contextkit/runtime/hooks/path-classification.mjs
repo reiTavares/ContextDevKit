@@ -95,14 +95,20 @@ export function matchHighRisk(targetPath, highRiskPaths) {
  * @param {string[]} [extraPatterns] additive basename/prefix entries from config
  * @returns {string|null} the matched pattern label, or null
  */
+/** SSH private-key basenames (frozen floor — config extends via extraPatterns). */
+const SSH_PRIVATE_KEYS = new Set(['id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519']);
+/** Credential-bearing extensions (keys, keystores, certs, PGP) — credential-adjacent ⇒ floored. */
+const SECRET_EXTENSIONS = ['.pem', '.key', '.keystore', '.p12', '.pfx', '.jks', '.crt', '.cer', '.cert', '.der', '.asc', '.gpg'];
+
 export function matchSecret(targetPath, extraPatterns = []) {
   const norm = normalize(targetPath || '');
   if (!norm) return null;
   const base = norm.slice(norm.lastIndexOf('/') + 1).toLowerCase();
   if (base === '.env' || base.startsWith('.env.')) return '.env*';
-  if (base === '.npmrc' || base === '.netrc') return base;
+  if (base === '.npmrc' || base === '.netrc' || base === '.git-credentials' || base === '.dockercfg') return base;
   if (base.startsWith('credentials') || base.startsWith('secrets.')) return 'credentials*';
-  const SECRET_EXTENSIONS = ['.pem', '.key', '.keystore', '.p12', '.pfx', '.jks'];
+  // SSH private keys — exact basenames only (`id_rsa.pub` has a different basename, so it won't match).
+  if (SSH_PRIVATE_KEYS.has(base)) return 'ssh-private-key';
   const matchedExtension = SECRET_EXTENSIONS.find((ext) => base.endsWith(ext));
   if (matchedExtension) return `*${matchedExtension}`;
   if (norm.includes('/secrets/') || norm.startsWith('secrets/')) return 'secrets/';

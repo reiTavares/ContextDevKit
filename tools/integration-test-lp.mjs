@@ -67,6 +67,17 @@ try {
   }
   index.includes('"@type": "FAQPage"') ? rep.ok('FAQPage JSON-LD generated from copy.json') : rep.bad('FAQPage JSON-LD missing');
 
+  // Audit 137: the disclaimer is "non-removable" by ENFORCEMENT, not convention —
+  // strip it from a legal source and --check must refuse (rebuild happens in --check).
+  const legalSrc = join(lpDir, 'legal', 'privacidade.html');
+  const legalOrig = read(lpDir, 'legal', 'privacidade.html');
+  writeFileSync(legalSrc, legalOrig.replace('revise com um advogado', 'REMOVIDO'), 'utf-8');
+  fx.script('lp-build.mjs', '--check').status === 1
+    ? rep.ok('--check REFUSES a legal page that dropped the lawyer disclaimer (audit 137, ADR-0050)')
+    : rep.bad('--check passed after the disclaimer was removed from the legal source');
+  writeFileSync(legalSrc, legalOrig, 'utf-8'); // restore for the round-trip below
+  fx.script('lp-build.mjs');
+
   // ---- copy/structure split: edit copy.json → value lands in dist ---------
   const copyPath = join(lpDir, 'content', 'copy.json');
   const copyJson = JSON.parse(read(copyPath));

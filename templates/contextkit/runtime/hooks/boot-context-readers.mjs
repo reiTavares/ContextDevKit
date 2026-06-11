@@ -128,9 +128,11 @@ export function digestUnreleased(text, topN = 5) {
       counts.push(current);
       continue;
     }
-    if (current && /^\s*[-*]\s+/.test(raw)) {
+    // Column-0 bullets only — a top-level entry. Indented sub-bullets (`  - …`) are
+    // detail of the entry above, not new entries, so they must not inflate the count.
+    if (current && /^[-*]\s+/.test(raw)) {
       current.n += 1;
-      if (entries.length < topN) entries.push(`- ${clip(stripMd(raw.replace(/^\s*[-*]\s+/, '')), 90)} _(${current.type})_`);
+      if (entries.length < topN) entries.push(`- ${clip(stripMd(raw.replace(/^[-*]\s+/, '')), 90)} _(${current.type})_`);
     }
   }
   const tallied = counts.filter((c) => c.n > 0);

@@ -63,14 +63,21 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     ? ok('every self-executing hook entrypoint is registered by some level (wiring drift, reverse)')
     : bad(`unregistered hook entrypoint(s) — the bypass-incident shape: ${unregistered.join(', ')}`);
 
-  // 3. Grade-blind invariant: no hook reads the autonomy config key.
+  // 3. Grade-blind invariant: no ENFORCEMENT hook branches on the consent grade —
+  //    neither via the raw config key NOR via the resolver (`resolveAutonomy(...).grade`
+  //    / `readAutonomyOverride`). Display-only modules that legitimately read the dial
+  //    for rendering are an EXPLICIT allowlist — the audited surface, not a blind spot.
+  const GRADE_DISPLAY_ALLOWLIST = new Set(['autonomy-signals.mjs']);
   const graded = present.filter((f) => {
+    if (GRADE_DISPLAY_ALLOWLIST.has(f)) return false;
     const src = readFileSync(resolve(hooksDir, f), 'utf-8');
-    return /config\s*\??\.\s*autonomy|\bautonomy\s*[.[]\s*(grade|level)/.test(src);
+    const rawKey = /config\s*\??\.\s*autonomy|\bautonomy\s*[.[]\s*(grade|level)/.test(src);
+    const viaResolver = /resolveAutonomy|readAutonomyOverride/.test(src) && /\.\s*grade\b/.test(src);
+    return rawKey || viaResolver;
   });
   graded.length === 0
-    ? ok('hooks are autonomy-grade-blind — no hook reads the consent key (ADR-0042)')
-    : bad(`hook(s) read the autonomy key — consent must never reach enforcement: ${graded.join(', ')}`);
+    ? ok('hooks are autonomy-grade-blind — no enforcement hook reads the grade via key OR resolver (ADR-0042; display-only allowlisted)')
+    : bad(`hook(s) read the autonomy grade — consent must never reach enforcement: ${graded.join(', ')}`);
 
   // matchSecret behavioral table (task 103): hits and required non-hits.
   const matchSecret = mods['hooks/path-classification.mjs']?.matchSecret;
@@ -86,6 +93,13 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     ['.github/workflows/ci.yml', '.github/workflows/'],
     ['.npmrc', '.npmrc'],
     ['credentials.json', 'credentials*'],
+    ['deploy/id_rsa', 'ssh-private-key'],
+    ['home/.ssh/id_ed25519', 'ssh-private-key'],
+    ['.git-credentials', '.git-credentials'],
+    ['certs/server.crt', '*.crt'],
+    ['pki/ca.cer', '*.cer'],
+    ['keys/team.asc', '*.asc'],
+    ['deploy/id_rsa.pub', null],
     ['src/hooks/keyboard.mjs', null],
     ['monkey.js', null],
     ['src/envelope.ts', null],

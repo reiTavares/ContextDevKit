@@ -55,6 +55,10 @@ try {
   const d2Banner = hook('session-start.mjs', {});
   /Added 2 · Fixed 1 \(3 entries\)/.test(d2Banner) && !d2Banner.includes('new thing\n- **Beta')
     ? ok('boot banner digests [Unreleased] as a count-by-type tally (ADR-0044 D2)') : bad('boot banner did not show the [Unreleased] digest');
+  // Audit 135: a nested sub-bullet is detail of its parent, not a new entry.
+  writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n### Added\n- **Parent.** a top-level entry\n  - nested detail under the parent\n\n## [1.0.0] - 2026-01-01\n- old\n');
+  /Added 1 \(1 entry\)/.test(hook('session-start.mjs', {}))
+    ? ok('boot [Unreleased] digest counts only column-0 bullets, not nested sub-bullets (audit 135)') : bad('digest inflated the count with a nested sub-bullet');
   writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\nFreeform notes without typed subsections here.\n\n## [1.0.0] - 2026-01-01\n- old\n');
   hook('session-start.mjs', {}).includes('Freeform notes without typed subsections')
     ? ok('boot banner falls back to the raw [Unreleased] section on a parse miss (ADR-0044 D2)') : bad('boot banner did not fall back to raw [Unreleased]');
