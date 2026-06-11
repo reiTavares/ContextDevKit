@@ -18,6 +18,10 @@ Run it and act on **$ARGUMENTS** (default: top 5):
 node contextkit/tools/scripts/plan-next.mjs [--top N] [--all] [--json]
 ```
 
+For lane context around the ranking, prefer the token-light
+`node contextkit/tools/scripts/pipeline.mjs board --digest` (ADR-0047) over
+reading the full board or N task files.
+
 Then:
 
 1. **Read the ranked list.** Lead with the single top pick and its one-line

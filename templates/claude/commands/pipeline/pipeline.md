@@ -14,9 +14,12 @@ items broken into tasks, each with priority + SLA, moving through three stages:
 
 Act as the **manager** of this board based on **$ARGUMENTS**:
 
-- **show** (default) — `node contextkit/tools/scripts/pipeline.mjs sync` then read
-  `contextkit/pipeline/devpipeline.md`; summarize what's in flight, what's next by
-  priority, and any SLA at risk. Recommend the single next task to pull.
+- **show** (default) — start token-light:
+  `node contextkit/tools/scripts/pipeline.mjs board --digest` (compact lane
+  summary, ADR-0047) and reason from it; open the full
+  `contextkit/pipeline/devpipeline.md` (after `pipeline.mjs sync`) only when the
+  digest isn't enough. Summarize what's in flight, what's next by priority, and
+  any SLA at risk. Recommend the single next task to pull.
 - **add** — create a task:
   ```
   node contextkit/tools/scripts/pipeline.mjs add --type <bug|feature|increment|chore> \

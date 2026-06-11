@@ -242,6 +242,12 @@ try {
     ? ok('human move appends its event — log is append-only across actors') : bad(`event log broken: ${JSON.stringify(movedState.events)}`);
   delete cfgRaw.autonomy;
   writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
+
+  // ADR-0047 A3 — board --digest: compact lane summary instead of N task files.
+  const digest = script('pipeline.mjs', 'board', '--digest').stdout || '';
+  /DevPipeline digest — Backlog \*\*\d+\*\*/.test(digest) && digest.includes('auto-move-target') && !digest.includes('| ID |')
+    ? ok('pipeline board --digest emits the bounded lane summary, not the full table (ADR-0047 A3)')
+    : bad(`board --digest wrong: ${digest.slice(0, 200)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

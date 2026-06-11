@@ -11,7 +11,7 @@ import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { wsjfScore, wsjfToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
-import { renderBoard, renderKnownBugs } from './pipeline-board.mjs';
+import { renderBoard, renderDigest, renderKnownBugs } from './pipeline-board.mjs';
 import { runValidate } from './pipeline-validate.mjs';
 import { listTasks } from './pipeline-tasks.mjs';
 import { add, ingest, ensureDirs } from './pipeline-add.mjs';
@@ -97,6 +97,11 @@ else if (cmd === 'start') await sessionCli('start', '▶', 'working/ (owner: thi
 else if (cmd === 'stop') await sessionCli('stop', '⏸', 'backlog/ (released)');
 else if (cmd === 'validate') { const t = tasks(); const e = runValidate(t); e.length ? (e.forEach((m) => console.error(`✗ ${m}`)), process.exit(1)) : console.log(`✅ ${t.length} tickets validated.`); }
 else if (cmd === 'sync') { sync(); console.log('✅ devpipeline.md regenerated.'); }
+else if (cmd === 'board') {
+  // --digest: token-light lane summary (ADR-0047 A3); default: the full board.
+  if (process.argv.includes('--digest')) console.log(renderDigest(tasks()));
+  else { sync(); console.log(readFileSync(resolve(PIPE, 'devpipeline.md'), 'utf-8')); }
+}
 else if (cmd === 'list') {
   const all = tasks();
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
@@ -104,6 +109,6 @@ else if (cmd === 'list') {
 } else if (cmd === 'qa-reject') qaReject({ PIPE, sync });
 else if (cmd === 'auto-transition') autoTransition({ ROOT, PIPE, sync });
 else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list|qa-reject|auto-transition>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list|board|qa-reject|auto-transition>');
   process.exit(1);
 }
