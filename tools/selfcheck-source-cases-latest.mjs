@@ -23,4 +23,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['pipeline.mjs wires the board --digest verb (ADR-0047 A3)', 'templates/contextkit/tools/scripts/pipeline.mjs', /cmd === 'board'/],
     ['/pipeline show starts from the digest, not N task files (ADR-0047 A3)', 'templates/claude/commands/pipeline/pipeline.md', /board --digest/],
     ['/plan-week points at the digest for lane context (ADR-0047 A3)', 'templates/claude/commands/pipeline/plan-week.md', /board --digest/],
+    // ADR-0047 A4 — scheduled alert-sync in the scaffolded security.yml (task 131).
+    ['security.yml ships the opt-in cron trigger, commented (ADR-0047 A4, rule 8)', 'templates/github/workflows/security.yml', /# schedule:\s*\n\s*#\s+- cron:/],
+    ['security.yml alert-sync job runs gh-alerts on the schedule only (ADR-0047 A4)', 'templates/github/workflows/security.yml', /alert-sync:[\s\S]*github\.event_name == 'schedule'[\s\S]*gh-alerts\.mjs/],
 ];
