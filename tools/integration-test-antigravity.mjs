@@ -10,7 +10,7 @@
  *
  * Run:  node tools/integration-test-antigravity.mjs   (exit 0 = healthy)
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run, reporter, installFixture } from './it-helpers.mjs';
 
@@ -24,6 +24,19 @@ const { proj } = fx;
 const ctx = (...args) => run([join(proj, 'ctx.mjs'), ...args], { cwd: proj });
 
 try {
+  // ── ADR-0048: install lands in the agy-native dir, legacy tree gone ──
+  existsSync(join(proj, '.agents', 'agents')) && existsSync(join(proj, '.agents', 'skills')) &&
+    existsSync(join(proj, 'ctx.mjs')) && existsSync(join(proj, 'INSTRUCTIONS.md'))
+    ? ok('Antigravity assets installed (.agents/{agents,skills} + ctx.mjs + INSTRUCTIONS.md)')
+    : bad('Antigravity assets not installed by the installer');
+  !existsSync(join(proj, '.antigravity'))
+    ? ok('no legacy .antigravity/ tree created (ADR-0048)')
+    : bad('installer still creates the legacy .antigravity/ tree');
+  existsSync(join(proj, '.agents', 'README.md')) &&
+    readFileSync(join(proj, '.agents', 'README.md'), 'utf-8').includes('Host-coexistence')
+    ? ok('.agents/README.md ships the host-coexistence note')
+    : bad('.agents/README.md missing or lacks the coexistence note');
+
   // ── dispatch contract (ticket 089) ──
   const exact = ctx('doctor');
   exact.status === 0 && /doctor|ContextDevKit/i.test(exact.stdout + exact.stderr)
