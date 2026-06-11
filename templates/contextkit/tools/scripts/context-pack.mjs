@@ -12,6 +12,7 @@
  * Usage:
  *   node contextkit/tools/scripts/context-pack.mjs          # human bundle
  *   node contextkit/tools/scripts/context-pack.mjs --json
+ *   node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "..."  # bounded pack to embed in a Task prompt [ADR-0044 D1]
  */
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -19,11 +20,13 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 import { digestLatestSession, extractUnreleased, readChangelog } from '../../runtime/hooks/boot-context-readers.mjs';
 import { section } from '../../runtime/hooks/md-extract.mjs';
 import { ADR_FILENAME_RE, parseAdr, renderCatalogLine } from './adr-digest-core.mjs';
+import { retrieveMemory, renderRetrieval } from './memory-retrieve.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
+const valueOf = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 const readSafe = (abs) => readFile(abs, 'utf-8').catch(() => null);
 
 /** The numbered `⛔ Immutable rules` block from CLAUDE.md (capped), or null. */
@@ -105,7 +108,59 @@ function render(pack) {
   return out.join('\n');
 }
 
+/** Distinct paths currently claimed by any session (gitignored .workspace files), capped. */
+async function openClaims(cap = 6) {
+  let files = [];
+  try {
+    files = await readdir(P.workspaceStateDir);
+  } catch {
+    return null;
+  }
+  const seen = new Set();
+  for (const name of files.filter((f) => f.endsWith('.json'))) {
+    const text = await readSafe(resolve(P.workspaceStateDir, name));
+    if (text === null) continue;
+    try {
+      for (const claim of JSON.parse(text).claims || []) if (claim?.path) seen.add(String(claim.path));
+    } catch { /* skip a corrupt claim file */ }
+  }
+  const paths = [...seen].sort().slice(0, cap);
+  return paths.length ? paths.map((p) => `- \`${p}\``).join('\n') : null;
+}
+
+/** First N non-empty lines of a block — keeps the subagent pack bounded (ADR-0044 D1). */
+const head = (text, lines) => (text ? text.split('\n').filter((l) => l.trim()).slice(0, lines).join('\n') : null);
+
+/**
+ * The bounded subagent context pack (ADR-0044 D1): fixed sections + the
+ * objective-targeted memory retrieval, plus the standing instruction that keeps
+ * the spawned agent from re-reading boot context. ~≤120 lines — the pattern the
+ * 06 master round validated (fewer tool calls per voice).
+ */
+async function buildSubagentPack(objective) {
+  const [session, unreleased, rules, claims, retrieval] = await Promise.all([
+    digestLatestSession(ROOT),
+    readChangelog(ROOT).then((c) => extractUnreleased(c)),
+    immutableRules(),
+    openClaims(),
+    retrieveMemory(ROOT, objective),
+  ]);
+  const out = [`# 🧭 Subagent context pack${objective ? ` — ${objective}` : ''}\n`];
+  const block = (title, body) => body && out.push(`## ${title}`, '', body.trim(), '');
+  block('⛔ Immutable rules', head(rules, 8));
+  block('🗓️ Last session', head(session?.content, 2));
+  block('📝 Unreleased (CHANGELOG)', head(unreleased, 8));
+  block('👥 Open claims (other sessions)', claims);
+  out.push(renderRetrieval(retrieval), '');
+  out.push('> Reason over this pack. **Do not re-read boot context**; read at most 1 file to verify a specific claim. [ADR-0044]');
+  return out.join('\n');
+}
+
 async function main() {
+  if (flag('--for-subagent')) {
+    console.log(await buildSubagentPack(valueOf('--objective') || ''));
+    return;
+  }
   const pack = await build();
   if (flag('--json')) {
     process.stdout.write(JSON.stringify(pack, null, 2) + '\n');

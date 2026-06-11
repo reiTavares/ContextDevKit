@@ -15,6 +15,7 @@
 import { rm } from 'node:fs/promises';
 import {
   digestLatestSession,
+  digestUnreleased,
   exists,
   extractUnreleased,
   readChangelog,
@@ -264,7 +265,9 @@ async function main() {
   }
 
   if (changelog) {
-    const unreleased = extractUnreleased(changelog);
+    // ADR-0044 D2: prefer the compact count-by-type + recent-entries digest;
+    // fall back to the raw-truncated section on any parse miss (ADR-0027 contract).
+    const unreleased = digestUnreleased(changelog) || extractUnreleased(changelog);
     if (unreleased) {
       out.push('## 📝 Unreleased changes (CHANGELOG `[Unreleased]`)');
       out.push('');

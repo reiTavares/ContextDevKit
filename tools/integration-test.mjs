@@ -197,15 +197,8 @@ try {
   pbRuns && pbRuns.includes('tech-debt-sweep')
     ? ok('playbook run records a tracked entry') : bad('playbook run did not track');
 
-  // Token economy (#7): token-report aggregates usage from transcripts (fake --from dir; also
-  // exercises the cwd filter + defensive JSON parsing of a bad line).
-  const ttx = join(proj, '_ttx');
-  mkdirSync(ttx, { recursive: true });
-  const usageLine = (i, o) => JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, message: { role: 'assistant', usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
-  writeFileSync(join(ttx, 'sess1.jsonl'), [usageLine(100, 200), usageLine(50, 25), '{ bad json'].join('\n'));
-  const tr = script('token-report.mjs', '--from', ttx, '--json');
-  (() => { try { const j = JSON.parse(tr.stdout); return j.sessions === 1 && j.totals.total === 375 && j.totals.input === 150; } catch { return false; } })()
-    ? ok('token-report aggregates token usage from transcripts') : bad(`token-report failed: ${tr.stdout || tr.stderr}`);
+  // Token economy + the fan-out economy (ADR-0027/0044 F3) moved to their own
+  // suite for the line budget → tools/integration-test-token-economy.mjs.
 
   // Predictions-review cadence (#002): cadence on + an unreviewed prediction → SessionStart reminds.
   const prCfg = readJson(cfgPath);

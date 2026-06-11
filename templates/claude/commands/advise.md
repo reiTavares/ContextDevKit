@@ -31,7 +31,11 @@ the owning agents/commands) and it does not write code (it's analysis).
    the squad (Level ≥ 4).
 
 2. **Fan out to each ACTIVE, OWNED lane in parallel** (Agent tool), giving each the
-   right lens for the mode. Reuse the existing surfaces — don't duplicate them:
+   right lens for the mode. First run
+   `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "<the objective/changed surface>"`
+   and **embed its output at the top of every lane's prompt** (ADR-0044 D1) — one
+   bounded pack per fan-out, with the standing rule "do not re-read boot context".
+   Reuse the existing surfaces — don't duplicate them:
 
    | Lane | Owner | Delegates to / reuses | Lens |
    | --- | --- | --- | --- |

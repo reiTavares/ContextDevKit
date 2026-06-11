@@ -51,8 +51,12 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    into the squad; an **architectural** tier means the ADR in step 8 is required,
    not optional. Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
 2. **Design** — delegate to `architect`: options, trade-offs, recommended path,
-   blast radius. If it crosses high-risk paths (L5), run `/simulate-impact` first.
-   ◆ Checkpoint: confirm the design with the user.
+   blast radius. When you delegate to ANY agent in this pipeline, first run
+   `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "$ARGUMENTS"`
+   and **embed its output at the top of the agent's prompt** (ADR-0044 D1) — the
+   bounded pack carries the standing rule "do not re-read boot context", so each
+   delegated agent starts cheap. If it crosses high-risk paths (L5), run
+   `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.
 3. **Plan tests** — delegate to `qa-orchestrator` (`/test-plan`): happy / edge /
    failure for the scope.
 4. **Implement** — route to the right domain agent(s) (backend/frontend/db/…).
