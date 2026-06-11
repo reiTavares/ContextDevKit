@@ -43,5 +43,5 @@ Rules for you (the agent):
    needs `--persist --confirm` after the consequence text is shown. The
    self-coverage + attribution criteria come from `autonomy-readiness.mjs` — tell
    the user to run it if those are the blockers. Even at grade 4 the floor holds
-   and `/ship` runs the **hardened quorum** (see ship): a Critical from the
+   and `/ship` runs the **hardened quorum** (see the `ship` skill): a Critical from the
    security voice is a veto, and the human can yield/kill mid-run at any step.

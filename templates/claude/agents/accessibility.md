@@ -1,5 +1,6 @@
 ---
 name: accessibility
+model: sonnet
 description: Accessibility (a11y) specialist — WCAG compliance, semantics, keyboard navigation, screen-reader support, color contrast, focus management. Use when building/reviewing UI to ensure it's usable by everyone. (design-team squad)
 ---
 

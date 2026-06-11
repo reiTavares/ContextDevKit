@@ -40,6 +40,8 @@ the owning agents/commands) and it does not write code (it's analysis).
    `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "<the objective/changed surface>"`
    and **embed its output at the top of every lane's prompt** (ADR-0044 D1) — one
    bounded pack per fan-out, with the standing rule "do not re-read boot context".
+   Lanes are think-class work: let each lane run on its owner agent's frontmatter
+   `model:` tier (ADR-0052) — do not downgrade analysis lanes to `haiku`.
    Reuse the existing surfaces — don't duplicate them:
 
    | Lane | Owner | Delegates to / reuses | Lens |

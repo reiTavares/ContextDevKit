@@ -1,5 +1,6 @@
 ---
 name: qa-orchestrator
+model: inherit
 description: Single entry point for the QA squad (Level ≥ 4). Use for /test-plan, /scaffold-tests, /qa-signoff, or any "make sure this is well tested" request. Routes work to qa-unit / qa-integration / qa-fuzzer / qa-perf / qa-e2e and consolidates the result. Does NOT write tests itself. (Below L4, or for a quick in-flow regression, use test-engineer.)
 ---
 

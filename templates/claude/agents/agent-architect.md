@@ -1,5 +1,6 @@
 ---
 name: agent-architect
+model: opus
 description: Interviews the developer through the canonical INTERVIEW_QUESTIONS list, validates the result against the Agent Blueprint schema, and produces the YAML blueprint that drives the rest of the agent-forge pipeline. Touches templates/contextkit/squads/agent-forge/lib/architect.mjs (INTERVIEW_QUESTIONS + validateBlueprint + fillDefaults). (agent-forge squad)
 ---
 

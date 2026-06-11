@@ -1,5 +1,6 @@
 ---
 name: devops
+model: sonnet
 description: DevOps / platform specialist — CI/CD, build & deploy, environments, secrets, infrastructure, observability, and release safety. Use for pipelines, deployments, env/secret config, and operational concerns. (ops-team squad)
 ---
 

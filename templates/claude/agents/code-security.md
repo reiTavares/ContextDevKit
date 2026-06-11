@@ -1,5 +1,6 @@
 ---
 name: code-security
+model: opus
 description: Application-code & supply-chain security specialist (security-team). Use for the threat model of the code's OWN external surface — third-party integration code (API clients/SDKs, webhooks & callbacks, (de)serialization of external responses), dependency provenance/SBOM & license policy, and SAST/CodeQL triage. Pairs with security (AppSec lead) and infra-security (platform). (security-team)
 ---
 

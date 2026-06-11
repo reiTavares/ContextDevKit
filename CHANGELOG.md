@@ -6,6 +6,36 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — swarm coordinator contracts locked (ADR-0051, Proposed)
+- **ADR-0051** hardens the swarm feasibility study into contracts: `/swarm`
+  skill + pure `swarm-plan.mjs` planner + `swarm-state.mjs` manifest,
+  `swarm-dispatch` consent area (`['manual','manual','suggest','auto']`),
+  optional `by: {runId, workstream, agent}` on state.json events,
+  worktree-per-workstream isolation with workstream seniority, and the
+  defining safety property: **a swarm run finishes at `testing`, never `done`**
+  — `/swarm review` batches the human approvals. v1 is grade-3; grade-4 needs
+  the ADR-0045 bar **plus ≥3 clean grade-3 runs**. Implementation = task 123
+  (P0 zero-code validation run first).
+
+### Added — cost-tiered model routing, Phase 1 (ADR-0052)
+- **Every kit agent now declares a `model:` cost tier** in its Claude frontmatter
+  (`haiku|sonnet|opus|inherit` — aliases only, never versioned IDs): expensive
+  models think (architect, security squad, code-reviewer, agent-architect on
+  `opus`), cheap models execute (qa-unit, qa-integration, packager,
+  context-keeper on `haiku`), dispatchers inherit the session model. Claude Code
+  enforces it natively on every Task dispatch; cache-safe by construction (the
+  main loop never switches models — only spawned subagents are tiered).
+- **Dispatch-time tier classification** in `/ship`, `/advise`, `/debate` and
+  `/scaffold-tests`: think vs execute rules, floors (security work never below
+  `sonnet`), one-step QA-failure escalation, budget-exhausted de-escalation
+  (ADR-0044 §3 semantics: downgrade, never block).
+- **Selfcheck guard**: every agent template must carry a valid model alias —
+  a missing line or a versioned ID fails the build (rule 3).
+- **Feasibility studies**: `docs/explanation/model-tier-routing-study.md`
+  (3-layer architecture, savings arithmetic, host-gap statement, Phase 2/3
+  deferrals) and `docs/explanation/swarm-feasibility-study.md` (swarm
+  coordinator on the completed autonomy substrate, ADR-0051 reserved).
+
 ### Changed
 - **Per-task `state.json` moved under `pipeline/state/` (ADR-0053).** The runtime
   substrate (ADR-0015 §C / ADR-0043) no longer scatters numbered dirs across the
@@ -18,6 +48,15 @@ this project follows [Semantic Versioning](https://semver.org/).
   every `pipeline.mjs sync`) self-heals existing projects on the next command —
   idempotent, never clobbers. Covered by selfcheck + integration (start writes
   under `state/`; a legacy dir migrates on sync).
+- **capability-matrix refreshed to 2026-06 reality (authorized by ADR-0052 per
+  ADR-0012 §6):** `claude-opus-4-7` ($15/$75, stale) → `claude-opus-4-8`
+  ($5/$25, 1M ctx); Haiku 4.5 corrected to $1/$5; Sonnet 4.6 context 1M;
+  **Claude Fable 5 added** (premium, $10/$50, 1M ctx, thinking-always-on note);
+  decision-rules + manifest seed follow the ID rename. Matrix v0.2.0,
+  `updated: 2026-06-11`.
+- **Antigravity parity doc** records the honest host gap: tier routing is Claude
+  Code only — agy exposes no per-agent/per-dispatch model API; the kit refuses
+  to fake a Gemini mapping it cannot enforce (rule 8).
 
 ## [2.0.0] - 2026-06-11
 

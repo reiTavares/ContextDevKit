@@ -1,5 +1,6 @@
 ---
 name: security
+model: opus
 description: Security specialist and lead of the security-team. Use for auth, secrets, credentials, tokens, crypto, input handling at trust boundaries, dependency & supply-chain risk (pinning, CVEs, licenses), infra/CI security, or reviewing a change for security impact. (security-team)
 ---
 

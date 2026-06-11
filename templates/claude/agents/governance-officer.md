@@ -1,5 +1,6 @@
 ---
 name: governance-officer
+model: sonnet
 description: Builds and validates the three governance pillars (cost / compliance / quality) + the fallback chain + the audit schema for a forged agent. Refuses to ship if any pillar is under-configured. Touches templates/contextkit/squads/agent-forge/lib/governance-officer.mjs + the package's governance/ dir. (agent-forge squad)
 ---
 

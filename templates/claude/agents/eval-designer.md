@@ -1,5 +1,6 @@
 ---
 name: eval-designer
+model: sonnet
 description: Designs the eval set for a forged agent — extends the seed golden cases into the 10-50 the dev actually needs, expands red-team beyond the universal baseline (prompt injection / jailbreak / PII), and confirms the rubric + thresholds derived from the blueprint match the domain. Touches templates/contextkit/squads/agent-forge/lib/eval-designer.mjs + the package's evals/ dir. (agent-forge squad)
 ---
 

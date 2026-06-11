@@ -1,111 +1,286 @@
 {
   "_note": "Seed capability matrix for the agent-forge model-router. Economics are ILLUSTRATIVE and date-stamped; refresh via /forge-refresh-matrix and gate changes through an ADR (ADR-0012, constraint 6). Authority for 'best model for this agent' is the eval harness measured on the user's golden set, NOT this file (constraint 5). Anthropic model IDs are current; other providers are plausible seeds to verify on first refresh.",
-  "updated": "2026-05-25",
-  "version": "0.1.0",
-  "allowed_providers": ["anthropic", "openai", "google", "deepseek", "self-hosted"],
+  "updated": "2026-06-11",
+  "version": "0.2.0",
+  "allowed_providers": [
+    "anthropic",
+    "openai",
+    "google",
+    "deepseek",
+    "self-hosted"
+  ],
   "models": [
     {
-      "id": "anthropic/claude-opus-4-7",
+      "id": "anthropic/claude-fable-5",
       "tier": "premium",
-      "context_window": 200000,
-      "input_usd_per_mtok": 15.0,
-      "output_usd_per_mtok": 75.0,
+      "context_window": 1000000,
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 50,
+      "latency_p50_ms": 6000,
+      "strengths": [
+        "reasoning",
+        "agentic",
+        "long-horizon",
+        "long-context"
+      ],
+      "weaknesses": [
+        "cost"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ],
+      "zero_retention_available": false,
+      "notes": "Thinking always on (omit the thinking param); new tokenizer (~30% more tokens vs Opus-tier); requires 30-day data retention; safety classifiers may return stop_reason: refusal"
+    },
+    {
+      "id": "anthropic/claude-opus-4-8",
+      "tier": "premium",
+      "context_window": 1000000,
+      "input_usd_per_mtok": 5,
+      "output_usd_per_mtok": 25,
       "latency_p50_ms": 4500,
-      "strengths": ["reasoning", "coding", "agentic", "long-context"],
-      "weaknesses": ["cost"],
-      "capabilities": { "tools": true, "vision": true, "structured_output": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"],
+      "strengths": [
+        "reasoning",
+        "coding",
+        "agentic",
+        "long-context"
+      ],
+      "weaknesses": [
+        "cost"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ],
       "zero_retention_available": true
     },
     {
       "id": "anthropic/claude-sonnet-4-6",
       "tier": "balanced",
-      "context_window": 200000,
-      "input_usd_per_mtok": 3.0,
-      "output_usd_per_mtok": 15.0,
+      "context_window": 1000000,
+      "input_usd_per_mtok": 3,
+      "output_usd_per_mtok": 15,
       "latency_p50_ms": 1800,
-      "strengths": ["balanced", "tools", "coding", "pt-br"],
-      "capabilities": { "tools": true, "vision": true, "structured_output": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"],
+      "strengths": [
+        "balanced",
+        "tools",
+        "coding",
+        "pt-br"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ],
       "zero_retention_available": true
     },
     {
       "id": "anthropic/claude-haiku-4-5",
       "tier": "cheap",
       "context_window": 200000,
-      "input_usd_per_mtok": 0.8,
-      "output_usd_per_mtok": 4.0,
+      "input_usd_per_mtok": 1,
+      "output_usd_per_mtok": 5,
       "latency_p50_ms": 700,
-      "strengths": ["classification", "extraction-simple", "low-latency"],
-      "capabilities": { "tools": true, "vision": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"],
+      "strengths": [
+        "classification",
+        "extraction-simple",
+        "low-latency"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ],
       "zero_retention_available": true
     },
     {
       "id": "openai/gpt-4o",
       "tier": "balanced",
       "context_window": 128000,
-      "strengths": ["multimodal", "tools", "structured_output"],
-      "capabilities": { "tools": true, "vision": true, "structured_output": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"]
+      "strengths": [
+        "multimodal",
+        "tools",
+        "structured_output"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ]
     },
     {
       "id": "openai/gpt-4o-mini",
       "tier": "cheap",
       "context_window": 128000,
-      "strengths": ["cost", "low-latency", "classification"],
-      "capabilities": { "tools": true, "vision": true, "structured_output": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"]
+      "strengths": [
+        "cost",
+        "low-latency",
+        "classification"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ]
     },
     {
       "id": "google/gemini-2.5-pro",
       "tier": "balanced",
       "context_window": 2000000,
-      "strengths": ["long-context", "multimodal", "cost"],
-      "capabilities": { "tools": true, "vision": true, "structured_output": true, "prompt_caching": true, "streaming": true },
-      "residency": ["us", "eu"],
+      "strengths": [
+        "long-context",
+        "multimodal",
+        "cost"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "structured_output": true,
+        "prompt_caching": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ],
       "notes": "safetySettings must be set explicitly; function-calling uses a JSON-Schema subset"
     },
     {
       "id": "google/gemini-2.5-flash",
       "tier": "cheap",
       "context_window": 1000000,
-      "strengths": ["latency", "cost", "long-context"],
-      "capabilities": { "tools": true, "vision": true, "streaming": true },
-      "residency": ["us", "eu"]
+      "strengths": [
+        "latency",
+        "cost",
+        "long-context"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": true,
+        "streaming": true
+      },
+      "residency": [
+        "us",
+        "eu"
+      ]
     },
     {
       "id": "deepseek/deepseek-v3",
       "tier": "balanced",
-      "strengths": ["coding", "reasoning", "cost"],
-      "weaknesses": ["pt-br-nuance", "vision"],
-      "capabilities": { "tools": true, "vision": false, "streaming": true },
-      "residency": ["cn"],
+      "strengths": [
+        "coding",
+        "reasoning",
+        "cost"
+      ],
+      "weaknesses": [
+        "pt-br-nuance",
+        "vision"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": false,
+        "streaming": true
+      },
+      "residency": [
+        "cn"
+      ],
       "notes": "OpenAI-compatible API; prefers explicit CoT; reasoner variants split reasoning_content"
     },
     {
       "id": "deepseek/deepseek-coder",
       "tier": "specialist-coding",
-      "strengths": ["code-generation", "cost"],
-      "capabilities": { "tools": true, "vision": false, "streaming": true },
-      "residency": ["cn"]
+      "strengths": [
+        "code-generation",
+        "cost"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": false,
+        "streaming": true
+      },
+      "residency": [
+        "cn"
+      ]
     },
     {
       "id": "self-hosted/llama-3.x-70b",
       "tier": "self-hosted",
-      "strengths": ["data-residency", "no-egress", "predictable-cost"],
-      "weaknesses": ["operational-complexity", "tool-use-reliability"],
-      "capabilities": { "tools": true, "vision": false, "streaming": true },
-      "residency": ["on-prem", "any"],
+      "strengths": [
+        "data-residency",
+        "no-egress",
+        "predictable-cost"
+      ],
+      "weaknesses": [
+        "operational-complexity",
+        "tool-use-reliability"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": false,
+        "streaming": true
+      },
+      "residency": [
+        "on-prem",
+        "any"
+      ],
       "cost_model": "infra-only",
       "notes": "Ollama (own + OpenAI-compatible endpoint) or vLLM (OpenAI-compatible); per-model chat_template"
     },
     {
       "id": "self-hosted/mistral-large",
       "tier": "self-hosted",
-      "strengths": ["multilingual-eu", "data-residency"],
-      "capabilities": { "tools": true, "vision": false, "streaming": true },
-      "residency": ["on-prem", "any", "eu"],
+      "strengths": [
+        "multilingual-eu",
+        "data-residency"
+      ],
+      "capabilities": {
+        "tools": true,
+        "vision": false,
+        "streaming": true
+      },
+      "residency": [
+        "on-prem",
+        "any",
+        "eu"
+      ],
       "cost_model": "infra-only"
     }
   ]

@@ -1,5 +1,6 @@
 ---
 name: qa-unit
+model: haiku
 description: QA squad — unit test specialist. Dispatched by qa-orchestrator (not usually called directly). Writes fast, isolated unit tests for pure functions and modules with mocked dependencies.
 ---
 

@@ -149,16 +149,30 @@ async function walkDir(dir, filterFn) {
   return results;
 }
 
+/**
+ * Resolves a pure-prompt command to its markdown file. This runner is the
+ * AGY host, so the agy-adapted tree (.agents/skills — TodoWrite/delegate-to
+ * references already converted) wins over the raw Claude source; .claude/
+ * remains the fallback for custom commands the user never converted
+ * (ticket 142). The templates/* pair mirrors that order for kit-dev.
+ */
 async function findCommandMd(cmd) {
   const cleanCmd = cmd.toLowerCase().replace(/\.md$/, '');
   const filter = (p) => basename(p, '.md').toLowerCase() === cleanCmd;
-  const match = (await walkDir(resolve(ROOT, '.claude/commands'), filter))[0]
+  const match = (await walkDir(resolve(ROOT, '.agents/skills'), filter))[0]
+    || (await walkDir(resolve(ROOT, '.claude/commands'), filter))[0]
+    || (await walkDir(resolve(ROOT, 'templates/antigravity/skills'), filter))[0]
     || (await walkDir(resolve(ROOT, 'templates/claude/commands'), filter))[0];
   return match || null;
 }
 
 function printMarkdownCommand(filePath, fileContent, args = []) {
-  let content = fileContent.replace(/\$ARGUMENTS/g, args.join(' ') || '[no argument provided]');
+  const replacement = args.join(' ') || '[no argument provided]';
+  // Function replacement: a plain string would interpret $&, $`, $' as
+  // JS replacement patterns and mangle the output (ticket 141).
+  let content = fileContent
+    .replace(/\$ARGUMENTS/g, () => replacement)
+    .replace(/<user-specified argument>/g, () => replacement);
   let fm = '';
   if (content.startsWith('---')) {
     const parts = content.split('---');

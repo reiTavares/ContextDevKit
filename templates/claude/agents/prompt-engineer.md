@@ -1,5 +1,6 @@
 ---
 name: prompt-engineer
+model: sonnet
 description: Renders the canonical system prompt (prompts/system.canonical.md) to per-provider variants — Fase 1 ships Anthropic (XML, cache=ephemeral on Context) and OpenAI (Markdown with `# Role` / `## Section`), preserving the section map (Role/Context/Rules/Output/Examples). Touches templates/contextkit/squads/agent-forge/lib/prompt-gen.mjs. (agent-forge squad)
 ---
 

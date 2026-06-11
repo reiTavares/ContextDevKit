@@ -1,5 +1,6 @@
 ---
 name: qa-fuzzer
+model: sonnet
 description: QA squad — adversarial / property-based test specialist. Dispatched by qa-orchestrator (not usually called directly). Attacks boundaries (parsers, validators, schemas, auth) with generated inputs and invariants.
 ---
 

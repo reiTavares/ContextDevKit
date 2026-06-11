@@ -1,5 +1,6 @@
 ---
 name: qa-e2e
+model: sonnet
 description: QA squad (Tier 2) — end-to-end specialist. Use when a critical user journey must be verified through the real UI/app (browser or mobile), or before a release that touches a key flow. Tests behavior as a user, not internals.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: rag-designer
+model: sonnet
 description: Designs the retrieval-augmented-generation bundle for a forged agent — chunking, embedding model (multilingual vs english-only), index backend (pgvector/qdrant/faiss/pinecone), reranker, hybrid search, score thresholds. ONLY activated when `capabilities.rag: true`. Touches templates/contextkit/squads/agent-forge/lib/rag-designer.mjs + the package's rag/ dir. (agent-forge squad)
 ---
 

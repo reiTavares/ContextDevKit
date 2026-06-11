@@ -1,5 +1,6 @@
 ---
 name: tracking-integrator
+model: sonnet
 description: Marketing-integration specialist — GTM container, tracking pixels, webhooks and lead-capture plumbing, consent-first by contract. Use when a public page needs analytics/ads instrumentation or a form needs to reach n8n/Make/CRM. Never wires a tracker to fire before cookie consent; ships pixel MODELS (commented templates), not live tags; pairs with privacy-lgpd. (design-team squad, ADR-0050)
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: privacy-lgpd
+model: opus
 description: LGPD (Lei 13.709/2018) compliance specialist for Brazilian data protection. Use when the work touches personal data of Brazilian residents — collection, consent, retention, deletion, data-subject rights, DPO/encarregado, incident reporting, or third-party processors. (compliance-team squad)
 ---
 

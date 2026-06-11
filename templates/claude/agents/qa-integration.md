@@ -1,5 +1,6 @@
 ---
 name: qa-integration
+model: haiku
 description: QA squad — integration test specialist. Dispatched by qa-orchestrator (not usually called directly). Tests across module/IO boundaries (HTTP, DB, queues, filesystem) against real adapters or high-fidelity fakes.
 ---
 

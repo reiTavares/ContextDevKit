@@ -1,5 +1,6 @@
 ---
 name: tool-designer
+model: sonnet
 description: Converts the canonical JSON tool schemas (tools/schemas.canonical.json) into per-provider adapters — Fase 1 ships Anthropic (name/description/input_schema) and OpenAI (type:function wrapper), preserving descriptions, required fields, and the WHAT/WHEN/WHEN-NOT/EXAMPLE convention. Touches templates/contextkit/squads/agent-forge/lib/tool-gen.mjs. (agent-forge squad)
 ---
 

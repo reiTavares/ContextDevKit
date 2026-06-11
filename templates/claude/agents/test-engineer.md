@@ -1,5 +1,6 @@
 ---
 name: test-engineer
+model: sonnet
 description: Testing specialist (devteam). The go-to for tests when the full QA squad isn't in play (Level < 4) or for a quick regression/coverage pass inside a dev flow. At Level ≥ 4, qa-orchestrator is the entry point and routes to the qa-* specialists. Adapts to the project's runner; never adds a second framework. (devteam squad)
 ---
 

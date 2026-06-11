@@ -1,5 +1,6 @@
 ---
 name: packager
+model: haiku
 description: Assembles the final Agent Package (APF v1) directory — copies the template tree, stamps provenance + Model Selection Rationale, writes the per-provider files from prompt-engineer/tool-designer, and emits a versioned package under agent-packages/<name>@<semver>/. Touches templates/contextkit/squads/agent-forge/lib/packager.mjs and templates/contextkit/squads/agent-forge/templates/agent-package/. (agent-forge squad)
 ---
 

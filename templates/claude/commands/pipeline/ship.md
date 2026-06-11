@@ -88,7 +88,21 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "$ARGUMENTS"`
    and **embed its output at the top of the agent's prompt** (ADR-0044 D1) — the
    bounded pack carries the standing rule "do not re-read boot context", so each
-   delegated agent starts cheap. If it crosses high-risk paths (L5), run
+   delegated agent starts cheap.
+
+   **Model tier per dispatch (ADR-0052).** Each agent carries a static `model:`
+   tier in its frontmatter; classify the TASK before delegating and override via
+   the Agent tool's `model` param only when it clearly differs — **think**
+   (design, review, security, root-cause, planning, structuring) → the agent's
+   tier or one above; **execute** (tests from a given plan, mechanical refactor,
+   scaffold, format, summarize) → `haiku` with low effort; **ambiguous** → the
+   agent's default. Floor: security / code-security / infra-security /
+   privacy-lgpd never below `sonnet`. Escalation: an output that fails its QA
+   gate twice is re-dispatched exactly once, one tier up (cap `opus`) — report
+   it in the run summary. Budget exhausted → one tier down, never below the
+   floor (ADR-0044 §3: downgrade, never block).
+
+   If the change crosses high-risk paths (L5), run
    `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.
 3. **Plan tests** — delegate to `qa-orchestrator` (`/test-plan`): happy / edge /
    failure for the scope.

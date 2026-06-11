@@ -1,5 +1,6 @@
 ---
 name: model-router
+model: sonnet
 description: Routes the Agent Blueprint to a provider/model selection via the deterministic capability-matrix + decision-rules engine, writes the canonical Model Selection Rationale (structural facts only — never quality claims), and refuses to fabricate opinions. Touches templates/contextkit/squads/agent-forge/lib/router.mjs and router/{capability-matrix.json,decision-rules.json}. (agent-forge squad)
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: code-reviewer
+model: opus
 description: Pre-merge code review specialist. Use proactively before opening a PR, after a meaningful diff, or to audit a branch against the project constitution in CLAUDE.md. Focuses on style, structure, naming, SRP, and the immutable rules. (devteam squad)
 ---
 

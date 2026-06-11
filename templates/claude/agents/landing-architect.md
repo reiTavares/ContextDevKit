@@ -1,5 +1,6 @@
 ---
 name: landing-architect
+model: sonnet
 description: Landing-page & high-conversion site specialist. Use when designing or reviewing a public-facing landing page, marketing site, or any indexable surface where conversion is the metric. Reads the landing-page playbook on every invocation and refuses the cookie-cutter "Lovable / v0 / Tailwind UI" pattern by default. Pairs with seo-specialist (mandatory indexability gate), ui-designer, ux-designer, accessibility, and /media-gen for non-stock imagery. (design-team squad)
 # Optional MCP servers (ADR-0019) — none shipped today. A future
 # "design tokens" MCP could land here with a `rationale: pull canonical
