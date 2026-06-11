@@ -12,7 +12,7 @@
  * Extracted from integration-test-guards.mjs at the line-budget seam.
  * Shared harness: it-helpers.mjs. Run: node tools/integration-test-autonomy.mjs
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJson, reporter, installFixture } from './it-helpers.mjs';
 
@@ -85,6 +85,38 @@ try {
   audit.length >= 3 && audit.every((a) => a.actor === 'human')
     ? ok(`every grade change audited with actor=human (${audit.length} lines, ADR-0042 §4)`)
     : bad(`audit trail incomplete: ${audit.length} lines`);
+
+  // ── ADR-0045 F4 — grade-4 eligibility bar + session-default + --persist gate ──
+  // Fresh fixture (no readiness marker, < 30 transitions, < 20 sessions) ⇒ refuse, naming a criterion.
+  const refuse = script('autonomy.mjs', '4');
+  refuse.status === 1 && /Grade 4 refused/.test(refuse.stderr) && /eligibility bar/.test(refuse.stderr)
+    ? ok('grade 4 refused when the eligibility bar fails, naming the criteria (ADR-0045 §1)')
+    : bad(`grade 4 not refused on an unmet bar: status=${refuse.status} ${refuse.stderr}`);
+  // Seed every criterion: 20 session logs, 30 human transitions, the readiness marker.
+  const sessionsDir = join(proj, 'contextkit', 'memory', 'sessions');
+  mkdirSync(sessionsDir, { recursive: true });
+  for (let i = 1; i <= 20; i += 1) writeFileSync(join(sessionsDir, `2026-01-02-${String(i).padStart(2, '0')}-seed.md`), '# seed\n');
+  const seedEvents = Array.from({ length: 30 }, (_, i) => ({ ts: Date.now() - i * 1000, from: 'working', to: 'testing', actor: 'human', inverse: 'working' }));
+  mkdirSync(join(proj, 'contextkit', 'pipeline', 'seed'), { recursive: true });
+  writeFileSync(join(proj, 'contextkit', 'pipeline', 'seed', 'state.json'), JSON.stringify({ kind: 'task', id: 'seed', status: 'done', startedAt: Date.now(), events: seedEvents }, null, 2));
+  mkdirSync(join(proj, 'contextkit', 'memory', 'autonomy'), { recursive: true });
+  writeFileSync(join(proj, 'contextkit', 'memory', 'autonomy', 'readiness.json'), JSON.stringify({ coverageGreen: true, attributionPresent: true, ts: new Date().toISOString() }));
+  // Now grade 4 with no flags ⇒ SESSION override (not persisted) — ADR-0045 §3.
+  script('autonomy.mjs', '1'); // baseline persisted grade
+  const g4 = script('autonomy.mjs', '4');
+  const ovr = existsSync(join(proj, '.claude', '.workspace', 'autonomy-session.json')) ? readJson(join(proj, '.claude', '.workspace', 'autonomy-session.json')) : {};
+  g4.status === 0 && ovr.grade === 4 && readJson(cfgPath).autonomy?.grade === 1
+    ? ok('grade 4 with the bar met is SESSION-scoped by default, not persisted (ADR-0045 §3)')
+    : bad(`grade 4 session-default wrong: status=${g4.status} override=${ovr.grade} persisted=${readJson(cfgPath).autonomy?.grade}`);
+  // --persist without --confirm ⇒ refuse (consequence shown); with --confirm ⇒ persists.
+  const noConfirm = script('autonomy.mjs', '4', '--persist');
+  noConfirm.status === 1 && /--persist --confirm/.test(noConfirm.stdout + noConfirm.stderr)
+    ? ok('grade 4 --persist without --confirm refuses and shows the consequence (ADR-0045 §3)')
+    : bad(`grade 4 --persist did not require --confirm: status=${noConfirm.status}`);
+  script('autonomy.mjs', '4', '--persist', '--confirm');
+  readJson(cfgPath).autonomy?.grade === 4
+    ? ok('grade 4 --persist --confirm persists the grade (ADR-0045 §3)')
+    : bad('grade 4 --persist --confirm did not persist');
 } catch (err) {
   bad(`autonomy suite crashed: ${err?.stack || err}`);
 } finally {

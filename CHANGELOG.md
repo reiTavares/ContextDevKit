@@ -6,6 +6,38 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — F4 grade-4 control plane (ADR-0045, task 116 — completes the autonomy package F0–F4)
+- **Deterministic eligibility bar.** `/autonomy 4` now consults
+  `autonomy-eligibility.mjs` and **refuses naming the failing criterion** unless
+  ALL hold: ≥ 30 recorded transitions (genuine `from ≠ to` events) · ≥ 20 sessions ·
+  rollback rate < 10% (`qa`/`evict` events) · zero wiring-drift incidents · a fresh
+  self-coverage marker · attribution (D3) present. Unmeasurable ⇒ refuse, never pass
+  (rule 8): no events ⇒ rollback rate 1.0, no marker ⇒ coverage/attribution fail.
+- **Gated, session-default setter.** Grade 4 is `experimental`: with no flags it is
+  **session-scoped** (auto-expiring), and persisting requires `--persist --confirm`
+  after the consequence text is shown. No path persists grade 4 silently; the
+  grade-change floor (always human) is untouched.
+- **Self-coverage readiness harness.** New `autonomy-readiness.mjs` runs `npm test`
+  under `NODE_V8_COVERAGE` (every `runtime/hooks/**` + `runtime/config/**` module must
+  be exercised) and `token-report` for attribution, stamping the marker the bar reads.
+  It never flips a criterion true on its own failure.
+- **Hardened quorum + kill-switch (`/ship`).** At grade 4 a ◆ checkpoint cleared by
+  `/debate` requires: blind voices · **≥ 1 deterministic voice = the exit codes of
+  `npm test` + selfcheck + `/deps-audit`** (not an LLM summary) · a security **Critical
+  is a veto, not a vote** · `unresolved` → human · the deliberation id stamped into the
+  `state.json` event. The resolver is re-consulted at the **start of every step** so any
+  user message or `/autonomy 1` yields/cancels at the next boundary; push stays
+  branch-only (merge to default is always human).
+- **Security-review hardenings (pre-merge).** A `security` pass flagged the bar's
+  evidence as agent-writable; fixed: `memory/autonomy/**` is now a **floored path**
+  (editing the eligibility evidence is gate-self-edit class, so an agent cannot forge
+  its own bar), the readiness marker must be **fresh (≤ 14 days)** to count, the
+  resolver's grade-4 contradiction guard **fails closed** (`deliberations.active !==
+  true` ⇒ throw, absent is not assumed-on), and only genuine stage transitions count.
+- Covered by selfcheck (eligibility thresholds, refuse-by-default, the floored
+  evidence cell, fail-closed, freshness) + integration (`autonomy 4` refuses on an
+  unmet bar, passes session-scoped when seeded, `--persist` needs `--confirm`).
+
 ### Added
 - **`/project-map` becomes an active architectural-fitness substrate (ADR-0046).**
   The structural map stops being a passive doc: (1) **self-refreshing** — the

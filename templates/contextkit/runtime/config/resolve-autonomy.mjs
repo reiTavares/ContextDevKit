@@ -77,6 +77,9 @@ function floorReason(area, context, config) {
     const secret = matchSecret(path, config?.autonomy?.extraSecretPaths ?? []);
     if (secret) return `floor:secret-path(${secret})`;
     if (path.includes('runtime/hooks/') || path.endsWith('.claude/settings.json')) return 'floor:gate-self-edit';
+    // ADR-0045: the grade-4 eligibility evidence (readiness marker, drift log) is
+    // an integrity-trusted artifact — an agent editing it would forge its own bar.
+    if (path.includes('memory/autonomy/')) return 'floor:autonomy-evidence-self-edit';
   }
   return null;
 }
@@ -100,8 +103,10 @@ export function resolveAutonomy(area, config = {}, sessionOverride = null, conte
   if (grade === null) ({ grade, source } = { grade: parseGrade(config?.autonomy?.grade), source: 'config' });
   if (grade === null) ({ grade, source } = { grade: config?.autonomy?.grade === undefined ? 2 : 1, source: config?.autonomy?.grade === undefined ? 'default' : 'config-unparseable' });
 
-  if (grade === 4 && config?.deliberations?.active === false)
-    throw new TypeError('resolveAutonomy: grade 4 requires deliberations.active — full-auto without inter-AI control is a contradiction (ADR-0042 §3)');
+  // Fail-closed (ADR-0045): grade 4 demands deliberations be EXPLICITLY active —
+  // an absent/unknown flag is not "assumed on" (rule 8). Callers pass a merged config.
+  if (grade === 4 && config?.deliberations?.active !== true)
+    throw new TypeError('resolveAutonomy: grade 4 requires deliberations.active === true — full-auto without inter-AI control is a contradiction (ADR-0042 §3 / ADR-0045)');
 
   const floor = floorReason(area, context, config);
   if (floor) return { grade, mode: 'manual', source, reason: floor };
