@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="{{config.language}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Termos de Uso — {{copy.brand.name}}</title>
+  <meta name="description" content="Termos de uso de {{legal.empresa.nomeFantasia}}: o que o serviço oferece, responsabilidades e condições gerais de utilização." />
+  <link rel="canonical" href="{{config.canonicalOrigin}}/termos.html" />
+  <meta name="robots" content="noindex, follow" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html">{{copy.brand.name}}</a>
+    </div>
+  </header>
+  <main class="section">
+    <div class="container narrow">
+      <h1 class="section-title">Termos de Uso</h1>
+      <p class="section-sub"><strong>⚠️ Minuta gerada automaticamente — revise com um advogado antes de publicar.</strong>
+        Este documento é um ponto de partida; ele não constitui aconselhamento jurídico.</p>
+
+      <h2>1. O serviço</h2>
+      <p>{{legal.servico.descricao}}</p>
+      <p><strong>Público:</strong> {{legal.servico.publico}}</p>
+
+      <h2>2. Aceitação</h2>
+      <p>Ao usar este site ou enviar dados pelos formulários, você concorda com estes
+        termos e com a <a href="privacidade.html">Política de Privacidade</a>. Se não
+        concordar, não utilize o serviço.</p>
+
+      <h2>3. Responsabilidades do usuário</h2>
+      <p>Fornecer informações verdadeiras nos formulários; não utilizar o site para
+        fins ilícitos; respeitar direitos de propriedade intelectual do conteúdo.</p>
+
+      <h2>4. Responsabilidades de {{legal.empresa.nomeFantasia}}</h2>
+      <p>Manter o site disponível em regime de melhores esforços; tratar os dados
+        pessoais conforme a Política de Privacidade e a LGPD; comunicar mudanças
+        relevantes nestes termos nesta página.</p>
+
+      <h2>5. Propriedade intelectual</h2>
+      <p>O conteúdo deste site (textos, marcas, layout) pertence a
+        {{legal.empresa.razaoSocial}} ou a seus licenciantes, salvo indicação em
+        contrário, e não pode ser reproduzido sem autorização.</p>
+
+      <h2>6. Limitação de responsabilidade</h2>
+      <p>O site é fornecido "como está". Na máxima extensão permitida pela lei,
+        {{legal.empresa.nomeFantasia}} não responde por danos indiretos decorrentes do
+        uso ou indisponibilidade do site.</p>
+
+      <h2>7. Foro e legislação</h2>
+      <p>Estes termos são regidos pelas leis brasileiras. Última atualização:
+        {{build.date}}.</p>
+
+      <p><a href="index.html">← Voltar</a></p>
+    </div>
+  </main>
+</body>
+</html>

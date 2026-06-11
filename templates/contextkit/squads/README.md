@@ -65,6 +65,9 @@ Enable when the product has a user interface.
 | `ux-designer` | Flows, information architecture, interaction, usability (incl. empty/error states) |
 | `ui-designer` | Visual design + design system/tokens, layout, responsive behaviour |
 | `accessibility` | WCAG 2.1 AA: semantics, keyboard, screen readers, contrast, focus |
+| `landing-architect` | Landing/marketing-site structure: rendering posture, fold map, package picks (ADR-0023) |
+| `conversion-strategist` | Persuasion layer: interview-first strategy, neurodesign, benefit copy; refuses invented proof (ADR-0050) |
+| `tracking-integrator` | GTM/pixels/webhooks, consent-first by contract; pairs with `privacy-lgpd` (ADR-0050) |
 
 ### 📈 growth-team — acquisition → activation → retention
 Enable when the product needs users to find it, reach value, and come back. Owns

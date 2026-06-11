@@ -43,13 +43,14 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
   agents.length >= 20 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
   for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md',
+    'conversion-strategist.md', 'tracking-integrator.md',
     'forge-orchestrator.md', 'agent-architect.md', 'model-router.md', 'prompt-engineer.md', 'tool-designer.md', 'packager.md',
     'eval-designer.md', 'governance-officer.md', 'rag-designer.md']) {
     agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'lp-scaffold.mjs', 'lp-build.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -109,6 +110,20 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/memory/business-rules/_TEMPLATE.md',
     'templates/contextkit/memory/predictions/.gitkeep',
     'templates/contextkit/memory/workflows/.gitkeep',
+    'templates/contextkit/starters/landing/shell.html',
+    'templates/contextkit/starters/landing/lp.config.json',
+    'templates/contextkit/starters/landing/content/copy.json',
+    'templates/contextkit/starters/landing/content/legal.json',
+    'templates/contextkit/starters/landing/sections/01-hero.html',
+    'templates/contextkit/starters/landing/sections/07-footer-cta.html',
+    'templates/contextkit/starters/landing/partials/consent.html',
+    'templates/contextkit/starters/landing/partials/gtm.html',
+    'templates/contextkit/starters/landing/js/consent.js',
+    'templates/contextkit/starters/landing/js/tracking-models.js',
+    'templates/contextkit/starters/landing/legal/privacidade.html',
+    'templates/contextkit/starters/landing/legal/termos.html',
+    'templates/contextkit/squads/design-team/conversion-strategist.md',
+    'templates/contextkit/squads/design-team/tracking-integrator.md',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
   }
@@ -117,7 +132,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
   }
   const playbooks = await readdir(resolve(KIT, 'templates/contextkit/workflows/playbooks')).catch(() => []);
-  for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md']) {
+  for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md', 'landing-page.md', 'seo-aiso.md']) {
     playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
   }
 }

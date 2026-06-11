@@ -97,9 +97,12 @@ Setup do `/media-gen`:
 - Não edite arquivos gerados (`SESSIONS.md`, `WORKSPACE.md`, `tech-debt-board.md`,
   `dashboard.html`) — são regenerados.
 - Sessões paralelas → `/worktree-new` (nunca dois chats no mesmo diretório).
-- **Landing page?** Use `/landing-page` antes de codar — recusa SPA puro,
-  define fold count, escolhe pacotes da rec table datada, delega imagery pra
-  `/media-gen` (sem stock photos genéricas).
+- **Landing page?** Use `/landing-page` antes de codar — entrevista de
+  estratégia, recusa SPA puro, define fold count e gera por script
+  (`lp-scaffold.mjs` → preencha `lp/content/*.json` → `lp-build.mjs --check`):
+  cookie consent por padrão, GTM sem ID (inerte), pixels só como modelos
+  comentados, política de privacidade + termos gerados como minuta (ADR-0050).
+  Imagery via `/media-gen` (sem stock photos genéricas).
 
 ## Manutenção
 

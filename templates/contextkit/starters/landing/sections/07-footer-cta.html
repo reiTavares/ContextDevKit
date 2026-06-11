@@ -1,0 +1,20 @@
+<!-- Fold 7 — FOOTER CTA. Repeat the promise, repeat the ONE action, capture the
+     lead. The form posts to the webhook in lp.config.json (decoupled — n8n/Make/
+     Sheets) via js/forms.js, with loading / success / error states. -->
+<section class="section section-dark" id="contato" aria-labelledby="contato-title">
+  <div class="container narrow">
+    <h2 id="contato-title" class="section-title">{{copy.footer.ctaTitle}}</h2>
+    <form class="lead-form" data-lp-form novalidate>
+      <h3 class="form-title">{{copy.form.title}}</h3>
+      <label>{{copy.form.nameLabel}}
+        <input type="text" name="name" required autocomplete="name" />
+      </label>
+      <label>{{copy.form.emailLabel}}
+        <input type="email" name="email" required autocomplete="email" />
+      </label>
+      <button class="btn btn-primary" type="submit" data-lp-submit>{{copy.form.submitLabel}}</button>
+      <p class="form-feedback" data-lp-success hidden>{{copy.form.successMessage}}</p>
+      <p class="form-feedback form-error" data-lp-error hidden>{{copy.form.errorMessage}}</p>
+    </form>
+  </div>
+</section>

@@ -1,0 +1,24 @@
+{
+  "empresa": {
+    "razaoSocial": "[PREENCHA] Razão social completa",
+    "nomeFantasia": "[PREENCHA] Nome fantasia",
+    "cnpj": "[PREENCHA] 00.000.000/0000-00",
+    "endereco": "[PREENCHA] Endereço completo",
+    "email": "[PREENCHA] contato@empresa.com.br"
+  },
+  "encarregado": {
+    "nome": "[PREENCHA] Nome do encarregado de dados (DPO)",
+    "email": "[PREENCHA] dpo@empresa.com.br"
+  },
+  "dados": {
+    "coletados": "[PREENCHA] Quais dados pessoais este site coleta (ex.: nome e e-mail no formulário de contato; dados de navegação via cookies, somente após consentimento)",
+    "finalidade": "[PREENCHA] Para que os dados são usados (ex.: responder ao contato; medir o uso do site)",
+    "baseLegal": "[PREENCHA] Base legal LGPD (ex.: consentimento, Art. 7º I; legítimo interesse, Art. 7º IX)",
+    "retencao": "[PREENCHA] Por quanto tempo os dados são mantidos e o critério",
+    "compartilhamento": "[PREENCHA] Com quem os dados são compartilhados (ex.: ferramenta de automação que recebe o formulário; Google Tag Manager, somente após consentimento)"
+  },
+  "servico": {
+    "descricao": "[PREENCHA] O que o produto/serviço oferecido nesta página é, em 1-2 frases",
+    "publico": "[PREENCHA] A quem se destina (ex.: maiores de 18 anos; empresas)"
+  }
+}

@@ -61,6 +61,39 @@ this project follows [Semantic Versioning](https://semver.org/).
   agy session minting, `track-edits --host agy` ledgering and the
   `simulate-gate --host agy` deny verdict (antigravity suite).
 
+### Added — conversion squad + deterministic LP scaffold (ADR-0050)
+- **`lp-scaffold.mjs` + `lp-build.mjs` + `starters/landing/`.** The landing
+  page stops being AI-hand-written (~30–60K tokens) and becomes deterministic:
+  componentized source (one fold per file, `content/copy.json` as the AI's
+  only editing surface) assembled into one atomic indexable `dist/` —
+  `--check` refuses leftover `{{tokens}}`/`[PREENCHA]` sentinels and runs
+  `seo-audit` + `aiso-audit` against the output (born green, asserted in CI).
+  Resolves ADR-0023's deferred starter without inventing domain content
+  (structure + placeholders only, rule 9).
+- **LGPD by default.** Cookie-consent component ships ON (Consent Mode
+  default-denied, < 2 KB, accessible); GTM included directly but **ID-less**
+  (inert until configured, loaded only after consent); Meta/TikTok/LinkedIn
+  pixels ship as commented, consent-wrapped **models** (`tracking-models.js`,
+  never in dist); privacy policy + terms of use generated as drafts from
+  `content/legal.json` with a non-removable lawyer-review disclaimer; lead
+  forms decoupled via webhook (n8n/Make) with loading/success/error states.
+- **Two design-team agents.** `conversion-strategist` (interview-first
+  strategy — niche/pain/single-CTA/sophistication — neurodesign techniques
+  with verification steps, benefit copy; refuses invented social proof) and
+  `tracking-integrator` (GTM/pixels/webhooks, consent-first by contract,
+  pairs with `privacy-lgpd`). Lean agents + tier-2 briefings under
+  `squads/design-team/`.
+- **Playbook + skill v2.** `landing-page.md` gains the fold-anatomy menu
+  (persuasive function per fold), the neurodesign verify-don't-vibe table,
+  the legal & consent defaults and the deterministic path; `/landing-page`
+  now runs interview → indexability → scaffold → fill → `--check` gates.
+  Refused, on record: fixed Next/React stack mandate, a parallel 150-line
+  cap, 7-fold minimum, example social proof, auto-wired pixels.
+- **Tests.** New sibling suite `tools/integration-test-lp.mjs` (25 checks:
+  write-if-missing, refuse-on-placeholder, consent/GTM/pixel contract,
+  disclaimer presence, copy round-trip, fold selection) + selfcheck inventory
+  for both scripts, both agents, briefings and the starter tree.
+
 ## [1.17.0] - 2026-06-10
 
 ### Added — backlog-zero batch (tickets 084–096)
