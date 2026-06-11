@@ -15,10 +15,12 @@
  * auditable escape hatch for trivial edits.
  */
 import { getLevel, loadConfig } from '../config/load.mjs';
-import { hasSimulationFor, readLedger, resolveSessionId, toRepoRelative } from './ledger.mjs';
+import { hasSimulationFor, readLedger, toRepoRelative } from './ledger.mjs';
+import { emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 import { matchHighRisk } from './path-classification.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
 
 async function readStdin() {
   return new Promise((res) => {
@@ -28,15 +30,6 @@ async function readStdin() {
     process.stdin.on('end', () => res(buf));
     setTimeout(() => res(buf), 500).unref?.();
   });
-}
-
-function extractFilePath(payload) {
-  const tool = payload?.tool_name;
-  const input = payload?.tool_input ?? {};
-  if ((tool === 'Edit' || tool === 'Write' || tool === 'MultiEdit') && typeof input.file_path === 'string') {
-    return input.file_path;
-  }
-  return null;
 }
 
 function buildBlockReason(targetPath, matchedEntry) {
@@ -74,7 +67,7 @@ async function main() {
     return;
   }
 
-  const filePath = extractFilePath(payload);
+  const filePath = normalizeToolPayload(payload).filePaths[0];
   if (!filePath) return;
   const targetPath = toRepoRelative(filePath);
   if (!targetPath) return;
@@ -83,12 +76,13 @@ async function main() {
   const matched = matchHighRisk(targetPath, config?.l5?.highRiskPaths ?? []);
   if (!matched) return;
 
-  const ledger = await readLedger(resolveSessionId(payload));
+  const ledger = await readLedger(resolveHookSessionId(payload, HOST));
   if (hasSimulationFor(ledger, targetPath)) return;
 
   // The gate is autonomy-grade-blind by design (ADR-0041/0042): no consent
   // setting may weaken L5 enforcement — only a covering /simulate-impact does.
-  process.stdout.write(JSON.stringify({ decision: 'block', reason: buildBlockReason(targetPath, matched) }));
+  // Host-correct decision key: Claude Code "block", agy "deny" (ADR-0049).
+  emitBlockDecision(buildBlockReason(targetPath, matched), HOST);
 }
 
 main().catch((err) => {

@@ -14,13 +14,16 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile, mkdir, chmod, rename } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
+import { composeAgentHooks } from '../../runtime/config/agent-hooks-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { LEVEL_LABELS as LABELS, MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const CONFIG = pathsFor(ROOT).config;
+const PATHS = pathsFor(ROOT);
+const CONFIG = PATHS.config;
 const SETTINGS = resolve(ROOT, '.claude/settings.json');
+const AGY_HOOKS = resolve(PATHS.antigravity, 'hooks.json');
 
 async function installGitHooks() {
   const hooksDir = resolve(ROOT, '.git/hooks');
@@ -81,6 +84,17 @@ async function main() {
   }
   await mkdir(dirname(SETTINGS), { recursive: true });
   await writeFile(SETTINGS, JSON.stringify(composeSettings(existing, level), null, 2) + '\n', 'utf-8');
+
+  // 2b. agy hooks.json — only when the Antigravity host is installed [ADR-0049].
+  if (existsSync(PATHS.antigravity)) {
+    let agyExisting = null;
+    try {
+      agyExisting = JSON.parse((await readFile(AGY_HOOKS, 'utf-8')).replace(/^﻿/, ''));
+    } catch {
+      /* fresh */
+    }
+    await writeFile(AGY_HOOKS, JSON.stringify(composeAgentHooks(agyExisting, level), null, 2) + '\n', 'utf-8');
+  }
 
   // 3. git hooks at L >= 3
   if (level >= 3) await installGitHooks();

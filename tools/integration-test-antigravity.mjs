@@ -99,6 +99,42 @@ try {
     ? ok('guard allows after a covering /simulate-impact record (095)')
     : bad(`guard still blocked after simulation (status ${covered.status}): ${covered.stdout.slice(0, 150)}`);
 
+  // ── native agy lifecycle hooks (ADR-0049) ──
+  const agyHooksPath = join(proj, '.agents', 'hooks.json');
+  const agyHooks = (() => { try { return JSON.parse(readFileSync(agyHooksPath, 'utf-8')); } catch { return null; } })();
+  const kitGroup = agyHooks?.contextdevkit;
+  kitGroup?.enabled === true &&
+    /session-manager\.mjs start$/.test(kitGroup.SessionStart?.[0]?.hooks?.[0]?.command ?? '') &&
+    (kitGroup.PreToolUse ?? []).some((e) => e.matcher === 'write_to_file' && /simulate-gate\.mjs --host agy$/.test(e.hooks?.[0]?.command ?? ''))
+    ? ok('.agents/hooks.json wired at install — SessionStart + per-tool L5 gate with --host agy (ADR-0049)')
+    : bad(`.agents/hooks.json wiring wrong: ${JSON.stringify(agyHooks)?.slice(0, 200)}`);
+
+  // session-manager start mints the stable agy session id hooks share.
+  run([join(proj, 'contextkit', 'runtime', 'antigravity', 'session-manager.mjs'), 'start'], { cwd: proj });
+  const markerPath = join(proj, '.claude', '.sessions', '.agy-active.json');
+  const agySid = (() => { try { return JSON.parse(readFileSync(markerPath, 'utf-8')).sid; } catch { return null; } })();
+  agySid && agySid.startsWith('agy_')
+    ? ok('session-manager start mints the .agy-active.json session marker (ADR-0049)')
+    : bad('agy session marker missing after session-manager start');
+
+  // track-edits --host agy understands the toolCall/TargetFile wire format.
+  run([join(proj, 'contextkit', 'runtime', 'hooks', 'track-edits.mjs'), '--host', 'agy'], {
+    cwd: proj, input: JSON.stringify({ toolCall: { name: 'write_to_file', args: { TargetFile: 'src/app.js' } } }),
+  });
+  const agyLedger = (() => { try { return JSON.parse(readFileSync(join(ledgerDir, `${agySid}.json`), 'utf-8')); } catch { return null; } })();
+  agyLedger?.modifications?.some((m) => m.path === 'src/app.js' && m.tool === 'write_to_file')
+    ? ok('track-edits --host agy ledgers an agy write under the minted session id (ADR-0049)')
+    : bad(`agy edit not ledgered: ${JSON.stringify(agyLedger)?.slice(0, 200)}`);
+
+  // simulate-gate --host agy answers in the agy dialect: decision "deny".
+  const agyGate = run([join(proj, 'contextkit', 'runtime', 'hooks', 'simulate-gate.mjs'), '--host', 'agy'], {
+    cwd: proj, input: JSON.stringify({ toolCall: { name: 'write_to_file', args: { TargetFile: 'src/secure/auth.js' } } }),
+  });
+  const gateVerdict = (() => { try { return JSON.parse(agyGate.stdout); } catch { return null; } })();
+  gateVerdict?.decision === 'deny' && /simulate-impact/.test(gateVerdict?.reason ?? '')
+    ? ok('simulate-gate --host agy denies an uncovered high-risk agy write (ADR-0049)')
+    : bad(`agy gate verdict wrong: ${agyGate.stdout.slice(0, 200)}`);
+
   // ── antigravity-aware doctor (ticket 086) ──
   const healthy = ctx('doctor');
   /ctx\.mjs runner present/.test(healthy.stdout) && /asset trees populated/.test(healthy.stdout) && /INSTRUCTIONS\.md present, fully rendered/.test(healthy.stdout)

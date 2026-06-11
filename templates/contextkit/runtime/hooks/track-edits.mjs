@@ -15,11 +15,13 @@
  */
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { isTrackable, readLedger, resolveSessionId, sanitizeSid, toRepoRelative, writeLedger } from './ledger.mjs';
+import { isTrackable, readLedger, sanitizeSid, toRepoRelative, writeLedger } from './ledger.mjs';
+import { emitAdvisory, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 import { writeFileAtomic } from './safe-io.mjs';
 import { WORKSPACE_STATE_DIR } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
 const WORKSPACE_DIR = resolve(ROOT, WORKSPACE_STATE_DIR);
 
 async function readStdin() {
@@ -30,18 +32,6 @@ async function readStdin() {
     process.stdin.on('end', () => res(buf));
     setTimeout(() => res(buf), 500).unref?.();
   });
-}
-
-/** Extracts file paths from an Edit/Write/MultiEdit payload. */
-function extractPaths(payload) {
-  const tool = payload?.tool_name;
-  const input = payload?.tool_input ?? {};
-  if (tool === 'Edit' || tool === 'Write') return input.file_path ? [input.file_path] : [];
-  if (tool === 'MultiEdit') {
-    if (input.file_path) return [input.file_path];
-    if (Array.isArray(input.edits)) return input.edits.map((e) => e?.file_path).filter(Boolean);
-  }
-  return [];
 }
 
 async function renewHeartbeat(sessionId) {
@@ -113,14 +103,15 @@ async function main() {
 
   // Sanitize once up front: session id is external input and is used to build
   // ledger + workspace paths (defense-in-depth against `../` traversal).
-  const sessionId = sanitizeSid(resolveSessionId(payload));
-  const paths = extractPaths(payload).map(toRepoRelative).filter(isTrackable);
+  const sessionId = sanitizeSid(resolveHookSessionId(payload, HOST));
+  const normalized = normalizeToolPayload(payload);
+  const paths = normalized.filePaths.map(toRepoRelative).filter(isTrackable);
   if (paths.length === 0) return;
 
   // 1. Append to ledger (recording each file's post-edit mtime so the L3
   //    concurrency guard can later detect an EXTERNAL change to the same file).
   const ledger = await readLedger(sessionId);
-  const tool = payload.tool_name ?? 'unknown';
+  const tool = normalized.toolName ?? 'unknown';
   const now = Date.now();
   for (const p of paths) {
     let mtime = null;
@@ -149,7 +140,7 @@ async function main() {
       }
     }
   }
-  if (collisions.length > 0) process.stdout.write(buildWarning(collisions));
+  if (collisions.length > 0) emitAdvisory(buildWarning(collisions), HOST);
 }
 
 main().catch((err) => {

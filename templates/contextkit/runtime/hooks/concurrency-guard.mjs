@@ -18,7 +18,10 @@
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { getLevel } from '../config/load.mjs';
-import { listAllLedgers, readLedger, resolveSessionId, ROOT, toRepoRelative } from './ledger.mjs';
+import { listAllLedgers, readLedger, ROOT, toRepoRelative } from './ledger.mjs';
+import { emitAdvisory, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
+
+const HOST = hookHost();
 
 const RECENT_MS = 12 * 60 * 60 * 1000; // ignore stale ledgers older than 12h
 
@@ -30,13 +33,6 @@ async function readStdin() {
     process.stdin.on('end', () => res(buf));
     setTimeout(() => res(buf), 500).unref?.();
   });
-}
-
-function extractFilePath(payload) {
-  const t = payload?.tool_name;
-  const input = payload?.tool_input ?? {};
-  if ((t === 'Edit' || t === 'Write' || t === 'MultiEdit') && typeof input.file_path === 'string') return input.file_path;
-  return null;
 }
 
 /** Most recent modification entry for `path` in a ledger (or null). */
@@ -59,13 +55,14 @@ async function main() {
     return;
   }
 
-  const filePath = extractFilePath(payload);
+  const normalized = normalizeToolPayload(payload);
+  const filePath = normalized.filePaths[0];
   if (!filePath) return;
   const target = toRepoRelative(filePath);
   if (!target) return;
 
-  const myId = resolveSessionId(payload);
-  const tool = payload.tool_name;
+  const myId = resolveHookSessionId(payload, HOST);
+  const tool = normalized.toolName;
   const warnings = [];
 
   // 1. Another active session touched this exact file recently.
@@ -95,13 +92,13 @@ async function main() {
   const out = [
     '<concurrency-warning>',
     `⚠️  Concurrency on \`${target}\`: ${warnings.join('; ')}.`,
-    tool === 'Write'
+    tool === 'Write' || tool === 'write_to_file'
       ? '   You are about to OVERWRITE the whole file. Re-read it first, then preserve the other'
       : '   Re-read it first, then make sure you only change your part —',
     '   changes and add yours — do NOT clobber another session\'s work.',
     '</concurrency-warning>',
   ].join('\n');
-  process.stdout.write(out);
+  emitAdvisory(out, HOST);
 }
 
 main().catch((err) => {

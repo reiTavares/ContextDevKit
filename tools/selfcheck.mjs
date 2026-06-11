@@ -56,8 +56,10 @@ async function importLibs() {
     'config/defaults.mjs',
     'config/load.mjs',
     'config/settings-compose.mjs',
+    'config/agent-hooks-compose.mjs',
     'config/presets.mjs',
     'config/resolve-autonomy.mjs',
+    'hooks/host-adapter.mjs',
     'hooks/path-classification.mjs',
     'hooks/safe-io.mjs',
     'hooks/boot-context-readers.mjs',
@@ -106,6 +108,67 @@ function checkCompose(composeSettings) {
     ? ok('composeSettings preserves a user statusLine') : bad('composeSettings clobbered a user statusLine');
 }
 
+/**
+ * Behavioral table for the agy host wiring [ADR-0049]: the `.agents/hooks.json`
+ * composer mirrors the Claude level rules, and the host adapter normalizes
+ * both wire formats into one shape (so the hook scripts never fork per host).
+ */
+function checkAgentHooksCompose(composer, adapter) {
+  console.log('Checking agy hooks composition + host adapter (ADR-0049)...');
+  const { composeAgentHooks, stripAgentHooks, KIT_HOOK_GROUP } = composer;
+  const group = (lvl) => composeAgentHooks(null, lvl)[KIT_HOOK_GROUP];
+  const events = (lvl) => Object.keys(group(lvl)).filter((k) => k !== 'enabled').sort();
+  const expect = {
+    1: ['SessionStart'],
+    2: ['PostToolUse', 'SessionStart', 'Stop'],
+    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+  };
+  for (const [lvl, want] of Object.entries(expect)) {
+    const got = events(Number(lvl));
+    if (JSON.stringify(got) === JSON.stringify(want.sort())) ok(`agy L${lvl} → ${got.join(', ')}`);
+    else bad(`agy L${lvl} expected [${want}] got [${got}]`);
+  }
+  // One matcher entry PER agy tool name (no regex-alternation assumption).
+  const l5 = group(5);
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 3 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
+    ? ok('agy PreToolUse wires guard+gate+nudge once per write tool')
+    : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
+  l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
+    ? ok('every agy tool hook carries the --host agy flag')
+    : bad('an agy tool hook is missing the --host agy flag');
+  // Session boundaries reuse the agy-native session manager (no Claude hook fork).
+  l5.SessionStart[0].hooks[0].command.includes('session-manager.mjs start') && l5.Stop[0].hooks[0].command.includes('session-manager.mjs end')
+    ? ok('agy SessionStart/Stop reuse session-manager start/end')
+    : bad('agy session boundary commands do not target session-manager');
+  // Idempotence + user-group preservation + strip round-trip.
+  const userFile = { 'my-gate': { enabled: true, PreToolUse: [] } };
+  const composed = composeAgentHooks(composeAgentHooks(userFile, 5), 5);
+  composed['my-gate'] && composed[KIT_HOOK_GROUP].PreToolUse.length === l5.PreToolUse.length
+    ? ok('agy re-compose is idempotent and preserves user groups')
+    : bad('agy re-compose duplicated entries or dropped a user group');
+  const stripped = stripAgentHooks(composed);
+  stripped && stripped['my-gate'] && !stripped[KIT_HOOK_GROUP] && stripAgentHooks(composeAgentHooks(null, 5)) === null
+    ? ok('stripAgentHooks removes only the kit group (null when nothing remains)')
+    : bad('stripAgentHooks misbehaved');
+  // Host adapter normalization table — both wire formats → one shape.
+  const norm = adapter.normalizeToolPayload;
+  const cases = [
+    ['claude Edit', { tool_name: 'Edit', tool_input: { file_path: 'a.js' } }, ['a.js']],
+    ['claude MultiEdit edits[]', { tool_name: 'MultiEdit', tool_input: { edits: [{ file_path: 'b.js' }, { file_path: 'c.js' }] } }, ['b.js', 'c.js']],
+    ['agy toolCall TargetFile', { toolCall: { name: 'write_to_file', args: { TargetFile: 'd.js' } } }, ['d.js']],
+    ['agy claude-shaped variant', { tool_name: 'replace_file_content', tool_input: { TargetFile: 'e.js' } }, ['e.js']],
+    ['junk payload', { nonsense: true }, []],
+  ];
+  for (const [label, payload, want] of cases) {
+    const got = norm(payload).filePaths;
+    JSON.stringify(got) === JSON.stringify(want) ? ok(`normalizeToolPayload: ${label}`) : bad(`normalizeToolPayload ${label} → ${JSON.stringify(got)}`);
+  }
+  adapter.hookHost(['node', 'x.mjs', '--host', 'agy']) === 'agy' && adapter.hookHost(['node', 'x.mjs']) === 'claude'
+    ? ok('hookHost resolves --host agy and defaults to claude')
+    : bad('hookHost flag parsing wrong');
+}
+
 function checkConfig(load) {
   console.log('Checking zero-dep config loader...');
   const cfg = load.loadConfigSync(KIT);
@@ -150,6 +213,9 @@ async function main() {
   console.log('\n🌀 ContextDevKit self-check\n');
   const mods = await importLibs();
   if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(mods['config/settings-compose.mjs'].composeSettings);
+  if (mods['config/agent-hooks-compose.mjs']?.composeAgentHooks && mods['hooks/host-adapter.mjs']) {
+    checkAgentHooksCompose(mods['config/agent-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
+  }
   if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);
   checkPaths(mods['config/paths.mjs']);
   checkPresets(mods['config/presets.mjs']);

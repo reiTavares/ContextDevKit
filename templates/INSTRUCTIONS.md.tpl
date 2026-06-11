@@ -30,7 +30,7 @@ This runs the hook that fetches upstream git status, detects workspace claims, i
   - Run `node ctx.mjs session start` as your very first action at the beginning of a session.
   - Run `node ctx.mjs session status` periodically to check for modified files and ledger status.
   - Run `node ctx.mjs session end` followed by `node ctx.mjs log-session` at the end of the session to check rules and register work.
-  - Run `node ctx.mjs guard <path>` BEFORE editing any sensitive file (config `l5.highRiskPaths`) — exit 1 means run the `simulate-impact` skill first. This replaces Claude Code's automatic PreToolUse gate on this host.
+  - Run `node ctx.mjs guard <path>` BEFORE editing any sensitive file (config `l5.highRiskPaths`) — exit 1 means run the `simulate-impact` skill first. On agy versions with hook support the same gate also fires automatically via `.agents/hooks.json` (ADR-0049); this explicit checkpoint is the belt-and-braces fallback.
   - Run `node ctx.mjs doctor` or `node ctx.mjs tech-debt` autonomously to perform health and tech-debt audits.
 
 ### 2. Adopting a Posture (Squad Sub-agents)

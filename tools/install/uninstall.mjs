@@ -7,6 +7,7 @@ import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
+import { stripAgentHooks } from '../../templates/contextkit/runtime/config/agent-hooks-compose.mjs';
 import { read, overwrite } from './fs.mjs';
 
 export async function uninstall(target, purge) {
@@ -29,6 +30,19 @@ export async function uninstall(target, purge) {
       report.push('✓ removed ContextDevKit hook wiring from .claude/settings.json');
     } catch {
       report.push('⚠️  could not parse .claude/settings.json — left untouched');
+    }
+  }
+  // 1b. Strip the kit-owned group from .agents/hooks.json, keeping user groups
+  //     (file removed entirely when nothing user-owned remains) [ADR-0049].
+  const agyHooksPath = join(target, ANTIGRAVITY_DIR, 'hooks.json');
+  if (existsSync(agyHooksPath)) {
+    try {
+      const remaining = stripAgentHooks(JSON.parse((await read(agyHooksPath)).replace(/^\uFEFF/, '')));
+      if (remaining) await overwrite(agyHooksPath, JSON.stringify(remaining, null, 2) + '\n');
+      else await rm(agyHooksPath, { force: true });
+      report.push(`✓ removed ContextDevKit hook wiring from ${ANTIGRAVITY_DIR}/hooks.json`);
+    } catch {
+      report.push(`⚠️  could not parse ${ANTIGRAVITY_DIR}/hooks.json — left untouched`);
     }
   }
   // 2. Remove the git hook wrappers we installed.

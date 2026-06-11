@@ -3,8 +3,10 @@
  * Antigravity Session Manager — replaces Claude Code's hook lifecycle.
  *
  * Claude Code uses automatic hooks (SessionStart, PostToolUse, PreToolUse, Stop)
- * wired via .claude/settings.json. Antigravity has no hook equivalent, so this
- * script provides the same functionality as explicit CLI commands.
+ * wired via .claude/settings.json. On agy the same lifecycle is wired natively
+ * through `.agents/hooks.json` [ADR-0049]: SessionStart runs `start`, Stop runs
+ * `end`. The explicit CLI commands remain for hook-less agy versions and for
+ * on-demand checks.
  *
  * Usage:
  *   node contextkit/runtime/antigravity/session-manager.mjs start
@@ -20,11 +22,13 @@
  * the action argument is resolved against a fixed allow-map (start|status|end),
  * never against the filesystem.
  */
-import { readdir, readFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { PLATFORM_DIR } from '../config/paths.mjs';
+import { LEDGER_DIR, PLATFORM_DIR } from '../config/paths.mjs';
 import { listAllLedgers, pendingImportantPaths, wasRegisteredDuringSession } from '../hooks/ledger.mjs';
+import { AGY_SESSION_MARKER } from '../hooks/host-adapter.mjs';
+import { writeFileAtomic } from '../hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const action = process.argv[2] ?? 'start';
@@ -96,7 +100,25 @@ async function pendingSessions() {
 
 // ── actions ──
 
+/**
+ * Mints a stable agy session id so per-event hook processes (track-edits,
+ * concurrency-guard, …) share ONE ledger instead of fragmenting — agy hook
+ * payloads carry no session_id [ADR-0049]. Best-effort: a failed marker only
+ * means hooks fall back to the shared `agy_local` id.
+ */
+async function mintAgySession() {
+  try {
+    const ledgerDir = resolve(ROOT, LEDGER_DIR);
+    await mkdir(ledgerDir, { recursive: true });
+    const sid = `agy_${Date.now().toString(36)}`;
+    await writeFileAtomic(join(ledgerDir, AGY_SESSION_MARKER), JSON.stringify({ sid, startedAt: Date.now() }));
+  } catch {
+    /* hooks degrade to the shared fallback id — never fatal */
+  }
+}
+
 async function actionStart() {
+  await mintAgySession();
   const p = new Promise((resolvePromise) => {
     const child = spawn('node', [resolve(ROOT, PLATFORM_DIR, 'runtime/antigravity/boot-context.mjs')], {
       cwd: ROOT,

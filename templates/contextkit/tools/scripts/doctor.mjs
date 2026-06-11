@@ -182,6 +182,12 @@ function checkAntigravityHost() {
     ? pass(`${ANTIGRAVITY_DIR} asset trees populated (skills, agents, playbooks, workflows)`)
     : note(`${ANTIGRAVITY_DIR} tree(s) empty or missing: ${emptyTrees.join(', ')}`, 're-run the installer (npx contextdevkit --update)');
 
+  // agy lifecycle hooks [ADR-0049] — advisory: presence of the kit-owned group.
+  const agyHooks = readJson(`${ANTIGRAVITY_DIR}/hooks.json`);
+  agyHooks && agyHooks.contextdevkit && agyHooks.contextdevkit.enabled !== false
+    ? pass(`${ANTIGRAVITY_DIR}/hooks.json carries the contextdevkit hook group (ADR-0049)`)
+    : note(`${ANTIGRAVITY_DIR}/hooks.json missing the contextdevkit group`, 're-run the installer (npx contextdevkit --update) to wire agy lifecycle hooks');
+
   try {
     const instructions = readFileSync(resolve(ROOT, 'INSTRUCTIONS.md'), 'utf-8');
     const leftover = instructions.match(/\{\{[A-Z_]+\}\}/g);
