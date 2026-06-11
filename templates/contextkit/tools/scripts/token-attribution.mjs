@@ -4,14 +4,17 @@
  * Pure, zero-dep. Given parsed transcript entries (each carrying `message.usage`),
  * splits token cost two ways:
  *   - by AGENT — main loop vs subagent **fan-out**, via the transcript's
- *     `isSidechain` flag (the cost frontier ADR-0041 named);
- *   - by COMMAND — via the transcript's `attributionSkill` field (which slash
- *     command / skill was active when the tokens were spent).
+ *     `isSidechain` flag (the cost frontier ADR-0041 named). This split is always
+ *     available and is the honest input the grade-4 budget gate (ADR-0045) reads.
+ *   - by COMMAND — via the transcript's `attributionSkill` field. This field is
+ *     populated by the HOST only while a slash command / skill is the attribution
+ *     context, so `commands` is legitimately empty on sessions that ran no
+ *     attributed command. Treat it as a best-effort lens (the report omits the
+ *     "Top commands" section when empty), NOT a guaranteed dimension.
  *
  * Both are derived ONLY from records `/token-report` already parses, so there is
  * NO new persisted artifact to inflate — the named failure mode in ADR-0044 is
- * structurally impossible here. This is the honest input the grade-4 budget gate
- * (ADR-0045) consumes and the proof-of-savings instrument for the fan-out economy.
+ * structurally impossible here.
  */
 
 /** A fresh zeroed token bucket. */

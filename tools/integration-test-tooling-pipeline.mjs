@@ -116,6 +116,11 @@ try {
   script('workspace-sync.mjs');
   const afterEvict = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
   afterEvict?.stage === 'backlog' ? ok('workspace-sync auto-evicts stale task back to backlog/') : bad(`stale evict failed: stage=${afterEvict?.stage}`);
+  // ADR-0043 §3/§5: the eviction must be ON THE EVENT LOG (actor=evict) — else the
+  // grade-4 rollback metric (ADR-0045) can't see abandonment ("if it isn't an event…").
+  const evictState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', wipTask.id, 'state.json'), 'utf-8'));
+  (evictState.events || []).some((e) => e.actor === 'evict' && e.from === 'working' && e.to === 'backlog')
+    ? ok('stale eviction appends an actor=evict event (ADR-0043 §5)') : bad(`eviction left no evict event: ${JSON.stringify(evictState.events)}`);
 
   // ─ ADR-0015 §C: canonical state.json substrate (per-task + per-pipeline-run) ─
   script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'state-test');
@@ -240,6 +245,11 @@ try {
   const movedState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', autoId, 'state.json'), 'utf-8'));
   movedState.events?.at(-1)?.actor === 'human' && movedState.events.length === 2
     ? ok('human move appends its event — log is append-only across actors') : bad(`event log broken: ${JSON.stringify(movedState.events)}`);
+  // ADR-0043 §3: auto may NOT do the testing→working bounce (that is qa-reject's
+  // monopoly and must carry feedback). autoId is in `testing` now, grade still 3.
+  const illegalBounce = script('pipeline.mjs', 'auto-transition', autoId, 'working');
+  illegalBounce.status !== 0 && /qa-reject/.test(illegalBounce.stdout + illegalBounce.stderr)
+    ? ok('auto-transition refuses testing→working — that bounce is qa-reject only (ADR-0043 §3)') : bad(`auto-transition performed the qa-reject bounce: ${illegalBounce.stdout}${illegalBounce.stderr}`);
   delete cfgRaw.autonomy;
   writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
 

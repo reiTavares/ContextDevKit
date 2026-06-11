@@ -21,6 +21,15 @@ import { listTasks } from './pipeline-tasks.mjs';
 const STAGES = { backlog: 'backlog', working: 'working', testing: 'testing', conclusion: 'conclusion' };
 const STATUS = { backlog: 'backlog', working: 'working', testing: 'testing', conclusion: 'done' };
 
+/**
+ * Legal AUTOMATIC transitions (ADR-0043 §3): `auto` only advances forward
+ * `backlog→working→testing`. It may NOT do `testing→working` (that bounce is
+ * `qa-reject`'s monopoly, and must carry feedback), skip a stage, move backward,
+ * or touch `conclusion` (human/QA sign-off). The free-form HUMAN `move` is the
+ * escape hatch for anything else.
+ */
+const AUTO_LEGAL = { backlog: ['working'], working: ['testing'] };
+
 function findTask(PIPE, id) {
   const task = listTasks(PIPE).find((t) => t.id === id.padStart(3, '0') || t.id === id);
   if (!task) {
@@ -111,6 +120,10 @@ export function autoTransition({ ROOT, PIPE, sync }) {
   const task = findTask(PIPE, id);
   if (stage === 'conclusion' || task.stage === 'conclusion') {
     console.error('auto-transition refused: conclusion is human/QA sign-off territory at every grade (ADR-0043 legality).');
+    process.exit(1);
+  }
+  if (!(AUTO_LEGAL[task.stage] || []).includes(stage)) {
+    console.error(`auto-transition refused: ${task.stage}→${stage} is not a legal automatic move (ADR-0043). Auto advances backlog→working→testing only; the testing→working bounce is qa-reject (it must carry feedback). Use \`pipeline.mjs move\` for anything else.`);
     process.exit(1);
   }
   relocate(PIPE, task, stage, sync, 'auto');

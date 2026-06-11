@@ -21,7 +21,7 @@ import { resolve } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomic, writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { readState, writeState } from '../../runtime/state/state-io.mjs';
+import { appendEvent, readState, writeState } from '../../runtime/state/state-io.mjs';
 
 const ROOT = process.cwd();
 const WORKSPACE_DIR = resolve(ROOT, '.claude/.workspace');
@@ -98,6 +98,10 @@ function evictStaleTasks(claims, maxMinutes) {
       if (moved) {
         evicted.push({ sid: record.sessionId, taskId: task.id });
         try {
+          // ADR-0043: an eviction IS a transition — record the `evict` event so the
+          // log stays complete ("if it isn't an event, it didn't happen") and the
+          // grade-4 rollback metric (ADR-0045) counts abandonment honestly.
+          appendEvent(PIPE_DIR, task.id, { from: 'working', to: 'backlog', actor: 'evict', note: `stale > ${maxMinutes}m` });
           if (readState(PIPE_DIR, task.id)) writeState(PIPE_DIR, task.id, { status: 'backlog', endedAt: Date.now() });
         } catch { /* */ }
       }

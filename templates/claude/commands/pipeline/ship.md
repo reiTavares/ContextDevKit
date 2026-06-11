@@ -50,6 +50,13 @@ user runs `/autonomy 1` mid-run it takes effect on the very next step. Branch-on
 the resolver returns `auto` for `push` only toward a non-default branch; a merge to
 the default branch is always the human's.
 
+**Budget downgrade (ADR-0044 D3).** When you re-consult the resolver, pass
+`budgetExhausted: true` if the session has crossed `tokens.budgetPerSession`
+(compare the session total from `token-report.mjs --json` against the config). At
+grade 4 the resolver then returns grade-2 behaviour (`suggest`, `reason:
+'budget-exhausted'`) — it **downgrades to consent, never blocks an edit**. Surface
+the downgrade as a one-line digest so the user knows why the autonomy dropped.
+
 ## Resume & progress tracking (ticket 074)
 
 Before anything else, check for an **interrupted ship** to resume:

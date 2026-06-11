@@ -90,7 +90,9 @@ function floorReason(area, context, config) {
  * @param {string} area one of `AREAS`
  * @param {object} [config] loaded contextkit config (callers own the I/O)
  * @param {number|null} [sessionOverride] grade set by `/autonomy N --session`
- * @param {{ flagGrade?: number, path?: string, force?: boolean, targetRef?: string, defaultBranch?: string }} [context]
+ * @param {{ flagGrade?: number, path?: string, force?: boolean, targetRef?: string, defaultBranch?: string, budgetExhausted?: boolean }} [context]
+ *   `budgetExhausted` (ADR-0044 D3): the caller sets it true when the session has
+ *   crossed `tokens.budgetPerSession` — at grade 4 it downgrades, never blocks.
  * @returns {{ grade: number, mode: 'manual'|'suggest'|'auto'|'debate', source: string, reason: string }}
  * @throws {TypeError} on an unknown area (closed enum) or a config contradiction
  */
@@ -110,6 +112,12 @@ export function resolveAutonomy(area, config = {}, sessionOverride = null, conte
 
   const floor = floorReason(area, context, config);
   if (floor) return { grade, mode: 'manual', source, reason: floor };
+
+  // ADR-0044 D3: at grade 4 an exhausted token budget is a resolver precondition —
+  // it returns grade-2 behaviour (`suggest`) so the run keeps moving with consent,
+  // and NEVER blocks an edit (rule 2). The floor above still wins; lower grades are
+  // already budget-warn-only, so this only bites at grade 4.
+  if (grade === 4 && context.budgetExhausted) return { grade, mode: MODE_TABLE[area][1], source, reason: 'budget-exhausted' };
 
   let mode = MODE_TABLE[area][grade - 1];
   // ADR-0045 mechanics: grade-4 push is auto ONLY toward a non-default branch.
