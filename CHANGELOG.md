@@ -25,6 +25,36 @@ this project follows [Semantic Versioning](https://semver.org/).
   { autoRefresh, enforce }` config block. Covered by selfcheck + integration
   (cycle, violation→exit-1, opt-in-off, `--for`).
 
+### Added — F3 fan-out economy (ADR-0044, tasks 113–115)
+- **D3 · per-agent / per-command token attribution.** `/token-report` now splits
+  spend by **agent** (main loop vs subagent **fan-out**, from the transcript's
+  `isSidechain`) and by **command** (from `attributionSkill`), in the human view and
+  under `--json` — the honest input the grade-4 budget gate (ADR-0045) consumes and
+  the proof-of-savings instrument. New pure `token-attribution.mjs`. **Deviation
+  noted:** the ADR sketched a per-run ledger line written by `/debate`/`/ship`; the
+  transcript already carries `attributionSkill` + `isSidechain`, so attribution is
+  derived from records already parsed — strictly more accurate (a command cannot see
+  its own final token count mid-run) and with **no new persisted artifact**, which
+  structurally forecloses the ADR's named "memory-inflation" failure mode.
+- **D1 · bounded subagent context pack.** `context-pack.mjs --for-subagent
+  --objective "…"` emits a ≤~120-line pack (immutable-rules digest · last-session
+  line · `[Unreleased]` digest · open claims · objective-targeted memory) carrying
+  the standing rule *"do not re-read boot context; read at most 1 file to verify a
+  claim."* `/debate`, `/advise` and `/ship` (and the antigravity mirrors) now embed
+  it in every fan-out Task prompt — the pattern the 06 master round validated.
+- **D5 · deterministic memory retriever.** New `memory-retrieve.mjs` selects the
+  memory **already extracted** by the digest layer (glossary rows · ADR catalog
+  lines scored by title overlap · the latest-session one-liner · the project-map
+  `--for` subgraph) for an objective — no generation, no placeholders, hard-capped
+  at 40 lines, idempotent (same objective + repo state ⇒ byte-identical).
+- **D2 · compact `[Unreleased]` boot digest.** The SessionStart banner replaces the
+  raw section with a count-by-type tally (`Added 2 · Fixed 1 …`) + the most recent
+  entries via the `md-extract` seam (`digestUnreleased`), falling back to the raw
+  truncated section on any parse miss (same contract as the ADR-0027 boot digest).
+- Covered by selfcheck source-cases + a dedicated `integration-test-token-economy.mjs`
+  suite (attribution split, retriever cap/idempotency/placeholder-guard, bounded
+  subagent pack, the `[Unreleased]` digest + its raw fallback).
+
 ### Changed — Antigravity host goes native (ADR-0048 + ADR-0049)
 - **Host assets moved `.antigravity/` → `.agents/` (ADR-0048).** The agy binary
   resolves workspace skills strictly from `.agents/`, so the kit-invented

@@ -20,13 +20,16 @@ feeds an ADR's Context. It is NOT the canonical record of the *why* — the ADR 
    to debate (no real tension, or several questions tangled together), ask one
    clarifying question before spending agent calls.
 
-2. **Fan out to independent voices.** Dispatch **`voices`** sub-agents with the Task
-   tool, IN PARALLEL, each assigned ONE distinct position and **blind to the others'
-   arguments** — this independence is the whole point (ADR-0035); a single model
-   role-playing every side collapses to its own prior. Assign genuinely different
-   axes (e.g. correctness vs. cost vs. reversibility/blast-radius), not three shades
-   of the same take. Each voice returns its strongest one-paragraph case + the
-   trade-off it accepts. Keep them CONCISE, OBJECTIVE, HIGHLY TECHNICAL.
+2. **Fan out to independent voices.** First run
+   `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "<the question>"`
+   and **embed its output verbatim at the top of every voice's Task prompt** (ADR-0044 D1) —
+   one bounded pack, so the voices don't each re-read boot context. Then dispatch
+   **`voices`** sub-agents with the Task tool, IN PARALLEL, each assigned ONE distinct
+   position and **blind to the others' arguments** — this independence is the whole
+   point (ADR-0035); a single model role-playing every side collapses to its own prior.
+   Assign genuinely different axes (e.g. correctness vs. cost vs. reversibility/blast-radius),
+   not three shades of the same take. Each voice returns its strongest one-paragraph case +
+   the trade-off it accepts. Keep them CONCISE, OBJECTIVE, HIGHLY TECHNICAL.
 
 3. **Synthesize (you, not the voices).** You are the orchestrator — you argued no
    position, so you declare the outcome. Weigh the cases: which wins on which axis,

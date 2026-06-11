@@ -13,7 +13,7 @@
     "install:here": "node install.mjs --target .",
     "check": "node tools/selfcheck.mjs",
     "build:antigravity": "node templates/contextkit/runtime/antigravity/convert-all.mjs --templates",
-    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-project-map.mjs && node tools/integration-test-tooling-pipeline.mjs && node tools/integration-test-tooling-agent-forge.mjs && node tools/integration-test-guards.mjs && node tools/integration-test-autonomy.mjs && node tools/integration-test-compozy.mjs && node tools/integration-test-migrate.mjs && node tools/integration-test-antigravity.mjs && node tools/integration-test-lp.mjs",
+    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-project-map.mjs && node tools/integration-test-token-economy.mjs && node tools/integration-test-tooling-pipeline.mjs && node tools/integration-test-tooling-agent-forge.mjs && node tools/integration-test-guards.mjs && node tools/integration-test-autonomy.mjs && node tools/integration-test-compozy.mjs && node tools/integration-test-migrate.mjs && node tools/integration-test-antigravity.mjs && node tools/integration-test-lp.mjs",
     "ci": "npm test && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
     "preflight-release": "npm run ci && node tools/preflight-version.mjs",
     "prepublishOnly": "npm run ci"

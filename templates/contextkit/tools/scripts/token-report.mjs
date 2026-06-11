@@ -19,6 +19,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { attribute, totalOf } from './token-attribution.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -61,9 +62,14 @@ function isoWeek(ts) {
   return `${t.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-/** sessionId → token totals, built from `message.usage` entries (filtered by cwd unless --all). */
+/**
+ * sessionId → token totals, built from `message.usage` entries (filtered by cwd
+ * unless --all). Also returns the per-agent / per-command attribution (ADR-0044
+ * D3) over the same filtered entries — derived in one pass, no second read.
+ */
 function aggregate(files, all) {
   const sessions = new Map();
+  const attrEntries = [];
   for (const file of files) {
     let text;
     try {
@@ -82,6 +88,7 @@ function aggregate(files, all) {
       const usage = entry?.message?.usage;
       if (!usage) continue;
       if (!all && norm(entry.cwd) !== ROOT_N) continue;
+      attrEntries.push({ message: { usage }, isSidechain: entry.isSidechain, attributionSkill: entry.attributionSkill });
       const sid = entry.sessionId || file;
       const s = sessions.get(sid) || { input: 0, output: 0, cacheRead: 0, cacheCreate: 0, turns: 0, at: '', week: 'unknown' };
       s.input += usage.input_tokens || 0;
@@ -96,7 +103,7 @@ function aggregate(files, all) {
       sessions.set(sid, s);
     }
   }
-  return sessions;
+  return { sessions, attribution: attribute(attrEntries) };
 }
 
 const sessionTotal = (s) => s.input + s.output + s.cacheRead + s.cacheCreate;
@@ -114,13 +121,37 @@ function summarize(sessions) {
   return { rows, totals, weeks, sessions: rows.length };
 }
 
+/**
+ * Renders the ADR-0044 D3 attribution: main-loop vs subagent fan-out split, then
+ * the top commands by spend. Silent on the parts with no data (a project that
+ * never fanned out shows no fan-out line) — never invents a row.
+ */
+function printAttribution(attribution) {
+  const { main: mainLoop, subagent } = attribution.agents;
+  const mainTotal = totalOf(mainLoop);
+  const subTotal = totalOf(subagent);
+  if (subTotal > 0) {
+    const share = Math.round((subTotal / (mainTotal + subTotal)) * 100);
+    console.log('\nFan-out attribution (ADR-0044):');
+    console.log(`  main loop ${n(mainTotal)} · subagents ${n(subTotal)} (${share}% of spend, ${subagent.turns} subagent turns)`);
+  }
+  const commands = Object.entries(attribution.commands)
+    .map(([command, bucket]) => ({ command, total: totalOf(bucket), turns: bucket.turns }))
+    .sort((a, b) => b.total - a.total);
+  if (commands.length) {
+    console.log('\nTop commands by tokens:');
+    for (const c of commands.slice(0, 8)) console.log(`  ${c.command.padEnd(24)} ${n(c.total).padStart(12)}  (${c.turns} turns)`);
+  }
+}
+
 function main() {
   const budget = loadConfigSync(ROOT).tokens || { budgetPerSession: 0, warnAtPct: 80 };
   const files = findTranscripts(opt('--from'));
-  const { rows, totals, weeks, sessions } = summarize(aggregate(files, flag('--all')));
+  const { sessions: rawSessions, attribution } = aggregate(files, flag('--all'));
+  const { rows, totals, weeks, sessions } = summarize(rawSessions);
 
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ sessions, totals, weeks, budget, perSession: rows }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ sessions, totals, weeks, budget, perSession: rows, attribution }, null, 2) + '\n');
     return;
   }
 
@@ -142,6 +173,8 @@ function main() {
   }
   console.log('\nPer ISO week:');
   for (const [week, total] of Object.entries(weeks).sort()) console.log(`  ${week}  ${n(total)}`);
+
+  printAttribution(attribution);
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));

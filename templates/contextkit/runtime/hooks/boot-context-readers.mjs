@@ -9,6 +9,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
 import { parseSessionLog, renderDigest } from './session-digest-core.mjs';
+import { clip, stripMd } from './md-extract.mjs';
 
 const SECTION_LIMIT = 60;
 
@@ -90,6 +91,53 @@ export function extractUnreleased(text) {
   if (!content || /add your changes|empty|vazio/i.test(content)) return null;
   // Tell the reader the boot banner is showing a clipped view, not the whole list.
   return truncated ? `${content}\n… (truncated — full [Unreleased] in docs/CHANGELOG.md)` : content;
+}
+
+/** The raw lines of the `[Unreleased]` block (before any clipping), or []. */
+function unreleasedLines(text) {
+  if (!text) return [];
+  const lines = text.split('\n');
+  const startIdx = lines.findIndex((l) => /^##\s+\[Unreleased\]/i.test(l));
+  if (startIdx === -1) return [];
+  const slice = lines.slice(startIdx + 1);
+  const endRel = slice.findIndex((l) => l.trim() === '---' || /^##\s+\[/.test(l));
+  return slice.slice(0, endRel === -1 ? slice.length : endRel);
+}
+
+/**
+ * A compact digest of the `[Unreleased]` block (ADR-0044 D2): a count-by-type
+ * tally (`### Added` / `### Changed` / …) plus the most recent few entry titles —
+ * ~8 lines instead of the raw wall. Same contract as the ADR-0027 boot digest:
+ * returns `null` on ANY parse miss (no `###` subsections, no bullets) so the
+ * caller falls back to the raw-truncated {@link extractUnreleased}.
+ *
+ * @param {string} text — CHANGELOG-shaped string
+ * @param {number} [topN] — how many recent entry titles to list
+ * @returns {string|null}
+ */
+export function digestUnreleased(text, topN = 5) {
+  const lines = unreleasedLines(text);
+  if (!lines.length) return null;
+  const counts = [];
+  const entries = [];
+  let current = null;
+  for (const raw of lines) {
+    const heading = /^###\s+(.+?)\s*$/.exec(raw);
+    if (heading) {
+      current = { type: heading[1].trim(), n: 0 };
+      counts.push(current);
+      continue;
+    }
+    if (current && /^\s*[-*]\s+/.test(raw)) {
+      current.n += 1;
+      if (entries.length < topN) entries.push(`- ${clip(stripMd(raw.replace(/^\s*[-*]\s+/, '')), 90)} _(${current.type})_`);
+    }
+  }
+  const tallied = counts.filter((c) => c.n > 0);
+  if (!tallied.length) return null; // no typed entries → let the caller use the raw view
+  const total = tallied.reduce((sum, c) => sum + c.n, 0);
+  const header = `${tallied.map((c) => `${c.type} ${c.n}`).join(' · ')} (${total} entr${total === 1 ? 'y' : 'ies'})`;
+  return [header, '', ...entries].join('\n');
 }
 
 /** Active-session table from WORKSPACE.md (first ~12 lines after the header). */

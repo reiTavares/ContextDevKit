@@ -275,4 +275,19 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['defaults ship the projectMap toggles (ADR-0046)', 'templates/contextkit/runtime/config/defaults.mjs', /projectMap: \{ autoRefresh: true, enforce: true \}/],
     ['schema models the projectMap block (ADR-0046)', 'templates/contextkit/runtime/config/schema.mjs', /projectMap: ProjectMapSchema/],
     ['quality.yml runs the structural fitness gate (ADR-0046)', 'templates/github/workflows/quality.yml', /project-map\.mjs --check --strict/],
+    // ADR-0044 F3 D3 — per-agent / per-command token attribution.
+    ['token-attribution splits cost by agent (sidechain) and command (attributionSkill) (ADR-0044 D3)', 'templates/contextkit/tools/scripts/token-attribution.mjs', /entry\.isSidechain \? agents\.subagent : agents\.main[\s\S]*entry\.attributionSkill/],
+    ['token-attribution derives only from parsed records — no persisted artifact (ADR-0044, anti-inflation)', 'templates/contextkit/tools/scripts/token-attribution.mjs', /export function attribute/],
+    ['token-report surfaces the D3 attribution + exposes it in --json (ADR-0044)', 'templates/contextkit/tools/scripts/token-report.mjs', /attribution \} = aggregate[\s\S]*attribution \}, null, 2/],
+    // ADR-0044 F3 D1/D5 — bounded subagent pack + the deterministic memory retriever.
+    ['memory-retrieve selects existing digests — no generation, hard-capped (ADR-0044 D5)', 'templates/contextkit/tools/scripts/memory-retrieve.mjs', /export const CAP = 40[\s\S]*retrieved, not generated/],
+    ['memory-retrieve guards its CLI so import never runs main (ADR-0044, rule 2)', 'templates/contextkit/tools/scripts/memory-retrieve.mjs', /fileURLToPath\(import\.meta\.url\) === resolve\(process\.argv\[1\]\)/],
+    ['context-pack ships the bounded --for-subagent pack reusing the retriever (ADR-0044 D1)', 'templates/contextkit/tools/scripts/context-pack.mjs', /renderRetrieval\(retrieval\)[\s\S]*flag\('--for-subagent'\)/],
+    ['subagent pack carries the do-not-re-read-boot instruction (ADR-0044 D1)', 'templates/contextkit/tools/scripts/context-pack.mjs', /Do not re-read boot context/],
+    ['/debate embeds the subagent pack before fan-out (ADR-0044 D1)', 'templates/claude/commands/debate.md', /--for-subagent --objective/],
+    ['/advise embeds the subagent pack before lane fan-out (ADR-0044 D1)', 'templates/claude/commands/advise.md', /--for-subagent --objective/],
+    ['/ship embeds the subagent pack when delegating (ADR-0044 D1)', 'templates/claude/commands/pipeline/ship.md', /--for-subagent --objective/],
+    // ADR-0044 F3 D2 — compact [Unreleased] boot digest with a raw fallback.
+    ['boot digests [Unreleased] as count-by-type + recent entries (ADR-0044 D2)', 'templates/contextkit/runtime/hooks/boot-context-readers.mjs', /export function digestUnreleased/],
+    ['the [Unreleased] digest falls back to the raw section on a parse miss (ADR-0044 D2, ADR-0027 contract)', 'templates/contextkit/runtime/hooks/session-start.mjs', /digestUnreleased\(changelog\) \|\| extractUnreleased\(changelog\)/],
 ];
