@@ -8,6 +8,9 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+  # OPT-IN (ADR-0047 A4): uncomment to run the alert-sync job on a cadence.
+  # schedule:
+  #   - cron: "0 6 * * 1" # Mondays 06:00 UTC
 
 permissions:
   contents: read
@@ -35,6 +38,26 @@ jobs:
         with:
           node-version: 20
       - run: node contextkit/tools/scripts/deps-audit.mjs
+
+  alert-sync:
+    # Scheduled run of the kit's on-demand alert sync (gh-alerts.mjs): prints open
+    # Dependabot + code-scanning alerts as deps-audit-shaped findings in the job
+    # log. INERT until the `schedule:` trigger above is uncommented (ADR-0047 A4);
+    # runs in the project's CI, never on the kit hot path (rule 1). Note: reading
+    # Dependabot alerts with the default GITHUB_TOKEN may be denied — the script
+    # then reports nothing and exits 0 (skip, never a fake pass). To ingest into
+    # the backlog, run locally: gh-alerts.mjs --write → pipeline.mjs ingest.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+      - run: node contextkit/tools/scripts/gh-alerts.mjs
 
   codeql:
     # SAST. Set `language` to your stack: c-cpp, csharp, go, java-kotlin,

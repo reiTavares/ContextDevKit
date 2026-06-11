@@ -48,6 +48,35 @@ export function renderBoard(tasks) {
   return out.join('\n');
 }
 
+/** One compact task line for the digest. Bounded: title clipped at 60 chars. */
+function digestLine(t) {
+  const title = t.title.length > 60 ? `${t.title.slice(0, 57)}…` : t.title;
+  return `${t.id} ${t.priority}${isOverdue(t) ? ' ⏰' : ''} ${t.type} — ${title}`;
+}
+
+/**
+ * Token-light lane summary (ADR-0047 A3, on ADR-0027's digest posture):
+ * deterministic extraction so `/pipeline` and `/plan-week` reason over a few
+ * lines instead of reading N task files. Active lanes in full (they are small
+ * by design), backlog capped to the top entries in board order.
+ * @param {Array<object>} tasks — the full task list (see pipeline-tasks.mjs)
+ * @param {number} backlogCap — max backlog lines (default 8)
+ */
+export function renderDigest(tasks, backlogCap = 8) {
+  const by = (s) => tasks.filter((t) => t.stage === s);
+  const backlog = by('backlog');
+  const out = [
+    `📊 DevPipeline digest — Backlog **${backlog.length}** · Working **${by('working').length}** · Testing **${by('testing').length}** · Concluded **${by('conclusion').length}** · ⏰ Overdue **${tasks.filter(isOverdue).length}**`,
+  ];
+  for (const [label, lane] of [['Working', by('working')], ['Testing', by('testing')]]) {
+    out.push(`${label}: ${lane.length ? lane.map(digestLine).join(' · ') : '(none)'}`);
+  }
+  out.push(`Backlog (top ${Math.min(backlogCap, backlog.length)}):`);
+  for (const t of backlog.slice(0, backlogCap)) out.push(`  - ${digestLine(t)}`);
+  if (backlog.length > backlogCap) out.push(`  … +${backlog.length - backlogCap} more (full board: contextkit/pipeline/devpipeline.md)`);
+  return out.join('\n');
+}
+
 const SEV_ORDER = ['S1', 'S2', 'S3', 'S4', ''];
 const SEV_LABEL = { S1: 'S1 · Critical', S2: 'S2 · High', S3: 'S3 · Medium', S4: 'S4 · Low', '': 'Unclassified' };
 

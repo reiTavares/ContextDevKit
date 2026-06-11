@@ -20,6 +20,15 @@ Run the **security-team's** dependency / supply-chain check, then feed the backl
    node contextkit/tools/scripts/deps-audit.mjs --sbom   # → contextkit/memory/sbom.json
    ```
 
+   **Staleness / abandonment** (ADR-0047 — the only audit step that touches the
+   network, so it's opt-in):
+   ```
+   node contextkit/tools/scripts/deps-audit.mjs --registry --write
+   ```
+   Flags a deprecated `latest` and packages with no publish in 2+ years. An
+   unreachable registry shows up as a `registry-skipped` finding — a skip,
+   never a pass.
+
 2. **Feed the DevPipeline backlog** — each issue becomes an auto-prioritized task:
    ```
    node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deps-findings.json --type chore

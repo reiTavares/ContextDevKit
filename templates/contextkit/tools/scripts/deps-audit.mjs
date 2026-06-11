@@ -15,6 +15,7 @@
  *   node .../deps-audit.mjs --json     # machine-readable { findings: [...] }
  *   node .../deps-audit.mjs --write    # → contextkit/memory/deps-findings.json (for ingest)
  *   node .../deps-audit.mjs --sbom     # → contextkit/memory/sbom.json (CycloneDX)
+ *   node .../deps-audit.mjs --registry # OPT-IN network: staleness/abandonment via the npm registry (ADR-0047)
  *
  * Defensive: never throws; degrades to "nothing to report" when it can't tell.
  */
@@ -147,8 +148,55 @@ function parseNpmAudit(out) {
   for (const [name, v] of Object.entries(parsed.vulnerabilities || {})) { // npm v7+
     add(SEV[v.severity] || 2, 'cve', `\`${name}\`: ${v.severity} advisory — see \`npm audit\`.`);
   }
-  for (const a of Object.values(data.advisories || {})) { // npm v6
+  for (const a of Object.values(parsed.advisories || {})) { // npm v6
     add(SEV[a.severity] || 2, 'cve', `\`${a.module_name}\`: ${a.severity} — ${a.title}.`);
+  }
+}
+
+/** Registry base for the staleness check — env-overridable so tests stay offline. */
+const REGISTRY_URL = (process.env.CONTEXT_NPM_REGISTRY || 'https://registry.npmjs.org').replace(/\/$/, '');
+/** No publish for this long ⇒ flagged as possibly unmaintained. */
+const STALE_AFTER_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+/** Abbreviated registry metadata for one package, or null (unreachable / 404). */
+async function fetchRegistryMeta(name) {
+  try {
+    const res = await fetch(`${REGISTRY_URL}/${name}`, {
+      headers: { accept: 'application/vnd.npm.install-v1+json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Registry-backed staleness / abandonment check (ADR-0047 A5). The network call
+ * is OPT-IN behind `--registry`; an unreachable registry is reported as SKIPPED,
+ * never counted as a pass (rule 8). Flags a deprecated `latest` and packages
+ * with no registry activity for 2+ years. A single unresolvable name (private /
+ * unpublished) stays silent — it can't be told apart from a policy choice.
+ */
+async function auditRegistry() {
+  const pkg = readJson(resolve(ROOT, 'package.json'));
+  const names = pkg ? depNames(pkg) : [];
+  if (names.length === 0) return;
+  const metas = await Promise.all(names.map(async (name) => ({ name, meta: await fetchRegistryMeta(name) })));
+  if (metas.every(({ meta }) => meta === null)) {
+    add(1, 'registry-skipped', 'npm registry unreachable — staleness NOT checked (skipped, not a pass).');
+    return;
+  }
+  for (const { name, meta } of metas) {
+    if (!meta) continue;
+    const latest = meta['dist-tags']?.latest;
+    if (latest && meta.versions?.[latest]?.deprecated) {
+      add(3, 'deprecated-package', `\`${name}\`: latest (${latest}) is deprecated upstream — plan a replacement.`);
+    }
+    const lastPublish = Date.parse(meta.modified || '');
+    if (Number.isFinite(lastPublish) && Date.now() - lastPublish > STALE_AFTER_MS) {
+      add(2, 'stale-package', `\`${name}\`: no registry activity since ${meta.modified.slice(0, 10)} (2+ years) — possibly unmaintained.`);
+    }
   }
 }
 
@@ -169,12 +217,13 @@ function writeSbom() {
   console.log('🔐 deps-audit: SBOM written → contextkit/memory/sbom.json (CycloneDX 1.5).');
 }
 
-function main() {
+async function main() {
   if (process.argv.includes('--sbom')) {
     writeSbom();
     return;
   }
   auditNode(depPolicy());
+  if (process.argv.includes('--registry')) await auditRegistry();
   pythonHint();
   const report = { findings };
 
@@ -198,4 +247,4 @@ function main() {
   }
 }
 
-main();
+await main();

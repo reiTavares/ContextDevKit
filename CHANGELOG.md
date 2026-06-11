@@ -38,6 +38,36 @@ this project follows [Semantic Versioning](https://semver.org/).
   evidence cell, fail-closed, freshness) + integration (`autonomy 4` refuses on an
   unmet bar, passes session-scoped when seeded, `--persist` needs `--confirm`).
 
+### Added — deferred-items consolidation, bucket A (ADR-0047, tasks 128–132)
+- **PR line in `/git status`** (task 128). `git.mjs` surfaces the branch's open
+  PR in one line, reusing `sync-check.mjs`'s PR facts (now exported behind an
+  entrypoint guard — importing is side-effect-free). An unusable `gh` or a
+  non-GitHub provider reports **skipped, never a false "none"** (rule 8).
+- **`/advise --after --since <ref>`** (task 129). Pins the changed-surface scan
+  to `git diff --name-only <ref>...HEAD` so long-lived branches stop
+  over-reading; an unknown ref is a hard stop, never a silent full-branch
+  fallback.
+- **`pipeline.mjs board --digest`** (task 130). Token-light lane summary
+  (active lanes in full, backlog capped at 8, titles clipped) on ADR-0027's
+  deterministic-extraction posture; `/pipeline show` and `/plan-week` now
+  reason from the digest instead of reading N task files.
+- **Opt-in scheduled alert-sync** (task 131). The scaffolded `security.yml`
+  ships a commented `schedule:` cron trigger + an `alert-sync` job (gated on
+  `event_name == 'schedule'`, advisory) running the existing `gh-alerts.mjs` —
+  inert until the project opts in; runs in the project's CI, never the kit hot
+  path (rule 1).
+- **Registry-backed staleness in `/deps-audit`** (task 132). `--registry` (the
+  audit's only network call, opt-in by flag) flags a deprecated `latest` and
+  packages with 2+ years without a publish via abbreviated npm-registry
+  metadata; an unreachable registry is a `registry-skipped` finding — a skip,
+  never a pass (rule 8). Env-overridable URL keeps the test suite offline.
+
+### Fixed
+- **`deps-audit` npm-v6 advisory path was dead** — a `data` → `parsed`
+  ReferenceError inside `parseNpmAudit` was silently swallowed by the caller
+  and downgraded real CVE output to `audit-skipped` on npm v6. (Found while
+  implementing task 132.)
+
 ### Added
 - **`/project-map` becomes an active architectural-fitness substrate (ADR-0046).**
   The structural map stops being a passive doc: (1) **self-refreshing** — the

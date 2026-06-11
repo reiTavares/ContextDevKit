@@ -4,8 +4,9 @@
  *
  * Reports git presence, repo/commit state, the remote + inferred provider
  * (GitHub/GitLab/Bitbucket/Azure), whether the provider CLI (`gh`/`glab`) is
- * installed and authenticated, the current branch, dirtiness, and ahead/behind
- * vs upstream. `/git` reads this and suggests the exact next commands.
+ * installed and authenticated, the current branch, dirtiness, ahead/behind
+ * vs upstream, and the branch's open PR (one line, reusing sync-check's PR
+ * facts — ADR-0047). `/git` reads this and suggests the exact next commands.
  *
  * Read-only by default (ticket 065): the ahead/behind count uses local
  * remote-tracking refs and is flagged `stale`; pass `--fetch` to refresh from the
@@ -14,6 +15,7 @@
  * Usage:  node contextkit/tools/scripts/git.mjs status [--json] [--fetch]
  */
 import { execFileSync } from 'node:child_process';
+import { ghReady, listOpenPRs } from './sync-check.mjs';
 
 const ROOT = process.cwd();
 
@@ -32,6 +34,24 @@ function run(cmd, args) {
   } catch (err) {
     return { ok: false, out: '', code: err?.status };
   }
+}
+
+/**
+ * The branch's open PR, one fact (ADR-0047). Reuses sync-check's `gh` facts; a
+ * non-GitHub provider or an unusable `gh` is reported as SKIPPED, never as
+ * "no PR" (rule 8 — a skip is a skip, not a pass).
+ * @returns {{status: 'open'|'none'|'skipped', reason?: string, number?: number,
+ *            title?: string, checks?: string, review?: string, draft?: boolean, url?: string}|null}
+ */
+function branchPrFact(provider, branch) {
+  if (!provider || !branch) return null;
+  if (provider !== 'github') return { status: 'skipped', reason: `${provider} PR lookup not supported yet (gh-only)` };
+  if (!ghReady()) return { status: 'skipped', reason: 'gh not installed/authed' };
+  const prs = listOpenPRs(['--head', branch]);
+  if (prs == null) return { status: 'skipped', reason: 'gh query failed' };
+  if (prs.length === 0) return { status: 'none' };
+  const { number, title, checks, review, draft, url } = prs[0];
+  return { status: 'open', number, title, checks, review, draft, url };
 }
 
 function providerFromUrl(url) {
@@ -85,6 +105,7 @@ function collect(doFetch) {
     ahead,
     behind,
     stale,
+    pr: remoteUrl ? branchPrFact(provider, branch) : null,
   };
 }
 
@@ -98,6 +119,11 @@ if (process.argv.includes('--json')) {
   console.log(`branch:      ${s.branch ?? '—'}${s.dirty ? ' (uncommitted changes)' : ''}`);
   console.log(`remote:      ${s.remoteUrl ?? 'NONE'}${s.provider ? ` [${s.provider}]` : ''}`);
   if (s.ahead != null) console.log(`sync:        ahead ${s.ahead} / behind ${s.behind}${s.stale ? ' · local refs, may be stale (pass --fetch to refresh)' : ''}`);
+  if (s.pr) {
+    if (s.pr.status === 'open') console.log(`PR:          #${s.pr.number} open — ${s.pr.title} · checks ${s.pr.checks} · review ${s.pr.review}${s.pr.draft ? ' · draft' : ''}`);
+    else if (s.pr.status === 'none') console.log('PR:          none open for this branch');
+    else console.log(`PR:          skipped (${s.pr.reason})`);
+  }
   console.log(`gh CLI:      ${s.cli.gh ? (s.cli.ghAuth ? 'installed + authed' : 'installed, NOT authed') : 'not installed'}`);
   console.log(`glab CLI:    ${s.cli.glab ? (s.cli.glabAuth ? 'installed + authed' : 'installed, NOT authed') : 'not installed'}`);
   if (!s.remoteUrl) console.log('\n→ No remote. Run /git to set one up (GitHub/GitLab/other) + install the CLI.');
