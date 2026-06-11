@@ -50,7 +50,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   }
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'lp-scaffold.mjs', 'lp-build.mjs']) {
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'autonomy-readiness.mjs', 'lp-scaffold.mjs', 'lp-build.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -68,6 +68,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
     'templates/contextkit/pipeline/working/.gitkeep',
     'templates/contextkit/runtime/state/state-io.mjs',
+    'templates/contextkit/runtime/config/autonomy-eligibility.mjs',
     'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
     'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',
     'templates/contextkit/squads/README.md', 'templates/contextkit/squads/_BRIEFING.md.tpl',

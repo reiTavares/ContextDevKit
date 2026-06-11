@@ -24,6 +24,32 @@ The stages marked ◆ are checkpoints. Pick the mode from the arguments:
 
 State which mode you're running at the start.
 
+## Grade 4 — hardened quorum + kill-switch (ADR-0045)
+
+This applies ONLY when `resolveAutonomy('ship-checkpoint', …)` returns `debate`
+(grade 4, after the eligibility bar held in `/autonomy`). At grade ≤ 3 ignore this
+section. At grade 4, a ◆ checkpoint may be cleared by a `/debate` quorum INSTEAD of
+a human pause — but only under all of these, or you fall back to a manual pause:
+
+1. **Blind voices** — run the deliberation per the ADR-0035 contract (voices blind
+   to each other), embedding the `--for-subagent` pack (ADR-0044 D1).
+2. **≥ 1 deterministic voice** — its vote is NOT an LLM opinion but the **exit
+   codes** of `npm test`, `node tools/selfcheck.mjs` and `/deps-audit`. Red exit ⇒
+   that voice votes NO; you may not synthesize it away.
+3. **Security veto** — a **Critical** from the security voice is a *veto, not a
+   vote*: stop and escalate to the human, regardless of the other voices.
+4. **`unresolved` → human** — an unresolved verdict never proceeds; it escalates.
+5. **Provenance** — stamp the deliberation artifact id into the `state.json` event
+   for the transition (`ship-state.mjs` note), so the quorum that authorized an
+   autonomous step is auditable.
+
+**Yield & kill-switch (always on at grade 4).** Re-consult `resolveAutonomy` at the
+**start of every step** — never cache a grade for the whole run. Any user message or
+interrupt cancels in-flight autonomous actions at the **next step boundary**; if the
+user runs `/autonomy 1` mid-run it takes effect on the very next step. Branch-only:
+the resolver returns `auto` for `push` only toward a non-default branch; a merge to
+the default branch is always the human's.
+
 ## Resume & progress tracking (ticket 074)
 
 Before anything else, check for an **interrupted ship** to resume:

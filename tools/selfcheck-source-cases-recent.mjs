@@ -7,45 +7,7 @@
  * shape; `runSourceChecks` concatenates both. Add a new ADR-era invariant here.
  */
 export const SOURCE_INVARIANT_CASES_RECENT = [
-    // ADR-0030 — per-task complexity rubric (EVO-METHOD/BMAD-derived, MIT).
-    ['complexity-rubric loader exports classify (ADR-0030)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classify/],
-    ['complexity-rubric loader exports loadRubric', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function loadRubric/],
-    ['complexity-rubric falls back to an embedded default (never throws)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /DEFAULT_RUBRIC/],
-    ['complexity-rubric single-sources the path via pathsFor (rule 4)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /pathsFor\(root\)\.complexityRubric/],
-    ['rubric seed declares the lgpd domain → privacy-lgpd (ADR-0030)', 'templates/contextkit/policy/complexity-rubric.json', /"lgpd":[\s\S]*"privacy-lgpd"/],
-    ['rubric seed declares the three ceremony tiers', 'templates/contextkit/policy/complexity-rubric.json', /"trivial":[\s\S]*"feature":[\s\S]*"architectural":/],
-    ['paths.mjs exposes complexityRubric (ADR-0030)', 'templates/contextkit/runtime/config/paths.mjs', /complexityRubric:/],
-    ['/dev-start right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /complexity-rubric\.mjs classify/],
-    ['/dev-start has a correct-course checkpoint (ADR-0030)', 'templates/claude/commands/pipeline/dev-start.md', /Correct-course checkpoint/],
-    ['/ship right-sizes via the complexity rubric (ADR-0030)', 'templates/claude/commands/pipeline/ship.md', /complexity-rubric\.mjs classify/],
-    ['/pipeline right-sizes a new task (ADR-0030)', 'templates/claude/commands/pipeline/pipeline.md', /complexity-rubric\.mjs classify/],
-    ['installer seeds the complexity rubric (ADR-0030)', 'tools/install/engine.mjs', /policy\/complexity-rubric\.json/],
-    ['installer seeds review-protocol.md — closes ADR-0029 gap (ADR-0030)', 'tools/install/engine.mjs', /'review-protocol\.md'/],
-    // ADR-0030 — document-quality validation (EVO steps-v adaptation, MIT).
-    ['validate-doc validates ADR sections (ADR-0030)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /function validateAdr/],
-    ['validate-doc flags template placeholders', 'templates/contextkit/tools/scripts/validate-doc.mjs', /PLACEHOLDERS/],
-    ['validate-doc checks consequences own a trade-off', 'templates/contextkit/tools/scripts/validate-doc.mjs', /TRADEOFF_HINTS/],
-    ['validate-doc is advisory — never blocks (rule 8)', 'templates/contextkit/tools/scripts/validate-doc.mjs', /never blocks a push/],
-    ['/validate-doc command briefing ships (ADR-0030)', 'templates/claude/commands/audit/validate-doc.md', /document-quality rubric/],
-    // ADR-0030 — OSS repo-ops (gh-triage / draft-changelog / changelog-social + RCA).
-    ['draft-changelog groups Conventional Commits (ADR-0030)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /const SECTION = \{/],
-    ['draft-changelog times out git calls (rule 2)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /timeout:\s*\d/],
-    ['draft-changelog never writes the file (drafts only)', 'templates/contextkit/tools/scripts/draft-changelog.mjs', /never writes/],
-    ['/draft-changelog command briefing ships', 'templates/claude/commands/vcs/draft-changelog.md', /Draft a \[Unreleased\]/i],
-    ['/gh-triage classifies via the complexity rubric (ADR-0030)', 'templates/claude/commands/vcs/gh-triage.md', /complexity-rubric\.mjs classify/],
-    ['/gh-triage degrades cleanly without gh (rule 8)', 'templates/claude/commands/vcs/gh-triage.md', /skip, never fake/],
-    ['/changelog-social drafts only — never posts', 'templates/claude/commands/vcs/changelog-social.md', /never posts/i],
-    ['bug-hunt emits a structured RCA writeup (ADR-0030)', 'templates/claude/commands/bug-hunt.md', /root-cause analysis/i],
-    // ADR-0030 — mid-flight elicitation (advanced-elicitation + correct-course).
-    ['/roadmap new does advanced elicitation (ADR-0030)', 'templates/claude/commands/roadmap.md', /Advanced elicitation/],
-    ['/forge-new does advanced elicitation (ADR-0030)', 'templates/claude/commands/forge/forge-new.md', /Advanced elicitation/],
-    // ADR-0030 follow-up — Diátaxis docs spine + reindex-on-update.
-    ['docs-reindex exports reindexDocs (ADR-0030)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /export function reindexDocs/],
-    ['docs-reindex declares the four Diátaxis buckets', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /BUCKETS\s*=\s*\['tutorials',\s*'how-to',\s*'reference',\s*'explanation'\]/],
-    ['docs-reindex preserves a hand-written index (marker guard)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /INDEX_MARKER/],
-    ['docs-reindex never moves content files (reorganize without losing)', 'templates/contextkit/tools/scripts/docs-reindex.mjs', /never move/i],
-    ['installer runs the docs reindex on install/update (ADR-0030)', 'tools/install/engine.mjs', /reindexDocs\(target\)/],
-    ['/docs-reindex command briefing ships (ADR-0030)', 'templates/claude/commands/docs-reindex.md', /Diátaxis/],
+    // (ADR-0030 cases graduated to the stable `selfcheck-source-cases.mjs` for the line budget.)
     // ADR-0031 — single quality gate; protected release path.
     ['package.json defines the unified ci gate (ADR-0031)', 'package.json', /"ci":\s*"npm test &&[^"]*tech-debt-scan\.mjs --ci/],
     ['package.json prepublishOnly delegates to the ci gate', 'package.json', /"prepublishOnly":\s*"npm run ci"/],
@@ -290,4 +252,20 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // ADR-0044 F3 D2 — compact [Unreleased] boot digest with a raw fallback.
     ['boot digests [Unreleased] as count-by-type + recent entries (ADR-0044 D2)', 'templates/contextkit/runtime/hooks/boot-context-readers.mjs', /export function digestUnreleased/],
     ['the [Unreleased] digest falls back to the raw section on a parse miss (ADR-0044 D2, ADR-0027 contract)', 'templates/contextkit/runtime/hooks/session-start.mjs', /digestUnreleased\(changelog\) \|\| extractUnreleased\(changelog\)/],
+    // ADR-0045 F4 — grade-4 control plane (eligibility bar + gated setter + hardened quorum).
+    ['eligibility bar fixes the ADR-0045 thresholds (30/20/10%)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /minTransitions: 30[\s\S]*minSessions: 20[\s\S]*maxRollbackRate: 0\.1/],
+    ['eligibility refuses by default — no data is the worst case, never a pass (ADR-0045, rule 8)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /transitions > 0 \? rollbacks \/ transitions : 1/],
+    ['self-coverage + attribution are unmeasurable-until-stamped ⇒ refuse (ADR-0045 §1)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readiness\.coverageGreen === true[\s\S]*readiness\.attributionPresent === true/],
+    ['/autonomy gates grade 4 on the eligibility bar (ADR-0045 §1)', 'templates/contextkit/tools/scripts/autonomy.mjs', /checkEligibility\(ROOT\)[\s\S]*Grade 4 refused/],
+    ['grade 4 is session-scoped by default; persist needs --persist --confirm (ADR-0045 §3)', 'templates/contextkit/tools/scripts/autonomy.mjs', /!argv\.includes\('--persist'\)[\s\S]*!argv\.includes\('--confirm'\)/],
+    ['readiness harness measures self-coverage under NODE_V8_COVERAGE (ADR-0045 §1)', 'templates/contextkit/tools/scripts/autonomy-readiness.mjs', /NODE_V8_COVERAGE/],
+    ['readiness harness never flips a criterion true on its own failure (ADR-0045, rule 8)', 'templates/contextkit/tools/scripts/autonomy-readiness.mjs', /coverageGreen: coverage\.green, attributionPresent: attribution\.present/],
+    ['/ship runs the hardened quorum with a deterministic voice + security veto at grade 4 (ADR-0045 §2)', 'templates/claude/commands/pipeline/ship.md', /deterministic voice[\s\S]*veto, not a/],
+    ['/ship re-consults the resolver per step — yield/kill-switch (ADR-0045 §5)', 'templates/claude/commands/pipeline/ship.md', /start of every step[\s\S]*next step boundary/],
+    ['/autonomy documents the gated, session-default grade 4 (ADR-0045)', 'templates/claude/commands/setup/autonomy.md', /--persist --confirm/],
+    // ADR-0045 F4 — security-review hardenings (evidence floor, fail-closed, freshness).
+    ['the grade-4 eligibility evidence is a floored path — an agent cannot forge its own bar (ADR-0045 review)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /path\.includes\('memory\/autonomy\/'\)\) return 'floor:autonomy-evidence-self-edit'/],
+    ['resolver fails closed — grade 4 needs deliberations.active === true, absent is not assumed-on (ADR-0045)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /grade === 4 && config\?\.deliberations\?\.active !== true/],
+    ['a stale readiness stamp is not evidence — coverage/attribution require freshness (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readinessFresh = Number\.isFinite\(stampMs\)[\s\S]*coverageGreen = readiness\.coverageGreen === true && readinessFresh/],
+    ['only genuine stage transitions (from ≠ to) count toward the bar (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /filter\(\(e\) => e && e\.from !== e\.to\)/],
 ];

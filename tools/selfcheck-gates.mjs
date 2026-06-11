@@ -105,13 +105,16 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     return;
   }
   const { resolveAutonomy } = resolver;
-  const at = (grade) => ({ autonomy: { grade } });
+  // Grade 4 fails closed unless deliberations are explicitly active (ADR-0045) — a
+  // valid merged config always carries it; the contradiction case sets it false below.
+  const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });
   const floorCells = [];
   for (let grade = 1; grade <= 4; grade++) {
     floorCells.push(['adr', resolveAutonomy('adr', at(grade)).mode]);
     floorCells.push(['grade-change', resolveAutonomy('grade-change', at(grade)).mode]);
     floorCells.push(['secret edit', resolveAutonomy('edit', at(grade), null, { path: 'config/.env.prod' }).mode]);
     floorCells.push(['gate self-edit', resolveAutonomy('edit', at(grade), null, { path: 'contextkit/runtime/hooks/x.mjs' }).mode]);
+    floorCells.push(['autonomy-evidence self-edit', resolveAutonomy('edit', at(grade), null, { path: 'contextkit/memory/autonomy/readiness.json' }).mode]);
     floorCells.push(['force-push', resolveAutonomy('push', at(grade), null, { force: true }).mode]);
   }
   floorCells.every(([, mode]) => mode === 'manual')
