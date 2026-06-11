@@ -49,41 +49,7 @@ try {
   existsSync(join(proj, 'apps', 'api', 'CLAUDE.md')) && existsSync(join(proj, 'apps', 'web', 'CLAUDE.md'))
     ? ok('claude-md scaffolds scoped CLAUDE.md per module') : bad('module CLAUDE.md not scaffolded');
 
-  // project-map — deterministic structural map over a frontend (.tsx) + backend (.ts) split.
-  mkdirSync(join(proj, 'apps', 'web', 'src'), { recursive: true });
-  mkdirSync(join(proj, 'apps', 'api', 'src'), { recursive: true });
-  writeFileSync(join(proj, 'apps', 'web', 'src', 'App.tsx'), "import { startServer } from '../../api/src/server';\nexport function App() { return startServer; }\n");
-  writeFileSync(join(proj, 'apps', 'api', 'src', 'server.ts'), 'export function startServer() {}\n');
-  const pmGen = script('project-map.mjs');
-  const pmIndex = join(proj, 'contextkit', 'memory', 'project-map', '00-index.md');
-  const pmManifest = join(proj, 'contextkit', 'memory', 'project-map', 'manifest.json');
-  existsSync(pmIndex) && existsSync(pmManifest)
-    ? ok('project-map generates the index + manifest under memory/project-map/')
-    : bad(`project-map did not write its artifacts: ${pmGen.stdout || pmGen.stderr}`);
-  (() => { try { const idx = readFileSync(pmIndex, 'utf-8'); return /🎨 frontend/.test(idx) && /⚙️ backend/.test(idx) && idx.includes('apps/web') && idx.includes('apps/api'); } catch { return false; } })()
-    ? ok('project-map classifies frontend (.tsx) and backend (.ts) modules')
-    : bad('project-map did not classify the frontend/backend split');
-  // ADR-0040 — the dependency graph resolves a relative cross-module import into an edge.
-  (() => { try { const idx = readFileSync(pmIndex, 'utf-8'); return /## Module dependencies/.test(idx) && /`apps\/web\/`\s*→[^\n]*`apps\/api\/`/.test(idx); } catch { return false; } })()
-    ? ok('project-map resolves a cross-module import into a dependency edge (ADR-0040)')
-    : bad('project-map did not render the apps/web → apps/api edge');
-  (() => { try { return JSON.parse(readFileSync(pmManifest, 'utf-8')).signature?.length > 0; } catch { return false; } })()
-    ? ok('project-map writes a signature into manifest.json (powers staleness)')
-    : bad('project-map manifest missing a signature');
-  script('project-map.mjs', '--check').stdout.includes('fresh')
-    ? ok('project-map --check reports a fresh map right after generation')
-    : bad('project-map --check did not report fresh');
-  // ADR-0039 — deterministic fingerprint: regenerating an unchanged tree is byte-identical (no git churn).
-  const pmBefore = readFileSync(pmIndex, 'utf-8');
-  script('project-map.mjs');
-  readFileSync(pmIndex, 'utf-8') === pmBefore
-    ? ok('project-map regenerates byte-identical docs when nothing changed (no churn, ADR-0039)')
-    : bad('project-map docs churned on a no-op regenerate');
-  // ADR-0039 — a real source edit (more bytes) flips --check to STALE.
-  writeFileSync(join(proj, 'apps', 'api', 'src', 'server.ts'), 'export function startServer() { return 42; }\n');
-  script('project-map.mjs', '--check').stdout.includes('STALE')
-    ? ok('project-map --check detects a source edit as STALE (structural, ADR-0039)')
-    : bad('project-map --check did not detect a source edit');
+  // project-map has its own suite → integration-test-project-map.mjs.
 
   // Version control: git.mjs reports a repo with no remote (temp project has none).
   const gitStatus = script('git.mjs', 'status', '--json');

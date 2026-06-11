@@ -38,6 +38,14 @@ export const DEFAULT_CONFIG = Object.freeze({
   autonomy: { grade: 2 },
 
   /**
+   * project-map (ADR-0046). `autoRefresh`: the pre-commit hook regenerates the
+   * committed map when source is staged (grade-blind derived doc — never blocks).
+   * `enforce`: when `rules.json` declares architectural-fitness rules, a violation
+   * fails `--check --strict` (the CI gate). Both inert until a map / rules exist.
+   */
+  projectMap: { autoRefresh: true, enforce: true },
+
+  /**
    * First-run onboarding state. The installer writes `completed: false` into a
    * fresh project's config so the SessionStart hook fires the `/setupcontextdevkit`
    * trigger on the first session. `/setupcontextdevkit` flips it to `true` when

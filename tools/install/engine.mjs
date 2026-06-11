@@ -18,7 +18,7 @@ const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
   'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md',
   'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md',
-  'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
+  'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/project-map/rules.example.json', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
   'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example',
 ];
