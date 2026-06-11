@@ -14,6 +14,17 @@
  *   - a readiness marker written by `autonomy-readiness.mjs`: self-coverage
  *     (NODE_V8_COVERAGE over runtime/hooks + runtime/config) green AND ADR-0044
  *     attribution data present. Absent ⇒ both criteria fail (refuse).
+ *
+ * THREAT MODEL of the readiness marker (ADR-0045 post-acceptance note, task 138).
+ * The marker is TRUST-ON-WRITE: asserted by the harness, not re-proven here. It is
+ * acceptable because the real control is elsewhere — `grade-change` is a human-only
+ * floor at every grade (an agent can never set grade 4 itself, ADR-0042), the
+ * marker's dir `memory/autonomy/**` is a floored path (`floor:autonomy-evidence-
+ * self-edit`, so editing it through the resolver needs human approval), the stamp
+ * expires after `maxReadinessAgeMs`, and persisting still needs `--persist
+ * --confirm`. An HMAC/commit-binding was considered and deferred: it cannot stop a
+ * deliberate forge of the current tree, and staleness is already covered by the
+ * freshness window. Revisit only if grade-change ever stops being human.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';

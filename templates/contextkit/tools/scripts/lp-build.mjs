@@ -94,6 +94,9 @@ function build(srcDir) {
   return { dist, config };
 }
 
+/** Substring of the lawyer-review disclaimer — its presence in dist is asserted (ADR-0050). */
+const LEGAL_DISCLAIMER = 'revise com um advogado';
+
 /** The local gate: leftover tokens/sentinels are refusals; audits must be clean. */
 function check(dist) {
   const problems = [];
@@ -102,6 +105,13 @@ function check(dist) {
     const tokens = [...new Set(text.match(/\{\{[\w.-]+\}\}/g) || [])];
     if (tokens.length) problems.push(`${file}: unresolved token(s) ${tokens.slice(0, 5).join(' ')}`);
     if (text.includes(SENTINEL)) problems.push(`${file}: placeholder content still present (${SENTINEL}…)`);
+  }
+  // ADR-0050: the lawyer-review disclaimer is "non-removable" — make that TECHNICAL,
+  // not social. A legal page in dist that dropped it is a refusal, not a silent pass.
+  for (const page of ['privacidade.html', 'termos.html']) {
+    const path = join(dist, page);
+    if (!existsSync(path)) { problems.push(`${page}: missing from dist (legal pages are mandatory, ADR-0050)`); continue; }
+    if (!readText(path).includes(LEGAL_DISCLAIMER)) problems.push(`${page}: lawyer-review disclaimer removed — it is non-removable (ADR-0050)`);
   }
   for (const audit of ['seo-audit.mjs', 'aiso-audit.mjs']) {
     const result = spawnSync(process.execPath, [join(SCRIPTS_DIR, audit), '--json'], { cwd: dist, encoding: 'utf-8' });

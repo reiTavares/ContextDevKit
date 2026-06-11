@@ -62,6 +62,28 @@ this project follows [Semantic Versioning](https://semver.org/).
   metadata; an unreachable registry is a `registry-skipped` finding — a skip,
   never a pass (rule 8). Env-overridable URL keeps the test suite offline.
 
+### Fixed — pre-release audit, low-severity sweep (tasks 133–138, zeroed before the 2.0)
+- **`matchSecret` widened to common credentials (133).** SSH private keys
+  (`id_rsa`/`id_ed25519`/`id_dsa`/`id_ecdsa`), `.git-credentials`, `.dockercfg`, and
+  cert/PGP extensions (`.crt/.cer/.cert/.der/.asc/.gpg`) now hit the secrets floor —
+  so no consent grade auto-touches them. (`id_rsa.pub` stays a non-hit.)
+- **Grade-blind selfcheck now catches resolver-mediated reads (134).** The invariant
+  check flagged only the raw `config.autonomy` key; it now also flags a hook that
+  branches on `resolveAutonomy(...).grade` / `readAutonomyOverride`, with the
+  display-only `autonomy-signals.mjs` as an explicit allowlist (the audited surface,
+  not a regex blind spot).
+- **`[Unreleased]` boot digest miscounted nested sub-bullets (135).** The tally now
+  anchors to column 0, so an indented sub-bullet is detail of its entry, not a new one.
+- **`pipeline-board` digest crashed on a titleless card (136).** It now coerces a
+  missing title to `(untitled)` — the digest is a never-crash summary (ADR-0027).
+- **LP lawyer disclaimer is now non-removable by ENFORCEMENT (137).** `lp-build
+  --check` refuses a `dist/` whose legal pages dropped the disclaimer (was convention
+  only). [ADR-0050]
+- **Readiness-marker threat model documented (138).** `autonomy-eligibility.mjs` now
+  records that the marker is trust-on-write and why that's acceptable (grade-change is
+  human-floored, `memory/autonomy/**` is a floored path, 14-day freshness, `--confirm`)
+  and why an HMAC was considered and deferred. [ADR-0045]
+
 ### Fixed — pre-release audit of the ADR-0041…0050 package (4-way deep analysis + security review)
 - **`auto-transition` could bypass the `qa-reject` monopoly (ADR-0043 §3).**
   `autoTransition` only fenced `conclusion`; it now refuses any move that isn't a

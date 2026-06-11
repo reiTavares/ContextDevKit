@@ -15,6 +15,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
+import { renderDigest } from '../templates/contextkit/tools/scripts/pipeline-board.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -23,6 +24,10 @@ const fx = installFixture(rep);
 const { proj, script } = fx;
 
 try {
+  // Audit 136: the token-light digest is a never-crash summary (ADR-0027) — a
+  // malformed card with no title must coerce, not throw.
+  (() => { try { return typeof renderDigest([{ id: '900', priority: 'P1', type: 'bug', stage: 'backlog' }]) === 'string'; } catch { return false; } })()
+    ? ok('pipeline-board digest survives a titleless task (defensive, audit 136)') : bad('renderDigest threw on a task with no title');
   // DevPipeline: add → move → sync reflects in devpipeline.md.
   script('pipeline.mjs', 'add', '--type', 'bug', '--priority', 'P1', '--title', 'login crash');
   const board1 = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
