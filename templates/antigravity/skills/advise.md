@@ -1,7 +1,7 @@
 # Skill: advise
 
 > Proactive Advisor — one classified, six-lane improvement scan (architecture · features · deepen · security · UX · growth), before or after a change.
-> Argument: [--before <objective> | --after] [--lane <id>]
+> Argument: [--before <objective> | --after [--since <ref>]] [--lane <id>]
 # 🧭 Advise — the proactive, six-lane improvement engine
 
 Aggregate the project's analysis lanes into **one classified digest** and feed the
@@ -15,6 +15,11 @@ the owning agents/commands) and it does not write code (it's analysis).
   each lane as **improvements**: what to refine now that the change exists. Scope to
   the **changed surface** first (`git diff --name-only` vs the branch base), widening
   only if a lane needs project context.
+  - **`--since <ref>`** (ADR-0047 A2) — pin the changed-surface scan to an explicit
+    git range: `git diff --name-only <ref>...HEAD`. Use it on a long-lived branch
+    where "vs the branch base" over-reads (e.g. `--since main`, `--since v1.16.0`,
+    `--since HEAD~5`). An unknown ref is a hard stop — say so and ask for a valid
+    one; never silently fall back to the full-branch scan (rule 8).
 - **`--before <objective>`** — you're about to start. Frame each lane as
   **opportunities + risks**: what the planned work unlocks and what it endangers.
   This is the "predict errors / analyze possibilities" pass; pairs with
@@ -76,7 +81,8 @@ the owning agents/commands) and it does not write code (it's analysis).
   session (`advisor.nudgeOnStop`, debounced 24h) — this is the "after each
   implementation" trigger. Disable via `advisor.active: false`.
 - **Cost.** A full six-lane fan-out is token-heavy; prefer `--lane <id>` or the
-  changed-surface scope of `--after`. `--before` is naturally narrow (one objective).
+  changed-surface scope of `--after` (tightest with `--since <ref>` on a long-lived
+  branch). `--before` is naturally narrow (one objective).
 - **Adjacent, not a replacement.** `/deep-analysis` is the deep four-lane
   (code/security/deps/bugs) sweep; `/advise` is the broader, lighter, *classified*
   six-lane view that also covers features, UX, and growth, and runs before/after a

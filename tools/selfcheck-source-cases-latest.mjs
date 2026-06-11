@@ -13,4 +13,8 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['sync-check guards its CLI so import never runs main (rule 2)', 'templates/contextkit/tools/scripts/sync-check.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
     ['git.mjs surfaces the branch PR fact, reusing sync-check (ADR-0047 A1)', 'templates/contextkit/tools/scripts/git.mjs', /function branchPrFact[\s\S]*listOpenPRs\(\['--head', branch\]\)/],
     ['git.mjs reports an unusable gh as SKIPPED, never as no-PR (rule 8)', 'templates/contextkit/tools/scripts/git.mjs', /\{ status: 'skipped', reason: 'gh not installed\/authed' \}/],
+    // ADR-0047 A2 — /advise --after --since <ref> (task 129).
+    ['/advise --after accepts a --since git range (ADR-0047 A2)', 'templates/claude/commands/advise.md', /--since <ref>[\s\S]*git diff --name-only <ref>\.\.\.HEAD/],
+    ['/advise refuses an unknown --since ref, no silent fallback (rule 8)', 'templates/claude/commands/advise.md', /never silently fall back/],
+    ['antigravity /advise mirror carries --since (ticket 084 parity)', 'templates/antigravity/skills/advise.md', /--since <ref>/],
 ];
