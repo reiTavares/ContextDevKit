@@ -131,6 +131,12 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     [resolveAutonomy('push', at(4), null, { targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'auto', 'grade-4 push to a branch → auto'],
     [resolveAutonomy('push', at(4), null, { targetRef: 'main', defaultBranch: 'main' }).mode, 'manual', 'grade-4 push to default branch → manual'],
     [resolveAutonomy('session-log', at(2)).mode, 'auto', 'grade-2 session-log → auto'],
+    // ADR-0044 D3 — at grade 4 an exhausted budget downgrades to grade-2 behaviour (never blocks).
+    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true }).mode, 'suggest', 'grade-4 + budget-exhausted → suggest (D3 downgrade, not block)'],
+    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true }).reason, 'budget-exhausted', 'grade-4 budget downgrade carries reason'],
+    [resolveAutonomy('push', at(4), null, { budgetExhausted: true, targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'manual', 'grade-4 budget-exhausted push → manual (grade-2 behaviour)'],
+    [resolveAutonomy('edit', at(3), null, { budgetExhausted: true }).mode, 'auto', 'budget-exhausted only bites at grade 4 (grade 3 unaffected)'],
+    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true, path: 'config/.env' }).mode, 'manual', 'floor still wins over the budget downgrade (secret path)'],
   ];
   const wrong = expectedModes.filter(([got, want]) => got !== want);
   wrong.length === 0

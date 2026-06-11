@@ -62,11 +62,39 @@ this project follows [Semantic Versioning](https://semver.org/).
   metadata; an unreachable registry is a `registry-skipped` finding — a skip,
   never a pass (rule 8). Env-overridable URL keeps the test suite offline.
 
-### Fixed
+### Fixed — pre-release audit of the ADR-0041…0050 package (4-way deep analysis + security review)
+- **`auto-transition` could bypass the `qa-reject` monopoly (ADR-0043 §3).**
+  `autoTransition` only fenced `conclusion`; it now refuses any move that isn't a
+  legal forward step (`backlog→working→testing`). A `testing→working` bounce — which
+  must carry feedback — is once again `qa-reject`-only, and backward/skip jumps are
+  refused (use the human `move`). [HIGH]
+- **Stale eviction left no event — the `evict` actor was dead (ADR-0043 §5).**
+  `workspace-sync` moved a stale task `working→backlog` via `writeState` but never
+  `appendEvent`, so the transition was invisible to the log and the grade-4 rollback
+  metric (ADR-0045) under-counted abandonment. Eviction now appends an
+  `actor:'evict'` event. [HIGH]
+- **`/project-map` manifest churned on every commit (ADR-0046 §1 / ADR-0039).** The
+  manifest carried a wall-clock `generatedAt`, so the pre-commit auto-refresh
+  re-staged it on every source commit (git noise + merge-conflict surface). Dropped
+  the field — the deterministic `signature` is the map's identity; the manifest is
+  now byte-stable on a no-op regenerate.
 - **`deps-audit` npm-v6 advisory path was dead** — a `data` → `parsed`
   ReferenceError inside `parseNpmAudit` was silently swallowed by the caller
   and downgraded real CVE output to `audit-skipped` on npm v6. (Found while
   implementing task 132.)
+
+### Added — ADR-0044 D3 budget gate, now actually wired
+- **Grade-4 budget downgrade (ADR-0044 D3).** The decision was documented but
+  absent — the resolver never consulted the token budget despite the grade-4
+  consequence text claiming "budget-gated." `resolveAutonomy` now honours
+  `context.budgetExhausted`: at grade 4 an exhausted `tokens.budgetPerSession`
+  returns grade-2 behaviour (`suggest`, `reason: 'budget-exhausted'`) — it
+  **downgrades to consent, never blocks an edit** (rule 2); the floor still wins,
+  and lower grades stay budget-warn-only. `/ship` passes the budget state when it
+  re-consults the resolver per step. Per-command attribution's doc was also
+  calibrated: `attributionSkill` is host-populated and legitimately sparse, so the
+  "Top commands" lens is best-effort (the per-agent fan-out split is the guaranteed,
+  budget-gate input).
 
 ### Added
 - **`/project-map` becomes an active architectural-fitness substrate (ADR-0046).**

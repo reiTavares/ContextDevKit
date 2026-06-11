@@ -45,10 +45,16 @@ try {
     : bad('project-map --check did not report fresh');
   // ADR-0039 — deterministic fingerprint: regenerating an unchanged tree is byte-identical.
   const pmBefore = readFileSync(pmIndex, 'utf-8');
+  const pmManifestBefore = readFileSync(pmManifest, 'utf-8');
   script('project-map.mjs');
   readFileSync(pmIndex, 'utf-8') === pmBefore
     ? ok('project-map regenerates byte-identical docs when nothing changed (no churn, ADR-0039)')
     : bad('project-map docs churned on a no-op regenerate');
+  // ADR-0046 §1: the MANIFEST must also be byte-stable (no wall-clock `generatedAt`),
+  // else the pre-commit auto-refresh re-stages it on every commit (churn + conflicts).
+  readFileSync(pmManifest, 'utf-8') === pmManifestBefore
+    ? ok('project-map manifest is byte-identical on a no-op regenerate (no generatedAt churn, ADR-0046)')
+    : bad('project-map manifest churned on a no-op regenerate');
   script('project-map.mjs', '--check').stdout.includes('STALE') === false
     ? ok('project-map --check is fresh before any edit (ADR-0039)')
     : bad('project-map --check reported stale on an unchanged tree');

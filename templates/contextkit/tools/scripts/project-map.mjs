@@ -54,9 +54,12 @@ async function generate(dir) {
   const model = analyze(dir);
   await mkdir(dir, { recursive: true });
   for (const [name, body] of Object.entries(renderAll(model))) await writeFile(resolve(dir, name), body, 'utf-8');
+  // No `generatedAt` here on purpose (ADR-0046 §1 / ADR-0039): the manifest must be
+  // byte-stable when nothing structural changed, or the pre-commit auto-refresh
+  // re-stages it on every commit (churn + merge-conflict surface). The deterministic
+  // `signature` is the map's identity; staleness is a files+bytes walk, not a clock.
   const manifest = {
     name: model.name,
-    generatedAt: model.generatedAt,
     signature: model.signature,
     fileCount: model.fileCount,
     modules: model.modules.map((m) => ({ path: m.path, role: m.role, files: m.files, bytes: m.bytes, deps: m.deps || [] })),
