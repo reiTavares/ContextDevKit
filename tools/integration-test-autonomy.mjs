@@ -97,8 +97,8 @@ try {
   mkdirSync(sessionsDir, { recursive: true });
   for (let i = 1; i <= 20; i += 1) writeFileSync(join(sessionsDir, `2026-01-02-${String(i).padStart(2, '0')}-seed.md`), '# seed\n');
   const seedEvents = Array.from({ length: 30 }, (_, i) => ({ ts: Date.now() - i * 1000, from: 'working', to: 'testing', actor: 'human', inverse: 'working' }));
-  mkdirSync(join(proj, 'contextkit', 'pipeline', 'seed'), { recursive: true });
-  writeFileSync(join(proj, 'contextkit', 'pipeline', 'seed', 'state.json'), JSON.stringify({ kind: 'task', id: 'seed', status: 'done', startedAt: Date.now(), events: seedEvents }, null, 2));
+  mkdirSync(join(proj, 'contextkit', 'pipeline', 'state', 'seed'), { recursive: true }); // ADR-0053 layout
+  writeFileSync(join(proj, 'contextkit', 'pipeline', 'state', 'seed', 'state.json'), JSON.stringify({ kind: 'task', id: 'seed', status: 'done', startedAt: Date.now(), events: seedEvents }, null, 2));
   mkdirSync(join(proj, 'contextkit', 'memory', 'autonomy'), { recursive: true });
   writeFileSync(join(proj, 'contextkit', 'memory', 'autonomy', 'readiness.json'), JSON.stringify({ coverageGreen: true, attributionPresent: true, ts: new Date().toISOString() }));
   // Now grade 4 with no flags ⇒ SESSION override (not persisted) — ADR-0045 §3.

@@ -15,6 +15,7 @@ import { renderBoard, renderDigest, renderKnownBugs } from './pipeline-board.mjs
 import { runValidate } from './pipeline-validate.mjs';
 import { listTasks } from './pipeline-tasks.mjs';
 import { add, ingest, ensureDirs } from './pipeline-add.mjs';
+import { migrateStateLayout } from '../../runtime/state/state-io.mjs';
 import { autoTransition, move, qaReject } from './pipeline-transitions.mjs';
 
 const ROOT = process.cwd();
@@ -74,6 +75,7 @@ async function sessionCli(verb, marker, dest) {
 
 function sync() {
   ensureDirs(PIPE);
+  migrateStateLayout(PIPE); // ADR-0053: self-heal any legacy flat state dirs into state/
   const all = tasks();
   writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all));
   writeFileAtomicSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all));
