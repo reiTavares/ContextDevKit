@@ -12,16 +12,31 @@
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { loadConfigSync } from '../config/load.mjs';
 import { pathsFor } from '../config/paths.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
+
+/** Source extensions the project-map counts — gates the auto-refresh (ADR-0046). */
+const MAP_SOURCE_RE = /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|py|go|rs|java|kt|rb|php|cs|sql)$/;
 
 function safeRun(cmd) {
   try {
     execSync(cmd, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 10_000 });
   } catch {
     /* never block the commit on a derived-doc regen failure */
+  }
+}
+
+/** True when the staged changeset touches a mapped source file (else skip the scan). */
+function stagedTouchesSource() {
+  try {
+    return execSync('git diff --cached --name-only', { cwd: ROOT, encoding: 'utf-8', timeout: 5_000 })
+      .split('\n')
+      .some((f) => MAP_SOURCE_RE.test(f.trim()));
+  } catch {
+    return false;
   }
 }
 
@@ -43,6 +58,13 @@ function main() {
   if (existsSync(P.pipeline)) {
     safeRun('node contextkit/tools/scripts/pipeline.mjs sync');
     safeRun('git add contextkit/pipeline/devpipeline.md contextkit/pipeline/known-bugs.md');
+  }
+  // Project-map auto-refresh (ADR-0046) — grade-blind derived doc, like the indices
+  // above. Only when a map already exists, the staged changeset touches source, and
+  // the toggle is on. Deterministic ⇒ no-op stage when nothing structural changed.
+  if (existsSync(resolve(P.projectMap, 'manifest.json')) && loadConfigSync(ROOT)?.projectMap?.autoRefresh !== false && stagedTouchesSource()) {
+    safeRun('node contextkit/tools/scripts/project-map.mjs');
+    safeRun('git add contextkit/memory/project-map');
   }
 
   console.log('✓ pre-commit done.');

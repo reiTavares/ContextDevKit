@@ -68,6 +68,14 @@ const AutonomySchema = z
   })
   .default({});
 
+// ADR-0046 — project-map active-fitness toggles (auto-refresh + rule enforcement).
+const ProjectMapSchema = z
+  .object({
+    autoRefresh: z.boolean().default(true),
+    enforce: z.boolean().default(true),
+  })
+  .default({});
+
 const DepsSchema = z
   .object({
     requireLockfile: z.boolean().default(true),
@@ -91,6 +99,7 @@ export const ConfigSchema = z
     deps: DepsSchema,
     deliberations: DeliberationsSchema,
     autonomy: AutonomySchema,
+    projectMap: ProjectMapSchema,
   })
   .passthrough()
   .default({});

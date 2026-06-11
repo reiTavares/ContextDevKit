@@ -6,6 +6,25 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **`/project-map` becomes an active architectural-fitness substrate (ADR-0046).**
+  The structural map stops being a passive doc: (1) **self-refreshing** — the
+  pre-commit hook regenerates + `git add`s the map when source is staged (grade-blind
+  derived doc, never blocks); (2) **architectural fitness functions** — an opt-in
+  `memory/project-map/rules.json` declares path-prefix layering rules
+  (`forbidden: from→to`) and sensitive-import rules; `project-map --check --strict`
+  exits 1 on a violation (a new `project-map` job in `quality.yml` is the gate). The
+  sensitive set is **augmented from the ADR-0041 secrets path-class** (`matchSecret`,
+  reused not reinvented) — the floor gates *editing* a secret, this adds the *edge*
+  view (who now imports it); (3) **structural insights** — dependency cycles, orphan
+  and oversized modules, computed at generate-time into `manifest.json`, surfaced at
+  boot and in an "Architecture health" section of `00-index.md`; (4) `--check` prints
+  a token-cheap **delta** (+/− modules/edges); (5) `--for <path>` returns a focused
+  **subgraph** so the ADR-0044 memory retriever can query the map. New
+  `project-map-insights.mjs` + `project-map-rules.mjs` (pure siblings); `projectMap:
+  { autoRefresh, enforce }` config block. Covered by selfcheck + integration
+  (cycle, violation→exit-1, opt-in-off, `--for`).
+
 ## [1.17.0] - 2026-06-10
 
 ### Added — backlog-zero batch (tickets 084–096)

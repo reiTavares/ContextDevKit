@@ -8,7 +8,7 @@
  * a signal never blocks a session. Zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
@@ -202,70 +202,9 @@ export function openBugsDue(root) {
   }
 }
 
-/** Source extensions the map counts — kept in sync with project-map-core's EXT_LANG. */
-const MAP_SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte', '.py', '.go', '.rs', '.java', '.kt', '.rb', '.php', '.cs', '.sql']);
-
-/** Bounded files+bytes walk over a module dir (caps total stats to stay cheap). */
-function filesAndBytesUnder(absDir, budget) {
-  let files = 0;
-  let bytes = 0;
-  let entries = [];
-  try {
-    entries = readdirSync(absDir, { withFileTypes: true });
-  } catch {
-    return { files, bytes };
-  }
-  for (const e of entries) {
-    if (budget.n <= 0) break;
-    if (e.name.startsWith('.') || e.name === 'node_modules') continue;
-    const full = resolve(absDir, e.name);
-    if (e.isDirectory()) {
-      const r = filesAndBytesUnder(full, budget);
-      files += r.files;
-      bytes += r.bytes;
-    } else {
-      const dot = e.name.lastIndexOf('.');
-      if (dot < 0 || !MAP_SOURCE_EXTS.has(e.name.slice(dot).toLowerCase())) continue;
-      budget.n -= 1;
-      files += 1;
-      try {
-        bytes += statSync(full).size;
-      } catch {
-        /* ignore */
-      }
-    }
-  }
-  return { files, bytes };
-}
-
-/**
- * project-map staleness — nudge when the committed structural map no longer
- * matches the tree. Compares each mapped module's saved `{files, bytes}` against
- * a BOUNDED (cap 400 stats) recompute. Structural, not mtime-based: it survives
- * a clone (which resets mtimes) and never churns. Stops once the budget is spent
- * so a truncated module is never falsely flagged (refuse-to-false-positive, rule
- * 8). Returns a line or null. Silent when no map exists or on error. Self-contained.
- */
-export function projectMapStale(root) {
-  try {
-    const dir = pathsFor(root).projectMap;
-    const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json'), 'utf-8'));
-    if (!Array.isArray(manifest.modules) || manifest.modules.length === 0) return null;
-    const budget = { n: 400 };
-    for (const mod of manifest.modules) {
-      if (budget.n <= 0) break;
-      const cur = filesAndBytesUnder(resolve(root, String(mod.path)), budget);
-      // Budget exhausted during this module → its count may be truncated; don't trust it.
-      if (budget.n <= 0) break;
-      if (cur.files !== Number(mod.files) || cur.bytes !== Number(mod.bytes)) {
-        return '🗺️  Project map is **stale** — source changed since it was generated. Run `/project-map` to refresh it (or `/project-map --check` to diff).';
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
+// project-map boot signal (violations + cycles + staleness) lives in its own
+// module to keep this file under budget; re-exported so consumers import it here.
+export { projectMapStale } from './boot-signals-projmap.mjs';
 
 /** Security mode (config): returns the cadence N when a /deep-analysis is due, else 0. */
 export function securityModeDue(root) {

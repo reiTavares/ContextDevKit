@@ -50,6 +50,21 @@ function renderDependencies(model) {
   return out;
 }
 
+/**
+ * "Architecture health" — structural insights + rule violations (ADR-0046).
+ * Sorted/deterministic; omitted entirely when the project is clean (no churn).
+ */
+function renderHealth(model) {
+  const ins = model.insights || { cycles: [], orphans: [], oversized: [] };
+  const violations = model.violations || [];
+  const lines = [];
+  for (const v of violations) lines.push(`- ⛔ **${v.rule}**: \`${v.from}/\` → \`${v.to}/\` — ${v.reason}`);
+  for (const c of ins.cycles) lines.push(`- 🔄 cycle: ${c.map((p) => `\`${p}/\``).join(' → ')} → …`);
+  if (ins.oversized.length) lines.push(`- 📦 oversized (split candidate): ${ins.oversized.map((p) => `\`${p}/\``).join(', ')}`);
+  if (ins.orphans.length) lines.push(`- 🪹 orphan (no in/out edges): ${ins.orphans.map((p) => `\`${p}/\``).join(', ')}`);
+  return lines.length ? ['', '## Architecture health', '', ...lines] : [];
+}
+
 /** 00-index.md — the one-screen overview the agent reads at the start of work. */
 export function renderIndex(model) {
   const out = header(model, 'Project map');
@@ -66,6 +81,7 @@ export function renderIndex(model) {
     out.push(`| ${ROLE_EMOJI[m.role] || ''} ${m.role} | \`${m.path}/\` | ${m.files}${m.capped ? '+' : ''} | ${m.languages.join(', ')} |`);
   }
   out.push(...renderDependencies(model));
+  out.push(...renderHealth(model));
   out.push('', '## How to use this map', '');
   out.push('- Read this index FIRST to orient — it replaces re-greping the tree.');
   out.push('- `01-modules.md` — per-module detail (role, languages, size).');
