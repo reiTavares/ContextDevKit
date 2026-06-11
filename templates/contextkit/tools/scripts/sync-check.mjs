@@ -21,6 +21,8 @@
  *   node contextkit/tools/scripts/sync-check.mjs prepr     [--json]
  */
 import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ROOT = process.cwd();
 
@@ -104,8 +106,8 @@ function recentBranches(branch, limit = 20) {
     .map(([ref, age, author]) => ({ ref, age, author }));
 }
 
-/** `gh` is usable only when installed AND authenticated. */
-function ghReady() {
+/** `gh` is usable only when installed AND authenticated. Shared with git.mjs (ADR-0047). */
+export function ghReady() {
   return run('gh', ['--version']).ok && run('gh', ['auth', 'status']).ok;
 }
 
@@ -141,7 +143,7 @@ function summarizePr(pr) {
 }
 
 /** Open PRs (optionally filtered), or null when `gh` couldn't answer (a SKIP). */
-function listOpenPRs(extraArgs = []) {
+export function listOpenPRs(extraArgs = []) {
   const r = run('gh', ['pr', 'list', '--state', 'open', '--limit', '30', '--json', PR_FIELDS, ...extraArgs]);
   if (!r.ok) return null;
   const parsed = parseJson(r.out);
@@ -220,23 +222,29 @@ function printPrepr(s) {
   console.log('  → Push to update it instead of creating a duplicate.');
 }
 
-const mode = process.argv[2];
-const asJson = process.argv.includes('--json');
-const doFetch = process.argv.includes('--fetch'); // ticket 065: opt-in to the network fetch
+function main() {
+  const mode = process.argv[2];
+  const asJson = process.argv.includes('--json');
+  const doFetch = process.argv.includes('--fetch'); // ticket 065: opt-in to the network fetch
 
-if (mode !== 'preflight' && mode !== 'prepr') {
-  console.error('Usage: sync-check.mjs <preflight|prepr> [--json] [--fetch]');
-  process.exit(2);
+  if (mode !== 'preflight' && mode !== 'prepr') {
+    console.error('Usage: sync-check.mjs <preflight|prepr> [--json] [--fetch]');
+    process.exit(2);
+  }
+
+  try {
+    const summary = mode === 'preflight' ? preflight(doFetch) : prepr(doFetch);
+    if (asJson) console.log(JSON.stringify(summary, null, 2));
+    else if (mode === 'preflight') printPreflight(summary);
+    else printPrepr(summary);
+    process.exit(0);
+  } catch (err) {
+    // Never break the dev flow — degrade to a one-line note (Rule 2).
+    process.stderr.write(`[sync-check] ${err?.message ?? err}\n`);
+    process.exit(0);
+  }
 }
 
-try {
-  const summary = mode === 'preflight' ? preflight(doFetch) : prepr(doFetch);
-  if (asJson) console.log(JSON.stringify(summary, null, 2));
-  else if (mode === 'preflight') printPreflight(summary);
-  else printPrepr(summary);
-  process.exit(0);
-} catch (err) {
-  // Never break the dev flow — degrade to a one-line note (Rule 2).
-  process.stderr.write(`[sync-check] ${err?.message ?? err}\n`);
-  process.exit(0);
-}
+// Auto-run only when invoked as a script; importing (git.mjs PR facts, ADR-0047)
+// is side-effect-free.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

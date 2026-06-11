@@ -23,6 +23,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { SOURCE_INVARIANT_CASES } from './selfcheck-source-cases.mjs';
 import { SOURCE_INVARIANT_CASES_RECENT } from './selfcheck-source-cases-recent.mjs';
+import { SOURCE_INVARIANT_CASES_LATEST } from './selfcheck-source-cases-latest.mjs';
 
 const srcTextFor = (KIT) => (rel) => readFile(resolve(KIT, rel), 'utf-8').catch(() => '');
 
@@ -48,7 +49,7 @@ async function checkSourceInvariants(rep, KIT) {
   const { ok, bad } = rep;
   const srcText = srcTextFor(KIT);
   console.log('Checking source-level invariants...');
-  const cases = [...SOURCE_INVARIANT_CASES, ...SOURCE_INVARIANT_CASES_RECENT];
+  const cases = [...SOURCE_INVARIANT_CASES, ...SOURCE_INVARIANT_CASES_RECENT, ...SOURCE_INVARIANT_CASES_LATEST];
   for (const [label, rel, re] of cases) {
     re.test(await srcText(rel)) ? ok(label) : bad(`${label} — pattern ${re} missing in ${rel}`);
   }

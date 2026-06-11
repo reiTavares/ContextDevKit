@@ -49,8 +49,18 @@ try {
 
   // Version control: git.mjs reports a repo with no remote (temp project has none).
   const gitStatus = script('git.mjs', 'status', '--json');
-  (() => { try { const g = JSON.parse(gitStatus.stdout); return g.isRepo === true && g.remoteUrl === null; } catch { return false; } })()
-    ? ok('git.mjs reports repo + missing remote') : bad(`git.mjs failed: ${gitStatus.stdout || gitStatus.stderr}`);
+  (() => { try { const g = JSON.parse(gitStatus.stdout); return g.isRepo === true && g.remoteUrl === null && g.pr === null; } catch { return false; } })()
+    ? ok('git.mjs reports repo + missing remote (no PR layer without a remote)') : bad(`git.mjs failed: ${gitStatus.stdout || gitStatus.stderr}`);
+
+  // ADR-0047 A1 — PR fact: an unanswerable gh lookup is SKIPPED, never "none" (rule 8).
+  // Deterministic both ways: gh unauthed (CI) and gh authed against a nonexistent repo
+  // (dev machine) both end on the skipped path.
+  git(['remote', 'add', 'origin', 'https://github.com/contextdevkit/it-fake-repo.git'], proj);
+  const gitPr = script('git.mjs', 'status', '--json');
+  (() => { try { const g = JSON.parse(gitPr.stdout); return g.provider === 'github' && g.pr?.status === 'skipped'; } catch { return false; } })()
+    ? ok('git.mjs PR fact degrades to skipped, never a false "none" (ADR-0047 A1, rule 8)')
+    : bad(`git.mjs PR fact wrong: ${gitPr.stdout || gitPr.stderr}`);
+  git(['remote', 'remove', 'origin'], proj);
 
   // ADR-0030 — complexity rubric: regulated domain auto-routes + forces architectural tier.
   const clsLgpd = script('complexity-rubric.mjs', 'classify', 'store user CPF and consent', '--json');
