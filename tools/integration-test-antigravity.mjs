@@ -10,7 +10,7 @@
  *
  * Run:  node tools/integration-test-antigravity.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { run, reporter, installFixture } from './it-helpers.mjs';
 
@@ -53,6 +53,16 @@ try {
   prefix.status !== 0 && !/tech-debt-scan ran/i.test(prefix.stdout)
     ? ok('ctx.mjs refuses a bare prefix instead of guessing (089)')
     : bad('ctx.mjs silently dispatched a prefix match');
+
+  // Pure prompt command should be found in .agents/skills/ when .claude/ is absent (ADR-0048, ticket 085)
+  const claudeDir = join(proj, '.claude');
+  if (existsSync(claudeDir)) {
+    rmSync(claudeDir, { recursive: true, force: true });
+  }
+  const purePrompt = ctx('bug-hunt', 'weird memory leak');
+  purePrompt.status === 0 && /Skill: bug-hunt/i.test(purePrompt.stdout) && /weird memory leak/.test(purePrompt.stdout)
+    ? ok('ctx.mjs finds and runs pure-prompt commands from .agents/skills when .claude is absent')
+    : bad(`pure-prompt command loading failed (status ${purePrompt.status}): ${purePrompt.stdout + purePrompt.stderr}`);
 
   // ── did-you-mean + per-command help (ticket 096) ──
   const typo = ctx('doctr');
