@@ -5,9 +5,14 @@
  *   - `kind: 'task'`          — a DevPipeline task currently in `working/`
  *   - `kind: 'pipeline-run'`  — a single execution of a squad's `pipeline.yaml`
  *
- * Storage: one file per item under `contextkit/pipeline/<id>/state.json` (the
- * pipeline directory is single-sourced via `paths.mjs`). Defensive everywhere
- * — corrupt or missing JSON returns `null`, not throws.
+ * Storage (ADR-0053): one file per item under
+ * `contextkit/pipeline/state/<id>/state.json` — the runtime substrate lives in its
+ * OWN `state/` subdir, isolated from the board stage dirs (backlog/working/testing/
+ * conclusion) and gitignored in installs (it is in-flight state, not the shared
+ * board). The pipeline directory is single-sourced via `paths.mjs`. Reads fall back
+ * to the pre-ADR-0053 flat path (`pipeline/<id>/state.json`) so an un-migrated
+ * project keeps working; `migrateStateLayout` tidies the filesystem. Defensive
+ * everywhere — corrupt or missing JSON returns `null`, not throws.
  *
  * Schema (canonical):
  *   {
@@ -34,21 +39,36 @@
  * Zero-dep, pure ESM over `node:*`. The hot path may import this — it never
  * pulls in the optional `yaml` dep.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { writeFileAtomicSync } from '../hooks/safe-io.mjs';
 
 const VALID_KINDS = new Set(['task', 'pipeline-run']);
 const VALID_STATUSES = new Set(['backlog', 'working', 'testing', 'done', 'running', 'blocked-on-checkpoint', 'failed']);
 const VALID_ACTORS = new Set(['human', 'auto', 'qa', 'evict']);
+/** The state substrate's own subdir (ADR-0053) — kept apart from the board stages. */
+const STATE_SUBDIR = 'state';
+/** Board stage dirs that live beside `state/` and must never be read as task ids. */
+const STAGE_DIRS = new Set(['backlog', 'working', 'testing', 'conclusion', STATE_SUBDIR]);
 let warnedOnce = false;
 
-/**
- * @param {string} pipeDir — repo-relative pipeline root (single-sourced from paths.mjs)
- * @param {string} id
- */
+/** Canonical path (ADR-0053): `pipeDir/state/<id>/state.json`. */
 function fileFor(pipeDir, id) {
+  return resolve(pipeDir, STATE_SUBDIR, String(id), 'state.json');
+}
+
+/** Pre-ADR-0053 flat path (`pipeDir/<id>/state.json`) — read-only back-compat. */
+function legacyFileFor(pipeDir, id) {
   return resolve(pipeDir, String(id), 'state.json');
+}
+
+/** readdir withFileTypes, never throws. */
+function safeEntries(dir) {
+  try {
+    return readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -61,7 +81,9 @@ function fileFor(pipeDir, id) {
  * @returns {object | null}
  */
 export function readState(pipeDir, id) {
-  const file = fileFor(pipeDir, id);
+  // New layout first, then the pre-ADR-0053 flat path (un-migrated projects).
+  let file = fileFor(pipeDir, id);
+  if (!existsSync(file)) file = legacyFileFor(pipeDir, id);
   if (!existsSync(file)) return null;
   try {
     const raw = readFileSync(file, 'utf-8').replace(/^﻿/, '');
@@ -141,16 +163,14 @@ export function appendEvent(pipeDir, id, { from, to, actor, note }) {
  */
 export function listStates(pipeDir, opts = {}) {
   if (!existsSync(pipeDir)) return [];
+  // Ids from the new `state/` subdir, plus any un-migrated legacy dirs at the
+  // pipeline root (stage dirs are skipped — they are never task state, ADR-0053).
+  const ids = new Set();
+  for (const ent of safeEntries(resolve(pipeDir, STATE_SUBDIR))) if (ent.isDirectory()) ids.add(ent.name);
+  for (const ent of safeEntries(pipeDir)) if (ent.isDirectory() && !STAGE_DIRS.has(ent.name)) ids.add(ent.name);
   const states = [];
-  let entries;
-  try {
-    entries = readdirSync(pipeDir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-  for (const ent of entries) {
-    if (!ent.isDirectory()) continue;
-    const state = readState(pipeDir, ent.name);
+  for (const id of ids) {
+    const state = readState(pipeDir, id);
     if (!state) continue;
     if (opts.kind && state.kind !== opts.kind) continue;
     if (opts.sinceMs && (state.startedAt || 0) < opts.sinceMs) continue;
@@ -158,6 +178,33 @@ export function listStates(pipeDir, opts = {}) {
   }
   states.sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
   return states;
+}
+
+/**
+ * Migrates any pre-ADR-0053 flat state dirs (`pipeDir/<id>/state.json`) into the
+ * `state/` subdir. Idempotent and best-effort — a project that already migrated,
+ * or has no legacy dirs, is a no-op. Called by the installer's update path and on
+ * pipeline sync so every environment self-heals. Returns the count moved.
+ *
+ * @param {string} pipeDir
+ * @returns {number}
+ */
+export function migrateStateLayout(pipeDir) {
+  let moved = 0;
+  for (const ent of safeEntries(pipeDir)) {
+    if (!ent.isDirectory() || STAGE_DIRS.has(ent.name)) continue;
+    const legacy = legacyFileFor(pipeDir, ent.name);
+    if (!existsSync(legacy)) continue;
+    const dest = fileFor(pipeDir, ent.name);
+    if (existsSync(dest)) continue; // already migrated — never clobber the new file
+    try {
+      mkdirSync(dirname(dest), { recursive: true });
+      renameSync(legacy, dest);
+      try { rmdirSync(resolve(pipeDir, ent.name)); } catch { /* dir not empty — leave it */ }
+      moved += 1;
+    } catch { /* best-effort — a failed move just stays legacy (still readable) */ }
+  }
+  return moved;
 }
 
 /**
@@ -174,7 +221,8 @@ export function prune(pipeDir, { olderThanDays }) {
   let removed = 0;
   for (const state of listStates(pipeDir)) {
     if (typeof state.endedAt !== 'number' || state.endedAt > cutoff) continue;
-    const file = fileFor(pipeDir, state.id);
+    // Remove whichever location holds it (new layout, or an un-migrated legacy file).
+    const file = existsSync(fileFor(pipeDir, state.id)) ? fileFor(pipeDir, state.id) : legacyFileFor(pipeDir, state.id);
     try {
       if (existsSync(file)) { unlinkSync(file); removed += 1; }
     } catch { /* best-effort */ }

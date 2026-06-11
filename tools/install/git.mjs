@@ -84,6 +84,7 @@ const GITIGNORE_BLOCK = [
   '# ContextDevKit — local runtime state (do not commit)',
   '.claude/.sessions/',
   '.claude/.workspace/',
+  'contextkit/pipeline/state/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
   '.agent-tuning-proposal.md',

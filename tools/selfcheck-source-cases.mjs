@@ -51,6 +51,12 @@ export const SOURCE_INVARIANT_CASES = [
     ['state-io exports writeState', 'templates/contextkit/runtime/state/state-io.mjs', /export function writeState/],
     ['state-io exports listStates', 'templates/contextkit/runtime/state/state-io.mjs', /export function listStates/],
     ['state-io exports prune', 'templates/contextkit/runtime/state/state-io.mjs', /export function prune/],
+    // ADR-0053 — the state substrate lives in its own pipeline/state/ subdir.
+    ['state.json lives under pipeline/state/<id>/ (ADR-0053)', 'templates/contextkit/runtime/state/state-io.mjs', /resolve\(pipeDir,\s*STATE_SUBDIR,\s*String\(id\),\s*'state\.json'\)/],
+    ['state-io reads fall back to the pre-ADR-0053 flat path (back-compat)', 'templates/contextkit/runtime/state/state-io.mjs', /file = legacyFileFor\(pipeDir, id\)/],
+    ['state-io exports an idempotent migrateStateLayout (ADR-0053)', 'templates/contextkit/runtime/state/state-io.mjs', /export function migrateStateLayout/],
+    ['pipeline sync self-heals the state layout (ADR-0053)', 'templates/contextkit/tools/scripts/pipeline.mjs', /migrateStateLayout\(PIPE\)/],
+    ['installer gitignores the runtime state substrate (ADR-0053)', 'tools/install/git.mjs', /contextkit\/pipeline\/state\//],
     ['pipeline-session stamps state.json on start (ADR-0015 §C)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /writeState\(pipeDir,\s*id,\s*\{\s*kind:\s*'task'/],
     ['pipeline-session stamps endedAt on stop', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /endedAt:\s*Date\.now\(\)/],
     ['workspace-sync mirrors heartbeat into state.json', 'templates/contextkit/tools/scripts/workspace-sync.mjs', /lastHeartbeat:\s*task\.lastHeartbeat/],

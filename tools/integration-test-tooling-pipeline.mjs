@@ -123,7 +123,7 @@ try {
   afterEvict?.stage === 'backlog' ? ok('workspace-sync auto-evicts stale task back to backlog/') : bad(`stale evict failed: stage=${afterEvict?.stage}`);
   // ADR-0043 §3/§5: the eviction must be ON THE EVENT LOG (actor=evict) — else the
   // grade-4 rollback metric (ADR-0045) can't see abandonment ("if it isn't an event…").
-  const evictState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', wipTask.id, 'state.json'), 'utf-8'));
+  const evictState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', 'state', wipTask.id, 'state.json'), 'utf-8'));
   (evictState.events || []).some((e) => e.actor === 'evict' && e.from === 'working' && e.to === 'backlog')
     ? ok('stale eviction appends an actor=evict event (ADR-0043 §5)') : bad(`eviction left no evict event: ${JSON.stringify(evictState.events)}`);
 
@@ -131,8 +131,8 @@ try {
   script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'state-test');
   const stTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'state-test');
   script('pipeline.mjs', 'start', stTask.id);
-  const stateFile = join(proj, 'contextkit', 'pipeline', stTask.id, 'state.json');
-  existsSync(stateFile) ? ok('start writes state.json (ADR-0015 §C)') : bad('state.json not written on start');
+  const stateFile = join(proj, 'contextkit', 'pipeline', 'state', stTask.id, 'state.json');
+  existsSync(stateFile) ? ok('start writes state.json under pipeline/state/ (ADR-0015 §C / ADR-0053)') : bad('state.json not written on start');
   const state1 = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf-8')) : {};
   state1.kind === 'task' && state1.status === 'working' && typeof state1.startedAt === 'number'
     ? ok('state.json shape correct (kind=task, status=working, timestamps)') : bad(`state shape wrong: ${JSON.stringify(state1)}`);
@@ -148,6 +148,14 @@ try {
   const state3 = JSON.parse(readFileSync(stateFile, 'utf-8'));
   state3.status === 'done' && typeof state3.endedAt === 'number'
     ? ok('move conclusion mirrors into state.json (status=done, endedAt set)') : bad(`conclusion state wrong: ${JSON.stringify(state3)}`);
+
+  // ─ ADR-0053: a pre-existing flat state dir is migrated into pipeline/state/ ─
+  const legacyDir = join(proj, 'contextkit', 'pipeline', '987');
+  mkdirSync(legacyDir, { recursive: true });
+  writeFileSync(join(legacyDir, 'state.json'), JSON.stringify({ kind: 'task', id: '987', status: 'working', startedAt: 1 }), 'utf-8');
+  script('pipeline.mjs', 'sync'); // sync self-heals the layout (migrateStateLayout)
+  existsSync(join(proj, 'contextkit', 'pipeline', 'state', '987', 'state.json')) && !existsSync(join(legacyDir, 'state.json'))
+    ? ok('legacy flat state dir migrates into pipeline/state/ on sync (ADR-0053)') : bad('legacy state dir was not migrated under state/');
 
   // ─ ADR-0015 §C follow-up: /runs command reads state.json substrate ─
   const runsOut = script('runs.mjs').stdout || '';
@@ -239,7 +247,7 @@ try {
   cfgRaw.autonomy = { grade: 3 };
   writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
   script('pipeline.mjs', 'auto-transition', autoId, 'working');
-  const autoState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', autoId, 'state.json'), 'utf-8'));
+  const autoState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', 'state', autoId, 'state.json'), 'utf-8'));
   const autoEvent = (autoState.events || []).at(-1);
   autoEvent?.actor === 'auto' && autoEvent?.inverse === 'backlog' && autoEvent?.to === 'working'
     ? ok('auto-transition at grade 3 appends an actor=auto event with its inverse (ADR-0043)') : bad(`auto event wrong: ${JSON.stringify(autoState.events)}`);
@@ -247,7 +255,7 @@ try {
   toConclusion.status !== 0
     ? ok('auto-transition never enters conclusion (legality fence, ADR-0043)') : bad('auto-transition crossed into conclusion');
   script('pipeline.mjs', 'move', autoId, 'testing');
-  const movedState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', autoId, 'state.json'), 'utf-8'));
+  const movedState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', 'state', autoId, 'state.json'), 'utf-8'));
   movedState.events?.at(-1)?.actor === 'human' && movedState.events.length === 2
     ? ok('human move appends its event — log is append-only across actors') : bad(`event log broken: ${JSON.stringify(movedState.events)}`);
   // ADR-0043 §3: auto may NOT do the testing→working bounce (that is qa-reject's

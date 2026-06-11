@@ -6,7 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Add your changes here._
+### Changed
+- **Per-task `state.json` moved under `pipeline/state/` (ADR-0053).** The runtime
+  substrate (ADR-0015 §C / ADR-0043) no longer scatters numbered dirs across the
+  pipeline root beside the board stages — it lives in its own
+  `contextkit/pipeline/state/<id>/state.json`, and the installer now **gitignores**
+  `contextkit/pipeline/state/` (it is churning in-flight state, not the shared
+  board). `listStates` reads only the substrate (skipping the stage dirs), fixing
+  both the clutter and the commit/merge-conflict risk. Fully backward-compatible:
+  `readState` falls back to the legacy flat path and `migrateStateLayout` (run on
+  every `pipeline.mjs sync`) self-heals existing projects on the next command —
+  idempotent, never clobbers. Covered by selfcheck + integration (start writes
+  under `state/`; a legacy dir migrates on sync).
 
 ## [2.0.0] - 2026-06-11
 
