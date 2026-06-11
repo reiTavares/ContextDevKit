@@ -216,6 +216,13 @@ try {
   (() => { try { const s = readJson(join(proj, 'contextkit', 'memory', 'sbom.json')); return s.bomFormat === 'CycloneDX' && (s.components || []).some((c) => c.name === 'gpllib'); } catch { return false; } })()
     ? ok('deps-audit --sbom writes a CycloneDX SBOM') : bad('SBOM not written/invalid');
 
+  // ADR-0047 A5 — --registry: an unreachable registry is a SKIP finding, never a pass.
+  const regOut = run([join(proj, 'contextkit', 'tools', 'scripts', 'deps-audit.mjs'), '--registry', '--json'],
+    { cwd: proj, env: { ...process.env, CONTEXT_NPM_REGISTRY: 'http://127.0.0.1:9' } });
+  (() => { try { return JSON.parse(regOut.stdout).findings.some((f) => f.kind === 'registry-skipped'); } catch { return false; } })()
+    ? ok('deps-audit --registry reports an unreachable registry as skipped, not a pass (ADR-0047 A5, rule 8)')
+    : bad(`--registry skip finding missing: ${regOut.stdout || regOut.stderr}`);
+
   // GitHub-native security: scaffolding + code-security agent installed; alert sync degrades safely.
   existsSync(join(proj, '.github', 'dependabot.yml')) && existsSync(join(proj, '.github', 'workflows', 'security.yml'))
     ? ok('GitHub security scaffolding installed (dependabot.yml + security workflow)') : bad('security scaffolding not installed');

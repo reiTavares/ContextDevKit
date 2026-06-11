@@ -26,4 +26,9 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     // ADR-0047 A4 — scheduled alert-sync in the scaffolded security.yml (task 131).
     ['security.yml ships the opt-in cron trigger, commented (ADR-0047 A4, rule 8)', 'templates/github/workflows/security.yml', /# schedule:\s*\n\s*#\s+- cron:/],
     ['security.yml alert-sync job runs gh-alerts on the schedule only (ADR-0047 A4)', 'templates/github/workflows/security.yml', /alert-sync:[\s\S]*github\.event_name == 'schedule'[\s\S]*gh-alerts\.mjs/],
+    // ADR-0047 A5 — registry-backed staleness in /deps-audit (task 132).
+    ['deps-audit gates the network behind --registry (ADR-0047 A5, rule 8)', 'templates/contextkit/tools/scripts/deps-audit.mjs', /process\.argv\.includes\('--registry'\)/],
+    ['deps-audit reports an unreachable registry as SKIPPED, never a pass (rule 8)', 'templates/contextkit/tools/scripts/deps-audit.mjs', /'registry-skipped'/],
+    ['deps-audit registry URL is env-overridable for offline tests', 'templates/contextkit/tools/scripts/deps-audit.mjs', /CONTEXT_NPM_REGISTRY/],
+    ['deps-audit registry fetch is bounded (timeout, abbreviated metadata)', 'templates/contextkit/tools/scripts/deps-audit.mjs', /AbortSignal\.timeout\(8000\)/],
 ];
