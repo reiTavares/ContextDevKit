@@ -1,0 +1,34 @@
+/* Design tokens — the ONLY place raw values live. Components reference vars.
+   Swap the palette/typography here to re-skin the whole page (no hex literals
+   in components.css). Deliberately not the purple-gradient AI default. */
+:root {
+  /* surfaces */
+  --surface-0: #0b0d10;
+  --surface-1: #11141a;
+  --surface-2: #181c24;
+
+  /* text */
+  --text: #eef1f5;
+  --text-dim: #a3adba;
+  --text-faint: #6b7686;
+
+  /* brand accents — replace with the project's real palette */
+  --accent: #38bdf8;
+  --accent-strong: #7dd3fc;
+  --accent-contrast: #04131c;
+  --accent-warm: #fbbf24;
+
+  /* lines & radii */
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --radius: 14px;
+  --radius-sm: 9px;
+
+  /* type */
+  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-body); /* pair a display face before launch */
+
+  /* layout */
+  --maxw: 1080px;
+  --pad: 24px;
+}

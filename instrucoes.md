@@ -116,10 +116,16 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/validate-doc` — gate de qualidade dos artefatos de planejamento (ADRs/roadmap).
 
 ### Landing pages e mídia
-- **`/landing-page <briefing>`** — invoca o `landing-architect`: decide
-  indexabilidade primeiro, escolhe fold count (3/5–7/9), recusa cookie-cutter,
-  monta plano com pacotes datados (Astro, Tailwind, Motion, Lucide, Plausible,
-  GrowthBook) e budget de performance.
+- **`/landing-page <briefing>`** — o squad de conversão (ADR-0023 + ADR-0050):
+  entrevista de estratégia primeiro (`conversion-strategist` — nicho, dor, CTA
+  única, sofisticação do público), indexabilidade decidida antes de tudo
+  (`landing-architect`), e geração **determinística**: `lp-scaffold.mjs` cria a
+  fonte componentizada (uma dobra por arquivo), a IA preenche só
+  `lp/content/copy.json` + `legal.json`, e `lp-build.mjs --check` monta o
+  `dist/` e recusa placeholders. **LGPD por padrão**: cookie consent ativo,
+  GTM direto porém sem ID (inerte), pixels só como modelos comentados
+  (`tracking-integrator` + revisão do `privacy-lgpd`), política de privacidade
+  e termos de uso gerados como minuta (revisão de advogado obrigatória).
 - **`/media-gen image|video --prompt "..." --out PATH`** — gera imagem (Nano
   Banana / Imagen 3) ou vídeo (Veo 3) via Google AI Studio. `.env.example` no
   kit com `GOOGLE_AI_API_KEY` comentado. `--dry-run` testa sem custo.
@@ -155,7 +161,7 @@ route,fallback-test,refresh-matrix,killswitch,deprecate}`.
 |---|---|---|
 | **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Design cross-cutting + revisão de PR + higiene de memória |
 | **qa-team** | `qa-orchestrator` + unit/integration/fuzzer/perf/e2e | Estratégia + execução de testes |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect` | UI/UX, WCAG AA, SEO+AISO, landing pages de alta conversão |
+| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator` | UI/UX, WCAG AA, SEO+AISO, landing pages de alta conversão, neurodesign + tracking consent-first |
 | **security-team** | `security`, `code-security`, `infra-security` | Auth, segredos, deps, IaC, supply chain |
 | **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD, políticas |
 | **ops-team** | `devops` | CI/CD, deploys, ambientes, observabilidade |

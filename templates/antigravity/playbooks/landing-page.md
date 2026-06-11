@@ -40,6 +40,37 @@ explicit refusal of that pattern and its substitute.
 
 A fold that does not pass all three is the section to cut.
 
+## Fold anatomy — the persuasive function of each (ADR-0050)
+
+The count table above decides HOW MANY folds ship; this menu decides what each
+one must *argue*. The landing starter (`lp-scaffold.mjs`) scaffolds these as
+one file per fold under `lp/sections/`.
+
+| # | Fold | Persuasive function | Hard rule |
+|---|---|---|---|
+| 1 | **Hero** | promise (≤ 8 words) + sub-promise that mitigates the top objection + the ONE CTA + one real quick proof | one action only; proof is real or absent |
+| 2 | **Problem / agitation** | name the pain as the visitor feels it; price the cost of inaction (loss aversion) | concrete symptoms, not abstractions; darker surface by design |
+| 3 | **Solution / benefits** | the offer as outcomes in the user's language | ≤ 3 primary items (cognitive-load cap) |
+| 4 | **Social proof / authority** | real testimonial, verifiable number, real logos | **real only** — no proof ⇒ delete the fold (rule 9); inventing it is the refusal |
+| 5 | **Offer / pricing** | scope explicit; value anchor BEFORE price (anchoring) | one price + decision help beats a performative 3-tier table |
+| 6 | **FAQ** | kill the last logical objections | scannable headings (no accordion) + `FAQPage` JSON-LD from the same source |
+| 7 | **Footer CTA** | repeat the promise, repeat the ONE action, capture the lead | CNPJ + legal links in the footer (pt-BR trust signal) |
+
+## Neurodesign techniques (verify, don't vibe)
+
+| Technique | Use | How to verify |
+|---|---|---|
+| **Processing fluency** | legible type, high contrast, generous whitespace | 3-second glance test: promise readable + CTA findable |
+| **Cognitive-load cap** | ≤ 3 primary infos per fold | count them; the 4th moves to FAQ or a sub-page |
+| **Loss aversion** | problem fold prices the inaction | the pain is concrete enough to quote back |
+| **Anchoring** | value/comparison rendered before the price | check render order in the offer fold |
+| **Gaze cueing** | visual lines / a face's gaze point at the CTA | trace the eye path; it ends on the button |
+| **Immediate feedback** | hover, loading, success/error micro-states | every interactive element has all three states |
+
+Honesty boundary: these techniques reduce friction toward an action the
+visitor already wants. Fake scarcity, confirm-shaming, pre-checked boxes and
+invented proof are dark patterns — refusals, not techniques.
+
 ## Above the fold (the only fold that exists at first)
 
 Hard rules:
@@ -166,6 +197,49 @@ Measure with:
 
 A landing page that fails any of these in lab measurement is a refusal
 on this playbook + a finding in `seo-audit.mjs`.
+
+## Legal & consent — defaults, not options (ADR-0050)
+
+For the Brazilian market (LGPD), shipped by default in the landing starter and
+non-negotiable for any kit-built public page:
+
+- **Cookie consent before any tracker.** The consent component ships ON;
+  Google Consent Mode defaults to denied; trackers listen for the explicit
+  grant event. Scroll/absence is not consent.
+- **GTM direct but ID-less.** The container snippet is in the page, consent-
+  gated, with an empty `gtmId` in `lp.config.json` — inert until the user
+  activates it. Zero LGPD exposure by construction.
+- **Pixels are MODELS.** Meta/TikTok/LinkedIn templates ship commented-out and
+  consent-wrapped (`js/tracking-models.js`); prefer tags inside GTM.
+- **Privacy policy + terms of use always generated** from the business facts in
+  `content/legal.json` — drafts ("minuta") carrying a non-removable
+  lawyer-review disclaimer. `privacy-lgpd` reviews the filled docs.
+- **Forms are webhook-decoupled** (n8n / Make / Sheets) — every data
+  destination must be named in the privacy policy's sharing section.
+
+Owners: `tracking-integrator` (seams) paired with `privacy-lgpd` (review).
+
+## The deterministic path — scaffold, don't hand-write (ADR-0050)
+
+For the static default, the AI does not hand-write markup:
+
+```
+lp-scaffold.mjs [--folds …]   # componentized source under lp/ (one fold per file)
+<fill lp/content/copy.json + content/legal.json>   # the AI's editing surface
+lp-build.mjs --check          # atomic dist/ + refuse-by-default gate
+```
+
+Source is modular (SRP, constitution budget per file); output is one static
+indexable page. The token spend collapses to filling a bounded JSON + review
+(~5–10K) instead of hand-writing the page (~30–60K). `--check` fails on
+leftover `{{tokens}}` / `[PREENCHA]` sentinels and runs `seo-audit` +
+`aiso-audit` against `dist/`.
+
+**Framework variant** (page is app-like → Astro/Next per the rec table):
+componentization is native; map responsibilities as `/components` (dumb UI),
+`/features` (fold-level smart components), `/hooks`, `/services` (webhook/API
+clients), `/config` (tracking + SEO constants). Same SRP rules, same consent
+contract — the constitution's file budget governs (280 + 10%), no parallel cap.
 
 ## Indexability gate (cross-link)
 

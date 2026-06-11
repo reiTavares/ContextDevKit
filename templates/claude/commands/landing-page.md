@@ -1,71 +1,62 @@
 ---
-description: Landing-page architect — opinionated, anti-cookie-cutter, fold rules, package recs, indexable-by-default. (ADR-0023)
+description: Landing-page architect + conversion squad — interview-first, anti-cookie-cutter, deterministic scaffold (lp-scaffold/lp-build), LGPD by default. (ADR-0023 + ADR-0050)
 argument-hint: <feature or scope, e.g. "marketing site for new pricing">
 ---
 
-# 🎯 Landing page (anti-cookie-cutter)
+# 🎯 Landing page (conversion squad)
 
-Drive a landing-page or marketing-site design pass from a strategic
-brief. The session reads two artefacts on every invocation and refuses
-the cookie-cutter pattern by default:
+Drive a landing-page pass from a strategic brief — structure by
+`landing-architect`, persuasion by `conversion-strategist`, instrumentation by
+`tracking-integrator`. Reads on every invocation:
 
-- [Landing-page playbook](../../contextkit/workflows/playbooks/landing-page.md) — fold rules, anti-Lovable refusals, package recommendations (dated), performance budget.
+- [Landing-page playbook](../../contextkit/workflows/playbooks/landing-page.md) — fold rules + fold anatomy, neurodesign table, anti-Lovable refusals, package recs (dated), legal & consent defaults, performance budget.
 - [SEO + AISO playbook](../../contextkit/workflows/playbooks/seo-aiso.md) — indexability gate; refuse-on-SPA.
 
-Authority: [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md).
+Authority: [ADR-0023](../../contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md) + ADR-0050.
 
-## Posture for this session
+## The pass, in order
 
-Act as **landing-architect**. Read the brief in **$ARGUMENTS** and:
-
-1. **State the indexability decision FIRST.** Pick SSG (Astro
-   recommended), SSR (Next App Router / Nuxt / Remix / SvelteKit), or
-   carve out a non-indexable surface with a project ADR. Plain Vite +
-   React for a public landing page is a refusal — propose Astro.
-2. **Pick the fold count from the rule table.** State min / ideal /
-   max for the brief's situation. Justify the pick (utility tool →
-   3 folds; SaaS pricing page → 5–7; high-ticket B2B → up to 9).
-3. **Sketch each fold as a one-liner.** One message, one action, one
-   proof per fold. No "while we're here" sections.
-4. **Refuse the cookie-cutter explicitly.** Walk the playbook's
-   anti-Lovable table and name the substitute the design will use
-   (editorial hero, in-context testimonial, decision-tree pricing,
-   inline FAQ).
-5. **Choose packages from the rec table.** State the framework,
-   styling tokens, animation library, typography pair, icon set,
-   forms, analytics, experimentation, imagery source. Refuse the
-   defaults the playbook calls out (`Inter`, Heroicons, GA4,
-   Material UI).
-6. **Defer to the squad:**
-   - `seo-specialist` for the AISO checklist + FAQ schema before any
-     visual work lands;
-   - `ui-designer` for tokens + layout once the structure is set;
-   - `ux-designer` for the user flow through the page;
-   - `accessibility` for WCAG AA before merge;
-   - `/media-gen` for hero imagery + video instead of stock photos.
-7. **Performance budget commitment.** State the LCP / INP / CLS / JS
-   payload target up front — they are conversion levers, not
-   afterthoughts.
+0. **Interview (conversion-strategist).** Check the brief in **$ARGUMENTS** for
+   the four answers — niche/sector · main pain · the ONE CTA · audience
+   sophistication. Ask ONLY what's missing; never re-ask what's given.
+1. **Indexability decision FIRST (landing-architect).** Static scaffold
+   (default for content pages), SSG framework (Astro) or SSR when app-like, or
+   carve-out via project ADR. Plain Vite + React is a refusal.
+2. **Fold count from the rule table**, then map each selected fold to its
+   persuasive function from the playbook's fold-anatomy menu. One message ·
+   one action · one proof per fold. No real social proof ⇒ the proof fold is
+   dropped, never faked.
+3. **Scaffold, don't hand-write** (static path):
+   `node contextkit/tools/scripts/lp-scaffold.mjs --folds <selection>` →
+   fill `lp/content/copy.json` + `lp/content/legal.json` (the AI's editing
+   surface — markup only changes for real structural needs) →
+   `node contextkit/tools/scripts/lp-build.mjs --check`.
+4. **Refuse the cookie-cutter explicitly** — walk the anti-Lovable table and
+   name each substitute. Framework variant: packages from the dated rec table.
+5. **Legal & consent are defaults.** Consent banner ON, GTM ID-less, pixels as
+   commented models only, privacy policy + terms generated from `legal.json`
+   (minuta — lawyer disclaimer stays). Route the filled docs to `privacy-lgpd`.
+6. **Delegate:** visual tokens/layout → `ui-designer` · flow → `ux-designer` ·
+   indexability + AISO → `seo-specialist` (mandatory gate) · GTM/pixels/webhook
+   → `tracking-integrator` · WCAG AA → `accessibility` · imagery → `/media-gen`.
+7. **Exit gates.** `lp-build.mjs --check` green (no leftover tokens/sentinels;
+   `seo-audit` + `aiso-audit` clean on `dist/`) + the performance budget
+   restated (LCP < 2.5 s · INP < 200 ms · CLS < 0.1 · first-fold JS < 100 kB).
 
 ## Output shape
 
-- **Indexability decision** (SSG / SSR / carve-out) + framework pick
-  with one-line rationale.
-- **Fold map** — `N folds`, each as `<fold-name> · <message> · <action>
-  · <proof>`.
-- **Anti-Lovable map** — which playbook smells the design refuses
-  and what the substitute is for each.
-- **Stack** — package picks with one-line rationale per category.
-- **Performance budget** — LCP, INP, CLS, JS payload targets.
-- **Next-step delegations** — which agent owns the next pass and
-  what input they need.
+1. Interview answers (or the questions still open).
+2. Indexability decision + rendering path (scaffold / framework) with rationale.
+3. Fold map — each line `<fold> · <message> · <action> · <proof>` + the
+   neurodesign technique it leans on.
+4. Anti-Lovable map (smell → substitute).
+5. Scaffold/build commands run + `--check` result.
+6. Legal & consent status (docs generated, what `privacy-lgpd` must review).
+7. Delegations + performance budget.
 
 ## What this does NOT do
 
-- It does **not** write the code in this session. It produces the
-  *plan* the next session (or the next agent) implements.
-- It does **not** invent a domain (rule 9 + ADR-0017's five-constraint
-  inheritance). The user owns the product story; this command shapes
-  the structure.
-- It does **not** override a project-local ADR that carves out
-  indexability. Read those first.
+- Invent domain content: copy, testimonials, numbers and legal facts come from
+  the user (rule 9). Placeholder sentinels are open items, not content.
+- Wire a tracker to fire before consent, or hardcode a container/pixel ID.
+- Override a project-local ADR that carves out indexability.
