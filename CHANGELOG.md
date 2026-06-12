@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Add your changes here.
+
+## [2.4.1] - 2026-06-12
+
 ### Fixed - workflow report defensiveness (ADR-0057 remediation)
 - **No more false-pass on missing git.** `workflow report` now probes
   `git rev-parse --is-inside-work-tree` and writes an explicit
