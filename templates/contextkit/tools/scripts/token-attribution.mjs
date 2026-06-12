@@ -11,6 +11,10 @@
  *     context, so `commands` is legitimately empty on sessions that ran no
  *     attributed command. Treat it as a best-effort lens (the report omits the
  *     "Top commands" section when empty), NOT a guaranteed dimension.
+ *   - by MODEL — via the transcript's `message.model` id (ADR-0052 Phase 2): the
+ *     per-model spend split that makes cost-tiered routing measurable. Answers
+ *     "did the fan-out actually run cheap, or was it all premium?" with data.
+ *     A record with no model id buckets under `unknown` (never silently dropped).
  *
  * Both are derived ONLY from records `/token-report` already parses, so there is
  * NO new persisted artifact to inflate — the named failure mode in ADR-0044 is
@@ -35,14 +39,17 @@ function fold(bucket, usage) {
 /**
  * Attributes usage across the given transcript entries.
  *
- * @param {Array<{message?:{usage?:object}, isSidechain?:boolean, attributionSkill?:string}>} entries
+ * @param {Array<{message?:{usage?:object, model?:string}, isSidechain?:boolean, attributionSkill?:string}>} entries
  *   already filtered to the scope the caller wants (e.g. this project, unless --all)
- * @returns {{ agents: { main: object, subagent: object }, commands: Record<string, object> }}
- *   `agents` always has both keys; `commands` keys are the `attributionSkill` values seen.
+ * @returns {{ agents: { main: object, subagent: object }, commands: Record<string, object>, byModel: Record<string, object> }}
+ *   `agents` always has both keys; `commands` keys are the `attributionSkill` values
+ *   seen; `byModel` keys are the `message.model` ids seen (`unknown` for records
+ *   without one).
  */
 export function attribute(entries) {
   const agents = { main: emptyTotals(), subagent: emptyTotals() };
   const commands = {};
+  const byModel = {};
   for (const entry of entries || []) {
     const usage = entry?.message?.usage;
     if (!usage) continue;
@@ -52,8 +59,11 @@ export function attribute(entries) {
       commands[skill] = commands[skill] || emptyTotals();
       fold(commands[skill], usage);
     }
+    const model = (typeof entry?.message?.model === 'string' && entry.message.model) ? entry.message.model : 'unknown';
+    byModel[model] = byModel[model] || emptyTotals();
+    fold(byModel[model], usage);
   }
-  return { agents, commands };
+  return { agents, commands, byModel };
 }
 
 /**

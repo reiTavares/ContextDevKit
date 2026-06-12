@@ -50,14 +50,21 @@ ADR-0044 §3).
    c. Build the charter: `context-pack.mjs --for-subagent --objective "<task title>"`
       output at the top + the task card + "operate ONLY under <worktree path>" +
       implement → self-review → `npm test` in the worktree → Conventional Commit.
-   d. Dispatch with the Agent tool, `model` = the plan's `tierHint` resolved per
-      ADR-0052 (think → agent default or above; execute → haiku + low effort);
-      mark the workstream `dispatched`, then `working`.
+   d. Resolve the model — DON'T eyeball it (ADR-0052 Phase 2): run
+      `node contextkit/tools/scripts/model-policy.mjs tier <tierHint> [--budget-exhausted]`
+      and dispatch with the Agent tool's `model` = the returned alias. Omitting
+      `model` silently inherits the premium session model — the most expensive
+      path. Mark the workstream `dispatched` (record the alias:
+      `updateWorkstream(root, runId, wsId, { status: 'dispatched', model })`),
+      then `working`.
 3. As each returns: run its QA gate (suite output + self-review). PASS → mark
    `qa` then `parked-testing`, `/pipeline move <taskId> testing`, and record the
    token count from the agent's usage into the manifest (`updateWorkstream`).
-   FAIL → exactly ONE re-dispatch one tier up (cap `opus`); a second failure →
-   `failed`, parked with the QA report in the card. Never silently retry.
+   FAIL → ONE re-dispatch one tier up via `model-policy.mjs tier <next>` (cap
+   `reasoning`/opus); a second failure → `failed`, parked with the QA report in
+   the card. Never silently retry. The run report then shows the true per-model
+   mix (`swarm-state.mjs report` → `models:` line) so the fan-out cost is
+   auditable, not assumed.
 4. **Pre-park conflict recheck** (mandatory): intersect `git diff --name-only`
    across all workstream branches; any overlap parks the YOUNGER workstream
    (`failed`, note `conflict-with <ws>` — seniority, ADR-0004).

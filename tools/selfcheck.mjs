@@ -16,6 +16,7 @@
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runRuntimeChecks } from './selfcheck-runtime.mjs';
@@ -24,6 +25,7 @@ import { runSourceChecks } from './selfcheck-source.mjs';
 import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 import { runTemplateChecks } from './selfcheck-templates.mjs';
+import { runModelPolicyChecks } from './selfcheck-model-policy.mjs';
 import { runCodexChecks } from './selfcheck-codex.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
@@ -258,9 +260,17 @@ async function main() {
   await runAgentForgeChecks({ ok, bad }, KIT);
   await runAgentForgeOpsChecks({ ok, bad }, KIT);
   await runTemplateChecks({ ok, bad }, { KIT });
+  await runModelPolicyChecks({ ok, bad }, { KIT });
   await runCodexChecks({ ok, bad }, { KIT });
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
   await runEncodingChecks({ ok, bad }, { KIT });
+  // Zero-dep invariant — ADR-0001 / ADR-0031
+  try {
+    const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;
+    (!pkgDeps || Object.keys(pkgDeps).length === 0)
+      ? ok('package.json has no runtime dependencies (zero-dep invariant)')
+      : bad(`package.json has runtime dependencies: ${Object.keys(pkgDeps).join(', ')} — violates ADR-0001`);
+  } catch (e) { bad(`zero-dep check failed to read package.json: ${e.message}`); }
   const executed = passes + failures;
   if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
   else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);

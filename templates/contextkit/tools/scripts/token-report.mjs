@@ -88,7 +88,7 @@ function aggregate(files, all) {
       const usage = entry?.message?.usage;
       if (!usage) continue;
       if (!all && norm(entry.cwd) !== ROOT_N) continue;
-      attrEntries.push({ message: { usage }, isSidechain: entry.isSidechain, attributionSkill: entry.attributionSkill });
+      attrEntries.push({ message: { usage, model: entry?.message?.model }, isSidechain: entry.isSidechain, attributionSkill: entry.attributionSkill });
       const sid = entry.sessionId || file;
       const s = sessions.get(sid) || { input: 0, output: 0, cacheRead: 0, cacheCreate: 0, turns: 0, at: '', week: 'unknown' };
       s.input += usage.input_tokens || 0;
@@ -141,6 +141,15 @@ function printAttribution(attribution) {
   if (commands.length) {
     console.log('\nTop commands by tokens:');
     for (const c of commands.slice(0, 8)) console.log(`  ${c.command.padEnd(24)} ${n(c.total).padStart(12)}  (${c.turns} turns)`);
+  }
+  // ADR-0052 Phase 2 — per-model spend split: is the fan-out actually running
+  // cheap, or silently premium? Only meaningful when more than one model is seen.
+  const models = Object.entries(attribution.byModel || {})
+    .map(([model, bucket]) => ({ model, total: totalOf(bucket), turns: bucket.turns }))
+    .sort((a, b) => b.total - a.total);
+  if (models.length > 1 || (models.length === 1 && models[0].model !== 'unknown')) {
+    console.log('\nSpend by model (ADR-0052):');
+    for (const m of models) console.log(`  ${m.model.padEnd(24)} ${n(m.total).padStart(12)}  (${m.turns} turns)`);
   }
 }
 
