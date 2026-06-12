@@ -18,6 +18,8 @@
  * Conflict resolution: with a TTY the user picks per file — [b]oth (keep mine,
  * stash the kit version under `contextkit/.updates/v<version>/`), [r]eplace
  * (take the kit's, stash mine as `*.mine`), [k]eep (mine only, no stash).
+ * Append 'a' to any choice (e.g. `ba` / `ra` / `ka`, also `…all` or `!`) to
+ * apply it to every remaining conflict instead of being asked one by one.
  * Without a TTY the default is "both" — no side is ever lost.
  * Zero third-party deps: the installer runs via bare `npx`.
  */
@@ -116,6 +118,23 @@ export async function syncTree(srcDir, target, destRelBase, sync) {
   return counters;
 }
 
+/**
+ * Parses one interactive conflict answer into a resolution.
+ * Base letter: 'r' (replace) or 'k' (keep); anything else → 'b' (both, the default).
+ * "Apply to all remaining" is requested by appending 'a' / 'all' / '!' to the
+ * letter (e.g. `ba`, `ra`, `ka`, `r all`, `keepall`, `b!`). The option words
+ * themselves (`both` / `replace` / `keep`) never trigger the all-flag.
+ *
+ * @param {string} answer - raw user input
+ * @returns {{ choice: 'b'|'r'|'k', all: boolean }}
+ */
+export function parseConflictChoice(answer) {
+  const compact = String(answer ?? '').trim().toLowerCase().replace(/\s+/g, '');
+  const choice = compact[0] === 'r' || compact[0] === 'k' ? compact[0] : 'b';
+  const all = compact.includes('all') || compact.endsWith('!') || /^[brk]a$/.test(compact);
+  return { choice, all };
+}
+
 /** Stashes `content` under contextkit/.updates/v<version>/<rel>, returning the rel path. */
 async function stash(target, version, rel, content) {
   const stashRel = `${UPDATES_DIR}/v${version}/${rel}`;
@@ -143,13 +162,20 @@ export async function resolveConflicts(target, sync, version) {
     rl = createInterface({ input: process.stdin, output: process.stdout });
     console.log(`\n⚠️  ${sync.conflicts.length} file(s) you personalized also changed in this kit version:`);
   }
+  let sticky = null; // an "…all" pick, reused for every remaining conflict
   for (const conflict of sync.conflicts) {
-    let choice = 'b';
-    if (rl) {
-      const answer = (await rl.question(
-        `  ${conflict.destRel}\n    [b]oth (keep mine, stash the kit's) · [r]eplace with the kit's · [k]eep mine only (b): `,
-      )).trim().toLowerCase();
-      choice = answer === 'r' || answer === 'k' ? answer : 'b';
+    let choice = sticky || 'b';
+    if (!sticky && rl) {
+      const answer = await rl.question(
+        `  ${conflict.destRel}\n    [b]oth (keep mine, stash the kit's) · [r]eplace with the kit's · [k]eep mine only` +
+          `\n    — append 'a' to apply to ALL remaining (e.g. 'ba' / 'ra' / 'ka') (b): `,
+      );
+      const parsed = parseConflictChoice(answer);
+      choice = parsed.choice;
+      if (parsed.all) {
+        sticky = choice;
+        console.log(`    → applying [${choice}] to all remaining conflict(s)`);
+      }
     }
     if (choice === 'r') {
       const mine = await readFile(conflict.destPath);
