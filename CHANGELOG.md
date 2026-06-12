@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Add your changes here._
+
+## [2.2.0] - 2026-06-12
+
 ### Added — deterministic QA sign-off + the grade-4 coverage gap closed (ADR-0055)
 - **`pipeline.mjs qa-approve <id> --evidence "…"`** — the QA half of ADR-0043's
   sign-off doctrine finally has a verb: the ONLY testing→conclusion path besides
@@ -49,6 +53,34 @@ this project follows [Semantic Versioning](https://semver.org/).
   selfcheck inventories the new scripts + skill; agy mirrors regenerated
   (the skill is documented; agy still runs its session model — the ADR-0052
   host gap stands).
+
+### Added — dogfood-by-default install + conflict-safe 3-way update (ADR-0054, PR #77)
+- **Dogfood by default.** The installer writes a managed BEGIN/END block to
+  `<common-git-dir>/info/exclude` covering every generated artifact
+  (`contextkit/`, `.claude/`, `CLAUDE.md`, `docs/CHANGELOG.md`, the Antigravity
+  host, scaffolded `.github` files): fresh installs leave ZERO tracked kit files
+  and `--update` stops flooding the target project's history. `info/exclude`
+  only affects untracked paths, so it is unconditionally safe for projects that
+  already commit the kit (they get opt-in `git rm -r --cached` guidance; the
+  index is never touched — rule 8). Opt out with `--tracked`.
+- **Conflict-safe update.** `contextkit/.install-manifest.json` (sha256 baseline
+  of every kit-written file) drives a 3-way merge on `--update`: personalized
+  files are kept silently when the kit didn't move; a real divergence prompts on
+  a TTY ([b]oth/[r]eplace/[k]eep) and defaults to "both" headless, stashing the
+  kit version under `contextkit/.updates/` — no side is ever lost. Manifest-less
+  legacy installs refuse to clobber; user-created agents/commands are untouched.
+- New sibling suite `tools/integration-test-update-safety.mjs` (21 checks) wired
+  into `npm test`.
+
+### Added — encoding + config-rot prevention guards (cards 144–145, PR #78)
+- **Tree-wide mojibake gate** — `tools/selfcheck-encoding.mjs` scans
+  `templates/`, `docs/`, `tools/` and the root docs for UTF-8-read-as-cp1252
+  fingerprints (the PowerShell 5.1 `Get/Set-Content` corruption class); patterns
+  are ASCII-escaped so the gate can never flag itself.
+- **Doctor config path-rot probe** — `ledger.registration`, `l5.highRiskPaths`
+  and `qa.criticalPaths` entries that no longer exist on disk are flagged
+  (registration rot is CRITICAL — the drift nudge goes blind; gate/QA ghosts are
+  advisory).
 
 ## [2.1.0] - 2026-06-11
 
