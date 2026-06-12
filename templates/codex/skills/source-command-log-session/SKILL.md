@@ -47,6 +47,12 @@ Register the current work session. Steps:
    factual narrative of WHAT changed and WHY** — be factual, do not inflate, never
    ship the bare file list.
 
+   **Workflow reports** [ADR-0057] — if this session worked from a workflow spec
+   pack, also read `contextkit/memory/workflows/<slug>/reports/<today>.md` (or run
+   `node contextkit/tools/scripts/workflow.mjs report <slug> --task <id>` first).
+   Pull the task refs, diff summary, verification line, and conclusion date into
+   the session narrative instead of writing an abstract "worked on X" summary.
+
 3. **Update `docs/CHANGELOG.md`** — add bullet(s) under `## [Unreleased]` describing user-facing
    or structural changes (Keep a Changelog style: Added / Changed / Fixed / Removed).
 

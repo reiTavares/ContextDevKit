@@ -32,10 +32,26 @@ function getArg(name) {
   return i !== -1 ? process.argv[i + 1] : undefined;
 }
 
-export function writeTask(PIPE, { type = 'task', priority = 'P2', title, sla = '', roadmap = '', source = '', context = '', severity = '', wsjf = '', bugType = '', complexity = '', dependencies = [] }, SLADAYS) {
+export function writeTask(PIPE, { type = 'task', priority = 'P2', title, sla = '', roadmap = '', workflow = '', spec = '', source = '', context = '', severity = '', wsjf = '', bugType = '', complexity = '', dependencies = [] }, SLADAYS) {
   ensureDirs(PIPE);
   const created = new Date().toISOString().slice(0, 10);
   const deps = Array.isArray(dependencies) ? `[${dependencies.join(', ')}]` : '[]';
+  const specSections = workflow || spec ? [
+    '',
+    '**Spec references:**',
+    `- Workflow: ${workflow || 'not linked'}`,
+    `- SPEC: ${spec || 'not linked'}`,
+    '',
+    '**Implementation report:**',
+    '- Pending.',
+    '',
+    '**Diff summary:**',
+    '- Pending.',
+    '',
+    '**Verification:**',
+    '- Pending.',
+    '',
+  ] : [];
   const buildBody = (id) => [
     '---',
     `id: ${id}`,
@@ -51,12 +67,16 @@ export function writeTask(PIPE, { type = 'task', priority = 'P2', title, sla = '
     `created: ${created}`,
     `sla: ${sla || slaDue(priority, created, SLADAYS)}`,
     `roadmap: ${roadmap}`,
+    `workflow: ${workflow}`,
+    `spec: ${spec}`,
+    'implemented: ',
     `source: ${source}`,
     '---',
     '',
     `## ${title}`,
     '',
     `**Context / why:** ${context}`,
+    ...specSections,
     '',
     '**Acceptance criteria:**',
     '- [ ] ',
@@ -81,7 +101,7 @@ export function add({ ROOT, PIPE, sync: syncFn, BANDS, SEVMAP, SLADAYS }) {
   const type = getArg('type') || 'task';
   const title = getArg('title');
   if (!title) {
-    console.error('Usage: pipeline.mjs add --type <bug|feature|chore> --title "..." [--priority P0-P3] [--severity S1-S4] [--wsjf uv,tc,rr,js] [--bug-type <t>]');
+    console.error('Usage: pipeline.mjs add --type <bug|feature|chore> --title "..." [--priority P0-P3] [--workflow slug] [--spec path] [--severity S1-S4] [--wsjf uv,tc,rr,js] [--bug-type <t>]');
     process.exit(1);
   }
   const sev = getArg('severity');
@@ -97,7 +117,13 @@ export function add({ ROOT, PIPE, sync: syncFn, BANDS, SEVMAP, SLADAYS }) {
   }
   priority = priority || 'P2';
   const auto = getArg('complexity') ? { complexity: getArg('complexity'), route: '' } : classifyTask(title, ROOT);
-  const id = writeTask(PIPE, { type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '', source: getArg('source') || '', severity: sev || '', wsjf, bugType: getArg('bug-type') || '', complexity: auto.complexity, dependencies: parseInlineArray(getArg('depends-on')) }, SLADAYS);
+  const id = writeTask(PIPE, {
+    type, priority, title, sla: getArg('sla') || '', roadmap: getArg('roadmap') || '',
+    workflow: getArg('workflow') || '', spec: getArg('spec') || '',
+    source: getArg('source') || '', severity: sev || '', wsjf,
+    bugType: getArg('bug-type') || '', complexity: auto.complexity,
+    dependencies: parseInlineArray(getArg('depends-on')),
+  }, SLADAYS);
   syncFn();
   console.log(`✅ Added ${type} ${id} (${priority}${wsjf ? `, WSJF ${wsjf}` : ''}${sev ? `, ${sev}` : ''}) to backlog: ${title}${auto.route}`);
 }

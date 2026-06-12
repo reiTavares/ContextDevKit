@@ -183,7 +183,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['projectMapStale bounds the boot size walk (rule 2 — boot stays fast)', 'templates/contextkit/runtime/hooks/boot-signals-projmap.mjs', /budget\s*=\s*\{\s*n:\s*400\s*\}/],
     ['session-start surfaces a stale project map (project-map)', 'templates/contextkit/runtime/hooks/session-start.mjs', /projectMapStale\(ROOT\)/],
     ['installer seeds the project-map memory dir (project-map)', 'tools/install/engine.mjs', /memory\/project-map\/\.gitkeep/],
-    ['installer ensures the project-map dir (project-map)', 'tools/install/engine.mjs', /'deliberations', 'project-map'\]/],
+    ['installer ensures the project-map dir (project-map)', 'tools/install/engine.mjs', /'deliberations', 'project-map'(?:,\s*'workflows')?\]/],
     ['/project-map command briefing ships (project-map)', 'templates/claude/commands/project-map.md', /deterministic filesystem scan/],
     // project-map ADR-0039 — deterministic structural fingerprint (no mtime → no churn, clone-safe).
     ['project-map signature is a content sha256, not mtime (ADR-0039)', 'templates/contextkit/tools/scripts/project-map-core.mjs', /export function structuralSignature[\s\S]*createHash\('sha256'\)/],

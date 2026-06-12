@@ -7,14 +7,15 @@
  * positive-path lifecycle tests of new features). Mirrors the
  * ADR-0016/ticket-047 split pattern.
  *
- * Tickets covered: 041 (/workflow macro), 043 (distill-detect), 046 (/resume).
+ * Tickets covered: 041 (/workflow macro), 043 (distill-detect), 046 (/resume),
+ * 057 (workflow spec packs).
  *
  * Run:  node tools/integration-test-compozy.mjs   (exit 0 = healthy)
  */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { KIT, run, reporter } from './it-helpers.mjs';
+import { KIT, run, reporter, git as gitRun } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -26,15 +27,45 @@ const tmp = (tag) => mkdtempSync(join(tmpdir(), `contextkit-${tag}-`));
 /** 041 — /workflow macro lifecycle: new → 3× advance → completion → status. */
 function testWorkflowMacro() {
   const proj = tmp('wf');
+  gitRun(['init', '-b', 'main'], proj);
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WF', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');
-  cli('new', 'demo').status === 0 && existsSync(join(proj, 'contextkit/memory/workflows/demo.md')) ? ok('/workflow new creates breadcrumb (ticket 041)') : bad('breadcrumb missing');
+  cli('new', 'demo', '--kind', 'feature').status === 0 &&
+    existsSync(join(proj, 'contextkit/memory/workflows/demo/index.md')) &&
+    existsSync(join(proj, 'contextkit/memory/workflows/demo/prd.md')) &&
+    existsSync(join(proj, 'contextkit/memory/workflows/demo/spec.md'))
+    ? ok('/workflow new creates a spec-pack folder (ADR-0057)') : bad('spec-pack missing');
   cli('new', 'demo').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
-  ['r1', 'ADR-0023', '[052]'].forEach((r) => cli('advance', 'demo', r));
-  /complete/i.test(cli('advance', 'demo', 'merged').stdout) ? ok('/workflow lifecycle completes after 4 phases (ticket 041)') : bad('final advance missing complete');
+  ['intake-ok', 'prd-v1', 'spec-v1', 'ADR-0057', 'P2.1', '[148]', 'ship-log', 'suite-green'].forEach((r) => cli('advance', 'demo', r));
+  /complete/i.test(cli('advance', 'demo', 'qa-approved').stdout) ? ok('/workflow lifecycle completes after spec-pack phases (ADR-0057)') : bad('final advance missing complete');
+  writeFileSync(join(proj, 'untracked-report-note.md'), 'new file should appear in workflow report\n');
+  const report = cli('report', 'demo', '--task', '148');
+  const reportPath = join(proj, 'contextkit/memory/workflows/demo/reports', `${new Date().toISOString().slice(0, 10)}.md`);
+  report.status === 0 && existsSync(reportPath)
+    ? ok('/workflow report writes a dated factual report (ADR-0057)') : bad(`report missing: ${report.stderr}${report.stdout}`);
+  readFileSync(reportPath, 'utf-8').includes('untracked-report-note.md')
+    ? ok('/workflow report includes untracked touched files (ADR-0057)') : bad('report omitted untracked files');
+  writeFileSync(join(proj, 'contextkit/memory/workflows/legacy.md'), [
+    '---',
+    'slug: legacy',
+    'started: 2026-01-01T00:00:00.000Z',
+    'currentPhase: roadmap',
+    'roadmap: pending',
+    'adr: pending',
+    'tickets: pending',
+    'ship: pending',
+    '---',
+    '# Workflow - legacy',
+    '',
+  ].join('\n'));
   const data = JSON.parse(cli('status', '--json').stdout || '[]');
-  data[0]?.slug === 'demo' && data[0].phases.roadmap.ref === 'r1' && data[0].phases.adr.ref === 'ADR-0023' ? ok('/workflow status surfaces phases + refs (ticket 041)') : bad(`status wrong: ${JSON.stringify(data[0])}`);
+  const demo = data.find((w) => w.slug === 'demo');
+  const legacy = data.find((w) => w.slug === 'legacy');
+  demo?.format === 'pack' && demo.phases.prd.ref === 'prd-v1' && demo.phases.adr.ref === 'ADR-0057'
+    ? ok('/workflow status surfaces spec-pack phases + refs (ADR-0057)') : bad(`status wrong: ${JSON.stringify(demo)}`);
+  legacy?.format === 'legacy' && legacy.phases.roadmap.status === 'pending'
+    ? ok('/workflow status remains compatible with legacy breadcrumbs') : bad(`legacy status wrong: ${JSON.stringify(legacy)}`);
   rmSync(proj, { recursive: true, force: true });
 }
 

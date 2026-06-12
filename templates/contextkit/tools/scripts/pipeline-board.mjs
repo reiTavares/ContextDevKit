@@ -9,13 +9,13 @@ import { blockedBy } from './pipeline-validate.mjs';
 
 function table(tasks, allTasks) {
   if (tasks.length === 0) return '_(empty)_\n';
-  const rows = ['| ID | Pri | WSJF | Type | Cx | Title | SLA | Roadmap |', '| --- | --- | --- | --- | --- | --- | --- | --- |'];
+  const rows = ['| ID | Pri | WSJF | Type | Cx | Title | SLA | Roadmap | Workflow |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
   for (const t of tasks) {
     const sla = t.sla ? (isOverdue(t) ? `⏰ ${t.sla}` : t.sla) : '—';
     const cx = t.complexity || '—';
     const n = blockedBy(t, allTasks);
     const title = n > 0 ? `${t.title} ↘ blocked by ${n}` : t.title;
-    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${cx} | ${title} | ${sla} | ${t.roadmap || '—'} |`);
+    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${cx} | ${title} | ${sla} | ${t.roadmap || '—'} | ${t.workflow || '—'} |`);
   }
   return rows.join('\n') + '\n';
 }

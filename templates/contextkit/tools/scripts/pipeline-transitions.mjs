@@ -44,8 +44,16 @@ function relocate(PIPE, task, stage, sync, actor, note, noteHeading = 'QA Feedba
   const from = resolve(PIPE, task.stage, task.file);
   const to = resolve(PIPE, stage, task.file);
   let text = readFileSync(from, 'utf-8').replace(/^(status:).*$/m, `status: ${STATUS[stage]}`);
-  if (stage === 'conclusion' && !/^concluded:/m.test(text)) {
-    text = text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${new Date().toISOString().slice(0, 10)}\n---`);
+  const today = new Date().toISOString().slice(0, 10);
+  if (stage === 'testing') {
+    text = /^implemented:/m.test(text)
+      ? text.replace(/^implemented:.*$/m, `implemented: ${today}`)
+      : text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nimplemented: ${today}\n---`);
+  }
+  if (stage === 'conclusion') {
+    text = /^concluded:/m.test(text)
+      ? text.replace(/^concluded:.*$/m, `concluded: ${today}`)
+      : text.replace(/^---\n([\s\S]*?)\n---/, (full, fm) => `---\n${fm}\nconcluded: ${today}\n---`);
   }
   if (note) text += `\n## ${noteHeading} (${new Date().toISOString()})\n\n\`\`\`text\n${note}\n\`\`\`\n`;
   writeFileAtomicSync(from, text);

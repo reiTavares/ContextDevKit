@@ -74,20 +74,26 @@ You just entered **dev-start** mode with the objective:
 
 6. **Break the objective into 3–7 concrete tasks** and track them with task plan/checklist.
 
-7. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
+7. **Workflow spec pack context** [ADR-0057]: if the objective names a workflow
+   slug or the task card has `workflow:` / `spec:` metadata, read
+   `contextkit/memory/workflows/<slug>/prd.md`, `spec.md`, `tasks.md`, and
+   `memory.md` before editing. Do not duplicate those artifacts in the task;
+   link them and keep implementation evidence in the card/report.
+
+8. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
    ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
    `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
    `*.scratch.md` — scratches are local-only. At conclude time, summarise the
    useful parts into the ticket body and let the scratch be discarded.
 
-8. **Before opening a PR — re-check sync** [ADR-0026]. Run
+9. **Before opening a PR — re-check sync** [ADR-0026]. Run
    `node contextkit/tools/scripts/sync-check.mjs prepr --fetch` (or just use `/git pr`,
    which runs it): it re-confirms you are not behind `main` and that **no open PR
    already exists for this branch** before you create one. (`--fetch` refreshes
    remote refs — read-only checks skip the fetch by default, ticket 065.) Don't duplicate a PR;
    push to update the existing one.
 
-9. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
+10. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
 
 ## Why this mode exists
 

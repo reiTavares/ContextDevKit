@@ -56,6 +56,28 @@ Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
   `/fleet` *(L7)* · `/tune-agents` *(L6)*
 - **Agent-forge** *(L6+)*: 14 comandos `forge-*` para o ciclo de Agent Packages
 
+## Workflow spec pack
+
+Para features grandes e mudanças arquiteturais, `/workflow new <slug>` cria
+`contextkit/memory/workflows/<slug>/` com:
+
+- `prd.md` — PDR/PRD: WHAT/WHY, objetivos, usuários, métricas e não-escopo.
+- `spec.md` — SPEC técnica: HOW, impacto, interfaces, arquivos prováveis e testes.
+- `decisions.md` e `tasks.md` — índices para ADRs globais e cards do DevPipeline.
+- `memory.md` — handoffs duráveis que não pertencem a git, ADR, PRD, SPEC ou task.
+- `reports/YYYY-MM-DD.md` — relatório factual diário com diff summary e verificação.
+
+Fluxo canônico:
+
+```text
+intake -> prd -> spec -> adr -> roadmap(se feature) -> pipeline -> ship -> testing -> conclusion
+```
+
+O spec pack não substitui roadmap, ADRs ou DevPipeline. Ele só amarra o contexto
+e a evidência. Cards podem ser criados com `--workflow <slug>` e `--spec
+contextkit/memory/workflows/<slug>/spec.md`; ao mover para `testing`, o pipeline
+carimba `implemented: YYYY-MM-DD`.
+
 ## Squads
 
 | Squad | Specialists | Quando |

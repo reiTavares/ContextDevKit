@@ -75,6 +75,20 @@ try {
     ? ok('pipeline add accepts --type spike + --complexity + --depends-on (ticket 040)') : bad(`metadata v2 wrong: ${JSON.stringify(meta)}`);
   const boardV2 = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   boardV2.includes('blocked by') ? ok('board renders "blocked by N" hint when dependencies are open (ticket 040)') : bad('blocked-by hint missing from board');
+  // ADR-0057: workflow spec-pack metadata stays optional and does not break old cards.
+  script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'workflow-linked', '--workflow', 'demo', '--spec', 'contextkit/memory/workflows/demo/spec.md');
+  const workflowLinked = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.title === 'workflow-linked');
+  const workflowLinkedBody = readFileSync(join(proj, 'contextkit', 'pipeline', 'backlog', workflowLinked.file), 'utf-8');
+  workflowLinked?.workflow === 'demo' && workflowLinked?.spec === 'contextkit/memory/workflows/demo/spec.md' &&
+    workflowLinkedBody.includes('**Spec references:**') && workflowLinkedBody.includes('**Diff summary:**')
+    ? ok('pipeline add records workflow/spec metadata and spec-report sections (ADR-0057)') : bad(`workflow metadata wrong: ${JSON.stringify(workflowLinked)}`);
+  const workflowBoard = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
+  workflowBoard.includes('| Workflow |') && workflowBoard.includes('| demo |')
+    ? ok('pipeline board renders workflow links (ADR-0057)') : bad('workflow column missing from board');
+  script('pipeline.mjs', 'move', workflowLinked.id, 'testing');
+  const implementedTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === workflowLinked.id);
+  implementedTask?.stage === 'testing' && implementedTask?.implemented === new Date().toISOString().slice(0, 10)
+    ? ok('pipeline move to testing stamps implemented date (ADR-0057)') : bad(`implemented date missing: ${JSON.stringify(implementedTask)}`);
   // validate command: clean graph passes.
   const validClean = script('pipeline.mjs', 'validate');
   validClean.status === 0 ? ok('pipeline validate exits 0 on acyclic graph') : bad(`validate failed clean: ${validClean.stdout}${validClean.stderr}`);
