@@ -40,7 +40,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   for (const c of ['setupcontextdevkit.md', 'distill-sessions.md', 'distill-apply.md', 'context-doctor.md', 'context-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'context-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
     'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
     'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
-    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md', 'autonomy.md', 'swarm.md', 'pipetest.md']) {
+    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md', 'autonomy.md', 'swarm.md', 'pipetest.md', 'fable.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
