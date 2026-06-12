@@ -193,4 +193,43 @@ function makeLegacy(proj, { withGit = false } = {}) {
   } finally { rmSync(proj, { recursive: true, force: true }); }
 })();
 
+// ── Scenario G: --update heals config path lists off the renamed dir (card 146) ─
+// The folder move rewrites settings/CLAUDE/.env but leaves the ledger.* /
+// l5.highRiskPaths / qa.criticalPaths STRINGS in config.json pointing at the
+// dead `vibekit/` prefix (doctor flags this, card 145). --update must rewrite
+// each entry whose `contextkit/` candidate EXISTS, and LEAVE an unverifiable
+// entry alone (rule 8 — never guess a path onto another nonexistent target).
+(() => {
+  const proj = tmp();
+  try {
+    makeLegacy(proj, { withGit: true });
+    // Replace the bare legacy config with one carrying renamed-dir path lists.
+    writeFileSync(join(proj, 'vibekit', 'config.json'), JSON.stringify({
+      level: 5,
+      setup: { completed: true },
+      ledger: {
+        registration: ['vibekit/memory/SESSIONS.md', 'docs/CHANGELOG.md'],
+        important: ['vibekit/memory/decisions'],
+      },
+      l5: { highRiskPaths: ['vibekit/runtime/config/paths.mjs', 'vibekit/memory/ghost.md'] },
+      qa: { criticalPaths: ['vibekit/tools/scripts/pipeline.mjs'] },
+    }, null, 2), 'utf-8');
+
+    const out = run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+    out.status === 0 ? rep.ok('--update (config heal) exits 0') : rep.bad(`--update status ${out.status}: ${out.stderr}`);
+
+    const cfg = JSON.parse(read(join(proj, 'contextkit', 'config.json')));
+    cfg.ledger.registration.includes('contextkit/memory/SESSIONS.md')
+      ? rep.ok('ledger.registration vibekit/ → contextkit/ (target exists)') : rep.bad(`ledger.registration not healed: ${JSON.stringify(cfg.ledger.registration)}`);
+    cfg.ledger.registration.includes('docs/CHANGELOG.md')
+      ? rep.ok('a non-platform-dir entry (docs/) is left untouched') : rep.bad('docs/CHANGELOG.md was wrongly rewritten');
+    cfg.l5.highRiskPaths.includes('contextkit/runtime/config/paths.mjs')
+      ? rep.ok('l5.highRiskPaths healed onto contextkit/') : rep.bad(`l5.highRiskPaths not healed: ${JSON.stringify(cfg.l5.highRiskPaths)}`);
+    cfg.l5.highRiskPaths.includes('vibekit/memory/ghost.md')
+      ? rep.ok('an unverifiable entry (no contextkit/ candidate) is left for doctor (rule 8)') : rep.bad('ghost path was guessed onto a nonexistent target');
+    cfg.qa.criticalPaths.includes('contextkit/tools/scripts/pipeline.mjs')
+      ? rep.ok('qa.criticalPaths healed onto contextkit/') : rep.bad(`qa.criticalPaths not healed: ${JSON.stringify(cfg.qa.criticalPaths)}`);
+  } finally { rmSync(proj, { recursive: true, force: true }); }
+})();
+
 rep.finish('Integration (migration)');

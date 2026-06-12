@@ -19,7 +19,7 @@ import { readMostRecentLedger, toRepoRelative } from '../../runtime/hooks/ledger
 
 function currentBranch(root) {
   try {
-    const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf-8' });
+    const r = spawnSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf-8', timeout: 5000 });
     return r.status === 0 ? (r.stdout || '').trim() : '';
   } catch {
     return '';
