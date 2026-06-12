@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Add your changes here.
+
+## [2.3.0] - 2026-06-12
+
 ### Added - workflow spec packs and completion reports (ADR-0057)
 - **Workflow spec packs.** `/workflow` now creates
   `contextkit/memory/workflows/<slug>/` with `index.md`, `prd.md`, `spec.md`,
