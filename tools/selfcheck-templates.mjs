@@ -150,4 +150,13 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md', 'landing-page.md', 'seo-aiso.md']) {
     playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
   }
+  // ── task 143: INSTRUCTIONS.md.tpl — no hardcoded artifact counts that drift, no ghost personas ──
+  const instructions = await readFile(resolve(KIT, 'templates/INSTRUCTIONS.md.tpl'), 'utf-8').catch(() => null);
+  if (instructions == null) { bad('templates/INSTRUCTIONS.md.tpl missing or unreadable'); return; }
+  !/\b\d{2,}\s+(slash commands|skills|agents|playbooks)\b/i.test(instructions)
+    ? ok('INSTRUCTIONS.md.tpl has no hardcoded artifact counts (task 143)')
+    : bad('INSTRUCTIONS.md.tpl contains a hardcoded count that will drift (task 143)');
+  !/\bengine-keeper\b/i.test(instructions)
+    ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
+    : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
 }

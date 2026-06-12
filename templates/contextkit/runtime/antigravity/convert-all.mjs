@@ -100,6 +100,13 @@ async function main() {
       const raw = await readFile(cmd.absolute, 'utf-8');
       const dst = join(SKILLS_DST, cmd.relative);
       await writeOutput(dst, convertCommandToSkill(raw, cmd.relative));
+      
+      // Duplicate to root to support non-recursive slash command lookup in the Antigravity IDE
+      if (cmd.relative.includes('/') || cmd.relative.includes('\\')) {
+        const dstRoot = join(SKILLS_DST, basename(cmd.relative));
+        await writeOutput(dstRoot, convertCommandToSkill(raw, cmd.relative));
+      }
+
       console.log(`  ✓ ${cmd.relative}`);
       report.skills++;
     } catch (err) {

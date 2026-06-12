@@ -18,24 +18,35 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v1.17
+## What's new in v2.2
 
-> **Dual-host, hardened.** Your project memory, ADRs, and squads work identically
-> whether your team uses **Claude Code** or **Google Antigravity** — same engine,
-> same ledger, zero drift between them. v1.15–v1.17 made the second host
-> production-grade: governance parity, a deterministic build pipeline, and a
-> drift-guard so the two hosts can never silently diverge.
+> **Governed autonomy + parallel agents.** v2 turns the kit from a context layer
+> into a *control plane*: a consent dial that decides what the AI may do without
+> asking, an observable state machine behind every pipeline move, a coordinator
+> that runs several agents in parallel under that governance, and cost-aware
+> model routing so the expensive models think and the cheap ones execute.
+
+| Feature | What it does |
+|---|---|
+| **Autonomy dial** ([ADR-0041–0045](contextkit/memory/decisions/)) | `autonomy.grade` 1–4 — a **consent axis orthogonal to levels** (levels = what the kit *can* do; grade = what it *may* do without asking). One pure `resolveAutonomy(area)` resolver; a **non-negotiable floor in code** (secrets, force-push, gate self-edits, ADRs, grade changes stay human at every grade). Set with `/autonomy`. Grade 4 is gated by a measured eligibility bar + a per-step kill-switch |
+| **Swarm coordinator** ([ADR-0051](contextkit/memory/decisions/)) | `/swarm` pulls N disjoint backlog tasks and runs each in its own git worktree, in parallel, under the full governance stack — pure `swarm-plan.mjs` planner (disjoint partition, refuse-by-default) + `swarm-state.mjs` manifest. A run **finishes at `testing`, never `done`** — you close the batch via `/swarm review` |
+| **Cost-tiered model routing** ([ADR-0052](contextkit/memory/decisions/)) | Every agent declares a `model:` tier (`opus` thinks · `sonnet` builds · `haiku` executes · `inherit`); skills classify the task at dispatch (think vs execute) with floors (security never below `sonnet`) and budget-aware de-escalation. Cache-safe by construction — only spawned subagents are tiered |
+| **Deterministic QA sign-off** ([ADR-0055](contextkit/memory/decisions/)) | `/pipetest` runs the suite; green + complete acceptance criteria ⇒ `qa-approve` testing cards into `conclusion` (actor `qa`, evidence on the card); red ⇒ report and bounce only attributable failures. The verdict is the **suite's exit code**, never an opinion |
+| **Observable pipeline substrate** ([ADR-0043](contextkit/memory/decisions/)) | Every pipeline move appends to an **append-only `state.json` event log** (`actor: human\|auto\|qa\|evict`, recorded inverse for reversibility); `auto` can never enter `conclusion`. `/runs` reads the machine |
+| **Dogfood-by-default install** ([ADR-0054](contextkit/memory/decisions/)) | Fresh installs leave **zero tracked kit files** (a managed `info/exclude` block), and `--update` runs a conflict-safe 3-way merge against a sha256 manifest — personalized commands/agents are never clobbered, no side is ever lost. Opt out with `--tracked` |
+
+<details>
+<summary><strong>Earlier highlights (v1.15–v1.17 — dual-host hardening)</strong></summary>
 
 | Feature | What it does |
 |---|---|
 | **`agy guard <path>`** | Explicit L5 pre-edit checkpoint for the hook-less Antigravity host — exit 0 = allowed, exit 1 = run `/simulate-impact` first. Same gate definition as Claude Code's automatic PreToolUse hook |
-| **Safer `ctx.mjs` / `agy` dispatch** | Exact names + declared aliases only (no more silent prefix guessing); unknown commands get did-you-mean (closest 3) and `agy help <command>` prints a per-command card |
-| **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map committed under `contextkit/memory/project-map/` — stack, modules (🎨/⚙️/🔗/🛠️), exported symbols, and a **module dependency graph** (who imports whom) for blast-radius reasoning. Churn-free fingerprint; clone-safe staleness nudge at boot |
+| **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map — stack, modules (🎨/⚙️/🔗/🛠️), exported symbols, and a **module dependency graph** for blast-radius reasoning. Churn-free fingerprint; clone-safe staleness nudge at boot |
 | **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Multi-agent deliberations: independent voices argue a hard question, a synthesizer converges (or records `unresolved`), the artifact feeds an ADR's Context |
-| **Antigravity-aware `/context-doctor`** | Verifies the runner, the `ctx`/`agy` shortcuts, the four `.agents` asset trees, `INSTRUCTIONS.md`, and leftover `{{TOKEN}}` placeholders |
 | **Deterministic host build** | `npm run build:antigravity` regenerates `.agents` skills/personas from the Claude sources (clean-first); a selfcheck **parity drift-guard** fails the build if the hosts diverge |
-| **Legacy migration** | `npx contextdevkit --update` carries an old `vibekit/` install forward to `contextkit/` automatically — memory, config, level, `.env` preserved |
 | **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` (engine / claude / antigravity / git) — adding a future host is one module + one call |
+
+</details>
 
 <details>
 <summary><strong>Earlier highlights (v1.7–v1.14)</strong></summary>
@@ -112,7 +123,7 @@ ContextDevKit is a code-execution tool — install it like any dependency you ru
   L≥3) and Claude Code hooks into `.claude/settings.json`. Those hooks then run
   `node` on each session/commit/push. **Pin a tag** for a reproducible install
   rather than tracking the moving default branch:
-  `npx github:reiTavares/ContextDevKit#v1.17.0 --target . --yes`.
+  `npx github:reiTavares/ContextDevKit#v2.2.0 --target . --yes`.
 - **An existing git hook is never clobbered** — the installer backs it up to
   `<hook>.bak` before writing its wrapper. Worktrees are detected via the
   `gitdir:` pointer and hooks are installed in the resolved real `.git/`.
@@ -168,8 +179,15 @@ $ npx contextdevkit --target . --yes
 | **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits + conflict-blocking pre-push) |
 | **4** | Squads | Specialized sub-agents — devteam, qa-team, design-team (5 specialists incl. `seo-specialist` + `landing-architect`), compliance-team, ops-team |
 | **5** | Proactive | `/simulate-impact` gate on high-risk paths, `/tech-debt-sweep` (deterministic), `/contract-check`, auto-distill nudge |
-| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/retro` (learning loop), `/context-stats`, agent-forge squad |
+| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/swarm` (parallel coordinator), `/pipetest` (deterministic QA gate), `/retro`, `/context-stats`, agent-forge squad |
 | **7** | Ecosystem | `/fleet` multi-repo control plane, `/tune-agents`, visual tests, playbook runner |
+
+> **The autonomy dial is orthogonal to levels.** `autonomy.grade` (1 manual ·
+> 2 suggest *default* · 3 auto-except-decisions · 4 full-auto, experimental)
+> decides what the AI may do *without asking*, at any level — set it with
+> `/autonomy`. A non-negotiable floor in code keeps secrets, force-push, gate
+> self-edits, ADRs, and grade changes human at every grade. See
+> [ADR-0041–0045](contextkit/memory/decisions/).
 
 Change level anytime — from inside the project:
 
@@ -188,15 +206,15 @@ your-project/
   CLAUDE.md                          # boot context + your coding constitution
   .claude/
     settings.json                    # hook wiring (composed for your level)
-    commands/                        # 73 slash commands, organised in packs
+    commands/                        # the slash-command set, organised in packs
       audit/                         # security + tech-debt + SEO/AISO audits + validate-doc
-      pipeline/                      # DevPipeline + ship + dev-start + plan-week + retro + runs
+      pipeline/                      # DevPipeline + ship + swarm + pipetest + dev-start + plan-week + retro + runs
       qa/                            # qa-signoff, test-plan, scaffold-tests, visual-test
       vcs/                           # git, claim, release, worktree-new, gh-triage, draft-changelog
-      forge/                         # 14 agent-forge lifecycle commands (L6+)
-      setup/                         # setupcontextdevkit, context-doctor, context-level
-    agents/                          # 32 sub-agent archetypes (L4+)
-  .agents/                      # Antigravity host (73 skills, 32 personas, playbooks, workflows)
+      forge/                         # agent-forge lifecycle commands (L6+)
+      setup/                         # setupcontextdevkit, autonomy, context-doctor, context-level
+    agents/                          # the sub-agent archetypes, each with a cost tier (L4+)
+  .agents/                      # Antigravity host (skills, personas, playbooks, workflows — built from the Claude sources)
   INSTRUCTIONS.md                    # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs                            # Central CLI runner (accessible as agy <command> or npm run ctx)
   contextkit/
@@ -207,8 +225,8 @@ your-project/
     runtime/providers/
       review/                        # PR/review CLI adapters (gh)
       media/                         # Veo + Nano Banana adapters
-    runtime/state/                   # canonical state.json substrate (ADR-0015)
-    tools/scripts/                   # 76 helpers (reindex, dashboard, sync-check, guard, audits, …)
+    runtime/state/                   # canonical append-only state.json substrate (ADR-0015/0043)
+    tools/scripts/                   # helper scripts (reindex, dashboard, sync-check, guard, swarm, audits, …)
     memory/decisions/                # ADRs (the why)
     memory/sessions/                 # one file per session (the what)
     memory/GLOSSARY.md
@@ -234,8 +252,8 @@ exactly the same as a flat layout.
 · `/distill-sessions` · `/distill-apply` · `/simulate-impact` · `/roadmap`
 · `/claude-md` · `/docs-reindex`
 
-**`pipeline/`:** `/pipeline` · `/ship` · `/dev-start` · `/plan-week` · `/retro`
-· `/runs` · `/workflow` · `/resume`
+**`pipeline/`:** `/pipeline` · `/ship` · `/swarm` · `/pipetest` · `/dev-start`
+· `/plan-week` · `/retro` · `/runs` · `/workflow` · `/resume`
 
 **`vcs/`:** `/git` · `/claim` · `/release` · `/worktree-new` · `/gh-triage`
 · `/draft-changelog` · `/changelog-social`
@@ -250,8 +268,8 @@ exactly the same as a flat layout.
 (`forge-{list,show,doctor,policy,budget,audit,eval,redteam,route,
 fallback-test,refresh-matrix,killswitch,deprecate}`)
 
-**`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/context-doctor`
-· `/context-level` · `/context-config`
+**`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/autonomy`
+· `/context-doctor` · `/context-level` · `/context-config`
 
 On **Antigravity** every command above is a **skill** under `.agents/skills/`
 (same names, no `/` prefix), and the engine scripts run through the `agy` runner —
@@ -265,7 +283,7 @@ Each squad has a **router agent** that picks specialists by intent.
 |---|---|---|
 | **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Cross-cutting design + PR review + memory hygiene |
 | **qa-team** | `qa-orchestrator` + `qa-unit` / `qa-integration` / `qa-fuzzer` / `qa-perf` / `qa-e2e` | Testing strategy + execution |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages |
+| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages, consent-first tracking ([ADR-0050](contextkit/memory/decisions/)) |
 | **security-team** | `security`, `code-security`, `infra-security` | Auth, secrets, dependencies, IaC, supply chain |
 | **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD (Brazilian data protection), policy |
 | **ops-team** | `devops` | CI/CD, deploys, environments, observability |
@@ -405,7 +423,8 @@ the media-gen credentials flow.
 ## Develop the kit itself
 
 ```bash
-npm test                      # selfcheck + 8 integration suites (what CI runs)
+npm test                      # selfcheck + the integration-test suites (what CI runs)
+npm run ci                    # npm test + the tech-debt RED-line gate (validate before pushing)
 node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
 node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
 npm run build:antigravity     # regenerate .agents skills/personas from templates/claude
