@@ -5,7 +5,6 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 
@@ -15,7 +14,7 @@ const VALID_KINDS = new Set(['feature', 'architecture', 'bug', 'chore', 'spike']
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 
 function workflowsDir(root) { return resolve(pathsFor(root).memory, 'workflows'); }
-function packDir(root, slug) { return resolve(workflowsDir(root), slug); }
+export function packDir(root, slug) { return resolve(workflowsDir(root), slug); }
 function indexFile(root, slug) { return resolve(packDir(root, slug), 'index.md'); }
 function legacyFile(root, slug) { return resolve(workflowsDir(root), `${slug}.md`); }
 function stamp() { return new Date().toISOString(); }
@@ -26,10 +25,10 @@ function phaseMap(phases) {
 }
 
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return null;
   const frontmatter = {};
-  for (const line of match[1].split('\n')) {
+  for (const line of match[1].split(/\r?\n/)) {
     const colon = line.indexOf(':');
     if (colon > 0) frontmatter[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
   }
@@ -158,34 +157,60 @@ export function createWorkflow(root, slug, kind = 'feature') {
   return readWorkflow(root, slug);
 }
 
+/** Marker for an existing-but-unparseable artifact (malformed ≠ missing). */
+function malformed(path) { return { malformed: true, path }; }
+function isMalformed(entry) { return Boolean(entry && entry.malformed); }
+
+/**
+ * Reads a spec-pack index. Returns null only when the index is genuinely
+ * absent; an existing-but-unparseable index yields a `malformed` marker so
+ * corruption is never masked as absence (constitution §8).
+ */
 function readPack(root, slug) {
-  if (!existsSync(indexFile(root, slug))) return null;
-  const workflow = parseWorkflowText(readFileSync(indexFile(root, slug), 'utf-8'), PHASES, 'pack');
-  return workflow ? { ...workflow, path: indexFile(root, slug) } : null;
+  const path = indexFile(root, slug);
+  if (!existsSync(path)) return null;
+  const workflow = parseWorkflowText(readFileSync(path, 'utf-8'), PHASES, 'pack');
+  return workflow ? { ...workflow, path } : malformed(path);
 }
 
+/** Reads a legacy breadcrumb. Same malformed-vs-missing contract as readPack. */
 function readLegacy(root, slug) {
-  if (!existsSync(legacyFile(root, slug))) return null;
-  const workflow = parseWorkflowText(readFileSync(legacyFile(root, slug), 'utf-8'), LEGACY_PHASES, 'legacy');
-  return workflow ? { ...workflow, path: legacyFile(root, slug) } : null;
+  const path = legacyFile(root, slug);
+  if (!existsSync(path)) return null;
+  const workflow = parseWorkflowText(readFileSync(path, 'utf-8'), LEGACY_PHASES, 'legacy');
+  return workflow ? { ...workflow, path } : malformed(path);
 }
 
 export function readWorkflow(root, slug) {
-  return readPack(root, slug) || readLegacy(root, slug);
+  const pack = readPack(root, slug);
+  if (isMalformed(pack)) throw new Error(`workflow "${slug}" is malformed (unparseable frontmatter): ${pack.path}`);
+  if (pack) return pack;
+  const legacy = readLegacy(root, slug);
+  if (isMalformed(legacy)) throw new Error(`workflow "${slug}" is malformed (unparseable frontmatter): ${legacy.path}`);
+  return legacy;
 }
 
+/**
+ * Lists every workflow. Malformed entries are KEPT as `{ malformed, path }`
+ * markers (never silently dropped) so `status` can print a `skipped (malformed)`
+ * line; well-formed entries sort by start date, newest first.
+ */
 export function listWorkflows(root) {
   mkdirSync(workflowsDir(root), { recursive: true });
   const entries = readdirSync(workflowsDir(root), { withFileTypes: true });
   const packs = entries
     .filter((entry) => entry.isDirectory() && entry.name !== '_TEMPLATE')
     .map((entry) => readPack(root, entry.name))
-    .filter(Boolean);
+    .filter((entry) => entry !== null);
   const legacy = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== '.gitkeep')
     .map((entry) => readLegacy(root, entry.name.replace(/\.md$/, '')))
-    .filter(Boolean);
-  return [...packs, ...legacy].sort((a, b) => String(b.started).localeCompare(String(a.started)));
+    .filter((entry) => entry !== null);
+  const all = [...packs, ...legacy];
+  const valid = all.filter((entry) => !isMalformed(entry));
+  const broken = all.filter(isMalformed);
+  valid.sort((a, b) => String(b.started).localeCompare(String(a.started)));
+  return [...valid, ...broken];
 }
 
 export function advanceWorkflow(root, slug, ref = '') {
@@ -218,63 +243,4 @@ function advanceLegacy(root, workflow, ref) {
   lines.push('---', '', workflow.body.trim(), `- ${day()} - advanced legacy workflow`);
   writeFileAtomicSync(legacyFile(root, workflow.slug), `${lines.join('\n')}\n`);
   return readWorkflow(root, workflow.slug);
-}
-
-function git(root, args) {
-  const out = spawnSync('git', args, { cwd: root, encoding: 'utf-8' });
-  return out.status === 0 ? (out.stdout || '').trim() : '';
-}
-function touchedFiles(root) {
-  const diffNames = git(root, ['diff', '--name-only'])
-    .split('\n')
-    .map((name) => name.trim())
-    .filter(Boolean);
-  const statusNames = git(root, ['status', '--short'])
-    .split('\n')
-    .map((line) => line.replace(/^\s*[ MADRCU?!]{1,2}\s+/, '').trim())
-    .filter(Boolean)
-    .map((name) => name.replace(/^"|"$/g, ''));
-  return [...new Set([...diffNames, ...statusNames])];
-}
-export function writeReport(root, slug, taskId = '') {
-  const workflow = readWorkflow(root, slug);
-  if (!workflow || workflow.format !== 'pack') throw new Error(`workflow pack "${slug}" not found`);
-  const reportPath = resolve(packDir(root, slug), 'reports', `${day()}.md`);
-  mkdirSync(resolve(reportPath, '..'), { recursive: true });
-  const names = touchedFiles(root);
-  const lines = [
-    `# Daily Report - ${slug} - ${day()}`,
-    '',
-    `- **Workflow**: ${slug}`,
-    `- **Task**: ${taskId || 'not specified'}`,
-    `- **Branch**: ${git(root, ['rev-parse', '--abbrev-ref', 'HEAD']) || 'unknown'}`,
-    `- **Commit**: ${git(root, ['rev-parse', '--short', 'HEAD']) || 'unknown'}`,
-    '',
-    '## Diff summary',
-    '',
-    '```text',
-    git(root, ['diff', '--stat']) || 'No working tree diff.',
-    '```',
-    '',
-    '## Numstat',
-    '',
-    '```text',
-    git(root, ['diff', '--numstat']) || 'No working tree diff.',
-    '```',
-    '',
-    '## Files touched',
-    '',
-    names.length ? names.map((name) => `- ${name}`).join('\n') : '- None',
-    '',
-    '## Verification',
-    '',
-    '- [ ] Record the suite command and exit code.',
-    '',
-    '## Notes',
-    '',
-    '- Full patches stay in git; this report records the factual summary only.',
-    '',
-  ];
-  writeFileAtomicSync(reportPath, lines.join('\n'));
-  return reportPath;
 }

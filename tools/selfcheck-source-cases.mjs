@@ -129,7 +129,12 @@ export const SOURCE_INVARIANT_CASES = [
     ['workflow.mjs exposes status subcommand', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'status'/],
     ['workflow.mjs exposes report subcommand (ADR-0057)', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'report'/],
     ['workflow-pack.mjs slug regex blocks invalid slugs', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /SLUG_RE\s*=\s*\/\^/],
-    ['workflow-pack.mjs writes dated reports (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /export function writeReport/],
+    ['workflow-report.mjs writes dated reports (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /export function writeReport/],
+    ['workflow-report.mjs SKIPS diff on missing git (ADR-0057 #7)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /SKIPPED: git unavailable \/ not a repository/],
+    ['workflow-report.mjs guards same-day overwrite (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /report already exists/],
+    ['workflow-report.mjs runs git with a timeout (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /timeout:\s*GIT_TIMEOUT_MS/],
+    ['workflow-pack.mjs tolerates CRLF frontmatter (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /\/\^---\\r\?\\n/],
+    ['workflow-pack.mjs surfaces malformed packs (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /is malformed \(unparseable frontmatter\)/],
     ['/workflow command briefing ships spec-pack lifecycle (ADR-0057)', 'templates/claude/commands/pipeline/workflow.md', /PRD\/PDR \+ SPEC[\s\S]*testing -> conclusion/],
     // ADR-0023 / ticket 052 — landing-page posture (playbook + slash command).
     ['landing-page playbook ships fold rules (ADR-0023)', 'templates/contextkit/workflows/playbooks/landing-page.md', /Folds — the strategic minimum/],
