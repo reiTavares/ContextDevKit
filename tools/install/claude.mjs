@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { composeSettings } from '../../templates/contextkit/runtime/config/settings-compose.mjs';
 import { detectStack } from './project.mjs';
 import { read, overwrite, copyTree, render } from './fs.mjs';
+import { syncTree } from './sync.mjs';
 
 /**
  * Writes `.claude/settings.json` composed for the level, merging an existing file.
@@ -64,14 +65,14 @@ async function installClaudeMd(target, tplDir, ctx, report) {
  * @param {string[]} report - mutated with progress lines
  */
 export async function installClaudeHost(target, tplDir, ctx, report) {
-  // Slash commands: always overwrite (kit code).
-  await copyTree(join(tplDir, 'claude', 'commands'), join(target, '.claude', 'commands'));
-  report.push('✓ slash commands installed (.claude/commands)');
+  // Slash commands: kit-owned but personalizable — 3-way sync, never clobber [ADR-0054].
+  const cmd = await syncTree(join(tplDir, 'claude', 'commands'), target, '.claude/commands', ctx.sync);
+  report.push(`✓ slash commands installed (.claude/commands)${cmd.kept ? ` — kept ${cmd.kept} personalized` : ''}`);
 
   // Agents + L4+ squads: only at L >= 4.
   if (ctx.level >= 4) {
-    await copyTree(join(tplDir, 'claude', 'agents'), join(target, '.claude', 'agents'));
-    report.push('✓ agent archetypes installed (.claude/agents)');
+    const ag = await syncTree(join(tplDir, 'claude', 'agents'), target, '.claude/agents', ctx.sync);
+    report.push(`✓ agent archetypes installed (.claude/agents)${ag.kept ? ` — kept ${ag.kept} personalized` : ''}`);
     // agent-forge factory squad: engine code + matrix + APF templates (ADR-0012). Always overwrite.
     await copyTree(join(tplDir, 'contextkit', 'squads', 'agent-forge'), join(target, 'contextkit', 'squads', 'agent-forge'));
     report.push('✓ agent-forge squad installed (contextkit/squads/agent-forge)');

@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { applyPreset, listPresets } from '../../templates/contextkit/runtime/config/presets.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { read, overwrite, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
+import { syncTree } from './sync.mjs';
 
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
@@ -32,8 +33,9 @@ async function copyEngine(target, tplDir, version, report) {
   report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
 }
 
-/** Seeds memory, pipeline and detectors (write-if-missing, user-owned); overwrites workflows + starters (kit-owned). */
-async function seedSubstrate(target, tplDir, force, report) {
+/** Seeds memory, pipeline and detectors (write-if-missing, user-owned); syncs workflows, overwrites starters. */
+async function seedSubstrate(target, tplDir, ctx, report) {
+  const force = ctx.args.force;
   for (const rel of MEMORY_SEEDS) {
     const src = join(tplDir, 'contextkit', rel);
     if (!existsSync(src)) continue;
@@ -45,11 +47,10 @@ async function seedSubstrate(target, tplDir, force, report) {
   const pipeCount = await copyTreeIfMissing(join(tplDir, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
   if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);
   for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'contextkit', 'pipeline', s));
-  // Workflow guides + playbooks: pure kit content (user run-tracking lives in
-  // memory/workflows/), so always overwrite — otherwise renamed/edited playbooks
-  // never reach an existing install on --update. Mirrors `starters` below.
-  await copyTree(join(tplDir, 'contextkit', 'workflows'), join(target, 'contextkit', 'workflows'));
-  report.push('✓ workflow guides + playbooks installed (contextkit/workflows)');
+  // Workflow guides + playbooks: kit content the user may tune — 3-way sync so a
+  // personalized playbook survives --update, while kit renames/edits still land [ADR-0054].
+  const wf = await syncTree(join(tplDir, 'contextkit', 'workflows'), target, 'contextkit/workflows', ctx.sync);
+  report.push(`✓ workflow guides + playbooks installed (contextkit/workflows)${wf.kept ? ` — kept ${wf.kept} personalized` : ''}`);
   const detCount = await copyTreeIfMissing(join(tplDir, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
   if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
   // Curated-stack starters: always overwrite — pure templates, copied OUT by /aidevtool-from0.
@@ -111,7 +112,7 @@ async function seedDocs(target, tplDir, name, report) {
  */
 export async function installEngine(target, tplDir, ctx, report) {
   await copyEngine(target, tplDir, ctx.version, report);
-  await seedSubstrate(target, tplDir, ctx.args.force, report);
+  await seedSubstrate(target, tplDir, ctx, report);
   await writeConfig(target, tplDir, ctx.level, ctx.args, report);
   await seedDocs(target, tplDir, ctx.name, report);
 }

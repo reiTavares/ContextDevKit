@@ -6,6 +6,7 @@ import { writeFile, chmod, rename, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { ensureDir, read, copyTreeIfMissing } from './fs.mjs';
+import { applyDogfoodExclude, detectTrackedKitPaths } from './exclude.mjs';
 
 /**
  * Resolves a `.git` path to the *actual* git directory.
@@ -92,13 +93,19 @@ const GITIGNORE_BLOCK = [
   'contextkit/memory/deps-findings.json',
   'contextkit/memory/deep-analysis-findings.json',
   'contextkit/.cache/',
+  'contextkit/.updates/',
 ].join('\n');
 
 export async function patchGitignore(target) {
   const p = join(target, '.gitignore');
   let current = '';
   if (existsSync(p)) current = await read(p);
-  if (current.includes('ContextDevKit — local runtime state')) return false;
+  if (current.includes('ContextDevKit — local runtime state')) {
+    // Upgrade path: older installs have the block without the .updates line [ADR-0054].
+    if (current.includes('contextkit/.updates/')) return false;
+    await writeFile(p, current.replace('contextkit/.cache/', 'contextkit/.cache/\ncontextkit/.updates/'), 'utf-8');
+    return true;
+  }
   await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + GITIGNORE_BLOCK + '\n', 'utf-8');
   return true;
 }
@@ -124,7 +131,17 @@ export async function patchGitattributes(target, tplDir) {
  * @param {number} level - active level (git hooks only at L≥3)
  * @param {string[]} report - mutated with progress lines
  */
-export async function installVcsIntegration(target, tplDir, level, report) {
+export async function installVcsIntegration(target, tplDir, level, args, report) {
+  // Dogfood by default [ADR-0054]: install artifacts stay out of the user's git
+  // history. Safe unconditionally — info/exclude only affects UNTRACKED paths.
+  if (!args.tracked && (await applyDogfoodExclude(target))) {
+    report.push('✓ install artifacts excluded from git (local-only; pass --tracked to commit them)');
+    const tracked = detectTrackedKitPaths(target);
+    if (tracked.length > 0) {
+      report.push(`ℹ️  ${tracked.length} kit file(s) are ALREADY tracked — the exclude can't hide those.`);
+      report.push('   To stop committing them (optional): git rm -r --cached contextkit .claude CLAUDE.md');
+    }
+  }
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');
   if (await patchGitattributes(target, tplDir)) report.push('✓ .gitattributes patched (LF for engine scripts)');
   const ghCount = await copyTreeIfMissing(join(tplDir, 'github'), join(target, '.github'));

@@ -12,6 +12,7 @@
  *
  * Shared harness: it-helpers.mjs. Run: node tools/integration-test-guards.mjs
  */
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -115,10 +116,21 @@ function testMalformedSettingsRecovery(proj) {
     ? ok('installer recovers from a malformed settings.json (--update)') : bad(`malformed-settings recovery failed (status ${res.status})`);
 }
 
-/** --update REFRESHES kit-owned workflows/playbooks (not user data — a stale copy must be overwritten, never seed-once kept). */
+/**
+ * --update REFRESHES kit-owned workflows/playbooks the user did NOT touch.
+ * Under ADR-0054 "genuinely stale" means the OLD kit wrote it: disk content ==
+ * manifest baseline (and the new kit differs) — so the 3-way sync refreshes it.
+ * Disk ≠ baseline would be a user personalization and is covered by the
+ * update-safety suite instead.
+ */
 function testUpdateRefreshesKitOwned(proj) {
   const stale = join(proj, 'contextkit', 'workflows', 'playbooks', 'simulate-impact.md');
-  writeFileSync(stale, '# STALE FROM OLD KIT\nvibekit/memory/predictions/...\n');
+  const staleBody = '# STALE FROM OLD KIT\nvibekit/memory/predictions/...\n';
+  writeFileSync(stale, staleBody);
+  const manifestPath = join(proj, 'contextkit', '.install-manifest.json');
+  const manifest = readJson(manifestPath);
+  manifest.files['contextkit/workflows/playbooks/simulate-impact.md'] = createHash('sha256').update(staleBody).digest('hex');
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
   run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
   const fresh = readFileSync(stale, 'utf-8');
   !fresh.includes('STALE FROM OLD KIT') && !fresh.includes('vibekit/')

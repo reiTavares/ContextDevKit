@@ -27,6 +27,7 @@ import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mj
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
+import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 
@@ -116,7 +117,10 @@ async function main() {
 
   const report = [];
   const version = await kitVersion();
-  const ctx = { name, level, mode, version, args };
+  // Shared 3-way-sync context [ADR-0054]: host installers collect conflicts here;
+  // they are resolved in ONE pass below, then the manifest baseline is stamped.
+  const sync = { manifest: await loadManifest(target), nextFiles: {}, conflicts: [] };
+  const ctx = { name, level, mode, version, args, sync };
 
   // 1. Claude Code settings.json (the hook wiring). `--rewire` stops right after this.
   await wireClaudeSettings(target, level, report);
@@ -135,15 +139,21 @@ async function main() {
   // 4. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
   await installClaudeHost(target, TPL, ctx, report);
 
-  // 5. VCS integration (.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
-  await installVcsIntegration(target, TPL, level, report);
+  // 4b. Resolve personalization conflicts (user decides on a TTY; "keep both" otherwise)
+  // and persist the manifest baseline for the next update [ADR-0054].
+  report.push(...(await resolveConflicts(target, sync, version)));
+  await saveManifest(target, sync, version);
+
+  // 5. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
+  await installVcsIntegration(target, TPL, level, args, report);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
   if (args.update) {
     console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
     console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
-    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files.');
+    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
+    console.log('   and every agent/command/workflow YOU personalized (conflicts: see ⚠️ lines above).');
     console.log('   Restart Claude Code to load the refreshed hooks.');
     console.log('');
     return;
