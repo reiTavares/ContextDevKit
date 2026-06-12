@@ -85,7 +85,7 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 ### Modos de trabalho
 - `/dev-start <objetivo>` — sessão focada; trava o escopo. Roda `sync-check preflight` antes (mostra PRs abertos com status).
 - `/bug-hunt <sintoma>` — investiga a causa raiz antes de escrever feature.
-- `/workflow new <slug>` — macro: roadmap → ADR → pipeline → ship com breadcrumbs.
+- `/workflow new <slug>` — spec pack: PDR/PRD + SPEC → ADR → roadmap (se feature) → pipeline → ship → testing → conclusion.
 - `/ship <feature>` — pipeline completo: design → implementa → review → testa → registra.
 - `/audit` — auditoria geral (doctor + métricas + tech-debt + QA + drift).
 
@@ -135,6 +135,10 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
   acha/propõe num existente.
 - `/pipeline` — DevPipeline (execução): bugs/increments/chores com prioridade,
   SLA, **DAG de dependências** e complexidade fluindo `backlog → working → testing → conclusion`.
+- `/workflow` — organiza features grandes e decisões arquiteturais em
+  `contextkit/memory/workflows/<slug>/` com `prd.md`, `spec.md`, índices de ADRs
+  e tasks, memória de handoff e relatórios diários. Ele referencia roadmap,
+  ADRs e DevPipeline; não cria um segundo board.
 - `/retro` — learning loop (L6).
 - `/context-stats` — métricas (sessões, drift rate, ADRs, cadência).
 - `/distill-sessions` + `/distill-apply` — propõe/aplica refinamentos no `CLAUDE.md`.

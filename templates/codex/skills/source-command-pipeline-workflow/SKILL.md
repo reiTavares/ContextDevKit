@@ -1,6 +1,6 @@
 ---
 name: "source-command-pipeline-workflow"
-description: "Workflow macro — chain /roadmap → /new-adr → /pipeline → /ship into one explicit narrative. (ticket 041)"
+description: "Workflow spec pack - PRD/PDR + SPEC -> ADR -> roadmap -> pipeline -> ship -> testing -> conclusion. (ADR-0057)"
 ---
 
 # source-command-pipeline-workflow
@@ -9,82 +9,78 @@ Use this skill when the user asks to run the migrated source command `workflow`.
 
 ## Command Template
 
-`/workflow` is a **thin macro** over the primitives the kit already ships.
-It doesn't merge `/roadmap`, `/new-adr`, `/pipeline`, or `/ship` — it just
-keeps a breadcrumb so a multi-day, multi-session feature lifecycle reads as
-one story instead of four disconnected commands.
+`/workflow` is the spec-pack layer over the primitives the kit already ships.
+It does not replace `/roadmap`, `/new-adr`, `/pipeline`, `/ship`, `/pipetest`,
+or `/log-session`; it keeps the PRD/PDR, SPEC, links, memory, and reports for a
+large workflow in one folder.
+
+Canonical folder:
+
+```text
+contextkit/memory/workflows/<slug>/
+  index.md
+  prd.md
+  spec.md
+  decisions.md
+  tasks.md
+  memory.md
+  reports/YYYY-MM-DD.md
+```
 
 ## When to use
 
-- A feature is big enough to deserve a roadmap entry **and** an ADR **and**
-  pipeline tickets **and** a ship pass.
-- You want to be able to come back tomorrow (or on another machine) and
-  read "where did I stop?" in one place.
-- You want `/dev-start` to find the right scope for the next sub-session.
+- Large features and architectural work: PRD/PDR + SPEC are required before ADR
+  and pipeline work.
+- Simple bugs/chores may stay on the lightweight DevPipeline path.
+- The workflow folder references ADRs, roadmap items, and pipeline cards; it
+  never duplicates their full contents.
 
-## The four phases
+## Lifecycle
 
-1. **roadmap** — product slice / what & why
-2. **adr** — technical decision (architecture, dependency, pattern)
-3. **tickets** — break the ADR's follow-ups into DevPipeline tasks
-4. **ship** — implement, test, log
+`intake -> prd -> spec -> adr -> roadmap -> pipeline -> ship -> testing -> conclusion`
 
-## How
+- **intake**: read `context-pack`, relevant ADRs/sessions, project map, roadmap,
+  and pipeline digest.
+- **prd**: fill product WHAT/WHY, goals, users, non-goals, metrics.
+- **spec**: fill technical HOW, impact, interfaces, tests, sequence.
+- **adr**: create/accept the architecture decision when needed.
+- **roadmap**: add or link the P-ID only for new product capability.
+- **pipeline**: create DevPipeline cards with `--workflow` and `--spec`.
+- **ship**: implement scoped cards.
+- **testing**: move implemented cards to testing with evidence.
+- **conclusion**: close through `/pipetest` or human sign-off; report the result.
 
-### Start a workflow
+## Commands
 
-```
-node contextkit/tools/scripts/workflow.mjs new <slug>
-```
+Start:
 
-Then run `/roadmap add …` yourself. Once the roadmap entry is recorded:
-
-```
-node contextkit/tools/scripts/workflow.mjs advance <slug> <roadmap-section-ref>
-```
-
-…which marks `roadmap` done and points you at `adr`. Repeat for each phase.
-
-### Check status
-
-List all in-flight workflows:
-
-```
-node contextkit/tools/scripts/workflow.mjs status
+```bash
+node contextkit/tools/scripts/workflow.mjs new <slug> --kind feature
 ```
 
-Show one:
+Advance:
 
-```
-node contextkit/tools/scripts/workflow.mjs status <slug>
-```
-
-`--json` for machine-readable output.
-
-### Resume from another session / machine
-
-```
-node contextkit/tools/scripts/workflow.mjs status <slug>
+```bash
+node contextkit/tools/scripts/workflow.mjs advance <slug> --ref ADR-0057
 ```
 
-The breadcrumb file (`contextkit/memory/workflows/<slug>.md`) carries the full
-history. The current phase is the resume point — invoke the matching native
-command (`/new-adr`, `/pipeline add`, `/ship`) and then `advance` when done.
+Status:
 
-## What `/workflow` does NOT do
+```bash
+node contextkit/tools/scripts/workflow.mjs status [slug] [--json]
+```
 
-- It does **not** auto-invoke `/roadmap`, `/new-adr`, `/pipeline`, or `/ship`.
-  Each phase is an explicit user action (rule 9 — build what is asked).
-- It does **not** chain phases silently. Every `advance` is a confirmation.
-- It does **not** know which ADR or which tickets belong to which workflow —
-  you pass the ref (e.g. `ADR-0023`, `[052,053]`) when advancing.
+Daily report:
 
-## Breadcrumb file
+```bash
+node contextkit/tools/scripts/workflow.mjs report <slug> --task 123
+```
 
-Path: `contextkit/memory/workflows/<slug>.md`. Schema is YAML-ish frontmatter
-parsed by hand (no `yaml` dep). One file per slug. The body keeps a bullet
-history of phase transitions for human inspection — you can hand-edit it
-without breaking the parser.
+Reports include branch, commit, `git diff --stat`, `git diff --numstat`, and
+touched files. They intentionally do not embed full patches; git is the patch
+source of truth.
 
-The directory ships seeded (`.gitkeep`); files are written lazily by the
-script when you call `new`.
+## Compatibility
+
+Legacy breadcrumb files at `contextkit/memory/workflows/<slug>.md` remain
+readable by `status` and `advance`. New workflows use the folder layout.

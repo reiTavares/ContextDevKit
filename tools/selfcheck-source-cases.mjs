@@ -122,13 +122,15 @@ export const SOURCE_INVARIANT_CASES = [
     ['distill-detect surfaces "from now on" pattern', 'templates/contextkit/tools/scripts/distill-detect.mjs', /from now on/],
     ['log-session briefing wires distill-detect (ticket 043)', 'templates/claude/commands/log-session.md', /distill-detect\.mjs/],
     ['log-session briefing flags distill as proposal-only', 'templates/claude/commands/log-session.md', /proposal-only/],
-    // Ticket 041 — /workflow macro chains roadmap → ADR → pipeline → ship.
-    ['workflow.mjs ships 4 phases (ticket 041)', 'templates/contextkit/tools/scripts/workflow.mjs', /PHASES\s*=\s*\['roadmap',\s*'adr',\s*'tickets',\s*'ship'\]/],
+    // Ticket 041 + ADR-0057 — /workflow macro evolved into the spec-pack lifecycle.
+    ['workflow-pack.mjs ships the spec-pack phases (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /PHASES\s*=\s*\['intake',\s*'prd',\s*'spec',\s*'adr',\s*'roadmap',\s*'pipeline',\s*'ship',\s*'testing',\s*'conclusion'\]/],
     ['workflow.mjs exposes new subcommand', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'new'/],
     ['workflow.mjs exposes advance subcommand', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'advance'/],
     ['workflow.mjs exposes status subcommand', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'status'/],
-    ['workflow.mjs slug regex blocks invalid slugs', 'templates/contextkit/tools/scripts/workflow.mjs', /SLUG_RE\s*=\s*\/\^/],
-    ['/workflow command briefing ships (ticket 041)', 'templates/claude/commands/pipeline/workflow.md', /chain \/roadmap → \/new-adr → \/pipeline → \/ship/],
+    ['workflow.mjs exposes report subcommand (ADR-0057)', 'templates/contextkit/tools/scripts/workflow.mjs', /cmd === 'report'/],
+    ['workflow-pack.mjs slug regex blocks invalid slugs', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /SLUG_RE\s*=\s*\/\^/],
+    ['workflow-pack.mjs writes dated reports (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /export function writeReport/],
+    ['/workflow command briefing ships spec-pack lifecycle (ADR-0057)', 'templates/claude/commands/pipeline/workflow.md', /PRD\/PDR \+ SPEC[\s\S]*testing -> conclusion/],
     // ADR-0023 / ticket 052 — landing-page posture (playbook + slash command).
     ['landing-page playbook ships fold rules (ADR-0023)', 'templates/contextkit/workflows/playbooks/landing-page.md', /Folds — the strategic minimum/],
     ['landing-page playbook lists anti-Lovable refusals', 'templates/contextkit/workflows/playbooks/landing-page.md', /Anti-Lovable refusals/],

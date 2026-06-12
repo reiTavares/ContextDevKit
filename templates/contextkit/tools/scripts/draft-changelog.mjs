@@ -35,7 +35,7 @@ const ORDER = ['Added', 'Changed', 'Fixed', 'Removed', 'Deprecated', 'Security',
 
 /** Runs git with a hard timeout; returns stdout or null on any failure. */
 function git(args) {
-  const res = spawnSync('git', args, { encoding: 'utf-8', timeout: 5000 });
+  const res = spawnSync('git', args, { encoding: 'utf-8', timeout: 60000 });
   return res.status === 0 ? (res.stdout || '').trim() : null;
 }
 

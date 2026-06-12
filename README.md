@@ -282,6 +282,25 @@ On **Codex**, generated `source-command-*` skills live under `.agents/skills/`,
 subagents live under `.codex/agents/*.toml`, and the same deterministic scripts
 run through `node cdx.mjs <command>` — see [docs/CODEX.md](docs/CODEX.md).
 
+## Workflow spec packs
+
+For larger features and architecture changes, `/workflow` creates a spec pack in
+`contextkit/memory/workflows/<slug>/`: `prd.md`, `spec.md`, ADR/task indexes,
+handoff memory, and dated daily reports. The pack organizes context and evidence;
+ADRs stay in `memory/decisions/`, roadmap stays in `memory/roadmap.md`, and
+execution still belongs to the DevPipeline lanes.
+
+The lifecycle is:
+
+```text
+intake -> prd -> spec -> adr -> roadmap(if feature) -> pipeline -> ship -> testing -> conclusion
+```
+
+Pipeline cards can link back with `--workflow <slug>` and
+`--spec contextkit/memory/workflows/<slug>/spec.md`. Moving a card to `testing`
+stamps `implemented: YYYY-MM-DD`; QA sign-off remains the governed path into
+`conclusion`.
+
 ## Squads — sub-agents organised by domain
 
 Each squad has a **router agent** that picks specialists by intent.

@@ -6,6 +6,23 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added - workflow spec packs and completion reports (ADR-0057)
+- **Workflow spec packs.** `/workflow` now creates
+  `contextkit/memory/workflows/<slug>/` with `index.md`, `prd.md`, `spec.md`,
+  ADR/task indexes, durable workflow memory, and dated reports. Legacy
+  `memory/workflows/<slug>.md` breadcrumbs remain readable for status and
+  advance.
+- **Workflow reports + DevPipeline links.** `workflow.mjs report <slug>
+  [--task <id>]` records branch, commit, `git diff --stat`, `--numstat`, touched
+  files including untracked files, verification, and notes without duplicating
+  full patches. Pipeline cards can now carry `workflow`, `spec`, `implemented`,
+  and `concluded` metadata; moving to `testing` stamps `implemented`, while QA
+  sign-off remains the governed path into `conclusion`.
+- **Docs and coverage.** `/workflow`, `/pipeline`, `/dev-start`, `/log-session`,
+  README/instrucoes, installer seeds, selfchecks, and integration tests were
+  updated for the lifecycle `intake -> prd -> spec -> adr -> roadmap(if feature)
+  -> pipeline -> ship -> testing -> conclusion`.
+
 ### Added - Codex native host parity
 - **Codex joins Claude Code and Antigravity as a native host.** The installer now
   writes `AGENTS.md`, `.codex/hooks.json`, `.codex/agents/*.toml`, generated

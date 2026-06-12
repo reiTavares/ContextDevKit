@@ -21,6 +21,7 @@ Claude Code sessions reliable, self-documenting, and consistent across time.
 | `memory/SESSIONS.md` | Auto-generated index (do not hand-edit) |
 | `memory/WORKSPACE.md` | Auto-generated active-claims index (do not hand-edit) |
 | `memory/GLOSSARY.md` | Domain term ↔ code identifier |
+| `memory/workflows/` | Workflow spec packs: PRD/PDR, SPEC, ADR/task indexes, handoffs, reports |
 | `pipeline/` | DevPipeline lanes: `backlog/ → working/ → testing/ → conclusion/` |
 | `workflows/playbooks/` | Reusable procedures (tanstack, landing-page, seo-aiso, tech-debt-sweep, …) |
 | `squads/agent-forge/` | The L6+ "agent that builds agents" (Agent Package pipeline) |
@@ -63,6 +64,20 @@ npx contextdevkit@latest --target . --update
 # or, offline / from GitHub:
 npx github:reiTavares/ContextDevKit --target . --update
 ```
+
+## Workflow spec packs
+
+Use `/workflow new <slug>` for large features and architecture changes. It
+creates `memory/workflows/<slug>/` with PRD/PDR, SPEC, ADR/task indexes,
+handoff memory, and dated daily reports.
+
+```text
+intake -> prd -> spec -> adr -> roadmap(if feature) -> pipeline -> ship -> testing -> conclusion
+```
+
+The pack is not a second board. ADRs stay in `memory/decisions/`, roadmap stays
+in `memory/roadmap.md`, and execution stays in `pipeline/`. Link cards back with
+`pipeline.mjs add --workflow <slug> --spec contextkit/memory/workflows/<slug>/spec.md`.
 
 ## Quick references
 
