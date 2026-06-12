@@ -20,7 +20,7 @@
  */
 import { existsSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, relative, resolve, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SOURCE_INVARIANT_CASES } from './selfcheck-source-cases.mjs';
 import { SOURCE_INVARIANT_CASES_RECENT } from './selfcheck-source-cases-recent.mjs';
@@ -262,7 +262,12 @@ async function checkAntigravityParity(rep, KIT) {
     const src = (await listMd(resolve(KIT, srcRel))).filter(includeSrc);
     const dst = await listMd(resolve(KIT, dstRel));
     const missing = src.filter((f) => !dst.includes(f));
-    const orphans = dst.filter((f) => !src.includes(f) && f !== 'README.md');
+    const orphans = dst.filter((f) => {
+      if (f === 'README.md') return false;
+      if (src.includes(f)) return false;
+      // Accept flat root duplicates of nested files in templates/antigravity/skills
+      return !src.some((s) => basename(s) === f);
+    });
     missing.length === 0 && orphans.length === 0
       ? ok(`${dstRel} tracks ${srcRel} 1:1 (${src.length} file(s))`)
       : bad(
