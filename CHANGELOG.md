@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Add your changes here._
+
+## [2.1.0] - 2026-06-11
+
 ### Added — swarm coordinator contracts locked (ADR-0051, Proposed)
 - **ADR-0051** hardens the swarm feasibility study into contracts: `/swarm`
   skill + pure `swarm-plan.mjs` planner + `swarm-state.mjs` manifest,
