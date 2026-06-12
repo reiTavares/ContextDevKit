@@ -136,8 +136,49 @@ gives every task and pipeline run a single readable state file (`startedAt`,
 this substrate. `pipeline-session.mjs` stamps state on start/stop;
 `workspace-sync.mjs` mirrors heartbeats into the state.
 
+Every transition appends to an **append-only event log** on that state file
+([ADR-0043](../contextkit/memory/decisions/)): `{ ts, from, to, actor, inverse }`
+where `actor ∈ human | auto | qa | evict` and `inverse` records the undo, so the
+board is reversible by construction. The legality matrix is enforced in
+`pipeline-transitions.mjs`: `auto` may advance `backlog→working→testing` but can
+**never enter or leave `conclusion`** (sign-off stays human/QA); `qa-reject` is
+the only `testing→working` bounce (it must carry feedback); and `qa-approve`
+([ADR-0055](../contextkit/memory/decisions/)) is the only deterministic
+`testing→conclusion` path — it refuses without suite evidence or with incomplete
+acceptance criteria. `appendEvent` is the single writer; a swarm run attributes
+its moves with an optional `by: { runId, workstream, agent }` field.
+
 The **board renderer** (`pipeline-board.mjs`) generates `devpipeline.md` and
 hints `↘ blocked by N` on tickets with unresolved dependencies.
+
+## Autonomy dial + the swarm coordinator
+
+The **autonomy dial** ([ADR-0041–0045](../contextkit/memory/decisions/)) is a
+consent axis orthogonal to levels. `resolveAutonomy(area, config, override, ctx)`
+in `runtime/config/resolve-autonomy.mjs` is the **single read path**: precedence
+is per-run flag → session override → `config.autonomy.grade` → default 2, and a
+**non-negotiable floor in code** clamps secrets, force-push, gate/hook self-edits,
+`adr` and `grade-change` to `manual` at every grade (config may extend the floor,
+never lower it). Hooks are grade-blind — only commands and `/ship`/`/swarm`
+checkpoints consult the resolver; a selfcheck pins both invariants. Grade 4 is
+refused unless a measured eligibility bar holds (≥30 evented transitions, ≥20
+sessions, <10% rollback, zero wiring-drift, a green self-coverage stamp, D3
+attribution present) and carries a per-step kill-switch.
+
+The **swarm coordinator** ([ADR-0051](../contextkit/memory/decisions/)) is a skill
+driving two pure engines (the same skill-plus-engine shape as `/ship`): the LLM
+never owns state, the engine never owns judgment. `swarm-plan.mjs` ranks the
+backlog, derives a touch-set per task (card `paths:` → simulate receipt → title
+inference; no derivable set ⇒ refused), expands it with the task's likely
+test-file homes, and greedily partitions into K disjoint workstreams (hard cap 5).
+`swarm-state.mjs` writes the run manifest under `.claude/.swarm/<runId>.json`
+(atomic, append-only per-workstream history, stale eviction that preserves the
+worktree, a budget-park path). Each workstream runs in its own git worktree
+(`worktree-new.mjs --swarm`) and **parks at `testing` — never `done`**; the human
+closes the batch with `/swarm review`. The cost tier of each dispatched agent
+comes from the `model:` frontmatter ([ADR-0052](../contextkit/memory/decisions/)):
+`opus` thinks, `sonnet` builds, `haiku` executes — only spawned subagents are
+tiered, so the main loop's prompt cache is never invalidated.
 
 ## Provider adapters — pluggable external integrations
 
