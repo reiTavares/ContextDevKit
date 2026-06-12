@@ -1,6 +1,6 @@
 ---
 name: "source-command-distill-apply"
-description: "L5 — apply a reviewed .distillation-proposal.md to CLAUDE.md and record an ADR for the cycle."
+description: "L5 — apply a reviewed .distillation-proposal.md to AGENTS.md and record an ADR for the cycle."
 ---
 
 # source-command-distill-apply

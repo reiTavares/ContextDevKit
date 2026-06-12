@@ -1,6 +1,6 @@
 ---
 name: "source-command-pipeline-resume"
-description: "Re-bind the current Claude Code session to a previously-unregistered ledger so the in-flight narrative can be finished and properly /log-session'd. (ticket 046)"
+description: "Re-bind the current Codex session to a previously-unregistered ledger so the in-flight narrative can be finished and properly /log-session'd. (ticket 046)"
 ---
 
 # source-command-pipeline-resume

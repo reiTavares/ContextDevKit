@@ -3,7 +3,8 @@
  * `/workflow` CLI (ADR-0057). Owns the user-facing command dispatch while
  * `workflow-pack.mjs` owns the folder/legacy parsing and report mechanics.
  */
-import { advanceWorkflow, createWorkflow, listWorkflows, readWorkflow, writeReport } from './workflow-pack.mjs';
+import { advanceWorkflow, createWorkflow, listWorkflows, readWorkflow } from './workflow-pack.mjs';
+import { writeReport } from './workflow-report.mjs';
 
 const ROOT = process.cwd();
 
@@ -17,6 +18,10 @@ function positional() {
 }
 
 function printWorkflow(workflow) {
+  if (workflow.malformed) {
+    console.log(`\n  skipped (malformed): ${workflow.path}`);
+    return;
+  }
   console.log(`\n  ${workflow.slug} (${workflow.format}, started ${String(workflow.started).slice(0, 10) || '?'}) - current: ${workflow.currentPhase}`);
   for (const [phase, state] of Object.entries(workflow.phases)) {
     const marker = state.status === 'done' ? 'x' : state.status === 'in-progress' ? '*' : '-';
@@ -63,11 +68,11 @@ function run() {
     }
     if (cmd === 'report') {
       const [slug] = positional();
-      const reportPath = writeReport(ROOT, slug, arg('task'));
+      const reportPath = writeReport(ROOT, slug, arg('task'), process.argv.includes('--force'));
       console.log(`Workflow report written: ${reportPath}`);
       return;
     }
-    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | advance <slug> [--ref ref] | status [slug] [--json] | report <slug> [--task id]>');
+    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | advance <slug> [--ref ref] | status [slug] [--json] | report <slug> [--task id] [--force]>');
     process.exit(1);
   } catch (err) {
     console.error(`workflow: ${err?.message ?? err}`);

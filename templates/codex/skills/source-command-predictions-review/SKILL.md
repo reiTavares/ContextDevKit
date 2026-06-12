@@ -29,7 +29,7 @@ Then:
 1. Open the updated prediction file(s) and add the **Risk accuracy** note — was the predicted risk
    level right? That judgment is yours, not the script's.
 2. If a pattern repeats across predictions (an area consistently under- or over-estimated), capture
-   it: refine `.agents/skills/simulate-impact.md`, or open `/new-adr` if it's architectural.
+   it: refine `.agents/skills/source-command-simulate-impact/SKILL.md`, or open `/new-adr` if it's architectural.
 
 Also invoked automatically by `/log-session` at the end of a session, so the loop closes without a
 separate step in the normal flow.

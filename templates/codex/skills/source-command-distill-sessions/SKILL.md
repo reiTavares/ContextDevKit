@@ -1,6 +1,6 @@
 ---
 name: "source-command-distill-sessions"
-description: "L5 — analyze recent sessions and propose refinements to CLAUDE.md (writes a proposal, applies nothing)."
+description: "L5 — analyze recent sessions and propose refinements to AGENTS.md (writes a proposal, applies nothing)."
 ---
 
 # source-command-distill-sessions

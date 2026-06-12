@@ -1,6 +1,6 @@
 ---
 name: "source-command-fleet"
-description: "Fleet mode — one control plane over many ContextDevKit repos (portfolio stats, cross-repo audit, CLAUDE.md rule-drift)."
+description: "Fleet mode — one control plane over many ContextDevKit repos (portfolio stats, cross-repo audit, AGENTS.md rule-drift)."
 ---
 
 # source-command-fleet
