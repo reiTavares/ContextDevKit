@@ -116,8 +116,25 @@ auth) you want protected from casual edits.
 **capability tier** — no new hook, commands on top of the L5 gates.
 
 - `/ship` — orchestrated pipeline (design → implement → review → test → record).
+- `/swarm` — parallel coordinator: pull N disjoint backlog tasks, run each in its
+  own git worktree under the full governance stack, finish at `testing`
+  ([ADR-0051](../contextkit/memory/decisions/)). Close the batch with `/swarm review`.
+- `/pipetest` — deterministic QA gate: suite green + complete acceptance criteria
+  ⇒ `qa-approve` cards into `conclusion`; the verdict is the suite's exit code
+  ([ADR-0055](../contextkit/memory/decisions/)).
 - `/retro` — turns recurring drift/debt into governance (rules + ADRs).
 - `/context-stats` — telemetry (drift rate, cadence, ADR/agent counts).
+
+> **The autonomy dial lives here in spirit but applies at every level.**
+> `autonomy.grade` (1 manual · 2 suggest *default* · 3 auto-except-decisions ·
+> 4 full-auto, experimental) is a **consent axis orthogonal to levels** — levels
+> decide what the kit *can* do, the grade decides what it may do *without asking*.
+> Set it with `/autonomy`. A non-negotiable floor in code keeps secrets,
+> force-push, gate self-edits, ADRs, and grade changes human at every grade; grade
+> 4 is gated by a measured eligibility bar and a per-step kill-switch
+> ([ADR-0041–0045](../contextkit/memory/decisions/)). Every autonomous pipeline
+> move is recorded on the append-only `state.json` event log (read it with
+> `/runs`).
 
 **Use when:** the practice is established and you want orchestration + insight.
 
