@@ -6,7 +6,47 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Add your changes here.
+### Fixed - workflow report defensiveness (ADR-0057 remediation)
+- **No more false-pass on missing git.** `workflow report` now probes
+  `git rev-parse --is-inside-work-tree` and writes an explicit
+  `SKIPPED: git unavailable / not a repository` Diff summary instead of the old
+  "No working tree diff." (which read a missing-git failure as a clean pass —
+  violating ADR-0057 decision #7 and the "validators throw, not warn" rule).
+- **Report concern split out.** Git + report logic moved from `workflow-pack.mjs`
+  (was at the 280-line ceiling) into a new `workflow-report.mjs`; `workflow.mjs`
+  stays the thin CLI wrapper. Both files now well under budget.
+- **Defensive guards.** `git` spawns carry a timeout; a same-day report refuses
+  to overwrite a filled `## Verification` without `--force`; a malformed
+  `index.md`/breadcrumb is an explicit refusal naming the path (and a
+  `skipped (malformed)` line in `status`/`list`), never silently treated as
+  absent; frontmatter parsing tolerates CRLF.
+
+### Fixed - Codex converter fidelity (ADR-0056 remediation)
+- **Skill descriptions are adapted.** The Claude→Codex converter now runs skill
+  `description` through `adaptContent` (was emitting raw "scoped CLAUDE.md" /
+  "Claude Code token usage" text into Codex skills).
+- **Correct skill path rewrite.** `.claude/commands/<x>.md` now rewrites to
+  `.agents/skills/source-command-<x>/SKILL.md` (the real install layout) instead
+  of a dead flat `.agents/skills/<x>.md` reference.
+- **CRLF + host skip-list.** `stripFrontmatter` tolerates CRLF; a narrow,
+  documented skip-list (`claude-md`, `token-report`, `fable`) keeps host-
+  inappropriate skills out of the Codex surface (74 emitted, 3 skipped).
+- **Property-based selfcheck.** `selfcheck-codex.mjs` now asserts output
+  PROPERTIES (no Claude-only string in any description, no dead skill paths,
+  skip-list honored, adversarial CRLF/quote/backslash/no-frontmatter inputs) —
+  not generator-echo parity, which could never catch a conversion bug.
+
+### Fixed - swarm planner reads explicit touch-sets (ADR-0051)
+- **`listTasks` surfaces `paths:`.** The swarm planner reads `task.paths` to honor
+  an explicit `paths:` frontmatter touch-set, but `listTasks` dropped the field —
+  leaving that branch dead via the CLI. Added the passthrough so a card can pin
+  its own disjoint touch-set for `/swarm`.
+
+### Changed
+- **Test split (RED-zone fix).** `integration-test-tooling-pipeline.mjs` (328
+  lines, over the 308 hard block) split by responsibility — the ADR-0015
+  execution-substrate suite moves to a new `integration-test-pipeline-substrate.mjs`
+  sibling; both files are back under budget and `npm run ci` is green again.
 
 ## [2.4.0] - 2026-06-12
 
