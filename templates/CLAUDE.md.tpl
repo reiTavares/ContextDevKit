@@ -95,6 +95,11 @@ Beyond *what* the code looks like, *how* you produce it matters. Honor
   `/analyze-code-ia-practices`), never a side effect of an unrelated change.
 - **Goal-driven** — define a verifiable success criterion; for a fix, write the
   reproducing test first; loop until it's green.
+- **Local Workflow Alignment** — For non-trivial architectural or feature changes,
+  do NOT rely on generic IDE/system planning formats alone. You MUST create and
+  advance a local `/workflow new <slug>` specification (prd -> spec -> adr) before
+  making code edits. The local workflow files (`prd.md`, `spec.md`, `decisions.md`)
+  are the source of truth for planning and design.
 
 ## 🤖 ContextDevKit — the context system (Level L{{LEVEL}})
 

@@ -265,7 +265,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['/autonomy documents the gated, session-default grade 4 (ADR-0045)', 'templates/claude/commands/setup/autonomy.md', /--persist --confirm/],
     // ADR-0045 F4 — security-review hardenings (evidence floor, fail-closed, freshness).
     ['the grade-4 eligibility evidence is a floored path — an agent cannot forge its own bar (ADR-0045 review)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /path\.includes\('memory\/autonomy\/'\)\) return 'floor:autonomy-evidence-self-edit'/],
-    ['resolver fails closed — grade 4 needs deliberations.active === true, absent is not assumed-on (ADR-0045)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /grade === 4 && config\?\.deliberations\?\.active !== true/],
+    ['resolver fails closed — grade 4 needs deliberations.active === true, absent is not assumed-on (ADR-0045)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /\(grade === 4 \|\| mode === 'debate'\) && config\?\.deliberations\?\.active !== true/],
     ['a stale readiness stamp is not evidence — coverage/attribution require freshness (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readinessFresh = Number\.isFinite\(stampMs\)[\s\S]*coverageGreen = readiness\.coverageGreen === true && readinessFresh/],
     ['only genuine stage transitions (from ≠ to) count toward the bar (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /filter\(\(e\) => e && e\.from !== e\.to\)/],
+    // Workflow Navigator — token-efficient phase guidance for ADR-0057 workflows.
+    ['workflow-assist exports the PHASE_GUIDES map (ADR-0057 navigator)', 'templates/contextkit/tools/scripts/workflow-assist.mjs', /export const PHASE_GUIDES/],
+    ['workflow-assist reuses readWorkflow from workflow-pack (no reinvention)', 'templates/contextkit/tools/scripts/workflow-assist.mjs', /import \{.*readWorkflow.*\} from '\.\/workflow-pack\.mjs'/],
+    ['ctx.mjs has the assist alias for workflow-assist (ADR-0057 navigator)', 'templates/ctx.mjs', /'assist':\s*'workflow-assist\.mjs'/],
 ];

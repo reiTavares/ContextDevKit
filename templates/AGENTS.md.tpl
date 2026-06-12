@@ -159,6 +159,11 @@ Honor `contextkit/behaviors.md` and `contextkit/behaviors-examples.md`:
   and never refactor unrelated code as a side effect.
 - **Goal-driven**: define a verifiable success criterion; for fixes, reproduce
   with a test first and loop to green.
+- **Local Workflow Alignment**: For non-trivial architectural or feature changes,
+  do NOT rely on generic IDE/system planning formats alone. You MUST create and
+  advance a local workflow (`node cdx.mjs workflow new <slug>`) and complete the
+  PRD/SPEC/ADR phases before making code edits. The local workflow files are the
+  source of truth for planning and design.
 
 ## ContextDevKit - The Context System (Level L{{LEVEL}})
 

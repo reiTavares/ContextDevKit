@@ -50,10 +50,13 @@ ADR-0044 §3).
       output at the top + the task card + "operate ONLY under <worktree path>" +
       implement → self-review → `npm test` in the worktree → Conventional Commit.
    d. Resolve the model — DON'T eyeball it (ADR-0052 Phase 2): run
-      `node contextkit/tools/scripts/model-policy.mjs tier <tierHint> [--budget-exhausted]`
-      and dispatch with the Agent tool's `model` = the returned alias. Omitting
-      `model` silently inherits the premium session model — the most expensive
-      path. Mark the workstream `dispatched` (record the alias:
+      `node contextkit/tools/scripts/model-policy.mjs tier <tierHint> [--budget-exhausted] --host <claude|codex|agy>`
+      using the current host value (`claude`, `codex`, or `agy`), and dispatch
+      with the Agent tool's `model` = the returned alias. Omitting `model`
+      silently inherits the premium session model — the most expensive path. If
+      the resolver returns `model:null`, surface the reason and dispatch without
+      a fake override. Mark the workstream
+      `dispatched` (record the alias:
       `updateWorkstream(root, runId, wsId, { status: 'dispatched', model })`),
       then `working`.
 3. As each returns: run its QA gate (suite output + self-review). PASS → mark

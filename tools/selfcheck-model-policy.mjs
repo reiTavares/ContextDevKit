@@ -11,6 +11,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const VALID_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
+const VALID_CODEX_MODELS = new Set(['gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5', 'inherit']);
 
 /** Reads each agent's `model:` alias from frontmatter → { agentName: alias }. */
 async function frontmatterAliases(agentsDir) {
@@ -57,6 +58,9 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
     : bad(`policy tiers wrong: ${tierKeys.join(',')}`);
   Object.values(policy.tiers ?? {}).every((t) => VALID_ALIASES.has(t.alias))
     ? ok('every tier maps to a valid model alias') : bad('a tier maps to a non-alias model id (ADR-0052)');
+  (policy.hostModels?.claude && policy.hostModels?.codex && Object.values(policy.hostModels.codex).every((model) => VALID_CODEX_MODELS.has(model)))
+    ? ok('hostModels maps Codex tiers to supported GPT model overrides')
+    : bad('hostModels.codex is missing or contains an unsupported Codex model');
 
   // The core invariant: policy ↔ frontmatter agreement, both directions.
   const fmAliases = await frontmatterAliases(resolve(KIT, 'templates/claude/agents'));
@@ -94,6 +98,9 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   capped.tier === 'reasoning' ? ok('escalation caps at reasoning (no tier above opus)') : bad(`escalation cap wrong: ${JSON.stringify(capped)}`);
 
   aliasForTier('powerful', { policy }).model === policy.tiers.powerful.alias ? ok('tier-based dispatch (swarm path) resolves powerful→sonnet') : bad('aliasForTier(powerful) wrong');
+  aliasForTier('powerful', { host: 'codex', policy }).model === policy.hostModels.codex.powerful ? ok('Codex tier-based dispatch resolves powerful→gpt-5.4') : bad('Codex aliasForTier(powerful) wrong');
+  resolveModel('qa-unit', { task: 'execute', host: 'codex', policy }).model === policy.hostModels.codex.fast ? ok('Codex execute dispatch resolves to the fast GPT model') : bad('Codex execute dispatch did not resolve to fast');
+  resolveModel('architect', { host: 'codex', policy }).model === policy.hostModels.codex.reasoning ? ok('Codex reasoning agents resolve to gpt-5.5') : bad('Codex reasoning mapping wrong');
   resolveModel('qa-unit', { host: 'agy', policy }).model === null ? ok('agy host returns the documented gap (no invented mapping)') : bad('agy host gap not honored');
 
   let threw = false;
