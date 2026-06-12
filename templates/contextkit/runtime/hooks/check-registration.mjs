@@ -25,7 +25,6 @@ import {
   listAllLedgers,
   pendingImportantPaths,
   readLedger,
-  resolveSessionId,
   SESSIONS_DIR,
   wasRegisteredDuringSession,
   writeLedger,
@@ -35,8 +34,10 @@ import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX, pathsFor } from '../co
 import { autonomyDigest, autonomyNudges } from './autonomy-signals.mjs';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { autoAdvanceSessionTasks } from '../../tools/scripts/pipeline-session.mjs';
+import { emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
 const ARCHIVE_DIR = resolve(SESSIONS_DIR, '.archive');
 const DISTILL_NUDGE_PATH = resolve(SESSIONS_DIR, '.distill-nudge');
 const DISTILL_NUDGE_DEBOUNCE_MS = 24 * 60 * 60 * 1000;
@@ -212,7 +213,7 @@ async function main() {
   }
   if (payload.stop_hook_active === true) return;
 
-  const sessionId = resolveSessionId(payload);
+  const sessionId = resolveHookSessionId(payload, HOST);
   const ledger = await readLedger(sessionId);
   const level = getLevel(ROOT);
 
@@ -258,7 +259,7 @@ async function main() {
     sideSuggestions.length > 0
       ? `${buildReason(paths, sessionId)}\n\n${sideSuggestions.join('\n\n')}`
       : buildReason(paths, sessionId);
-  process.stdout.write(JSON.stringify({ decision: 'block', reason }));
+  emitBlockDecision(reason, HOST);
 }
 
 main().catch((err) => {

@@ -24,6 +24,10 @@ import { pathToFileURL } from 'node:url';
 
 const ROOT = process.cwd();
 const SCRIPTS_DIR = resolve(ROOT, 'contextkit/tools/scripts');
+const ENTRYPOINT = basename(process.argv[1] || 'ctx.mjs').toLowerCase();
+const IS_CODEX = ENTRYPOINT.startsWith('cdx');
+const HOST_LABEL = IS_CODEX ? 'Codex' : 'Antigravity';
+const RUNNER_FILE = IS_CODEX ? 'cdx.mjs' : 'ctx.mjs';
 
 // Helper aliases for quick commands
 const ALIASES = {
@@ -48,8 +52,8 @@ async function loadMenu() {
 
 /** Minimal help when the engine (and so the categorised menu) is not installed. */
 function printFallbackHelp(scriptNames) {
-  console.log('\n🛡️  ContextDevKit Command Runner (Antigravity)\n');
-  console.log('Usage: node ctx.mjs <command> [...args] | node ctx.mjs help [command]\n');
+  console.log(`\n🛡️  ContextDevKit Command Runner (${HOST_LABEL})\n`);
+  console.log(`Usage: node ${RUNNER_FILE} <command> [...args] | node ${RUNNER_FILE} help [command]\n`);
   if (scriptNames.length) console.log(`Available scripts:\n  ${scriptNames.join(', ')}\n`);
   else console.log('No contextkit/tools/scripts directory found — run the installer first.\n');
 }
@@ -133,7 +137,7 @@ async function printCommandHelp(cmd) {
   console.log(`\n📖 ${clean}`);
   if (described) console.log(`   ${described.description}\n   Category: ${described.category.trim()}`);
   if (ALIASES[clean]) console.log(`   Alias of: ${ALIASES[clean]}`);
-  console.log(`   Run: node ctx.mjs ${clean} [...args]\n`);
+  console.log(`   Run: node ${RUNNER_FILE} ${clean} [...args]\n`);
   return true;
 }
 
@@ -189,7 +193,7 @@ function printMarkdownCommand(filePath, fileContent, args = []) {
 async function printMenu() {
   const names = await listScriptNames();
   const menu = await loadMenu();
-  if (menu?.printHelp) menu.printHelp(names.map(n => n + '.mjs'));
+  if (menu?.printHelp) menu.printHelp(names.map(n => n + '.mjs'), { hostLabel: HOST_LABEL, runnerFile: RUNNER_FILE });
   else printFallbackHelp(names);
 }
 
@@ -245,7 +249,7 @@ async function main() {
   console.error(`\n❌ Unknown command: "${cmd}"`);
   const tips = suggestClosest(cmd, [...await listScriptNames(), ...Object.keys(ALIASES)]);
   if (tips.length) console.error(`   Did you mean: ${tips.join(', ')}?`);
-  console.error('   Run `node ctx.mjs help` for the full menu.\n');
+  console.error(`   Run \`node ${RUNNER_FILE} help\` for the full menu.\n`);
   process.exit(1);
 }
 

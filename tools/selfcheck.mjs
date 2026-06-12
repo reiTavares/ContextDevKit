@@ -24,6 +24,7 @@ import { runSourceChecks } from './selfcheck-source.mjs';
 import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 import { runTemplateChecks } from './selfcheck-templates.mjs';
+import { runCodexChecks } from './selfcheck-codex.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
 
@@ -58,6 +59,7 @@ async function importLibs() {
     'config/load.mjs',
     'config/settings-compose.mjs',
     'config/agent-hooks-compose.mjs',
+    'config/codex-hooks-compose.mjs',
     'config/presets.mjs',
     'config/resolve-autonomy.mjs',
     'hooks/host-adapter.mjs',
@@ -165,9 +167,38 @@ function checkAgentHooksCompose(composer, adapter) {
     const got = norm(payload).filePaths;
     JSON.stringify(got) === JSON.stringify(want) ? ok(`normalizeToolPayload: ${label}`) : bad(`normalizeToolPayload ${label} → ${JSON.stringify(got)}`);
   }
-  adapter.hookHost(['node', 'x.mjs', '--host', 'agy']) === 'agy' && adapter.hookHost(['node', 'x.mjs']) === 'claude'
-    ? ok('hookHost resolves --host agy and defaults to claude')
+  adapter.hookHost(['node', 'x.mjs', '--host', 'agy']) === 'agy' &&
+  adapter.hookHost(['node', 'x.mjs', '--host=codex']) === 'codex' &&
+  adapter.hookHost(['node', 'x.mjs']) === 'claude'
+    ? ok('hookHost resolves explicit agy/codex hosts and defaults to claude')
     : bad('hookHost flag parsing wrong');
+}
+
+function checkCodexHooksCompose(composer) {
+  console.log('Checking Codex hooks composition...');
+  const events = (lvl) => Object.keys(composer.composeCodexHooks(null, lvl).hooks || {}).sort();
+  const expect = {
+    1: ['SessionStart'],
+    2: ['PostToolUse', 'SessionStart', 'Stop'],
+    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+  };
+  for (const [lvl, want] of Object.entries(expect)) {
+    const got = events(Number(lvl));
+    JSON.stringify(got) === JSON.stringify(want.sort()) ? ok(`Codex L${lvl} -> ${got.join(', ')}`) : bad(`Codex L${lvl} expected [${want}] got [${got}]`);
+  }
+  const once = composer.composeCodexHooks(null, 5);
+  const commands = Object.values(once.hooks).flat().flatMap((entry) => (entry.hooks || []).map((hook) => hook.command || ''));
+  commands.every((command) => command.includes('--host codex'))
+    ? ok('Codex hook commands carry the explicit host flag')
+    : bad('Codex hook command missing --host codex');
+  const twice = composer.composeCodexHooks(structuredClone(once), 5);
+  (twice.hooks.PreToolUse || []).length === (once.hooks.PreToolUse || []).length
+    ? ok('Codex hook re-compose is idempotent')
+    : bad('Codex hook re-compose duplicated entries');
+  composer.stripCodexHooks(once) === null
+    ? ok('stripCodexHooks removes only the kit hooks')
+    : bad('stripCodexHooks left kit-only residue');
 }
 
 function checkConfig(load) {
@@ -217,6 +248,7 @@ async function main() {
   if (mods['config/agent-hooks-compose.mjs']?.composeAgentHooks && mods['hooks/host-adapter.mjs']) {
     checkAgentHooksCompose(mods['config/agent-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
   }
+  if (mods['config/codex-hooks-compose.mjs']?.composeCodexHooks) checkCodexHooksCompose(mods['config/codex-hooks-compose.mjs']);
   if (mods['config/load.mjs']?.loadConfigSync) checkConfig(mods['config/load.mjs']);
   checkPaths(mods['config/paths.mjs']);
   checkPresets(mods['config/presets.mjs']);
@@ -226,6 +258,7 @@ async function main() {
   await runAgentForgeChecks({ ok, bad }, KIT);
   await runAgentForgeOpsChecks({ ok, bad }, KIT);
   await runTemplateChecks({ ok, bad }, { KIT });
+  await runCodexChecks({ ok, bad }, { KIT });
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
   await runEncodingChecks({ ok, bad }, { KIT });
   const executed = passes + failures;

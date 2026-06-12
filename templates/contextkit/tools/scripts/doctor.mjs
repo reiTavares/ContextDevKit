@@ -6,6 +6,8 @@
  * hook wiring matches the configured level, git-hook presence (L≥3), memory
  * scaffolding, onboarding state, and optional zod. Prints a report and exits
  * non-zero if any CRITICAL (✗) problem is found, with a suggested fix per item.
+ * Cohesion note: this CLI stays in the 280+10% zone so every host advisory
+ * shares one report, severity counter, and process exit decision.
  *
  * Run:  node contextkit/tools/scripts/doctor.mjs   (or /context-doctor)
  */
@@ -13,9 +15,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
+import { composeCodexHooks } from '../../runtime/config/codex-hooks-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
-import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../runtime/config/paths.mjs';
+import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
@@ -226,6 +229,61 @@ function checkAntigravityHost() {
   }
 }
 
+/**
+ * Codex host health. Advisory only: a Claude-only or agy-only project should not
+ * fail doctor because Codex is absent. Verifies AGENTS.md, `.codex/` hooks and
+ * subagents, the `cdx.mjs` runner, and the generated source-command skills.
+ */
+function checkCodexHost(level) {
+  if (!existsSync(P.codex)) {
+    note(`Codex host not installed (${CODEX_DIR}/ missing)`, 'npx contextdevkit --update installs it alongside .claude/');
+    return;
+  }
+  existsSync(resolve(ROOT, 'cdx.mjs')) ? pass('cdx.mjs runner present') : note('cdx.mjs runner missing', 're-run the installer (npx contextdevkit --update)');
+
+  const pkg = readJson('package.json');
+  if (pkg) {
+    pkg?.scripts?.cdx === 'node cdx.mjs'
+      ? pass('package.json has the cdx script shortcut')
+      : note('package.json missing the cdx script shortcut', 're-run the installer to patch it');
+  }
+
+  if ((level ?? 0) >= 4) {
+    try {
+      const agents = readdirSync(resolve(P.codex, 'agents')).filter((f) => f.endsWith('.toml'));
+      agents.length > 0 ? pass(`${CODEX_DIR}/agents populated (${agents.length} TOML subagents)`) : note(`${CODEX_DIR}/agents is empty`, 'run npm run build:codex in the kit, then update');
+    } catch {
+      note(`${CODEX_DIR}/agents missing`, 're-run the installer');
+    }
+  }
+
+  try {
+    const skills = readdirSync(P.codexSkills).filter((f) => f.startsWith('source-command-'));
+    skills.length > 0 ? pass(`Codex source-command skills populated (${skills.length})`) : note('Codex source-command skills missing', 're-run the installer');
+  } catch {
+    note('Codex source-command skills directory missing', 're-run the installer');
+  }
+
+  const codexHooks = readJson(`${CODEX_DIR}/hooks.json`);
+  const expected = Object.keys(composeCodexHooks(null, level ?? 2).hooks || {}).sort();
+  const actual = Object.keys(codexHooks?.hooks || {})
+    .filter((evt) => (codexHooks.hooks[evt] || []).some((g) => (g.hooks || []).some((h) => String(h.command || '').includes('contextkit/runtime/hooks'))))
+    .sort();
+  JSON.stringify(expected) === JSON.stringify(actual)
+    ? pass(`${CODEX_DIR}/hooks.json matches L${level}`)
+    : note(`${CODEX_DIR}/hooks.json does not match L${level}`, `run /context-level ${level}`);
+
+  try {
+    const agentsMd = readFileSync(resolve(ROOT, 'AGENTS.md'), 'utf-8');
+    const leftover = agentsMd.match(/\{\{[A-Z_]+\}\}/g);
+    !leftover
+      ? pass('AGENTS.md present, fully rendered')
+      : note(`AGENTS.md has unrendered placeholder(s): ${[...new Set(leftover)].join(', ')}`, 'regenerate it (delete + npx contextdevkit --update) or fill them in');
+  } catch {
+    note('AGENTS.md missing (Codex boot context)', 're-run the installer');
+  }
+}
+
 console.log('\n🩺 ContextDevKit doctor\n');
 checkNode();
 const level = checkConfig();
@@ -239,6 +297,7 @@ checkModuleClaudeMd();
 checkRemote();
 checkZod(level);
 checkAntigravityHost();
+checkCodexHost(level);
 console.log(
   crit === 0
     ? `\n✅ Healthy${warn ? ` (${warn} advisory note${warn > 1 ? 's' : ''})` : ''}.\n`

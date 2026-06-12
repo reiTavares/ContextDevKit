@@ -8,9 +8,9 @@
 O ContextDevKit transforma "AI-assisted coding" em **engenharia**: em vez de torcer para a
 IA lembrar do contexto, o kit faz o ambiente **forçar** boas práticas e guardar
 o histórico no próprio repositório. Funciona em qualquer projeto — do zero
-(greenfield) ou já existente, qualquer stack — e em **dois hosts nativos**:
-**Claude Code** (hooks automáticos) e **Google Antigravity** (CLI explícito via
-`agy`/`ctx.mjs` — veja a seção Antigravity abaixo).
+(greenfield) ou já existente, qualquer stack — e em **três hosts nativos**:
+**Claude Code** (hooks automáticos), **Google Antigravity** (`agy`/`ctx.mjs`) e
+**Codex** (`AGENTS.md`, `.codex/` e `cdx.mjs`).
 
 ## Novidades na v1.17
 
@@ -228,6 +228,27 @@ node ctx.mjs help [comando]   # menu por categorias ou card de um comando
 O dispatch é seguro por design: só nome exato ou alias declarado (errou o nome,
 ele sugere os 3 mais próximos — nunca executa um script "parecido"). Detalhes em
 [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
+
+## Codex — o terceiro host nativo
+
+O instalador também gera `AGENTS.md`, `.codex/hooks.json`, sub-agentes TOML em
+`.codex/agents/`, skills `source-command-*` em `.agents/skills/` e o runner
+`cdx.mjs`:
+
+```bash
+node cdx.mjs help
+node cdx.mjs doctor
+node cdx.mjs pipeline list
+```
+
+Os assets Codex são gerados a partir das mesmas fontes Claude com:
+
+```bash
+npm run build:codex
+```
+
+O selfcheck falha se Claude e Codex divergirem. Detalhes em
+[docs/CODEX.md](docs/CODEX.md).
 
 ## Fluxo recomendado por sessão
 

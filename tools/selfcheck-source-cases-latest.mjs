@@ -45,4 +45,14 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['/fable is explicit-only — never invoked on the agent own initiative (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Never invoke Fable on your own initiative/],
     ['/fable runs Fable in the subagent, not the main loop — cache-safe (ADR-0052 invariant)', 'templates/claude/commands/fable.md', /subagent, not the main loop/],
     ['Fable stays out of the auto agent aliases — manual by construction (ADR-0052)', 'tools/selfcheck-templates.mjs', /VALID_MODEL_ALIASES = new Set\(\['haiku', 'sonnet', 'opus', 'inherit'\]\)/],
+    // Codex third host.
+    ['install.mjs wires the Codex host installer', 'install.mjs', /installCodexHost\(target, TPL, ctx, report\)/],
+    ['Codex installer renders AGENTS.md from the template', 'tools/install/codex.mjs', /read\(join\(tplDir, 'AGENTS\.md\.tpl'\)\)/],
+    ['Codex installer copies generated skills into the project skill surface', 'tools/install/codex.mjs', /CODEX_SKILLS_DIR/],
+    ['paths.mjs single-sources the Codex host dir as .codex', 'templates/contextkit/runtime/config/paths.mjs', /export const CODEX_DIR = '\.codex'/],
+    ['package.json ships the cdx bin target', 'package.json', /"cdx":\s*"templates\/cdx\.mjs"/],
+    ['Codex hooks carry an explicit host flag', 'templates/contextkit/runtime/config/codex-hooks-compose.mjs', /--host codex/],
+    ['Codex hook adapter persists a stable local session marker', 'templates/contextkit/runtime/hooks/host-adapter.mjs', /CODEX_SESSION_MARKER[\s\S]*rememberHookSessionId/],
+    ['AGENTS.md.tpl documents the full Codex session workflow', 'templates/AGENTS.md.tpl', /Complete Session Workflow \(Codex\)[\s\S]*node cdx\.mjs log-session/],
+    ['AGENTS.md.tpl requires cooperation across hosts', 'templates/AGENTS.md.tpl', /Codex, Claude Code, and Antigravity are peers/],
 ];

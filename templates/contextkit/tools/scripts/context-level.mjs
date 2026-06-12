@@ -2,7 +2,7 @@
 /**
  * Shows or changes the ContextDevKit activation level FROM INSIDE a project —
  * no need for the kit repo to be present. Updates `contextkit/config.json`
- * `level` AND recomposes `.claude/settings.json` hook wiring.
+ * `level` AND recomposes installed host hook wiring.
  *
  * Usage:
  *   node contextkit/tools/scripts/context-level.mjs        # show current level
@@ -15,6 +15,7 @@ import { readFile, writeFile, mkdir, chmod, rename } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { composeAgentHooks } from '../../runtime/config/agent-hooks-compose.mjs';
+import { composeCodexHooks } from '../../runtime/config/codex-hooks-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { LEVEL_LABELS as LABELS, MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
@@ -24,6 +25,7 @@ const PATHS = pathsFor(ROOT);
 const CONFIG = PATHS.config;
 const SETTINGS = resolve(ROOT, '.claude/settings.json');
 const AGY_HOOKS = resolve(PATHS.antigravity, 'hooks.json');
+const CODEX_HOOKS = resolve(PATHS.codex, 'hooks.json');
 
 async function installGitHooks() {
   const hooksDir = resolve(ROOT, '.git/hooks');
@@ -96,6 +98,18 @@ async function main() {
     await writeFile(AGY_HOOKS, JSON.stringify(composeAgentHooks(agyExisting, level), null, 2) + '\n', 'utf-8');
   }
 
+  // 2c. Codex hooks.json — only when the Codex host is installed.
+  if (existsSync(PATHS.codex)) {
+    let codexExisting = null;
+    try {
+      codexExisting = JSON.parse((await readFile(CODEX_HOOKS, 'utf-8')).replace(/^\uFEFF/, ''));
+    } catch {
+      /* fresh */
+    }
+    await mkdir(dirname(CODEX_HOOKS), { recursive: true });
+    await writeFile(CODEX_HOOKS, JSON.stringify(composeCodexHooks(codexExisting, level), null, 2) + '\n', 'utf-8');
+  }
+
   // 3. git hooks at L >= 3
   if (level >= 3) await installGitHooks();
 
@@ -103,7 +117,7 @@ async function main() {
   if (level >= 4 && !existsSync(resolve(ROOT, '.claude/agents'))) {
     console.log('ℹ️  Level 4 uses sub-agents. Copy them with the kit installer or add your own to .claude/agents/.');
   }
-  console.log('↻  Restart Claude Code to load the new hook wiring.');
+  console.log('↻  Restart your host (Claude Code, Antigravity, or Codex) to load the new hook wiring.');
 }
 
 main().catch((err) => {

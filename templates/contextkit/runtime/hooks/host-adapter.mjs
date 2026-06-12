@@ -13,7 +13,7 @@
  * command, so hooks never sniff the payload to guess the host. Everything here
  * is defensive: unknown shapes normalize to "no paths", never to a throw.
  */
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { LEDGER_DIR } from '../config/paths.mjs';
 import { resolveSessionId } from './ledger.mjs';
@@ -24,6 +24,9 @@ export const AGY_WRITE_TOOLS = ['write_to_file', 'replace_file_content', 'multi_
 /** Marker file `session-manager.mjs start` mints so per-event agy hook processes share one session. */
 export const AGY_SESSION_MARKER = '.agy-active.json';
 
+/** Marker file Codex SessionStart mints so hook processes share one session. */
+export const CODEX_SESSION_MARKER = '.codex-active.json';
+
 /**
  * Resolves which host invoked this hook from its argv (`--host agy` or
  * `--host=agy`). Default is Claude Code — the original wire format.
@@ -33,7 +36,9 @@ export const AGY_SESSION_MARKER = '.agy-active.json';
 export function hookHost(argv = process.argv) {
   const flagIndex = argv.indexOf('--host');
   if (flagIndex !== -1 && argv[flagIndex + 1] === 'agy') return 'agy';
-  return argv.includes('--host=agy') ? 'agy' : 'claude';
+  if (flagIndex !== -1 && argv[flagIndex + 1] === 'codex') return 'codex';
+  if (argv.includes('--host=agy')) return 'agy';
+  return argv.includes('--host=codex') ? 'codex' : 'claude';
 }
 
 /** First string value among the path-bearing keys agy variants have shipped. */
@@ -121,7 +126,18 @@ export function emitAdvisory(text, host = hookHost()) {
  * @returns {string}
  */
 export function resolveHookSessionId(payload, host = hookHost(), root = process.cwd()) {
-  if (host !== 'agy') return resolveSessionId(payload);
+  if (host === 'claude') return resolveSessionId(payload);
+  if (host === 'codex') {
+    if (payload?.session_id && typeof payload.session_id === 'string') return payload.session_id;
+    if (process.env.CODEX_SESSION_ID) return process.env.CODEX_SESSION_ID;
+    try {
+      const marker = JSON.parse(readFileSync(resolve(root, LEDGER_DIR, CODEX_SESSION_MARKER), 'utf-8'));
+      if (typeof marker?.sid === 'string' && marker.sid.length > 0) return marker.sid;
+    } catch {
+      /* no marker yet: SessionStart has not run */
+    }
+    return 'codex_local';
+  }
   try {
     const marker = JSON.parse(readFileSync(resolve(root, LEDGER_DIR, AGY_SESSION_MARKER), 'utf-8'));
     if (typeof marker?.sid === 'string' && marker.sid.length > 0) return marker.sid;
@@ -129,4 +145,21 @@ export function resolveHookSessionId(payload, host = hookHost(), root = process.
     /* no marker yet — session-manager start has not run */
   }
   return 'agy_local';
+}
+
+/**
+ * Persists the Codex session id so future hook events reuse the same ledger.
+ * @param {string} sessionId resolved session id
+ * @param {'agy'|'claude'|'codex'} [host]
+ * @param {string} [root] project root
+ */
+export function rememberHookSessionId(sessionId, host = hookHost(), root = process.cwd()) {
+  if (host !== 'codex') return;
+  try {
+    const dir = resolve(root, LEDGER_DIR);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(resolve(dir, CODEX_SESSION_MARKER), JSON.stringify({ sid: sessionId, at: Date.now() }, null, 2), 'utf-8');
+  } catch {
+    /* best effort */
+  }
 }
