@@ -25,6 +25,7 @@ import { runAgentForgeChecks } from './selfcheck-agent-forge.mjs';
 import { runAgentForgeOpsChecks } from './selfcheck-agent-forge-ops.mjs';
 import { runTemplateChecks } from './selfcheck-templates.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
+import { runEncodingChecks } from './selfcheck-encoding.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -226,6 +227,7 @@ async function main() {
   await runAgentForgeOpsChecks({ ok, bad }, KIT);
   await runTemplateChecks({ ok, bad }, { KIT });
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
+  await runEncodingChecks({ ok, bad }, { KIT });
   const executed = passes + failures;
   if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
   else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);
