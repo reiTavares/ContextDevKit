@@ -1,6 +1,6 @@
 {
   "name": "contextdevkit",
-  "version": "2.4.1",
+  "version": "2.5.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code, Google Antigravity, and OpenAI Codex — hooks, commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {

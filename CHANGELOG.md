@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Add your changes here.
+
+## [2.5.0] - 2026-06-12
+
 ### Changed - default autonomy grade 3 + grade-4 informed consent (ADR-0058)
 - **Default autonomy grade is now 3 (was 2).** Every fresh install lets the AI
   edit, test and move pipeline cards without asking out of the box; ADRs,
