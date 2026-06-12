@@ -16,7 +16,7 @@ import { runValidate } from './pipeline-validate.mjs';
 import { listTasks } from './pipeline-tasks.mjs';
 import { add, ingest, ensureDirs } from './pipeline-add.mjs';
 import { migrateStateLayout } from '../../runtime/state/state-io.mjs';
-import { autoTransition, move, qaReject } from './pipeline-transitions.mjs';
+import { autoTransition, move, qaApprove, qaReject } from './pipeline-transitions.mjs';
 
 const ROOT = process.cwd();
 const PIPE = pathsFor(ROOT).pipeline;
@@ -109,8 +109,9 @@ else if (cmd === 'list') {
   if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
   else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
 } else if (cmd === 'qa-reject') qaReject({ PIPE, sync });
+else if (cmd === 'qa-approve') qaApprove({ PIPE, sync });
 else if (cmd === 'auto-transition') autoTransition({ ROOT, PIPE, sync });
 else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list|board|qa-reject|auto-transition>');
+  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list|board|qa-reject|qa-approve|auto-transition>');
   process.exit(1);
 }

@@ -6,7 +6,49 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Add your changes here._
+### Added — deterministic QA sign-off + the grade-4 coverage gap closed (ADR-0055)
+- **`pipeline.mjs qa-approve <id> --evidence "…"`** — the QA half of ADR-0043's
+  sign-off doctrine finally has a verb: the ONLY testing→conclusion path besides
+  the human `move`. Refuses without evidence, outside `testing`, or when the
+  card's acceptance criteria aren't ≥1 checked / 0 unchecked; records the
+  evidence on the card (`## QA Sign-off`) and in the event log (actor `qa`,
+  `endedAt` stamped). `auto` stays fenced from `conclusion` at every grade.
+- **`/pipetest [ids|--all]`** — run the project suite; green ⇒ `qa-approve`
+  every complete testing card with the run summary as evidence; red ⇒ report,
+  bouncing (`qa-reject`) only attributable failures — a global red never
+  mass-bounces the lane. Swarm runs never call it; it's the human's closing
+  move after `/swarm review`.
+- **`integration-test-hooks.mjs`** — rule 2 as a test: every module under
+  `runtime/hooks/` is executed twice (benign payload + garbage stdin) and must
+  exit 0 in a bare project. Closes the grade-4 self-coverage gap (the bar's
+  harness now sees every hook entrypoint exercised at its template path).
+
+### Added — swarm coordinator v1 implemented (ADR-0051 accepted, task 123)
+- **ADR-0051 flipped Proposed → Accepted** and shipped end-to-end: `/swarm`
+  skill (plan·run·review·clean) + pure `swarm-plan.mjs` planner (WSJF rank;
+  touch-set derivation card-`paths:` → simulate receipt → title inference;
+  refusals for no-touch-set / secret floor / un-receipted l5 paths; greedy
+  disjoint partition; hard cap 5 above config) + `swarm-state.mjs` manifest
+  (`.claude/.swarm/<runId>.json`, atomic writes, append-only per-workstream
+  history, stale eviction preserving worktrees, budget-park path) +
+  `worktree-new.mjs --swarm <runId> <taskId>` mode (branch
+  `swarm/<runId>/<taskId>`).
+- **`swarm-dispatch` consent area** in `resolveAutonomy`
+  (`[manual,manual,suggest,auto]`, budget-downgrade aware) and the optional
+  `by: {runId, workstream, agent}` attribution field on state.json events
+  (unknown keys dropped; plain events untouched). `swarm.*` config block
+  (maxWorkstreams/maxWavesPerRun/tokenBudgetPerRun/staleMinutes),
+  zod-modeled.
+- **P0 validation run executed first** (the ADR's precondition): tasks 141+143
+  fixed in parallel worktrees on sonnet/haiku tiers (ADR-0052), 52–61K subagent
+  tokens each, 0/2 cross-workstream conflicts; branches parked at testing for
+  human merge. Its load-bearing finding — rule 3 makes every workstream spill
+  into shared TEST shards — is encoded in the planner as `TEST_HOME_RULES`
+  touch-set expansion (test-asserted).
+- **23-check `integration-test-swarm.mjs`** added to the npm test chain;
+  selfcheck inventories the new scripts + skill; agy mirrors regenerated
+  (the skill is documented; agy still runs its session model — the ADR-0052
+  host gap stands).
 
 ## [2.1.0] - 2026-06-11
 

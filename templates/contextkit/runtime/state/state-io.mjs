@@ -132,17 +132,26 @@ export function writeState(pipeDir, id, patch) {
  * transition reversible by construction. Throws on an unknown actor
  * (refuse-by-default — telemetry from forged actors would be worse than none).
  *
+ * `by` (optional, ADR-0051 §5) attributes the transition to a swarm workstream:
+ * `{ runId, workstream, agent }` — string fields, each capped, unknown keys
+ * dropped. Absent for non-swarm transitions; purely additive, replay-safe.
+ *
  * @param {string} pipeDir
  * @param {string} id
- * @param {{ from: string, to: string, actor: 'human'|'auto'|'qa'|'evict', note?: string }} event
+ * @param {{ from: string, to: string, actor: 'human'|'auto'|'qa'|'evict', note?: string, by?: { runId?: string, workstream?: string, agent?: string } }} event
  * @returns {object} the updated record
  */
-export function appendEvent(pipeDir, id, { from, to, actor, note }) {
+export function appendEvent(pipeDir, id, { from, to, actor, note, by }) {
   if (!VALID_ACTORS.has(actor)) throw new Error(`appendEvent: invalid actor "${actor}" — one of ${[...VALID_ACTORS].join(', ')}`);
   const previous = readState(pipeDir, id) || {};
   const events = Array.isArray(previous.events) ? previous.events : [];
   const entry = { ts: Date.now(), from: String(from ?? ''), to: String(to ?? ''), actor, inverse: String(from ?? '') };
   if (note) entry.note = String(note).slice(0, 300);
+  if (by && typeof by === 'object') {
+    const identity = {};
+    for (const key of ['runId', 'workstream', 'agent']) if (by[key] != null) identity[key] = String(by[key]).slice(0, 80);
+    if (Object.keys(identity).length > 0) entry.by = identity;
+  }
   const merged = { ...previous, id: String(id), events: [...events, entry] };
   if (typeof merged.startedAt !== 'number') merged.startedAt = Date.now();
   merged.lastHeartbeat = Date.now();

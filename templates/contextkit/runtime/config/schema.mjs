@@ -76,6 +76,17 @@ const ProjectMapSchema = z
   })
   .default({});
 
+// ADR-0051 — swarm coordinator caps. maxWorkstreams is hard-capped at 5 by
+// contract (the planner refuses more regardless of config).
+const SwarmSchema = z
+  .object({
+    maxWorkstreams: z.number().int().min(1).max(5).default(3),
+    maxWavesPerRun: z.number().int().min(1).max(10).default(2),
+    tokenBudgetPerRun: z.number().int().min(0).default(0),
+    staleMinutes: z.number().int().positive().default(30),
+  })
+  .default({});
+
 const DepsSchema = z
   .object({
     requireLockfile: z.boolean().default(true),
@@ -100,6 +111,7 @@ export const ConfigSchema = z
     deliberations: DeliberationsSchema,
     autonomy: AutonomySchema,
     projectMap: ProjectMapSchema,
+    swarm: SwarmSchema,
   })
   .passthrough()
   .default({});
