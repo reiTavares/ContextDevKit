@@ -13,7 +13,7 @@ import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, join, relative, dirname, basename } from 'node:path';
 import { ANTIGRAVITY_DIR, CODEX_DIR } from '../config/paths.mjs';
-import { codexSkillName, convertCommandToSkill, convertAgentToToml } from './convert-core.mjs';
+import { codexSkillName, convertCommandToSkill, convertAgentToToml, isSkippedForCodex } from './convert-core.mjs';
 
 const ROOT = process.cwd();
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -51,13 +51,17 @@ async function cleanGenerated(dir) {
 }
 
 async function main() {
-  const report = { skills: 0, agents: 0, errors: [] };
+  const report = { skills: 0, skipped: 0, agents: 0, errors: [] };
   if (TEMPLATES_MODE) {
     await cleanGenerated(SKILLS_DST);
     await cleanGenerated(AGENTS_DST);
   }
 
   for (const cmd of await listMdFiles(resolve(ROOT, SRC_BASE, 'commands'))) {
+    if (isSkippedForCodex(cmd.relative)) {
+      report.skipped++;
+      continue;
+    }
     try {
       const raw = await readFile(cmd.absolute, 'utf-8');
       const dst = join(SKILLS_DST, codexSkillName(cmd.relative), 'SKILL.md');
@@ -79,7 +83,7 @@ async function main() {
     }
   }
 
-  console.log(`Codex conversion complete${DRY_RUN ? ' (DRY RUN)' : ''}: ${report.skills} skills, ${report.agents} agents`);
+  console.log(`Codex conversion complete${DRY_RUN ? ' (DRY RUN)' : ''}: ${report.skills} skills (${report.skipped} skipped), ${report.agents} agents`);
   if (report.errors.length) {
     for (const err of report.errors) console.error(`  - ${err}`);
     process.exit(1);
