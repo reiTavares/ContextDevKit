@@ -151,6 +151,17 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
 
   /**
+   * Swarm coordinator (ADR-0051). `/swarm` runs N parallel workstreams, each in
+   * its own worktree. Caps are CONTRACTS, not tuning knobs:
+   *   - `maxWorkstreams`: parallel workstreams per run (hard cap 5 in the planner).
+   *   - `maxWavesPerRun`: waves before the run parks for human review.
+   *   - `tokenBudgetPerRun`: subagent-token sub-budget (0 = off); exhausted →
+   *     no new waves, in-flight steps finish and park (ADR-0044 §3 semantics).
+   *   - `staleMinutes`: a silent workstream is marked `evicted` past this.
+   */
+  swarm: { maxWorkstreams: 3, maxWavesPerRun: 2, tokenBudgetPerRun: 0, staleMinutes: 30 },
+
+  /**
    * Security mode — proactive analysis cadence. When `active`, the SessionStart
    * hook reminds you to run `/deep-analysis` every `everyNSessions` sessions.
    * ACTIVE by default; set `active: false` to disable.

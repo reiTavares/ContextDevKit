@@ -120,7 +120,7 @@ ADR-0051 must reaffirm this, never relax it.
 | P2 | F4 — task 116 (eligibility bar, hardened quorum, kill-switch mechanics) | ✅ shipped in v2.0.0 (2026-06-11) |
 | P3 | Eligibility data accumulation (≥30 transitions, ≥20 sessions, <10% rollback) | **calendar weeks, passive — the real bottleneck** |
 | P4 | `/debate` on the swarm design → ADR-0051 | ✅ ADR-0051 created 2026-06-11 (this study accepted as the deliberation input; separate `/debate` waived) |
-| P5 | Swarm v1, grade-3: human approves each wave and each merge | 2–3 weeks |
+| P5 | Swarm v1, grade-3: human approves each wave and each merge | ✅ shipped 2026-06-11 (same day — `/swarm` + swarm-plan/state engines + 23-check suite; task 123) |
 | P6 | Swarm v2, grade-4: per-workstream quorum, branch-only auto-push | 1–2 weeks after ≥3 clean v1 runs |
 
 > **Status update (2026-06-11, post-v2.0.0):** F3 and F4 shipped the same day this

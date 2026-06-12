@@ -24,9 +24,9 @@ import { join } from 'node:path';
 import { matchSecret } from '../hooks/path-classification.mjs';
 import { readJsonSafe } from '../hooks/safe-io.mjs';
 
-/** Closed area enum (ADR-0042 §1). */
+/** Closed area enum (ADR-0042 §1; `swarm-dispatch` added by ADR-0051 §4). */
 export const AREAS = Object.freeze([
-  'edit', 'commit', 'push', 'pipeline-move', 'adr', 'session-log', 'ship-checkpoint', 'grade-change',
+  'edit', 'commit', 'push', 'pipeline-move', 'adr', 'session-log', 'ship-checkpoint', 'grade-change', 'swarm-dispatch',
 ]);
 
 /** mode per area × grade 1..4 (floor applies AFTER this table). */
@@ -39,6 +39,9 @@ const MODE_TABLE = Object.freeze({
   'session-log': ['manual', 'auto', 'auto', 'auto'],
   'ship-checkpoint': ['manual', 'manual', 'auto', 'debate'],
   'grade-change': ['manual', 'manual', 'manual', 'manual'],
+  // ADR-0051: launching N parallel auto workstreams is a larger consent grant
+  // than one pipeline-move — suggest at grade 3, auto only at grade 4.
+  'swarm-dispatch': ['manual', 'manual', 'suggest', 'auto'],
 });
 
 /** First-person consequence text — single-sourced for /autonomy (both hosts) + onboarding (ADR-0042 §5). */

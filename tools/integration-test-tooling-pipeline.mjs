@@ -266,9 +266,33 @@ try {
   delete cfgRaw.autonomy;
   writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));
 
+  // ─ ADR-0055: qa-approve — deterministic testing→conclusion sign-off ─
+  // autoId sits in `testing` with the add-template's empty "- [ ]" checkbox.
+  const noEvidence = script('pipeline.mjs', 'qa-approve', autoId);
+  noEvidence.status !== 0 && /--evidence/.test(noEvidence.stdout + noEvidence.stderr)
+    ? ok('qa-approve refuses without evidence (ADR-0055)') : bad(`qa-approve ran without evidence: ${noEvidence.stdout}${noEvidence.stderr}`);
+  const unchecked = script('pipeline.mjs', 'qa-approve', autoId, '--evidence', 'suite exit 0');
+  unchecked.status !== 0 && /unchecked/.test(unchecked.stdout + unchecked.stderr)
+    ? ok('qa-approve refuses a card with unchecked acceptance boxes (ADR-0055)') : bad(`qa-approve waved through an incomplete card: ${unchecked.stdout}${unchecked.stderr}`);
+  const wrongStage = script('pipeline.mjs', 'qa-approve', bounceId, '--evidence', 'suite exit 0');
+  wrongStage.status !== 0 && /not 'testing'/.test(wrongStage.stdout + wrongStage.stderr)
+    ? ok('qa-approve refuses a card outside testing (legality)') : bad(`qa-approve accepted a non-testing card: ${wrongStage.stdout}${wrongStage.stderr}`);
+  const autoCard = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === autoId);
+  const autoCardPath = join(proj, 'contextkit', 'pipeline', 'testing', autoCard.file);
+  writeFileSync(autoCardPath, readFileSync(autoCardPath, 'utf-8').replace('- [ ]', '- [x] verified by suite'));
+  script('pipeline.mjs', 'qa-approve', autoId, '--evidence', 'npm test exit 0 @fixture');
+  const approved = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === autoId);
+  const approvedBody = readFileSync(join(proj, 'contextkit', 'pipeline', 'conclusion', approved?.file ?? ''), 'utf-8');
+  const approvedState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', 'state', autoId, 'state.json'), 'utf-8'));
+  approved?.stage === 'conclusion' && approvedBody.includes('## QA Sign-off') && approvedBody.includes('npm test exit 0')
+    ? ok('qa-approve closes testing→conclusion with the evidence block on the card (ADR-0055)') : bad('qa-approve sign-off missing move or evidence');
+  approvedState.events?.at(-1)?.actor === 'qa' && approvedState.status === 'done' && typeof approvedState.endedAt === 'number'
+    ? ok('qa-approve event carries actor=qa; state closed with endedAt') : bad(`qa-approve state wrong: ${JSON.stringify(approvedState)}`);
+
   // ADR-0047 A3 — board --digest: compact lane summary instead of N task files.
   const digest = script('pipeline.mjs', 'board', '--digest').stdout || '';
-  /DevPipeline digest — Backlog \*\*\d+\*\*/.test(digest) && digest.includes('auto-move-target') && !digest.includes('| ID |')
+  // (auto-move-target was qa-approved into conclusion above — assert on the in-flight bounce card instead)
+  /DevPipeline digest — Backlog \*\*\d+\*\*/.test(digest) && digest.includes('qa-bounce-target') && !digest.includes('| ID |')
     ? ok('pipeline board --digest emits the bounded lane summary, not the full table (ADR-0047 A3)')
     : bad(`board --digest wrong: ${digest.slice(0, 200)}`);
 } catch (err) {
