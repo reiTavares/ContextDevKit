@@ -37,4 +37,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['convert-all delegates the transformation to the shared convert-core (ticket 140)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /import \{ adaptContent, convertCommandToSkill, convertAgentToPersona \} from '\.\/convert-core\.mjs'/],
     ['INSTRUCTIONS.md.tpl carries no rot-prone skill count (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*\b\d+ slash commands)[\s\S]*$/],
     ['INSTRUCTIONS.md.tpl references no nonexistent engine-keeper persona (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*engine-keeper)[\s\S]*$/],
+    // Encoding + config-rot guards (tickets 144-145).
+    ['selfcheck wires the tree-wide mojibake gate (ticket 144)', 'tools/selfcheck.mjs', /runEncodingChecks\(\{ ok, bad \}, \{ KIT \}\)/],
+    ['doctor probes config paths that no longer exist — registration rot is critical (ticket 145)', 'templates/contextkit/tools/scripts/doctor.mjs', /probe\(cfg\?\.ledger\?\.registration, 'ledger\.registration', fail\)/],
 ];

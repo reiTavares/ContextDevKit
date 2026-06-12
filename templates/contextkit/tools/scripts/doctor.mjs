@@ -54,6 +54,33 @@ function checkConfig() {
   return level;
 }
 
+/**
+ * Config path-rot guard (ticket 145). A platform-dir rename or a moved file
+ * leaves config.json pointing at paths that no longer exist — and every
+ * consumer fails SILENTLY: `ledger.registration` entries that never match a
+ * real edit make the Stop drift nudge blind to legitimate registration, and
+ * `l5.highRiskPaths` / `qa.criticalPaths` ghosts leave the simulate-gate and
+ * QA targets guarding nothing. Registration rot is CRITICAL (a core L2
+ * contract breaks); the gate/QA lists are advisory (they only bite at L4/L5).
+ */
+function checkConfigPathRot() {
+  const cfg = loadConfigSync(ROOT);
+  const probe = (entries, label, report) => {
+    const missing = (entries ?? []).filter((p) => !existsSync(resolve(ROOT, p)));
+    if (missing.length === 0) {
+      if ((entries ?? []).length > 0) pass(`${label} paths all exist on disk`);
+      return;
+    }
+    report(
+      `${label} points at nonexistent path(s): ${missing.join(', ')}`,
+      'edit contextkit/config.json — was the platform dir or file renamed/moved? (e.g. a vibekit-era install)',
+    );
+  };
+  probe(cfg?.ledger?.registration, 'ledger.registration', fail);
+  probe(cfg?.l5?.highRiskPaths, 'l5.highRiskPaths', note);
+  probe(cfg?.qa?.criticalPaths, 'qa.criticalPaths', note);
+}
+
 function checkWiring(level) {
   const settings = readJson('.claude/settings.json');
   if (!settings) {
@@ -202,6 +229,7 @@ function checkAntigravityHost() {
 console.log('\n🩺 ContextDevKit doctor\n');
 checkNode();
 const level = checkConfig();
+checkConfigPathRot();
 checkWiring(level);
 checkGitHooks(level);
 checkMemory();
