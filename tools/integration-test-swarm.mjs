@@ -128,6 +128,8 @@ try {
   ] });
   tierRun.workstreams.find((ws) => ws.id === 'ws-a').model === 'haiku' && tierRun.workstreams.find((ws) => ws.id === 'ws-b').model === 'sonnet'
     ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
+  aliasForTier('powerful', { host: 'codex' }).model === 'gpt-5.4'
+    ? ok('Codex swarm tierHint resolves through model-policy (powerful->gpt-5.4)') : bad('Codex swarm tierHint did not resolve to gpt-5.4');
   updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
   updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model });
   const mix = byModel(readRun(root, 'run-tiers'));

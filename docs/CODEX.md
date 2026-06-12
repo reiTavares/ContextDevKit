@@ -48,6 +48,19 @@ the session. If a Codex surface does not support hooks, the fallback is explicit
 start with `node cdx.mjs state`, use the generated `source-command-*` skills or
 `node cdx.mjs <command>`, and finish with `node cdx.mjs log-session`.
 
+## Model Routing
+
+ADR-0052 routing is active on Codex. Dispatching skills call
+`contextkit/tools/scripts/model-policy.mjs --host codex` before spawning a
+subagent, so demand tiers resolve to Codex model overrides:
+
+- `fast` -> `gpt-5.4-mini`
+- `powerful` -> `gpt-5.4`
+- `reasoning` -> `gpt-5.5`
+
+Antigravity still reports the ADR-0052 host gap until that host exposes a model
+override the kit can enforce.
+
 ## Build Pipeline
 
 ```bash

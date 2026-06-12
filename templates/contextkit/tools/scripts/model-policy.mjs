@@ -14,8 +14,8 @@
  * at L>=4/Claude, so its absence degrades to "no price", never an error (rule 8).
  *
  * Library + thin CLI:
- *   model-policy.mjs resolve --agent qa-unit --task execute [--budget-exhausted] [--qa-failures N] [--host agy]
- *   model-policy.mjs tier powerful [--budget-exhausted]   # tier-based dispatch (the swarm path)
+ *   model-policy.mjs resolve --agent qa-unit --task execute [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]
+ *   model-policy.mjs tier powerful [--budget-exhausted] [--host claude|codex|agy]   # tier-based dispatch (the swarm path)
  *   model-policy.mjs table [--json]      # the full resolved roster — the audit view
  */
 import { readFileSync } from 'node:fs';
@@ -35,8 +35,8 @@ export function loadPolicy(path = DEFAULT_POLICY) {
     throw new Error(`model-policy: routing policy not found at ${path} (ADR-0052 Phase 2 — run the installer or restore policy/routing-policy.json)`);
   }
   const policy = JSON.parse(raw.replace(/^﻿/, ''));
-  if (!policy.tiers || !Array.isArray(policy.ladder) || !policy.agents) {
-    throw new Error('model-policy: routing-policy.json is malformed (need tiers, ladder, agents)');
+  if (!policy.tiers || !policy.hostModels || !Array.isArray(policy.ladder) || !policy.agents) {
+    throw new Error('model-policy: routing-policy.json is malformed (need tiers, hostModels, ladder, agents)');
   }
   return policy;
 }
@@ -46,6 +46,16 @@ function shift(ladder, tier, delta) {
   const at = ladder.indexOf(tier);
   if (at < 0) return tier;
   return ladder[Math.max(0, Math.min(ladder.length - 1, at + delta))];
+}
+
+function hostGapReason(policy, host) {
+  if (policy.hostGap?.[host]) return policy.hostGap[host];
+  if (!policy.hostModels?.[host]) return `unknown-host(${host})`;
+  return null;
+}
+
+function modelForTier(policy, tier, host) {
+  return policy.hostModels?.[host]?.[tier] ?? policy.tiers?.[tier]?.alias ?? null;
 }
 
 /**
@@ -61,11 +71,12 @@ function shift(ladder, tier, delta) {
 export function resolveModel(agent, opts = {}) {
   const policy = opts.policy ?? loadPolicy();
   const host = opts.host ?? 'claude';
-  if (policy.hostGap?.[host]) {
-    return { model: null, tier: null, reasons: [policy.hostGap[host]], agent };
+  const hostGap = hostGapReason(policy, host);
+  if (hostGap) {
+    return { model: null, tier: null, reasons: [hostGap], agent };
   }
   if ((policy.inheritAgents ?? []).includes(agent)) {
-    return { model: 'inherit', tier: null, reasons: ['dispatcher-inherits-session'], agent };
+    return { model: modelForTier(policy, 'inherit', host), tier: null, reasons: ['dispatcher-inherits-session'], agent };
   }
   const baseTier = policy.agents?.[agent];
   if (!baseTier) {
@@ -93,7 +104,7 @@ export function resolveModel(agent, opts = {}) {
     const floor = policy.floorTier;
     if (ladder.indexOf(tier) < ladder.indexOf(floor)) { tier = floor; reasons.push(`floor(${floor})`); }
   }
-  return { model: policy.tiers[tier]?.alias ?? null, tier, reasons, agent };
+  return { model: modelForTier(policy, tier, host), tier, reasons, agent };
 }
 
 /**
@@ -130,7 +141,8 @@ export async function priceForTier(tier, policy) {
 export function aliasForTier(tier, opts = {}) {
   const policy = opts.policy ?? loadPolicy();
   const host = opts.host ?? 'claude';
-  if (policy.hostGap?.[host]) return { model: null, tier: null, reasons: [policy.hostGap[host]] };
+  const hostGap = hostGapReason(policy, host);
+  if (hostGap) return { model: null, tier: null, reasons: [hostGap] };
   if (!policy.tiers?.[tier]) return { model: null, tier: null, reasons: [`unknown-tier(${tier})`] };
   const reasons = [`tier(${tier})`];
   let resolved = tier;
@@ -138,7 +150,7 @@ export function aliasForTier(tier, opts = {}) {
     const down = shift(policy.ladder, resolved, -1);
     if (down !== resolved) { resolved = down; reasons.push('budget-downgrade(-1)'); }
   }
-  return { model: policy.tiers[resolved].alias, tier: resolved, reasons };
+  return { model: modelForTier(policy, resolved, host), tier: resolved, reasons };
 }
 
 /** Builds the full resolved roster (every agent at its static default) — the audit view. */
@@ -159,7 +171,7 @@ if (isMain) {
   try {
     if (verb === 'resolve') {
       const agent = flag('agent');
-      if (!agent) { console.error('Usage: model-policy.mjs resolve --agent <name> [--task think|execute|ambiguous] [--budget-exhausted] [--qa-failures N] [--host agy]'); process.exit(1); }
+      if (!agent) { console.error('Usage: model-policy.mjs resolve --agent <name> [--task think|execute|ambiguous] [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]'); process.exit(1); }
       const out = resolveModel(agent, {
         task: flag('task') ?? 'ambiguous',
         budgetExhausted: has('budget-exhausted'),
@@ -169,7 +181,7 @@ if (isMain) {
       console.log(JSON.stringify(out));
     } else if (verb === 'tier') {
       const tier = argv[1] && !argv[1].startsWith('--') ? argv[1] : flag('tier');
-      if (!tier) { console.error('Usage: model-policy.mjs tier <fast|powerful|reasoning> [--budget-exhausted] [--host agy]'); process.exit(1); }
+      if (!tier) { console.error('Usage: model-policy.mjs tier <fast|powerful|reasoning> [--budget-exhausted] [--host claude|codex|agy]'); process.exit(1); }
       console.log(JSON.stringify(aliasForTier(tier, { budgetExhausted: has('budget-exhausted'), host: flag('host') ?? 'claude' })));
     } else if (verb === 'table') {
       const roster = resolveRoster();

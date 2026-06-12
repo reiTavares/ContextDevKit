@@ -38,7 +38,8 @@ const ALIASES = {
   'ia-practices': 'analyze-code-ia-practices.mjs',
   'seo': 'seo-audit.mjs',
   'aiso': 'aiso-audit.mjs',
-  'validation': 'validate-doc.mjs'
+  'validation': 'validate-doc.mjs',
+  'assist': 'workflow-assist.mjs'
 };
 
 /** Loads the categorised menu module from the installed engine; null when absent. */

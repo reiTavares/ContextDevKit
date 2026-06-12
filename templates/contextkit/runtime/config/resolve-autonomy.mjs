@@ -37,7 +37,7 @@ const MODE_TABLE = Object.freeze({
   'pipeline-move': ['manual', 'suggest', 'auto', 'auto'],
   adr: ['manual', 'manual', 'manual', 'manual'],
   'session-log': ['manual', 'auto', 'auto', 'auto'],
-  'ship-checkpoint': ['manual', 'manual', 'auto', 'debate'],
+  'ship-checkpoint': ['manual', 'manual', 'debate', 'debate'],
   'grade-change': ['manual', 'manual', 'manual', 'manual'],
   // ADR-0051: launching N parallel auto workstreams is a larger consent grant
   // than one pipeline-move — suggest at grade 3, auto only at grade 4.
@@ -48,8 +48,8 @@ const MODE_TABLE = Object.freeze({
 export const CONSEQUENCE_TEXT = Object.freeze({
   1: 'Grade 1 — Manual: I only act when you command. Every change is yours to initiate.',
   2: 'Grade 2 — Suggest: I propose edits and plans; you approve before anything lands.',
-  3: 'Grade 3 — Auto except decisions (default): I edit, test and move pipeline cards without asking; ADRs, pushes and high-risk paths still come to you.',
-  4: 'Grade 4 — Full-auto (EXPERIMENTAL): I run /ship checkpoints through deliberation quorums and push to feature branches; ADRs, secrets, force-push and merges to the default branch remain yours. Budget- and telemetry-gated (ADR-0045).',
+  3: 'Grade 3 — Auto except decisions (default): I edit, test, move pipeline cards and run /ship checkpoints through deliberation quorums without asking; ADRs, pushes and high-risk paths still come to you.',
+  4: 'Grade 4 — Full-auto (EXPERIMENTAL): I push to feature branches autonomously; ADRs, secrets, force-push and merges to the default branch remain yours. Budget- and telemetry-gated (ADR-0045).',
 });
 
 /**
@@ -108,11 +108,6 @@ export function resolveAutonomy(area, config = {}, sessionOverride = null, conte
   if (grade === null) ({ grade, source } = { grade: parseGrade(config?.autonomy?.grade), source: 'config' });
   if (grade === null) ({ grade, source } = { grade: config?.autonomy?.grade === undefined ? 3 : 1, source: config?.autonomy?.grade === undefined ? 'default' : 'config-unparseable' });
 
-  // Fail-closed (ADR-0045): grade 4 demands deliberations be EXPLICITLY active —
-  // an absent/unknown flag is not "assumed on" (rule 8). Callers pass a merged config.
-  if (grade === 4 && config?.deliberations?.active !== true)
-    throw new TypeError('resolveAutonomy: grade 4 requires deliberations.active === true — full-auto without inter-AI control is a contradiction (ADR-0042 §3 / ADR-0045)');
-
   const floor = floorReason(area, context, config);
   if (floor) return { grade, mode: 'manual', source, reason: floor };
 
@@ -123,6 +118,11 @@ export function resolveAutonomy(area, config = {}, sessionOverride = null, conte
   if (grade === 4 && context.budgetExhausted) return { grade, mode: MODE_TABLE[area][1], source, reason: 'budget-exhausted' };
 
   let mode = MODE_TABLE[area][grade - 1];
+
+  // Fail-closed (ADR-0045): grade 4 or any debate mode demands deliberations be EXPLICITLY active —
+  // an absent/unknown flag is not "assumed on" (rule 8). Callers pass a merged config.
+  if ((grade === 4 || mode === 'debate') && config?.deliberations?.active !== true)
+    throw new TypeError(`resolveAutonomy: grade ${grade} with mode "${mode}" requires deliberations.active === true — contradiction (ADR-0042 §3 / ADR-0045)`);
   // ADR-0045 mechanics: grade-4 push is auto ONLY toward a non-default branch.
   if (area === 'push' && mode === 'auto') {
     const towardDefault = !context.targetRef || !context.defaultBranch || context.targetRef === context.defaultBranch;

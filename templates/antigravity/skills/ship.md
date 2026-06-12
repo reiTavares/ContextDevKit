@@ -23,11 +23,11 @@ The stages marked ◆ are checkpoints. Pick the mode from the arguments:
 
 State which mode you're running at the start.
 
-## Grade 4 — hardened quorum + kill-switch (ADR-0045)
+## Grade >= 3 — hardened quorum + kill-switch (ADR-0045 / ADR-0059)
 
 This applies ONLY when `resolveAutonomy('ship-checkpoint', …)` returns `debate`
-(grade 4, after the eligibility bar held in `/autonomy`). At grade ≤ 3 ignore this
-section. At grade 4, a ◆ checkpoint may be cleared by a `/debate` quorum INSTEAD of
+(grade >= 3). At grade ≤ 2 ignore this
+section. At grade >= 3, a ◆ checkpoint may be cleared by a `/debate` quorum INSTEAD of
 a human pause — but only under all of these, or you fall back to a manual pause:
 
 1. **Blind voices** — run the deliberation per the ADR-0035 contract (voices blind
@@ -94,14 +94,16 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    keep the agent's tier; **execute**: tests from a given plan, mechanical
    refactor, scaffold, format, summarize → cheap tier; **ambiguous**: agent
    default), then ask the resolver for the concrete alias:
-   `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--qa-failures N] [--budget-exhausted]`
-   and pass its `model` to the Agent tool (`execute` also uses low effort).
+   `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--qa-failures N] [--budget-exhausted] --host <claude|codex|agy>`
+   using the current host value (`claude`, `codex`, or `agy`), then pass its
+   `model` to the Agent tool (`execute` also uses low effort).
    Omitting `model` silently inherits the premium session model — the costly
    default. The resolver already enforces the floor (security / code-security /
    infra-security / privacy-lgpd never below `powerful`), the one-step escalation
    on `--qa-failures 2` (cap `reasoning`), and the budget downgrade (one tier
-   down, never below the floor — ADR-0044 §3). Report any non-default resolution
-   in the run summary.
+   down, never below the floor — ADR-0044 §3). If it returns `model:null`,
+   surface the reason and dispatch without a fake override. Report any
+   non-default resolution in the run summary.
 
    If the change crosses high-risk paths (L5), run
    `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.
