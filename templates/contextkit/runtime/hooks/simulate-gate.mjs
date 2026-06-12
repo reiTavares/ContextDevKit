@@ -18,6 +18,9 @@ import { getLevel, loadConfig } from '../config/load.mjs';
 import { hasSimulationFor, readLedger, toRepoRelative } from './ledger.mjs';
 import { emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 import { matchHighRisk } from './path-classification.mjs';
+import { pathsFor } from '../config/paths.mjs';
+import { listWorkflows, PHASES } from '../../tools/scripts/workflow-pack.mjs';
+import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -55,6 +58,56 @@ function buildBlockReason(targetPath, matchedEntry) {
   ].join('\n');
 }
 
+function isExemptPath(targetPath, root = ROOT) {
+  const paths = pathsFor(root);
+  const resolved = resolve(root, targetPath);
+  if (resolved.startsWith(paths.memory) || resolved.startsWith(paths.pipeline)) return true;
+  if (resolved === resolve(paths.changelog)) return true;
+  if (resolved === resolve(root, 'AGENTS.md')) return true;
+  if (resolved === resolve(root, 'CLAUDE.md')) return true;
+  if (resolved === resolve(root, 'INSTRUCTIONS.md')) return true;
+  if (resolved === resolve(root, 'instrucoes.md')) return true;
+  if (resolved === resolve(root, '.gitignore')) return true;
+  if (resolved === resolve(root, '.gitattributes')) return true;
+  if (resolved === resolve(root, 'package.json')) return true;
+  if (targetPath.endsWith('.md')) return true;
+  return false;
+}
+
+function getActiveWorkflowBeforeShip(root = ROOT) {
+  try {
+    const list = listWorkflows(root);
+    const active = list.find((w) => w.currentPhase && w.currentPhase !== 'done');
+    if (!active) return null;
+    const index = PHASES.indexOf(active.currentPhase);
+    const shipIndex = PHASES.indexOf('ship');
+    if (index >= 0 && index < shipIndex) return active;
+  } catch {
+    /* defensive */
+  }
+  return null;
+}
+
+function buildWorkflowBlockReason(targetPath, workflow) {
+  return [
+    '🛑 L5 gate — Phase-Aware Mutation Guard.',
+    '',
+    'You are about to modify:',
+    `  • ${targetPath}`,
+    '',
+    `This edit is BLOCKED because there is an active workflow: "${workflow.slug}"`,
+    `which is currently in the "${workflow.currentPhase}" phase.`,
+    '',
+    'You cannot modify source code files until the workflow advances to the "ship" phase.',
+    '',
+    'Required next step — pick ONE:',
+    '  1. Complete the current workflow tasks and advance the workflow:',
+    `     node contextkit/tools/scripts/workflow.mjs advance ${workflow.slug}`,
+    '  2. If this edit is for a completely unrelated task, ensure no active workflow',
+    '     is block-restricting the repository, or cooperate with the user to finish/pause it.',
+  ].join('\n');
+}
+
 async function main() {
   if (getLevel(ROOT) < 5) return; // Inert below Level 5.
 
@@ -71,6 +124,14 @@ async function main() {
   if (!filePath) return;
   const targetPath = toRepoRelative(filePath);
   if (!targetPath) return;
+
+  if (!isExemptPath(targetPath, ROOT)) {
+    const activeWf = getActiveWorkflowBeforeShip(ROOT);
+    if (activeWf) {
+      emitBlockDecision(buildWorkflowBlockReason(targetPath, activeWf), HOST);
+      return;
+    }
+  }
 
   const config = await loadConfig(ROOT);
   const matched = matchHighRisk(targetPath, config?.l5?.highRiskPaths ?? []);

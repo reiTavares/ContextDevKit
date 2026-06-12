@@ -116,6 +116,16 @@ Layers active depend on the level (see `contextkit/README.md`):
 3. Big decision (stack/library/pattern) → `/new-adr <title>` BEFORE implementing.
 4. At the end of a productive session → `/log-session`.
 
+### 🤖 Autonomous Execution Guidelines (For AI Agents)
+- As an AI agent, you are expected to operate proactively and drive the development lifecycle autonomously.
+- **You should execute the following actions autonomously**:
+  - Run `/state` or check the pipeline board at the start of a session.
+  - Use `/workflow status` to check active workflows. For non-trivial work, start a `/workflow new <slug>` and complete the PRD/SPEC phases before editing source code.
+  - Use `/dev-start` to lock branch scopes.
+  - Check `/autonomy` to resolve your consent grade. At Grade 3, auto-run edits, tests, and card moves. At Grade 4, run `/ship --auto` and push feature branches autonomously, resolving checks via deliberation quorums (`/debate`).
+  - Proactively create test plans (`/test-plan`), scaffold tests (`/scaffold-tests`), run suites, and perform `/qa-signoff` before finishing a task.
+  - Run `/log-session` at the end of the session to register your work and update `CHANGELOG.md`.
+
 ### Slash commands
 Setup: `/aidevtool-from0` (empty) · `/setupcontextdevkit` (existing). Daily: `/state`
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
