@@ -85,6 +85,15 @@ try {
   const workflowBoard = readFileSync(join(proj, 'contextkit', 'pipeline', 'devpipeline.md'), 'utf-8');
   workflowBoard.includes('| Workflow |') && workflowBoard.includes('| demo |')
     ? ok('pipeline board renders workflow links (ADR-0057)') : bad('workflow column missing from board');
+  // ADR-0051: listTasks must surface `paths:` so the swarm planner can read an
+  // explicit touch-set. Regression guard — swarm-plan.mjs reads task.paths, but
+  // listTasks previously dropped the field, leaving deriveTouchSet's explicit
+  // branch dead via the CLI (the unit test fed paths in by hand and masked it).
+  const pathsCardFile = join(proj, 'contextkit', 'pipeline', 'backlog', workflowLinked.file);
+  writeFileSync(pathsCardFile, readFileSync(pathsCardFile, 'utf-8').replace(/^source:.*$/m, '$&\npaths: [templates/ctx.mjs, tools/foo.mjs]'));
+  const pathsTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === workflowLinked.id);
+  pathsTask?.paths === '[templates/ctx.mjs, tools/foo.mjs]'
+    ? ok('listTasks surfaces paths: for the swarm planner (ADR-0051 regression)') : bad(`paths not surfaced by listTasks: ${JSON.stringify(pathsTask?.paths)}`);
   script('pipeline.mjs', 'move', workflowLinked.id, 'testing');
   const implementedTask = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === workflowLinked.id);
   implementedTask?.stage === 'testing' && implementedTask?.implemented === new Date().toISOString().slice(0, 10)

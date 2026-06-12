@@ -299,6 +299,12 @@ What does **NOT** belong there: ADRs, sessions, pipeline tickets, run state, no
 SQLite, no daemon, no secrets. The kit reads secrets from `process.env`
 exclusively (e.g. `GOOGLE_AI_API_KEY` for `/media-gen`).
 
+## Extension SDK (deferred)
+
+An external tool may connect extra sub-agents and hooks to the kit via a
+**subprocess JSON-RPC contract** — implementation is parked until a concrete
+consumer requests it. Contract authority: [ADR-0018](../contextkit/memory/decisions/0018-extension-sdk-subprocess-jsonrpc.md).
+
 ## Why this shape
 
 - **Defense in depth.** Instructions (CLAUDE.md, slash commands) are advisory;

@@ -70,6 +70,7 @@ export function listTasks(pipeDir) {
         implemented: fm.implemented || '',
         concluded: fm.concluded || '',
         source: fm.source || '',
+        paths: fm.paths || '',
         created: fm.created || '',
         complexity: fm.complexity || '',
         dependencies: parseInlineArray(fm.dependencies),

@@ -148,6 +148,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 },
     bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
     workingStaleAfterMinutes: 90,
+    commitBoard: true,
   },
 
   /**
