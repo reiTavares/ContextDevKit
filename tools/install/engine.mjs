@@ -9,6 +9,7 @@
  */
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { PLATFORM_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { applyPreset, listPresets } from '../../templates/contextkit/runtime/config/presets.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { read, overwrite, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
@@ -62,6 +63,49 @@ async function seedSubstrate(target, tplDir, ctx, report) {
   report.push('✓ curated-stack starters installed (contextkit/starters)');
 }
 
+/**
+ * Migrates a config path list off a renamed platform dir (deferred half of card
+ * 145; ticket 146). The folder migration (`migrateLegacy`) moves `vibekit/` →
+ * `contextkit/` on disk but leaves the `ledger.*` / `l5.highRiskPaths` /
+ * `qa.criticalPaths` STRINGS inside config.json pointing at the dead prefix —
+ * doctor flags that rot (card 145), this heals it.
+ *
+ * Generic by construction (rule 4 — no literal "vibekit"): for each entry that
+ * does NOT resolve on disk, it swaps the leading path segment for the current
+ * `PLATFORM_DIR` and adopts the rewrite ONLY when the candidate exists (rule 8 —
+ * never silently rewrite to another nonexistent path; leave the rest for doctor).
+ * @param {string} target project root
+ * @param {string[]|undefined} entries the path list to heal
+ * @param {{n:number}} counter mutated with the number of rewrites
+ * @returns {string[]|undefined} the healed list (same reference shape)
+ */
+function healPathList(target, entries, counter) {
+  if (!Array.isArray(entries)) return entries;
+  return entries.map((entry) => {
+    if (typeof entry !== 'string' || !entry.includes('/')) return entry;
+    if (existsSync(join(target, entry))) return entry; // current path is fine
+    const head = entry.slice(0, entry.indexOf('/'));
+    if (head === PLATFORM_DIR) return entry; // already current prefix, genuinely missing — doctor's job
+    const candidate = `${PLATFORM_DIR}/${entry.slice(entry.indexOf('/') + 1)}`;
+    if (!existsSync(join(target, candidate))) return entry; // unverifiable — don't guess
+    counter.n += 1;
+    return candidate;
+  });
+}
+
+/** Heals every renamed-dir entry across the three path-bearing config lists; returns rewrite count. */
+function migrateConfigPaths(target, cfg) {
+  const counter = { n: 0 };
+  if (cfg.ledger) {
+    for (const key of ['registration', 'important', 'irrelevant']) {
+      if (cfg.ledger[key]) cfg.ledger[key] = healPathList(target, cfg.ledger[key], counter);
+    }
+  }
+  if (cfg.l5) cfg.l5.highRiskPaths = healPathList(target, cfg.l5.highRiskPaths, counter);
+  if (cfg.qa) cfg.qa.criticalPaths = healPathList(target, cfg.qa.criticalPaths, counter);
+  return counter.n;
+}
+
 /** Creates config.json (level + first-run flag) or updates the level, preserving a finished setup. */
 async function writeConfig(target, tplDir, level, args, report) {
   const cfgPath = join(target, 'contextkit', 'config.json');
@@ -72,9 +116,11 @@ async function writeConfig(target, tplDir, level, args, report) {
       let cfg = JSON.parse(await read(cfgPath));
       cfg.level = level;
       if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
+      const healed = migrateConfigPaths(target, cfg);
       if (preset) cfg = applyPreset(cfg, preset);
       await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
       report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
+      if (healed > 0) report.push(`✓ migrated ${healed} config path(s) onto ${PLATFORM_DIR}/ (renamed platform dir)`);
     } catch {
       /* leave malformed file for the user */
     }

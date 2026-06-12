@@ -2,6 +2,10 @@
  * Workflow spec-pack helpers (ADR-0057). New workflows live in
  * `contextkit/memory/workflows/<slug>/`, while the old single-file breadcrumb
  * remains readable for compatibility.
+ *
+ * Cohesion Note: Content completeness checks and validation gates are kept
+ * cohesive inside this module to avoid fragmented parsing logic across files
+ * and to keep workflow advancing atomic and safe.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -213,10 +217,31 @@ export function listWorkflows(root) {
   return [...valid, ...broken];
 }
 
+export function checkWorkflowDocument(root, slug, phase) {
+  if (phase !== 'prd' && phase !== 'spec') return;
+  const dir = packDir(root, slug);
+  if (phase === 'prd') {
+    const prdPath = resolve(dir, 'prd.md');
+    if (!existsSync(prdPath)) throw new Error(`PRD file not found at ${prdPath}`);
+    const content = readFileSync(prdPath, 'utf-8');
+    if (/## Problem\s*(?=\n##|\n#|\s*$)/i.test(content) || /## Goals\s*(?=\n##|\n#|\s*$)/i.test(content)) {
+      throw new Error(`PRD document is incomplete. Please fill the "## Problem" and "## Goals" sections first.`);
+    }
+  } else if (phase === 'spec') {
+    const specPath = resolve(dir, 'spec.md');
+    if (!existsSync(specPath)) throw new Error(`SPEC file not found at ${specPath}`);
+    const content = readFileSync(specPath, 'utf-8');
+    if (/## Proposed design\s*(?=\n##|\n#|\s*$)/i.test(content) || /## Test plan\s*(?=\n##|\n#|\s*$)/i.test(content)) {
+      throw new Error(`SPEC document is incomplete. Please fill the "## Proposed design" and "## Test plan" sections first.`);
+    }
+  }
+}
+
 export function advanceWorkflow(root, slug, ref = '') {
   const workflow = readWorkflow(root, slug);
   if (!workflow) throw new Error(`workflow "${slug}" not found`);
   if (workflow.format === 'legacy') return advanceLegacy(root, workflow, ref);
+  checkWorkflowDocument(root, slug, workflow.currentPhase);
   const index = PHASES.indexOf(workflow.currentPhase);
   if (index < 0) throw new Error(`workflow "${slug}" has unknown currentPhase: ${workflow.currentPhase}`);
   workflow.phases[workflow.currentPhase].status = 'done';

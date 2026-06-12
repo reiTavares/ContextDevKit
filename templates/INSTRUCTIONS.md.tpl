@@ -25,13 +25,15 @@ node ctx.mjs session start
 This runs the hook that fetches upstream git status, detects workspace claims, identifies prior unregistered sessions (drift), and injects the boot context.
 
 ### 🤖 Autonomous Execution Guidelines (For AI Agents)
-- As an AI agent (Antigravity), you have direct access to run shell commands in this workspace.
-- **You are expected to execute these commands autonomously** at appropriate times:
+- As an AI agent (Antigravity), you have direct access to run shell commands in this workspace and are expected to operate proactively.
+- **You should execute the following actions autonomously**:
   - Run `node ctx.mjs session start` as your very first action at the beginning of a session.
-  - Run `node ctx.mjs session status` periodically to check for modified files and ledger status.
-  - Run `node ctx.mjs session end` followed by `node ctx.mjs log-session` at the end of the session to check rules and register work.
-  - Run `node ctx.mjs guard <path>` BEFORE editing any sensitive file (config `l5.highRiskPaths`) — exit 1 means run the `simulate-impact` skill first. On agy versions with hook support the same gate also fires automatically via `.agents/hooks.json` (ADR-0049); this explicit checkpoint is the belt-and-braces fallback.
-  - Run `node ctx.mjs doctor` or `node ctx.mjs tech-debt` autonomously to perform health and tech-debt audits.
+  - Use `node ctx.mjs workflow status` to check active workflows. For non-trivial work, start a workflow (`node ctx.mjs workflow new <slug>`) and complete the PRD/SPEC phases before editing source code.
+  - Use `node ctx.mjs dev-start` to lock branch scopes.
+  - Run `node ctx.mjs guard <path>` BEFORE editing any sensitive file (config `l5.highRiskPaths`) — exit 1 means run the `simulate-impact` skill first.
+  - Check `node ctx.mjs autonomy` to resolve your consent grade. At Grade 3, auto-run edits, tests, and card moves. At Grade 4, run `node ctx.mjs ship --auto` and push feature branches autonomously, resolving checks via deliberation quorums (`node ctx.mjs debate`).
+  - Proactively create test plans (`node ctx.mjs test-plan`), scaffold tests (`node ctx.mjs scaffold-tests`), run suites, and perform `node ctx.mjs qa-signoff` before finishing a task.
+  - Run `node ctx.mjs session end` followed by `node ctx.mjs log-session` at the end of the session to register your work and update `CHANGELOG.md`.
 
 ### 2. Adopting a Posture (Squad Sub-agents)
 If your task requires specialized knowledge, check the agent definitions in `.agents/agents/` and adopt that posture. The personas are organized into specialized squads:

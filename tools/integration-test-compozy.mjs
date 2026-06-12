@@ -37,6 +37,8 @@ function testWorkflowMacro() {
     existsSync(join(proj, 'contextkit/memory/workflows/demo/spec.md'))
     ? ok('/workflow new creates a spec-pack folder (ADR-0057)') : bad('spec-pack missing');
   cli('new', 'demo').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
+  writeFileSync(join(proj, 'contextkit/memory/workflows/demo/prd.md'), `# PRD/PDR - demo\n\n## Problem\nFixed problem\n\n## Goals\nFixed goals\n`);
+  writeFileSync(join(proj, 'contextkit/memory/workflows/demo/spec.md'), `# SPEC - demo\n\n## Proposed design\nNew design\n\n## Test plan\nRun tests\n`);
   ['intake-ok', 'prd-v1', 'spec-v1', 'ADR-0057', 'P2.1', '[148]', 'ship-log', 'suite-green'].forEach((r) => cli('advance', 'demo', r));
   /complete/i.test(cli('advance', 'demo', 'qa-approved').stdout) ? ok('/workflow lifecycle completes after spec-pack phases (ADR-0057)') : bad('final advance missing complete');
   writeFileSync(join(proj, 'untracked-report-note.md'), 'new file should appear in workflow report\n');

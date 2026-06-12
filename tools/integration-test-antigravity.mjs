@@ -168,6 +168,87 @@ try {
     ? ok('simulate-gate --host agy denies an uncovered high-risk agy write (ADR-0049)')
     : bad(`agy gate verdict wrong: ${agyGate.stdout.slice(0, 200)}`);
 
+  // ── workflow spec-pack gates and phase-aware guard integration test ──
+  const w1 = ctx('workflow', 'new', 'testwf');
+  w1.status === 0 && existsSync(join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'index.md'))
+    ? ok('can create a new workflow folder pack')
+    : bad(`failed to create workflow (status ${w1.status}): ${w1.stdout + w1.stderr}`);
+
+  // Advance from intake to prd (intake document doesn't block advance)
+  const w2 = ctx('workflow', 'advance', 'testwf');
+  w2.status === 0
+    ? ok('can advance workflow from intake to prd')
+    : bad(`failed to advance to prd (status ${w2.status}): ${w2.stderr + w2.stdout}`);
+
+  // Advance from prd to spec (should fail because prd.md is empty)
+  const w3 = ctx('workflow', 'advance', 'testwf');
+  w3.status !== 0 && /PRD document is incomplete/i.test(w3.stderr + w3.stdout)
+    ? ok('advance fails when prd.md has empty sections')
+    : bad(`expected failure due to empty prd.md, but got status ${w3.status}: ${w3.stdout + w3.stderr}`);
+
+  // Fill the PRD sections
+  const prdPath = join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'prd.md');
+  writeFileSync(prdPath, `# PRD/PDR - testwf\n\n## Problem\nWe need enforcement.\n\n## Goals\nTo enforce workflows.\n\n## Users / Jobs\n`);
+
+  // Advance from prd to spec (should succeed now)
+  const w4 = ctx('workflow', 'advance', 'testwf');
+  w4.status === 0
+    ? ok('can advance to spec after filling prd.md')
+    : bad(`failed to advance after filling prd.md (status ${w4.status}): ${w4.stdout + w4.stderr}`);
+
+  // Now workflow is in spec phase. Edit to a code file (src/app.js) should be blocked by simulate-gate.
+  const wBlock = run([join(proj, 'contextkit', 'runtime', 'hooks', 'simulate-gate.mjs'), '--host', 'agy'], {
+    cwd: proj, input: JSON.stringify({ toolCall: { name: 'write_to_file', args: { TargetFile: 'src/app.js' } } }),
+  });
+  const blockVerdict = (() => { try { return JSON.parse(wBlock.stdout); } catch { return null; } })();
+  blockVerdict?.decision === 'deny' && /Phase-Aware Mutation Guard/.test(blockVerdict?.reason ?? '')
+    ? ok('Phase-Aware Mutation Guard blocks code edits during spec phase')
+    : bad(`Mutation guard did not block edit during spec phase: ${wBlock.stdout.slice(0, 200)}`);
+
+  // Documentation file edits should not be blocked
+  const docGate = run([join(proj, 'contextkit', 'runtime', 'hooks', 'simulate-gate.mjs'), '--host', 'agy'], {
+    cwd: proj, input: JSON.stringify({ toolCall: { name: 'write_to_file', args: { TargetFile: 'contextkit/memory/workflows/testwf/spec.md' } } }),
+  });
+  const docVerdict = (() => { try { return JSON.parse(docGate.stdout); } catch { return null; } })();
+  docVerdict === null || docVerdict?.decision !== 'deny'
+    ? ok('Phase-Aware Mutation Guard allows editing documentation files')
+    : bad(`Mutation guard blocked doc edit: ${docGate.stdout}`);
+
+  // Advance to adr (fails because spec.md is empty)
+  const w5 = ctx('workflow', 'advance', 'testwf');
+  w5.status !== 0 && /SPEC document is incomplete/i.test(w5.stderr + w5.stdout)
+    ? ok('advance fails when spec.md has empty sections')
+    : bad(`expected failure due to empty spec.md, but got status ${w5.status}`);
+
+  // Fill spec.md
+  const specPath = join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'spec.md');
+  writeFileSync(specPath, `# SPEC - testwf\n\n## Proposed design\nNew design.\n\n## Test plan\nRun tests.\n`);
+
+  // Advance to adr (succeeds)
+  const w6 = ctx('workflow', 'advance', 'testwf');
+  w6.status === 0
+    ? ok('can advance to adr after filling spec.md')
+    : bad(`failed to advance after filling spec.md: ${w6.stdout + w6.stderr}`);
+
+  // Advance to roadmap (adr -> roadmap)
+  ctx('workflow', 'advance', 'testwf');
+  // Advance to pipeline (roadmap -> pipeline)
+  ctx('workflow', 'advance', 'testwf');
+  // Advance to ship (pipeline -> ship)
+  const wShip = ctx('workflow', 'advance', 'testwf');
+  wShip.status === 0
+    ? ok('can advance workflow to ship phase')
+    : bad(`failed to advance to ship: ${wShip.stdout + wShip.stderr}`);
+
+  // Now workflow is in ship phase. Edit to code file should be allowed (since not in high-risk path)
+  const wAllow = run([join(proj, 'contextkit', 'runtime', 'hooks', 'simulate-gate.mjs'), '--host', 'agy'], {
+    cwd: proj, input: JSON.stringify({ toolCall: { name: 'write_to_file', args: { TargetFile: 'src/app.js' } } }),
+  });
+  const allowVerdict = (() => { try { return JSON.parse(wAllow.stdout); } catch { return null; } })();
+  allowVerdict === null || allowVerdict?.decision !== 'deny'
+    ? ok('Phase-Aware Mutation Guard allows code edits once in ship phase')
+    : bad(`Mutation guard blocked edit in ship phase: ${wAllow.stdout}`);
+
   // ── antigravity-aware doctor (ticket 086) ──
   const healthy = ctx('doctor');
   /ctx\.mjs runner present/.test(healthy.stdout) && /asset trees populated/.test(healthy.stdout) && /INSTRUCTIONS\.md present, fully rendered/.test(healthy.stdout)

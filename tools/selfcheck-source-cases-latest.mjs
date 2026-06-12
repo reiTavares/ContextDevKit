@@ -55,4 +55,8 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['Codex hook adapter persists a stable local session marker', 'templates/contextkit/runtime/hooks/host-adapter.mjs', /CODEX_SESSION_MARKER[\s\S]*rememberHookSessionId/],
     ['AGENTS.md.tpl documents the full Codex session workflow', 'templates/AGENTS.md.tpl', /Complete Session Workflow \(Codex\)[\s\S]*node cdx\.mjs log-session/],
     ['AGENTS.md.tpl requires cooperation across hosts', 'templates/AGENTS.md.tpl', /Codex, Claude Code, and Antigravity are peers/],
+    // ADR-0057 regression — WS-D spawnSync timeout hygiene (task 158).
+    ['session-draft times out its git call — no silent hang (ADR-0057, rule 2)', 'templates/contextkit/tools/scripts/session-draft.mjs', /spawnSync\('git'[\s\S]*timeout:\s*\d/],
+    // ADR-0056 follow-up — WS-E installed-mode converter wire-or-retire doc (task 159).
+    ['codex README documents the converter wire-or-retire status (ADR-0056, task 159)', 'templates/codex/README.md', /Converter — wire-or-retire status[\s\S]*Installed-mode[\s\S]*auto-wired/],
 ];

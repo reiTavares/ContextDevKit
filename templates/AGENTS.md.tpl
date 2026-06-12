@@ -46,6 +46,16 @@ node cdx.mjs state
   unavailable, run `node cdx.mjs simulate-impact "<objective>"` before editing.
 - End productive work with `node cdx.mjs log-session`.
 
+### 🤖 Autonomous Execution Guidelines (For AI Agents)
+- As an AI agent (Codex), you are expected to operate proactively and drive the development lifecycle autonomously.
+- **You should execute the following actions autonomously**:
+  - Run `node cdx.mjs state` at the start of a session.
+  - Use `node cdx.mjs workflow status` to check active workflows. For non-trivial work, start a workflow (`node cdx.mjs workflow new <slug>`) and complete the PRD/SPEC phases before editing source code.
+  - Use `node cdx.mjs dev-start` to lock branch scopes.
+  - Check `node cdx.mjs autonomy` to resolve your consent grade. At Grade 3, auto-run edits, tests, and card moves. At Grade 4, run `node cdx.mjs ship --auto` and push feature branches autonomously, resolving checks via deliberation quorums (`node cdx.mjs debate`).
+  - Proactively create test plans (`node cdx.mjs test-plan`), scaffold tests (`node cdx.mjs scaffold-tests`), run suites, and perform `node cdx.mjs qa-signoff` before finishing a task.
+  - Run `node cdx.mjs log-session` at the end of the session to register your work and update `CHANGELOG.md`.
+
 ### 3. Use Codex skills and the runner
 
 The generated Codex skills under `.agents/skills/source-command-*` mirror the
