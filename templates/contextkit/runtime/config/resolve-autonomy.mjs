@@ -8,7 +8,7 @@
  *
  * Contract (locked by ADR-0042 — extending `AREAS` requires an ADR):
  *   - Precedence, specific beats general: per-run flag (`context.flagGrade`) →
- *     session override → `config.autonomy.grade` → default 2.
+ *     session override → `config.autonomy.grade` → default 3 (ADR-0058).
  *   - The FLOOR clamps last and cannot be out-precedenced: secret-bearing paths
  *     (matchSecret), gate/hook self-edits, force-push, `adr` and `grade-change`
  *     resolve to `manual` at EVERY grade. Config may extend the floor
@@ -47,8 +47,8 @@ const MODE_TABLE = Object.freeze({
 /** First-person consequence text — single-sourced for /autonomy (both hosts) + onboarding (ADR-0042 §5). */
 export const CONSEQUENCE_TEXT = Object.freeze({
   1: 'Grade 1 — Manual: I only act when you command. Every change is yours to initiate.',
-  2: 'Grade 2 — Suggest (default): I propose edits and plans; you approve before anything lands.',
-  3: 'Grade 3 — Auto except decisions: I edit, test and move pipeline cards without asking; ADRs, pushes and high-risk paths still come to you.',
+  2: 'Grade 2 — Suggest: I propose edits and plans; you approve before anything lands.',
+  3: 'Grade 3 — Auto except decisions (default): I edit, test and move pipeline cards without asking; ADRs, pushes and high-risk paths still come to you.',
   4: 'Grade 4 — Full-auto (EXPERIMENTAL): I run /ship checkpoints through deliberation quorums and push to feature branches; ADRs, secrets, force-push and merges to the default branch remain yours. Budget- and telemetry-gated (ADR-0045).',
 });
 
@@ -106,7 +106,7 @@ export function resolveAutonomy(area, config = {}, sessionOverride = null, conte
   let source = 'flag';
   if (grade === null) ({ grade, source } = { grade: parseGrade(sessionOverride), source: 'session' });
   if (grade === null) ({ grade, source } = { grade: parseGrade(config?.autonomy?.grade), source: 'config' });
-  if (grade === null) ({ grade, source } = { grade: config?.autonomy?.grade === undefined ? 2 : 1, source: config?.autonomy?.grade === undefined ? 'default' : 'config-unparseable' });
+  if (grade === null) ({ grade, source } = { grade: config?.autonomy?.grade === undefined ? 3 : 1, source: config?.autonomy?.grade === undefined ? 'default' : 'config-unparseable' });
 
   // Fail-closed (ADR-0045): grade 4 demands deliberations be EXPLICITLY active —
   // an absent/unknown flag is not "assumed on" (rule 8). Callers pass a merged config.

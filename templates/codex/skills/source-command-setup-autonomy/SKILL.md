@@ -37,18 +37,20 @@ Rules for you (the agent):
 2. When the user asks "what would grade N mean?", answer with the script's
    consequence text — do not paraphrase it weaker.
 3. Grade semantics you honor everywhere (via `resolveAutonomy`, the single read
-   path): **1** manual · **2** suggest+supervise (default) · **3** auto-except-
-   decisions (ADRs, pushes, high-risk and secret paths still come to the user) ·
-   **4** full-auto, experimental, telemetry/budget-gated (ADR-0045).
+   path): **1** manual · **2** suggest+supervise · **3** auto-except-decisions
+   (default, ADR-0058 — ADRs, pushes, high-risk and secret paths still come to
+   the user) · **4** full-auto, experimental, telemetry/budget-gated (ADR-0045).
 4. The non-negotiable floor holds at every grade: secret-bearing paths, gate/hook
    self-edits, force-push, ADR-class decisions and grade escalation are always
    the user's. No flag or config removes them.
-5. **Grade 4 is special (ADR-0045).** It is EXPERIMENTAL. The setter runs the
-   deterministic **eligibility bar** first (≥30 transitions · ≥20 sessions ·
-   rollback < 10% · zero wiring-drift · self-coverage green · attribution present)
+5. **Grade 4 is special (ADR-0045, amended ADR-0058).** It is EXPERIMENTAL. The
+   setter runs the deterministic **eligibility bar** first (≥30 transitions ·
+   ≥20 sessions · zero wiring-drift · self-coverage green · attribution present)
    and **refuses naming the failing criterion** if any miss — relay that verbatim.
+   When the bar holds, the setter shows an **informed-consent disclaimer** and the
+   human signs (`--confirm` is the [y] signature; omitting it is [n]/cancel).
    `/autonomy 4` with no flags is **session-scoped** (auto-reverts); persisting
-   needs `--persist --confirm` after the consequence text is shown. The
+   needs the `--persist --confirm` signature after the disclaimer is shown. The
    self-coverage + attribution criteria come from `autonomy-readiness.mjs` — tell
    the user to run it if those are the blockers. Even at grade 4 the floor holds
    and `/ship` runs the **hardened quorum** (see /ship): a Critical from the
