@@ -25,15 +25,19 @@ try {
   // exercises the cwd filter + defensive JSON parsing of a bad line).
   const ttx = join(proj, '_ttx');
   mkdirSync(ttx, { recursive: true });
-  const usageLine = (i, o, extra = {}) => JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, ...extra, message: { role: 'assistant', usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
-  // Main-loop, a /debate subagent (isSidechain), and a /ship command line → exercises ADR-0044 D3 attribution.
-  writeFileSync(join(ttx, 'sess1.jsonl'), [usageLine(100, 200), usageLine(50, 25, { attributionSkill: 'ship' }), usageLine(40, 60, { isSidechain: true, attributionSkill: 'debate' }), '{ bad json'].join('\n'));
+  const usageLine = (i, o, extra = {}) => { const { model, ...rest } = extra; return JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, ...rest, message: { role: 'assistant', model, usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }); };
+  // Main-loop (opus), a /ship line (opus), and a /debate subagent on a CHEAP model (haiku) → exercises
+  // ADR-0044 D3 attribution AND the ADR-0052 byModel split (premium main loop vs cheap fan-out).
+  writeFileSync(join(ttx, 'sess1.jsonl'), [usageLine(100, 200, { model: 'claude-opus-4-8' }), usageLine(50, 25, { attributionSkill: 'ship', model: 'claude-opus-4-8' }), usageLine(40, 60, { isSidechain: true, attributionSkill: 'debate', model: 'claude-haiku-4-5' }), '{ bad json'].join('\n'));
   const tr = script('token-report.mjs', '--from', ttx, '--json');
   (() => { try { const j = JSON.parse(tr.stdout); return j.sessions === 1 && j.totals.total === 475 && j.totals.input === 190; } catch { return false; } })()
     ? ok('token-report aggregates token usage from transcripts') : bad(`token-report failed: ${tr.stdout || tr.stderr}`);
   // ADR-0044 D3 — per-agent (main vs subagent fan-out) and per-command attribution, transcript-derived.
   (() => { try { const a = JSON.parse(tr.stdout).attribution; return a.agents.subagent.input === 40 && a.agents.subagent.output === 60 && a.agents.main.turns === 2 && a.commands.debate && a.commands.ship; } catch { return false; } })()
     ? ok('token-report attributes tokens per-agent (sidechain) and per-command (ADR-0044 D3)') : bad(`token-report D3 attribution wrong: ${tr.stdout}`);
+  // ADR-0052 Phase 2 — byModel split: the premium main loop and the cheap fan-out land in distinct buckets.
+  (() => { try { const m = JSON.parse(tr.stdout).attribution.byModel; return m['claude-opus-4-8']?.turns === 2 && m['claude-opus-4-8']?.input === 150 && m['claude-haiku-4-5']?.input === 40 && m['claude-haiku-4-5']?.output === 60; } catch { return false; } })()
+    ? ok('token-report splits spend per model — premium main vs cheap fan-out (ADR-0052 Phase 2)') : bad(`token-report byModel split wrong: ${tr.stdout}`);
 
   // ADR-0044 D1/D5 — deterministic memory retriever + bounded subagent pack.
   writeFileSync(join(proj, 'contextkit', 'memory', 'GLOSSARY.md'), '# Glossary\n\n| Domain term (UI / business) | Code identifier | Notes |\n| --- | --- | --- |\n| Pipeline | `pipeline.mjs` | the DevPipeline board |\n');

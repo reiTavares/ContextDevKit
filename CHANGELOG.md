@@ -6,7 +6,28 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Add your changes here.
+### Added - cost-tiered model routing Phase 2 (ADR-0052)
+- **Deterministic model resolver.** `contextkit/tools/scripts/model-policy.mjs`
+  turns the ADR-0052 tier table into an executable decision: `resolve --agent`
+  (the `/ship` path) and `tier` (the `/swarm` path, which plans by `tierHint`).
+  Order is contractual — task-class (`execute` → cheap) → QA escalation
+  (`--qa-failures 2`, one tier up, capped at reasoning) → budget de-escalation
+  (`--budget-exhausted`, one tier down) → **floor last** (security / code-security
+  / infra-security / privacy-lgpd never below `powerful`). Price enrichment reuses
+  the agent-forge matrix via an optional dynamic import, degrading to "no price"
+  when the matrix is absent (L<4 / non-Claude host) rather than failing.
+- **Policy materialized + drift-locked.** `contextkit/policy/routing-policy.json`
+  mirrors the ADR table; `tools/selfcheck-model-policy.mjs` asserts it agrees,
+  agent-by-agent, with the host-enforced `model:` frontmatter across all 34
+  agents — a tier can no longer drift between the ADR, the policy and the agent
+  files without a red gate.
+- **Per-model attribution (`byModel`).** `token-report`/`token-attribution` now
+  split spend by `message.model` ("Spend by model"), and the swarm manifest
+  records the resolved alias per workstream with a `models:` breakdown in the run
+  report — a fan-out's true tier mix is auditable, not assumed.
+- **Resolve, don't eyeball.** `/ship` and `/swarm` now call `model-policy.mjs`
+  before each dispatch and pass the returned alias to the Agent tool; omitting
+  `model` silently inherits the premium session model — the costly default.
 
 ## [2.3.0] - 2026-06-12
 

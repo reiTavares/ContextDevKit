@@ -1,0 +1,57 @@
+{
+  "_note": "Materializes the ADR-0052 cost-tier table for the kit's own agents. The resolver (contextkit/tools/scripts/model-policy.mjs) reads THIS file; tools/selfcheck-model-policy.mjs asserts it agrees, agent-by-agent, with the host-enforced `model:` frontmatter under templates/claude/agents/. Changing an agent's tier means amending ADR-0052 AND this file AND the frontmatter — the selfcheck refuses any drift between the three. Aliases only; concrete model IDs + prices live in the dated capability-matrix.json (supply side).",
+  "adr": "ADR-0052",
+  "updated": "2026-06-12",
+  "tiers": {
+    "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
+    "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
+    "reasoning": { "alias": "opus",   "matrixTier": "premium" }
+  },
+  "ladder": ["fast", "powerful", "reasoning"],
+  "floorTier": "powerful",
+  "floorAgents": ["security", "code-security", "infra-security", "privacy-lgpd"],
+  "inheritAgents": ["qa-orchestrator", "forge-orchestrator"],
+  "taskClasses": {
+    "think":     { "rule": "agent-tier", "note": "design / review / security / root-cause / planning — keep the agent's tier (orchestrator may bump one above for genuinely hard design)." },
+    "execute":   { "rule": "fast",       "note": "tests from a given plan / mechanical refactor / scaffold / format / summarize — drop to the cheap tier; QA gates catch regressions." },
+    "ambiguous": { "rule": "agent-tier", "note": "no LLM-judge per dispatch — fall back to the agent's static default." }
+  },
+  "agents": {
+    "architect": "reasoning",
+    "security": "reasoning",
+    "code-security": "reasoning",
+    "infra-security": "reasoning",
+    "privacy-lgpd": "reasoning",
+    "code-reviewer": "reasoning",
+    "agent-architect": "reasoning",
+    "devops": "powerful",
+    "test-engineer": "powerful",
+    "qa-e2e": "powerful",
+    "qa-perf": "powerful",
+    "qa-fuzzer": "powerful",
+    "prompt-engineer": "powerful",
+    "tool-designer": "powerful",
+    "eval-designer": "powerful",
+    "rag-designer": "powerful",
+    "governance-officer": "powerful",
+    "model-router": "powerful",
+    "ui-designer": "powerful",
+    "ux-designer": "powerful",
+    "accessibility": "powerful",
+    "landing-architect": "powerful",
+    "seo-specialist": "powerful",
+    "growth": "powerful",
+    "retention": "powerful",
+    "product-owner": "powerful",
+    "conversion-strategist": "powerful",
+    "tracking-integrator": "powerful",
+    "qa-unit": "fast",
+    "qa-integration": "fast",
+    "packager": "fast",
+    "context-keeper": "fast"
+  },
+  "hostGap": {
+    "agy": "host-gap-adr-0052",
+    "codex": "host-gap-adr-0052"
+  }
+}

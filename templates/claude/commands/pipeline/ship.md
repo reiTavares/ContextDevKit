@@ -90,17 +90,19 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    bounded pack carries the standing rule "do not re-read boot context", so each
    delegated agent starts cheap.
 
-   **Model tier per dispatch (ADR-0052).** Each agent carries a static `model:`
-   tier in its frontmatter; classify the TASK before delegating and override via
-   the Agent tool's `model` param only when it clearly differs — **think**
-   (design, review, security, root-cause, planning, structuring) → the agent's
-   tier or one above; **execute** (tests from a given plan, mechanical refactor,
-   scaffold, format, summarize) → `haiku` with low effort; **ambiguous** → the
-   agent's default. Floor: security / code-security / infra-security /
-   privacy-lgpd never below `sonnet`. Escalation: an output that fails its QA
-   gate twice is re-dispatched exactly once, one tier up (cap `opus`) — report
-   it in the run summary. Budget exhausted → one tier down, never below the
-   floor (ADR-0044 §3: downgrade, never block).
+   **Model tier per dispatch (ADR-0052 Phase 2 — resolve, don't eyeball).**
+   Classify the TASK (**think**: design, review, security, root-cause, planning →
+   keep the agent's tier; **execute**: tests from a given plan, mechanical
+   refactor, scaffold, format, summarize → cheap tier; **ambiguous**: agent
+   default), then ask the resolver for the concrete alias:
+   `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--qa-failures N] [--budget-exhausted]`
+   and pass its `model` to the Agent tool (`execute` also uses low effort).
+   Omitting `model` silently inherits the premium session model — the costly
+   default. The resolver already enforces the floor (security / code-security /
+   infra-security / privacy-lgpd never below `powerful`), the one-step escalation
+   on `--qa-failures 2` (cap `reasoning`), and the budget downgrade (one tier
+   down, never below the floor — ADR-0044 §3). Report any non-default resolution
+   in the run summary.
 
    If the change crosses high-risk paths (L5), run
    `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.

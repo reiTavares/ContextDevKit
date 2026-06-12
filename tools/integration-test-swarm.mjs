@@ -18,7 +18,8 @@ import { checkEligibility } from '../templates/contextkit/runtime/config/autonom
 import { resolveAutonomy } from '../templates/contextkit/runtime/config/resolve-autonomy.mjs';
 import { appendEvent } from '../templates/contextkit/runtime/state/state-io.mjs';
 import { deriveTouchSet, expandWithTestHomes, planSwarm, HARD_MAX_WORKSTREAMS } from '../templates/contextkit/tools/scripts/swarm-plan.mjs';
-import { createRun, evictStale, listRuns, manifestPath, readRun, renderReport, updateWorkstream, WS_STATUSES } from '../templates/contextkit/tools/scripts/swarm-state.mjs';
+import { byModel, createRun, evictStale, listRuns, manifestPath, readRun, renderReport, updateWorkstream, WS_STATUSES } from '../templates/contextkit/tools/scripts/swarm-state.mjs';
+import { aliasForTier } from '../templates/contextkit/tools/scripts/model-policy.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -117,6 +118,25 @@ try {
     ? ok('evicted status persisted with a history entry') : bad('eviction not persisted');
   listRuns(root).length === 1 && /Swarm run run-a/.test(renderReport(readRun(root, 'run-a')))
     ? ok('listRuns + renderReport read the manifest back') : bad('list/report broken');
+
+  // ── byModel attribution: the fan-out's true tier mix (ADR-0052 Phase 2) ──
+  // The swarm plans by tierHint; the coordinator resolves it to a concrete alias
+  // and records it so "were all N agents on opus?" is answered with data.
+  const tierRun = createRun(root, { runId: 'run-tiers', grade: 3, workstreams: [
+    { id: 'ws-a', taskId: '10', branch: 'b/a', worktree: 'w/a', touchSet: ['x'], model: aliasForTier('fast').model },
+    { id: 'ws-b', taskId: '11', branch: 'b/b', worktree: 'w/b', touchSet: ['y'], model: aliasForTier('powerful').model },
+  ] });
+  tierRun.workstreams.find((ws) => ws.id === 'ws-a').model === 'haiku' && tierRun.workstreams.find((ws) => ws.id === 'ws-b').model === 'sonnet'
+    ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
+  updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
+  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model });
+  const mix = byModel(readRun(root, 'run-tiers'));
+  const haiku = mix.find((m) => m.model === 'haiku');
+  const opus = mix.find((m) => m.model === 'opus');
+  haiku?.count === 1 && haiku?.tokens === 500 && opus?.count === 1 && opus?.tokens === 2000
+    ? ok('byModel aggregates count + tokens per tier (escalation re-stamps the alias)') : bad(`byModel wrong: ${JSON.stringify(mix)}`);
+  /models: /.test(renderReport(readRun(root, 'run-tiers')))
+    ? ok('renderReport surfaces the per-model breakdown line') : bad('report missing the models: line');
 
   // ── consent area + event attribution ────────────────────────────────────
   const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });

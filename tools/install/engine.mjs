@@ -25,7 +25,7 @@ const MEMORY_SEEDS = [
   'memory/workflows/_TEMPLATE/tasks.md', 'memory/workflows/_TEMPLATE/memory.md',
   'memory/workflows/_TEMPLATE/reports/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
-  'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', '.env.example',
+  'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', '.env.example',
 ];
 
 /** Copies the engine (always overwrite — kit code) and stamps the version [ADR-0033]. */

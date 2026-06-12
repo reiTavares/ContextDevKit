@@ -5,7 +5,12 @@
  * One manifest per run at `.claude/.swarm/<runId>.json`:
  *   { runId, startedAt, grade, configSnapshot, workstreams: [{ id, taskId,
  *     branch, worktree, touchSet, status, heartbeatTs, deliberationId,
- *     tokens, history: [{ ts, status, note? }] }] }
+ *     model, tokens, history: [{ ts, status, note? }] }] }
+ *
+ * `model` is the cost-tier alias the coordinator actually dispatched on
+ * (ADR-0052 Phase 2 — resolved via `model-policy.mjs`); null until dispatched.
+ * The report aggregates it into a per-model breakdown so a fan-out's true tier
+ * mix (and cost) is auditable, not assumed.
  *
  * Contracts: atomic writes (tmp + rename via safe-io); per-workstream `history`
  * is APPEND-ONLY (mirrors the ADR-0043 events idiom); unknown statuses throw
@@ -72,6 +77,7 @@ export function createRun(root, plan) {
       status: 'planned',
       heartbeatTs: now,
       deliberationId: null,
+      model: ws.model ? String(ws.model) : null,
       tokens: 0,
       history: [{ ts: now, status: 'planned' }],
     })),
@@ -87,7 +93,7 @@ export function createRun(root, plan) {
  * @param {string} root
  * @param {string} runId
  * @param {string} wsId
- * @param {{ status?: string, tokens?: number, deliberationId?: string, note?: string }} patch
+ * @param {{ status?: string, tokens?: number, model?: string, deliberationId?: string, note?: string }} patch
  */
 export function updateWorkstream(root, runId, wsId, patch = {}) {
   const run = readRun(root, runId);
@@ -102,6 +108,7 @@ export function updateWorkstream(root, runId, wsId, patch = {}) {
     workstream.history = [...(workstream.history ?? []), entry];
   }
   if (typeof patch.tokens === 'number' && patch.tokens >= 0) workstream.tokens = patch.tokens;
+  if (patch.model != null) workstream.model = String(patch.model);
   if (patch.deliberationId != null) workstream.deliberationId = String(patch.deliberationId);
   workstream.heartbeatTs = Date.now();
   return writeRun(root, run);
@@ -141,12 +148,36 @@ export function listRuns(root) {
 /** Total subagent tokens recorded across a run's workstreams. */
 export const runTokens = (run) => (run?.workstreams ?? []).reduce((sum, ws) => sum + (ws.tokens || 0), 0);
 
+/**
+ * Per-model fan-out breakdown (ADR-0052 Phase 2 byModel attribution): how many
+ * workstreams ran on each cost tier and how many subagent tokens each burned.
+ * Answers "were all N agents on opus?" with data, not assumption. A workstream
+ * dispatched before the model was recorded buckets under `unknown`.
+ *
+ * @returns {Array<{ model: string, count: number, tokens: number }>}
+ */
+export function byModel(run) {
+  const buckets = new Map();
+  for (const ws of run?.workstreams ?? []) {
+    const key = ws.model || 'unknown';
+    const cur = buckets.get(key) || { model: key, count: 0, tokens: 0 };
+    cur.count += 1;
+    cur.tokens += ws.tokens || 0;
+    buckets.set(key, cur);
+  }
+  return [...buckets.values()].sort((a, b) => b.tokens - a.tokens || b.count - a.count);
+}
+
 /** Human run report — the /swarm review input. */
 export function renderReport(run) {
   if (!run) return 'swarm-state: no such run';
   const lines = [`🐝 Swarm run ${run.runId} — grade ${run.grade}, ${run.workstreams.length} workstream(s), ${runTokens(run)} subagent tokens`];
   for (const ws of run.workstreams) {
-    lines.push(`  [${ws.status}] ${ws.id} → task ${ws.taskId} on ${ws.branch} (${ws.tokens || 0} tok)${ws.deliberationId ? ` quorum:${ws.deliberationId}` : ''}`);
+    lines.push(`  [${ws.status}] ${ws.id} → task ${ws.taskId} on ${ws.branch} (${ws.model || 'model:?'}, ${ws.tokens || 0} tok)${ws.deliberationId ? ` quorum:${ws.deliberationId}` : ''}`);
+  }
+  const tiers = byModel(run);
+  if (tiers.length > 0) {
+    lines.push(`  models: ${tiers.map((t) => `${t.model} ×${t.count} (${t.tokens} tok)`).join(' · ')}`);
   }
   const parked = run.workstreams.filter((ws) => ws.status === 'parked-testing');
   if (parked.length > 0) lines.push(`  → ${parked.length} workstream(s) parked at testing — human review/merge pending (/swarm review).`);
