@@ -40,4 +40,9 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     // Encoding + config-rot guards (tickets 144-145).
     ['selfcheck wires the tree-wide mojibake gate (ticket 144)', 'tools/selfcheck.mjs', /runEncodingChecks\(\{ ok, bad \}, \{ KIT \}\)/],
     ['doctor probes config paths that no longer exist — registration rot is critical (ticket 145)', 'templates/contextkit/tools/scripts/doctor.mjs', /probe\(cfg\?\.ledger\?\.registration, 'ledger\.registration', fail\)/],
+    // ADR-0052 Phase 2 — /fable, the manual premium tier (Fable stays manual-only).
+    ['/fable dispatches the task to a Fable subagent via the Agent tool model param (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Agent tool with[\s\S]*`model: fable`/],
+    ['/fable is explicit-only — never invoked on the agent own initiative (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Never invoke Fable on your own initiative/],
+    ['/fable runs Fable in the subagent, not the main loop — cache-safe (ADR-0052 invariant)', 'templates/claude/commands/fable.md', /subagent, not the main loop/],
+    ['Fable stays out of the auto agent aliases — manual by construction (ADR-0052)', 'tools/selfcheck-templates.mjs', /VALID_MODEL_ALIASES = new Set\(\['haiku', 'sonnet', 'opus', 'inherit'\]\)/],
 ];

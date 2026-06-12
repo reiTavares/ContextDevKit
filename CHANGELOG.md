@@ -6,7 +6,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Add your changes here._
+### Added — `/fable`, the manual premium tier (ADR-0052 Phase 2)
+- **`/fable <task>`** runs ONE task on **Claude Fable 5** — the premium model the
+  automatic tier ladder never reaches (ADR-0052 caps auto-escalation at `opus`;
+  Fable is the manual hatch *above* the ceiling). **Manual-only by construction:**
+  no agent may declare `model: fable` (the selfcheck `VALID_MODEL_ALIASES` forbids
+  it), and nothing auto-routes there — Fable runs only on an explicit `/fable`.
+  It dispatches to a **subagent** with `model: fable` (premium runs in the
+  subagent, never the main loop — the cache-safe ADR-0052 invariant), echoes the
+  cost once, scopes to the one task, then returns to the normal tiers; the autonomy
+  floor (ADR-0042) is unchanged (more capability, not more consent). Antigravity
+  skill mirror generated; covered by selfcheck (command present + the manual-only /
+  subagent-dispatch / cache-safe contract).
 
 ## [2.2.0] - 2026-06-12
 
