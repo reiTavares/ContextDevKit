@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Add your changes here.
+
+## [2.4.0] - 2026-06-12
+
 ### Added - cost-tiered model routing Phase 2 (ADR-0052)
 - **Deterministic model resolver.** `contextkit/tools/scripts/model-policy.mjs`
   turns the ADR-0052 tier table into an executable decision: `resolve --agent`
