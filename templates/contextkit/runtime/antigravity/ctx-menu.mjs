@@ -115,17 +115,19 @@ export function describeCommand(name) {
  * Prints the categorised command menu to console.
  * @param {string[]} availableFiles list of available files in scripts directory
  */
-export function printHelp(availableFiles = []) {
+export function printHelp(availableFiles = [], opts = {}) {
+  const hostLabel = opts.hostLabel ?? 'Antigravity';
+  const runnerFile = opts.runnerFile ?? 'ctx.mjs';
   console.log('\n==================================================');
-  console.log('🛡️  ContextDevKit Command Runner (Antigravity)');
+  console.log(`🛡️  ContextDevKit Command Runner (${hostLabel})`);
   console.log('==================================================\n');
   console.log('Usage:');
-  console.log('  node ctx.mjs <command> [...args]');
-  console.log('  node ctx.mjs help <command>\n');
+  console.log(`  node ${runnerFile} <command> [...args]`);
+  console.log(`  node ${runnerFile} help <command>\n`);
   console.log('Example:');
-  console.log('  node ctx.mjs doctor');
-  console.log('  node ctx.mjs pipeline list');
-  console.log('  node ctx.mjs tech-debt --write\n');
+  console.log(`  node ${runnerFile} doctor`);
+  console.log(`  node ${runnerFile} pipeline list`);
+  console.log(`  node ${runnerFile} tech-debt --write\n`);
   console.log('Note: Pure prompt slash commands (e.g. bug-hunt, advise) are also supported');
   console.log('      and will print their instructions to the console.\n');
 

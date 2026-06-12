@@ -44,7 +44,7 @@ const update = (proj) => run([join(KIT, 'install.mjs'), '--target', proj, '--upd
       ? rep.ok('info/exclude has the managed dogfood block')
       : rep.bad('info/exclude block missing');
     const visible = (git(['status', '--porcelain'], proj).stdout || '').split('\n').filter(Boolean);
-    const leaked = visible.filter((l) => /contextkit\/|\.claude\/|CLAUDE\.md|\.agents\/|INSTRUCTIONS\.md|ctx\.mjs|\.github\//.test(l));
+    const leaked = visible.filter((l) => /contextkit\/|\.claude\/|CLAUDE\.md|\.agents\/|INSTRUCTIONS\.md|ctx\.mjs|\.codex\/|AGENTS\.md|cdx\.mjs|\.github\//.test(l));
     leaked.length === 0
       ? rep.ok(`no kit artifact visible to git (untracked lines: ${visible.length})`)
       : rep.bad(`kit artifacts leak into git status: ${leaked.join(' | ')}`);

@@ -85,6 +85,8 @@ const GITIGNORE_BLOCK = [
   '# ContextDevKit — local runtime state (do not commit)',
   '.claude/.sessions/',
   '.claude/.workspace/',
+  '.codex/.sessions/',
+  '.codex/.workspace/',
   'contextkit/pipeline/state/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
@@ -139,7 +141,7 @@ export async function installVcsIntegration(target, tplDir, level, args, report)
     const tracked = detectTrackedKitPaths(target);
     if (tracked.length > 0) {
       report.push(`ℹ️  ${tracked.length} kit file(s) are ALREADY tracked — the exclude can't hide those.`);
-      report.push('   To stop committing them (optional): git rm -r --cached contextkit .claude CLAUDE.md');
+      report.push('   To stop committing them (optional): git rm -r --cached contextkit .claude .agents .codex CLAUDE.md AGENTS.md ctx.mjs cdx.mjs');
     }
   }
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');

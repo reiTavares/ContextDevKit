@@ -117,7 +117,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['Antigravity installer removes the legacy .antigravity tree (ADR-0048)', 'tools/install/antigravity.mjs', /rm\(legacyTree, \{ recursive: true, force: true \}\)/],
     ['paths.mjs single-sources the agy host dir as .agents (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /export const ANTIGRAVITY_DIR = '\.agents'/],
     ['pathsFor exposes the antigravity host dir (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /antigravity:\s*at\(ANTIGRAVITY_DIR\)/],
-    ['uninstall --purge removes the agy host dirs, new + legacy (ADR-0048)', 'tools/install/uninstall.mjs', /ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR\]/],
+    ['uninstall --purge removes the agy host dirs, new + legacy (ADR-0048)', 'tools/install/uninstall.mjs', /ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR/],
     ['convert-all installed mode targets ANTIGRAVITY_DIR (ADR-0048)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE \? 'templates\/antigravity' : ANTIGRAVITY_DIR/],
     ['doctor flags a leftover legacy .antigravity tree (ADR-0048)', 'templates/contextkit/tools/scripts/doctor.mjs', /ANTIGRAVITY_LEGACY_DIR/],
     ['.agents README ships the host-coexistence rule (ADR-0048)', 'templates/antigravity/README.md', /Host-coexistence rule/],

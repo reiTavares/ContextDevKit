@@ -73,11 +73,15 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   existsSync(resolve(KIT, 'templates/github/workflows/security.yml')) ? ok('security workflow template present') : bad('missing security workflow template');
   existsSync(resolve(KIT, 'templates/github/workflows/quality.yml')) ? ok('quality workflow template present') : bad('missing quality workflow template');
   for (const f of [
-    'templates/CLAUDE.md.tpl', 'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
+    'templates/CLAUDE.md.tpl', 'templates/AGENTS.md.tpl', 'templates/cdx.mjs',
+    'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
     'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
     'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
+    'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
+    'templates/contextkit/runtime/codex/convert-all.mjs',
+    'templates/contextkit/runtime/codex/convert-core.mjs',
     'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/config/presets.mjs',
     'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
     'templates/contextkit/pipeline/working/.gitkeep',
@@ -150,6 +154,10 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md', 'landing-page.md', 'seo-aiso.md']) {
     playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
   }
+  const codexAgents = await readdir(resolve(KIT, 'templates/codex/agents')).catch(() => []);
+  codexAgents.filter((f) => f.endsWith('.toml')).length >= 20 ? ok('Codex subagent templates present') : bad('missing Codex subagent templates');
+  const codexSkills = await readdir(resolve(KIT, 'templates/codex/skills')).catch(() => []);
+  codexSkills.filter((f) => f.startsWith('source-command-')).length >= 35 ? ok('Codex source-command skill templates present') : bad('missing Codex source-command skill templates');
   // ── task 143: INSTRUCTIONS.md.tpl — no hardcoded artifact counts that drift, no ghost personas ──
   const instructions = await readFile(resolve(KIT, 'templates/INSTRUCTIONS.md.tpl'), 'utf-8').catch(() => null);
   if (instructions == null) { bad('templates/INSTRUCTIONS.md.tpl missing or unreadable'); return; }

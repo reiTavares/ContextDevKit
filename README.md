@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
 
-> A portable, **level-based AI-assisted development platform** for **Claude Code** and **Antigravity**.
+> A portable, **level-based AI-assisted development platform** for **Claude Code**, **Antigravity**, and **Codex**.
 > Drop it into any project — greenfield or existing, any stack — and get durable
 > project memory, automatic context loading, drift detection, specialized
 > sub-agents, **opinionated playbooks** (TanStack, landing pages, SEO+AISO), and
@@ -43,8 +43,8 @@ where the last one left off.
 | **`agy guard <path>`** | Explicit L5 pre-edit checkpoint for the hook-less Antigravity host — exit 0 = allowed, exit 1 = run `/simulate-impact` first. Same gate definition as Claude Code's automatic PreToolUse hook |
 | **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map — stack, modules (🎨/⚙️/🔗/🛠️), exported symbols, and a **module dependency graph** for blast-radius reasoning. Churn-free fingerprint; clone-safe staleness nudge at boot |
 | **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Multi-agent deliberations: independent voices argue a hard question, a synthesizer converges (or records `unresolved`), the artifact feeds an ADR's Context |
-| **Deterministic host build** | `npm run build:antigravity` regenerates `.agents` skills/personas from the Claude sources (clean-first); a selfcheck **parity drift-guard** fails the build if the hosts diverge |
-| **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` (engine / claude / antigravity / git) — adding a future host is one module + one call |
+| **Deterministic host build** | `npm run build:antigravity` and `npm run build:codex` regenerate downstream host assets from the Claude sources; selfcheck parity guards fail if a host diverges |
+| **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` (engine / claude / antigravity / codex / git) — adding a host is one module + one call |
 
 </details>
 
@@ -84,7 +84,7 @@ parts that don't depend on the AI's goodwill:
   npm packages). Node 20.6+ unlocks `--env-file` for the media-gen credentials
   flow.
 - **git** (for divergence detection and the Level 3 git hooks).
-- **Claude Code** or **Antigravity** (IDE agent, CLI, desktop, web).
+- **Claude Code**, **Antigravity**, or **Codex** (IDE agent, CLI, desktop, web).
 - *Optional:* `gh` (GitHub CLI) for sync-check PR awareness; `GOOGLE_AI_API_KEY`
   for `/media-gen`.
 
@@ -217,6 +217,9 @@ your-project/
   .agents/                      # Antigravity host (skills, personas, playbooks, workflows — built from the Claude sources)
   INSTRUCTIONS.md                    # Antigravity boot context (the host's CLAUDE.md)
   ctx.mjs                            # Central CLI runner (accessible as agy <command> or npm run ctx)
+  .codex/                            # Codex host (hooks + TOML subagents generated from Claude sources)
+  AGENTS.md                          # Codex boot context
+  cdx.mjs                            # Codex runner alias over the same command dispatcher
   contextkit/
     .env.example                     # optional credentials template (media-gen)
     runtime/hooks/                   # the engine: boot, ledger, drift, L5 gate
@@ -274,6 +277,10 @@ fallback-test,refresh-matrix,killswitch,deprecate}`)
 On **Antigravity** every command above is a **skill** under `.agents/skills/`
 (same names, no `/` prefix), and the engine scripts run through the `agy` runner —
 see [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
+
+On **Codex**, generated `source-command-*` skills live under `.agents/skills/`,
+subagents live under `.codex/agents/*.toml`, and the same deterministic scripts
+run through `node cdx.mjs <command>` — see [docs/CODEX.md](docs/CODEX.md).
 
 ## Squads — sub-agents organised by domain
 
@@ -429,6 +436,7 @@ node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per lev
 node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
 npm run build:antigravity     # regenerate .agents skills/personas from templates/claude
                               # (selfcheck fails if the two hosts drift)
+npm run build:codex           # regenerate .codex agents + source-command skills
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules (zero hot-path deps, hooks
@@ -437,6 +445,7 @@ never break work, add a test for anything you add).
 ## Docs
 
 - [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md) — Specifications and architecture of the Antigravity integration.
+- [docs/CODEX.md](docs/CODEX.md) — Specifications and architecture of the Codex integration.
 - [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally (hooks, providers, state substrate).
 - [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, provider adapters, rebrand.

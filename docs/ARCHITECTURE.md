@@ -2,7 +2,7 @@
 
 How ContextDevKit works internally — for anyone extending the engine.
 
-## Install locations (two hosts, one engine)
+## Install Locations (Three Hosts, One Engine)
 
 Claude Code reads settings, slash commands, and agents from **hardcoded** paths
 under `.claude/`. Everything else — the engine, memory, scripts, providers —
@@ -13,12 +13,16 @@ name is `PLATFORM_DIR` in `contextkit/runtime/config/paths.mjs`.
 Since v1.14 the same engine also powers a second native host, **Google
 Antigravity** (`.agents/` assets + the `ctx.mjs`/`agy` runner +
 `INSTRUCTIONS.md` boot context, generated 1:1 from the Claude sources) — see
-[ANTIGRAVITY.md](ANTIGRAVITY.md). The tree below shows the Claude host plus the
-shared engine:
+[ANTIGRAVITY.md](ANTIGRAVITY.md). Codex is the third host: `AGENTS.md`,
+`.codex/` hooks/subagents, `source-command-*` skills, and `cdx.mjs` are generated
+from the same Claude source — see [CODEX.md](CODEX.md). The tree below shows the
+host surfaces plus the shared engine:
 
 ```
 .agents/             # Antigravity host (skills/personas/playbooks/workflows)
 INSTRUCTIONS.md           # Antigravity boot context · ctx.mjs = the agy runner
+.codex/                   # Codex host (hooks + TOML subagents)
+AGENTS.md                 # Codex boot context · cdx.mjs = the Codex runner
 .claude/                  # fixed by Claude Code
   settings.json           # hook wiring (composed by the installer per level)
   commands/               # 73 slash commands, organised in domain packs
@@ -43,6 +47,7 @@ contextkit/
   runtime/state/          # canonical state.json substrate for tasks + runs
   tools/scripts/          # 76 helpers (reindex, dashboard, sync-check, guard, audits, …)
   runtime/antigravity/    # session-manager (explicit lifecycle), ctx-menu, convert-all
+  runtime/codex/          # Codex converters (Claude source -> skills/TOML)
   memory/                 # decisions/, sessions/, business-rules/, GLOSSARY.md, generated indices
   pipeline/               # DevPipeline lanes: backlog / working / testing / conclusion
   workflows/playbooks/    # tanstack, landing-page, seo-aiso, tech-debt-sweep, …

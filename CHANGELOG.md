@@ -6,6 +6,20 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added - Codex native host parity
+- **Codex joins Claude Code and Antigravity as a native host.** The installer now
+  writes `AGENTS.md`, `.codex/hooks.json`, `.codex/agents/*.toml`, generated
+  `source-command-*` skills under `.agents/skills/`, and a `cdx.mjs` runner
+  mirroring `ctx.mjs`. Dogfood excludes now cover `.codex/`, `AGENTS.md`, and
+  `cdx.mjs`, while doctor/context-level/selfcheck/integration tests guard the
+  new host surface.
+- **Codex now carries the full session discipline, not just generated assets.**
+  Codex hooks identify themselves with `--host codex`, SessionStart pins a stable
+  Codex ledger when no `session_id` is available, `AGENTS.md` includes the same
+  workflow/constitution as the other hosts, and the docs state that Codex,
+  Claude Code, and Antigravity cooperate over shared claims, ADRs, pipeline
+  cards, sessions, and changelog.
+
 ### Added — `/fable`, the manual premium tier (ADR-0052 Phase 2)
 - **`/fable <task>`** runs ONE task on **Claude Fable 5** — the premium model the
   automatic tier ladder never reaches (ADR-0052 caps auto-escalation at `opus`;

@@ -37,6 +37,11 @@ const EXCLUDED_PATHS = [
   '/INSTRUCTIONS.md',
   '/INSTRUCTIONS.contextdevkit.md',
   '/ctx.mjs',
+  // Codex host
+  '/.codex/',
+  '/AGENTS.md',
+  '/AGENTS.contextdevkit.md',
+  '/cdx.mjs',
   // Scaffolded GitHub templates + CI
   '/.github/ISSUE_TEMPLATE/',
   '/.github/PULL_REQUEST_TEMPLATE.md',
@@ -102,7 +107,7 @@ export function detectTrackedKitPaths(target) {
   try {
     const result = spawnSync(
       'git',
-      ['-C', target, 'ls-files', '--', 'contextkit', '.claude', 'CLAUDE.md', 'ctx.mjs', '.agents'],
+      ['-C', target, 'ls-files', '--', 'contextkit', '.claude', 'CLAUDE.md', 'ctx.mjs', '.agents', '.codex', 'AGENTS.md', 'cdx.mjs'],
       { encoding: 'utf-8', windowsHide: true },
     );
     if (result.status !== 0 || !result.stdout) return [];

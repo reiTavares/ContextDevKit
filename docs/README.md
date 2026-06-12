@@ -26,7 +26,9 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 ## 💡 Explanation — understanding-oriented
 _Background and rationale — the why behind the decisions._
 
+- [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
 - [Architecture](ARCHITECTURE.md) — How ContextDevKit works internally — for anyone extending the engine.
+- [Codex Integration — Architecture & Specification](CODEX.md) — How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Google Antigravity: same engine, same m…
 - [Model-tier routing study — expensive models think, cheap models execute](explanation/model-tier-routing-study.md) — the kit, wired together, give ~80% of the value with zero new engine code:
 - [Swarm feasibility study — a coordinated agent swarm on the autonomy substrate](explanation/swarm-feasibility-study.md) — Can ContextDevKit host a **strong agent swarm** — one coordinator pulling several
 - [Token-Economy & Agility Plan](token-economy-plan.md) — In this kit, **tokens are spent when the AI (Claude) reads files and reasons over
@@ -35,8 +37,3 @@ _Background and rationale — the why behind the decisions._
 
 - [Changelog](CHANGELOG.md) — All notable changes to ContextDevKit are documented here.
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
-
-## ❓ Unclassified
-_Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
-
-- [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —

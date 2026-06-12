@@ -10,8 +10,9 @@
  * This file is a THIN ORCHESTRATOR [ADR-0037]: it resolves the install context
  * (level / name / mode / --update), then calls the focused installers under
  * `tools/install/` — wireClaudeSettings + installClaudeHost (claude.mjs),
- * installEngine (engine.mjs), installAntigravityHost (antigravity.mjs), and
- * installVcsIntegration (git.mjs). It detects --update and owns the summary; the
+ * installEngine (engine.mjs), installAntigravityHost (antigravity.mjs),
+ * installCodexHost (codex.mjs), and installVcsIntegration (git.mjs). It detects
+ * --update and owns the summary; the
  * per-file update guards live next to the writes they protect. Adding a third host
  * is a new module + one call here, not more interleaving.
  * Run `node install.mjs --help` for usage and the full flag list.
@@ -25,6 +26,7 @@ import { installVcsIntegration } from './tools/install/git.mjs';
 import { installEngine } from './tools/install/engine.mjs';
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
+import { installCodexHost } from './tools/install/codex.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
@@ -126,7 +128,7 @@ async function main() {
   await wireClaudeSettings(target, level, report);
   if (args.rewire) {
     console.log(report.join('\n'));
-    console.log(`\n✅ Rewired to Level ${level}. Restart Claude Code to load the new hooks.`);
+    console.log(`\n✅ Rewired to Level ${level}. Restart your host (Claude Code, Antigravity, or Codex) to load the new hooks.`);
     return;
   }
 
@@ -136,25 +138,28 @@ async function main() {
   // 3. Antigravity host — second native host [ADR-0036].
   await installAntigravityHost(target, TPL, ctx, report);
 
-  // 4. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
+  // 4. Codex host — third native host (AGENTS.md, .codex, cdx runner).
+  await installCodexHost(target, TPL, ctx, report);
+
+  // 5. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
   await installClaudeHost(target, TPL, ctx, report);
 
-  // 4b. Resolve personalization conflicts (user decides on a TTY; "keep both" otherwise)
+  // 5b. Resolve personalization conflicts (user decides on a TTY; "keep both" otherwise)
   // and persist the manifest baseline for the next update [ADR-0054].
   report.push(...(await resolveConflicts(target, sync, version)));
   await saveManifest(target, sync, version);
 
-  // 5. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
+  // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
   await installVcsIntegration(target, TPL, level, args, report);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
   if (args.update) {
     console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
-    console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
+    console.log('   Refreshed: engine + host assets + hook wiring. Untouched: CLAUDE.md, AGENTS.md, config,');
     console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
     console.log('   and every agent/command/workflow YOU personalized (conflicts: see ⚠️ lines above).');
-    console.log('   Restart Claude Code to load the refreshed hooks.');
+    console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
     console.log('');
     return;
   }
@@ -169,6 +174,7 @@ async function main() {
   if (level < 5) console.log(`  5. Level up later:  /context-level ${Math.min(level + 1, 5)}`);
   console.log('\n  Using Antigravity instead? Read INSTRUCTIONS.md, then run `node ctx.mjs`');
   console.log('  to list commands — or `node ctx.mjs session start` to begin a session.');
+  console.log('  Using Codex? Read AGENTS.md; `node cdx.mjs help` lists the same command runner.');
   console.log('');
 }
 

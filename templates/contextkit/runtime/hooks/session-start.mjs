@@ -40,15 +40,19 @@ import {
   ledgerPathFor,
   listAllLedgers,
   pendingImportantPaths,
-  resolveSessionId,
   wasRegisteredDuringSession,
   writeLedger,
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
+import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
+const isCodex = HOST === 'codex';
+const bootFile = isCodex ? 'AGENTS.md' : 'CLAUDE.md';
+const commandRef = (name, args = '') => (isCodex ? `node cdx.mjs ${name}${args ? ` ${args}` : ''}` : `/${name}${args ? ` ${args}` : ''}`);
 
 async function readStdin() {
   return new Promise((res) => {
@@ -103,7 +107,8 @@ async function main() {
   } catch {
     /* keep empty */
   }
-  const sessionId = resolveSessionId(payload);
+  const sessionId = resolveHookSessionId(payload, HOST);
+  rememberHookSessionId(sessionId, HOST);
   const level = getLevel(ROOT);
   const needsSetup = loadConfigSync(ROOT)?.setup?.completed !== true;
 
@@ -131,7 +136,7 @@ async function main() {
 
   const out = [];
   out.push('<project-context-boot>');
-  out.push(`# 📚 Boot context — ${await projectName(ROOT)}`);
+  out.push(`# 📚 Boot context — ${await projectName(ROOT)} (${HOST})`);
   out.push('');
   out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · ContextDevKit level: \`L${level}\`${autonomyBadge(ROOT)}`);
   out.push('');
@@ -151,14 +156,14 @@ async function main() {
     out.push('## 🚀 First run — ContextDevKit not configured yet');
     out.push('');
     if (empty) {
-      out.push('This folder looks **empty (no code yet)**. Run **`/aidevtool-from0`** — it interviews you');
+      out.push(`This folder looks **empty (no code yet)**. Run **\`${commandRef('aidevtool-from0')}\`** — it interviews you`);
       out.push('about the product, suggests/refines the stack, drafts a roadmap, adopts the best-practices');
       out.push('constitution, and seeds the DevPipeline. From zero, the kit stays ACTIVE: it keeps');
       out.push('suggesting the next practice/level as the product takes shape.');
     } else {
-      out.push('This project already has code. Run **`/setupcontextdevkit`** — it inspects the project, tunes');
-      out.push('the config to this stack, fills in `CLAUDE.md`, flags high-risk paths, installs what is');
-      out.push('needed, and records a baseline ADR. (Empty project instead? use `/aidevtool-from0`.)');
+      out.push(`This project already has code. Run **\`${commandRef('setupcontextdevkit')}\`** — it inspects the project, tunes`);
+      out.push(`the config to this stack, fills in \`${bootFile}\`, flags high-risk paths, installs what is`);
+      out.push(`needed, and records a baseline ADR. (Empty project instead? use \`${commandRef('aidevtool-from0')}\`.)`);
     }
     out.push('');
   }
@@ -167,7 +172,7 @@ async function main() {
     out.push('## 🧠 Best-practices skill is ACTIVE');
     out.push('');
     out.push('Honor `contextkit/best-practices.md` (file-size budget, intelligent refactor by responsibility,');
-    out.push('SoC, naming, docs). Run `/analyze-code-ia-practices` to audit + get refactor proposals.');
+    out.push(`SoC, naming, docs). Run \`${commandRef('analyze-code-ia-practices')}\` to audit + get refactor proposals.`);
     out.push('');
   }
 
@@ -183,7 +188,7 @@ async function main() {
   if (secDue) {
     out.push('## 🛡️ Security mode — time for a deep sweep');
     out.push('');
-    out.push(`**${secDue} sessions** in. Run **\`/deep-analysis\`** — full code + security + deps + bug`);
+    out.push(`**${secDue} sessions** in. Run **\`${commandRef('deep-analysis')}\`** — full code + security + deps + bug`);
     out.push('sweep → report → ADRs → backlog. (Active by default; disable via `securityMode.active`.)');
     out.push('');
   }
@@ -192,8 +197,8 @@ async function main() {
     out.push('## 🔮 Predictions — close the loop');
     out.push('');
     out.push(`**${predDue} sessions** in with **unreviewed** \`/simulate-impact\` predictions. Run`);
-    out.push('**`/predictions-review`** to fill their *Actual* section (predicted vs actual). It also');
-    out.push('auto-runs at `/log-session`; disable the reminder via `predictionsReview.active`.');
+    out.push(`**\`${commandRef('predictions-review')}\`** to fill their *Actual* section (predicted vs actual). It also`);
+    out.push(`auto-runs at \`${commandRef('log-session')}\`; disable the reminder via \`predictionsReview.active\`.`);
     out.push('');
   }
 
@@ -201,7 +206,7 @@ async function main() {
     out.push('## 🐞 Open bugs awaiting resolution');
     out.push('');
     out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in backlog/working.`);
-    out.push('Resolve pending bugs (P0/P1 first) before new feature work — `/pipeline` to triage, `/bug-hunt <id>` to fix.');
+    out.push(`Resolve pending bugs (P0/P1 first) before new feature work — \`${commandRef('pipeline')}\` to triage, \`${commandRef('bug-hunt', '<id>')}\` to fix.`);
     out.push('');
   }
 
@@ -232,7 +237,7 @@ async function main() {
       out.push('');
     }
     if (drift.length > 2) {
-      out.push(`_+ ${drift.length - 2} older unregistered session(s) — \`/log-session\` to reconcile, or leave them if abandoned._`);
+      out.push(`_+ ${drift.length - 2} older unregistered session(s) — \`${commandRef('log-session')}\` to reconcile, or leave them if abandoned._`);
       out.push('');
     }
     out.push('If those changes still matter, **offer to retroactively register them** before new work.');
@@ -251,7 +256,7 @@ async function main() {
     out.push('');
     out.push(branches);
     out.push('');
-    out.push('If you will touch files another branch changed, coordinate (or `/claim`) — the pre-push');
+    out.push(`If you will touch files another branch changed, coordinate (or \`${commandRef('claim', '<path>')}\`) — the pre-push`);
     out.push('hook will also block a conflicting push.');
     out.push('');
   }
@@ -284,10 +289,10 @@ async function main() {
   out.push('## ⚠️ Process rules');
   out.push('');
   out.push('1. Read SESSIONS index + relevant ADR before non-trivial changes.');
-  out.push('2. New architectural decision → `/new-adr <title>` BEFORE implementing.');
-  if (level >= 3) out.push('3. Reserve area before parallel work → `/claim <path>`. Free with `/release`.');
-  out.push('4. End of productive session → `/log-session`.');
-  out.push('5. `/state` for a quick state summary at any time.');
+  out.push(`2. New architectural decision → \`${commandRef('new-adr', '<title>')}\` BEFORE implementing.`);
+  if (level >= 3) out.push(`3. Reserve area before parallel work → \`${commandRef('claim', '<path>')}\`. Free with \`${commandRef('release')}\`.`);
+  out.push(`4. End of productive session → \`${commandRef('log-session')}\`.`);
+  out.push(`5. \`${commandRef('state')}\` for a quick state summary at any time.`);
   if (hasSnapshot) out.push('6. `.context-snapshot.md` available for a full-project view.');
   out.push('</project-context-boot>');
 

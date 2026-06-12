@@ -1,13 +1,14 @@
 /**
  * `--uninstall` [`--purge`]: remove ContextDevKit's hook wiring + git hooks (and,
  * with purge, the engine/commands/agents) while ALWAYS keeping the user's
- * memory (ADRs/sessions) and CLAUDE.md.
+ * memory (ADRs/sessions), CLAUDE.md, and AGENTS.md.
  */
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
+import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { stripAgentHooks } from '../../templates/contextkit/runtime/config/agent-hooks-compose.mjs';
+import { stripCodexHooks } from '../../templates/contextkit/runtime/config/codex-hooks-compose.mjs';
 import { read, overwrite } from './fs.mjs';
 
 export async function uninstall(target, purge) {
@@ -30,6 +31,18 @@ export async function uninstall(target, purge) {
       report.push('✓ removed ContextDevKit hook wiring from .claude/settings.json');
     } catch {
       report.push('⚠️  could not parse .claude/settings.json — left untouched');
+    }
+  }
+  // 1c. Strip ContextDevKit hook entries from .codex/hooks.json.
+  const codexHooksPath = join(target, CODEX_DIR, 'hooks.json');
+  if (existsSync(codexHooksPath)) {
+    try {
+      const remaining = stripCodexHooks(JSON.parse((await read(codexHooksPath)).replace(/^\uFEFF/, '')));
+      if (remaining) await overwrite(codexHooksPath, JSON.stringify(remaining, null, 2) + '\n');
+      else await rm(codexHooksPath, { force: true });
+      report.push(`✓ removed ContextDevKit hook wiring from ${CODEX_DIR}/hooks.json`);
+    } catch {
+      report.push(`⚠️  could not parse ${CODEX_DIR}/hooks.json — left untouched`);
     }
   }
   // 1b. Strip the kit-owned group from .agents/hooks.json, keeping user groups
@@ -55,14 +68,14 @@ export async function uninstall(target, purge) {
   }
   // 3. With --purge, delete the engine + commands/agents (KEEP memory).
   if (purge) {
-    for (const rel of ['contextkit/runtime', 'contextkit/tools', '.claude/commands', '.claude/agents', ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR]) {
+    for (const rel of ['contextkit/runtime', 'contextkit/tools', '.claude/commands', '.claude/agents', ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR]) {
       const p = join(target, rel);
       if (existsSync(p)) {
         await rm(p, { recursive: true, force: true });
         report.push(`✓ purged ${rel}`);
       }
     }
-    report.push('ℹ️  kept contextkit/memory/ (your ADRs + session history) and CLAUDE.md');
+    report.push('ℹ️  kept contextkit/memory/ (your ADRs + session history), CLAUDE.md, and AGENTS.md');
   }
   console.log('\n' + report.join('\n'));
   console.log('\n✅ ContextDevKit uninstalled.' + (purge ? '' : ' Engine files kept; re-run without --uninstall to re-enable.'));

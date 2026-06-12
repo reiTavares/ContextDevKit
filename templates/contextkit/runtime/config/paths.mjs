@@ -25,6 +25,12 @@ export const ANTIGRAVITY_DIR = '.agents';
 /** Pre-ADR-0048 Antigravity host folder — kept only for legacy cleanup. */
 export const ANTIGRAVITY_LEGACY_DIR = '.antigravity';
 
+/** Codex host folder — project-local hooks and subagent TOML definitions. */
+export const CODEX_DIR = '.codex';
+
+/** Codex local skills live where Codex discovers project skills in this host. */
+export const CODEX_SKILLS_DIR = `${ANTIGRAVITY_DIR}/skills`;
+
 /** Memory root — ADRs, sessions, glossary, indices. */
 export const MEMORY_DIR = `${PLATFORM_DIR}/memory`;
 
@@ -84,6 +90,8 @@ export function pathsFor(root = process.cwd()) {
     root,
     platform: at(PLATFORM_DIR),
     antigravity: at(ANTIGRAVITY_DIR),
+    codex: at(CODEX_DIR),
+    codexSkills: at(CODEX_SKILLS_DIR),
     memory: at(MEMORY_DIR),
     sessions: at(SESSIONS_DIR),
     sessionsIndex: at(SESSIONS_INDEX),
