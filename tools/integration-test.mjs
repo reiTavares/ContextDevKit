@@ -79,6 +79,17 @@ try {
   (l5settings.hooks?.PreToolUse || []).some((g) => (g.hooks || []).some((h) => h.command.includes('concurrency-guard')))
     ? ok('L5 wires the concurrency guard (PreToolUse)') : bad('concurrency-guard not wired at L5');
 
+  // Seniority rule (ADR-0004): senior active session → DENY (exit 1); bypass demotes to advisory.
+  mkdirSync(join(proj, '.claude', '.workspace'), { recursive: true });
+  const wsnow = Date.now();
+  writeFileSync(join(proj, '.claude', '.workspace', 'senior.json'), JSON.stringify({ sessionId: 'senior', startedAt: wsnow - 10000, lastHeartbeat: wsnow - 30000 }));
+  writeFileSync(join(proj, '.claude', '.workspace', 'junior.json'), JSON.stringify({ sessionId: 'junior', startedAt: wsnow, lastHeartbeat: wsnow }));
+  hook('track-edits.mjs', { session_id: 'senior', tool_name: 'Write', tool_input: { file_path: 'src/hotfile.js' } });
+  const denyR = run([join(proj, 'contextkit', 'runtime', 'hooks', 'concurrency-guard.mjs')], { cwd: proj, input: JSON.stringify({ session_id: 'junior', tool_name: 'Write', tool_input: { file_path: 'src/hotfile.js' } }) });
+  denyR.status === 1 && (denyR.stdout || '').includes('Concurrency DENY') ? ok('concurrency-guard DENY fires for junior vs active senior session') : bad(`DENY did not fire (status=${denyR.status})`);
+  const bypassR = run([join(proj, 'contextkit', 'runtime', 'hooks', 'concurrency-guard.mjs')], { cwd: proj, input: JSON.stringify({ session_id: 'junior', tool_name: 'Write', tool_input: { file_path: 'src/hotfile.js' } }), env: { ...process.env, CONTEXT_ALLOW_CLAIMED_EDIT: '1' } });
+  bypassR.status === 0 ? ok('concurrency-guard CONTEXT_ALLOW_CLAIMED_EDIT=1 demotes deny to advisory') : bad(`bypass failed (status=${bypassR.status})`);
+
   // 008 — a booting session must NOT delete a concurrent session's fresh/empty ledger.
   const concLedger = join(proj, '.claude', '.sessions', 'concurrent.json');
   writeFileSync(concLedger, JSON.stringify({ sessionId: 'concurrent', startedAt: Date.now(), modifications: [], registered: false, stopWarnedAt: null, simulations: [] }));

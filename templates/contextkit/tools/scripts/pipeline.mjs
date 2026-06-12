@@ -6,7 +6,7 @@
  * pipeline-session.mjs, schema-v2 validators in pipeline-validate.mjs.
  */
 import { resolve } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
@@ -26,6 +26,28 @@ const SEVMAP = CFG.severityPriority || DEFAULTS.severityPriority;
 const SLADAYS = CFG.slaDays || DEFAULTS.slaDays;
 
 const tasks = () => listTasks(PIPE);
+
+/**
+ * Build an ownerMap for renderBoard from workspace heartbeat files.
+ * Returns a map of { [sessionId]: { startedAt, lastHeartbeat } }.
+ * Defensive: returns {} if the workspace dir is absent or unreadable.
+ */
+function buildOwnerMap() {
+  const wsDir = pathsFor(ROOT).workspaceStateDir;
+  try {
+    const map = {};
+    for (const f of readdirSync(wsDir)) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        const ws = JSON.parse(readFileSync(resolve(wsDir, f), 'utf-8'));
+        if (ws.sessionId) map[ws.sessionId] = { startedAt: ws.startedAt ?? null, lastHeartbeat: ws.lastHeartbeat ?? null };
+      } catch { /* skip unreadable file */ }
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
 
 function prioritize() {
   const id = process.argv[3];
@@ -77,7 +99,7 @@ function sync() {
   ensureDirs(PIPE);
   migrateStateLayout(PIPE); // ADR-0053: self-heal any legacy flat state dirs into state/
   const all = tasks();
-  writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all));
+  writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all, buildOwnerMap()));
   writeFileAtomicSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all));
 }
 

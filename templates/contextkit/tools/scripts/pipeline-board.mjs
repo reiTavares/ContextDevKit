@@ -7,21 +7,53 @@
 import { isOverdue } from './pipeline-prioritize.mjs';
 import { blockedBy } from './pipeline-validate.mjs';
 
-function table(tasks, allTasks) {
+/**
+ * @param {Array<object>} tasks
+ * @param {Array<object>} allTasks
+ * @param {Record<string,{startedAt:number,lastHeartbeat:number}>|null} ownerMap
+ *   When non-null, an Owner column is appended showing session + live indicator.
+ */
+function table(tasks, allTasks, ownerMap = null) {
   if (tasks.length === 0) return '_(empty)_\n';
-  const rows = ['| ID | Pri | WSJF | Type | Cx | Title | SLA | Roadmap | Workflow |', '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'];
+  const hasOwner = ownerMap !== null;
+  const ownerHdr = hasOwner ? ' Owner |' : '';
+  const ownerSep = hasOwner ? ' --- |' : '';
+  const rows = [
+    `| ID | Pri | WSJF | Type | Cx | Title | SLA | Roadmap | Workflow |${ownerHdr}`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- | --- |${ownerSep}`,
+  ];
   for (const t of tasks) {
     const sla = t.sla ? (isOverdue(t) ? `⏰ ${t.sla}` : t.sla) : '—';
     const cx = t.complexity || '—';
     const n = blockedBy(t, allTasks);
     const title = n > 0 ? `${t.title} ↘ blocked by ${n}` : t.title;
-    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${cx} | ${title} | ${sla} | ${t.roadmap || '—'} | ${t.workflow || '—'} |`);
+    let ownerCell = '';
+    if (hasOwner) {
+      if (t.owner) {
+        const ws = ownerMap[t.owner];
+        if (ws?.lastHeartbeat) {
+          const agoMin = Math.round((Date.now() - ws.lastHeartbeat) / 60000);
+          ownerCell = ` | ${t.owner.slice(0, 8)} ${agoMin < 60 ? '🟢' : '⬜'}`;
+        } else {
+          ownerCell = ` | ${t.owner.slice(0, 8)}`;
+        }
+      } else {
+        ownerCell = ' | —';
+      }
+    }
+    rows.push(`| ${t.id} | ${t.priority} | ${t.wsjf || '—'} | ${t.type} | ${cx} | ${title} | ${sla} | ${t.roadmap || '—'} | ${t.workflow || '—'}${ownerCell} |`);
   }
   return rows.join('\n') + '\n';
 }
 
-/** Full `devpipeline.md` markdown from the task list. */
-export function renderBoard(tasks) {
+/**
+ * Full `devpipeline.md` markdown from the task list.
+ * @param {Array<object>} tasks
+ * @param {Record<string,{startedAt:number,lastHeartbeat:number}>|null} ownerMap
+ *   Optional workspace data keyed by sessionId; when provided, working/testing
+ *   sections show an Owner column with a live-session indicator (ADR-0015 §B).
+ */
+export function renderBoard(tasks, ownerMap = null) {
   const by = (s) => tasks.filter((t) => t.stage === s);
   const overdue = tasks.filter(isOverdue);
   const out = [];
@@ -35,10 +67,10 @@ export function renderBoard(tasks) {
   out.push('');
   out.push('## 🔵 Working (active, owned by a session)');
   out.push('');
-  out.push(table(by('working'), tasks));
+  out.push(table(by('working'), tasks, ownerMap));
   out.push('## 🟡 In testing (code written, awaiting QA)');
   out.push('');
-  out.push(table(by('testing'), tasks));
+  out.push(table(by('testing'), tasks, ownerMap));
   out.push('## 📋 Backlog (by priority)');
   out.push('');
   out.push(table(by('backlog'), tasks));
