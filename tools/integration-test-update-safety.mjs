@@ -16,6 +16,7 @@ import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, unlinkSyn
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KIT, run, git, reporter, readJson } from './it-helpers.mjs';
+import { parseConflictChoice } from './install/sync.mjs';
 
 const rep = reporter();
 const read = (p) => readFileSync(p, 'utf-8');
@@ -144,6 +145,25 @@ const update = (proj) => run([join(KIT, 'install.mjs'), '--target', proj, '--upd
       ? rep.ok(`index untouched (${trackedAfter} kit files still tracked)`)
       : rep.bad(`index changed: ${trackedBefore} → ${trackedAfter}`);
   } finally { rmSync(proj, { recursive: true, force: true }); }
+})();
+
+// ── I. parseConflictChoice: per-file picks + the "apply to all" suffix ───────
+(() => {
+  const cases = [
+    ['b', 'b', false], ['', 'b', false], ['both', 'b', false],
+    ['r', 'r', false], ['replace', 'r', false],
+    ['k', 'k', false], ['keep', 'k', false],
+    ['ba', 'b', true], ['ra', 'r', true], ['ka', 'k', true],
+    ['r all', 'r', true], ['keepall', 'k', true], ['b!', 'b', true],
+    ['  RA  ', 'r', true], ['all', 'b', true],
+  ];
+  const wrong = cases.filter(([input, choice, all]) => {
+    const got = parseConflictChoice(input);
+    return got.choice !== choice || got.all !== all;
+  });
+  wrong.length === 0
+    ? rep.ok(`parseConflictChoice maps all ${cases.length} cases (base letter + 'all' suffix)`)
+    : rep.bad(`parseConflictChoice mismatches: ${wrong.map(([i]) => JSON.stringify(i)).join(', ')}`);
 })();
 
 rep.finish('Integration (update safety, ADR-0054)');
