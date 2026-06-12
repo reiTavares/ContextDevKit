@@ -5,13 +5,14 @@
 export { LEVEL_LABELS } from '../../templates/contextkit/runtime/config/levels.mjs';
 
 export function parseArgs(argv) {
-  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false, migrate: false, dryRun: false };
+  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false, migrate: false, dryRun: false, tracked: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--yes' || a === '-y') args.yes = true;
     else if (a === '--update') { args.update = true; args.yes = true; }
     else if (a === '--migrate') args.migrate = true;
     else if (a === '--dry-run') args.dryRun = true;
+    else if (a === '--tracked') args.tracked = true;
     else if (a === '--rewire') args.rewire = true;
     else if (a === '--force') args.force = true;
     else if (a === '--uninstall') args.uninstall = true;
@@ -50,7 +51,13 @@ Flags:
   --yes, -y         non-interactive (use flags/defaults, no prompts)
   --force           overwrite CLAUDE.md / memory seeds if they exist
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
-                    the CURRENT level; never touches CLAUDE.md, config, or memory
+                    the CURRENT level; never touches CLAUDE.md, config, or memory.
+                    Files YOU personalized are kept; a real conflict (you changed it
+                    AND the kit changed it) asks you — keep both / replace / keep mine
+                    (no TTY: keeps yours + stashes the kit's under contextkit/.updates/)
+  --tracked         commit the install: skip the local git exclude the installer
+                    writes by default (default: install artifacts stay untracked,
+                    so updates never flood your git history)
   --migrate         carry a legacy vibekit/ install forward to contextkit/ (moves the
                     folder, preserves memory/config, rewires settings/CLAUDE.md/hooks)
   --dry-run         with --migrate: report what would change without writing
