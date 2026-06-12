@@ -62,8 +62,8 @@ try {
   script('workspace-sync.mjs');
   const afterEvict = JSON.parse(script('pipeline.mjs', 'list', '--json').stdout || '[]').find((t) => t.id === wipTask.id);
   afterEvict?.stage === 'backlog' ? ok('workspace-sync auto-evicts stale task back to backlog/') : bad(`stale evict failed: stage=${afterEvict?.stage}`);
-  // ADR-0043 §3/§5: the eviction must be ON THE EVENT LOG (actor=evict) — else the
-  // grade-4 rollback metric (ADR-0045) can't see abandonment ("if it isn't an event…").
+  // ADR-0043 §3/§5: the eviction must be ON THE EVENT LOG (actor=evict) so the
+  // audit trail is complete ("if it isn't an event, it didn't happen").
   const evictState = JSON.parse(readFileSync(join(proj, 'contextkit', 'pipeline', 'state', wipTask.id, 'state.json'), 'utf-8'));
   (evictState.events || []).some((e) => e.actor === 'evict' && e.from === 'working' && e.to === 'backlog')
     ? ok('stale eviction appends an actor=evict event (ADR-0043 §5)') : bad(`eviction left no evict event: ${JSON.stringify(evictState.events)}`);
@@ -181,9 +181,14 @@ try {
   script('pipeline.mjs', 'add', '--type', 'chore', '--title', 'auto-move-target');
   const autoId = idByTitle('auto-move-target');
   const cfgPath = join(proj, 'contextkit', 'config.json');
-  const atDefault = script('pipeline.mjs', 'auto-transition', autoId, 'working');
-  atDefault.status !== 0 && /grade 2/.test(atDefault.stdout + atDefault.stderr)
-    ? ok('auto-transition refuses at the default grade 2 (consent gate, ADR-0042)') : bad(`auto-transition ran without consent: ${atDefault.stdout}${atDefault.stderr}`);
+  // Below grade 3 the consent gate refuses an auto-transition. Pin grade 2
+  // explicitly now that grade 3 is the default (ADR-0058).
+  const cfgG2 = JSON.parse(readFileSync(cfgPath, 'utf-8'));
+  cfgG2.autonomy = { grade: 2 };
+  writeFileSync(cfgPath, JSON.stringify(cfgG2, null, 2));
+  const atGrade2 = script('pipeline.mjs', 'auto-transition', autoId, 'working');
+  atGrade2.status !== 0 && /grade 2/.test(atGrade2.stdout + atGrade2.stderr)
+    ? ok('auto-transition refuses at grade 2 (consent gate, ADR-0042)') : bad(`auto-transition ran without consent: ${atGrade2.stdout}${atGrade2.stderr}`);
   const cfgRaw = JSON.parse(readFileSync(cfgPath, 'utf-8'));
   cfgRaw.autonomy = { grade: 3 };
   writeFileSync(cfgPath, JSON.stringify(cfgRaw, null, 2));

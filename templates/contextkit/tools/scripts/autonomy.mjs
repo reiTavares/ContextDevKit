@@ -72,30 +72,52 @@ function persistGrade(grade, from) {
 }
 
 /**
- * Grade-4 path (ADR-0045): refuse unless the eligibility bar holds; default to a
- * SESSION override; persisting needs `--persist --confirm` after the consequence
- * is shown. Returns the process exit code.
+ * The grade-4 informed-consent disclaimer (ADR-0058). The objective bar gates
+ * eligibility; this is the human signature on top of it. `--confirm` IS the
+ * signature ([y]); omitting it is [n] (cancel). Spells out what grade 4 grants
+ * and what stays human at every grade, so the consent is informed, not implicit.
+ */
+function gradeFourDisclaimer() {
+  return [
+    '──────────────────────────────────────────────────────────',
+    '  GRADE 4 — FULL-AUTO (EXPERIMENTAL). Read before you sign.',
+    '──────────────────────────────────────────────────────────',
+    `  ${CONSEQUENCE_TEXT[4]}`,
+    '',
+    '  Grants WITHOUT asking: edits/tests/card-moves · /ship via',
+    '  deliberation quorums · push to non-default branches · swarm dispatch.',
+    '  Stays YOURS at every grade (the floor, ADR-0042): ADRs & grade changes ·',
+    '  secrets & hook/gate self-edits · force-push · merges to the default branch.',
+    '',
+    '  Sign:  [y] `--persist --confirm` → grade 4   ·   [n] omit → no change',
+  ].join('\n');
+}
+
+/**
+ * Grade-4 path (ADR-0045 / ADR-0058): refuse unless the eligibility bar holds;
+ * default to a SESSION override; persisting needs the `--persist --confirm`
+ * signature after the disclaimer is shown. Returns the process exit code.
  */
 function setGradeFour(argv, from) {
   const { eligible, failing } = checkEligibility(ROOT);
   if (!eligible) {
-    console.error('⛔ Grade 4 refused — eligibility bar not met (ADR-0045 §1):');
+    console.error('⛔ Grade 4 refused — eligibility bar not met (ADR-0045 §1, amended ADR-0058):');
     for (const f of failing) console.error(`   ✗ ${f}`);
     console.error('\nAccrue more evented work and run /autonomy-readiness, then retry. (Refused — rule 8.)');
     return 1;
   }
   if (!argv.includes('--persist')) {
     setSessionOverride(4, from);
-    console.log(`✅ Grade 4 (EXPERIMENTAL) set for THIS session only — auto-expires in 8h, /autonomy --clear to drop now.\n\n${CONSEQUENCE_TEXT[4]}`);
+    console.log(`${gradeFourDisclaimer()}\n\n✅ Signed for THIS session only — auto-expires in 8h, /autonomy --clear to drop now.`);
     return 0;
   }
   if (!argv.includes('--confirm')) {
-    console.log(`${CONSEQUENCE_TEXT[4]}\n`);
-    console.log('⚠️  --persist makes grade 4 the standing default across sessions. Re-run with `--persist --confirm` to apply, or omit --persist for a session-only grade 4.');
-    return 1; // refuse-by-default until the human confirms
+    console.log(`${gradeFourDisclaimer()}\n`);
+    console.log('⚠️  --persist makes grade 4 the standing default across sessions. Re-run with `--persist --confirm` to sign, or omit --persist for a session-only grade 4.');
+    return 1; // refuse-by-default until the human signs
   }
   persistGrade(4, from);
-  console.log(`✅ Autonomy grade ${from} → 4 (persisted, EXPERIMENTAL).\n\n${CONSEQUENCE_TEXT[4]}`);
+  console.log(`${gradeFourDisclaimer()}\n\n✅ Signed — autonomy grade ${from} → 4 (persisted, EXPERIMENTAL).`);
   return 0;
 }
 

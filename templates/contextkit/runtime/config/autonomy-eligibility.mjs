@@ -6,8 +6,10 @@
  * an UNMEASURABLE criterion is a miss, never a pass (rule 8: refuse-by-default).
  *
  * Sources (all in-repo, no network):
- *   - ADR-0043 transition events (`state-io` listStates → events): transition
- *     count + rollback rate (a rollback is a `qa` bounce or an `evict`).
+ *   - ADR-0043 transition events (`state-io` listStates → events): the
+ *     transition count. (ADR-0058 dropped the rollback-rate criterion — a `qa`
+ *     bounce is the QA gate working, not an autonomy failure; counting it
+ *     penalised honest QA use.)
  *   - session log files (durable per-session record): the session count.
  *   - a wiring-drift incident log (absent ⇒ 0, since the CI wiring-drift gate
  *     blocks drift from ever landing — ADR-0041 F0).
@@ -32,16 +34,12 @@ import { pathsFor } from './paths.mjs';
 import { listStates } from '../state/state-io.mjs';
 import { SESSION_FILENAME_RE } from '../hooks/session-digest-core.mjs';
 
-/** The fixed bar (ADR-0045 §1) — changing a threshold requires a new ADR. */
+/** The fixed bar (ADR-0045 §1, amended by ADR-0058) — changing a threshold requires a new ADR. */
 export const ELIGIBILITY = Object.freeze({
   minTransitions: 30,
   minSessions: 20,
-  maxRollbackRate: 0.1,
   maxReadinessAgeMs: 14 * 24 * 60 * 60 * 1000, // a stale readiness stamp is not evidence
 });
-
-/** Actors whose transition is a reversal — the rollback-rate numerator. */
-const ROLLBACK_ACTORS = new Set(['qa', 'evict']);
 
 const readJson = (file) => {
   try {
@@ -81,8 +79,6 @@ export function checkEligibility(root) {
   // Count only genuine stage transitions (from ≠ to) — a self-loop is not progress.
   const transitionEvents = listStates(paths.pipeline).flatMap((state) => state.events || []).filter((e) => e && e.from !== e.to);
   const transitions = transitionEvents.length;
-  const rollbacks = transitionEvents.filter((e) => ROLLBACK_ACTORS.has(e.actor)).length;
-  const rollbackRate = transitions > 0 ? rollbacks / transitions : 1; // no data ⇒ worst case (refuse)
   const sessions = sessionCount(paths.sessions);
   const driftIncidents = countLines(resolve(autonomyDir, 'wiring-drift-incidents.jsonl'));
   const readiness = readJson(resolve(autonomyDir, 'readiness.json')) || {};
@@ -96,7 +92,6 @@ export function checkEligibility(root) {
   const criteria = [
     { id: 'transitions', label: `≥ ${ELIGIBILITY.minTransitions} recorded transitions`, pass: transitions >= ELIGIBILITY.minTransitions, detail: `${transitions} evented` },
     { id: 'sessions', label: `≥ ${ELIGIBILITY.minSessions} sessions`, pass: sessions >= ELIGIBILITY.minSessions, detail: `${sessions} session logs` },
-    { id: 'rollback-rate', label: `rollback rate < ${ELIGIBILITY.maxRollbackRate * 100}%`, pass: transitions > 0 && rollbackRate < ELIGIBILITY.maxRollbackRate, detail: `${(rollbackRate * 100).toFixed(1)}% (${rollbacks}/${transitions})` },
     { id: 'wiring-drift', label: 'zero wiring-drift incidents since F0', pass: driftIncidents === 0, detail: `${driftIncidents} incident(s)` },
     { id: 'self-coverage', label: 'self-coverage harness green', pass: coverageGreen, detail: coverageGreen ? 'green' : `absent/red/stale${stamp}` },
     { id: 'attribution', label: 'attribution data (D3) present', pass: attributionPresent, detail: attributionPresent ? 'present' : `absent/stale${stamp}` },

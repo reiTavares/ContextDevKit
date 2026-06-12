@@ -33,12 +33,12 @@ Ask the user (batch into one short round, offer inferred defaults):
 - The **target level** (use `$ARGUMENTS` if provided; else recommend based on
   the report — L2 for most, L1 for greenfield, L4/L5 if the codebase is large or
   has clear high-risk areas).
-- The **autonomy grade** (exactly ONE question, ADR-0041/0042 — phrase the
-  options as consequences, not numbers; preselect grade 2): "How much may I do
-  without asking? (1) only what you command · (2) I suggest, you approve —
-  recommended · (3) I edit and test on my own; decisions still come to you ·
+- The **autonomy grade** (exactly ONE question, ADR-0041/0042/0058 — phrase the
+  options as consequences, not numbers; preselect grade 3): "How much may I do
+  without asking? (1) only what you command · (2) I suggest, you approve ·
+  (3) I edit and test on my own; decisions still come to you — recommended ·
   (4) experimental full-auto." Apply with
-  `node contextkit/tools/scripts/autonomy.mjs <N>` — never preselect 3 or 4.
+  `node contextkit/tools/scripts/autonomy.mjs <N>` — never preselect 4.
 
 ## Phase 3 — Apply configuration
 1. Tune the ledger + high-risk paths to this stack in one step (this also flips

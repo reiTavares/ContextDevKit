@@ -6,7 +6,21 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Add your changes here.
+### Changed - default autonomy grade 3 + grade-4 informed consent (ADR-0058)
+- **Default autonomy grade is now 3 (was 2).** Every fresh install lets the AI
+  edit, test and move pipeline cards without asking out of the box; ADRs,
+  pushes, secrets and high-risk paths still come to you (the floor is unchanged).
+  Single-sourced in `defaults.mjs`, `schema.mjs` and the `resolveAutonomy`
+  absent-grade fallback; onboarding now pre-selects grade 3.
+- **Grade-4 eligibility bar drops the `rollback < 10%` criterion.** A `qa` bounce
+  is the QA gate working, not an autonomy failure — counting it penalised honest
+  QA use. The bar keeps five objective criteria (≥30 transitions · ≥20 sessions ·
+  zero wiring-drift · self-coverage green · attribution present).
+- **Grade-4 activation is now explicit informed consent.** `/autonomy 4` shows a
+  disclaimer spelling out exactly what grade 4 grants and what stays human, then
+  the human signs (`--confirm` is the [y] signature; omitting it is [n]/cancel).
+- **No change to swarm or routing.** ADR-0052 model routing is grade-blind;
+  ADR-0051 swarm already runs at grade 3 with one human OK per run (kept).
 
 ## [2.4.1] - 2026-06-12
 

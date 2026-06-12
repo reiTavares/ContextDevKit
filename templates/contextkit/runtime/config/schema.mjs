@@ -63,7 +63,7 @@ const DeliberationsSchema = z
 
 const AutonomySchema = z
   .object({
-    grade: z.number().int().min(1).max(4).default(2),
+    grade: z.number().int().min(1).max(4).default(3), // ADR-0058 — grade 3 is the default posture
     extraSecretPaths: z.array(z.string()).default([]),
   })
   .default({});

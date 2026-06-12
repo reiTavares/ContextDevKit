@@ -201,8 +201,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['symbol extraction lives in its own module (cohesion, sibling of deps)', 'templates/contextkit/tools/scripts/project-map-symbols.mjs', /export function extractSymbols/],
     // ADR-0041 F0 — autonomy dial trust floor (tasks 100/102).
     ['simulate-gate documents the grade-blind invariant (task 100, ADR-0041)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /autonomy-grade-blind/],
-    ['defaults ship autonomy as a consent grade only — no dead flags (task 102, ADR-0041)', 'templates/contextkit/runtime/config/defaults.mjs', /autonomy: \{ grade: 2 \},/],
-    ['schema validates autonomy.grade 1–4 (task 102, ADR-0042)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(2\),/],
+    ['defaults ship autonomy as a consent grade only — grade 3 default (ADR-0058)', 'templates/contextkit/runtime/config/defaults.mjs', /autonomy: \{ grade: 3 \},/],
+    ['schema validates autonomy.grade 1–4, defaulting to 3 (ADR-0058)', 'templates/contextkit/runtime/config/schema.mjs', /grade: z\.number\(\)\.int\(\)\.min\(1\)\.max\(4\)\.default\(3\),/],
     ['path-classification exports the secret-bearing class (task 103, ADR-0041 floor)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchSecret/],
     ['secret class is extendable, never removable (task 103, ADR-0041)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /never remove/],
     // ADR-0042 F1 — dial core (tasks 106/107).
@@ -253,8 +253,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['boot digests [Unreleased] as count-by-type + recent entries (ADR-0044 D2)', 'templates/contextkit/runtime/hooks/boot-context-readers.mjs', /export function digestUnreleased/],
     ['the [Unreleased] digest falls back to the raw section on a parse miss (ADR-0044 D2, ADR-0027 contract)', 'templates/contextkit/runtime/hooks/session-start.mjs', /digestUnreleased\(changelog\) \|\| extractUnreleased\(changelog\)/],
     // ADR-0045 F4 — grade-4 control plane (eligibility bar + gated setter + hardened quorum).
-    ['eligibility bar fixes the ADR-0045 thresholds (30/20/10%)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /minTransitions: 30[\s\S]*minSessions: 20[\s\S]*maxRollbackRate: 0\.1/],
-    ['eligibility refuses by default — no data is the worst case, never a pass (ADR-0045, rule 8)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /transitions > 0 \? rollbacks \/ transitions : 1/],
+    ['eligibility bar fixes the ADR-0045 thresholds (30/20), no rollback gate (ADR-0058)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /minTransitions: 30[\s\S]*minSessions: 20/],
+    ['eligibility refuses a stale readiness stamp — freshness window, never a pass (ADR-0045/0058, rule 8)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readinessFresh = Number\.isFinite\(stampMs\)/],
     ['self-coverage + attribution are unmeasurable-until-stamped ⇒ refuse (ADR-0045 §1)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readiness\.coverageGreen === true[\s\S]*readiness\.attributionPresent === true/],
     ['/autonomy gates grade 4 on the eligibility bar (ADR-0045 §1)', 'templates/contextkit/tools/scripts/autonomy.mjs', /checkEligibility\(ROOT\)[\s\S]*Grade 4 refused/],
     ['grade 4 is session-scoped by default; persist needs --persist --confirm (ADR-0045 §3)', 'templates/contextkit/tools/scripts/autonomy.mjs', /!argv\.includes\('--persist'\)[\s\S]*!argv\.includes\('--confirm'\)/],

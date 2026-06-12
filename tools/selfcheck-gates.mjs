@@ -135,7 +135,7 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     ? ok(`resolver floor holds at every grade (${floorCells.length} cells → manual, ADR-0042)`)
     : bad(`resolver floor broken: ${floorCells.filter(([, m]) => m !== 'manual').map(([n]) => n).join(', ')}`);
   const expectedModes = [
-    [resolveAutonomy('edit', {}).mode, 'suggest', 'default grade 2 → suggest'],
+    [resolveAutonomy('edit', {}).mode, 'auto', 'default grade 3 → auto (ADR-0058)'],
     [resolveAutonomy('edit', {}).source, 'default', 'missing config → source default'],
     [resolveAutonomy('edit', at('weird')).grade, 1, 'unparseable grade resolves to 1'],
     [resolveAutonomy('edit', at(1), 3).grade, 3, 'session override beats config'],
