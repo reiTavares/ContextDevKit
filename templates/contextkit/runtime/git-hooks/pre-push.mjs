@@ -15,7 +15,9 @@
  *
  * Defensive: no remote / offline / old git → allow (never block on tooling).
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { loadConfigSync } from '../config/load.mjs';
 
 const ROOT = process.cwd();
@@ -48,20 +50,24 @@ function fileList(range) {
   return r.ok ? r.out.split('\n').filter(Boolean) : [];
 }
 
-function main() {
+/**
+ * Conflict pre-check. Returns on every "safe to continue" path (so the caller
+ * can proceed to the quality gates); only a real textual conflict exits 1.
+ */
+function conflictPrecheck() {
   // Refresh the remote ref (best effort, short timeout via git's own).
   git(['fetch', 'origin', MAIN, '--quiet']);
 
   const remote = `origin/${MAIN}`;
-  if (!git(['rev-parse', '--verify', '--quiet', remote]).ok) process.exit(0); // no upstream yet
+  if (!git(['rev-parse', '--verify', '--quiet', remote]).ok) return; // no upstream yet
 
   const base = git(['merge-base', 'HEAD', remote]);
-  if (!base.ok || !base.out) process.exit(0);
+  if (!base.ok || !base.out) return;
 
   const ours = new Set(fileList(`${base.out}..HEAD`));
   const theirs = fileList(`${base.out}..${remote}`);
   const overlap = theirs.filter((f) => ours.has(f));
-  if (overlap.length === 0) process.exit(0); // disjoint — safe
+  if (overlap.length === 0) return; // disjoint — safe
 
   // Real textual conflict? `git merge-tree --write-tree` exits 1 on conflict.
   const mt = git(['merge-tree', '--write-tree', 'HEAD', remote]);
@@ -91,6 +97,32 @@ function main() {
   for (const f of overlap) console.error(`    - ${f}`);
   console.error(`   Tip: git pull --rebase origin ${MAIN} before pushing keeps history clean.`);
   console.error('');
+}
+
+/**
+ * Run the multi-language quality gates (ADR-0062) AFTER the conflict pre-check.
+ * `quality-gates.mjs` owns its own level/warn/block contract: it exits 0 when
+ * disabled/below minLevel/warn-mode, and exits 1 only at strictLevel on a real
+ * failure — which we propagate to block the push. `pushRange` is the raw git
+ * pre-push stdin (`local-ref local-sha remote-ref remote-sha`) it expects.
+ */
+function runQualityGates(pushRange) {
+  const script = fileURLToPath(new URL('./quality-gates.mjs', import.meta.url));
+  const res = spawnSync(process.execPath, [script], { cwd: ROOT, input: pushRange, stdio: ['pipe', 'inherit', 'inherit'] });
+  if (res.status === 1) process.exit(1); // gate blocked in strict mode
+}
+
+function main() {
+  // Git feeds the push range on our stdin; capture it once so we can forward it
+  // to the quality gates (the conflict check itself works off HEAD/remote).
+  let pushRange = '';
+  try {
+    pushRange = readFileSync(0, 'utf-8');
+  } catch {
+    /* no stdin (manual run) — gates fall back to a full-tree check */
+  }
+  conflictPrecheck();
+  runQualityGates(pushRange);
   process.exit(0);
 }
 
