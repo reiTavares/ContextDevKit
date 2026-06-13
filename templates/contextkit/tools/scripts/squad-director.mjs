@@ -9,6 +9,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { pathsFor, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
@@ -95,6 +96,20 @@ function loadConfigSquads() {
   return null;
 }
 
+/**
+ * Matches either an intent phrase or a repo path against one registry row.
+ *
+ * @param {string} input user intent or path-like query
+ * @param {{keywords: string[], paths: string[]}} definition registry row
+ * @returns {boolean}
+ */
+function matchesDefinition(input, definition) {
+  const lowerInput = input.toLowerCase();
+  const keywordMatch = definition.keywords.some(kw => lowerInput.includes(kw));
+  const pathMatch = definition.paths.some(p => lowerInput.includes(p.toLowerCase()) || lowerInput.endsWith(p.toLowerCase()));
+  return keywordMatch || pathMatch;
+}
+
 export function analyzeContext(query = '') {
   const registry = loadRegistry();
   // Merge user's override config squads if present
@@ -108,9 +123,8 @@ export function analyzeContext(query = '') {
 
   // Match based on query intent
   if (query) {
-    const lowerQuery = query.toLowerCase();
     for (const definition of squadDefinitions) {
-      if (definition.keywords.some(kw => lowerQuery.includes(kw))) {
+      if (matchesDefinition(query, definition)) {
         matchedSquads.add(definition.squad);
         matchedAgents.add(definition.agent);
       }
@@ -178,6 +192,6 @@ function main() {
   console.log(JSON.stringify(result, null, 2));
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.url.replace('file:///', '').replace('file://', ''))) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main();
 }

@@ -70,6 +70,7 @@ async function importLibs() {
     'hooks/boot-context-readers.mjs',
     'hooks/boot-signals.mjs',
     'hooks/ledger.mjs',
+    'hooks/squad-context.mjs',
   ];
   const mods = {};
   for (const rel of libs) {

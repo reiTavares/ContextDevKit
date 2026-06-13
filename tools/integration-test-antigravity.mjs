@@ -12,7 +12,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { run, reporter, installFixture } from './it-helpers.mjs';
+import { run, reporter, installFixture, git } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -24,6 +24,11 @@ const { proj } = fx;
 const ctx = (...args) => run([join(proj, 'ctx.mjs'), ...args], { cwd: proj });
 
 try {
+  // Create an initial commit so HEAD exists and git diff commands don't fail.
+  writeFileSync(join(proj, 'README.md'), '# Initial Commit\n');
+  git(['add', 'README.md'], proj);
+  git(['commit', '-m', 'feat: initial commit', '--no-verify'], proj);
+
   // ── ADR-0048: install lands in the agy-native dir, legacy tree gone ──
   existsSync(join(proj, '.agents', 'agents')) && existsSync(join(proj, '.agents', 'skills')) &&
     existsSync(join(proj, 'ctx.mjs')) && existsSync(join(proj, 'INSTRUCTIONS.md'))
@@ -182,7 +187,7 @@ try {
 
   // Advance from prd to spec (should fail because prd.md is empty)
   const w3 = ctx('workflow', 'advance', 'testwf');
-  w3.status !== 0 && /PRD document is incomplete/i.test(w3.stderr + w3.stdout)
+  w3.status !== 0 && /prd\.md: fill/i.test(w3.stderr + w3.stdout)
     ? ok('advance fails when prd.md has empty sections')
     : bad(`expected failure due to empty prd.md, but got status ${w3.status}: ${w3.stdout + w3.stderr}`);
 
@@ -216,7 +221,7 @@ try {
 
   // Advance to adr (fails because spec.md is empty)
   const w5 = ctx('workflow', 'advance', 'testwf');
-  w5.status !== 0 && /SPEC document is incomplete/i.test(w5.stderr + w5.stdout)
+  w5.status !== 0 && /spec\.md: fill/i.test(w5.stderr + w5.stdout)
     ? ok('advance fails when spec.md has empty sections')
     : bad(`expected failure due to empty spec.md, but got status ${w5.status}`);
 
@@ -230,12 +235,12 @@ try {
     ? ok('can advance to adr after filling spec.md')
     : bad(`failed to advance after filling spec.md: ${w6.stdout + w6.stderr}`);
 
-  // Advance to roadmap (adr -> roadmap)
-  ctx('workflow', 'advance', 'testwf');
-  // Advance to pipeline (roadmap -> pipeline)
-  ctx('workflow', 'advance', 'testwf');
+  // Advance to roadmap/pipeline with refs that satisfy the journey gates.
+  ctx('workflow', 'advance', 'testwf', 'ADR-TEST');
+  ctx('workflow', 'advance', 'testwf', 'not-applicable');
+  writeFileSync(join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'tasks.md'), `# Tasks - testwf\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 999 | testing | antigravity workflow gate |\n`);
   // Advance to ship (pipeline -> ship)
-  const wShip = ctx('workflow', 'advance', 'testwf');
+  const wShip = ctx('workflow', 'advance', 'testwf', '[999]');
   wShip.status === 0
     ? ok('can advance workflow to ship phase')
     : bad(`failed to advance to ship: ${wShip.stdout + wShip.stderr}`);

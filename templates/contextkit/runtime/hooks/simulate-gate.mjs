@@ -19,7 +19,7 @@ import { hasSimulationFor, readLedger, toRepoRelative } from './ledger.mjs';
 import { emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 import { matchHighRisk } from './path-classification.mjs';
 import { pathsFor } from '../config/paths.mjs';
-import { listWorkflows, PHASES } from '../../tools/scripts/workflow-pack.mjs';
+import { listWorkflows, PHASES, currentBranch } from '../../tools/scripts/workflow-pack.mjs';
 import { resolve } from 'node:path';
 
 const ROOT = process.cwd();
@@ -76,8 +76,12 @@ function isExemptPath(targetPath, root = ROOT) {
 
 function getActiveWorkflowBeforeShip(root = ROOT) {
   try {
+    const branch = currentBranch(root);
     const list = listWorkflows(root);
-    const active = list.find((w) => w.currentPhase && w.currentPhase !== 'done');
+    // ADR-0070: only a pre-ship workflow created ON THE CURRENT BRANCH blocks edits.
+    // A workflow with no recorded branch (legacy) never branch-scopes, favouring
+    // "never block unrelated flow" over over-blocking parallel sessions/worktrees.
+    const active = list.find((w) => w.currentPhase && w.currentPhase !== 'done' && w.branch && branch && w.branch === branch);
     if (!active) return null;
     const index = PHASES.indexOf(active.currentPhase);
     const shipIndex = PHASES.indexOf('ship');

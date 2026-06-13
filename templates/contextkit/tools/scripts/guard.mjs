@@ -55,18 +55,17 @@ async function main() {
   // touched ledger (same resolution as mark-simulation.mjs / slash commands).
   const recent = await readMostRecentLedger();
   if (recent?.ledger && hasSimulationFor(recent.ledger, targetPath)) {
-    console.log(`✅ guard: allowed — \`${targetPath}\` is high-risk (\`${matched}\`) but covered by a /simulate-impact record.`);
-    
     // Enforce squad compliance checks
     try {
       const auditorPath = resolve(ROOT, PLATFORM_DIR, 'tools/scripts/squad-audit.mjs');
       if (existsSync(auditorPath)) {
-        execFileSync('node', [auditorPath], { cwd: ROOT });
+        execFileSync('node', [auditorPath, recent.sessionId, targetPath], { cwd: ROOT, stdio: 'inherit' });
       }
     } catch {
       console.log('🛑 guard: BLOCKED — active squad compliance audit failed.');
       process.exit(1);
     }
+    console.log(`✅ guard: allowed — \`${targetPath}\` is high-risk (\`${matched}\`) but covered by a /simulate-impact record.`);
     return;
   }
 

@@ -41,7 +41,7 @@ async function safeRead(path) {
 
 function extractUnreleased(changelog) {
   if (!changelog) return null;
-  const match = changelog.match(/## \[Unreleased\]\s*\n([\s\S]*?)(?=\n## \[|$)/);
+  const match = changelog.match(/## \[Unreleased\][ \t]*\r?\n([\s\S]*?)(?=\r?\n## \[|$)/);
   return match?.[1]?.trim() || null;
 }
 

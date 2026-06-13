@@ -24,6 +24,17 @@ this project follows [Semantic Versioning](https://semver.org/).
   ADR write; the `deliberations` config gains `council`, `autoInvoke`, and `research`
   blocks. Covered by `integration-test-deliberation.mjs` (20 checks) + selfcheck gates.
 
+## [2.6.3] - 2026-06-13
+
+### Fixed
+- **Active squad posture gate:** Persist active squads in the session ledger,
+  expose `/squad activate`, and scope `squad-audit` to the target path passed by
+  `guard.mjs` so unrelated modified high-risk files no longer leak into the
+  current edit decision.
+- **Session-start robustness:** Split squad-context boot rendering into a small
+  helper so the hook stays under the project file-size budget while preserving
+  fail-silent behavior.
+
 ## [2.6.2] - 2026-06-13
 
 ### Fixed

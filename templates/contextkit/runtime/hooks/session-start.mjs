@@ -13,9 +13,6 @@
  * zero third-party deps.
  */
 import { rm } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import {
   digestLatestSession,
   digestUnreleased,
@@ -47,10 +44,11 @@ import {
   writeLedger,
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
-import { CONTEXT_SNAPSHOT, PLATFORM_DIR } from '../config/paths.mjs';
+import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 import { renderBootBanner } from './boot-banner.mjs';
+import { readSquadContext } from './squad-context.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -114,8 +112,10 @@ async function main() {
   const level = getLevel(ROOT);
   const needsSetup = loadConfigSync(ROOT)?.setup?.completed !== true;
 
-  // Fresh ledger for this session (Level >= 2 uses it; harmless at L1).
-  await writeLedger(sessionId, freshLedger(sessionId));
+  const squadContext = readSquadContext(ROOT, level);
+  const ledger = freshLedger(sessionId);
+  if (squadContext) ledger.squads = squadContext.squads;
+  await writeLedger(sessionId, ledger);
 
   const drift = level >= 2 ? await analyzePriorLedgers(sessionId) : [];
   const sessions = await readSessionsIndex(ROOT);
@@ -133,20 +133,6 @@ async function main() {
   const mapStale = level >= 2 ? projectMapStale(ROOT) : null;
   // Task 112 — an unseen grade-≥3 consent receipt replays once at the next boot.
   const pendingDigest = consumePendingDigest(ROOT);
-
-  // Trigger squad-director.mjs to get active squads
-  let squadContext = null;
-  if (level >= 4) {
-    try {
-      const scriptPath = resolve(ROOT, PLATFORM_DIR, 'tools/scripts/squad-director.mjs');
-      if (existsSync(scriptPath)) {
-        const outStr = execFileSync('node', [scriptPath], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
-        squadContext = JSON.parse(outStr);
-      }
-    } catch {
-      /* fail-silent */
-    }
-  }
 
   if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest) return;
 

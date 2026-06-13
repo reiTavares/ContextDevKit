@@ -1,6 +1,6 @@
 ---
 description: Show/route/grow/audit the agent squads — the roster, playbooks, active routing, and onboarding config.
-argument-hint: [show | route <task-or-path> | brief <agent> | new-squad <name> | generate-playbooks]
+argument-hint: [show | route <task-or-path> | activate <task-or-path> | brief <agent> | new-squad <name> | generate-playbooks]
 ---
 
 # 👥 Squads
@@ -23,6 +23,13 @@ node contextkit/tools/scripts/squad.mjs route <task-or-path>
 ```
 It queries the squads-registry to identify the target postures and suggests custom agent scaffolding from `agent-forge` if third-party libraries (e.g. Stripe, Redis) lack dedicated agent coverage.
 
+## activate <task-or-path>
+Persist the detected posture in the current session ledger after a deliberate routing decision:
+```
+node contextkit/tools/scripts/squad.mjs activate <task-or-path>
+```
+Use this with the L5 guard after `/simulate-impact` when a high-risk path requires an active security/compliance/ops posture.
+
 ## brief <agent>
 Scaffold the **tier-2 rich briefing**, then fill it:
 ```
@@ -38,4 +45,3 @@ Scaffold the 8 default squad playbooks under `contextkit/workflows/playbooks/squ
 node contextkit/tools/scripts/squad.mjs generate-playbooks
 ```
 These are synced/preserved across engine updates (ADR-0054).
-

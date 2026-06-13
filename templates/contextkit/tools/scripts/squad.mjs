@@ -8,6 +8,7 @@
  *
  *   node .../squad.mjs list             # agents + which have a tier-2 briefing
  *   node .../squad.mjs brief <agent>    # scaffold contextkit/squads/<squad>/<agent>.md
+ *   node .../squad.mjs activate <path>  # persist active squad posture in ledger
  *
  * Squad detection: `qa-*` → qa-team; otherwise the `(... squad)` / `(...-team)`
  * tag in the agent's `description`; falls back to `devteam`.
@@ -17,6 +18,7 @@ import { resolve } from 'node:path';
 import { squadOf } from './squad-meta.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { analyzeContext } from './squad-director.mjs';
+import { readMostRecentLedger, writeLedger } from '../../runtime/hooks/ledger.mjs';
 
 const ROOT = process.cwd();
 const AGENTS = resolve(ROOT, '.claude/agents');
@@ -99,19 +101,50 @@ function route() {
   console.log('');
 }
 
+/**
+ * Persists detected squad postures in the current session ledger.
+ *
+ * @returns {Promise<void>}
+ */
+async function activate() {
+  const query = process.argv.slice(3).join(' ');
+  if (!query) {
+    console.error('Usage: squad.mjs activate <intent-or-path>');
+    process.exit(1);
+  }
+  const context = analyzeContext(query);
+  const recent = await readMostRecentLedger();
+  if (!recent?.ledger) {
+    console.error('No active session ledger found. Start a session or record a simulation first.');
+    process.exit(1);
+  }
+  const existingSquads = Array.isArray(recent.ledger.squads) ? recent.ledger.squads : [];
+  const activeSquads = [...new Set([...existingSquads, ...context.squads].filter(Boolean))];
+  recent.ledger.squads = activeSquads;
+  await writeLedger(recent.sessionId, recent.ledger);
+  console.log(`✅ Active squad postures recorded for session ${recent.sessionId.slice(0, 8)}: ${activeSquads.join(', ')}`);
+}
+
 function generatePlaybooks() {
   const destDir = resolve(pathsFor(ROOT).playbooks, 'squads');
   mkdirSync(destDir, { recursive: true });
   console.log(`✅ Squad playbooks directory verified: ${destDir}`);
 }
 
-const cmd = process.argv[2];
-if (cmd === 'brief') brief();
-else if (cmd === 'list') list();
-else if (cmd === 'route') route();
-else if (cmd === 'generate-playbooks') generatePlaybooks();
-else {
-  console.error('Usage: squad.mjs <list | brief <agent> | route [intent] | generate-playbooks>');
-  process.exit(1);
+async function main() {
+  const cmd = process.argv[2];
+  if (cmd === 'brief') brief();
+  else if (cmd === 'list') list();
+  else if (cmd === 'route') route();
+  else if (cmd === 'activate') await activate();
+  else if (cmd === 'generate-playbooks') generatePlaybooks();
+  else {
+    console.error('Usage: squad.mjs <list | brief <agent> | route [intent] | activate <intent-or-path> | generate-playbooks>');
+    process.exit(1);
+  }
 }
 
+main().catch((err) => {
+  console.error(`squad.mjs failed: ${err?.message ?? err}`);
+  process.exit(1);
+});

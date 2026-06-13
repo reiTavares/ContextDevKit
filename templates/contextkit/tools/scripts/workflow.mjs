@@ -3,7 +3,7 @@
  * `/workflow` CLI (ADR-0057). Owns the user-facing command dispatch while
  * `workflow-pack.mjs` owns the folder/legacy parsing and report mechanics.
  */
-import { advanceWorkflow, createWorkflow, listWorkflows, readWorkflow } from './workflow-pack.mjs';
+import { advanceWorkflow, checkWorkflow, createWorkflow, listWorkflows, readWorkflow } from './workflow-pack.mjs';
 import { writeReport } from './workflow-report.mjs';
 
 const ROOT = process.cwd();
@@ -56,10 +56,22 @@ function run() {
     }
     if (cmd === 'advance') {
       const [slug, legacyRef] = positional();
-      const workflow = advanceWorkflow(ROOT, slug, arg('ref', legacyRef || ''));
+      const workflow = advanceWorkflow(ROOT, slug, arg('ref', legacyRef || ''), { force: process.argv.includes('--force') });
       console.log(workflow.currentPhase === 'done'
         ? `Workflow "${workflow.slug}" complete.`
         : `Workflow "${workflow.slug}" advanced. Next phase: ${workflow.currentPhase}.`);
+      return;
+    }
+    if (cmd === 'check') {
+      const [slug] = positional();
+      const { currentPhase, missing } = checkWorkflow(ROOT, slug);
+      if (!missing.length) {
+        console.log(`[ok] Workflow "${slug}" - phase "${currentPhase}" is complete; ready to advance.`);
+      } else {
+        console.log(`[missing] Workflow "${slug}" - phase "${currentPhase}" is missing:`);
+        missing.forEach((gap) => console.log(`  - ${gap}`));
+        process.exit(1);
+      }
       return;
     }
     if (cmd === 'status') {
@@ -72,7 +84,7 @@ function run() {
       console.log(`Workflow report written: ${reportPath}`);
       return;
     }
-    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | advance <slug> [--ref ref] | status [slug] [--json] | report <slug> [--task id] [--force]>');
+    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | advance <slug> [--ref ref] [--force] | check <slug> | status [slug] [--json] | report <slug> [--task id] [--force]>');
     process.exit(1);
   } catch (err) {
     console.error(`workflow: ${err?.message ?? err}`);
