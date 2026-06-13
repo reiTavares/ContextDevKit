@@ -12,15 +12,15 @@ o histórico no próprio repositório. Funciona em qualquer projeto — do zero
 **Claude Code** (hooks automáticos), **Google Antigravity** (`agy`/`ctx.mjs`) e
 **Codex** (`AGENTS.md`, `.codex/` e `cdx.mjs`).
 
-## Novidades na v1.17
+## Novidades na v2.6
 
-> **Dual-host, agora endurecido.** A memória do projeto, os ADRs e os squads
-> funcionam igualzinho no **Claude Code** e no **Google Antigravity** — mesmo
-> engine, mesmo ledger, zero divergência. As versões v1.15–v1.17 deixaram o
-> segundo host pronto para produção.
+> **QA ciente da stack.** O kit agora faz o squad de QA ler sinais reais do
+> projeto antes de propor ou criar testes: Node/JavaScript, Python, Go, Rust e
+> PHP ganham matriz happy/edge/failure e harness starter com `--write` explícito.
 
 | Feature | O que faz |
 |---|---|
+| **`scaffold-tests.mjs`** | Script zero-dep usado por `/test-plan` e `/scaffold-tests`; detecta stack/runner, propõe casos específicos e só cria arquivos starter quando você passa `--write` |
 | **`agy guard <path>`** | Checkpoint L5 explícito pré-edição no host sem hooks — exit 0 = liberado, exit 1 = rode `/simulate-impact` antes. Mesma definição de gate do hook PreToolUse do Claude Code |
 | **Dispatch seguro no `ctx.mjs`/`agy`** | Só nome exato + aliases declarados (sem adivinhação por prefixo); comando desconhecido ganha did-you-mean (3 mais próximos) e `agy help <comando>` mostra o card individual |
 | **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) commitado em `contextkit/memory/project-map/` — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** (quem importa quem) para raciocínio de blast radius |
@@ -102,7 +102,9 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/runs` — lista runs recentes (tarefas + pipeline) entre squads.
 
 ### Qualidade (L4/L5)
-- `/test-plan` · `/scaffold-tests` · `/qa-signoff` — squad de QA.
+- `/test-plan` · `/scaffold-tests` · `/qa-signoff` — squad de QA. O fluxo começa
+  por `scaffold-tests.mjs plan`, que detecta stack/runner e monta casos
+  happy/edge/failure antes dos especialistas escreverem testes de domínio.
 - `/simulate-impact <objetivo>` — mapeia blast radius antes de mexer em path de risco.
 - `/tech-debt-sweep [quick]` — scanner determinístico + interpretação.
 - `/analyze-code-ia-practices` — auditoria de boas práticas + refactor inteligente.

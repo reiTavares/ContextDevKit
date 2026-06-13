@@ -18,16 +18,16 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v2.2
+## What's new in v2.6
 
-> **Governed autonomy + parallel agents.** v2 turns the kit from a context layer
-> into a *control plane*: a consent dial that decides what the AI may do without
-> asking, an observable state machine behind every pipeline move, a coordinator
-> that runs several agents in parallel under that governance, and cost-aware
-> model routing so the expensive models think and the cheap ones execute.
+> **Stack-aware QA on top of governed autonomy.** v2.6 keeps the v2 control
+> plane — consent dial, observable pipeline state, swarm coordination, and
+> cost-aware model routing — and gives the QA squad a deterministic stack map
+> before it proposes or writes tests.
 
 | Feature | What it does |
 |---|---|
+| **Stack-aware QA scaffolding** | `/test-plan` and `/scaffold-tests` now start from `scaffold-tests.mjs`, a zero-dep script that detects Node/JavaScript, Python, Go, Rust, and PHP manifests, reports the existing runner/framework signals, emits happy/edge/failure QA cases, and creates starter harness tests only with explicit `--write` |
 | **Autonomy dial** ([ADR-0041–0045](contextkit/memory/decisions/)) | `autonomy.grade` 1–4 — a **consent axis orthogonal to levels** (levels = what the kit *can* do; grade = what it *may* do without asking). One pure `resolveAutonomy(area)` resolver; a **non-negotiable floor in code** (secrets, force-push, gate self-edits, ADRs, grade changes stay human at every grade). Set with `/autonomy`. Grade 4 is gated by a measured eligibility bar + a per-step kill-switch |
 | **Swarm coordinator** ([ADR-0051](contextkit/memory/decisions/)) | `/swarm` pulls N disjoint backlog tasks and runs each in its own git worktree, in parallel, under the full governance stack — pure `swarm-plan.mjs` planner (disjoint partition, refuse-by-default) + `swarm-state.mjs` manifest. A run **finishes at `testing`, never `done`** — you close the batch via `/swarm review` |
 | **Cost-tiered model routing** ([ADR-0052](contextkit/memory/decisions/)) | Every agent declares a `model:` tier (`opus` thinks · `sonnet` builds · `haiku` executes · `inherit`); skills classify the task at dispatch (think vs execute) with floors (security never below `sonnet`) and budget-aware de-escalation. Cache-safe by construction — only spawned subagents are tiered |
@@ -123,7 +123,7 @@ ContextDevKit is a code-execution tool — install it like any dependency you ru
   L≥3) and Claude Code hooks into `.claude/settings.json`. Those hooks then run
   `node` on each session/commit/push. **Pin a tag** for a reproducible install
   rather than tracking the moving default branch:
-  `npx github:reiTavares/ContextDevKit#v2.2.0 --target . --yes`.
+  `npx github:reiTavares/ContextDevKit#v2.6.0 --target . --yes`.
 - **An existing git hook is never clobbered** — the installer backs it up to
   `<hook>.bak` before writing its wrapper. Worktrees are detected via the
   `gitdir:` pointer and hooks are installed in the resolved real `.git/`.
@@ -262,6 +262,12 @@ exactly the same as a flat layout.
 · `/draft-changelog` · `/changelog-social`
 
 **`qa/`:** `/qa-signoff` · `/test-plan` · `/scaffold-tests` · `/visual-test`
+
+`/test-plan` and `/scaffold-tests` first run the deterministic
+`scaffold-tests.mjs` stack map. It detects Node/JavaScript, Python, Go, Rust,
+and PHP, proposes stack-specific happy/edge/failure coverage, and only writes
+starter harness files when invoked with `--write`; domain tests still belong to
+the QA specialists after they inspect the code.
 
 **`audit/`:** `/audit` · `/deep-analysis` · `/security-setup` · `/deps-audit` ·
 `/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check` · `/seo-audit`
