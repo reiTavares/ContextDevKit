@@ -25,7 +25,7 @@ INSTRUCTIONS.md           # Antigravity boot context · ctx.mjs = the agy runner
 AGENTS.md                 # Codex boot context · cdx.mjs = the Codex runner
 .claude/                  # fixed by Claude Code
   settings.json           # hook wiring (composed by the installer per level)
-  commands/               # 73 slash commands, organised in domain packs
+  commands/               # 78 slash commands, organised in domain packs
     audit/                # tech-debt, security, deps, SEO/AISO
     pipeline/             # DevPipeline + ship + dev-start + plan-week + retro + runs
     qa/                   # qa-signoff, test-plan, scaffold-tests, visual-test
@@ -33,7 +33,7 @@ AGENTS.md                 # Codex boot context · cdx.mjs = the Codex runner
     forge/                # 14 agent-forge lifecycle commands
     setup/                # setupcontextdevkit, context-doctor, context-level
     *.md                  # daily commands at root
-  agents/                 # 32 sub-agent archetypes (frontmatter: name + description)
+  agents/                 # 35 sub-agent archetypes (frontmatter: name + description)
   .sessions/              # per-session ledgers (gitignored runtime state)
   .workspace/             # per-session claim files (gitignored runtime state)
 contextkit/
@@ -45,7 +45,7 @@ contextkit/
     review/               # PR/review CLI adapters (gh ships; glab/bb adapters fit the contract)
     media/                # Veo + Nano Banana image/video adapters
   runtime/state/          # canonical state.json substrate for tasks + runs
-  tools/scripts/          # 76 helpers (reindex, dashboard, sync-check, guard, audits, …)
+  tools/scripts/          # 93 helpers (reindex, dashboard, sync-check, guard, audits, QA, …)
   runtime/antigravity/    # session-manager (explicit lifecycle), ctx-menu, convert-all
   runtime/codex/          # Codex converters (Claude source -> skills/TOML)
   memory/                 # decisions/, sessions/, business-rules/, GLOSSARY.md, generated indices
@@ -58,6 +58,13 @@ contextkit/
 Claude Code's command resolver picks by **file basename** — `/qa-signoff` finds
 `qa/qa-signoff.md` exactly as well as a flat `qa-signoff.md`. The packs are
 pure human navigation (see [ticket 047 conclusion](../contextkit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md)).
+
+`scaffold-tests.mjs` is the deterministic QA entrypoint behind `/test-plan` and
+`/scaffold-tests`: it reads local manifests, detects Node/JavaScript, Python, Go,
+Rust, and PHP runner signals, emits a stack-specific happy/edge/failure matrix,
+and scaffolds only missing starter harness tests when `--write` is explicit.
+It lives in `tools/scripts/`, outside the hook hot path, and carries no runtime
+dependencies.
 
 ## The hooks (the engine)
 

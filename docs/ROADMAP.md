@@ -185,6 +185,9 @@ hook** (same pattern as L6; see ADR-0008). Items #2–#8 are the L7 set; #1 ship
    bundles/runs browsers) — true to the zero-dep hot-path invariant. *Deferred
    (→ ADR-0047): real baselines/diffing (trigger-gated); browsers in the kit's own
    CI and a hosted diff service are **refused** there (invariant violations).*
+   **v2.6 follow-up shipped:** `scaffold-tests.mjs` now gives the whole QA squad a
+   deterministic stack map for Node/JavaScript, Python, Go, Rust, and PHP, plus
+   happy/edge/failure cases and explicit-`--write` starter harnesses.
 7. ✅ **Token economy & usage insight.** *Shipped (first cut):* `/token-report` +
    `token-report.mjs` read Claude Code's local session transcripts and aggregate
    **per-session token usage** (input / output / cache) and **per ISO week**, with a

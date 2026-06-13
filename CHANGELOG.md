@@ -8,6 +8,25 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 Add your changes here.
 
+## [2.6.0] - 2026-06-13
+
+### Added - stack-aware QA scaffolding
+- **`scaffold-tests.mjs`** — a zero-dependency QA planner/scaffolder for
+  Node/JavaScript, Python, Go, Rust, and PHP projects. `plan` reports detected
+  stacks, runner/framework signals, and happy/edge/failure QA cases; `scaffold`
+  is dry-run by default and creates only missing starter harness tests with
+  explicit `--write`.
+- **QA squad routing now starts from real stack context.** `/test-plan`,
+  `/scaffold-tests`, and `qa-orchestrator` run the deterministic stack map before
+  delegating to qa-unit, qa-integration, qa-fuzzer, qa-e2e, or qa-perf.
+- **Coverage for the new QA tooling.** `integration-test-tooling-qa.mjs` installs
+  a fixture with Node, Python, Go, Rust, and PHP manifests, verifies detection,
+  proves dry-run-by-default behavior, and checks explicit scaffold writes.
+
+### Changed
+- README, architecture, levels, roadmap, and pt-BR usage docs now document the
+  stack-aware QA flow and the v2.6 release posture.
+
 ## [2.5.0] - 2026-06-12
 
 ### Changed - default autonomy grade 3 + grade-4 informed consent (ADR-0058)

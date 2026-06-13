@@ -115,7 +115,7 @@ Every Claude Code slash command has been adapted into a skill (same relative pat
 | | `audit/deep-analysis.md` | Deep scans + dependency audit + security sweep |
 | | `audit/analyze-code-ia-practices.md` | Checks separation of concerns and file limits |
 | **QA** | `qa/qa-signoff.md` | Final QA target and coverage verification |
-| | `qa/scaffold-tests.md` | Scaffolds unit/integration tests for a file |
+| | `qa/scaffold-tests.md` | Plans stack-aware QA and scaffolds starter harness tests with explicit write intent |
 | **VCS** | `vcs/claim.md` / `release.md` | Reserve/free file paths for parallel work |
 | | `vcs/gh-triage.md` | Import GitHub issues to DevPipeline backlog |
 | **Forge** | `forge/forge-new.md` | Create new custom sub-agent definitions |

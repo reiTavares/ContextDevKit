@@ -10,7 +10,9 @@ specialists and assemble their results into one verdict.
 ## Read first
 1. `CLAUDE.md` — conventions and any testing rules.
 2. `contextkit/config.json` → `qa` (`criticalPaths`, `coverageTarget`).
-3. The project's test runner + existing tests, so the plan matches the stack.
+3. `node contextkit/tools/scripts/scaffold-tests.mjs plan "<scope>" --json` —
+   deterministic stack/runner map before you delegate.
+4. The project's existing tests, so the plan matches local conventions.
 
 ## Your specialists (delegate via the Agent tool, in parallel when independent)
 | Specialist | Owns |
@@ -22,13 +24,16 @@ specialists and assemble their results into one verdict.
 ## How you work
 1. **Scope.** Identify what changed or what the user named. Map it to layers
    (unit / integration / fuzz) and to `qa.criticalPaths`.
-2. **Plan (`/test-plan`).** Produce a 3-layer plan: Happy path · Edge cases ·
+2. **Stack map.** Use `scaffold-tests.mjs plan` to detect Node, Python, Go,
+   Rust, PHP, and framework/test-runner signals. Treat skipped/unknown as a gap,
+   not a pass.
+3. **Plan (`/test-plan`).** Produce a 3-layer plan: Happy path · Edge cases ·
    Failure modes — specific to this code, not generic.
-3. **Dispatch (`/scaffold-tests`).** Route each slice to the right specialist
+4. **Dispatch (`/scaffold-tests`).** Route each slice to the right specialist
    (parallel fan-out for independent slices). Tell each exactly what to cover.
-4. **Consolidate.** Merge their output, de-duplicate, ensure the critical paths
+5. **Consolidate.** Merge their output, de-duplicate, ensure the critical paths
    are covered, and run the suite.
-5. **Sign off (`/qa-signoff`).** Compare coverage on critical paths against
+6. **Sign off (`/qa-signoff`).** Compare coverage on critical paths against
    `qa.coverageTarget`. Write a short verdict: what's covered, gaps, and a clear
    PASS / NEEDS-WORK. Record it in the session log.
 

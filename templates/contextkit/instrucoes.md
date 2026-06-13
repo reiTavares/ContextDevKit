@@ -27,7 +27,7 @@ de produto → visão, stack, roadmap, boas práticas e DevPipeline montados num
 | **L1 Memory** | contexto no boot, `/log-session`, ADRs, changelog |
 | **L2 Ledger** | detecção de drift |
 | **L3 Multi** | claims, worktrees, índices auto-gerados, git hooks (Conventional Commits + pre-push contra conflito real) |
-| **L4 Squads** | 28 sub-agentes em 7 squads (devteam, qa-team, design-team com `seo-specialist` + `landing-architect`, security, compliance-LGPD, ops, agent-forge) |
+| **L4 Squads** | 35 sub-agentes em 7 squads (devteam, qa-team, design-team com `seo-specialist` + `landing-architect`, security, compliance-LGPD, ops, agent-forge) |
 | **L5 Proactive** | gate `/simulate-impact`, tech-debt, distill-detect, contract drift |
 | **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas, agent-forge ativo |
 | **L7 Ecosystem** | `/fleet` (multi-repo), `/tune-agents`, testes visuais, playbook runner |
@@ -46,6 +46,8 @@ Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
 - **Qualidade (pack `qa/` + L5):** `/test-plan` · `/scaffold-tests` ·
   `/qa-signoff` · `/visual-test` · `/simulate-impact` · `/tech-debt-sweep` ·
   `/analyze-code-ia-practices` · `/contract-check`
+  (`scaffold-tests.mjs plan` detecta Node/JavaScript, Python, Go, Rust e PHP
+  antes do squad escrever testes de domínio; `scaffold --write` cria só harnesses starter)
 - **Auditoria (pack `audit/`):** `/audit` · `/deep-analysis` · `/security-setup` ·
   `/deps-audit` · **`/seo-audit`** *(novo — SEO + AISO)*
 - **Landing pages & mídia *(novo na v1.7)*:** `/landing-page` (architect

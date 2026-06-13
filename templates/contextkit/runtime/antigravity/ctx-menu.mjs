@@ -63,7 +63,8 @@ export const CATEGORIES = [
       'validate-doc': 'Audit markdown documentation against completeness standards',
       'security-setup': 'Setup/run vulnerability detection and secret exposure scans',
       'deep-analysis': 'Scans import graphs, code coupling, and structural debt',
-      'detect-stack': 'Detects stack technologies (Next.js, Vite, Nest, etc.)'
+      'detect-stack': 'Detects stack technologies (Next.js, Vite, Nest, etc.)',
+      'scaffold-tests': 'Plan and scaffold stack-aware QA starter tests'
     }
   },
   {

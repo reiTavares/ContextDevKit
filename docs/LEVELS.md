@@ -87,6 +87,9 @@ Routing is automatic: Claude picks an agent by matching the user's intent to
 the `description` frontmatter. QA commands (`/test-plan`, `/scaffold-tests`,
 `/qa-signoff`) go through `qa-orchestrator`; `/landing-page` invokes
 `landing-architect`, which delegates indexability to `seo-specialist`.
+The QA router starts by running `scaffold-tests.mjs plan`, so test planning is
+tuned to detected Node/JavaScript, Python, Go, Rust, or PHP stacks before the
+specialists write domain-specific tests.
 
 Use `_TEMPLATE.md` (or `/squad`) to grow your own domain agents. See
 [`docs/SQUADS/design-team.md`](SQUADS/design-team.md) and

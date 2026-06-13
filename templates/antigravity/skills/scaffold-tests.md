@@ -14,6 +14,25 @@ for independent slices via the Agent tool when available):
 - **qa-e2e** → critical user journeys, plus **visual / screenshot** checks where the
   UI's *look* is the contract (scaffold with `/visual-test`).
 
+Before dispatch, run:
+
+```bash
+node contextkit/tools/scripts/scaffold-tests.mjs plan "<user-specified argument>" --json
+```
+
+Use that stack-aware matrix to decide which specialists should receive which
+slices. If the project has no test harness yet, run a dry-run first:
+
+```bash
+node contextkit/tools/scripts/scaffold-tests.mjs scaffold "<user-specified argument>"
+```
+
+Only create starter harness files with explicit write intent:
+
+```bash
+node contextkit/tools/scripts/scaffold-tests.mjs scaffold "<user-specified argument>" --write
+```
+
 Dispatches inherit each specialist's frontmatter `model:` tier (ADR-0052 —
 qa-unit/qa-integration run on the fast tier; their output is guarded by rule 4
 below). If a specialist's output fails the suite twice, re-dispatch exactly once,
@@ -22,10 +41,12 @@ one tier up, and report the escalation.
 Rules:
 1. Match the project's existing test runner and file conventions. Never add a
    second framework.
-2. Place test files where the project keeps them; mirror existing naming.
-3. Cover happy / edge / failure for each slice (use a prior `/test-plan` if one
+2. Use the deterministic scaffold script only for runner harnesses; domain tests
+   still come from the specialists after they read the code.
+3. Place test files where the project keeps them; mirror existing naming.
+4. Cover happy / edge / failure for each slice (use a prior `/test-plan` if one
    exists).
-4. After writing, run the suite and report pass/fail.
+5. After writing, run the suite and report pass/fail.
 
 If sub-agents aren't available in this environment, write the tests yourself but
 keep the unit / integration / fuzz separation explicit.

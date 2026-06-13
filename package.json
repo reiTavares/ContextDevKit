@@ -1,6 +1,6 @@
 {
   "name": "contextdevkit",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code, Google Antigravity, and OpenAI Codex — hooks, commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
     "check": "node tools/selfcheck.mjs",
     "build:antigravity": "node templates/contextkit/runtime/antigravity/convert-all.mjs --templates",
     "build:codex": "node templates/contextkit/runtime/codex/convert-all.mjs --templates",
-    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-project-map.mjs && node tools/integration-test-token-economy.mjs && node tools/integration-test-tooling-pipeline.mjs && node tools/integration-test-pipeline-substrate.mjs && node tools/integration-test-tooling-agent-forge.mjs && node tools/integration-test-guards.mjs && node tools/integration-test-autonomy.mjs && node tools/integration-test-compozy.mjs && node tools/integration-test-migrate.mjs && node tools/integration-test-update-safety.mjs && node tools/integration-test-antigravity.mjs && node tools/integration-test-codex.mjs && node tools/integration-test-lp.mjs && node tools/integration-test-swarm.mjs && node tools/integration-test-hooks.mjs",
+    "test": "node tools/selfcheck.mjs && node tools/integration-test.mjs && node tools/integration-test-tooling.mjs && node tools/integration-test-tooling-qa.mjs && node tools/integration-test-project-map.mjs && node tools/integration-test-token-economy.mjs && node tools/integration-test-tooling-pipeline.mjs && node tools/integration-test-pipeline-substrate.mjs && node tools/integration-test-tooling-agent-forge.mjs && node tools/integration-test-guards.mjs && node tools/integration-test-autonomy.mjs && node tools/integration-test-compozy.mjs && node tools/integration-test-migrate.mjs && node tools/integration-test-update-safety.mjs && node tools/integration-test-antigravity.mjs && node tools/integration-test-codex.mjs && node tools/integration-test-lp.mjs && node tools/integration-test-swarm.mjs && node tools/integration-test-hooks.mjs",
     "ci": "npm test && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
     "preflight-release": "npm run ci && node tools/preflight-version.mjs",
     "prepublishOnly": "npm run ci"
