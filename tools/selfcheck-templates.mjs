@@ -79,6 +79,10 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
     'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
+    'templates/contextkit/runtime/hooks/auto-format.mjs', // F1 / ADR-0061
+    'templates/contextkit/runtime/git-hooks/quality-gates.mjs', // F2 / ADR-0062
+    'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
+    'templates/github-optional/workflows/squad-issue.yml', // F5 / ADR-0064 (opt-in CI Squad action)
     'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
     'templates/contextkit/runtime/codex/convert-all.mjs',
     'templates/contextkit/runtime/codex/convert-core.mjs',
