@@ -6,6 +6,24 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added - auto-invoked deliberation gates + tiered specialist council (ADR-0070)
+- **Deliberation is now auto-invoked, not manual-only.** Two new autonomy areas
+  (`feature-deliberation`, `decision-deliberation`) resolve to `debate` mode at
+  grade ≥ 3, so starting a new feature (`/workflow` spec phase) or recording an
+  architectural decision (`/new-adr`) auto-convenes a council. The ADR write itself
+  stays `manual` at every grade — the deliberation precedes it, never authorizes it.
+- **Dynamic specialist council.** New `deliberation-council.mjs` deterministically
+  selects a relevant, named specialist roster (architect/security/ux-designer/…) by
+  classifying the question into advisor lanes, scaling the count to
+  `clamp(matchedLanes, council.min, council.max)` instead of a fixed 3 generic voices.
+- **Tiered research swarm.** `/debate` now gathers evidence with cheap `fast`-tier
+  (Haiku) scouts before the `reasoning`-tier (Opus) voices argue, with `powerful`-tier
+  (Sonnet) verification for hard claims; voices and the synthesizer are never
+  downgraded (ADR-0052). Models resolve through `model-policy.mjs`.
+- **Broadened nudge + new config.** The `deliberation-nudge` hook also fires on a new
+  ADR write; the `deliberations` config gains `council`, `autoInvoke`, and `research`
+  blocks. Covered by `integration-test-deliberation.mjs` (20 checks) + selfcheck gates.
+
 ## [2.6.2] - 2026-06-13
 
 ### Fixed

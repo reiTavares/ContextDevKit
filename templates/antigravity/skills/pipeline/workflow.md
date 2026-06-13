@@ -35,8 +35,15 @@ contextkit/memory/workflows/<slug>/
 - **intake**: read `context-pack`, relevant ADRs/sessions, project map, roadmap,
   and pipeline digest.
 - **prd**: fill product WHAT/WHY, goals, users, non-goals, metrics.
-- **spec**: fill technical HOW, impact, interfaces, tests, sequence.
-- **adr**: create/accept the architecture decision when needed.
+- **spec**: fill technical HOW, impact, interfaces, tests, sequence. **Deliberation
+  gate** [ADR-0070]: for a `feature`/`architecture` kind, convene the specialist
+  council before locking the SPEC. Resolve `feature-deliberation`
+  (`resolveAutonomy('feature-deliberation', config)`) — at **grade ≥ 3** with
+  `deliberations.active` this is `debate` mode: run `/debate "<the core feature
+  decision>"`, record it under `decisions.md`, and let its synthesis shape the SPEC
+  and the ADR. At grade ≤ 2 it is a suggestion. Skip for `bug`/`chore`/`spike`.
+- **adr**: create/accept the architecture decision when needed (the deliberation
+  above pre-fills it).
 - **roadmap**: add or link the P-ID only for new product capability.
 - **pipeline**: create DevPipeline cards with `--workflow` and `--spec`.
 - **ship**: implement scoped cards.

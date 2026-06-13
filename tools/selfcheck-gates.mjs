@@ -142,6 +142,11 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     [resolveAutonomy('edit', at(1), 3, { flagGrade: 2 }).grade, 2, 'per-run flag beats session override'],
     [resolveAutonomy('ship-checkpoint', at(4)).mode, 'debate', 'grade-4 checkpoint → debate'],
     [resolveAutonomy('ship-checkpoint', at(3)).mode, 'debate', 'grade-3 checkpoint → debate'],
+    // ADR-0070 — feature/decision deliberation gates mirror ship-checkpoint (debate at grade ≥ 3).
+    [resolveAutonomy('feature-deliberation', at(3)).mode, 'debate', 'grade-3 feature-deliberation → debate'],
+    [resolveAutonomy('feature-deliberation', at(2)).mode, 'manual', 'grade-2 feature-deliberation → manual'],
+    [resolveAutonomy('decision-deliberation', at(3)).mode, 'debate', 'grade-3 decision-deliberation → debate'],
+    [resolveAutonomy('decision-deliberation', at(1)).mode, 'manual', 'grade-1 decision-deliberation → manual'],
     [resolveAutonomy('push', at(4), null, { targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'auto', 'grade-4 push to a branch → auto'],
     [resolveAutonomy('push', at(4), null, { targetRef: 'main', defaultBranch: 'main' }).mode, 'manual', 'grade-4 push to default branch → manual'],
     [resolveAutonomy('session-log', at(2)).mode, 'auto', 'grade-2 session-log → auto'],
