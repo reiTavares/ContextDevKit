@@ -35,6 +35,21 @@ where the last one left off.
 | **Dogfood-by-default install** ([ADR-0054](contextkit/memory/decisions/)) | Fresh installs leave **zero tracked kit files** (a managed `info/exclude` block), and `--update` runs a conflict-safe 3-way merge against a sha256 manifest — personalized commands/agents are never clobbered, no side is ever lost. Opt out with `--tracked` |
 | **Active agent squads** ([ADR-0069](contextkit/memory/decisions/)) | Deterministic routing (`squads-registry.json` + `/squad route`), explicit posture activation (`/squad activate`), stack-aware playbook templates for all 8 squads, compliance auto-auditing at pre-commit gates via `squad-audit.mjs`, and token-efficient posture selection via `squad-director.mjs` |
 
+### ContextKit parity import ([ADR-0060 → ADR-0068](contextkit/memory/decisions/))
+
+Eight features ported from `nolrm/contextkit`, each zero-dep, level-aware, and warn-first:
+
+| Feature | What it does |
+|---|---|
+| **Auto-format hook** (F1, ADR-0061) | PostToolUse `auto-format.mjs` runs your formatter/linter after each Edit/Write at level ≥ 4 — advisory (auto-fixes when a toolchain is present, always exits 0; "skipped" when none), wired on all three hosts |
+| **Multi-language quality gates** (F2, ADR-0062) | `quality-gates.mjs` runs lint/format/typecheck/build/test for the detected stack (10 languages), scoped to the monorepo packages a push touches. Warn below `strictLevel`, block at it; missing tool = skipped. Bypass `CONTEXT_SKIP_QGATES=1` |
+| **Hook-manager coexistence** (F3, ADR-0063) | Install detects husky / simple-git-hooks / custom `core.hooksPath` and suggests a non-destructive integration path |
+| **CI Squad action** (F5, ADR-0064) | Opt-in (`--ci-squad`) GitHub Action: a `squad-ready`-labelled issue → DRAFT PR via the headless pipeline. Needs the `ANTHROPIC_API_KEY` secret |
+| **Standards promotion threshold** (F7, ADR-0065) | `/distill-sessions` proposes a new rule only after ≥3 evidenced occurrences; `/retro` deprecates by strikethrough, never deletion |
+| **`/context-budget` + `@`-imports** (F6, ADR-0066) | Read-only per-task budget (always / on-demand / skip) + lightweight `@`-imports in `CLAUDE.md.tpl` to keep the constitution lean |
+| **Marker-based injection** (F4, ADR-0067) | `marker-inject.mjs` owns a `<!-- ContextDevKit:start/end -->` region — idempotent, preserves user content around it (the bridge enabler) |
+| **Multi-platform bridges** (F8, ADR-0068) | Opt-in (`bridges.enabled`) context bridges for Cursor, Copilot, Gemini, Windsurf, Aider, Continue — **context only, no enforcement** (governance stays on the native hosts) |
+
 <details>
 <summary><strong>Earlier highlights (v1.15–v1.17 — dual-host hardening)</strong></summary>
 

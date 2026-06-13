@@ -6,6 +6,38 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added — ContextKit parity import (8 features, ADR-0060 → ADR-0068)
+- **Auto-format hook (F1, ADR-0061).** A PostToolUse `auto-format.mjs` runs the
+  project's formatter/linter right after each Edit/Write at level ≥ 4 (advisory —
+  it auto-fixes when a toolchain is present and always exits 0; "skipped" when
+  none is found). Wired across all three hosts (Claude/Antigravity/Codex).
+- **Multi-language pre-push quality gates (F2, ADR-0062).** `quality-gates.mjs`
+  detects the stack (10 languages + generic) and runs lint/format/typecheck/
+  build/test, scoped to the monorepo packages a push touches. Warn-first: silent
+  below `minLevel`, warn in `minLevel..strictLevel`, blocks at `strictLevel`; a
+  missing tool is skipped, never a false failure. Runs from `pre-push` after the
+  conflict pre-check. Bypass: `CONTEXT_SKIP_QGATES=1`.
+- **Hook-manager coexistence (F3, ADR-0063).** Install detects an existing hook
+  manager (husky / simple-git-hooks / custom `core.hooksPath`) and suggests a
+  non-destructive integration path instead of silently running side-by-side.
+- **CI Squad action (F5, ADR-0064).** An opt-in GitHub Action turns a
+  `squad-ready`-labelled issue into a DRAFT PR via the headless pipeline. Ships
+  out of the default tree — installed only with `--ci-squad` (or the interactive
+  prompt); needs the `ANTHROPIC_API_KEY` repo secret.
+- **Standards promotion threshold (F7, ADR-0065).** `/distill-sessions` only
+  proposes a new CLAUDE.md rule once a pattern has ≥3 evidenced occurrences;
+  `/retro` deprecates superseded rules by strikethrough rather than deletion.
+- **`/context-budget` skill + `@`-imports (F6, ADR-0066).** Read-only guidance on
+  which context to load per task type (always / on-demand / skip); lightweight
+  `@`-imports in `CLAUDE.md.tpl` keep the constitution lean.
+- **Marker-based idempotent injection (F4, ADR-0067).** `marker-inject.mjs` owns a
+  region between `<!-- ContextDevKit:start/end -->`, preserving the user's content
+  around it and staying byte-idempotent across re-installs (the F8 enabler).
+- **Multi-platform context bridges (F8, ADR-0068).** Opt-in (`bridges.enabled`)
+  context bridges for six more tools — Cursor, GitHub Copilot, Gemini, Windsurf,
+  Aider, Continue — written idempotently via marker-inject. These receive the
+  CONTEXT layer ONLY; governance enforcement stays on the three native hosts.
+
 ### Added - workflow journey gate + numbering + branch-scoped guard (ADR-0071)
 - **The `/workflow` journey is now enforced in the engine.** `advance` refuses to
   leave a phase whose deliverables are missing (empty PRD/SPEC, no ADR link, no

@@ -45,7 +45,7 @@ Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
 - **Coordenação (L3):** `/claim` · `/release` · `/worktree-new` · `/git`
 - **Qualidade (pack `qa/` + L5):** `/test-plan` · `/scaffold-tests` ·
   `/qa-signoff` · `/visual-test` · `/simulate-impact` · `/tech-debt-sweep` ·
-  `/analyze-code-ia-practices` · `/contract-check`
+  `/analyze-code-ia-practices` · `/contract-check` · `/context-budget`
   (`scaffold-tests.mjs plan` detecta Node/JavaScript, Python, Go, Rust e PHP
   antes do squad escrever testes de domínio; `scaffold --write` cria só harnesses starter)
 - **Auditoria (pack `audit/`):** `/audit` · `/deep-analysis` · `/security-setup` ·
@@ -57,6 +57,19 @@ Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
 - **Plataforma:** `/context-doctor` · `/context-config` · `/context-level` ·
   `/fleet` *(L7)* · `/tune-agents` *(L6)*
 - **Agent-forge** *(L6+)*: 14 comandos `forge-*` para o ciclo de Agent Packages
+
+### Paridade ContextKit (ADR-0060 → ADR-0068)
+
+Oito features zero-dep, cientes de nível e *warn-first*:
+
+- **Auto-format** (F1): hook PostToolUse formata/lint após cada edit no nível ≥ 4 (consultivo, nunca bloqueia).
+- **Quality gates** (F2): `pre-push` roda os checks da stack (10 linguagens); avisa abaixo do `strictLevel`, bloqueia nele. Bypass `CONTEXT_SKIP_QGATES=1`.
+- **Coexistência de hook-manager** (F3): detecta husky/simple-git-hooks/`core.hooksPath` e sugere integração.
+- **CI Squad** (F5): Action opt-in (`--ci-squad`) issue→PR draft; requer `ANTHROPIC_API_KEY`.
+- **Promoção de padrões ≥3** (F7): `/distill-sessions` só promove regra com 3+ ocorrências; `/retro` deprecia por strikethrough.
+- **`/context-budget`** (F6): orçamento de contexto por tarefa + `@`-imports no `CLAUDE.md`.
+- **`marker-inject`** (F4): injeção idempotente entre `<!-- ContextDevKit:start/end -->`.
+- **Bridges** (F8): contexto opt-in (`bridges.enabled`) p/ Cursor, Copilot, Gemini, Windsurf, Aider, Continue — **só contexto, sem enforcement**.
 
 ## Workflow spec pack
 
