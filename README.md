@@ -443,6 +443,10 @@ node /path/to/contextdevkit/install.mjs --target . --uninstall
 node /path/to/contextdevkit/install.mjs --target . --uninstall --purge
 ```
 
+`--update` also refreshes the installed `contextkit/README.md` through the same
+conflict-safe manifest path and regenerates `docs/README.md`; it does not take
+ownership of the target project's root `README.md`.
+
 ## Customizing for your stack
 
 The one thing worth tuning per project: **which paths matter**. Edit

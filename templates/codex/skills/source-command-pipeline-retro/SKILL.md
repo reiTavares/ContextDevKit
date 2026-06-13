@@ -33,6 +33,11 @@ to how this project is built. Output proposals — apply only with the user's OK
 3. **Propose concrete governance:**
    - **AGENTS.md edits** — a new immutable rule or convention (keep it lean).
      This overlaps with `/distill-sessions`; reuse it for the AGENTS.md diff.
+     **Deprecate by strikethrough, never delete** [ADR-0065]: when a rule is
+     superseded, mark the old line `~~old rule~~ — deprecated: <reason>. Use <new>.`
+     instead of removing it, so the *why* of the change stays in history. Standards
+     are living, not a graveyard — only prune a struck-through rule much later,
+     once it's clearly fossilized.
    - **New ADRs** — for decisions that were made but never written down.
    - **Config tweaks** — e.g. add a path to `l5.highRiskPaths` or
      `qa.criticalPaths` that keeps breaking.

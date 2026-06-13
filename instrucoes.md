@@ -304,7 +304,9 @@ npx contextdevkit@latest --target . --update
 ```
 Atualiza só o engine + slash commands + wiring dos hooks para o **nível atual**.
 **Nunca** toca em `CLAUDE.md`, `contextkit/config.json`, memória (ADRs/sessões/
-roadmap), tarefas do pipeline, nem nos `CLAUDE.md` de cada módulo. (Offline/
+roadmap), tarefas do pipeline, nem nos `CLAUDE.md` de cada módulo. Também
+atualiza `contextkit/README.md` pelo manifesto seguro e regenera
+`docs/README.md`, sem assumir controle do `README.md` raiz do seu produto. (Offline/
 GitHub: `npx github:reiTavares/ContextDevKit --target . --update`.)
 
 Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória;

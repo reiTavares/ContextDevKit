@@ -48,6 +48,7 @@ const EXCLUDED_PATHS = [
   '/.github/dependabot.yml',
   '/.github/workflows/quality.yml',
   '/.github/workflows/security.yml',
+  '/.github/workflows/squad-issue.yml',
 ];
 
 /**

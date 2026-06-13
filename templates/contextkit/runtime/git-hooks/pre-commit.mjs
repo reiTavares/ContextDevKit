@@ -43,6 +43,10 @@ function stagedTouchesSource() {
 function main() {
   console.log('› pre-commit: regenerating derived docs...');
 
+  if (existsSync(resolve(ROOT, 'docs'))) {
+    safeRun('node contextkit/tools/scripts/docs-refresh.mjs');
+    safeRun('git add docs/README.md docs/tutorials/README.md docs/how-to/README.md docs/reference/README.md docs/explanation/README.md');
+  }
   if (existsSync(P.sessions)) {
     safeRun('node contextkit/tools/scripts/session-reindex.mjs');
     safeRun('git add contextkit/memory/SESSIONS.md');

@@ -6,7 +6,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Add your changes here.
+### Changed
+- **Docs refresh is now automatic for dogfood and client updates.** The Level 3
+  pre-commit hook runs `docs-refresh.mjs` to regenerate `docs/README.md`, and
+  `--update` now refreshes `contextkit/README.md` through the conflict-safe
+  manifest path while preserving personalized client edits.
 
 ## [2.6.0] - 2026-06-13
 

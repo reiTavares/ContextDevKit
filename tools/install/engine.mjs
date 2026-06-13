@@ -13,7 +13,7 @@ import { PLATFORM_DIR } from '../../templates/contextkit/runtime/config/paths.mj
 import { applyPreset, listPresets } from '../../templates/contextkit/runtime/config/presets.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { read, overwrite, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
-import { syncTree } from './sync.mjs';
+import { syncFile, syncTree } from './sync.mjs';
 
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
@@ -24,7 +24,7 @@ const MEMORY_SEEDS = [
   'memory/workflows/.gitkeep', 'memory/workflows/_TEMPLATE/index.md', 'memory/workflows/_TEMPLATE/prd.md',
   'memory/workflows/_TEMPLATE/spec.md', 'memory/workflows/_TEMPLATE/decisions.md',
   'memory/workflows/_TEMPLATE/tasks.md', 'memory/workflows/_TEMPLATE/memory.md',
-  'memory/workflows/_TEMPLATE/reports/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md',
+  'memory/workflows/_TEMPLATE/reports/.gitkeep', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
   'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', '.env.example',
 ];
@@ -61,6 +61,14 @@ async function seedSubstrate(target, tplDir, ctx, report) {
   // Curated-stack starters: always overwrite — pure templates, copied OUT by /aidevtool-from0.
   await copyTree(join(tplDir, 'contextkit', 'starters'), join(target, 'contextkit', 'starters'));
   report.push('✓ curated-stack starters installed (contextkit/starters)');
+}
+
+/** Refreshes the installed kit README through the ADR-0054 manifest-safe path. */
+async function syncContextReadme(target, tplDir, ctx, report) {
+  const readme = await syncFile(join(tplDir, 'contextkit', 'README.md'), target, 'contextkit/README.md', ctx.sync);
+  if (readme.written) report.push('✓ refreshed contextkit/README.md');
+  if (readme.kept) report.push('✓ kept personalized contextkit/README.md');
+  if (readme.conflicted) report.push('⚠️  contextkit/README.md changed locally and upstream; conflict queued');
 }
 
 /**
@@ -163,6 +171,7 @@ async function seedDocs(target, tplDir, name, report) {
 export async function installEngine(target, tplDir, ctx, report) {
   await copyEngine(target, tplDir, ctx.version, report);
   await seedSubstrate(target, tplDir, ctx, report);
+  await syncContextReadme(target, tplDir, ctx, report);
   await writeConfig(target, tplDir, ctx.level, ctx.args, report);
   await seedDocs(target, tplDir, ctx.name, report);
 }

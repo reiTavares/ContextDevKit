@@ -80,6 +80,116 @@ export async function installGitHooks(target) {
   return { installed: true, backedUp };
 }
 
+/**
+ * Reads `hooksPath` from a project's `.git/config` (the `[core]` section) without
+ * spawning git — zero-dep and worktree-safe. Returns the configured path, or `null`
+ * when unset/unreadable. Defensive: any failure degrades to `null` (rule 2).
+ *
+ * @param {string} gitDir — resolved git directory (from `resolveGitDir`)
+ * @returns {Promise<string | null>}
+ */
+async function readCoreHooksPath(gitDir) {
+  try {
+    const cfg = await read(join(gitDir, 'config')).catch(() => '');
+    const match = cfg.match(/^\s*hookspath\s*=\s*(.+)$/im);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Per-manager integration suggestions — a shell line chaining OUR node wrapper. */
+const COEXIST = {
+  husky: {
+    type: 'husky',
+    details: 'found a .husky/ directory (Husky manages your git hooks)',
+    suggestion: 'chain our hooks from yours, e.g.:\n  echo "node contextkit/runtime/git-hooks/pre-push.mjs" >> .husky/pre-push\n  echo "node contextkit/runtime/git-hooks/commit-msg.mjs \\"$1\\"" >> .husky/commit-msg',
+  },
+  lefthook: {
+    type: 'lefthook',
+    details: 'found a Lefthook config (lefthook.yml)',
+    suggestion: 'add a command to lefthook.yml, e.g.:\n  pre-push:\n    commands:\n      contextkit:\n        run: node contextkit/runtime/git-hooks/pre-push.mjs',
+  },
+  'simple-git-hooks': {
+    type: 'simple-git-hooks',
+    details: 'found a "simple-git-hooks" key in package.json',
+    suggestion: 'add our wrappers to the simple-git-hooks block in package.json, e.g.:\n  "pre-push": "node contextkit/runtime/git-hooks/pre-push.mjs",\n  "commit-msg": "node contextkit/runtime/git-hooks/commit-msg.mjs $1"',
+  },
+};
+
+/**
+ * Detects an existing git-hook MANAGER so the installer can SUGGEST integration
+ * instead of silently clobbering. Checks, in order: a custom `core.hooksPath`
+ * (≠ ours — we write into `.git/hooks/`, never set hooksPath), `.husky/`,
+ * Lefthook config, a `simple-git-hooks` key in `package.json`, and a non-kit
+ * hook already present in `.git/hooks/`.
+ *
+ * Pure detection — never mutates, never throws. Any read failure is treated as
+ * "not detected" so a flaky filesystem can't block the install (rule 2).
+ *
+ * @param {string} target — project root
+ * @returns {Promise<{ detected: boolean, type?: string, details?: string, suggestion?: string }>}
+ */
+export async function detectExistingHooksManager(target) {
+  try {
+    const dotGit = join(target, '.git');
+    const gitDir = existsSync(dotGit) ? await resolveGitDir(dotGit, target) : null;
+
+    // 1. A custom core.hooksPath. We never set one (we drop wrappers into
+    //    .git/hooks/ directly), so ANY configured hooksPath is a foreign manager.
+    if (gitDir) {
+      const hooksPath = await readCoreHooksPath(gitDir);
+      if (hooksPath) {
+        return {
+          detected: true,
+          type: 'core.hooksPath',
+          details: `git core.hooksPath is set to "${hooksPath}" — your hooks run from there, not .git/hooks/`,
+          suggestion: `call our wrappers from that directory, e.g.:\n  echo "node contextkit/runtime/git-hooks/pre-push.mjs" >> ${hooksPath}/pre-push`,
+        };
+      }
+    }
+
+    // 2. Husky.
+    if (existsSync(join(target, '.husky'))) return { detected: true, ...COEXIST.husky };
+
+    // 3. Lefthook.
+    if (existsSync(join(target, '.lefthook.yml')) || existsSync(join(target, 'lefthook.yml'))) {
+      return { detected: true, ...COEXIST.lefthook };
+    }
+
+    // 4. simple-git-hooks in package.json.
+    const pkgPath = join(target, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(await read(pkgPath));
+        if (pkg && pkg['simple-git-hooks']) return { detected: true, ...COEXIST['simple-git-hooks'] };
+      } catch {
+        /* malformed package.json — treat as no manager */
+      }
+    }
+
+    // 5. A non-kit hook already living in .git/hooks/.
+    if (gitDir) {
+      for (const name of ['pre-commit', 'commit-msg', 'pre-push']) {
+        const hookPath = join(gitDir, 'hooks', name);
+        if (!existsSync(hookPath)) continue;
+        const body = await read(hookPath).catch(() => '');
+        if (body && !body.includes('contextkit/runtime/git-hooks')) {
+          return {
+            detected: true,
+            type: 'git-hooks',
+            details: `found an existing ${name} hook in .git/hooks/ (not ours)`,
+            suggestion: `we back it up to ${name}.bak; to keep both, chain it back:\n  node contextkit/runtime/git-hooks/${name}.mjs`,
+          };
+        }
+      }
+    }
+  } catch {
+    /* detection must never break the install — degrade to not-detected */
+  }
+  return { detected: false };
+}
+
 const GITIGNORE_BLOCK = [
   '',
   '# ContextDevKit — local runtime state (do not commit)',
@@ -149,7 +259,15 @@ export async function installVcsIntegration(target, tplDir, level, args, report)
   const ghCount = await copyTreeIfMissing(join(tplDir, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
   if (level >= 3) {
+    // Detect an existing hook manager BEFORE we install. We still install our
+    // backup-and-write default (the .bak fallback stays intact) but we SUGGEST
+    // a non-destructive integration path so adoption stays friendly [ADR-0063].
+    const coexist = await detectExistingHooksManager(target);
     const gitHooks = await installGitHooks(target);
+    if (coexist.detected) {
+      report.push(`ℹ️  existing git-hook manager detected (${coexist.type}): ${coexist.details}`);
+      report.push(`   ↳ to integrate instead of running side-by-side: ${coexist.suggestion}`);
+    }
     if (gitHooks.installed) {
       report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
       if (gitHooks.backedUp.length) report.push(`  ↳ backed up your existing ${gitHooks.backedUp.join(', ')} hook(s) → *.bak`);

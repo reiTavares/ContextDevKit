@@ -160,7 +160,7 @@ export const DEFAULT_CONFIG = Object.freeze({
    *     no new waves, in-flight steps finish and park (ADR-0044 §3 semantics).
    *   - `staleMinutes`: a silent workstream is marked `evicted` past this.
    */
-  swarm: { maxWorkstreams: 3, maxWavesPerRun: 2, tokenBudgetPerRun: 0, staleMinutes: 30 },
+  swarm: { maxWorkstreams: 5, maxWavesPerRun: 4, tokenBudgetPerRun: 0, staleMinutes: 30 },
 
   /**
    * Security mode — proactive analysis cadence. When `active`, the SessionStart
@@ -238,6 +238,21 @@ export const DEFAULT_CONFIG = Object.freeze({
     licenses: { allow: [], deny: ['GPL-3.0', 'AGPL-3.0'] },
     maxAgeDays: null,
   },
+
+  /**
+   * ContextKit parity imports (ADR-0060). Enforcers are on-by-level but
+   * warn-first — they never block at their entry level (rule 2).
+   *   - `autoFormat` (ADR-0061): PostToolUse format/lint after each edit (L≥4).
+   *     `excludePaths` are skipped; advisory only, never blocks.
+   *   - `qualityGate` (ADR-0062): multi-language pre-push checks. `strictLevel`
+   *     is the level at which a failing gate blocks (warn below it). `disabled`
+   *     lists gate keys to skip. A missing tool is reported skipped, never failed.
+   *   - `bridges` (ADR-0068): context-only bridge files for non-native tools.
+   *     `enabled` opts in per tool (cursor|copilot|gemini|windsurf|aider|continue).
+   */
+  autoFormat: { enabled: true, minLevel: 4, excludePaths: ['node_modules/', 'dist/', 'build/', '.next/', 'target/', '__pycache__/', 'vendor/'] },
+  qualityGate: { enabled: true, minLevel: 3, strictLevel: 4, disabled: [] },
+  bridges: { enabled: [] },
 
   /** L5 — Proactive Engineering. Inert unless `level >= 5`. */
   l5: {
