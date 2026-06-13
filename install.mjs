@@ -27,6 +27,7 @@ import { installEngine } from './tools/install/engine.mjs';
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
+import { installBridges } from './tools/install/bridges/index.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
@@ -164,6 +165,10 @@ async function main() {
 
   // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
   await installVcsIntegration(target, TPL, level, args, report);
+
+  // 7. Context bridges for non-native tools — opt-in per tool via config
+  //    `bridges.enabled`; context only, no enforcement [ADR-0068].
+  await installBridges(target, ctx, report);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
