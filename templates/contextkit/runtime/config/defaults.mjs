@@ -186,18 +186,36 @@ export const DEFAULT_CONFIG = Object.freeze({
   predictionsReview: { active: true, everyNSessions: 10 },
 
   /**
-   * Deliberations (L5+, ADR-0035) — multi-agent debate artifact that feeds ADRs.
-   * `/debate <question>` fans out to genuinely independent voices, a separate
-   * synthesizer converges (or records an explicit `unresolved`), and the result
-   * lands in `contextkit/memory/deliberations/`, optionally pre-filling a `/new-adr`.
-   *   - `active`: master switch — when false, the command and nudge stay silent.
-   *   - `voices`: default count of independent positions (the synthesizer is extra).
+   * Deliberations (L5+, ADR-0035 / ADR-0070) — multi-agent debate artifact that
+   * feeds ADRs. `/debate <question>` fans out to genuinely independent voices, a
+   * separate synthesizer converges (or records an explicit `unresolved`), and the
+   * result lands in `contextkit/memory/deliberations/`, optionally pre-filling a
+   * `/new-adr`.
+   *   - `active`: master switch — when false, the command, gates and nudge stay silent.
+   *   - `voices`: legacy default count of positions (the autoSelect-off fallback).
    *   - `minLevel`: the nudge hook is inert below this level (born active at L5).
-   *   - `nudgeOnHighRisk`: when true, editing an `l5.highRiskPaths` target suggests
-   *     `/debate` first (a soft nudge — it NEVER blocks the edit; rule 2). The path
-   *     set is single-sourced from `l5.highRiskPaths`, not duplicated here.
+   *   - `nudgeOnHighRisk`: when true, editing an `l5.highRiskPaths` target (or a new
+   *     `memory/decisions/` ADR) suggests `/debate` first — a soft nudge that NEVER
+   *     blocks the edit (rule 2). The path set is single-sourced from `l5.highRiskPaths`.
+   *   - `council` (ADR-0070): dynamic specialist roster. `autoSelect` picks the
+   *     relevant advisor-lane owners by question; the count scales to
+   *     `clamp(matchedLanes, min, max)`. Off → fall back to the flat `voices` count.
+   *   - `autoInvoke` (ADR-0070): the gates that auto-run a council at grade ≥ 3
+   *     (`debate` mode via the resolver) — `newFeature` (`/workflow` intake) and
+   *     `decision` (`/new-adr`, architectural tier). The ADR WRITE still stays manual.
+   *   - `research` (ADR-0070): tiered economy. When `tiered`, cheap `scoutTier`
+   *     (Haiku) agents gather an evidence pack and `verifyTier` (Sonnet) handles
+   *     complex verification; the voices + synthesizer stay reasoning-tier (ADR-0052).
    */
-  deliberations: { active: true, voices: 3, minLevel: 5, nudgeOnHighRisk: true },
+  deliberations: {
+    active: true,
+    voices: 3,
+    minLevel: 5,
+    nudgeOnHighRisk: true,
+    council: { autoSelect: true, min: 3, max: 6 },
+    autoInvoke: { newFeature: true, decision: true },
+    research: { tiered: true, scoutTier: 'fast', verifyTier: 'powerful' },
+  },
 
   /**
    * Proactive Advisor (L6, ADR-0028) — the six-lane improvement engine. When

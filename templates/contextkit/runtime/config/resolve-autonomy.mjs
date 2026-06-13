@@ -24,9 +24,13 @@ import { join } from 'node:path';
 import { matchSecret } from '../hooks/path-classification.mjs';
 import { readJsonSafe } from '../hooks/safe-io.mjs';
 
-/** Closed area enum (ADR-0042 §1; `swarm-dispatch` added by ADR-0051 §4). */
+/**
+ * Closed area enum (ADR-0042 §1; `swarm-dispatch` added by ADR-0051 §4;
+ * `feature-deliberation` + `decision-deliberation` added by ADR-0070 §1).
+ */
 export const AREAS = Object.freeze([
   'edit', 'commit', 'push', 'pipeline-move', 'adr', 'session-log', 'ship-checkpoint', 'grade-change', 'swarm-dispatch',
+  'feature-deliberation', 'decision-deliberation',
 ]);
 
 /** mode per area × grade 1..4 (floor applies AFTER this table). */
@@ -42,6 +46,12 @@ const MODE_TABLE = Object.freeze({
   // ADR-0051: launching N parallel auto workstreams is a larger consent grant
   // than one pipeline-move — suggest at grade 3, auto only at grade 4.
   'swarm-dispatch': ['manual', 'manual', 'suggest', 'auto'],
+  // ADR-0070: a new feature / new architectural decision auto-convenes a council
+  // deliberation from grade 3 (same shape as ship-checkpoint). The `debate` mode
+  // inherits the fail-safe below (requires deliberations.active). The ADR WRITE
+  // itself stays manual at every grade via the `adr` floor — this gate PRECEDES it.
+  'feature-deliberation': ['manual', 'manual', 'debate', 'debate'],
+  'decision-deliberation': ['manual', 'manual', 'debate', 'debate'],
 });
 
 /** First-person consequence text — single-sourced for /autonomy (both hosts) + onboarding (ADR-0042 §5). */

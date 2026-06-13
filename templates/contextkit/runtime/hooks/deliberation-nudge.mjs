@@ -70,10 +70,27 @@ function buildNudge(targetPath, matchedEntry) {
   ].join('\n');
 }
 
+/** A new/edited ADR under memory/decisions/ — the decision-deliberation context (ADR-0070). */
+function isNewDecision(targetPath) {
+  return targetPath.includes('memory/decisions/') && targetPath.endsWith('.md') && !targetPath.includes('_TEMPLATE');
+}
+
+function buildDecisionNudge(targetPath) {
+  return [
+    '<deliberation-nudge>',
+    `🗣️  New decision record \`${targetPath}\`.`,
+    '   A strategic decision should be argued before it hardens — consider running',
+    '   `/debate "<the decision question>"` FIRST: a specialist council debates it,',
+    '   cheap scouts gather the evidence, and the synthesis pre-fills this ADR',
+    '   (ADR-0070). Suggestion only; never blocks. Mute via `deliberations.autoInvoke.decision: false`.',
+    '</deliberation-nudge>',
+  ].join('\n');
+}
+
 async function main() {
   const config = await loadConfig(ROOT);
   const delib = config?.deliberations ?? {};
-  if (delib.active === false || delib.nudgeOnHighRisk === false) return;
+  if (delib.active === false) return;
   const minLevel = typeof delib.minLevel === 'number' ? delib.minLevel : 5;
   if (getLevel(ROOT) < minLevel) return;
 
@@ -91,14 +108,16 @@ async function main() {
   const targetPath = toRepoRelative(filePath);
   if (!targetPath) return;
 
-  const matched = matchHighRisk(targetPath, config?.l5?.highRiskPaths ?? []);
-  if (!matched) return;
+  // Two deterministic contexts (ADR-0035 high-risk path + ADR-0070 new decision).
+  const highRisk = delib.nudgeOnHighRisk === false ? null : matchHighRisk(targetPath, config?.l5?.highRiskPaths ?? []);
+  const decision = delib.autoInvoke?.decision !== false && isNewDecision(targetPath);
+  if (!highRisk && !decision) return;
 
   // Debounce: nudge at most once per session (a burst of edits stays quiet).
   const marker = nudgeMarkerPath(resolveHookSessionId(payload, HOST));
   if (existsSync(marker)) return;
 
-  emitAdvisory(buildNudge(targetPath, matched), HOST);
+  emitAdvisory(highRisk ? buildNudge(targetPath, highRisk) : buildDecisionNudge(targetPath), HOST);
   try {
     await mkdir(SESSIONS_DIR, { recursive: true });
     await writeFileAtomic(marker, String(Date.now()));

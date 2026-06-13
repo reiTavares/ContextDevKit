@@ -32,7 +32,10 @@ section. At grade >= 3, a ◆ checkpoint may be cleared by a `/debate` quorum IN
 a human pause — but only under all of these, or you fall back to a manual pause:
 
 1. **Blind voices** — run the deliberation per the ADR-0035 contract (voices blind
-   to each other), embedding the `--for-subagent` pack (ADR-0044 D1).
+   to each other), embedding the `--for-subagent` pack (ADR-0044 D1). Plan the
+   council + tiered research with `deliberation-council.mjs plan` (ADR-0070): the
+   `fast`-tier scouts gather the checkpoint evidence cheaply, the reasoning voices
+   judge it. The deterministic voice (below) is independent of that roster.
 2. **≥ 1 deterministic voice** — its vote is NOT an LLM opinion but the **exit
    codes** of `npm test`, `node tools/selfcheck.mjs` and `/deps-audit`. Red exit ⇒
    that voice votes NO; you may not synthesize it away.

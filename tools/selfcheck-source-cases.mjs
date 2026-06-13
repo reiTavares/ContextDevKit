@@ -216,7 +216,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['constitution template adds the behavioral-discipline section (ADR-0029)', 'templates/CLAUDE.md.tpl', /Behavioral discipline/],
     ['constitution names ask-when-ambiguous (think before coding)', 'templates/CLAUDE.md.tpl', /ask when the request is ambiguous/i],
     ['defaults expose the behaviors flag (ADR-0029)', 'templates/contextkit/runtime/config/defaults.mjs', /behaviors:\s*\{\s*active:\s*true\s*\}/],
-    ['boot reminds behavioral discipline when active', 'templates/contextkit/runtime/hooks/session-start.mjs', /Behavioral discipline is ACTIVE/],
+    ['boot reminds behavioral discipline when active', 'templates/contextkit/runtime/hooks/boot-banner.mjs', /Behavioral discipline is ACTIVE/],
     ['installer seeds behaviors.md (ADR-0029)', 'tools/install/engine.mjs', /'behaviors\.md'/],
     ['installer seeds behaviors-examples.md', 'tools/install/engine.mjs', /'behaviors-examples\.md'/],
     // ADR-0027 — token-economy digest layer (session/ADR pre-digestion).

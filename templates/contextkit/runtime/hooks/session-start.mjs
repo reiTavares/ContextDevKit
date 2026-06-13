@@ -50,12 +50,11 @@ import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT, PLATFORM_DIR } from '../config/paths.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
+import { renderBootBanner } from './boot-banner.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
 const isCodex = HOST === 'codex';
-const bootFile = isCodex ? 'AGENTS.md' : 'CLAUDE.md';
-const commandRef = (name, args = '') => (isCodex ? `node cdx.mjs ${name}${args ? ` ${args}` : ''}` : `/${name}${args ? ` ${args}` : ''}`);
 
 async function readStdin() {
   return new Promise((res) => {
@@ -151,191 +150,41 @@ async function main() {
 
   if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest) return;
 
-  const out = [];
-  out.push('<project-context-boot>');
-  out.push(`# 📚 Boot context — ${await projectName(ROOT)} (${HOST})`);
-  out.push('');
-  out.push(`Session id: \`${sessionId.slice(0, 16)}\` · Branch: \`${getBranch(ROOT)}\` · ContextDevKit level: \`L${level}\`${autonomyBadge(ROOT)}`);
-  out.push('');
+  // ADR-0044 D2: prefer the compact count-by-type + recent-entries digest; fall
+  // back to the raw-truncated section on any parse miss (ADR-0027 contract).
+  const unreleased = changelog ? digestUnreleased(changelog) || extractUnreleased(changelog) : null;
 
-  if (engineSignal) {
-    out.push(engineSignal);
-    out.push('');
-  }
+  // Hand the gathered signals to the pure presentation layer (boot-banner.mjs).
+  const banner = renderBootBanner({
+    host: HOST,
+    isCodex,
+    sessionId,
+    branch: getBranch(ROOT),
+    level,
+    projectName: await projectName(ROOT),
+    autonomyBadge: autonomyBadge(ROOT),
+    needsSetup,
+    greenfield: needsSetup ? isGreenfield(ROOT) : false,
+    practicesActive: loadConfigSync(ROOT)?.practices?.active === true,
+    behaviorsActive: loadConfigSync(ROOT)?.behaviors?.active === true,
+    engineSignal,
+    pendingDigest,
+    secDue,
+    predDue,
+    bugs,
+    mapStale,
+    squadContext,
+    divergence,
+    drift,
+    workspace,
+    branches,
+    latest,
+    unreleased,
+    value,
+    hasSnapshot,
+  });
 
-  if (pendingDigest) {
-    out.push(pendingDigest);
-    out.push('');
-  }
-
-  if (needsSetup) {
-    const empty = isGreenfield(ROOT);
-    out.push('## 🚀 First run — ContextDevKit not configured yet');
-    out.push('');
-    if (empty) {
-      out.push(`This folder looks **empty (no code yet)**. Run **\`${commandRef('aidevtool-from0')}\`** — it interviews you`);
-      out.push('about the product, suggests/refines the stack, drafts a roadmap, adopts the best-practices');
-      out.push('constitution, and seeds the DevPipeline. From zero, the kit stays ACTIVE: it keeps');
-      out.push('suggesting the next practice/level as the product takes shape.');
-    } else {
-      out.push(`This project already has code. Run **\`${commandRef('setupcontextdevkit')}\`** — it inspects the project, tunes`);
-      out.push(`the config to this stack, fills in \`${bootFile}\`, flags high-risk paths, installs what is`);
-      out.push(`needed, and records a baseline ADR. (Empty project instead? use \`${commandRef('aidevtool-from0')}\`.)`);
-    }
-    out.push('');
-  }
-
-  if (loadConfigSync(ROOT)?.practices?.active === true) {
-    out.push('## 🧠 Best-practices skill is ACTIVE');
-    out.push('');
-    out.push('Honor `contextkit/best-practices.md` (file-size budget, intelligent refactor by responsibility,');
-    out.push(`SoC, naming, docs). Run \`${commandRef('analyze-code-ia-practices')}\` to audit + get refactor proposals.`);
-    out.push('');
-  }
-
-  if (loadConfigSync(ROOT)?.behaviors?.active === true) {
-    out.push('## 🧭 Behavioral discipline is ACTIVE');
-    out.push('');
-    out.push('Honor `contextkit/behaviors.md` while coding: **think before coding** (surface assumptions,');
-    out.push('ask when ambiguous), **simplicity first**, **surgical changes** (match the surrounding style,');
-    out.push('no drive-by refactor), **goal-driven** (reproduce-test first, loop to green).');
-    out.push('');
-  }
-
-  if (secDue) {
-    out.push('## 🛡️ Security mode — time for a deep sweep');
-    out.push('');
-    out.push(`**${secDue} sessions** in. Run **\`${commandRef('deep-analysis')}\`** — full code + security + deps + bug`);
-    out.push('sweep → report → ADRs → backlog. (Active by default; disable via `securityMode.active`.)');
-    out.push('');
-  }
-
-  if (predDue) {
-    out.push('## 🔮 Predictions — close the loop');
-    out.push('');
-    out.push(`**${predDue} sessions** in with **unreviewed** \`/simulate-impact\` predictions. Run`);
-    out.push(`**\`${commandRef('predictions-review')}\`** to fill their *Actual* section (predicted vs actual). It also`);
-    out.push(`auto-runs at \`${commandRef('log-session')}\`; disable the reminder via \`predictionsReview.active\`.`);
-    out.push('');
-  }
-
-  if (bugs) {
-    out.push('## 🐞 Open bugs awaiting resolution');
-    out.push('');
-    out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in backlog/working.`);
-    out.push(`Resolve pending bugs (P0/P1 first) before new feature work — \`${commandRef('pipeline')}\` to triage, \`${commandRef('bug-hunt', '<id>')}\` to fix.`);
-    out.push('');
-  }
-
-  if (mapStale) {
-    out.push('## 🗺️ Project map');
-    out.push('');
-    out.push(mapStale);
-    out.push('');
-  }
-
-  if (squadContext && squadContext.squads && squadContext.squads.length > 0) {
-    out.push('## 👥 Active Squad Postures');
-    out.push('');
-    for (let i = 0; i < squadContext.squads.length; i++) {
-      const squad = squadContext.squads[i];
-      const agent = squadContext.agents[i] || 'architect';
-      out.push(`- **Squad: \`${squad}\`** (Suggested agent: \`${agent}\`)`);
-      const playbook = squadContext.playbooks.find(p => p.squad === squad);
-      if (playbook) {
-        out.push(`  Playbook: \`${playbook.path}\``);
-      }
-    }
-    if (squadContext.agentScaffolding && squadContext.agentScaffolding.length > 0) {
-      out.push('');
-      out.push('🤖 **Agent-Forge Suggestions:**');
-      for (const sug of squadContext.agentScaffolding) {
-        out.push(`- \`${sug}\``);
-      }
-    }
-    out.push('');
-  }
-
-  if (divergence && (divergence.ahead > 0 || divergence.behind > 0)) {
-    out.push('## 🔄 Git status vs upstream');
-    out.push('');
-    if (divergence.behind > 0) out.push(`- ⚠️  Behind upstream by **${divergence.behind}** commit(s). Consider \`git pull\` before editing.`);
-    if (divergence.ahead > 0) out.push(`- ℹ️  Ahead of upstream by **${divergence.ahead}** commit(s) (unpushed).`);
-    out.push('');
-  }
-
-  if (drift.length > 0) {
-    out.push('## 🚨 Drift from previous session(s)');
-    out.push('');
-    // ADR-0033 — cap to the 2 freshest; collapse the rest so a few abandoned
-    // ledgers don't bury the rest of the boot context.
-    for (const d of drift.slice(0, 2)) {
-      out.push(`Session \`${d.sessionId.slice(0, 8)}\` ended without \`/log-session\` and left ${d.paths.length} important file(s) modified:`);
-      for (const p of d.paths.slice(0, 6)) out.push(`  - ${p}`);
-      if (d.paths.length > 6) out.push(`  (… and ${d.paths.length - 6} more)`);
-      out.push('');
-    }
-    if (drift.length > 2) {
-      out.push(`_+ ${drift.length - 2} older unregistered session(s) — \`${commandRef('log-session')}\` to reconcile, or leave them if abandoned._`);
-      out.push('');
-    }
-    out.push('If those changes still matter, **offer to retroactively register them** before new work.');
-    out.push('');
-  }
-
-  if (workspace) {
-    out.push('## 👥 Active workspace claims');
-    out.push('');
-    out.push(workspace);
-    out.push('');
-  }
-
-  if (branches) {
-    out.push('## 🌿 Other active branches (parallel work)');
-    out.push('');
-    out.push(branches);
-    out.push('');
-    out.push(`If you will touch files another branch changed, coordinate (or \`${commandRef('claim', '<path>')}\`) — the pre-push`);
-    out.push('hook will also block a conflicting push.');
-    out.push('');
-  }
-
-  if (latest) {
-    out.push('## 🗓️ Last registered session');
-    out.push('');
-    out.push(latest.content);
-    if (latest.mode === 'digest') out.push('\n_(digest — open the full log in `contextkit/memory/sessions/` if you need detail) [ADR-0027]_');
-    out.push('');
-  }
-
-  if (changelog) {
-    // ADR-0044 D2: prefer the compact count-by-type + recent-entries digest;
-    // fall back to the raw-truncated section on any parse miss (ADR-0027 contract).
-    const unreleased = digestUnreleased(changelog) || extractUnreleased(changelog);
-    if (unreleased) {
-      out.push('## 📝 Unreleased changes (CHANGELOG `[Unreleased]`)');
-      out.push('');
-      out.push(unreleased);
-      out.push('');
-    }
-  }
-
-  if (value) {
-    out.push(value);
-    out.push('');
-  }
-
-  out.push('## ⚠️ Process rules');
-  out.push('');
-  out.push('1. Read SESSIONS index + relevant ADR before non-trivial changes.');
-  out.push(`2. New architectural decision → \`${commandRef('new-adr', '<title>')}\` BEFORE implementing.`);
-  if (level >= 3) out.push(`3. Reserve area before parallel work → \`${commandRef('claim', '<path>')}\`. Free with \`${commandRef('release')}\`.`);
-  out.push(`4. End of productive session → \`${commandRef('log-session')}\`.`);
-  out.push(`5. \`${commandRef('state')}\` for a quick state summary at any time.`);
-  if (hasSnapshot) out.push('6. `.context-snapshot.md` available for a full-project view.');
-  out.push('</project-context-boot>');
-
-  process.stdout.write(out.join('\n') + '\n');
+  process.stdout.write(banner);
 }
 
 main().catch((err) => {

@@ -31,7 +31,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // ADR-0033 — boot as a budget.
     ['boot-signals exposes engineUpdateSignal (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function engineUpdateSignal/],
     ['boot-signals exposes valueLine (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function valueLine/],
-    ['session-start caps the drift banner to 2 freshest (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /drift\.slice\(0, 2\)/],
+    ['boot-banner caps the drift banner to 2 freshest (ADR-0033)', 'templates/contextkit/runtime/hooks/boot-banner.mjs', /drift\.slice\(0, 2\)/],
     ['session-start renders the engine-update signal (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /engineUpdateSignal\(ROOT\)/],
     ['session-start renders the weekly value line (ADR-0033)', 'templates/contextkit/runtime/hooks/session-start.mjs', /valueLine\(ROOT\)/],
     ['defaults expose boot.valueLine (ADR-0033)', 'templates/contextkit/runtime/config/defaults.mjs', /boot:\s*\{\s*valueLine:\s*true\s*\}/],

@@ -8,6 +8,15 @@ Create a new Architecture Decision Record for: **<user-specified argument>**
    `node contextkit/tools/scripts/adr-digest.mjs --search "<key terms from the title>"`.
    If an ADR already covers this, extend or supersede it rather than create a duplicate.
 
+0b. **Deliberation gate** [ADR-0070]: a strategic/architectural decision should be
+   argued before it hardens. Resolve the `decision-deliberation` area
+   (`resolveAutonomy('decision-deliberation', config)`): at **grade ≥ 3** with
+   `deliberations.active`, this is `debate` mode — run `/debate "<the decision
+   question>"` FIRST and use its synthesis as this ADR's Context (the debate offers a
+   pre-filled draft). At grade ≤ 2 it is a suggestion, not a block. Skip only for a
+   trivial/mechanical decision (no real tension). Writing the ADR itself stays
+   `manual` at every grade — the deliberation precedes the write, never authorizes it.
+
 1. Find the next ADR number: list `contextkit/memory/decisions/`, take the highest `NNNN` + 1
    (zero-padded to 4 digits). The `0000` meta-ADR and `_TEMPLATE.md` do not count as the latest
    numbered decision beyond their own number.
