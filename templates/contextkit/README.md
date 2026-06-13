@@ -65,6 +65,10 @@ npx contextdevkit@latest --target . --update
 npx github:reiTavares/ContextDevKit --target . --update
 ```
 
+`--update` also refreshes the installed kit README through the conflict-safe
+manifest path and regenerates `docs/README.md`. Your product's root `README.md`
+stays yours.
+
 ## Workflow spec packs
 
 Use `/workflow new <slug>` for large features and architecture changes. It

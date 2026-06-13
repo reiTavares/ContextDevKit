@@ -67,6 +67,63 @@ export async function saveManifest(target, sync, version) {
 }
 
 /**
+ * Applies the 3-way manifest matrix to one kit-owned template file.
+ * @param {string} srcPath absolute template file path
+ * @param {string} target project root
+ * @param {string} destRel forward-slash destination path
+ * @param {{manifest:object, nextFiles:object, conflicts:Array}} sync shared sync context
+ * @returns {Promise<'written'|'kept'|'conflicted'|'unchanged'>} sync outcome
+ */
+async function syncTemplateFile(srcPath, target, destRel, sync) {
+  const destPath = join(target, ...destRel.split('/'));
+  const templateBuffer = await readFile(srcPath);
+  const templateHash = sha256(templateBuffer);
+  if (!existsSync(destPath)) {
+    await ensureDir(dirname(destPath));
+    await writeFile(destPath, templateBuffer);
+    sync.nextFiles[destRel] = templateHash;
+    return 'written';
+  }
+  const currentHash = sha256(await readFile(destPath));
+  if (currentHash === templateHash) {
+    sync.nextFiles[destRel] = templateHash;
+    return 'unchanged';
+  }
+  const baselineHash = sync.manifest.files[destRel];
+  const userChanged = !baselineHash || currentHash !== baselineHash;
+  const kitChanged = !baselineHash || templateHash !== baselineHash;
+  if (!userChanged) {
+    await writeFile(destPath, templateBuffer);
+    sync.nextFiles[destRel] = templateHash;
+    return 'written';
+  }
+  if (!kitChanged) {
+    sync.nextFiles[destRel] = baselineHash;
+    return 'kept';
+  }
+  sync.conflicts.push({ destRel, destPath, templateBuffer, templateHash });
+  return 'conflicted';
+}
+
+/**
+ * Syncs one template file into the target with the same 3-way matrix as
+ * `syncTree()`. Use for single kit-owned docs such as `contextkit/README.md`.
+ * @param {string} srcPath absolute template file path
+ * @param {string} target project root
+ * @param {string} destRel forward-slash destination path
+ * @param {{manifest:object, nextFiles:object, conflicts:Array}} sync shared sync context
+ * @returns {Promise<{written:number, kept:number, conflicted:number}>}
+ */
+export async function syncFile(srcPath, target, destRel, sync) {
+  const state = await syncTemplateFile(srcPath, target, destRel, sync);
+  return {
+    written: state === 'written' ? 1 : 0,
+    kept: state === 'kept' ? 1 : 0,
+    conflicted: state === 'conflicted' ? 1 : 0,
+  };
+}
+
+/**
  * Syncs one template tree into the target with the 3-way matrix above.
  * Writes safe cases immediately; defers conflicts into `sync.conflicts` so the
  * orchestrator can resolve them all in one pass (one prompt session).

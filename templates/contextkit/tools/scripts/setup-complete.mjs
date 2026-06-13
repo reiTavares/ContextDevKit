@@ -64,6 +64,12 @@ function main() {
   cfg.setup = { ...(cfg.setup || {}), completed: true, completedAt: new Date().toISOString() };
   writeFileSync(CONFIG, JSON.stringify(cfg, null, 2) + '\n', 'utf-8');
   console.log('✅ ContextDevKit setup marked complete. The first-run trigger will no longer fire.');
+
+  try {
+    execFileSync('node', ['contextkit/tools/scripts/squad.mjs', 'generate-playbooks'], { cwd: ROOT });
+  } catch (err) {
+    /* fail-silent */
+  }
 }
 
 main();

@@ -34,6 +34,7 @@ where the last one left off.
 | **Deterministic QA sign-off** ([ADR-0055](contextkit/memory/decisions/)) | `/pipetest` runs the suite; green + complete acceptance criteria ⇒ `qa-approve` testing cards into `conclusion` (actor `qa`, evidence on the card); red ⇒ report and bounce only attributable failures. The verdict is the **suite's exit code**, never an opinion |
 | **Observable pipeline substrate** ([ADR-0043](contextkit/memory/decisions/)) | Every pipeline move appends to an **append-only `state.json` event log** (`actor: human\|auto\|qa\|evict`, recorded inverse for reversibility); `auto` can never enter `conclusion`. `/runs` reads the machine |
 | **Dogfood-by-default install** ([ADR-0054](contextkit/memory/decisions/)) | Fresh installs leave **zero tracked kit files** (a managed `info/exclude` block), and `--update` runs a conflict-safe 3-way merge against a sha256 manifest — personalized commands/agents are never clobbered, no side is ever lost. Opt out with `--tracked` |
+| **Active agent squads** ([ADR-0069](contextkit/memory/decisions/)) | Deterministic routing (`squads-registry.json` + `/squad route`), stack-aware playbook templates for all 8 squads, compliance auto-auditing at pre-commit gates via `squad-audit.mjs` and token-efficient posture selection via `squad-director.mjs` |
 
 <details>
 <summary><strong>Earlier highlights (v1.15–v1.17 — dual-host hardening)</strong></summary>
@@ -442,6 +443,10 @@ node /path/to/contextdevkit/install.mjs --target . --uninstall
 # ...or also remove the engine/commands/agents/antigravity assets:
 node /path/to/contextdevkit/install.mjs --target . --uninstall --purge
 ```
+
+`--update` also refreshes the installed `contextkit/README.md` through the same
+conflict-safe manifest path and regenerates `docs/README.md`; it does not take
+ownership of the target project's root `README.md`.
 
 ## Customizing for your stack
 

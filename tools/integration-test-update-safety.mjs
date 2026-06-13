@@ -13,6 +13,7 @@
  *   H. an already-tracked install gets the untrack guidance, never an index touch.
  */
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync, unlinkSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KIT, run, git, reporter, readJson } from './it-helpers.mjs';
@@ -22,6 +23,7 @@ const rep = reporter();
 const read = (p) => readFileSync(p, 'utf-8');
 const tmp = () => mkdtempSync(join(tmpdir(), 'contextkit-upd-'));
 const kitVersion = readJson(join(KIT, 'package.json')).version;
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
 function freshInstall(proj, extra = []) {
   git(['init', '-b', 'main'], proj);
@@ -102,6 +104,38 @@ const update = (proj) => run([join(KIT, 'install.mjs'), '--target', proj, '--upd
 })();
 
 // ── E. legacy install (no manifest): modified kit file ⇒ refuse to clobber ──
+// -- E. contextkit/README.md refreshes when kit-owned, but local edits survive --
+(() => {
+  const proj = tmp();
+  try {
+    freshInstall(proj);
+    const manifestPath = join(proj, 'contextkit', '.install-manifest.json');
+    const readmePath = join(proj, 'contextkit', 'README.md');
+    const oldReadme = '# Old ContextDevKit README\n';
+    const manifest = readJson(manifestPath);
+    manifest.files['contextkit/README.md'] = sha256(oldReadme);
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+    writeFileSync(readmePath, oldReadme, 'utf-8');
+    const refreshed = update(proj);
+    read(readmePath).includes('ContextDevKit platform')
+      ? rep.ok('--update refreshes an unchanged old contextkit/README.md')
+      : rep.bad('contextkit/README.md did not refresh from the kit template');
+    /refreshed contextkit\/README\.md/.test(refreshed.stdout)
+      ? rep.ok('README refresh is reported')
+      : rep.bad('README refresh missing from installer report');
+
+    const personalized = '# My local kit notes\n';
+    writeFileSync(readmePath, personalized, 'utf-8');
+    const kept = update(proj);
+    read(readmePath) === personalized
+      ? rep.ok('personalized contextkit/README.md survives --update')
+      : rep.bad('personalized contextkit/README.md was clobbered');
+    /kept personalized contextkit\/README\.md/.test(kept.stdout)
+      ? rep.ok('personalized README keep is reported')
+      : rep.bad('personalized README keep missing from installer report');
+  } finally { rmSync(proj, { recursive: true, force: true }); }
+})();
+
 (() => {
   const proj = tmp();
   try {

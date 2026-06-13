@@ -42,6 +42,9 @@
     "registration": ["contextkit/memory/SESSIONS.md", "docs/CHANGELOG.md"]
   },
   "l3": { "mainBranch": "main" },
+  "autoFormat": { "enabled": true, "minLevel": 4, "excludePaths": ["node_modules/", "dist/", "build/", ".next/", "target/", "__pycache__/", "vendor/"] },
+  "qualityGate": { "enabled": true, "minLevel": 3, "strictLevel": 4, "disabled": [] },
+  "bridges": { "enabled": [] },
   "qa": {
     "criticalPaths": [],
     "coverageTarget": { "lines": 80, "branches": 70 }

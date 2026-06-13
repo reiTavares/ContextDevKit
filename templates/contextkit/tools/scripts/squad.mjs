@@ -16,6 +16,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { resolve } from 'node:path';
 import { squadOf } from './squad-meta.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { analyzeContext } from './squad-director.mjs';
 
 const ROOT = process.cwd();
 const AGENTS = resolve(ROOT, '.claude/agents');
@@ -71,10 +72,46 @@ function list() {
   }
 }
 
+function route() {
+  const query = process.argv.slice(3).join(' ');
+  console.log('🔍 Analyzing active project intent and file diffs...');
+  const result = analyzeContext(query);
+
+  console.log('\n👥 Suggested Active Postures:');
+  for (let i = 0; i < result.squads.length; i++) {
+    const squad = result.squads[i];
+    const agent = result.agents[i] || 'architect';
+    const playbook = result.playbooks.find(p => p.squad === squad);
+    console.log(`  • Squad: \x1b[32m${squad}\x1b[0m (Agent: \x1b[36m${agent}\x1b[0m)`);
+    if (playbook) {
+      console.log(`    Playbook: \x1b[34m${playbook.path}\x1b[0m`);
+    }
+  }
+
+  if (result.agentScaffolding && result.agentScaffolding.length > 0) {
+    console.log('\n🤖 Agent-Forge Suggestions:');
+    console.log('  Your project contains stack components with no custom agent coverage.');
+    console.log('  Consider scaffolding the following agents using `/forge-new`:');
+    for (const sug of result.agentScaffolding) {
+      console.log(`    • \x1b[33m${sug}\x1b[0m`);
+    }
+  }
+  console.log('');
+}
+
+function generatePlaybooks() {
+  const destDir = resolve(pathsFor(ROOT).playbooks, 'squads');
+  mkdirSync(destDir, { recursive: true });
+  console.log(`✅ Squad playbooks directory verified: ${destDir}`);
+}
+
 const cmd = process.argv[2];
 if (cmd === 'brief') brief();
 else if (cmd === 'list') list();
+else if (cmd === 'route') route();
+else if (cmd === 'generate-playbooks') generatePlaybooks();
 else {
-  console.error('Usage: squad.mjs <list | brief <agent>>');
+  console.error('Usage: squad.mjs <list | brief <agent> | route [intent] | generate-playbooks>');
   process.exit(1);
 }
+

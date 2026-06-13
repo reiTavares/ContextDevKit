@@ -59,4 +59,8 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['session-draft times out its git call — no silent hang (ADR-0057, rule 2)', 'templates/contextkit/tools/scripts/session-draft.mjs', /spawnSync\('git'[\s\S]*timeout:\s*\d/],
     // ADR-0056 follow-up — WS-E installed-mode converter wire-or-retire doc (task 159).
     ['codex README documents the converter wire-or-retire status (ADR-0056, task 159)', 'templates/codex/README.md', /Converter — wire-or-retire status[\s\S]*Installed-mode[\s\S]*auto-wired/],
+    // Docs auto-refresh.
+    ['docs-refresh exports the dogfood-safe refresh entry point', 'templates/contextkit/tools/scripts/docs-refresh.mjs', /export function refreshDocs/],
+    ['pre-commit refreshes generated docs before staging derived indices', 'templates/contextkit/runtime/git-hooks/pre-commit.mjs', /docs-refresh\.mjs/],
+    ['installer syncs contextkit README through the manifest-safe path', 'tools/install/engine.mjs', /syncFile\(join\(tplDir, 'contextkit', 'README\.md'\)/],
 ];

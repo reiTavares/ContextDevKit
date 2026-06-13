@@ -135,6 +135,9 @@ Setup do `/media-gen`:
 - `/dashboard` — visual do estado em HTML; `--watch` em tempo real.
 - Atualizar o kit: rode o instalador de novo (não perde memória/config) ou
   `npx contextdevkit@latest --target . --update`.
+  O update também refresca `contextkit/README.md` pelo caminho seguro de
+  manifesto e regenera `docs/README.md`; o `README.md` raiz do seu produto
+  continua sendo seu.
 
 Docs completos (inglês): `contextkit/README.md` e a pasta `docs/` do kit
 (`docs/ARCHITECTURE.md`, `docs/CUSTOMIZING.md`, `docs/SQUADS/design-team.md`,
