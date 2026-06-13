@@ -18,9 +18,9 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v2.6.1
+## What's new in v2.6.2
 
-> **Active Agent Squads on top of governed autonomy.** v2.6.1 activates the
+> **Active Agent Squads on top of governed autonomy.** v2.6.2 activates the
 > specialized subagent squads by integrating deterministic routing, stack-aware
 > dynamic playbook templates, and L5 compliance pre-commit gates alongside governed autonomy.
 

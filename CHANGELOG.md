@@ -6,6 +6,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-06-13
+
+### Fixed
+- **Hooks:** Fixed a ReferenceError in the `session-start.mjs` hook where `resolve` was used without being imported from `node:path`.
+
 ## [2.6.1] - 2026-06-13
 
 ### Added - active agent squads integration
