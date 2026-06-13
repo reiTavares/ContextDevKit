@@ -175,7 +175,7 @@ try {
 
   // ── workflow spec-pack gates and phase-aware guard integration test ──
   const w1 = ctx('workflow', 'new', 'testwf');
-  // ADR-0070: workflows are numbered (NNNN-slug); resolve the folder by slug suffix.
+  // ADR-0071: workflows are numbered (NNNN-slug); resolve the folder by slug suffix.
   const wfRootA = join(proj, 'contextkit', 'memory', 'workflows');
   const wfDir = join(wfRootA, readdirSync(wfRootA).find((f) => f === 'testwf' || f.endsWith('-testwf')) || 'testwf');
   w1.status === 0 && existsSync(join(wfDir, 'index.md'))

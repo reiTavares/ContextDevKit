@@ -30,7 +30,7 @@ function testWorkflowMacro() {
   gitRun(['init', '-b', 'main'], proj);
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WF', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
-  // ADR-0070: workflows are numbered (NNNN-slug); resolve the demo folder by slug suffix.
+  // ADR-0071: workflows are numbered (NNNN-slug); resolve the demo folder by slug suffix.
   const wfRoot = join(proj, 'contextkit/memory/workflows');
   const demoDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'demo' || f.endsWith('-demo')) || 'demo');
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');

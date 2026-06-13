@@ -1,5 +1,5 @@
 /**
- * Workflow numbering (ADR-0070). Workflows are numbered like ADRs (`NNNN-slug`)
+ * Workflow numbering (ADR-0071). Workflows are numbered like ADRs (`NNNN-slug`)
  * so they order and reference cleanly. This module owns the numbering + folder
  * resolution + the date-ordered migration, keeping `workflow-pack.mjs` within the
  * line budget. Pure `node:fs`, zero deps.

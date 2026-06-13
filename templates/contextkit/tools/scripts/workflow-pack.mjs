@@ -29,7 +29,7 @@ function stamp() { return new Date().toISOString(); }
 function day() { return new Date().toISOString().slice(0, 10); }
 
 /**
- * Current git branch (ADR-0070), zero-dep. Handles worktrees where `.git` is a
+ * Current git branch (ADR-0071), zero-dep. Handles worktrees where `.git` is a
  * file pointing at the real gitdir. Returns null when undeterminable (detached
  * HEAD, no repo): a null-branch workflow never scopes the guard to a branch.
  */
@@ -249,7 +249,7 @@ export function listWorkflows(root) {
 }
 
 /**
- * Reports the journey-gate gaps for a workflow's CURRENT phase (ADR-0070).
+ * Reports the journey-gate gaps for a workflow's CURRENT phase (ADR-0071).
  * @returns {{ currentPhase: string, missing: string[] }}
  */
 export function checkWorkflow(root, slug) {

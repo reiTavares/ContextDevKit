@@ -1,5 +1,5 @@
 /**
- * integration-test-workflow-governance.mjs - ADR-0070.
+ * integration-test-workflow-governance.mjs - ADR-0071.
  *
  * Validates the workflow journey gate: `advance` refuses to leave a phase whose
  * deliverables are missing, `--force` overrides, and `check` reports the gaps.
@@ -51,7 +51,7 @@ adrCheck.status !== 0 && /ADR|decisions/i.test(adrCheck.stdout + adrCheck.stderr
 
 fx.cleanup();
 
-// --- Branch-scoped L5 guard (ADR-0070) ---
+// --- Branch-scoped L5 guard (ADR-0071) ---
 const gx = installFixture(rep);
 const edit = { session_id: 'it', tool_name: 'Edit', tool_input: { file_path: 'src/app.js' } };
 // A fresh pre-ship workflow is stamped with the fixture's current branch (main).
@@ -70,7 +70,7 @@ out = gx.hook('simulate-gate.mjs', edit);
 
 gx.cleanup();
 
-// --- Numbering NNNN-slug (ADR-0070) ---
+// --- Numbering NNNN-slug (ADR-0071) ---
 const nx = installFixture(rep);
 const nxDir = join(nx.proj, 'contextkit', 'memory', 'workflows');
 nx.script('workflow.mjs', 'new', 'num-a', '--kind', 'feature');
@@ -101,4 +101,4 @@ secondPass.length === 0 ? rep.ok('15. migration is idempotent (no-op on re-run)'
 nextNumber(mdir) === '0003' ? rep.ok('16. nextNumber follows the migrated max') : rep.bad(`16. expected 0003, got ${nextNumber(mdir)}`);
 rmSync(mdir, { recursive: true, force: true });
 
-rep.finish('workflow governance - gate + branch guard + numbering + migration (ADR-0070)');
+rep.finish('workflow governance - gate + branch guard + numbering + migration (ADR-0071)');

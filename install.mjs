@@ -136,11 +136,11 @@ async function main() {
   // 2. Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
   await installEngine(target, TPL, ctx, report);
 
-  // 2b. Number existing workflows by start date (ADR-0070) — idempotent; a no-op
+  // 2b. Number existing workflows by start date (ADR-0071) — idempotent; a no-op
   // once they are numbered. Runs on fresh + --update; never blocks the install.
   try {
     const renamed = renumberByStarted(join(target, 'contextkit', 'memory', 'workflows'), { write: true });
-    if (renamed.length) report.push(`✓ numbered ${renamed.length} workflow(s) by start date (ADR-0070)`);
+    if (renamed.length) report.push(`✓ numbered ${renamed.length} workflow(s) by start date (ADR-0071)`);
   } catch { /* never block install on a numbering hiccup */ }
 
   // 3. Antigravity host — second native host [ADR-0036].
