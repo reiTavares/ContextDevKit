@@ -11,8 +11,9 @@
  *   1  SessionStart  (session-manager start — boot context + agy session id)
  *   2  + PostToolUse (track-edits), Stop (session-manager end — drift check)
  *   3  + PreToolUse  (concurrency-guard)
+ *   4  + PostToolUse (auto-format — advisory format/lint, ADR-0061)
  *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
- * (Level 4 adds personas — assets, not hooks.)
+ * (Level 4 also adds personas — assets, not hooks.)
  *
  * agy matchers are exact snake_case tool names; one entry per tool (not an
  * `a|b|c` alternation) so the wiring works under both exact-match and regex
@@ -49,6 +50,7 @@ export function composeAgentHooks(existing, level) {
     group.Stop = [command(`node ${SESSION_MANAGER} end`)];
   }
   if (level >= 3) group.PreToolUse = perWriteTool('concurrency-guard.mjs');
+  if (level >= 4) group.PostToolUse.push(...perWriteTool('auto-format.mjs')); // ADR-0061 — advisory format/lint
   if (level >= 5) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
     group.PreToolUse.push(...perWriteTool('deliberation-nudge.mjs'));

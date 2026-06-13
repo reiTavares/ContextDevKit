@@ -39,6 +39,7 @@ export function composeCodexHooks(existing, level) {
     add('Stop', null, 'check-registration.mjs');
   }
   if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
+  if (level >= 4) add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
     add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs');
