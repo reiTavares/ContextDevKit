@@ -10,7 +10,7 @@
  *
  * Run:  node tools/integration-test-antigravity.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { run, reporter, installFixture, git } from './it-helpers.mjs';
 
@@ -175,7 +175,10 @@ try {
 
   // ── workflow spec-pack gates and phase-aware guard integration test ──
   const w1 = ctx('workflow', 'new', 'testwf');
-  w1.status === 0 && existsSync(join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'index.md'))
+  // ADR-0071: workflows are numbered (NNNN-slug); resolve the folder by slug suffix.
+  const wfRootA = join(proj, 'contextkit', 'memory', 'workflows');
+  const wfDir = join(wfRootA, readdirSync(wfRootA).find((f) => f === 'testwf' || f.endsWith('-testwf')) || 'testwf');
+  w1.status === 0 && existsSync(join(wfDir, 'index.md'))
     ? ok('can create a new workflow folder pack')
     : bad(`failed to create workflow (status ${w1.status}): ${w1.stdout + w1.stderr}`);
 
@@ -192,7 +195,7 @@ try {
     : bad(`expected failure due to empty prd.md, but got status ${w3.status}: ${w3.stdout + w3.stderr}`);
 
   // Fill the PRD sections
-  const prdPath = join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'prd.md');
+  const prdPath = join(wfDir, 'prd.md');
   writeFileSync(prdPath, `# PRD/PDR - testwf\n\n## Problem\nWe need enforcement.\n\n## Goals\nTo enforce workflows.\n\n## Users / Jobs\n`);
 
   // Advance from prd to spec (should succeed now)
@@ -226,7 +229,7 @@ try {
     : bad(`expected failure due to empty spec.md, but got status ${w5.status}`);
 
   // Fill spec.md
-  const specPath = join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'spec.md');
+  const specPath = join(wfDir, 'spec.md');
   writeFileSync(specPath, `# SPEC - testwf\n\n## Proposed design\nNew design.\n\n## Test plan\nRun tests.\n`);
 
   // Advance to adr (succeeds)
@@ -238,7 +241,7 @@ try {
   // Advance to roadmap/pipeline with refs that satisfy the journey gates.
   ctx('workflow', 'advance', 'testwf', 'ADR-TEST');
   ctx('workflow', 'advance', 'testwf', 'not-applicable');
-  writeFileSync(join(proj, 'contextkit', 'memory', 'workflows', 'testwf', 'tasks.md'), `# Tasks - testwf\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 999 | testing | antigravity workflow gate |\n`);
+  writeFileSync(join(wfDir, 'tasks.md'), `# Tasks - testwf\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 999 | testing | antigravity workflow gate |\n`);
   // Advance to ship (pipeline -> ship)
   const wShip = ctx('workflow', 'advance', 'testwf', '[999]');
   wShip.status === 0

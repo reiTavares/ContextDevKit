@@ -12,7 +12,7 @@
  *
  * Run:  node tools/integration-test-compozy.mjs   (exit 0 = healthy)
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { KIT, run, reporter, git as gitRun } from './it-helpers.mjs';
@@ -30,23 +30,26 @@ function testWorkflowMacro() {
   gitRun(['init', '-b', 'main'], proj);
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WF', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
+  // ADR-0071: workflows are numbered (NNNN-slug); resolve the demo folder by slug suffix.
+  const wfRoot = join(proj, 'contextkit/memory/workflows');
+  const demoDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'demo' || f.endsWith('-demo')) || 'demo');
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');
   cli('new', 'demo', '--kind', 'feature').status === 0 &&
-    existsSync(join(proj, 'contextkit/memory/workflows/demo/index.md')) &&
-    existsSync(join(proj, 'contextkit/memory/workflows/demo/prd.md')) &&
-    existsSync(join(proj, 'contextkit/memory/workflows/demo/spec.md'))
+    existsSync(join(demoDir(), 'index.md')) &&
+    existsSync(join(demoDir(), 'prd.md')) &&
+    existsSync(join(demoDir(), 'spec.md'))
     ? ok('/workflow new creates a spec-pack folder (ADR-0057)') : bad('spec-pack missing');
   cli('new', 'demo').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
-  writeFileSync(join(proj, 'contextkit/memory/workflows/demo/prd.md'), `# PRD/PDR - demo\n\n## Problem\nFixed problem\n\n## Goals\nFixed goals\n`);
-  writeFileSync(join(proj, 'contextkit/memory/workflows/demo/spec.md'), `# SPEC - demo\n\n## Proposed design\nNew design\n\n## Test plan\nRun tests\n`);
-  writeFileSync(join(proj, 'contextkit/memory/workflows/demo/tasks.md'), `# Tasks - demo\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 148 | testing | workflow gate test |\n`);
+  writeFileSync(join(demoDir(), 'prd.md'), `# PRD/PDR - demo\n\n## Problem\nFixed problem\n\n## Goals\nFixed goals\n`);
+  writeFileSync(join(demoDir(), 'spec.md'), `# SPEC - demo\n\n## Proposed design\nNew design\n\n## Test plan\nRun tests\n`);
+  writeFileSync(join(demoDir(), 'tasks.md'), `# Tasks - demo\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 148 | testing | workflow gate test |\n`);
   ['intake-ok', 'prd-v1', 'spec-v1', 'ADR-0057', 'P2.1', '[148]'].forEach((r) => cli('advance', 'demo', r));
   writeFileSync(join(proj, 'untracked-report-note.md'), 'new file should appear in workflow report\n');
   const report = cli('report', 'demo', '--task', '148');
   cli('advance', 'demo', 'ship-log');
   cli('advance', 'demo', 'suite-green');
   /complete/i.test(cli('advance', 'demo', 'qa-approved').stdout) ? ok('/workflow lifecycle completes after spec-pack phases (ADR-0057)') : bad('final advance missing complete');
-  const reportPath = join(proj, 'contextkit/memory/workflows/demo/reports', `${new Date().toISOString().slice(0, 10)}.md`);
+  const reportPath = join(demoDir(), 'reports', `${new Date().toISOString().slice(0, 10)}.md`);
   report.status === 0 && existsSync(reportPath)
     ? ok('/workflow report writes a dated factual report (ADR-0057)') : bad(`report missing: ${report.stderr}${report.stdout}`);
   readFileSync(reportPath, 'utf-8').includes('untracked-report-note.md')
@@ -87,16 +90,18 @@ function testWorkflowDefensiveness() {
   // No `git init` here: the dir is deliberately NOT a repository.
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WFD', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
+  const wfRoot = join(proj, 'contextkit/memory/workflows');
+  const nogitDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'nogit' || f.endsWith('-nogit')) || 'nogit');
   cli('new', 'nogit');
   const report = cli('report', 'nogit');
-  const reportPath = join(proj, 'contextkit/memory/workflows/nogit/reports', `${new Date().toISOString().slice(0, 10)}.md`);
+  const reportPath = join(nogitDir(), 'reports', `${new Date().toISOString().slice(0, 10)}.md`);
   const body = report.status === 0 && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : '';
   report.status === 0 && body.includes('SKIPPED: git unavailable / not a repository') && !body.includes('No working tree diff.')
     ? ok('/workflow report writes explicit SKIPPED diff outside a git repo (ADR-0057 #7)')
     : bad(`non-git report not SKIPPED: status=${report.status} body=${body.slice(0, 120)}`);
   // Malformed index (CRLF-free leading marker absent → unparseable) must refuse,
   // naming the path, rather than masquerading as "not found".
-  writeFileSync(join(proj, 'contextkit/memory/workflows/nogit/index.md'), 'no frontmatter here at all\n');
+  writeFileSync(join(nogitDir(), 'index.md'), 'no frontmatter here at all\n');
   const malformed = cli('status', 'nogit');
   malformed.status === 1 && /malformed/.test(malformed.stderr + malformed.stdout)
     ? ok('/workflow status refuses a malformed pack (not "not found") (ADR-0057)')

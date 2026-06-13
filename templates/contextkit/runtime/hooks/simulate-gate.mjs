@@ -78,7 +78,7 @@ function getActiveWorkflowBeforeShip(root = ROOT) {
   try {
     const branch = currentBranch(root);
     const list = listWorkflows(root);
-    // ADR-0070: only a pre-ship workflow created ON THE CURRENT BRANCH blocks edits.
+    // ADR-0071: only a pre-ship workflow created ON THE CURRENT BRANCH blocks edits.
     // A workflow with no recorded branch (legacy) never branch-scopes, favouring
     // "never block unrelated flow" over over-blocking parallel sessions/worktrees.
     const active = list.find((w) => w.currentPhase && w.currentPhase !== 'done' && w.branch && branch && w.branch === branch);

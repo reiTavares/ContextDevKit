@@ -1,5 +1,5 @@
 /**
- * Workflow journey gate (ADR-0070). Enforces, in the engine (not in prompts),
+ * Workflow journey gate (ADR-0071). Enforces, in the engine (not in prompts),
  * that a phase's required deliverables exist before `advance` may leave it, so
  * EVERY CLI model (Claude/Codex/Gemini) is held to the same bar and cannot
  * silently skip PRD/SPEC/decisions/tasks/report steps.

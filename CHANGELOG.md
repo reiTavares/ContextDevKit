@@ -6,6 +6,20 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added - workflow journey gate + numbering + branch-scoped guard (ADR-0071)
+- **The `/workflow` journey is now enforced in the engine.** `advance` refuses to
+  leave a phase whose deliverables are missing (empty PRD/SPEC, no ADR link, no
+  card, no report) and lists the gaps; `--force` is the explicit override, and a
+  new `workflow check <id>` reports readiness. Because it lives in the engine
+  (`workflow-gate.mjs`), every CLI — Claude, Codex, Gemini — is held to the same bar.
+- **Workflows are numbered like ADRs (`NNNN-slug`).** `createWorkflow` stamps the
+  next number; `packDir` resolves a workflow by slug OR number; `renumberByStarted`
+  migrates existing workflows by start date (oldest = 0001), idempotently, and
+  `install.mjs` runs it on fresh + `--update` so installed projects renumber on update.
+- **The L5 mutation guard is branch-scoped.** A pre-ship workflow now blocks edits
+  only on its own branch (recorded at creation), so a parallel session/worktree no
+  longer blocks unrelated work. Covered by `integration-test-workflow-governance.mjs`.
+
 ### Added - auto-invoked deliberation gates + tiered specialist council (ADR-0070)
 - **Deliberation is now auto-invoked, not manual-only.** Two new autonomy areas
   (`feature-deliberation`, `decision-deliberation`) resolve to `debate` mode at
