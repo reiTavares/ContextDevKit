@@ -6,6 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added - active agent squads integration
+- **Active Agent Squads orchestration layer.** Introduced deterministic routing (`squad.mjs route <intent|path>`), stack-aware dynamic playbooks templates for all 8 squads under `workflows/playbooks/squads/`, and compliance/security auditing via `squad-audit.mjs` and `squad-director.mjs`.
+- **Pre-commit L5 Gating.** Hooked the compliance auditor directly into the pre-commit `guard.mjs` gate to block unauthorized edits to L5 high-risk paths without posture activation.
+
 ### Changed
 - **Docs refresh is now automatic for dogfood and client updates.** The Level 3
   pre-commit hook runs `docs-refresh.mjs` to regenerate `docs/README.md`, and

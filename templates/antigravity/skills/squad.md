@@ -1,43 +1,40 @@
 # Skill: squad
 
-> Show/route/grow the agent squads (devteam + qa-team) — the roster, when to use each, and how to add agents/squads.
-> Argument: [show | route <task> | brief <agent> | new-squad <name>]
+> Show/route/grow/audit the agent squads — the roster, playbooks, active routing, and onboarding config.
+> Argument: [show | route <task-or-path> | brief <agent> | new-squad <name> | generate-playbooks]
 # 👥 Squads
 
 The sub-agents are organized into **squads** (see `contextkit/squads/README.md`):
-**devteam** (constructive — build + review) and **qa-team** (adversarial — verify
-behaviour). Agents live in `.agents/agents/` and install at **Level 4**.
+**devteam** (constructive — build + review), **qa-team** (adversarial — verify behaviour),
+**security-team** (AppSec & infrastructure), **compliance-team** (privacy & laws),
+**ops-team** (CI/CD workflows), **design-team** (UI/UX design), **growth-team** (acquisition & retention),
+and **agent-forge** (custom capability packaging).
 
 Act on **<user-specified argument>**:
 
 ## show (default)
-Run `node contextkit/tools/scripts/squad.mjs list` (agents + which already have a
-tier-2 briefing) and read `contextkit/squads/README.md`; summarize the squads, their
-members, and when to use each. If `.agents/agents/` isn't present, note the project
-is below Level 4 — suggest `/context-level 4` to enable the squads.
+Run `node contextkit/tools/scripts/squad.mjs list` (agents + briefings) and read `contextkit/squads/README.md`.
 
-## route <task>
-Pick the right squad/agent for the task and delegate (use the Agent tool to
-invoke the sub-agent). Building/designing/reviewing → **devteam** (`architect` →
-`code-reviewer`); testing/verifying → **qa-team** (via `qa-orchestrator`). For a
-full feature, prefer `/ship` (orchestrates the whole squad with checkpoints).
+## route <task-or-path>
+Analyze active git modifications or keyword intent and dynamically map to the correct squad, agent, and playbook:
+```
+node contextkit/tools/scripts/squad.mjs route <task-or-path>
+```
+It queries the squads-registry to identify the target postures and suggests custom agent scaffolding from `agent-forge` if third-party libraries (e.g. Stripe, Redis) lack dedicated agent coverage.
 
 ## brief <agent>
 Scaffold the **tier-2 rich briefing**, then fill it:
 ```
 node contextkit/tools/scripts/squad.mjs brief <agent>
 ```
-It auto-detects the agent's squad and creates `contextkit/squads/<squad>/<agent>.md`
-from `_BRIEFING.md.tpl` (idempotent). Then **fill it** with real, specific content
-for this project — anti-patterns, end-to-end recipes, edge cases — the deep
-reference behind the lean `.agents/agents/<agent>.md`.
 
 ## new-squad <name>
-Add a new squad (e.g. `design-team`, `product-team`, `ops-team`): create a
-section in `contextkit/squads/README.md` with its mandate + roster, and scaffold its
-agents from `.agents/agents/_TEMPLATE.md` (sharp `description`s). Keep the
-sovereignty rule clear (who decides on conflict).
+Add a new squad (e.g. `support-team`, `data-team`) and update the manifest roster.
 
-Remember the conflict rule: `code-reviewer` owns style/constitution;
-`qa-orchestrator` owns behaviour/sign-off; devteam decides until you harden the
-gates (`/context-level`).
+## generate-playbooks
+Scaffold the 8 default squad playbooks under `contextkit/workflows/playbooks/squads/` based on stack detection:
+```
+node contextkit/tools/scripts/squad.mjs generate-playbooks
+```
+These are synced/preserved across engine updates (ADR-0054).
+

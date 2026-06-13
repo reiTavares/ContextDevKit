@@ -1,0 +1,191 @@
+{
+  "squads": [
+    {
+      "squad": "design-team",
+      "agent": "ux-designer",
+      "playbook": "squads/squad-frontend.md",
+      "paths": [
+        "src/components/",
+        "src/pages/",
+        "client/",
+        "components/",
+        ".css",
+        ".scss",
+        "tailwind.config"
+      ],
+      "keywords": [
+        "ui",
+        "ux",
+        "layout",
+        "component",
+        "button",
+        "color",
+        "accessibility",
+        "wcag",
+        "navbar",
+        "styling",
+        "responsive"
+      ]
+    },
+    {
+      "squad": "security-team",
+      "agent": "security",
+      "playbook": "squads/squad-security.md",
+      "paths": [
+        "auth/",
+        "src/auth/",
+        "src/middleware/auth",
+        ".env",
+        "Dockerfile",
+        "docker-compose",
+        "key",
+        "cert"
+      ],
+      "keywords": [
+        "auth",
+        "login",
+        "password",
+        "secret",
+        "crypto",
+        "encrypt",
+        "token",
+        "credentials",
+        "cve",
+        "leak",
+        "permission"
+      ]
+    },
+    {
+      "squad": "compliance-team",
+      "agent": "privacy-lgpd",
+      "playbook": "squads/squad-compliance.md",
+      "paths": [
+        "prisma/schema.prisma",
+        "db/schema",
+        "schema.graphql"
+      ],
+      "keywords": [
+        "lgpd",
+        "gdpr",
+        "pii",
+        "email",
+        "cpf",
+        "phone",
+        "telephone",
+        "anonymize",
+        "consent",
+        "retention",
+        "privacy"
+      ]
+    },
+    {
+      "squad": "ops-team",
+      "agent": "devops",
+      "playbook": "squads/squad-ops.md",
+      "paths": [
+        ".github/workflows/",
+        "deploy/",
+        "ci/",
+        "wrangler.toml",
+        "serverless.yml"
+      ],
+      "keywords": [
+        "workflow",
+        "deploy",
+        "ci/cd",
+        "pipeline",
+        "build",
+        "observability",
+        "monitoring"
+      ]
+    },
+    {
+      "squad": "growth-team",
+      "agent": "growth",
+      "playbook": "squads/squad-growth.md",
+      "paths": [
+        "analytics/",
+        "src/analytics/",
+        "seo/",
+        "sitemap",
+        "robots.txt"
+      ],
+      "keywords": [
+        "growth",
+        "seo",
+        "telemetry",
+        "funnel",
+        "cohort",
+        "retention",
+        "pixel",
+        "track",
+        "aiso",
+        "metrics"
+      ]
+    },
+    {
+      "squad": "agent-forge",
+      "agent": "forge-orchestrator",
+      "playbook": "squads/squad-agent-forge.md",
+      "paths": [
+        "agent-packages/",
+        ".agentforgerc",
+        "quality.policy.yaml",
+        "cost.policy.yaml",
+        "compliance.policy.yaml"
+      ],
+      "keywords": [
+        "forge",
+        "mcp",
+        "agent",
+        "apf",
+        "capability",
+        "routing-policy"
+      ]
+    },
+    {
+      "squad": "qa-team",
+      "agent": "qa-orchestrator",
+      "playbook": "squads/squad-qa.md",
+      "paths": [
+        "test/",
+        "tests/",
+        "spec/",
+        "vitest.config",
+        "jest.config",
+        "playwright.config"
+      ],
+      "keywords": [
+        "test",
+        "spec",
+        "coverage",
+        "assert",
+        "mock",
+        "integration",
+        "fuzz"
+      ]
+    },
+    {
+      "squad": "devteam",
+      "agent": "architect",
+      "playbook": "squads/squad-devteam.md",
+      "paths": [
+        "src/lib/",
+        "src/utils/",
+        "src/core/",
+        "lib/",
+        "utils/",
+        "package.json"
+      ],
+      "keywords": [
+        "architecture",
+        "refactor",
+        "pattern",
+        "rule",
+        "structure",
+        "type",
+        "class"
+      ]
+    }
+  ]
+}

@@ -13,6 +13,8 @@
  * zero third-party deps.
  */
 import { rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import {
   digestLatestSession,
   digestUnreleased,
@@ -44,7 +46,7 @@ import {
   writeLedger,
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
-import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
+import { CONTEXT_SNAPSHOT, PLATFORM_DIR } from '../config/paths.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 
@@ -132,6 +134,20 @@ async function main() {
   // Task 112 — an unseen grade-≥3 consent receipt replays once at the next boot.
   const pendingDigest = consumePendingDigest(ROOT);
 
+  // Trigger squad-director.mjs to get active squads
+  let squadContext = null;
+  if (level >= 4) {
+    try {
+      const scriptPath = resolve(ROOT, PLATFORM_DIR, 'tools/scripts/squad-director.mjs');
+      if (existsSync(scriptPath)) {
+        const outStr = execFileSync('node', [scriptPath], { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
+        squadContext = JSON.parse(outStr);
+      }
+    } catch {
+      /* fail-silent */
+    }
+  }
+
   if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest) return;
 
   const out = [];
@@ -214,6 +230,28 @@ async function main() {
     out.push('## 🗺️ Project map');
     out.push('');
     out.push(mapStale);
+    out.push('');
+  }
+
+  if (squadContext && squadContext.squads && squadContext.squads.length > 0) {
+    out.push('## 👥 Active Squad Postures');
+    out.push('');
+    for (let i = 0; i < squadContext.squads.length; i++) {
+      const squad = squadContext.squads[i];
+      const agent = squadContext.agents[i] || 'architect';
+      out.push(`- **Squad: \`${squad}\`** (Suggested agent: \`${agent}\`)`);
+      const playbook = squadContext.playbooks.find(p => p.squad === squad);
+      if (playbook) {
+        out.push(`  Playbook: \`${playbook.path}\``);
+      }
+    }
+    if (squadContext.agentScaffolding && squadContext.agentScaffolding.length > 0) {
+      out.push('');
+      out.push('🤖 **Agent-Forge Suggestions:**');
+      for (const sug of squadContext.agentScaffolding) {
+        out.push(`- \`${sug}\``);
+      }
+    }
     out.push('');
   }
 
