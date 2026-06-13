@@ -83,6 +83,8 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/runtime/git-hooks/quality-gates.mjs', // F2 / ADR-0062
     'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
     'templates/github-optional/workflows/squad-issue.yml', // F5 / ADR-0064 (opt-in CI Squad action)
+    'tools/install/lib/marker-inject.mjs', // F4 / ADR-0067 (idempotent marker injection; F8 enabler)
+    'templates/claude/commands/context-budget.md', // F6 / ADR-0066 (context-budget skill)
     'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
     'templates/contextkit/runtime/codex/convert-all.mjs',
     'templates/contextkit/runtime/codex/convert-core.mjs',
