@@ -92,6 +92,7 @@ the `/advise` **growth** lane (ADR-0028).
 
 Squads are no longer passive lists. They are active, guided, and governed:
 - **Active Routing:** Use `/squad route <intent-or-path>` (e.g. `node contextkit/tools/scripts/squad.mjs route "src/db/migrations"`) to resolve which squad, agent, and playbook matches the task.
+- **Posture Activation:** Use `/squad activate <intent-or-path>` after a deliberate routing decision to persist the detected posture in the current session ledger.
 - **Compliance & Security Gates:** When edits touch `l5.highRiskPaths` (configured in `config.json`), the pre-commit gate `guard.mjs` triggers `squad-audit.mjs` and blocks commits unless the corresponding security/compliance review postures are active.
 - **Session-Start Recommender:** On booting a session, `squad-director.mjs` executes via the session-start hook, parsing git modifications to recommend relevant playbooks and postures while keeping context token-light.
 

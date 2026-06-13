@@ -18,11 +18,11 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v2.6.2
+## What's new in v2.6.3
 
-> **Active Agent Squads on top of governed autonomy.** v2.6.2 activates the
-> specialized subagent squads by integrating deterministic routing, stack-aware
-> dynamic playbook templates, and L5 compliance pre-commit gates alongside governed autonomy.
+> **Active Agent Squads with explicit posture gates.** v2.6.3 hardens the
+> active-squads release by persisting squad posture in the session ledger,
+> adding `/squad activate`, and scoping compliance checks to the guarded edit path.
 
 | Feature | What it does |
 |---|---|
@@ -33,7 +33,7 @@ where the last one left off.
 | **Deterministic QA sign-off** ([ADR-0055](contextkit/memory/decisions/)) | `/pipetest` runs the suite; green + complete acceptance criteria ⇒ `qa-approve` testing cards into `conclusion` (actor `qa`, evidence on the card); red ⇒ report and bounce only attributable failures. The verdict is the **suite's exit code**, never an opinion |
 | **Observable pipeline substrate** ([ADR-0043](contextkit/memory/decisions/)) | Every pipeline move appends to an **append-only `state.json` event log** (`actor: human\|auto\|qa\|evict`, recorded inverse for reversibility); `auto` can never enter `conclusion`. `/runs` reads the machine |
 | **Dogfood-by-default install** ([ADR-0054](contextkit/memory/decisions/)) | Fresh installs leave **zero tracked kit files** (a managed `info/exclude` block), and `--update` runs a conflict-safe 3-way merge against a sha256 manifest — personalized commands/agents are never clobbered, no side is ever lost. Opt out with `--tracked` |
-| **Active agent squads** ([ADR-0069](contextkit/memory/decisions/)) | Deterministic routing (`squads-registry.json` + `/squad route`), stack-aware playbook templates for all 8 squads, compliance auto-auditing at pre-commit gates via `squad-audit.mjs` and token-efficient posture selection via `squad-director.mjs` |
+| **Active agent squads** ([ADR-0069](contextkit/memory/decisions/)) | Deterministic routing (`squads-registry.json` + `/squad route`), explicit posture activation (`/squad activate`), stack-aware playbook templates for all 8 squads, compliance auto-auditing at pre-commit gates via `squad-audit.mjs`, and token-efficient posture selection via `squad-director.mjs` |
 
 <details>
 <summary><strong>Earlier highlights (v1.15–v1.17 — dual-host hardening)</strong></summary>

@@ -11,6 +11,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
+import { checkPhaseGaps } from './workflow-gate.mjs';
+
+export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
 export const PHASES = ['intake', 'prd', 'spec', 'adr', 'roadmap', 'pipeline', 'ship', 'testing', 'conclusion'];
 const LEGACY_PHASES = ['roadmap', 'adr', 'tickets', 'ship'];
@@ -23,6 +26,27 @@ function indexFile(root, slug) { return resolve(packDir(root, slug), 'index.md')
 function legacyFile(root, slug) { return resolve(workflowsDir(root), `${slug}.md`); }
 function stamp() { return new Date().toISOString(); }
 function day() { return new Date().toISOString().slice(0, 10); }
+
+/**
+ * Current git branch (ADR-0070), zero-dep. Handles worktrees where `.git` is a
+ * file pointing at the real gitdir. Returns null when undeterminable (detached
+ * HEAD, no repo): a null-branch workflow never scopes the guard to a branch.
+ */
+export function currentBranch(root) {
+  let gitDir = resolve(root, '.git');
+  try {
+    const meta = readFileSync(gitDir, 'utf-8'); // throws if .git is a directory (normal repo)
+    const m = meta.match(/^gitdir:\s*(.+)$/m);
+    if (m) gitDir = resolve(root, m[1].trim());
+  } catch { /* normal repo: .git is a directory */ }
+  try {
+    const head = readFileSync(resolve(gitDir, 'HEAD'), 'utf-8').trim();
+    const ref = head.match(/^ref:\s*refs\/heads\/(.+)$/);
+    return ref ? ref[1] : null;
+  } catch {
+    return null;
+  }
+}
 
 function phaseMap(phases) {
   return Object.fromEntries(phases.map((phase) => [phase, { status: 'pending', ref: '' }]));
@@ -54,6 +78,7 @@ function parseWorkflowText(text, phases = PHASES, format = 'pack') {
     slug: parsed.frontmatter.slug,
     kind: parsed.frontmatter.kind || '',
     started: parsed.frontmatter.started || '',
+    branch: parsed.frontmatter.branch || '',
     currentPhase: parsed.frontmatter.currentPhase || '',
     phases: workflowPhases,
     body: parsed.body,
@@ -66,6 +91,7 @@ function renderIndex(workflow) {
     `slug: ${workflow.slug}`,
     `kind: ${workflow.kind}`,
     `started: ${workflow.started}`,
+    `branch: ${workflow.branch || ''}`,
     `currentPhase: ${workflow.currentPhase}`,
   ];
   for (const phase of PHASES) {
@@ -147,7 +173,7 @@ the PRD/PDR, SPEC, or DevPipeline cards.
 ## Open risks
 `);
   write(root, slug, 'reports/.gitkeep', '');
-  const workflow = { slug, kind, started: stamp(), currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
+  const workflow = { slug, kind, started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
   writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
 }
 
@@ -217,31 +243,31 @@ export function listWorkflows(root) {
   return [...valid, ...broken];
 }
 
-export function checkWorkflowDocument(root, slug, phase) {
-  if (phase !== 'prd' && phase !== 'spec') return;
-  const dir = packDir(root, slug);
-  if (phase === 'prd') {
-    const prdPath = resolve(dir, 'prd.md');
-    if (!existsSync(prdPath)) throw new Error(`PRD file not found at ${prdPath}`);
-    const content = readFileSync(prdPath, 'utf-8');
-    if (/## Problem\s*(?=\n##|\n#|\s*$)/i.test(content) || /## Goals\s*(?=\n##|\n#|\s*$)/i.test(content)) {
-      throw new Error(`PRD document is incomplete. Please fill the "## Problem" and "## Goals" sections first.`);
-    }
-  } else if (phase === 'spec') {
-    const specPath = resolve(dir, 'spec.md');
-    if (!existsSync(specPath)) throw new Error(`SPEC file not found at ${specPath}`);
-    const content = readFileSync(specPath, 'utf-8');
-    if (/## Proposed design\s*(?=\n##|\n#|\s*$)/i.test(content) || /## Test plan\s*(?=\n##|\n#|\s*$)/i.test(content)) {
-      throw new Error(`SPEC document is incomplete. Please fill the "## Proposed design" and "## Test plan" sections first.`);
-    }
-  }
+/**
+ * Reports the journey-gate gaps for a workflow's CURRENT phase (ADR-0070).
+ * @returns {{ currentPhase: string, missing: string[] }}
+ */
+export function checkWorkflow(root, slug) {
+  const workflow = readWorkflow(root, slug);
+  if (!workflow) throw new Error(`workflow "${slug}" not found`);
+  if (workflow.format === 'legacy') return { currentPhase: workflow.currentPhase, missing: [] };
+  return { currentPhase: workflow.currentPhase, missing: checkPhaseGaps(packDir(root, slug), workflow.currentPhase, workflow) };
 }
 
-export function advanceWorkflow(root, slug, ref = '') {
+export function advanceWorkflow(root, slug, ref = '', options = {}) {
   const workflow = readWorkflow(root, slug);
   if (!workflow) throw new Error(`workflow "${slug}" not found`);
   if (workflow.format === 'legacy') return advanceLegacy(root, workflow, ref);
-  checkWorkflowDocument(root, slug, workflow.currentPhase);
+  if (!options.force) {
+    const phaseState = workflow.phases[workflow.currentPhase] || {};
+    const candidate = ref
+      ? { ...workflow, phases: { ...workflow.phases, [workflow.currentPhase]: { ...phaseState, ref } } }
+      : workflow;
+    const gaps = checkPhaseGaps(packDir(root, slug), workflow.currentPhase, candidate);
+    if (gaps.length) {
+      throw new Error(`workflow "${slug}" cannot leave "${workflow.currentPhase}" - missing:\n  - ${gaps.join('\n  - ')}\nComplete these, or pass --force to override.`);
+    }
+  }
   const index = PHASES.indexOf(workflow.currentPhase);
   if (index < 0) throw new Error(`workflow "${slug}" has unknown currentPhase: ${workflow.currentPhase}`);
   workflow.phases[workflow.currentPhase].status = 'done';

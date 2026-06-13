@@ -7,9 +7,13 @@
  * File size budget: <280 lines. Zero runtime dependencies.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
+import { toRepoRelative } from '../../runtime/hooks/ledger.mjs';
+import { matchHighRisk } from '../../runtime/hooks/path-classification.mjs';
 
 const ROOT = process.cwd();
 const paths = pathsFor(ROOT);
@@ -27,8 +31,15 @@ function loadRegistry() {
   }
 }
 
-// Get git modified files
-function getModifiedFiles() {
+/**
+ * Resolves the audit scope. A target path keeps guard checks local, while the
+ * no-target CLI mode preserves the historical full working-tree audit.
+ *
+ * @param {string | null} targetPath optional repo path passed by guard.mjs
+ * @returns {string[]} repo-relative files to audit
+ */
+function getAuditFiles(targetPath) {
+  if (targetPath) return [toRepoRelative(targetPath)];
   try {
     const output = execSync('git diff --name-only --diff-filter=d HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
     const cached = execSync('git diff --cached --name-only --diff-filter=d', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] });
@@ -43,36 +54,58 @@ function getModifiedFiles() {
 }
 
 // Find active session file and read active squads
-function getActiveSessionSquads() {
-  const sessionsDir = resolve(ROOT, '.claude/.sessions');
+function getActiveSessionSquads(sessionId) {
+  const sessionsDir = paths.ledgerDir;
   if (!existsSync(sessionsDir)) return new Set();
+  const squads = new Set();
+
+  // 1. If explicit sessionId is provided, try to read that specific ledger
+  if (sessionId) {
+    try {
+      const p = resolve(sessionsDir, `${sessionId}.json`);
+      if (existsSync(p)) {
+        const content = JSON.parse(readFileSync(p, 'utf-8'));
+        const list = content.squads || content.postures || [];
+        if (Array.isArray(list)) {
+          for (const s of list) squads.add(s.toLowerCase());
+        }
+        return squads;
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  // 2. Otherwise, look for the most recently modified ledger in the ledger directory
   try {
     const files = readdirSync(sessionsDir).filter(f => f.endsWith('.json'));
-    if (files.length === 0) return new Set();
-    // find the latest modified file
-    const latest = files
-      .map(f => ({ name: f, time: readdirSync(sessionsDir) })) // stub for stats
-      .map(item => {
-        try {
-          const p = resolve(sessionsDir, item.name);
-          const content = JSON.parse(readFileSync(p, 'utf-8'));
-          return { squads: content.squads || content.postures || [], mtime: 1 };
-        } catch {
-          return null;
+    if (files.length === 0) return squads;
+
+    let best = null;
+    for (const f of files) {
+      const p = resolve(sessionsDir, f);
+      try {
+        const st = statSync(p);
+        if (!best || st.mtimeMs > best.mtime) {
+          best = { path: p, mtime: st.mtimeMs };
         }
-      })
-      .filter(Boolean);
-    
-    const squads = new Set();
-    for (const entry of latest) {
-      if (Array.isArray(entry.squads)) {
-        for (const s of entry.squads) squads.add(s.toLowerCase());
+      } catch {
+        // skip
       }
     }
-    return squads;
+
+    if (best) {
+      const content = JSON.parse(readFileSync(best.path, 'utf-8'));
+      const list = content.squads || content.postures || [];
+      if (Array.isArray(list)) {
+        for (const s of list) squads.add(s.toLowerCase());
+      }
+    }
   } catch {
-    return new Set();
+    // fallback
   }
+
+  return squads;
 }
 
 // Secret scanner
@@ -96,9 +129,12 @@ function scanForSecrets(files) {
 }
 
 function runAudit() {
+  const sessionId = process.argv[2] || null;
+  const targetPath = process.argv[3] || null;
+  const config = loadConfigSync(ROOT);
   const registry = loadRegistry();
-  const modified = getModifiedFiles();
-  const activeSquads = getActiveSessionSquads();
+  const modified = getAuditFiles(targetPath);
+  const activeSquads = getActiveSessionSquads(sessionId);
 
   if (modified.length === 0) {
     console.log('✅ No modified files to audit.');
@@ -139,11 +175,9 @@ function runAudit() {
     console.warn('\n⚠️  Active Squad Posture Warnings:');
     for (const w of warnings) {
       console.warn(`   • [${w.squad}] Touched gated file \`${w.file}\` without an active posture.`);
-      console.warn(`     👉 Recommeded Agent: \`${w.agent}\`. Load playbook with \`cdx.mjs squad route ${w.file}\`.`);
+      console.warn(`     👉 Recommended Agent: \`${w.agent}\`. Load playbook with \`cdx.mjs squad route ${w.file}\`.`);
     }
-    // High-risk path strict failures (e.g. databases/security configs)
-    const highRiskPaths = ['prisma/schema.prisma', 'db/schema', 'auth/'];
-    const strictFails = warnings.filter(w => highRiskPaths.some(hp => w.file.includes(hp)));
+    const strictFails = warnings.filter(w => matchHighRisk(w.file, config?.l5?.highRiskPaths ?? []));
     if (strictFails.length > 0) {
       console.error('\n🔴 Gated release block: strict security/compliance postures missing for high-risk files.');
       failures++;
@@ -160,7 +194,7 @@ function runAudit() {
 }
 
 // Run CLI
-if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.url.replace('file:///', '').replace('file://', ''))) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   process.exit(runAudit());
 }
 export { runAudit };

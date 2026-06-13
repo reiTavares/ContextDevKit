@@ -11,6 +11,8 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     // ADR-0047 A1 — PR line in /git status (task 128).
     ['sync-check exports the PR facts for reuse (ADR-0047 A1)', 'templates/contextkit/tools/scripts/sync-check.mjs', /export function listOpenPRs/],
     ['sync-check guards its CLI so import never runs main (rule 2)', 'templates/contextkit/tools/scripts/sync-check.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
+    ['squad-audit guards its CLI with fileURLToPath for Linux paths', 'templates/contextkit/tools/scripts/squad-audit.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
+    ['squad-director guards its CLI with fileURLToPath for Linux paths', 'templates/contextkit/tools/scripts/squad-director.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
     ['git.mjs surfaces the branch PR fact, reusing sync-check (ADR-0047 A1)', 'templates/contextkit/tools/scripts/git.mjs', /function branchPrFact[\s\S]*listOpenPRs\(\['--head', branch\]\)/],
     ['git.mjs reports an unusable gh as SKIPPED, never as no-PR (rule 8)', 'templates/contextkit/tools/scripts/git.mjs', /\{ status: 'skipped', reason: 'gh not installed\/authed' \}/],
     // ADR-0047 A2 — /advise --after --since <ref> (task 129).
