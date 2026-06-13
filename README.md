@@ -18,12 +18,11 @@ remembers things, it makes the harness *enforce* them with hooks, and it records
 the *why* in version control so any future session — human or AI — can pick up
 where the last one left off.
 
-## What's new in v2.6
+## What's new in v2.6.1
 
-> **Stack-aware QA on top of governed autonomy.** v2.6 keeps the v2 control
-> plane — consent dial, observable pipeline state, swarm coordination, and
-> cost-aware model routing — and gives the QA squad a deterministic stack map
-> before it proposes or writes tests.
+> **Active Agent Squads on top of governed autonomy.** v2.6.1 activates the
+> specialized subagent squads by integrating deterministic routing, stack-aware
+> dynamic playbook templates, and L5 compliance pre-commit gates alongside governed autonomy.
 
 | Feature | What it does |
 |---|---|

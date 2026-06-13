@@ -6,8 +6,10 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-06-13
+
 ### Added - active agent squads integration
-- **Active Agent Squads orchestration layer.** Introduced deterministic routing (`squad.mjs route <intent|path>`), stack-aware dynamic playbooks templates for all 8 squads under `workflows/playbooks/squads/`, and compliance/security auditing via `squad-audit.mjs` and `squad-director.mjs`.
+- **Active Agent Squads orchestration layer.** Introduced deterministic routing (`squads-registry.json` + `/squad route`), stack-aware playbook templates for all 8 squads under `workflows/playbooks/squads/`, and compliance/security auditing via `squad-audit.mjs` and `squad-director.mjs`.
 - **Pre-commit L5 Gating.** Hooked the compliance auditor directly into the pre-commit `guard.mjs` gate to block unauthorized edits to L5 high-risk paths without posture activation.
 
 ### Changed
