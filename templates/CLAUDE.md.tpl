@@ -134,7 +134,7 @@ Layers active depend on the level (see `contextkit/README.md`):
 ### Slash commands
 Setup: `/aidevtool-from0` (empty) · `/setupcontextdevkit` (existing). Daily: `/state`
 · `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
-· `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
+· `/bug-hunt` · `/audit` · `/context-budget`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
 · `/contract-check` · `/deps-audit` · `/deep-analysis` · `/validate-doc` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/plan-week` · `/ship` · `/retro`
@@ -143,6 +143,15 @@ Structure & platform: `/squad` (squads) · `/git` (version control + remote)
 · `/draft-changelog` · `/gh-triage` · `/changelog-social` (OSS repo-ops)
 · `/claude-md` (scoped CLAUDE.md per module) · `/docs-reindex` (Diátaxis docs spine)
 · `/context-level` · `/context-config` · `/context-doctor`.
+
+### Reference docs (load on demand)
+
+> Lightweight `@`-imports — Claude Code resolves these on demand so this file
+> stays lean. On Antigravity/Codex they read as plain file references (ADR-0066).
+> See `/context-budget` for which of these to load per task type.
+
+@contextkit/best-practices.md
+@contextkit/behaviors.md
 
 ---
 
