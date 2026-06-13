@@ -15,6 +15,7 @@
 import { rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   digestLatestSession,
   digestUnreleased,
