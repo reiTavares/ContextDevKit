@@ -258,6 +258,16 @@ export async function installVcsIntegration(target, tplDir, level, args, report)
   if (await patchGitattributes(target, tplDir)) report.push('✓ .gitattributes patched (LF for engine scripts)');
   const ghCount = await copyTreeIfMissing(join(tplDir, 'github'), join(target, '.github'));
   if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
+  // CI Squad action is OPT-IN (ADR-0064): it runs the pipeline headless and costs
+  // API credits, so it ships out of the default tree and only lands on consent
+  // (interactive prompt or --ci-squad). Every PR it opens is a DRAFT.
+  if (args.ciSquad) {
+    const ciCount = await copyTreeIfMissing(join(tplDir, 'github-optional'), join(target, '.github'));
+    if (ciCount > 0) {
+      report.push(`✓ CI Squad action added (.github/workflows/squad-issue.yml)`);
+      report.push('   ↳ set the ANTHROPIC_API_KEY repo secret, then label an issue `squad-ready` to trigger it.');
+    }
+  }
   if (level >= 3) {
     // Detect an existing hook manager BEFORE we install. We still install our
     // backup-and-write default (the .bak fallback stays intact) but we SUGGEST

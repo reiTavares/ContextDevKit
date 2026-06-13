@@ -96,6 +96,11 @@ async function main() {
       for (const [k, v] of Object.entries(LEVEL_LABELS)) console.log(`  ${k}. ${v}`);
       level = Number(await prompt(rl, '\nStart at level', String(mode === 'greenfield' ? 3 : 7)));
     }
+    // CI Squad action is opt-in (ADR-0064): costs API credits + needs a repo secret.
+    if (args.ciSquad === undefined) {
+      const ans = await prompt(rl, '\nInstall the CI Squad GitHub Action (issue→draft PR; needs ANTHROPIC_API_KEY)? (y/N)', 'N');
+      args.ciSquad = /^y/i.test(ans);
+    }
     rl.close();
   }
 

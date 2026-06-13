@@ -24,6 +24,7 @@ export function parseArgs(argv) {
     else if (a === '--name') args.name = argv[++i];
     else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--preset') args.preset = argv[++i];
+    else if (a === '--ci-squad') args.ciSquad = true; // ADR-0064 opt-in (left undefined → prompt/skip)
   }
   return args;
 }
@@ -48,6 +49,8 @@ Flags:
   --name <string>   project name for the CLAUDE.md header
   --mode <m>        greenfield | existing (default: auto-detect)
   --preset <name>   stack preset to merge into config: next | go | python
+  --ci-squad        also install the CI Squad GitHub Action (issue→draft PR, ADR-0064).
+                    Opt-in: needs the ANTHROPIC_API_KEY repo secret; off unless asked.
   --yes, -y         non-interactive (use flags/defaults, no prompts)
   --force           overwrite CLAUDE.md / memory seeds if they exist
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
