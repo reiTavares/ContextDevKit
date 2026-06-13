@@ -21,6 +21,25 @@ import { resolveSessionId } from './ledger.mjs';
 /** agy file-mutating tool names (snake_case, per the agy hook contract). */
 export const AGY_WRITE_TOOLS = ['write_to_file', 'replace_file_content', 'multi_replace_file_content'];
 
+/**
+ * Bridge hosts (F8 / ADR-0068) — third-party AI coding tools that receive the
+ * CONTEXT layer ONLY. ContextDevKit governance (hooks, gates, ledger) runs on the
+ * three NATIVE hosts (Claude Code / Antigravity / Codex); these six get a
+ * generated, idempotent context bridge and **no enforcement** (`enforced:false`
+ * is explicit so nobody mistakes a bridge for a governed host). Installation is
+ * opt-in per tool via config `bridges.enabled` and non-destructive via
+ * `marker-inject.mjs` (ADR-0067). `targetFile` is the user-project path each
+ * tool reads for its project rules.
+ */
+export const BRIDGE_HOSTS = [
+  { key: 'cursor', label: 'Cursor', targetFile: '.cursor/rules/contextdevkit.mdc', enforced: false },
+  { key: 'copilot', label: 'GitHub Copilot', targetFile: '.github/copilot-instructions.md', enforced: false },
+  { key: 'gemini', label: 'Gemini CLI', targetFile: 'GEMINI.md', enforced: false },
+  { key: 'windsurf', label: 'Windsurf', targetFile: '.windsurfrules', enforced: false },
+  { key: 'aider', label: 'Aider', targetFile: 'CONVENTIONS.md', enforced: false },
+  { key: 'continue', label: 'Continue', targetFile: '.continue/rules/contextdevkit.md', enforced: false },
+];
+
 /** Marker file `session-manager.mjs start` mints so per-event agy hook processes share one session. */
 export const AGY_SESSION_MARKER = '.agy-active.json';
 

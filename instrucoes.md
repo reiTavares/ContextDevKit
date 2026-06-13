@@ -29,6 +29,21 @@ o histórico no próprio repositório. Funciona em qualquer projeto — do zero
 | **Build determinístico do host** | `npm run build:antigravity` regenera as skills/personas a partir das fontes Claude (limpa antes); um drift-guard no selfcheck falha o build se os dois hosts divergirem |
 | **Migração de install legado** | `npx contextdevkit --update` carrega um install `vibekit/` antigo para `contextkit/` automaticamente — memória, config, nível e `.env` preservados |
 
+### Paridade ContextKit ([ADR-0060 → ADR-0068](contextkit/memory/decisions/))
+
+Oito features portadas do `nolrm/contextkit` — todas zero-dep, cientes de nível e *warn-first*:
+
+| Feature | O que faz |
+|---|---|
+| **Hook de auto-format** (F1, ADR-0061) | `auto-format.mjs` (PostToolUse) roda seu formatter/linter após cada Edit/Write no nível ≥ 4 — consultivo (corrige quando há toolchain, sempre sai 0; "skipped" quando não há), nos três hosts |
+| **Quality gates multi-linguagem** (F2, ADR-0062) | `quality-gates.mjs` roda lint/format/typecheck/build/test da stack detectada (10 linguagens), escopado aos pacotes que o push toca. Avisa abaixo do `strictLevel`, bloqueia nele; ferramenta ausente = pulada. Bypass `CONTEXT_SKIP_QGATES=1` |
+| **Coexistência de hook-manager** (F3, ADR-0063) | A instalação detecta husky / simple-git-hooks / `core.hooksPath` custom e sugere integração não-destrutiva |
+| **Ação CI Squad** (F5, ADR-0064) | GitHub Action opt-in (`--ci-squad`): issue com label `squad-ready` → PR em DRAFT via pipeline headless. Requer o secret `ANTHROPIC_API_KEY` |
+| **Limite de promoção de padrões** (F7, ADR-0065) | `/distill-sessions` só propõe regra nova após ≥3 ocorrências evidenciadas; `/retro` deprecia por *strikethrough*, nunca apagando |
+| **`/context-budget` + `@`-imports** (F6, ADR-0066) | Orçamento de contexto por tipo de tarefa (sempre / sob-demanda / pular) + `@`-imports leves no `CLAUDE.md.tpl` para manter a constituição enxuta |
+| **Injeção por marcador** (F4, ADR-0067) | `marker-inject.mjs` controla um bloco `<!-- ContextDevKit:start/end -->` — idempotente, preserva o conteúdo do usuário ao redor (habilitador dos bridges) |
+| **Bridges multi-plataforma** (F8, ADR-0068) | Bridges de contexto opt-in (`bridges.enabled`) para Cursor, Copilot, Gemini, Windsurf, Aider, Continue — **só contexto, sem enforcement** (governança fica nos hosts nativos) |
+
 ## Instalação
 
 ```bash

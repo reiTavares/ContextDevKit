@@ -102,11 +102,14 @@ function checkCompose(composeSettings) {
     else bad(`L${lvl} expected [${want}] got [${got}]`);
   }
   // Idempotency: re-composing existing settings must not duplicate entries.
+  // (At L4+ PostToolUse legitimately holds >1 group — track-edits + auto-format,
+  // ADR-0061 — so the invariant is a STABLE count under re-compose, not "== 1".)
   const once = composeSettings(null, 5);
+  const onceCount = (once.hooks.PostToolUse || []).length;
   const twice = composeSettings(structuredClone(once), 5);
   const dup = (twice.hooks.PostToolUse || []).length;
-  if (dup === 1) ok('re-running installer is idempotent (no duplicate hooks)');
-  else bad(`idempotency broken — PostToolUse has ${dup} groups after re-compose`);
+  if (dup === onceCount) ok('re-running installer is idempotent (no duplicate hooks)');
+  else bad(`idempotency broken — PostToolUse has ${dup} groups after re-compose (expected ${onceCount})`);
   // Status-line widget wired at L1+, and a user's own statusLine is preserved.
   const sl = composeSettings(null, 1).statusLine;
   sl && String(sl.command).includes('contextkit/runtime/statusline') ? ok('statusLine widget wired (L1+)') : bad('statusLine widget not wired');

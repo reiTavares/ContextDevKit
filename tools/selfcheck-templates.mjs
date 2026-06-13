@@ -9,6 +9,7 @@
 import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 /** Model-alias whitelist for agent frontmatter (ADR-0052 — aliases only, never versioned IDs). */
 const VALID_MODEL_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
@@ -79,6 +80,15 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
     'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
     'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
+    'templates/contextkit/runtime/hooks/auto-format.mjs', // F1 / ADR-0061
+    'templates/contextkit/runtime/git-hooks/quality-gates.mjs', // F2 / ADR-0062
+    'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
+    'templates/github-optional/workflows/squad-issue.yml', // F5 / ADR-0064 (opt-in CI Squad action)
+    'tools/install/lib/marker-inject.mjs', // F4 / ADR-0067 (idempotent marker injection; F8 enabler)
+    'templates/claude/commands/context-budget.md', // F6 / ADR-0066 (context-budget skill)
+    'tools/install/bridges/render.mjs', 'tools/install/bridges/shared.mjs', 'tools/install/bridges/index.mjs', // F8 / ADR-0068
+    'tools/install/bridges/cursor.mjs', 'tools/install/bridges/copilot.mjs', 'tools/install/bridges/gemini.mjs',
+    'tools/install/bridges/windsurf.mjs', 'tools/install/bridges/aider.mjs', 'tools/install/bridges/continue.mjs',
     'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
     'templates/contextkit/runtime/codex/convert-all.mjs',
     'templates/contextkit/runtime/codex/convert-core.mjs',
@@ -161,6 +171,16 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/workflows/playbooks/squads/squad-agent-forge.md',
   ]) {
     existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
+  }
+  // F8 / ADR-0068: every bridge host in the registry must have a matching installer.
+  try {
+    const { BRIDGE_HOSTS } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/hooks/host-adapter.mjs')).href);
+    const missing = BRIDGE_HOSTS.filter((h) => !existsSync(resolve(KIT, `tools/install/bridges/${h.key}.mjs`)));
+    const unenforced = BRIDGE_HOSTS.every((h) => h.enforced === false);
+    missing.length === 0 ? ok(`bridge registry: all ${BRIDGE_HOSTS.length} hosts have an installer (F8)`) : bad(`bridge installers missing: ${missing.map((h) => h.key).join(', ')}`);
+    unenforced ? ok('bridge registry: every bridge is context-only (enforced:false)') : bad('a BRIDGE_HOSTS entry claims enforcement — bridges must be context-only');
+  } catch (err) {
+    bad(`bridge registry check failed: ${err?.message ?? err}`);
   }
   const wf = await readdir(resolve(KIT, 'templates/contextkit/workflows')).catch(() => []);
   for (const f of ['README.md', 'L1-static-loading.md', 'L2-session-ledger.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {

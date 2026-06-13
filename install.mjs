@@ -27,6 +27,7 @@ import { installEngine } from './tools/install/engine.mjs';
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
+import { installBridges } from './tools/install/bridges/index.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
 import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
@@ -96,6 +97,11 @@ async function main() {
       for (const [k, v] of Object.entries(LEVEL_LABELS)) console.log(`  ${k}. ${v}`);
       level = Number(await prompt(rl, '\nStart at level', String(mode === 'greenfield' ? 3 : 7)));
     }
+    // CI Squad action is opt-in (ADR-0064): costs API credits + needs a repo secret.
+    if (args.ciSquad === undefined) {
+      const ans = await prompt(rl, '\nInstall the CI Squad GitHub Action (issue→draft PR; needs ANTHROPIC_API_KEY)? (y/N)', 'N');
+      args.ciSquad = /^y/i.test(ans);
+    }
     rl.close();
   }
 
@@ -159,6 +165,10 @@ async function main() {
 
   // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
   await installVcsIntegration(target, TPL, level, args, report);
+
+  // 7. Context bridges for non-native tools — opt-in per tool via config
+  //    `bridges.enabled`; context only, no enforcement [ADR-0068].
+  await installBridges(target, ctx, report);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
