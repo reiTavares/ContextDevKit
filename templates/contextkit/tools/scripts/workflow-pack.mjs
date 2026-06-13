@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { checkPhaseGaps } from './workflow-gate.mjs';
+import { nextNumber, resolveFolderName } from './workflow-number.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
@@ -21,7 +22,7 @@ const VALID_KINDS = new Set(['feature', 'architecture', 'bug', 'chore', 'spike']
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 
 function workflowsDir(root) { return resolve(pathsFor(root).memory, 'workflows'); }
-export function packDir(root, slug) { return resolve(workflowsDir(root), slug); }
+export function packDir(root, slug) { return resolve(workflowsDir(root), resolveFolderName(workflowsDir(root), slug)); }
 function indexFile(root, slug) { return resolve(packDir(root, slug), 'index.md'); }
 function legacyFile(root, slug) { return resolve(workflowsDir(root), `${slug}.md`); }
 function stamp() { return new Date().toISOString(); }
@@ -77,6 +78,7 @@ function parseWorkflowText(text, phases = PHASES, format = 'pack') {
     format,
     slug: parsed.frontmatter.slug,
     kind: parsed.frontmatter.kind || '',
+    number: parsed.frontmatter.number || '',
     started: parsed.frontmatter.started || '',
     branch: parsed.frontmatter.branch || '',
     currentPhase: parsed.frontmatter.currentPhase || '',
@@ -90,6 +92,7 @@ function renderIndex(workflow) {
     '---',
     `slug: ${workflow.slug}`,
     `kind: ${workflow.kind}`,
+    `number: ${workflow.number || ''}`,
     `started: ${workflow.started}`,
     `branch: ${workflow.branch || ''}`,
     `currentPhase: ${workflow.currentPhase}`,
@@ -114,7 +117,7 @@ function write(root, slug, relativePath, text) {
   writeFileAtomicSync(fullPath, text);
 }
 
-function seedFiles(root, slug, kind) {
+function seedFiles(root, slug, kind, number = '') {
   write(root, slug, 'prd.md', `# PRD/PDR - ${slug}
 
 ## Problem
@@ -173,17 +176,19 @@ the PRD/PDR, SPEC, or DevPipeline cards.
 ## Open risks
 `);
   write(root, slug, 'reports/.gitkeep', '');
-  const workflow = { slug, kind, started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
+  const workflow = { slug, kind, number, started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
   writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
 }
 
 export function createWorkflow(root, slug, kind = 'feature') {
   if (!SLUG_RE.test(slug || '')) throw new Error(`slug must match ${SLUG_RE} (got "${slug || ''}")`);
   if (!VALID_KINDS.has(kind)) throw new Error(`kind must be one of: ${[...VALID_KINDS].join(', ')}`);
-  mkdirSync(workflowsDir(root), { recursive: true });
+  const dir = workflowsDir(root);
+  mkdirSync(dir, { recursive: true });
   if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
-  mkdirSync(packDir(root, slug), { recursive: true });
-  seedFiles(root, slug, kind);
+  const number = nextNumber(dir);
+  mkdirSync(resolve(dir, `${number}-${slug}`), { recursive: true });
+  seedFiles(root, slug, kind, number);
   return readWorkflow(root, slug);
 }
 
