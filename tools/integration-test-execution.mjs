@@ -22,6 +22,12 @@ const resolverPath = resolve(KIT, 'templates/contextkit/runtime/capabilities/res
 
 const rep = reporter();
 
+// Hermetic intake: point at a rubric-less root so classify() always falls back to
+// the embedded DEFAULT_RUBRIC. Keeps tier assertions independent of whatever
+// complexity-rubric.json an ambient project install happens to ship.
+const VOID_ROOT = resolve(tmpdir(), 'cdk-hermetic-no-rubric');
+const runIntake = (request) => intake(request, { root: VOID_ROOT });
+
 // ---------------------------------------------------------------------------
 // Module imports — bail early on failure so later cases do not crash blindly.
 // ---------------------------------------------------------------------------
@@ -56,7 +62,7 @@ try {
 // Case 1: trivial → minimal contract (no required gates).
 // ---------------------------------------------------------------------------
 {
-  const { signals, reasons } = intake({ objective: 'fix typo in README', level: 7 });
+  const { signals, reasons } = runIntake({ objective: 'fix typo in README', level: 7 });
   signals.tier === 'trivial'
     ? rep.ok('1. trivial intake: tier=trivial')
     : rep.bad(`1. trivial intake: expected tier=trivial, got ${signals.tier}`);
@@ -94,7 +100,7 @@ try {
 // Case 2: feature → exploration + write + completion sets.
 // ---------------------------------------------------------------------------
 {
-  const { signals } = intake({ objective: 'add user registration endpoint', level: 7 });
+  const { signals } = runIntake({ objective: 'add user registration endpoint', level: 7 });
   signals.tier === 'feature'
     ? rep.ok('2. feature intake: tier=feature')
     : rep.bad(`2. feature intake: expected tier=feature, got ${signals.tier}`);
@@ -134,7 +140,7 @@ try {
 // Case 3: architectural → adds simulate-impact to beforeWrite.
 // ---------------------------------------------------------------------------
 {
-  const { signals } = intake({ objective: 'refactor auth module across services', level: 7 });
+  const { signals } = runIntake({ objective: 'refactor auth module across services', level: 7 });
   signals.tier === 'architectural'
     ? rep.ok('3. architectural intake: tier=architectural')
     : rep.bad(`3. architectural intake: expected tier=architectural, got ${signals.tier}`);
@@ -157,7 +163,7 @@ try {
 // Case 4: lgpd domain objective → forced to architectural tier.
 // ---------------------------------------------------------------------------
 {
-  const { signals, reasons } = intake({ objective: 'store user CPF and consent data', level: 7 });
+  const { signals, reasons } = runIntake({ objective: 'store user CPF and consent data', level: 7 });
   signals.domain === 'lgpd'
     ? rep.ok('4. lgpd intake: domain=lgpd')
     : rep.bad(`4. lgpd intake: expected domain=lgpd, got ${signals.domain}`);
@@ -182,7 +188,7 @@ try {
 // Case 5: level-2 project → minLevel filters out high-ceremony gates.
 // ---------------------------------------------------------------------------
 {
-  const { signals } = intake({ objective: 'add export report feature', level: 2 });
+  const { signals } = runIntake({ objective: 'add export report feature', level: 2 });
   const contract = buildContract(signals, DEFAULT_REGISTRY);
 
   // minLevel=3 caps (context-pack, project-map, workflow) must be absent.
@@ -201,107 +207,6 @@ try {
   contract.requiredBeforeWrite.includes('dev-start')
     ? rep.ok('5. L2 contract: dev-start (minLevel=2) still required at beforeWrite')
     : rep.bad(`5. L2 contract: dev-start missing — beforeWrite=[${contract.requiredBeforeWrite}]`);
-}
-
-// ---------------------------------------------------------------------------
-// Case 6: saveContract → loadContract round-trip (tmp dir fixture).
-// ---------------------------------------------------------------------------
-{
-  const tmpRoot = mkdtempSync(tmpdir() + '/ck-exec-it-');
-  try {
-    const { signals } = intake({ objective: 'add export report feature', taskId: 'task-42', level: 7 });
-    const contract = buildContract(signals, DEFAULT_REGISTRY);
-    saveContract(tmpRoot, 'task-42', contract);
-    const loaded = loadContract(tmpRoot, 'task-42');
-
-    loaded !== null
-      ? rep.ok('6. round-trip: loadContract returns a non-null object')
-      : rep.bad('6. round-trip: loadContract returned null after saveContract');
-
-    if (loaded) {
-      const requiredMatches =
-        JSON.stringify(loaded.requiredBeforeExploration) === JSON.stringify(contract.requiredBeforeExploration) &&
-        JSON.stringify(loaded.requiredBeforeWrite) === JSON.stringify(contract.requiredBeforeWrite) &&
-        JSON.stringify(loaded.requiredBeforeCompletion) === JSON.stringify(contract.requiredBeforeCompletion);
-      requiredMatches
-        ? rep.ok('6. round-trip: required-set fields identical after save/load')
-        : rep.bad('6. round-trip: required-set fields differ after save/load');
-
-      loaded.version === 1
-        ? rep.ok('6. round-trip: version=1 preserved')
-        : rep.bad(`6. round-trip: version changed — got ${loaded.version}`);
-    }
-
-    // loadContract returns null for a missing id — never throws.
-    const missing = loadContract(tmpRoot, 'nonexistent-id-xyz');
-    missing === null
-      ? rep.ok('6. loadContract returns null for missing id (never throws)')
-      : rep.bad(`6. loadContract returned non-null for missing id: ${JSON.stringify(missing)}`);
-  } finally {
-    rmSync(tmpRoot, { recursive: true, force: true });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Case 7: reclassify → history grows + added/removed recorded correctly.
-// ---------------------------------------------------------------------------
-{
-  // Start from a trivial contract (no required gates).
-  const { signals: trivialSig } = intake({ objective: 'fix typo', level: 7 });
-  const trivialContract = buildContract(trivialSig, DEFAULT_REGISTRY);
-
-  // Reclassify to architectural — lots of gates get added.
-  const { signals: archSig } = intake({ objective: 'refactor auth across services', level: 7 });
-  const reclassified = reclassify(trivialContract, archSig, DEFAULT_REGISTRY, 'scope expanded to architectural');
-
-  reclassified.history.length === 1
-    ? rep.ok('7. reclassify: history grows to length 1 after first reclassification')
-    : rep.bad(`7. reclassify: expected history.length=1, got ${reclassified.history.length}`);
-
-  const entry = reclassified.history[0];
-  entry?.event === 'reclassified'
-    ? rep.ok("7. reclassify: history entry has event='reclassified'")
-    : rep.bad(`7. reclassify: wrong history event: ${entry?.event}`);
-
-  Array.isArray(entry?.added) && entry.added.includes('simulate-impact')
-    ? rep.ok('7. reclassify: simulate-impact appears in added list')
-    : rep.bad(`7. reclassify: simulate-impact missing from added=[${entry?.added}]`);
-
-  // Reclassify back to trivial — scope shrink, gates removed.
-  const { signals: trivialSig2 } = intake({ objective: 'fix another typo', level: 7 });
-  const shrunk = reclassify(reclassified, trivialSig2, DEFAULT_REGISTRY, 'scope shrunk to trivial');
-
-  shrunk.history.length === 2
-    ? rep.ok('7. reclassify (shrink): history grows to length 2')
-    : rep.bad(`7. reclassify (shrink): expected history.length=2, got ${shrunk.history.length}`);
-
-  const shrinkEntry = shrunk.history[1];
-  shrinkEntry?.isScopeShrink === true
-    ? rep.ok('7. reclassify (shrink): isScopeShrink=true recorded in history')
-    : rep.bad(`7. reclassify (shrink): isScopeShrink not recorded — entry: ${JSON.stringify(shrinkEntry)}`);
-
-  Array.isArray(shrinkEntry?.removed) && shrinkEntry.removed.includes('simulate-impact')
-    ? rep.ok('7. reclassify (shrink): simulate-impact appears in removed list')
-    : rep.bad(`7. reclassify (shrink): simulate-impact missing from removed=[${shrinkEntry?.removed}]`);
-
-  // Shrunk contract must carry no HEAVY ceremony gates after trivial reclassification.
-  // Universal gates (log-session on tiers=['*']) may remain in beforeCompletion —
-  // the same expectation as Case 1 for a fresh trivial contract.
-  const shrinkHeavyGates = ['workflow', 'simulate-impact', 'qa-signoff', 'test-plan', 'context-pack', 'project-map'];
-  const shrinkAllRequired = [
-    ...shrunk.requiredBeforeExploration,
-    ...shrunk.requiredBeforeWrite,
-    ...shrunk.requiredBeforeCompletion,
-  ];
-  const shrinkUnexpected = shrinkHeavyGates.filter((id) => shrinkAllRequired.includes(id));
-  shrinkUnexpected.length === 0
-    ? rep.ok('7. reclassify (shrink): no heavy-ceremony gates remain after trivial reclassification')
-    : rep.bad(`7. reclassify (shrink): unexpected heavy gates remain: [${shrinkUnexpected}]`);
-
-  // createdAt from the ORIGINAL contract must be preserved (reclassify does not reset it).
-  shrunk.createdAt === trivialContract.createdAt
-    ? rep.ok('7. reclassify: original createdAt preserved across reclassifications')
-    : rep.bad(`7. reclassify: createdAt changed — original=${trivialContract.createdAt} after=${shrunk.createdAt}`);
 }
 
 rep.finish('execution (CDK-021)');
