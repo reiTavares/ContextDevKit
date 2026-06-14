@@ -73,8 +73,54 @@ async function checkSchema(rep, mods, RT) {
   !schema.validateConfig({ ...defaults, level: 9 }).ok ? ok('schema rejects an out-of-range level') : bad('schema accepted level 9');
 }
 
+/**
+ * CDK-013 — per-section strict validation. Asserts the schema (a) keeps unknown
+ * keys (top-level + nested), (b) actionably refuses malformed / unsupported
+ * sections, (c) accepts a partial config, (d) preserves legacy keys, and (e)
+ * warns when a fallback reduces security. Skipped silently when zod is absent.
+ */
+async function checkSectionSchemas(rep, mods, RT) {
+  const { ok, bad } = rep;
+  let zodAvailable = false;
+  try {
+    await import('zod');
+    zodAvailable = true;
+  } catch {
+    /* optional dep */
+  }
+  if (!zodAvailable) return; // checkSchema already reported the skip
+  const defaults = mods['config/defaults.mjs']?.DEFAULT_CONFIG ?? {};
+  const schema = await import('file://' + resolve(RT, 'config/schema.mjs').replaceAll('\\', '/'));
+  const { validateConfig, securityWarnings } = schema;
+
+  // (b1) malformed — wrong type on a modelled leaf is refused.
+  !validateConfig({ ...defaults, qualityGate: { ...defaults.qualityGate, strictLevel: 'oops' } }).ok
+    ? ok('schema refuses a malformed section (qualityGate.strictLevel non-number)') : bad('schema accepted malformed qualityGate.strictLevel');
+  // (b2) unsupported — an unknown bridge id is an actionable refusal.
+  const unsupported = validateConfig({ ...defaults, bridges: { enabled: ['cursor', 'bogus'] } });
+  !unsupported.ok && /unsupported bridge/.test(schema.formatZodError(unsupported.error))
+    ? ok('schema refuses an unsupported bridge with an actionable message') : bad('schema accepted an unsupported bridge id');
+  // (a) unknown fields are NOT dropped (top-level + nested).
+  const kept = validateConfig({ ...defaults, futureFeature: { x: 1 }, qa: { ...defaults.qa, weirdKey: 7 } });
+  kept.ok && kept.config.futureFeature?.x === 1 && kept.config.qa?.weirdKey === 7
+    ? ok('schema retains unknown keys (top-level + nested) — not silently dropped') : bad('schema dropped an unknown key');
+  // (d-future) forward slot keeps unmodelled extension keys.
+  const fwd = validateConfig({ ...defaults, forward: { plannedToggle: true } });
+  fwd.ok && fwd.config.forward?.plannedToggle === true ? ok('schema forward slot retains a future-extension key') : bad('forward slot dropped extension key');
+  // (c) partial config validates (legacy/minimal install).
+  validateConfig({ level: 3 }).ok ? ok('schema accepts a partial config (level only)') : bad('schema rejected a partial config');
+  // (d-legacy) a legacy section key survives (migratable, not refused).
+  const legacy = validateConfig({ level: 2, autonomy: { level: 1 } });
+  legacy.ok && legacy.config.autonomy?.level === 1 ? ok('schema keeps a legacy section key (migratable)') : bad('schema dropped/refused a legacy key');
+  // (e) security fallback warns; a no-op edit is silent.
+  securityWarnings({ securityMode: { active: true } }, { securityMode: { active: false } }).length === 1 &&
+  securityWarnings(defaults, defaults).length === 0
+    ? ok('securityWarnings flags a security-reducing fallback, silent otherwise') : bad('securityWarnings missed a fallback / false-positived');
+}
+
 /** Runs every config/taxonomy check in order. `ctx` = { RT, mods }. */
 export async function runConfigChecks(rep, { RT, mods }) {
   checkLevels(rep, mods);
   await checkSchema(rep, mods, RT);
+  await checkSectionSchemas(rep, mods, RT);
 }
