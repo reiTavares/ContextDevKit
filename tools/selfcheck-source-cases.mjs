@@ -26,7 +26,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['squad detection single-sourced (agent-tuning.mjs)', 'templates/contextkit/tools/scripts/agent-tuning.mjs', /squad-meta/],
     ['installer backs up an existing git hook', 'tools/install/git.mjs', /\.bak/],
     ['installer follows .git pointer in worktrees (bug 038)', 'tools/install/git.mjs', /resolveGitDir/],
-    ['installer parses the gitdir: pointer', 'tools/install/git.mjs', /gitdir:\\s\*\(\.\+\)/],
+    ['installer parses the gitdir: pointer', 'tools/install/git-paths.mjs', /gitdir:\\s\*\(\.\+\)/],
     ['agent-forge yaml loader uses optional dynamic import', 'templates/contextkit/squads/agent-forge/lib/yaml.mjs', /import\(\s*['"]yaml['"]\s*\)/],
     ['installer copies the agent-forge squad at L>=4', 'tools/install/claude.mjs', /copyTree\(join\(tplDir, 'contextkit', 'squads', 'agent-forge'\)/],
     ['installer copies curated-stack starters', 'tools/install/engine.mjs', /copyTree\(join\(tplDir, 'contextkit', 'starters'\)/],

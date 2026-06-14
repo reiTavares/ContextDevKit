@@ -2,42 +2,16 @@
  * Git integration for the installer: drop the L≥3 git-hook wrappers, and patch
  * `.gitignore` / `.gitattributes` idempotently (never double-append).
  */
-import { writeFile, chmod, rename, stat } from 'node:fs/promises';
+import { writeFile, chmod, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { isAbsolute, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { ensureDir, read, copyTreeIfMissing } from './fs.mjs';
+import { resolveGitDir } from './git-paths.mjs';
 import { applyDogfoodExclude, detectTrackedKitPaths } from './exclude.mjs';
 
-/**
- * Resolves a `.git` path to the *actual* git directory.
- *
- * In a regular repo, `.git` is a directory — return it as-is. In a git
- * worktree (or a submodule), `.git` is a regular **file** containing
- * `gitdir: <absolute-or-relative-path>`. We follow that pointer so hooks
- * land in the worktree-specific git dir (`<main>/.git/worktrees/<name>/hooks/`),
- * which is what git actually looks at when running hooks for a worktree.
- *
- * Returns `null` when the pointer is malformed — the installer treats that
- * as "no git" and skips hook installation (rule 2: never break real work).
- *
- * @param {string} dotGit — path to the project's `.git` (file or dir)
- * @param {string} target — project root, for resolving relative gitdir pointers
- * @returns {Promise<string | null>}
- */
-export async function resolveGitDir(dotGit, target) {
-  try {
-    const st = await stat(dotGit);
-    if (st.isDirectory()) return dotGit;
-    if (!st.isFile()) return null;
-    const text = (await read(dotGit)).trim();
-    const match = text.match(/^gitdir:\s*(.+)$/m);
-    if (!match) return null;
-    const pointer = match[1].trim();
-    return isAbsolute(pointer) ? pointer : resolve(target, pointer);
-  } catch {
-    return null;
-  }
-}
+// `resolveGitDir` is re-exported so existing importers (and the self-check that
+// asserts it) keep resolving it from `git.mjs` — the public surface is unchanged.
+export { resolveGitDir };
 
 /**
  * Installs thin git-hook wrappers that call the engine scripts. Needs a `.git`.
