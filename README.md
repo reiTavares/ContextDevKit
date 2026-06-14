@@ -87,7 +87,16 @@ through. You adopt it gradually through **seven levels**, and a separate
 
 ## Quickstart
 
-**One command, from anywhere** — the repo *is* the installer:
+**One command, from anywhere** — the repo *is* the installer.
+
+**First, pick how the kit lives in git** (you can switch later — it's non-destructive):
+
+| Mode | When | What it does |
+| --- | --- | --- |
+| **Local-only** *(default)* | Solo work, an experiment, or trying the kit | Writes a managed `.git/info/exclude` block so the installed artifacts (`contextkit/`, `.claude/`, `CLAUDE.md`, …) stay out of your git history — updates never flood your commits. Your teammates and CI **won't** see the kit. [ADR-0054] |
+| **Tracked** *(`--tracked`)* | A team, multiple machines, or CI that needs the kit | Skips the exclude block so you can `git add` and commit the kit — everyone who clones gets the same memory, agents, and governance. |
+
+Not sure? Start **local-only** (just run the command below). Move to tracked the moment a second person or machine needs the kit: re-run with `--tracked` and `git add` the artifacts — switching only toggles the exclude block, it never touches your index or edits. `/context-doctor` reports your current mode and flags a local-only kit in a repo that already has a remote.
 
 ```bash
 # from npm (recommended) — auto-picks L3 for an empty folder, L7 if it already has code
@@ -95,6 +104,9 @@ npx contextdevkit --target . --yes
 
 # or straight from GitHub (no npm needed)
 npx github:reiTavares/ContextDevKit --target . --yes
+
+# team / multi-machine / CI — commit the kit instead of keeping it local-only
+npx contextdevkit --target . --tracked --yes
 ```
 
 Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the whole

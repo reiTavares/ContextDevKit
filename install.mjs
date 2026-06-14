@@ -172,6 +172,17 @@ async function main() {
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
+  // Install-mode banner (CDK-014): state the VCS posture explicitly and how to
+  // switch, WITHOUT changing the default. Default is LOCAL-ONLY [ADR-0054];
+  // --tracked opts into committing the kit. Switching is non-destructive (re-run
+  // with the other flag) -- it only toggles .git/info/exclude, never the index/edits.
+  if (args.tracked) {
+    console.log('\n📦 Install mode: TRACKED — kit artifacts are committable (visible to teammates, other machines, CI).');
+    console.log('   Switch to local-only later: re-run without --tracked (writes a .git/info/exclude block; your files stay).');
+  } else {
+    console.log('\n🔒 Install mode: LOCAL-ONLY (default) — kit artifacts stay out of git history via .git/info/exclude [ADR-0054].');
+    console.log('   Good for solo / experiments. Team, multi-machine, or CI? Re-run with --tracked, then `git add` the kit.');
+  }
   if (args.update) {
     console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
     console.log('   Refreshed: engine + host assets + hook wiring. Untouched: CLAUDE.md, AGENTS.md, config,');
