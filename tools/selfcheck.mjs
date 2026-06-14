@@ -8,12 +8,12 @@
  * - Confirms the expected template files are present.
  * - Delegates the deeper invariants to sibling modules split by category
  *   (ADR-0016 H1 / task 037; inventory extracted in ADR-0041 F0 / task 104):
- *     - `selfcheck-runtime.mjs`     — boot readers, atomic I/O, sid, squad meta.
- *     - `selfcheck-config.mjs`      — level taxonomy + zod schema agreement.
- *     - `selfcheck-source.mjs`      — source-level patterns, rule 4, SHA-pinning.
+ *     - `selfcheck-runtime.mjs`       — boot readers, atomic I/O, sid, squad meta.
+ *     - `selfcheck-config.mjs`        — level taxonomy + zod schema agreement.
+ *     - `selfcheck-source.mjs`        — source-level patterns, rule 4, SHA-pinning.
  *     - `selfcheck-agent-forge.mjs` / `-ops.mjs` — agent-forge squad checks.
- *     - `selfcheck-templates.mjs`   — shipped template-tree inventory.
- *
+ *     - `selfcheck-templates.mjs`     — shipped template-tree inventory.
+ *     - `selfcheck-capabilities.mjs`  — capability registry + resolver (CDK-020).
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -29,6 +29,8 @@ import { runModelPolicyChecks } from './selfcheck-model-policy.mjs';
 import { runCodexChecks } from './selfcheck-codex.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
+import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
+import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -117,11 +119,7 @@ function checkCompose(composeSettings) {
     ? ok('composeSettings preserves a user statusLine') : bad('composeSettings clobbered a user statusLine');
 }
 
-/**
- * Behavioral table for the agy host wiring [ADR-0049]: the `.agents/hooks.json`
- * composer mirrors the Claude level rules, and the host adapter normalizes
- * both wire formats into one shape (so the hook scripts never fork per host).
- */
+/** Behavioral table for the agy host wiring [ADR-0049]: composer + host adapter. */
 function checkAgentHooksCompose(composer, adapter) {
   console.log('Checking agy hooks composition + host adapter (ADR-0049)...');
   const { composeAgentHooks, stripAgentHooks, KIT_HOOK_GROUP } = composer;
@@ -286,6 +284,8 @@ async function main() {
   await runCodexChecks({ ok, bad }, { KIT });
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
   await runEncodingChecks({ ok, bad }, { KIT });
+  await runCapabilityChecks({ ok, bad }, { KIT });
+  await runEnforcementChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

@@ -121,5 +121,6 @@ export function pathsFor(root = process.cwd()) {
     bestPractices: at(`${PLATFORM_DIR}/best-practices.md`),
     policy: at(`${PLATFORM_DIR}/policy`),
     complexityRubric: at(`${PLATFORM_DIR}/policy/complexity-rubric.json`),
+    capabilityRegistry: at(`${PLATFORM_DIR}/policy/capability-registry.json`),
   };
 }
