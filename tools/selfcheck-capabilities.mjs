@@ -159,4 +159,148 @@ export async function runCapabilityChecks(rep, { KIT }) {
   forbiddenImports.length === 0
     ? ok('resolve-capabilities.mjs does not import config/load.mjs or any hook (no circular dep, ADR-0001)')
     : bad(`resolve-capabilities.mjs imports forbidden module(s): ${forbiddenImports.map((l) => l.trim()).join('; ')}`);
+
+  await runContractChecks(rep, { KIT });
+}
+
+/**
+ * Asserts the behavioral contracts of task-intake.mjs + execution-contract.mjs
+ * (CDK-021, ADR-0072). Called at the end of runCapabilityChecks so the single
+ * wiring in selfcheck.mjs covers both CDK-020 and CDK-021 checks.
+ *
+ * @param {{ ok: (m: string) => void, bad: (m: string) => void }} rep reporter
+ * @param {{ KIT: string }} ctx KIT is the repo root
+ */
+async function runContractChecks(rep, { KIT }) {
+  const { ok, bad } = rep;
+  console.log('Checking execution contract (CDK-021, ADR-0072)...');
+
+  const intakePath = resolve(KIT, 'templates/contextkit/runtime/execution/task-intake.mjs');
+  const contractPath = resolve(KIT, 'templates/contextkit/runtime/execution/execution-contract.mjs');
+
+  // Load modules — bail early on import failure so later checks don't crash.
+  let intake, buildContract;
+  try {
+    const intakeMod = await import('file://' + intakePath.replaceAll('\\', '/'));
+    intake = intakeMod.intake;
+  } catch (err) {
+    bad(`task-intake.mjs failed to import: ${err?.message ?? err}`);
+    return;
+  }
+  try {
+    const contractMod = await import('file://' + contractPath.replaceAll('\\', '/'));
+    buildContract = contractMod.buildContract;
+  } catch (err) {
+    bad(`execution-contract.mjs failed to import: ${err?.message ?? err}`);
+    return;
+  }
+
+  // C1. Trivial task → tier=trivial, empty required lists (no heavy ceremony).
+  try {
+    const { signals } = intake({ objective: 'fix typo', level: 7 });
+    signals.tier === 'trivial'
+      ? ok('C1. intake: trivial objective → tier=trivial')
+      : bad(`C1. intake: expected tier=trivial, got tier=${signals.tier}`);
+
+    const contract = buildContract(signals);
+    // A trivial task carries no heavy-ceremony gates. Universal gates (log-session,
+    // which applies on tiers=['*']) may still appear in beforeCompletion — that is
+    // correct: even a typo fix should be logged. What must be ABSENT is the deep
+    // workflow-level set (workflow, simulate-impact, qa-signoff, test-plan, etc.).
+    const heavyGates = ['workflow', 'simulate-impact', 'qa-signoff', 'test-plan', 'context-pack', 'project-map'];
+    const allRequired = [
+      ...contract.requiredBeforeExploration,
+      ...contract.requiredBeforeWrite,
+      ...contract.requiredBeforeCompletion,
+    ];
+    const unexpectedHeavy = heavyGates.filter((id) => allRequired.includes(id));
+    unexpectedHeavy.length === 0
+      ? ok('C1. contract: trivial task carries no heavy-ceremony gates (workflow/simulate/qa/test-plan absent)')
+      : bad(`C1. contract: trivial task has unexpected heavy gates: [${unexpectedHeavy}] — exploration=[${contract.requiredBeforeExploration}] write=[${contract.requiredBeforeWrite}] completion=[${contract.requiredBeforeCompletion}]`);
+  } catch (err) {
+    bad(`C1. trivial check crashed: ${err?.message ?? err}`);
+  }
+
+  // C2. Architectural task → workflow+simulate-impact (beforeWrite), qa-signoff (beforeCompletion).
+  try {
+    const { signals } = intake({ objective: 'refactor the auth module across services', level: 7 });
+    signals.tier === 'architectural'
+      ? ok('C2. intake: architectural objective → tier=architectural')
+      : bad(`C2. intake: expected tier=architectural, got tier=${signals.tier}`);
+
+    const contract = buildContract(signals);
+    const hasWorkflow = contract.requiredBeforeWrite.includes('workflow');
+    const hasSimulate = contract.requiredBeforeWrite.includes('simulate-impact');
+    const hasQa = contract.requiredBeforeCompletion.includes('qa-signoff');
+    hasWorkflow
+      ? ok('C2. contract: architectural task requires workflow (beforeWrite)')
+      : bad(`C2. contract: workflow missing from beforeWrite=[${contract.requiredBeforeWrite}]`);
+    hasSimulate
+      ? ok('C2. contract: architectural task requires simulate-impact (beforeWrite)')
+      : bad(`C2. contract: simulate-impact missing from beforeWrite=[${contract.requiredBeforeWrite}]`);
+    hasQa
+      ? ok('C2. contract: architectural task requires qa-signoff (beforeCompletion)')
+      : bad(`C2. contract: qa-signoff missing from beforeCompletion=[${contract.requiredBeforeCompletion}]`);
+  } catch (err) {
+    bad(`C2. architectural check crashed: ${err?.message ?? err}`);
+  }
+
+  // C3. LGPD-signal objective → domain=lgpd, forced to tier=architectural.
+  try {
+    const { signals } = intake({ objective: 'store user CPF and consent', level: 7 });
+    signals.domain === 'lgpd'
+      ? ok('C3. intake: CPF+consent objective → domain=lgpd')
+      : bad(`C3. intake: expected domain=lgpd, got domain=${signals.domain}`);
+    signals.tier === 'architectural'
+      ? ok('C3. intake: lgpd domain forces tier=architectural')
+      : bad(`C3. intake: expected tier=architectural (forced by lgpd), got tier=${signals.tier}`);
+
+    const contract = buildContract(signals);
+    const hasArchitecturalGates =
+      contract.requiredBeforeWrite.includes('workflow') ||
+      contract.requiredBeforeWrite.includes('simulate-impact');
+    hasArchitecturalGates
+      ? ok('C3. contract: lgpd-forced architectural task carries architectural gates')
+      : bad(`C3. contract: lgpd task missing architectural gates — beforeWrite=[${contract.requiredBeforeWrite}]`);
+  } catch (err) {
+    bad(`C3. lgpd check crashed: ${err?.message ?? err}`);
+  }
+
+  // C4. Determinism — buildContract twice from identical signals → identical required sets.
+  try {
+    const { signals } = intake({ objective: 'add export endpoint for reports', level: 7 });
+    const c1 = buildContract(signals);
+    const c2 = buildContract(signals);
+    const sameExploration = JSON.stringify(c1.requiredBeforeExploration) === JSON.stringify(c2.requiredBeforeExploration);
+    const sameWrite = JSON.stringify(c1.requiredBeforeWrite) === JSON.stringify(c2.requiredBeforeWrite);
+    const sameCompletion = JSON.stringify(c1.requiredBeforeCompletion) === JSON.stringify(c2.requiredBeforeCompletion);
+    sameExploration && sameWrite && sameCompletion
+      ? ok('C4. determinism: buildContract twice from identical signals → identical required-set fields')
+      : bad('C4. determinism: buildContract produced differing required-set fields on repeated calls');
+  } catch (err) {
+    bad(`C4. determinism check crashed: ${err?.message ?? err}`);
+  }
+
+  // C5. Grouping invariant — no capability is lost or double-counted.
+  try {
+    const { signals } = intake({ objective: 'add new user registration feature', level: 7 });
+    const { DEFAULT_REGISTRY } = await import('file://' + resolve(KIT, 'templates/contextkit/runtime/capabilities/resolve-capabilities.mjs').replaceAll('\\', '/'));
+    const { resolveCapabilities } = await import('file://' + resolve(KIT, 'templates/contextkit/runtime/capabilities/resolve-capabilities.mjs').replaceAll('\\', '/'));
+    const applicable = resolveCapabilities(signals, DEFAULT_REGISTRY);
+    const contract = buildContract(signals, DEFAULT_REGISTRY);
+    const allGrouped = new Set([
+      ...contract.requiredBeforeExploration,
+      ...contract.requiredBeforeWrite,
+      ...contract.requiredBeforeCompletion,
+      ...contract.recommended,
+    ]);
+    const allResolved = new Set(applicable.map((c) => c.id));
+    const lost = [...allResolved].filter((id) => !allGrouped.has(id));
+    const extra = [...allGrouped].filter((id) => !allResolved.has(id));
+    lost.length === 0 && extra.length === 0
+      ? ok(`C5. grouping invariant: all ${allResolved.size} resolved capabilities appear in exactly one moment group`)
+      : bad(`C5. grouping invariant: lost=[${lost}] extra=[${extra}]`);
+  } catch (err) {
+    bad(`C5. grouping invariant check crashed: ${err?.message ?? err}`);
+  }
 }
