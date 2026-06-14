@@ -4,6 +4,20 @@ All notable changes to ContextDevKit are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/);
 this project follows [Semantic Versioning](https://semver.org/).
 
+> **Two changelogs, two contexts — don't conflate them.**
+> *This* file (the repo-root `CHANGELOG.md`) is **ContextDevKit's own product
+> changelog**: the release chronology of the kit itself, closed via
+> `/close-version` and tagged for release. It is the only changelog tracked in
+> this source repo.
+> Separately, the installer creates a `docs/CHANGELOG.md` **inside each
+> installed project** (rendered from `templates/docs/CHANGELOG.md.tpl`) — that
+> one chronicles the *target project's* releases, not the kit's. Every
+> `docs/CHANGELOG.md` reference under `templates/**` (in `/log-session`,
+> `/close-version`, `/draft-changelog`, etc.) means *that* installed-project
+> file, which runs in the target repo — never this product changelog.
+> In this repo's dogfood install, `docs/CHANGELOG.md` exists only as a
+> gitignored artifact (`.git/info/exclude`) and is never committed.
+
 ## [Unreleased]
 
 Add your changes here.
