@@ -16,7 +16,7 @@
  *
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runRuntimeChecks } from './selfcheck-runtime.mjs';
@@ -247,6 +247,24 @@ function checkPaths(paths) {
     ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
 }
 
+/**
+ * CDK-012 — assert the repo-root CHANGELOG.md (kit PRODUCT changelog) documents how
+ * it differs from the installer's docs/CHANGELOG.md, and the template path exists.
+ */
+function checkChangelogDisambiguation() {
+  console.log('Checking product vs installed-project CHANGELOG disambiguation (CDK-012)...');
+  let product = '';
+  try { product = readFileSync(resolve(KIT, 'CHANGELOG.md'), 'utf-8'); } catch { /* handled below */ }
+  if (!product) { bad('CHANGELOG.md (product changelog) is missing or unreadable'); return; }
+  const lower = product.toLowerCase();
+  lower.includes('product changelog') && product.includes('docs/CHANGELOG.md') && lower.includes('installed project')
+    ? ok('CHANGELOG.md disambiguates product vs installed-project changelog (CDK-012)')
+    : bad('CHANGELOG.md lacks the product-vs-installed-project note (CDK-012) — must name both contexts');
+  existsSync(resolve(KIT, 'templates/docs/CHANGELOG.md.tpl'))
+    ? ok('installed-project changelog template exists (templates/docs/CHANGELOG.md.tpl)')
+    : bad('templates/docs/CHANGELOG.md.tpl missing — disambiguation note points at a dead path');
+}
+
 async function main() {
   console.log('\n🌀 ContextDevKit self-check\n');
   const mods = await importLibs();
@@ -275,6 +293,7 @@ async function main() {
       ? ok('package.json has no runtime dependencies (zero-dep invariant)')
       : bad(`package.json has runtime dependencies: ${Object.keys(pkgDeps).join(', ')} — violates ADR-0001`);
   } catch (e) { bad(`zero-dep check failed to read package.json: ${e.message}`); }
+  checkChangelogDisambiguation();
   const executed = passes + failures;
   if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
   else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);
