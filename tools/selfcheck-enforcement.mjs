@@ -154,4 +154,112 @@ export async function runEnforcementChecks(rep, { KIT }) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+  // =========================================================================
+  // CDK-023: ENFORCEMENT MODES + BYPASS CHECKS
+  // =========================================================================
+  console.log('Checking enforcement modes + bypass (CDK-023, ADR-0072)...');
+
+  let modes, bypass;
+  try {
+    const modesPath = resolve(KIT, 'templates/contextkit/runtime/execution/enforcement-modes.mjs');
+    const bypassPath = resolve(KIT, 'templates/contextkit/runtime/execution/bypass-store.mjs');
+    modes = await import('file://' + modesPath.replaceAll('\\', '/'));
+    bypass = await import('file://' + bypassPath.replaceAll('\\', '/'));
+  } catch (err) {
+    bad(`enforcement-modes or bypass-store failed to import: ${err?.message ?? err}`);
+    return;
+  }
+
+  const { resolveEnforcementMode, decide } = modes;
+  const { writeBypass, readBypass, readBypasses, isBypassValid } = bypass;
+
+  // Verify exports.
+  for (const [mod, name] of [['enforcement-modes', 'resolveEnforcementMode'], ['enforcement-modes', 'decide'],
+       ['bypass-store', 'writeBypass'], ['bypass-store', 'readBypass'], ['bypass-store', 'readBypasses'], ['bypass-store', 'isBypassValid']]) {
+    const fn = mod === 'enforcement-modes' ? modes[name] : bypass[name];
+    typeof fn === 'function' ? ok(`export: ${name} present`) : bad(`export: ${name} missing`);
+  }
+
+  // --- resolveEnforcementMode ---
+  resolveEnforcementMode(null) === 'advisory' ? ok('mode: null config -> advisory') : bad('mode: null config not advisory');
+  resolveEnforcementMode({}) === 'advisory' ? ok('mode: empty config -> advisory') : bad('mode: empty config not advisory');
+  resolveEnforcementMode({ enforcement: { mode: 'unknown' } }) === 'advisory'
+    ? ok('mode: unknown value -> advisory') : bad('mode: unknown value not advisory');
+  resolveEnforcementMode({ enforcement: { mode: 'guarded' } }) === 'guarded'
+    ? ok('mode: guarded honored') : bad('mode: guarded not honored');
+  resolveEnforcementMode({ enforcement: { mode: 'strict' } }) === 'strict'
+    ? ok('mode: strict honored') : bad('mode: strict not honored');
+
+  const root2 = mkdtempSync(join(tmpdir(), 'ck-enf-sc-'));
+  try {
+    const scope = { branch: 'feat/x', taskId: 'task-sc-01', paths: ['src/a.mjs'] };
+    const contract = { requiredBeforeExploration: ['sim-impact'], requiredBeforeWrite: ['qa-signoff'], requiredBeforeCompletion: ['adr-review'] };
+    const base = { mode: 'advisory', contract, moment: 'beforeWrite', scope, root: root2 };
+
+    // Advisory + missing -> warn, never deny.
+    const advMissing = decide({ ...base, mode: 'advisory' });
+    advMissing.decision === 'warn' ? ok('advisory: missing -> warn (never deny)') : bad(`advisory: expected warn, got ${advMissing.decision}`);
+    advMissing.missing.includes('qa-signoff') ? ok('advisory: qa-signoff in missing') : bad('advisory: qa-signoff not in missing');
+
+    // Guarded + missing beforeWrite -> deny.
+    const guardDeny = decide({ ...base, mode: 'guarded' });
+    guardDeny.decision === 'deny' ? ok('guarded: missing beforeWrite -> deny') : bad(`guarded: expected deny, got ${guardDeny.decision}`);
+
+    // Guarded + missing beforeExploration -> warn only.
+    const guardExpl = decide({ ...base, mode: 'guarded', moment: 'beforeExploration' });
+    guardExpl.decision === 'warn' ? ok('guarded: missing beforeExploration -> warn') : bad(`guarded: expected warn at exploration, got ${guardExpl.decision}`);
+
+    // Strict + any missing -> deny.
+    const strictDeny = decide({ ...base, mode: 'strict', moment: 'beforeExploration' });
+    strictDeny.decision === 'deny' ? ok('strict: any missing -> deny') : bad(`strict: expected deny, got ${strictDeny.decision}`);
+
+    // Write a valid human-approved bypass and verify guarded allows + reports as 'bypassed' not 'satisfied'.
+    writeBypass(root2, { capability: 'qa-signoff', taskId: 'task-sc-01', branch: 'feat/x', reason: 'pre-approved', actor: 'human-lead', approvedBy: 'alice' });
+    const guardBypassed = decide({ ...base, mode: 'guarded' });
+    guardBypassed.decision === 'allow' ? ok('guarded: valid bypass -> allow') : bad(`guarded: bypass should allow, got ${guardBypassed.decision}`);
+    guardBypassed.bypassed.includes('qa-signoff') ? ok('guarded: bypass in bypassed list (not satisfied)') : bad('guarded: bypass not in bypassed list');
+    !guardBypassed.satisfied.includes('qa-signoff') ? ok('anti-theatre: bypassed != satisfied') : bad('anti-theatre: bypass wrongly counted as satisfied');
+
+    // Expired bypass does not rescue.
+    writeBypass(root2, { capability: 'adr-review', taskId: 'task-sc-01', branch: 'feat/x', reason: 'old', actor: 'dev', approvedBy: 'bob' }, { ttlMs: 0 });
+    const expiredBypass = decide({ ...base, mode: 'guarded', moment: 'beforeCompletion', now: Date.now() + 999_999 });
+    expiredBypass.decision === 'deny' ? ok('expired bypass: still deny under guarded') : bad(`expired bypass: expected deny, got ${expiredBypass.decision}`);
+
+    // Grade-4 floor: actor='auto' bypass of requiresHumanApproval capability is invalid.
+    writeBypass(root2, { capability: 'sim-impact', taskId: 'task-sc-01', branch: 'feat/x', reason: 'auto-self', actor: 'auto', approvedBy: '' });
+    // approvedBy='' will be stored but the actor='auto' + requiresHumanApproval check in isBypassValid blocks it
+    // Actually writeBypass won't throw for approvedBy='', only validateBypassInput checks required fields
+    // isBypassValid will catch actor='auto' when requiresHumanApproval=true
+    const autoBypass = decide({ ...base, mode: 'strict', moment: 'beforeExploration', requiresHumanApproval: true });
+    autoBypass.decision === 'deny' ? ok('grade-4 floor: auto bypass of human-approval cap -> deny') : bad(`grade-4 floor: expected deny, got ${autoBypass.decision}`);
+
+    // Scope isolation: bypass for (cap A, task X) does NOT satisfy (cap A, task Y).
+    const otherScope = { ...scope, taskId: 'task-sc-DIFFERENT' };
+    const isolatedResult = decide({ ...base, mode: 'guarded', scope: otherScope });
+    isolatedResult.decision === 'deny' ? ok('scope isolation: bypass for task X does not rescue task Y') : bad(`scope isolation: expected deny for different task, got ${isolatedResult.decision}`);
+
+    // Scope isolation: bypass for (cap A, task X) does NOT satisfy (cap B, task X).
+    const otherCapContract = { requiredBeforeWrite: ['other-capability'] };
+    const otherCapResult = decide({ ...base, mode: 'guarded', contract: otherCapContract });
+    otherCapResult.decision === 'deny' ? ok('scope isolation: bypass for cap-A does not rescue cap-B') : bad(`scope isolation: expected deny for different cap, got ${otherCapResult.decision}`);
+
+    // isBypassValid - direct checks.
+    const bp = readBypass(root2, 'task-sc-01', 'qa-signoff');
+    const { valid: bv } = isBypassValid(bp, { capability: 'qa-signoff', taskId: 'task-sc-01', branch: 'feat/x' });
+    bv ? ok('isBypassValid: valid bypass -> valid') : bad('isBypassValid: expected valid');
+
+    const allBp = readBypasses(root2, 'task-sc-01');
+    allBp.length >= 1 ? ok(`readBypasses: returns ${allBp.length} bypass(es)`) : bad('readBypasses: expected >= 1');
+
+    isBypassValid(null, { capability: 'x', taskId: 'y', branch: 'z' }).valid === false
+      ? ok('isBypassValid: null bypass -> invalid') : bad('isBypassValid: null should be invalid');
+
+    // writeBypass throws on missing required field.
+    let threwOnMissing = false;
+    try { writeBypass(root2, { capability: 'x', taskId: 'y' }); } catch (e) { threwOnMissing = e instanceof TypeError; }
+    threwOnMissing ? ok('writeBypass: missing field -> TypeError') : bad('writeBypass: missing field did not throw TypeError');
+
+  } finally {
+    rmSync(root2, { recursive: true, force: true });
+  }
 }
