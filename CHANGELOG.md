@@ -20,7 +20,26 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Add your changes here.
+### Added
+- **Capability Enforcement substrate (advisory, dormant)** — canonical capability
+  registry + pure deterministic resolver, task-intake + execution-contract
+  (requiredBefore exploration/write/completion), tamper-resistant fingerprinted
+  receipt store (metadata-only), and advisory/guarded/strict enforcement modes with
+  audited bypass (incl. the Grade-4 human floor). Ships `advisory` by default — no
+  behavior change until wired to hooks. (CDK-020…023, ADR-0072)
+- Explicit local-only vs tracked install modes — onboarding guidance, installer
+  banner, and a `context-doctor` install-mode inspection. (CDK-014)
+- Per-section strict config validation that preserves unknown fields. (CDK-013)
+
+### Fixed
+- Agent Forge optional-`yaml` test now stages the dependency into its fixture so
+  both the yaml-present and yaml-absent branches are exercised. (CDK-010)
+- Removed the `git.mjs`↔`exclude.mjs` ESM import cycle by extracting shared Git
+  path helpers into `git-paths.mjs`. (CDK-011)
+
+### Changed
+- Disambiguated the product changelog from the installed-project changelog, with a
+  selfcheck guarding the convention. (CDK-012)
 
 ## [2.7.0] - 2026-06-13
 
