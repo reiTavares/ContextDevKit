@@ -12,37 +12,29 @@ o histórico no próprio repositório. Funciona em qualquer projeto — do zero
 **Claude Code** (hooks automáticos), **Google Antigravity** (`agy`/`ctx.mjs`) e
 **Codex** (`AGENTS.md`, `.codex/` e `cdx.mjs`).
 
-## Novidades na v2.6
+## Novidades na v2.7.0
 
-> **QA ciente da stack.** O kit agora faz o squad de QA ler sinais reais do
-> projeto antes de propor ou criar testes: Node/JavaScript, Python, Go, Rust e
-> PHP ganham matriz happy/edge/failure e harness starter com `--write` explícito.
+> **Governança que o motor força — não o prompt.** A v2.7.0 traz três sistemas que
+> tiram o enforcement do "lembre-se de…" e colocam no código: o import de paridade
+> (8 features), o conselho de deliberação auto-invocado e o gate da jornada de workflow.
 
-| Feature | O que faz |
-|---|---|
-| **`scaffold-tests.mjs`** | Script zero-dep usado por `/test-plan` e `/scaffold-tests`; detecta stack/runner, propõe casos específicos e só cria arquivos starter quando você passa `--write` |
-| **`agy guard <path>`** | Checkpoint L5 explícito pré-edição no host sem hooks — exit 0 = liberado, exit 1 = rode `/simulate-impact` antes. Mesma definição de gate do hook PreToolUse do Claude Code |
-| **Dispatch seguro no `ctx.mjs`/`agy`** | Só nome exato + aliases declarados (sem adivinhação por prefixo); comando desconhecido ganha did-you-mean (3 mais próximos) e `agy help <comando>` mostra o card individual |
-| **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) commitado em `contextkit/memory/project-map/` — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** (quem importa quem) para raciocínio de blast radius |
-| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | Deliberação multi-agente: vozes independentes debatem, um sintetizador converge (ou registra `unresolved`) e o artefato alimenta o Context de um ADR |
-| **`/context-doctor` ciente do Antigravity** | Verifica o runner, os atalhos `ctx`/`agy`, as 4 árvores `.agents`, o `INSTRUCTIONS.md` e placeholders `{{TOKEN}}` esquecidos |
-| **Build determinístico do host** | `npm run build:antigravity` regenera as skills/personas a partir das fontes Claude (limpa antes); um drift-guard no selfcheck falha o build se os dois hosts divergirem |
-| **Migração de install legado** | `npx contextdevkit --update` carrega um install `vibekit/` antigo para `contextkit/` automaticamente — memória, config, nível e `.env` preservados |
+| Sistema | O que faz | Aprofundamento |
+|---|---|---|
+| **Import de paridade ContextKit** ([ADR-0060 → 0068](contextkit/memory/decisions/)) | Oito features zero-dep, cientes de nível e *warn-first* portadas do `nolrm/contextkit`: auto-format (PostToolUse), quality gates multi-linguagem no pre-push, coexistência de hook-manager, ação CI Squad opt-in, limite de promoção de padrões (≥3 ocorrências), `/context-budget` + `@`-imports, injeção idempotente por marcador e **bridges de contexto para mais 6 ferramentas** (Cursor, Copilot, Gemini, Windsurf, Aider, Continue — só contexto, governança fica nativa) | [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) |
+| **Conselho de deliberação** ([ADR-0070](contextkit/memory/decisions/0070-auto-invoked-deliberation-and-tiered-council.md)) | A deliberação multi-agente agora é **auto-invocada** nos dois momentos que importam — abrir uma feature e registrar uma decisão — a partir da autonomia grade ≥ 3. Um conselho de specialists *nomeados* e determinístico escala com a pergunta; um swarm de pesquisa em camadas junta evidência barato (scouts Haiku) antes das vozes de raciocínio (Opus) debaterem. A escrita do ADR continua **manual** em toda grade | [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) |
+| **Governança de workflow** ([ADR-0071](contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md)) | A jornada do `/workflow` agora é **forçada no motor**: `advance` recusa sair de uma fase com entregáveis faltando (todo CLI no mesmo nível), `--force` é a saída explícita. Workflows numerados `NNNN-slug` como ADRs, e o guard de mutação L5 é **escopado por branch** — uma sessão paralela não bloqueia mais edições alheias | [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) |
 
-### Paridade ContextKit ([ADR-0060 → ADR-0068](contextkit/memory/decisions/))
-
-Oito features portadas do `nolrm/contextkit` — todas zero-dep, cientes de nível e *warn-first*:
+<details>
+<summary><strong>Destaques anteriores (v2.6 — squads ativos + QA ciente da stack)</strong></summary>
 
 | Feature | O que faz |
 |---|---|
-| **Hook de auto-format** (F1, ADR-0061) | `auto-format.mjs` (PostToolUse) roda seu formatter/linter após cada Edit/Write no nível ≥ 4 — consultivo (corrige quando há toolchain, sempre sai 0; "skipped" quando não há), nos três hosts |
-| **Quality gates multi-linguagem** (F2, ADR-0062) | `quality-gates.mjs` roda lint/format/typecheck/build/test da stack detectada (10 linguagens), escopado aos pacotes que o push toca. Avisa abaixo do `strictLevel`, bloqueia nele; ferramenta ausente = pulada. Bypass `CONTEXT_SKIP_QGATES=1` |
-| **Coexistência de hook-manager** (F3, ADR-0063) | A instalação detecta husky / simple-git-hooks / `core.hooksPath` custom e sugere integração não-destrutiva |
-| **Ação CI Squad** (F5, ADR-0064) | GitHub Action opt-in (`--ci-squad`): issue com label `squad-ready` → PR em DRAFT via pipeline headless. Requer o secret `ANTHROPIC_API_KEY` |
-| **Limite de promoção de padrões** (F7, ADR-0065) | `/distill-sessions` só propõe regra nova após ≥3 ocorrências evidenciadas; `/retro` deprecia por *strikethrough*, nunca apagando |
-| **`/context-budget` + `@`-imports** (F6, ADR-0066) | Orçamento de contexto por tipo de tarefa (sempre / sob-demanda / pular) + `@`-imports leves no `CLAUDE.md.tpl` para manter a constituição enxuta |
-| **Injeção por marcador** (F4, ADR-0067) | `marker-inject.mjs` controla um bloco `<!-- ContextDevKit:start/end -->` — idempotente, preserva o conteúdo do usuário ao redor (habilitador dos bridges) |
-| **Bridges multi-plataforma** (F8, ADR-0068) | Bridges de contexto opt-in (`bridges.enabled`) para Cursor, Copilot, Gemini, Windsurf, Aider, Continue — **só contexto, sem enforcement** (governança fica nos hosts nativos) |
+| **Squads ativos** ([ADR-0069](contextkit/memory/decisions/0069-active-agent-squads-integration.md)) | Transforma squads declarados-porém-passivos numa camada roteada e governada: roteamento determinístico (`squads-registry.json` + `/squad route`), ativação explícita de postura (`/squad activate`), playbooks cientes da stack para os 8 squads e auto-auditoria de compliance no gate pré-commit. Veja [docs/explanation/active-squads.md](docs/explanation/active-squads.md) |
+| **QA ciente da stack** | `scaffold-tests.mjs` (zero-dep) detecta Node/JavaScript, Python, Go, Rust e PHP, propõe matriz happy/edge/failure e cria harness starter só com `--write`; `/test-plan` e `/scaffold-tests` partem dele |
+| **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** para raciocínio de blast radius |
+| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | O artefato de deliberação manual que o conselho da v2.7 automatiza: vozes independentes debatem, um sintetizador converge e o artefato alimenta o Context de um ADR |
+
+</details>
 
 ## Instalação
 
@@ -346,6 +338,9 @@ Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória
 
 ---
 
-Documentação completa (em inglês): `README.md`, `docs/LEVELS.md`,
-`docs/ARCHITECTURE.md`, `docs/ANTIGRAVITY.md`, `docs/CUSTOMIZING.md`,
-`docs/SQUADS/design-team.md`, `docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`.
+Documentação completa (em inglês): `README.md`, `docs/README.md` (índice
+Diátaxis), `docs/LEVELS.md`, `docs/ARCHITECTURE.md`, `docs/ANTIGRAVITY.md`,
+`docs/CODEX.md`, `docs/CUSTOMIZING.md`, `docs/SQUADS/design-team.md`,
+`docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`. Os "porquês" da v2.7.0 estão em
+`docs/explanation/`: `contextkit-parity.md`, `deliberation-council.md`,
+`workflow-governance.md`, `active-squads.md`.

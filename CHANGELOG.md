@@ -6,6 +6,16 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Add your changes here.
+
+## [2.7.0] - 2026-06-13
+
+Governance the engine enforces — three systems that move enforcement from prompt
+to code: the **ContextKit parity import** (8 features), the **auto-invoked
+deliberation council**, and the **workflow journey gate** (ADR-0060 → ADR-0071).
+README restructured around the new arc; four new Diátaxis explanation docs added
+under `docs/explanation/`.
+
 ### Added — ContextKit parity import (8 features, ADR-0060 → ADR-0068)
 - **Auto-format hook (F1, ADR-0061).** A PostToolUse `auto-format.mjs` runs the
   project's formatter/linter right after each Edit/Write at level ≥ 4 (advisory —
