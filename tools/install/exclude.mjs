@@ -15,9 +15,9 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { read, ensureDir } from './fs.mjs';
-import { resolveGitDir } from './git.mjs';
+import { resolveGitDir, resolveCommonDir } from './git-paths.mjs';
 
 const BLOCK_BEGIN = '# >>> ContextDevKit install (managed block, local-only) [ADR-0054] >>>';
 const BLOCK_END = '# <<< ContextDevKit install <<<';
@@ -50,23 +50,6 @@ const EXCLUDED_PATHS = [
   '/.github/workflows/security.yml',
   '/.github/workflows/squad-issue.yml',
 ];
-
-/**
- * `info/exclude` lives in the COMMON git dir — a worktree's private git dir
- * only points at it via the `commondir` file. Follow that pointer.
- * @param {string} gitDir - resolved git dir (possibly a worktree's)
- * @returns {Promise<string>} the common git dir
- */
-async function resolveCommonDir(gitDir) {
-  const pointerPath = join(gitDir, 'commondir');
-  if (!existsSync(pointerPath)) return gitDir;
-  try {
-    const pointer = (await read(pointerPath)).trim();
-    return isAbsolute(pointer) ? pointer : resolve(gitDir, pointer);
-  } catch {
-    return gitDir;
-  }
-}
 
 /**
  * Writes (or refreshes) the managed exclude block. Idempotent: an existing
