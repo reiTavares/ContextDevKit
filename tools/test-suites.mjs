@@ -140,6 +140,22 @@ export const SUITES = Object.freeze([
   { id: 'compaction', file: it('compaction'), tier: 'integration:enforcement',
     touches: ['templates/contextkit/runtime/hooks/compaction', 'templates/contextkit/runtime/execution/'] },
 
+  // PKG-05 — Project-map & adaptive context (CDK-050…056), advisory, additive.
+  { id: 'pkg05-roots', file: 'tools/selfcheck-pkg05-050.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/project-map-roots', 'templates/contextkit/tools/scripts/project-map-core'] },
+  { id: 'pkg05-coverage', file: 'tools/selfcheck-pkg05-051.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/project-map-coverage'] },
+  { id: 'pkg05-manifest', file: 'tools/integration-test-pkg05-052.mjs', tier: 'integration:core',
+    touches: ['templates/contextkit/tools/scripts/context-manifest'] },
+  { id: 'pkg05-playbook-scope', file: 'tools/selfcheck-pkg05-053.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/playbook-scope', 'templates/contextkit/tools/scripts/playbook'] },
+  { id: 'pkg05-memory-score', file: 'tools/selfcheck-pkg05-054.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/memory-score'] },
+  { id: 'pkg05-rule-archive', file: 'tools/selfcheck-pkg05-055.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/rule-archive'] },
+  { id: 'pkg05-host-parity', file: 'tools/selfcheck-pkg05-056.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/host-parity'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

@@ -19,12 +19,15 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { scanProject } from './project-map-core.mjs';
 import { renderAll } from './project-map-render.mjs';
 import { computeInsights, manifestDelta, subgraphFor } from './project-map-insights.mjs';
 import { evaluateRules, loadRules } from './project-map-rules.mjs';
 
 const ROOT = process.cwd();
+// CDK-050: config-driven scan scope (roots/excludes). Falls back to defaults.
+const CONFIG = loadConfigSync(ROOT);
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
 const valueOf = (name) => {
@@ -36,7 +39,7 @@ const readManifest = (dir) => readFile(resolve(dir, 'manifest.json'), 'utf-8').t
 
 /** Builds the full model with insights + rule violations attached. */
 function analyze(dir) {
-  const model = scanProject(ROOT);
+  const model = scanProject(ROOT, Date.now(), CONFIG);
   model.insights = computeInsights(model.modules);
   model.violations = evaluateRules(model.modules, loadRules(dir));
   return model;
@@ -101,7 +104,7 @@ async function check(dir) {
 }
 
 function forPath(target) {
-  const sub = subgraphFor(scanProject(ROOT).modules, target);
+  const sub = subgraphFor(scanProject(ROOT, Date.now(), CONFIG).modules, target);
   if (!sub) {
     console.log(`ℹ️  No mapped module owns \`${target}\`.`);
     return 0;
@@ -112,9 +115,22 @@ function forPath(target) {
   return 0;
 }
 
+/** CDK-051 — read-only coverage report over the saved map (no regeneration). */
+async function coverage(dir) {
+  const saved = await readManifest(dir);
+  if (!saved) {
+    console.log('ℹ️  No project map yet. Run `/project-map` to generate one.');
+    return 0;
+  }
+  const { computeCoverage, renderCoverage } = await import('./project-map-coverage.mjs');
+  console.log(renderCoverage(computeCoverage(saved, ROOT)));
+  return 0;
+}
+
 async function main() {
   const dir = pathsFor(ROOT).projectMap;
   if (flag('--for')) process.exit(forPath(valueOf('--for')));
+  if (flag('--coverage')) process.exit(await coverage(dir));
   if (flag('--check')) process.exit(await check(dir));
   await generate(dir);
 }

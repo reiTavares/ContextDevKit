@@ -1,3 +1,10 @@
+---
+phases:
+  - pipeline
+  - ship
+squads:
+  - design-team
+---
 # Playbook — SEO + AISO (the two index spaces)
 
 > Operational entry: `/seo-audit` runs both static analysers

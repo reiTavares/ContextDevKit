@@ -1,3 +1,10 @@
+---
+phases:
+  - pipeline
+  - ship
+squads:
+  - security-team
+---
 # Playbook — Security batch (recurring security sweep)
 
 > Operational specs: [`.claude/commands/deep-analysis.md`](../../../.claude/commands/deep-analysis.md)

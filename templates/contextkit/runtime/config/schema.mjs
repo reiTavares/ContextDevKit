@@ -103,6 +103,10 @@ const ProjectMapSchema = z
   .object({
     autoRefresh: z.boolean().default(true),
     enforce: z.boolean().default(true),
+    // CDK-050 — configurable scan scope. `roots` must be a non-empty string list
+    // (defaults to the whole project); `excludes` adds bare-name excludes.
+    roots: z.array(z.string().min(1)).min(1).default(['.']),
+    excludes: z.array(z.string().min(1)).default([]),
   })
   .passthrough()
   .default({});

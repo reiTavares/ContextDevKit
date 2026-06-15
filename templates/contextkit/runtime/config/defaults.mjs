@@ -42,8 +42,11 @@ export const DEFAULT_CONFIG = Object.freeze({
    * committed map when source is staged (grade-blind derived doc — never blocks).
    * `enforce`: when `rules.json` declares architectural-fitness rules, a violation
    * fails `--check --strict` (the CI gate). Both inert until a map / rules exist.
+   * `roots`/`excludes` (CDK-050): configurable scan scope — `roots` defaults to
+   * the whole project (`['.']`); `excludes` adds bare-name excludes on top of the
+   * hardcoded catalogue. Defaults reproduce the legacy scan exactly.
    */
-  projectMap: { autoRefresh: true, enforce: true },
+  projectMap: { autoRefresh: true, enforce: true, roots: ['.'], excludes: [] },
 
   /**
    * First-run onboarding state. The installer writes `completed: false` into a

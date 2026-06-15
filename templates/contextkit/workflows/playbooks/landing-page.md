@@ -1,3 +1,11 @@
+---
+phases:
+  - spec
+  - pipeline
+  - ship
+squads:
+  - design-team
+---
 # Playbook — Landing page & high-conversion sites
 
 > Operational entry: `/landing-page` (the slash command) calls the

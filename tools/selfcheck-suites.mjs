@@ -23,10 +23,11 @@ const TOOLS_DIR = resolve(KIT, 'tools');
 
 /**
  * Floor for the number of on-disk suite files the list must cover. The current
- * inventory is 41 product suites (selfcheck.mjs + 40 integration-test*.mjs).
+ * inventory is 42 product suites (selfcheck.mjs + 41 integration-test*.mjs,
+ * incl. integration-test-pkg05-052 from PKG-05).
  * Lowering this requires an ADR; raise it as suites are added.
  */
-const MIN_SUITES = 41;
+const MIN_SUITES = 42;
 
 let failures = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);
@@ -70,7 +71,13 @@ function main() {
   // 3. No listed suite may point at a vanished file (excluding the infra
   //    self-checks which are not integration/selfcheck entrypoints).
   const onDiskSet = new Set(onDisk);
-  const infra = new Set(['tools/selfcheck-suites.mjs', 'tools/selfcheck-impact.mjs']);
+  const infra = new Set([
+    'tools/selfcheck-suites.mjs', 'tools/selfcheck-impact.mjs',
+    // PKG-05 selfcheck entrypoints — registered suites, dispatched directly
+    // (siblings, not discovered as integration-test*).
+    'tools/selfcheck-pkg05-050.mjs', 'tools/selfcheck-pkg05-051.mjs', 'tools/selfcheck-pkg05-053.mjs',
+    'tools/selfcheck-pkg05-054.mjs', 'tools/selfcheck-pkg05-055.mjs', 'tools/selfcheck-pkg05-056.mjs',
+  ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
     .filter((file) => !onDiskSet.has(file) && !infra.has(file));
