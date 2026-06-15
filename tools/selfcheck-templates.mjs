@@ -67,7 +67,9 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
   for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'scaffold-tests.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'workflow-pack.mjs', 'workflow-doc-check.mjs', 'workflow-gate.mjs', 'workflow-number.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'autonomy-readiness.mjs', 'lp-scaffold.mjs', 'lp-build.mjs', 'swarm-plan.mjs', 'swarm-state.mjs', 'squad-director.mjs', 'squad-audit.mjs',
     'project-map-roots.mjs', 'project-map-coverage.mjs', 'context-manifest.mjs', 'context-manifest-readers.mjs',
-    'playbook-scope.mjs', 'memory-score.mjs', 'rule-archive.mjs', 'host-parity.mjs', 'host-parity-core.mjs']) {
+    'playbook-scope.mjs', 'memory-score.mjs', 'rule-archive.mjs', 'host-parity.mjs', 'host-parity-core.mjs',
+    'skill-runner.mjs', 'capability-compliance.mjs', 'benchmark-task.mjs',
+    'wiring-drift.mjs', 'wiring-drift-core.mjs', 'wiring-drift-checks.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
@@ -98,6 +100,8 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
     'templates/contextkit/pipeline/working/.gitkeep',
     'templates/contextkit/runtime/state/state-io.mjs',
+    'templates/contextkit/tools/scripts/telemetry/normalize.mjs', // PKG-06 CDK-062
+    'templates/contextkit/tools/scripts/telemetry/adapters/codex.mjs', // PKG-06 CDK-062
     'templates/contextkit/runtime/config/autonomy-eligibility.mjs',
     'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
     'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',

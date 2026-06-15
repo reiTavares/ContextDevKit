@@ -156,6 +156,18 @@ export const SUITES = Object.freeze([
   { id: 'pkg05-host-parity', file: 'tools/selfcheck-pkg05-056.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/host-parity'] },
 
+  // PKG-06 — Multi-host telemetry, capability compliance, benchmark, drift (advisory, additive).
+  { id: 'pkg06-skill-runner', file: 'tools/selfcheck-pkg06-060.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/skill-runner'] },
+  { id: 'pkg06-compliance', file: 'tools/selfcheck-pkg06-061.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/capability-compliance'] },
+  { id: 'pkg06-telemetry', file: 'tools/selfcheck-pkg06-062.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/telemetry/'] },
+  { id: 'pkg06-benchmark', file: 'tools/selfcheck-pkg06-065.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/benchmark-task'] },
+  { id: 'pkg06-wiring-drift', file: 'tools/selfcheck-pkg06-068.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/wiring-drift'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

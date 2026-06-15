@@ -77,6 +77,9 @@ function main() {
     // (siblings, not discovered as integration-test*).
     'tools/selfcheck-pkg05-050.mjs', 'tools/selfcheck-pkg05-051.mjs', 'tools/selfcheck-pkg05-053.mjs',
     'tools/selfcheck-pkg05-054.mjs', 'tools/selfcheck-pkg05-055.mjs', 'tools/selfcheck-pkg05-056.mjs',
+    // PKG-06 selfcheck entrypoints — siblings, dispatched directly (not discovered).
+    'tools/selfcheck-pkg06-060.mjs', 'tools/selfcheck-pkg06-061.mjs', 'tools/selfcheck-pkg06-062.mjs',
+    'tools/selfcheck-pkg06-065.mjs', 'tools/selfcheck-pkg06-068.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
