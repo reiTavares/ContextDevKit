@@ -21,6 +21,17 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Completion evidence gate (PKG-04 / CDK-040, advisory & dormant)** — a `Stop`
+  hook (`completion-gate.mjs`) that, for the session's active task, checks the
+  execution contract's `requiredBeforeCompletion` capabilities against real on-disk
+  receipts and *warns* when completion evidence is missing. Anti-theatre by
+  construction: it trusts receipts only, so prose like "tests passed" never
+  satisfies the gate. Pure evaluator `evaluateCompletion()` reuses the PKG-02
+  substrate (no new persistence). Advisory NEVER blocks; fail-open; inert below
+  L5; silent for unregistered/trivial tasks; fires once per session. Ships
+  UNREGISTERED — wiring is a deliberate separate step. The session ledger now
+  round-trips `activeTask`/`taskCounter`/`completionWarnedAt` (also repairs the
+  PKG-03 contract-hook follow-up detection). (CDK-040, ADR-0072)
 - **Claude enforcement layer (PKG-03, advisory & dormant)** — the boot-context
   Mandatory Execution Protocol (CLAUDE / Codex AGENTS / Antigravity INSTRUCTIONS);
   a `UserPromptSubmit` hook that classifies each request and records an execution

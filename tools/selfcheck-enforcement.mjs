@@ -18,6 +18,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { runCompletionChecks } from './selfcheck-completion.mjs';
 
 const RECEIPT_PATH = (KIT) =>
   resolve(KIT, 'templates/contextkit/runtime/execution/receipt-store.mjs');
@@ -262,4 +263,7 @@ export async function runEnforcementChecks(rep, { KIT }) {
   } finally {
     rmSync(root2, { recursive: true, force: true });
   }
+
+  // CDK-040: completion evaluator checks (delegated to sibling to respect line budget).
+  await runCompletionChecks({ ok, bad }, { KIT });
 }

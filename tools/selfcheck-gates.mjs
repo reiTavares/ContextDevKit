@@ -59,9 +59,9 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
   //    shipped INERT (advisory-only, no side effects until wired) and will be
   //    registered in a follow-up settings-compose pass once the contract
   //    substrate is fully adopted. Must be kept short and each entry annotated.
-  // (Empty — the PKG-03 enforcement hooks are now wired into settings-compose at L5,
-  // advisory by default. ADR-0072.)
-  const UNREGISTERED_ALLOWED = new Set([]);
+  // completion-gate.mjs (CDK-040): shipped unregistered pending the PKG-04 activation
+  // step (settings-compose wiring). Advisory-only until explicitly wired. ADR-0072.
+  const UNREGISTERED_ALLOWED = new Set(['completion-gate.mjs']);
   const unregistered = present.filter((f) => {
     if (UNREGISTERED_ALLOWED.has(f)) return false;
     const src = readFileSync(resolve(hooksDir, f), 'utf-8');
