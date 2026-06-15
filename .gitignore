@@ -19,6 +19,9 @@ desktop.ini
 # Throwaway install targets used by manual testing
 .selftest*/
 
+# Test-runner instrumentation (TEA-001) — metadata only, never committed.
+runs/
+
 # VibeDevKit — local runtime state (do not commit)
 .claude/.sessions/
 .claude/.workspace/
