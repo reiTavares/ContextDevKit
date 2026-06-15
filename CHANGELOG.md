@@ -20,6 +20,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-06-15
+
 ### Added
 - **PKG-04 completed — subagents, compaction, compliance (advisory & dormant)** —
   three more advisory + fail-open + UNREGISTERED units that finish the package:
