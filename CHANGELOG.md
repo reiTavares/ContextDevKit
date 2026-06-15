@@ -21,6 +21,22 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **PKG-04 completed — subagents, compaction, compliance (advisory & dormant)** —
+  three more advisory + fail-open + UNREGISTERED units that finish the package:
+  *CDK-041 subagent governance* (`subagent-gate.mjs`: a `Task` PreToolUse +
+  `SubagentStop` gate that records a spawned subagent's declared touch-set to the
+  state substrate and WARNS on out-of-scope / forbidden writes; pure
+  `evaluateSubagentScope()`; anti-false-positive — unobservable scope stays
+  silent); *CDK-042 compaction continuity* (`compaction-continuity.mjs`: a
+  `PreCompact` hook persists a metadata-only continuity record and `SessionStart`
+  with a compact/resume source re-surfaces the still-outstanding contract
+  obligations); *CDK-043 compliance status line* (a read-only `statusline.mjs`
+  segment showing satisfied/missing completion evidence for the active task).
+  Each reuses the PKG-02 substrate (no new persistence), is inert below L5, never
+  blocks in advisory mode, and ships UNREGISTERED. Known v1 limitation: the
+  subagent spawn counter is not yet round-tripped through the ledger normalizer,
+  so multiple subagents per task in one session share a spawn record
+  (last-spawn-wins) — acceptable for the advisory layer. (CDK-041/042/043, ADR-0072)
 - **Completion evidence gate (PKG-04 / CDK-040, advisory & dormant)** — a `Stop`
   hook (`completion-gate.mjs`) that, for the session's active task, checks the
   execution contract's `requiredBeforeCompletion` capabilities against real on-disk

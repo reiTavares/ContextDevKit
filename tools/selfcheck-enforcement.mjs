@@ -19,6 +19,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { runCompletionChecks } from './selfcheck-completion.mjs';
+import { runSubagentChecks } from './selfcheck-subagent.mjs';
+import { runCompactionChecks } from './selfcheck-compaction.mjs';
+import { runStatuslineChecks } from './selfcheck-statusline.mjs';
 
 const RECEIPT_PATH = (KIT) =>
   resolve(KIT, 'templates/contextkit/runtime/execution/receipt-store.mjs');
@@ -266,4 +269,8 @@ export async function runEnforcementChecks(rep, { KIT }) {
 
   // CDK-040: completion evaluator checks (delegated to sibling to respect line budget).
   await runCompletionChecks({ ok, bad }, { KIT });
+  // PKG-04 remainder (delegated to siblings — same budget discipline):
+  await runSubagentChecks({ ok, bad }, { KIT });   // CDK-041
+  await runCompactionChecks({ ok, bad }, { KIT });  // CDK-042
+  await runStatuslineChecks({ ok, bad }, { KIT });  // CDK-043
 }
