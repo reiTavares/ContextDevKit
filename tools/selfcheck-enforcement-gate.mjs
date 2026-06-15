@@ -220,4 +220,83 @@ export async function runEnforcementGateChecks(rep, { KIT }) {
     const output = renderChecklist(contract, 'task-abcd1234-1', false);
     output.includes('Follow-up') ? ok('CDK-031: renderChecklist: follow-up label') : bad('CDK-031: renderChecklist: follow-up label missing');
     output.includes('No required capabilities') ? ok('CDK-031: renderChecklist: trivial tier no-caps message') : bad('CDK-031: renderChecklist: no-caps message missing');
+  }
+
+  // ---------------------------------------------------------------------------
+  // CDK-034: indirect-write-reconcile pure helpers
+  // ---------------------------------------------------------------------------
+  console.log('Checking indirect-write-reconcile pure helpers (CDK-034, ADR-0072)...');
+
+  const RECONCILE_PATH = resolve(KIT, 'templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs');
+  let reconcileMod;
+  try {
+    reconcileMod = await import('file://' + RECONCILE_PATH.replaceAll('\\', '/'));
+  } catch (err) {
+    bad(`indirect-write-reconcile.mjs failed to import: ${err?.message ?? err}`);
+    return;
+  }
+
+  const { reconcileIndirectWrites, classifyOrigin } = reconcileMod;
+  typeof reconcileIndirectWrites === 'function'
+    ? ok('CDK-034: reconcileIndirectWrites exported')
+    : bad('CDK-034: reconcileIndirectWrites missing');
+  typeof classifyOrigin === 'function'
+    ? ok('CDK-034: classifyOrigin exported')
+    : bad('CDK-034: classifyOrigin missing');
+
+  // reconcileIndirectWrites: indirect detection (direct edit not in indirect).
+  {
+    const r = reconcileIndirectWrites({
+      changedFiles: ['src/foo.ts', 'src/bar.ts'],
+      directEdits: ['src/foo.ts'],
+      contractPaths: ['src/foo.ts', 'src/bar.ts'],
+    });
+    r.indirect.length === 1 && r.indirect[0] === 'src/bar.ts'
+      ? ok('CDK-034: indirect: direct edit excluded from indirect list')
+      : bad(`CDK-034: indirect: unexpected result ${JSON.stringify(r.indirect)}`);
+    r.outOfContract.length === 0
+      ? ok('CDK-034: indirect: in-contract indirect not flagged as outOfContract')
+      : bad(`CDK-034: indirect: outOfContract should be empty, got ${JSON.stringify(r.outOfContract)}`);
+  }
+
+  // reconcileIndirectWrites: outOfContract detection.
+  {
+    const r = reconcileIndirectWrites({
+      changedFiles: ['src/foo.ts', 'scripts/gen.ts'],
+      directEdits: [],
+      contractPaths: ['src/foo.ts'],
+    });
+    r.outOfContract.length === 1 && r.outOfContract[0] === 'scripts/gen.ts'
+      ? ok('CDK-034: outOfContract: file outside contract paths detected')
+      : bad(`CDK-034: outOfContract wrong: ${JSON.stringify(r.outOfContract)}`);
+  }
+
+  // reconcileIndirectWrites: empty contractPaths → outOfContract always empty.
+  {
+    const r = reconcileIndirectWrites({
+      changedFiles: ['anything.ts'],
+      directEdits: [],
+      contractPaths: [],
+    });
+    r.outOfContract.length === 0
+      ? ok('CDK-034: empty contract paths -> outOfContract always empty (no false positives)')
+      : bad(`CDK-034: empty contract should produce no outOfContract, got ${JSON.stringify(r.outOfContract)}`);
+  }
+
+  // classifyOrigin mapping verification.
+  {
+    const cases = [
+      ['Edit', '', 'direct-edit'],
+      ['Write', '', 'direct-edit'],
+      ['MultiEdit', '', 'direct-edit'],
+      ['Bash', 'prettier --write .', 'allowed-formatter'],
+      ['Bash', 'node codegen.mjs generate schema', 'allowed-generator'],
+      ['Bash', 'npm test', 'shell'],
+      ['mcp__drive__create_file', '', 'mcp'],
+      ['SomeOtherTool', '', 'external'],
+    ];
+    const wrong = cases.filter(([tool, cmd, want]) => classifyOrigin(tool, cmd) !== want);
+    wrong.length === 0
+      ? ok(`CDK-034: classifyOrigin mapping holds (${cases.length} cases)`)
+      : bad(`CDK-034: classifyOrigin wrong: ${wrong.map(([t, , w]) => `${t}→${w}`).join(', ')}`);
   }}

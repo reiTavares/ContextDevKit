@@ -21,8 +21,9 @@
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { loadContract } from '../execution/execution-contract.mjs';
 import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
-import { evaluateAction } from '../execution/evaluate-action.mjs';
-import { emitBlockDecision, hookHost, normalizeToolPayload } from './host-adapter.mjs';
+import { evaluateAction, toolMoment } from '../execution/evaluate-action.mjs';
+import { emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
+import { readLedger, writeLedger } from './ledger.mjs';
 import { listWorkflows, currentBranch, PHASES } from '../../tools/scripts/workflow-pack.mjs';
 import { pathsFor } from '../config/paths.mjs';
 import { existsSync, readdirSync } from 'node:fs';
@@ -166,6 +167,52 @@ function buildBlockText(result, toolName) {
 }
 
 // ---------------------------------------------------------------------------
+// CDK-035: broad-search counter helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true when the tool call is a broad exploration (for CDK-035 counter).
+ * Mirrors `isBroadSearch` in evaluate-action.mjs — kept local so the gate wrapper
+ * can count BEFORE calling evaluateAction.
+ *
+ * @param {string|null} toolName
+ * @param {Record<string, any>} input
+ * @returns {boolean}
+ */
+function isBroadExploration(toolName, input) {
+  if (!toolName) return false;
+  const moment = toolMoment(toolName, input ?? {});
+  if (moment !== 'beforeExploration') return false;
+  // Read/Grep/Glob are always broad; Bash only when toolMoment maps it to exploration.
+  return true;
+}
+
+/**
+ * Reads the current broadSearchCount from the session ledger, increments it,
+ * and persists the updated ledger. Returns the NEW count.
+ *
+ * Resets the counter to 0 when the project-map is fresh (a recent /project-map
+ * receipt signals the agent has refreshed context — budget is renewed).
+ *
+ * @param {string} sessionId
+ * @param {boolean} projectMapFresh
+ * @returns {Promise<number>}
+ */
+async function incrementBroadSearchCount(sessionId, projectMapFresh) {
+  try {
+    const ledger = await readLedger(sessionId);
+    if (typeof ledger.broadSearchCount !== 'number') ledger.broadSearchCount = 0;
+    // Reset counter when the project-map was freshly produced this session.
+    if (projectMapFresh && ledger.broadSearchCount > 0) ledger.broadSearchCount = 0;
+    ledger.broadSearchCount += 1;
+    await writeLedger(sessionId, ledger);
+    return ledger.broadSearchCount;
+  } catch {
+    return 1; // fail-open: assume first search
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -195,6 +242,15 @@ async function main() {
 
   const config = await loadConfig(ROOT);
   const mode = resolveEnforcementMode(config);
+  const mapFresh = isProjectMapFresh(ROOT);
+
+  // CDK-035: persist + read the real broad-search counter.
+  const input = payload?.tool_input ?? {};
+  let broadSearchCount = 0;
+  if (isBroadExploration(toolName, input)) {
+    const sessionId = resolveHookSessionId(payload, HOST, ROOT);
+    broadSearchCount = await incrementBroadSearchCount(sessionId, mapFresh);
+  }
 
   const projectState = {
     scope: {
@@ -205,12 +261,11 @@ async function main() {
     root: ROOT,
     requiresHumanApproval: false,
     activeWorkflow: hasActiveWorkflow(ROOT),
-    projectMapFresh: isProjectMapFresh(ROOT),
-    broadSearchCount: 0,   // v1: no per-session counter; conservative default
+    projectMapFresh: mapFresh,
+    broadSearchCount,
     exploreBudget: 2,
   };
 
-  const input = payload?.tool_input ?? {};
   const result = evaluateAction({ tool: toolName, input, contract, projectState, mode });
 
   // Silence when nothing to say.
