@@ -21,11 +21,14 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **Mandatory Execution Protocol** atop the boot context (CLAUDE / Codex AGENTS /
-  Antigravity INSTRUCTIONS) + a **unified advisory execution gate** — a pure
-  `evaluateAction()` that maps each tool to a contract moment and (in advisory mode)
-  *warns* on workflow-before-write and exploration-budget gaps, never blocking.
-  Ships UNREGISTERED/dormant; fail-open. (CDK-030/032/033/035, ADR-0072)
+- **Claude enforcement layer (PKG-03, advisory & dormant)** — the boot-context
+  Mandatory Execution Protocol (CLAUDE / Codex AGENTS / Antigravity INSTRUCTIONS);
+  a `UserPromptSubmit` hook that classifies each request and records an execution
+  contract; a unified `PreToolUse` gate (pure `evaluateAction()`) that *warns* on
+  workflow-before-write and exploration-budget gaps; indirect-write reconciliation
+  (Bash/formatter/MCP) and a persisted broad-search counter. Advisory NEVER blocks
+  and every hook is fail-open. Ships UNREGISTERED — activation (settings-compose +
+  raising `enforcement.mode`) is a deliberate separate step. (CDK-030…035, ADR-0072)
 - **Capability Enforcement substrate (advisory, dormant)** — canonical capability
   registry + pure deterministic resolver, task-intake + execution-contract
   (requiredBefore exploration/write/completion), tamper-resistant fingerprinted
