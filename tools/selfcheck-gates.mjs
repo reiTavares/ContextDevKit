@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Self-check — GATE WIRING & AUTONOMY FLOOR invariants (ADR-0041 F0, task 105).
  *
  * Three structural controls born from the level-4 bypass incident (a gate
@@ -60,7 +60,8 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
   //    registered in a follow-up settings-compose pass once the contract
   //    substrate is fully adopted. Must be kept short and each entry annotated.
   const UNREGISTERED_ALLOWED = new Set([
-    'execution-gate.mjs', // CDK-032 v1: advisory PreToolUse gate; silent until contracts exist (ADR-0072).
+    'execution-gate.mjs',        // CDK-032 v1: advisory PreToolUse gate; silent until contracts exist (ADR-0072).
+    'execution-contract-hook.mjs', // CDK-031 v1: UserPromptSubmit hook; dormant until activation card wires it via settings-compose (ADR-0072).
   ]);
   const unregistered = present.filter((f) => {
     if (UNREGISTERED_ALLOWED.has(f)) return false;
