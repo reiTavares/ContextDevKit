@@ -66,6 +66,51 @@ try {
   writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\nFreeform notes without typed subsections here.\n\n## [1.0.0] - 2026-01-01\n- old\n');
   hook('session-start.mjs', {}).includes('Freeform notes without typed subsections')
     ? ok('boot banner falls back to the raw [Unreleased] section on a parse miss (ADR-0044 D2)') : bad('boot banner did not fall back to raw [Unreleased]');
+
+  // EACP end-to-end (WF0018 Wave 1): adapter → normalize → bucketsClose → lenses (ADR-0078/0081).
+  const { default: path } = await import('node:path');
+  const econ = {
+    bucketsLib: await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/usage-buckets.mjs').replaceAll('\\', '/')),
+    eventLib: await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/usage-event.mjs').replaceAll('\\', '/')),
+    lensesLib: await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/attribution-lenses.mjs').replaceAll('\\', '/')),
+    adapterLib: await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/adapters/claude-code.mjs').replaceAll('\\', '/')),
+  };
+
+  // (a) Adapter → normalize → bucketsClose path on synthetic usage line
+  (() => { try {
+    const synLine = {
+      message: { model: 'claude-opus-4-1', usage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 800, cache_creation_input_tokens: 150 } },
+      sessionId: 'eacp-test-sess',
+      timestamp: Date.now(),
+    };
+    const adapted = econ.adapterLib.adapt(synLine);
+    return adapted && econ.bucketsLib.bucketsClose(adapted);
+  } catch { return false; } })()
+    ? ok('economics: adapter → normalize → bucketsClose path holds on synthetic usage line') : bad('economics: adapter/normalize/bucketsClose pipeline failed');
+
+  // (b) Cumulative trap neutralization
+  (() => { try {
+    const cumEvents = [
+      { buckets: { freshInput: 100, output: 50, cacheRead: 800, cacheWrite: 150, reasoning: 0 }, bucketMode: 'cumulative', total: 1100 },
+      { buckets: { freshInput: 150, output: 100, cacheRead: 1500, cacheWrite: 250, reasoning: 0 }, bucketMode: 'cumulative', total: 2000 },
+    ];
+    const naiveSum = cumEvents.reduce((s, e) => s + econ.bucketsLib.throughput(e.buckets), 0);
+    const deltaized = econ.bucketsLib.toDelta(cumEvents);
+    const normalized = deltaized.reduce((s, e) => s + econ.bucketsLib.throughput(e.buckets), 0);
+    return naiveSum > normalized;
+  } catch { return false; } })()
+    ? ok('economics: cumulative trap is neutralized by toDelta') : bad('economics: cumulative trap not neutralized');
+
+  // (c) Inclusive lens carries direct confidence
+  (() => { try {
+    const events = [
+      { buckets: { freshInput: 100, output: 50, cacheRead: 800, cacheWrite: 150, reasoning: 0 }, agentScope: 'main' },
+      { buckets: { freshInput: 50, output: 30, cacheRead: 400, cacheWrite: 75, reasoning: 0 }, agentScope: 'subagent' },
+    ];
+    const res = econ.lensesLib.inclusive(events);
+    return res.confidence === 'direct';
+  } catch { return false; } })()
+    ? ok('economics: inclusive lens returns confidence="direct"') : bad('economics: inclusive lens confidence wrong');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

@@ -32,6 +32,7 @@ import { runEncodingChecks } from './selfcheck-encoding.mjs';
 import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
+import { runEacpChecks } from './selfcheck-eacp.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
 /**
@@ -281,6 +282,7 @@ async function main() {
   await runCapabilityChecks({ ok, bad }, { KIT });
   await runEnforcementChecks({ ok, bad }, { KIT });
   await runEnforcementGateChecks({ ok, bad }, { KIT });
+  await runEacpChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

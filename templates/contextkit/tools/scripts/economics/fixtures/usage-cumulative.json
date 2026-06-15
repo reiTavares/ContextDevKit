@@ -1,0 +1,146 @@
+[
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-opus-4-1",
+    "modelEffective": "claude-opus-4-1",
+    "fallbackUsed": false,
+    "agentScope": "main",
+    "buckets": {
+      "freshInput": 250,
+      "output": 150,
+      "cacheRead": 4500,
+      "cacheWrite": 200,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 5100,
+    "ts": 1718462400000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  },
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-haiku-4-5",
+    "modelEffective": "claude-haiku-4-5",
+    "fallbackUsed": false,
+    "agentScope": "subagent",
+    "buckets": {
+      "freshInput": 330,
+      "output": 195,
+      "cacheRead": 6300,
+      "cacheWrite": 250,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 7075,
+    "ts": 1718462410000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  },
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-opus-4-1",
+    "modelEffective": "claude-opus-4-1",
+    "fallbackUsed": false,
+    "agentScope": "main",
+    "buckets": {
+      "freshInput": 510,
+      "output": 415,
+      "cacheRead": 9900,
+      "cacheWrite": 350,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 11175,
+    "ts": 1718462420000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  },
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-haiku-4-5",
+    "modelEffective": "claude-haiku-4-5",
+    "fallbackUsed": false,
+    "agentScope": "subagent",
+    "buckets": {
+      "freshInput": 630,
+      "output": 475,
+      "cacheRead": 12300,
+      "cacheWrite": 430,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 13835,
+    "ts": 1718462430000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  },
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-opus-4-1",
+    "modelEffective": "claude-opus-4-1",
+    "fallbackUsed": false,
+    "agentScope": "main",
+    "buckets": {
+      "freshInput": 790,
+      "output": 615,
+      "cacheRead": 15500,
+      "cacheWrite": 490,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 17395,
+    "ts": 1718462440000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  },
+  {
+    "schemaVersion": "eacp-usage-event/1",
+    "host": "claude-code",
+    "provider": "anthropic",
+    "sessionId": "fixture-sess-A",
+    "modelRequested": "claude-haiku-4-5",
+    "modelEffective": "claude-haiku-4-5",
+    "fallbackUsed": false,
+    "agentScope": "subagent",
+    "buckets": {
+      "freshInput": 890,
+      "output": 670,
+      "cacheRead": 17450,
+      "cacheWrite": 535,
+      "reasoning": 0
+    },
+    "bucketMode": "cumulative",
+    "total": 19545,
+    "ts": 1718462450000,
+    "confidence": "direct",
+    "source": {
+      "adapter": "claude-code"
+    }
+  }
+]
