@@ -139,6 +139,10 @@ export const SUITES = Object.freeze([
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
+
+  // Infra self-test (TEA-004) — guards the impact selector; also a fast smoke suite.
+  { id: 'selfcheck-impact', file: 'tools/selfcheck-impact.mjs', tier: 'smoke',
+    touches: ['tools/test-impact.mjs', 'tools/test-suites.mjs', 'tools/selfcheck-impact.mjs'] },
 ]);
 
 /**
