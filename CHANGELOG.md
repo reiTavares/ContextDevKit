@@ -21,6 +21,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Mandatory Execution Protocol** atop the boot context (CLAUDE / Codex AGENTS /
+  Antigravity INSTRUCTIONS) + a **unified advisory execution gate** — a pure
+  `evaluateAction()` that maps each tool to a contract moment and (in advisory mode)
+  *warns* on workflow-before-write and exploration-budget gaps, never blocking.
+  Ships UNREGISTERED/dormant; fail-open. (CDK-030/032/033/035, ADR-0072)
 - **Capability Enforcement substrate (advisory, dormant)** — canonical capability
   registry + pure deterministic resolver, task-intake + execution-contract
   (requiredBefore exploration/write/completion), tamper-resistant fingerprinted
