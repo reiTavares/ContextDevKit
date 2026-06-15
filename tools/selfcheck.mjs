@@ -44,14 +44,9 @@ const RT = resolve(KIT, 'templates/contextkit/runtime');
 const MIN_CHECKS = 660;
 let failures = 0;
 let passes = 0;
-const ok = (m) => {
-  passes++;
-  console.log(`  ✓ ${m}`);
-};
-const bad = (m) => {
-  console.error(`  ✗ ${m}`);
-  failures++;
-};
+const VERBOSE = process.argv.includes('--verbose');
+const ok = (m) => { passes++; if (VERBOSE) console.log(`  ✓ ${m}`); };
+const bad = (m) => { console.error(`  ✗ ${m}`); failures++; };
 
 async function importLibs() {
   console.log('Loading engine library modules...');
@@ -297,6 +292,7 @@ async function main() {
   const executed = passes + failures;
   if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
   else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);
+  if (!VERBOSE) console.log(`selfcheck: ${passes}/${passes + failures} ✓`);
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }
