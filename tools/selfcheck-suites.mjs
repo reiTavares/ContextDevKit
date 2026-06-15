@@ -70,7 +70,7 @@ function main() {
   // 3. No listed suite may point at a vanished file (excluding the infra
   //    self-checks which are not integration/selfcheck entrypoints).
   const onDiskSet = new Set(onDisk);
-  const infra = new Set(['tools/selfcheck-suites.mjs']);
+  const infra = new Set(['tools/selfcheck-suites.mjs', 'tools/selfcheck-impact.mjs']);
   const dangling = allSuites()
     .map((suite) => suite.file)
     .filter((file) => !onDiskSet.has(file) && !infra.has(file));
