@@ -22,93 +22,47 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [2.8.0] - 2026-06-15
 
+The **Capability Enforcement program** (PKG-01..04, ADR-0072) lands as an
+advisory, fail-open, *dormant* substrate, and the kit's own test harness is
+re-architected for fast, agent-friendly execution (**WF0024**, ADR-0093). 39
+commits since 2.7.0. Every enforcement unit is inert below L5, never blocks in
+advisory mode, is fail-open, and ships UNREGISTERED — activation is a deliberate
+separate step.
+
 ### Added
-- **PKG-04 completed — subagents, compaction, compliance (advisory & dormant)** —
-  three more advisory + fail-open + UNREGISTERED units that finish the package:
-  *CDK-041 subagent governance* (`subagent-gate.mjs`: a `Task` PreToolUse +
-  `SubagentStop` gate that records a spawned subagent's declared touch-set to the
-  state substrate and WARNS on out-of-scope / forbidden writes; pure
-  `evaluateSubagentScope()`; anti-false-positive — unobservable scope stays
-  silent); *CDK-042 compaction continuity* (`compaction-continuity.mjs`: a
-  `PreCompact` hook persists a metadata-only continuity record and `SessionStart`
-  with a compact/resume source re-surfaces the still-outstanding contract
-  obligations); *CDK-043 compliance status line* (a read-only `statusline.mjs`
-  segment showing satisfied/missing completion evidence for the active task).
-  Each reuses the PKG-02 substrate (no new persistence), is inert below L5, never
-  blocks in advisory mode, and ships UNREGISTERED. Known v1 limitation: the
-  subagent spawn counter is not yet round-tripped through the ledger normalizer,
-  so multiple subagents per task in one session share a spawn record
-  (last-spawn-wins) — acceptable for the advisory layer. (CDK-041/042/043, ADR-0072)
-- **Layered test execution architecture (TEA-001..007, WF0024 / ADR-0093)** — the
-  kit's own dev harness gains a conservative impact selector, a `ci:fast`/`ci:full`
-  split, compact agent-friendly output, selfcheck quiet mode, and per-run duration
-  telemetry. Details:
-  - **Layered `test:*` suites (TEA-002)** — `test:smoke`, `test:selfcheck`,
-    `test:unit`, `test:integration` (+ six sub-clusters: `core` / `installer` /
-    `hosts` / `workflow` / `enforcement` / `ecosystem`), `test:full` — all backed
-    by `tools/run-suites.mjs` reading a single `tools/test-suites.mjs` registry.
-    `npm test` behavior is **preserved** (runs the full set, serial, fail-fast).
-  - **Conservative `test:impact` selector (TEA-003)** — maps changed files to
-    suites via a static `touches[]` map + importer closure; broadens to full on
-    any unmapped path, missing Project Map, config-core change, or test-infra
-    change. False-negative-averse: an unmapped path always escalates to full.
-    Explains every include/exclude decision in output.
-  - **`ci:fast` / `ci:full` split (TEA-005)** — `ci:fast` runs `test:impact` +
-    tech-debt on a single Node version (PR gate); `ci:full` runs the full suite +
-    tech-debt on Node 18/20/22 (main/release gate, mandatory before publish,
-    never gated by the selector). `npm run ci` remains an alias for `ci:full`.
-  - **Compact output + selfcheck quiet mode (TEA-004)** — one line per suite on
-    pass (`✓ smoke 1.5s`); failed suites surface at the top; full logs written to
-    gitignored `runs/`. `selfcheck.mjs` now prints a single count line on pass
-    (`selfcheck: 666/666`) instead of streaming 660+ lines; `--verbose` restores
-    the full stream; failures always print in full.
-  - **Duration-history telemetry (TEA-006)** — per-suite `{id, tier, ms, exitCode,
-    selected?, selectionReason?, logPath}` appended to `runs/` on every invocation;
-    derives p50/p95 once enough samples accumulate; feeds the autonomy/economy
-    reports (P10/P11). Append-only, gitignored.
-  - **Test-architecture docs (TEA-007)** — README test-scripts table, CONTRIBUTING
-    test-workflow section, CHANGELOG entries, `instrucoes.md` pt-BR summary.
-  - CI workflow updated: new `test-fast` PR job runs `ci:fast` with a docs/planning
-    path filter (skips code suites on docs-only PRs); full-matrix `test` job (Node
-    18/20/22) runs `ci:full` on push-to-main and `workflow_dispatch`.
-- **Completion evidence gate (PKG-04 / CDK-040, advisory & dormant)** — a `Stop`
-  hook (`completion-gate.mjs`) that, for the session's active task, checks the
-  execution contract's `requiredBeforeCompletion` capabilities against real on-disk
-  receipts and *warns* when completion evidence is missing. Anti-theatre by
-  construction: it trusts receipts only, so prose like "tests passed" never
-  satisfies the gate. Pure evaluator `evaluateCompletion()` reuses the PKG-02
-  substrate (no new persistence). Advisory NEVER blocks; fail-open; inert below
-  L5; silent for unregistered/trivial tasks; fires once per session. Ships
-  UNREGISTERED — wiring is a deliberate separate step. The session ledger now
-  round-trips `activeTask`/`taskCounter`/`completionWarnedAt` (also repairs the
-  PKG-03 contract-hook follow-up detection). (CDK-040, ADR-0072)
-- **Claude enforcement layer (PKG-03, advisory & dormant)** — the boot-context
-  Mandatory Execution Protocol (CLAUDE / Codex AGENTS / Antigravity INSTRUCTIONS);
-  a `UserPromptSubmit` hook that classifies each request and records an execution
-  contract; a unified `PreToolUse` gate (pure `evaluateAction()`) that *warns* on
-  workflow-before-write and exploration-budget gaps; indirect-write reconciliation
-  (Bash/formatter/MCP) and a persisted broad-search counter. Advisory NEVER blocks
-  and every hook is fail-open. Ships UNREGISTERED — activation (settings-compose +
-  raising `enforcement.mode`) is a deliberate separate step. (CDK-030…035, ADR-0072)
-- **Capability Enforcement substrate (advisory, dormant)** — canonical capability
-  registry + pure deterministic resolver, task-intake + execution-contract
-  (requiredBefore exploration/write/completion), tamper-resistant fingerprinted
-  receipt store (metadata-only), and advisory/guarded/strict enforcement modes with
-  audited bypass (incl. the Grade-4 human floor). Ships `advisory` by default — no
-  behavior change until wired to hooks. (CDK-020…023, ADR-0072)
-- Explicit local-only vs tracked install modes — onboarding guidance, installer
-  banner, and a `context-doctor` install-mode inspection. (CDK-014)
-- Per-section strict config validation that preserves unknown fields. (CDK-013)
+
+#### Capability Enforcement — substrate & gates (ADR-0072, advisory & dormant)
+- **CDK-020** — canonical capability registry + pure deterministic resolver.
+- **CDK-021** — task intake + deterministic execution contract (requiredBefore exploration / write / completion); hermetic intake tests.
+- **CDK-022** — tamper-resistant, fingerprinted, metadata-only receipt store.
+- **CDK-023** — advisory / guarded / strict enforcement modes + audited bypass (incl. the Grade-4 human floor); ships `advisory` by default.
+- **CDK-030** — Mandatory Execution Protocol atop the boot context of all 3 hosts (CLAUDE / Codex `AGENTS` / Antigravity `INSTRUCTIONS`).
+- **CDK-031** — `UserPromptSubmit` hook classifies each request and records its execution contract.
+- **CDK-032 / 033** — unified `PreToolUse` gate (pure `evaluateAction()`) warns on workflow-before-write + exploration-budget gaps; advisory wrapper.
+- **CDK-034 / 035** — indirect-write reconciliation (Bash / formatter / MCP) + persisted broad-search (explore-budget) counter.
+- **CDK-040** — completion-evidence `Stop` gate (`completion-gate.mjs` + pure `evaluateCompletion()`): warns when receipts for `requiredBeforeCompletion` are missing; trusts receipts only (anti-theatre — prose never satisfies it); ledger round-trips `activeTask` / `taskCounter` / `completionWarnedAt`.
+- **CDK-041** — subagent governance (`subagent-gate.mjs`: `Task` PreToolUse + `SubagentStop` records the declared touch-set, warns on out-of-scope / forbidden writes). v1 limit: spawn counter is last-spawn-wins per task.
+- **CDK-042** — compaction continuity (`PreCompact` persists a metadata-only record; `SessionStart` re-surfaces still-outstanding contract obligations).
+- **CDK-043** — read-only compliance status-line segment (satisfied / missing completion evidence for the active task).
+
+#### Test execution architecture (WF0024 / ADR-0093) — the kit's own dev harness
+- **TEA-001 / 002** — single `tools/test-suites.mjs` registry + `tools/run-suites.mjs`; layered `test:smoke | unit | selfcheck | integration:{core,installer,hosts,workflow,enforcement,ecosystem} | full`. `npm test` behavior **preserved** (full, serial, fail-fast).
+- **TEA-003** — compact agent-friendly reporter (one line per suite; failures first; full logs to gitignored `runs/`) + `selfcheck` quiet-on-pass (a count line vs 660+ lines; `--verbose` restores; failures always full).
+- **TEA-004** — conservative `test:impact` selector: changed-files × `touches[]` map; false-negative-averse (unmapped path / missing Project Map / config-core / test-infra ⇒ full); explains every include/exclude. Hermetic self-test via an injectable Project-Map signal.
+- **TEA-005** — `ci:fast` (PR, single Node, docs/planning path-filtered) / `ci:full` (Node 18/20/22, mandatory before publish, never selector-gated) split; `npm run ci` = `ci:full`.
+- **TEA-006** — per-run duration-history telemetry (p50/p95, selection reasons, OBSERVED/DERIVED-tagged), append-only + gitignored; feeds the P10/P11 reports.
+- **TEA-007** — README test-scripts table, CONTRIBUTING test-workflow section, `instrucoes.md` pt-BR summary, and the CI `test-fast` / `test` job split.
+
+#### Install & config hardening (PKG-01)
+- **CDK-013** — per-section strict config validation that preserves unknown fields.
+- **CDK-014** — explicit local-only vs tracked install modes (onboarding guidance, installer banner, `context-doctor` install-mode inspection).
 
 ### Fixed
-- Agent Forge optional-`yaml` test now stages the dependency into its fixture so
-  both the yaml-present and yaml-absent branches are exercised. (CDK-010)
-- Removed the `git.mjs`↔`exclude.mjs` ESM import cycle by extracting shared Git
-  path helpers into `git-paths.mjs`. (CDK-011)
+- **CDK-010** — Agent Forge optional-`yaml` test stages the dependency into its fixture so both the yaml-present and yaml-absent branches are exercised.
+- **CDK-011** — removed the `git.mjs` ↔ `exclude.mjs` ESM import cycle via a shared `git-paths.mjs`; moved the gitdir-retarget invariant there and wired the install-cycle test into CI.
 
 ### Changed
-- Disambiguated the product changelog from the installed-project changelog, with a
-  selfcheck guarding the convention. (CDK-012)
+- **CDK-012** — disambiguated the product changelog from the installed-project changelog, guarded by a selfcheck.
 
 ## [2.7.0] - 2026-06-13
 
