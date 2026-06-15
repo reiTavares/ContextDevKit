@@ -8,15 +8,15 @@
  * - Confirms the expected template files are present.
  * - Delegates the deeper invariants to sibling modules split by category
  *   (ADR-0016 H1 / task 037; inventory extracted in ADR-0041 F0 / task 104):
- *     - `selfcheck-runtime.mjs`     — boot readers, atomic I/O, sid, squad meta.
- *     - `selfcheck-config.mjs`      — level taxonomy + zod schema agreement.
- *     - `selfcheck-source.mjs`      — source-level patterns, rule 4, SHA-pinning.
+ *     - `selfcheck-runtime.mjs`       — boot readers, atomic I/O, sid, squad meta.
+ *     - `selfcheck-config.mjs`        — level taxonomy + zod schema agreement.
+ *     - `selfcheck-source.mjs`        — source-level patterns, rule 4, SHA-pinning.
  *     - `selfcheck-agent-forge.mjs` / `-ops.mjs` — agent-forge squad checks.
- *     - `selfcheck-templates.mjs`   — shipped template-tree inventory.
- *
+ *     - `selfcheck-templates.mjs`     — shipped template-tree inventory.
+ *     - `selfcheck-capabilities.mjs`  — capability registry + resolver (CDK-020).
  * Run:  node tools/selfcheck.mjs   (exit 0 = healthy)
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runRuntimeChecks } from './selfcheck-runtime.mjs';
@@ -29,10 +29,11 @@ import { runModelPolicyChecks } from './selfcheck-model-policy.mjs';
 import { runCodexChecks } from './selfcheck-codex.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
-
+import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
+import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
+import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
-
 /**
  * Floor for the total number of executed checks (passes + failures). Guards
  * the runner wiring itself: losing a whole sibling module in a future split
@@ -43,14 +44,9 @@ const RT = resolve(KIT, 'templates/contextkit/runtime');
 const MIN_CHECKS = 660;
 let failures = 0;
 let passes = 0;
-const ok = (m) => {
-  passes++;
-  console.log(`  ✓ ${m}`);
-};
-const bad = (m) => {
-  console.error(`  ✗ ${m}`);
-  failures++;
-};
+const VERBOSE = process.argv.includes('--verbose');
+const ok = (m) => { passes++; if (VERBOSE) console.log(`  ✓ ${m}`); };
+const bad = (m) => { console.error(`  ✗ ${m}`); failures++; };
 
 async function importLibs() {
   console.log('Loading engine library modules...');
@@ -92,9 +88,9 @@ function checkCompose(composeSettings) {
     2: ['PostToolUse', 'SessionStart', 'Stop'],
     3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
     4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    6: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    7: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
+    6: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
+    7: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
   };
   for (const [lvl, want] of Object.entries(expect)) {
     const got = events(Number(lvl));
@@ -117,11 +113,7 @@ function checkCompose(composeSettings) {
     ? ok('composeSettings preserves a user statusLine') : bad('composeSettings clobbered a user statusLine');
 }
 
-/**
- * Behavioral table for the agy host wiring [ADR-0049]: the `.agents/hooks.json`
- * composer mirrors the Claude level rules, and the host adapter normalizes
- * both wire formats into one shape (so the hook scripts never fork per host).
- */
+/** Behavioral table for the agy host wiring [ADR-0049]: composer + host adapter. */
 function checkAgentHooksCompose(composer, adapter) {
   console.log('Checking agy hooks composition + host adapter (ADR-0049)...');
   const { composeAgentHooks, stripAgentHooks, KIT_HOOK_GROUP } = composer;
@@ -247,6 +239,24 @@ function checkPaths(paths) {
     ? ok('pathsFor resolves canonical absolute paths') : bad(`pathsFor wrong: ${pf.pipeline}`);
 }
 
+/**
+ * CDK-012 — assert the repo-root CHANGELOG.md (kit PRODUCT changelog) documents how
+ * it differs from the installer's docs/CHANGELOG.md, and the template path exists.
+ */
+function checkChangelogDisambiguation() {
+  console.log('Checking product vs installed-project CHANGELOG disambiguation (CDK-012)...');
+  let product = '';
+  try { product = readFileSync(resolve(KIT, 'CHANGELOG.md'), 'utf-8'); } catch { /* handled below */ }
+  if (!product) { bad('CHANGELOG.md (product changelog) is missing or unreadable'); return; }
+  const lower = product.toLowerCase();
+  lower.includes('product changelog') && product.includes('docs/CHANGELOG.md') && lower.includes('installed project')
+    ? ok('CHANGELOG.md disambiguates product vs installed-project changelog (CDK-012)')
+    : bad('CHANGELOG.md lacks the product-vs-installed-project note (CDK-012) — must name both contexts');
+  existsSync(resolve(KIT, 'templates/docs/CHANGELOG.md.tpl'))
+    ? ok('installed-project changelog template exists (templates/docs/CHANGELOG.md.tpl)')
+    : bad('templates/docs/CHANGELOG.md.tpl missing — disambiguation note points at a dead path');
+}
+
 async function main() {
   console.log('\n🌀 ContextDevKit self-check\n');
   const mods = await importLibs();
@@ -268,6 +278,9 @@ async function main() {
   await runCodexChecks({ ok, bad }, { KIT });
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
   await runEncodingChecks({ ok, bad }, { KIT });
+  await runCapabilityChecks({ ok, bad }, { KIT });
+  await runEnforcementChecks({ ok, bad }, { KIT });
+  await runEnforcementGateChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;
@@ -275,9 +288,11 @@ async function main() {
       ? ok('package.json has no runtime dependencies (zero-dep invariant)')
       : bad(`package.json has runtime dependencies: ${Object.keys(pkgDeps).join(', ')} — violates ADR-0001`);
   } catch (e) { bad(`zero-dep check failed to read package.json: ${e.message}`); }
+  checkChangelogDisambiguation();
   const executed = passes + failures;
   if (executed >= MIN_CHECKS) ok(`check count ${executed} ≥ floor ${MIN_CHECKS} (no runner lost)`);
   else bad(`only ${executed} checks executed — below the ${MIN_CHECKS} floor; a sibling runner was lost (task 104)`);
+  if (!VERBOSE) console.log(`selfcheck: ${passes}/${passes + failures} ✓`);
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }

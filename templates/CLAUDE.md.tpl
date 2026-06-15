@@ -4,6 +4,24 @@
 > **short** — reference other docs instead of duplicating content.
 > Scaffolded by ContextDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
 
+## 🧭 Mandatory Execution Protocol
+
+> The engine computes which capabilities your task needs and asks for deterministic
+> **receipts** — script output, not your claims — before key transitions. In
+> `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
+> it. A denied action always names the exact corrective command. [→ ADR-0072]
+
+1. **Intake** — on a new request the engine classifies the task (trivial / feature /
+   architectural) and records an execution contract. Trivial tasks skip the ceremony.
+2. **Map before broad exploration** — for non-trivial work, consult `/project-map`
+   before wide `Grep`/`Glob` sweeps.
+3. **Workflow before the first source write** — feature/architectural work needs an
+   active `/workflow` at the permitted phase; architectural also needs an ADR.
+4. **Tests + QA before completion** — not done until the suite and `/qa-signoff`
+   leave receipts. "Tests passed" as prose does not count.
+5. **Receipts, not assertions** — only a script-emitted receipt satisfies a gate; a
+   stale, wrong-branch, or bypassed receipt does not.
+
 ## What this is
 
 <!-- One paragraph: what the product/project does and for whom. Replace this. -->

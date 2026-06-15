@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Least-privilege default: CI only needs to read the repo. Any job that needs
 # more must opt in explicitly.
@@ -12,8 +13,84 @@ permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # PR fast path — runs ci:fast (test:impact + tech-debt) on a single Node
+  # version.  Docs-only or planning-only PRs are excluded via paths-ignore so
+  # they never pay the code-suite bill.  Artifacts include runs/ logs and the
+  # impact-selector explanation for post-run diagnosis.
+  # This job runs ONLY on pull_request events; push-to-main and
+  # workflow_dispatch skip it (the full gate below covers those).
+  # ---------------------------------------------------------------------------
+  test-fast:
+    name: test-fast (PR, node 20)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Skip when ALL changed paths are docs/planning artefacts.
+    # A mixed PR (any .mjs / .json / .yml outside the ignored set) will still
+    # run ci:fast, which is the safe default (false-negative-averse).
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Fetch full history so git diff vs merge-base works for test:impact.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+
+      # Determine whether this PR touches any code paths. If every changed file
+      # matches the docs/planning exclusion list the step sets skip=true and the
+      # subsequent ci:fast step is skipped.  A missing or empty diff (which can
+      # happen on shallow fetches or certain merge-base edge cases) is treated as
+      # "not docs-only" so ci:fast always runs in the ambiguous case.
+      - name: Detect docs-only PR
+        id: path-filter
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || echo "")
+          if [ -z "$CHANGED" ]; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "No diff detected — running ci:fast (safe default)."
+            exit 0
+          fi
+          # Patterns that classify a path as docs/planning-only:
+          #   - *.md files anywhere
+          #   - anything under docs/
+          #   - anything under contextkit/ (memory, pipeline, workflow files)
+          DOCS_PATTERN='^(docs/|contextkit/|[^/]+\.md$)'
+          CODE_FILES=$(echo "$CHANGED" | grep -Ev "$DOCS_PATTERN" || true)
+          if [ -z "$CODE_FILES" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Docs/planning-only PR — skipping code suites."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Code changes detected — running ci:fast."
+          fi
+
+      - name: CI fast gate (npm run ci:fast)
+        if: steps.path-filter.outputs.skip != 'true'
+        run: npm run ci:fast
+
+      - name: Upload runs/ logs and impact explanation
+        if: always() && steps.path-filter.outputs.skip != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-fast-logs-${{ github.run_id }}
+          path: |
+            runs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Main / release full gate — behavior-identical to today's `npm run ci`.
+  # Runs on push to main and workflow_dispatch (manual triggers / releases).
+  # MANDATORY before release; NEVER gated by the impact selector.
+  # Matrix: Node 18/20/22, fail-fast:false so all three versions always report.
+  # ---------------------------------------------------------------------------
   test:
     name: test (node ${{ matrix.node }})
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -29,9 +106,10 @@ jobs:
       # One gate set, defined once in package.json, shared by ci + release +
       # prepublishOnly so the three can never drift apart [ADR-0031]. `npm run ci`
       # = the full suite (selfcheck incl. doc-link + all integration tests) + the
-      # tech-debt RED-zone gate.
-      - name: CI gate (npm run ci)
-        run: npm run ci
+      # tech-debt RED-zone gate.  `ci:full` is an alias that resolves to the same
+      # command — both are safe to call.
+      - name: CI gate (npm run ci:full)
+        run: npm run ci:full
 
       - name: Installer dry sanity (greenfield install)
         run: |

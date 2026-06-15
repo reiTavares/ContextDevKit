@@ -11,6 +11,9 @@
  *   2  + PostToolUse (Edit|Write|MultiEdit), Stop
  *   3  + PreToolUse  (concurrency-guard) — and git hooks (installed separately)
  *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
+ *   5  + Capability Enforcement (ADR-0072, advisory): UserPromptSubmit
+ *        (execution-contract-hook), PreToolUse (execution-gate), PostToolUse
+ *        (indirect-write-reconcile) — fail-open, warn-only until enforcement.mode raised
  * (Level 4 adds agents — not Claude hooks.)
  *
  * @param {Record<string, any> | null} existing parsed settings.json (or null)
@@ -22,7 +25,7 @@ export function composeSettings(existing, level) {
   if (!settings['$schema']) settings['$schema'] = 'https://json.schemastore.org/claude-code-settings.json';
   const hooks = settings.hooks && typeof settings.hooks === 'object' ? settings.hooks : {};
 
-  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse']) {
+  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse', 'UserPromptSubmit']) {
     if (!Array.isArray(hooks[evt])) continue;
     hooks[evt] = hooks[evt]
       .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !String(h.command || '').includes('contextkit/runtime/hooks')) }))
@@ -52,6 +55,12 @@ export function composeSettings(existing, level) {
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
     add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs'); // ADR-0035 — soft nudge, never blocks
+    // Capability Enforcement (PKG-03, ADR-0072) — ADVISORY by default (enforcement.mode
+    // defaults to advisory → warn-only). Every hook is fail-open. Raise to guarded/strict
+    // via `enforcement.mode` in config; these hooks read the mode at runtime.
+    add('UserPromptSubmit', null, 'execution-contract-hook.mjs'); // CDK-031 — records the contract
+    add('PreToolUse', 'Read|Edit|Write|MultiEdit|Grep|Glob|Bash', 'execution-gate.mjs'); // CDK-032/033/035 — warns
+    add('PostToolUse', 'Edit|Write|MultiEdit|Bash', 'indirect-write-reconcile.mjs'); // CDK-034 — reconciles
   }
 
   settings.hooks = hooks;

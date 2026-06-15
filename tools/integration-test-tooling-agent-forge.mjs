@@ -16,15 +16,45 @@
  *
  * Run:  node tools/integration-test-tooling-agent-forge.mjs   (exit 0 = healthy)
  */
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { reporter, installFixture } from './it-helpers.mjs';
+import { cpSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { reporter, installFixture, KIT } from './it-helpers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
 console.log('\n🌀 ContextDevKit integration test — tooling / agent-forge\n');
 const fx = installFixture(rep);
 const { proj } = fx;
+
+/**
+ * Stage the optional `yaml` dependency INTO a fixture so the forge resolves it.
+ *
+ * The forge's `lib/yaml.mjs` runs from inside the temp fixture and resolves
+ * `import('yaml')` by walking up from its own URL - the tmpdir has no
+ * node_modules, so a `yaml` installed at the KIT root is invisible to it.
+ * Detecting availability with `import('yaml')` from THIS file (rooted at the
+ * KIT) and then executing inside the fixture diverge - a false signal (CDK-010).
+ *
+ * Copying `yaml` into `<fixtureRoot>/node_modules/yaml` makes detection and
+ * execution share one resolution path: the round-trip branch only runs when the
+ * forge can actually load yaml. Hot path untouched - this is test-only staging.
+ *
+ * @param {string} fixtureRoot the temp project root (forge lives under it)
+ * @returns {boolean} true if `yaml` was resolvable from the KIT and staged
+ */
+function stageOptionalYaml(fixtureRoot) {
+  try {
+    const requireFromKit = createRequire(join(KIT, 'package.json'));
+    const yamlPackageDir = dirname(requireFromKit.resolve('yaml/package.json'));
+    const destDir = join(fixtureRoot, 'node_modules', 'yaml');
+    mkdirSync(dirname(destDir), { recursive: true });
+    cpSync(yamlPackageDir, destDir, { recursive: true });
+    return true;
+  } catch {
+    return false; // yaml not installed at the KIT root - exercise the absent branch
+  }
+}
 
 try {
   // agent-forge — installed at L>=4 + /forge-new round-trip: the architect/router/packager
@@ -42,8 +72,9 @@ try {
     capabilities: { tools: false, structured_output: true },
     runtime_adapters: ['node', 'python'],
   };
-  let yamlAvail = false;
-  try { await import('yaml'); yamlAvail = true; } catch { /* optional dep — ADR-0013 */ }
+  // Stage `yaml` into the fixture so the forge (running from the tmpdir) resolves
+  // the SAME module THIS test detected - no false "available" signal (CDK-010).
+  const yamlAvail = stageOptionalYaml(proj);
   if (yamlAvail) {
     const { forgeNew } = await import('file://' + join(forgeBase, 'cli', 'forge-new.mjs').replaceAll('\\', '/'));
     const result = await forgeNew(blueprint, join(proj, 'agent-packages'), { now: '2026-05-26T12:00:00Z' });
@@ -95,12 +126,16 @@ try {
       ? ok('forge-new writes a populated evals/thresholds.yaml (Fase 3)') : bad('evals/thresholds.yaml not populated');
     /eval_passed_at:\s*null/.test(readFileSync(join(apf, 'manifest.yaml'), 'utf-8'))
       ? ok('forge-new leaves eval_passed_at null without runEval (Fase 3 gate)') : bad('eval_passed_at not null without runEval');
+    // The packaged golden seed (seed-001) expects { label: '<class-label>' } under an
+    // exact rubric; the mock must echo it for a real pass (CDK-010 surfaced this the
+    // first time the round-trip branch ran). PII-shaped inputs still get redacted.
+    const passingMock = (input) => (input?.text ? { redacted: '[ok]', label: '<class-label>' } : { label: '<class-label>' });
     const gated = await forgeNew(blueprint, join(proj, 'agent-packages-gated'), {
       now: '2026-05-26T12:00:00Z',
-      runEval: { provider: (input) => (input.text ? { redacted: '[ok]' } : { y: 'ok' }) },
+      runEval: { provider: passingMock },
     });
-    gated.evalResult?.verdict === 'pass' && readFileSync(join(gated.summary.targetDir, 'manifest.yaml'), 'utf-8').includes('eval_passed_at: \'2026-05-26')
-      ? ok('forge-new with runEval (passing mock) stamps eval_passed_at into manifest.yaml (Fase 3)') : bad(`runEval gate failed: verdict=${gated.evalResult?.verdict}`);
+    gated.evalResult?.verdict === 'pass' && readFileSync(join(gated.summary.targetDir, 'manifest.yaml'), 'utf-8').includes('eval_passed_at: 2026-05-26')
+      ? ok('forge-new with runEval (passing mock) stamps eval_passed_at into manifest.yaml (Fase 3)') : bad(`runEval gate failed: verdict=${gated.evalResult?.verdict} failures=${gated.evalResult?.failures?.join(',')}`);
     const ragBlueprint = { agent_name: 'contract-qa', role_one_line: 'You answer questions about contracts from the knowledge base.', intent: { category: 'rag-answer', complexity: 'high', domain: 'legal-pt-br' }, privacy: { allow_cloud_providers: true, data_residency: 'br-or-eu' }, capabilities: { tools: false, rag: true }, runtime_adapters: ['node', 'go'] };
     const ragResult = await forgeNew(ragBlueprint, join(proj, 'agent-packages-rag'), { now: '2026-05-26T12:00:00Z' });
     const ragApf = ragResult.summary.targetDir;

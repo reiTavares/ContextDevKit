@@ -87,7 +87,16 @@ through. You adopt it gradually through **seven levels**, and a separate
 
 ## Quickstart
 
-**One command, from anywhere** — the repo *is* the installer:
+**One command, from anywhere** — the repo *is* the installer.
+
+**First, pick how the kit lives in git** (you can switch later — it's non-destructive):
+
+| Mode | When | What it does |
+| --- | --- | --- |
+| **Local-only** *(default)* | Solo work, an experiment, or trying the kit | Writes a managed `.git/info/exclude` block so the installed artifacts (`contextkit/`, `.claude/`, `CLAUDE.md`, …) stay out of your git history — updates never flood your commits. Your teammates and CI **won't** see the kit. [ADR-0054] |
+| **Tracked** *(`--tracked`)* | A team, multiple machines, or CI that needs the kit | Skips the exclude block so you can `git add` and commit the kit — everyone who clones gets the same memory, agents, and governance. |
+
+Not sure? Start **local-only** (just run the command below). Move to tracked the moment a second person or machine needs the kit: re-run with `--tracked` and `git add` the artifacts — switching only toggles the exclude block, it never touches your index or edits. `/context-doctor` reports your current mode and flags a local-only kit in a repo that already has a remote.
 
 ```bash
 # from npm (recommended) — auto-picks L3 for an empty folder, L7 if it already has code
@@ -95,6 +104,9 @@ npx contextdevkit --target . --yes
 
 # or straight from GitHub (no npm needed)
 npx github:reiTavares/ContextDevKit --target . --yes
+
+# team / multi-machine / CI — commit the kit instead of keeping it local-only
+npx contextdevkit --target . --tracked --yes
 ```
 
 Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the whole
@@ -386,9 +398,32 @@ regenerates `docs/README.md`, and runs the workflow-numbering migration — but 
 
 ## Develop the kit itself
 
+### Test scripts
+
+| Script | When to run | What it does |
+|---|---|---|
+| `npm run test:smoke` | Inner loop — after every local edit | Hermetic, no-install suites (~1.5 s) |
+| `npm run test:impact` | Inner loop — conservative auto-selector | Runs only the suites touched by changed files; falls back to full on any uncertainty |
+| `npm run test:selfcheck` | After wiring changes | Static engine checks (660+ assertions); quiet on pass (`selfcheck: N/N`) |
+| `npm run test:unit` | Alias for smoke + selfcheck | `test:smoke` then `test:selfcheck` |
+| `npm run test:integration` | Before opening a PR | All six integration clusters (core / installer / hosts / workflow / enforcement / ecosystem) |
+| `npm run test:integration:<cluster>` | Closing a card in that area | One cluster: `core`, `installer`, `hosts`, `workflow`, `enforcement`, `ecosystem` |
+| `npm run test:full` | Named alias for the full run | Identical to `npm test` — every suite, serial, fail-fast |
+| `npm test` | Pre-push / CI baseline | Full suite; **behavior preserved** — external callers unaffected |
+| `npm run ci:fast` | PR gate (CI runs this) | `test:impact` + tech-debt RED-line; single Node version; uploads `runs/` logs |
+| `npm run ci:full` | Main/release gate (CI + pre-publish) | Full suite + tech-debt; runs on Node 18/20/22; **mandatory before release** |
+| `npm run ci` | Alias for `ci:full` | Same as `ci:full` — legacy callers are safe |
+
+`npm test`, `npm run ci`, and `npm run check` keep their exact meaning — external
+`npx`/automation callers are unaffected. Logs land in the gitignored `runs/` directory;
+`--verbose` on any suite restores full output; `--legacy` on `run-suites.mjs` executes
+the literal pre-TEA serial chain (rollback escape hatch).
+
 ```bash
-npm test                      # selfcheck + the integration-test suites (what CI runs)
-npm run ci                    # npm test + the tech-debt RED-line gate (validate before pushing)
+npm run test:smoke            # fast hermetic pass after an edit
+npm run test:impact           # conservative selector — inner loop for larger changes
+npm test                      # full suite (selfcheck + all integration tests)
+npm run ci:full               # full gate + tech-debt RED-line (validate before pushing)
 node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
 node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
 npm run build:antigravity     # regenerate .agents skills/personas from templates/claude

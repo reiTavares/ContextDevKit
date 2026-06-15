@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Self-check — GATE WIRING & AUTONOMY FLOOR invariants (ADR-0041 F0, task 105).
  *
  * Three structural controls born from the level-4 bypass incident (a gate
@@ -54,13 +54,27 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
 
   // 2. Reverse: a self-executing entrypoint nobody registers is a silent gate
   //    (the autonomy-gate.mjs incident). Library modules don't self-execute.
+  //
+  //    Intentionally-unregistered allowlist: hooks that self-execute but are
+  //    shipped INERT (advisory-only, no side effects until wired) and will be
+  //    registered in a follow-up settings-compose pass once the contract
+  //    substrate is fully adopted. Must be kept short and each entry annotated.
+  // PKG-04 hooks shipped unregistered pending the activation pass (settings-compose
+  // wiring). Advisory-only, fail-open, no side effects until explicitly wired. ADR-0072.
+  //   completion-gate.mjs       — CDK-040 completion evidence gate (Stop).
+  //   subagent-gate.mjs         — CDK-041 subagent governance (Task PreToolUse + SubagentStop).
+  //   compaction-continuity.mjs — CDK-042 contract continuity (PreCompact + SessionStart).
+  const UNREGISTERED_ALLOWED = new Set([
+    'completion-gate.mjs', 'subagent-gate.mjs', 'compaction-continuity.mjs',
+  ]);
   const unregistered = present.filter((f) => {
+    if (UNREGISTERED_ALLOWED.has(f)) return false;
     const src = readFileSync(resolve(hooksDir, f), 'utf-8');
     const isEntrypoint = /main\(\)\.catch\(/.test(src) && /process\.stdin/.test(src);
     return isEntrypoint && !referenced.has(f);
   });
   unregistered.length === 0
-    ? ok('every self-executing hook entrypoint is registered by some level (wiring drift, reverse)')
+    ? ok('every self-executing hook entrypoint is registered or intentionally deferred (wiring drift, reverse)')
     : bad(`unregistered hook entrypoint(s) — the bypass-incident shape: ${unregistered.join(', ')}`);
 
   // 3. Grade-blind invariant: no ENFORCEMENT hook branches on the consent grade —

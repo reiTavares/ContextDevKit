@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "id": "state",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/context-pack.mjs",
+      "aliases": {
+        "claude": "/state",
+        "codex": "cdx state",
+        "agy": "agy state"
+      },
+      "minLevel": 1,
+      "appliesWhen": {
+        "tiers": ["*"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "informational",
+      "receiptType": "state-summary",
+      "bypass": "none",
+      "sideEffects": []
+    },
+    {
+      "id": "context-pack",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/context-pack.mjs",
+      "aliases": {
+        "claude": "/context-pack",
+        "codex": "cdx context-pack",
+        "agy": "agy context-pack"
+      },
+      "minLevel": 3,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeExploration",
+      "receiptType": "context-pack",
+      "bypass": "none",
+      "sideEffects": []
+    },
+    {
+      "id": "project-map",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/project-map.mjs",
+      "aliases": {
+        "claude": "/project-map",
+        "codex": "cdx project-map",
+        "agy": "agy project-map"
+      },
+      "minLevel": 3,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeExploration",
+      "receiptType": "project-map",
+      "bypass": "audited",
+      "sideEffects": ["writes contextkit/memory/project-map/"]
+    },
+    {
+      "id": "workflow",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/workflow.mjs",
+      "aliases": {
+        "claude": "/workflow",
+        "codex": "cdx workflow",
+        "agy": "agy workflow"
+      },
+      "minLevel": 3,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeWrite",
+      "receiptType": "workflow-spec",
+      "bypass": "audited",
+      "sideEffects": ["writes contextkit/memory/workflows/"]
+    },
+    {
+      "id": "dev-start",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/sync-check.mjs",
+      "aliases": {
+        "claude": "/dev-start",
+        "codex": "cdx pipeline dev-start",
+        "agy": "agy dev-start"
+      },
+      "minLevel": 2,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeWrite",
+      "receiptType": "dev-start",
+      "bypass": "none",
+      "sideEffects": []
+    },
+    {
+      "id": "simulate-impact",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/mark-simulation.mjs",
+      "aliases": {
+        "claude": "/simulate-impact",
+        "codex": "cdx simulate-impact",
+        "agy": "agy simulate-impact"
+      },
+      "minLevel": 5,
+      "appliesWhen": {
+        "tiers": ["architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeWrite",
+      "receiptType": "blast-radius-report",
+      "bypass": "audited",
+      "sideEffects": ["writes contextkit/memory/predictions/"]
+    },
+    {
+      "id": "test-plan",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/scaffold-tests.mjs",
+      "aliases": {
+        "claude": "/test-plan",
+        "codex": "cdx qa test-plan",
+        "agy": "agy test-plan"
+      },
+      "minLevel": 4,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeCompletion",
+      "receiptType": "test-plan",
+      "bypass": "none",
+      "sideEffects": []
+    },
+    {
+      "id": "tests",
+      "kind": "public",
+      "entrypoint": "npm test",
+      "aliases": {
+        "claude": "npm test",
+        "codex": "npm test",
+        "agy": "npm test"
+      },
+      "minLevel": 1,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeCompletion",
+      "receiptType": "test-run",
+      "bypass": "none",
+      "sideEffects": []
+    },
+    {
+      "id": "qa-signoff",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/ship-state.mjs",
+      "aliases": {
+        "claude": "/qa-signoff",
+        "codex": "cdx qa qa-signoff",
+        "agy": "agy qa-signoff"
+      },
+      "minLevel": 4,
+      "appliesWhen": {
+        "tiers": ["feature", "architectural"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": ["tests", "test-plan"],
+      "requiredMoment": "beforeCompletion",
+      "receiptType": "qa-signoff",
+      "bypass": "audited",
+      "sideEffects": []
+    },
+    {
+      "id": "log-session",
+      "kind": "public",
+      "entrypoint": "contextkit/tools/scripts/session-draft.mjs",
+      "aliases": {
+        "claude": "/log-session",
+        "codex": "cdx log-session",
+        "agy": "agy log-session"
+      },
+      "minLevel": 2,
+      "appliesWhen": {
+        "tiers": ["*"],
+        "domains": ["*"],
+        "paths": ["*"],
+        "phases": ["*"]
+      },
+      "prerequisites": [],
+      "requiredMoment": "beforeCompletion",
+      "receiptType": "session-log",
+      "bypass": "none",
+      "sideEffects": [
+        "writes contextkit/memory/sessions/",
+        "writes docs/CHANGELOG.md",
+        "writes contextkit/memory/SESSIONS.md"
+      ]
+    }
+  ]
+}

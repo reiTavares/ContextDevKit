@@ -121,6 +121,9 @@ export function freshLedger(sessionId) {
     modifications: [],
     registered: false,
     stopWarnedAt: null,
+    activeTask: null,
+    taskCounter: 0,
+    completionWarnedAt: null,
     simulations: [],
     squads: [],
   };
@@ -145,6 +148,9 @@ function normalizeLedger(obj, sessionId) {
     modifications: Array.isArray(obj.modifications) ? obj.modifications : [],
     registered: obj.registered === true,
     stopWarnedAt: typeof obj.stopWarnedAt === 'number' ? obj.stopWarnedAt : null,
+    activeTask: typeof obj.activeTask === 'string' ? obj.activeTask : null,
+    taskCounter: typeof obj.taskCounter === 'number' ? obj.taskCounter : 0,
+    completionWarnedAt: typeof obj.completionWarnedAt === 'number' ? obj.completionWarnedAt : null,
     simulations: Array.isArray(obj.simulations) ? obj.simulations : [],
     squads: Array.isArray(obj.squads) ? obj.squads : [],
   };
