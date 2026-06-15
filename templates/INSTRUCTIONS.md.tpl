@@ -6,6 +6,24 @@
 > The Knowledge Items (KIs) in `<appDataDir>/knowledge/contextdevkit-*` contain
 > the detailed reference material.
 
+## Mandatory Execution Protocol
+
+> The engine computes which capabilities your task needs and asks for deterministic
+> **receipts** — script output, not your claims — before key transitions. In
+> `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
+> it. Run capabilities through the Antigravity runner (`agy <command>`). [→ ADR-0072]
+
+1. **Intake** — a new request is classified (trivial / feature / architectural) and an
+   execution contract is recorded. Trivial tasks skip the ceremony.
+2. **Map before broad exploration** — for non-trivial work, consult `agy project-map`
+   before wide text/file sweeps.
+3. **Workflow before the first source write** — feature/architectural work needs an
+   active workflow at the permitted phase; architectural also needs an ADR.
+4. **Tests + QA before completion** — not done until the suite and `agy qa-signoff`
+   leave receipts. "Tests passed" as prose does not count.
+5. **Receipts, not assertions** — only a script-emitted receipt satisfies a gate; a
+   stale, wrong-branch, or bypassed receipt does not.
+
 ## Quick Orientation
 
 You are working on **{{PROJECT_NAME}}**.

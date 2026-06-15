@@ -31,10 +31,9 @@ import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
 import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
-
+import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
-
 /**
  * Floor for the total number of executed checks (passes + failures). Guards
  * the runner wiring itself: losing a whole sibling module in a future split
@@ -286,6 +285,7 @@ async function main() {
   await runEncodingChecks({ ok, bad }, { KIT });
   await runCapabilityChecks({ ok, bad }, { KIT });
   await runEnforcementChecks({ ok, bad }, { KIT });
+  await runEnforcementGateChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

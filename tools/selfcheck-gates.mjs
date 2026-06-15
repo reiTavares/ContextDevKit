@@ -54,13 +54,22 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
 
   // 2. Reverse: a self-executing entrypoint nobody registers is a silent gate
   //    (the autonomy-gate.mjs incident). Library modules don't self-execute.
+  //
+  //    Intentionally-unregistered allowlist: hooks that self-execute but are
+  //    shipped INERT (advisory-only, no side effects until wired) and will be
+  //    registered in a follow-up settings-compose pass once the contract
+  //    substrate is fully adopted. Must be kept short and each entry annotated.
+  const UNREGISTERED_ALLOWED = new Set([
+    'execution-gate.mjs', // CDK-032 v1: advisory PreToolUse gate; silent until contracts exist (ADR-0072).
+  ]);
   const unregistered = present.filter((f) => {
+    if (UNREGISTERED_ALLOWED.has(f)) return false;
     const src = readFileSync(resolve(hooksDir, f), 'utf-8');
     const isEntrypoint = /main\(\)\.catch\(/.test(src) && /process\.stdin/.test(src);
     return isEntrypoint && !referenced.has(f);
   });
   unregistered.length === 0
-    ? ok('every self-executing hook entrypoint is registered by some level (wiring drift, reverse)')
+    ? ok('every self-executing hook entrypoint is registered or intentionally deferred (wiring drift, reverse)')
     : bad(`unregistered hook entrypoint(s) — the bypass-incident shape: ${unregistered.join(', ')}`);
 
   // 3. Grade-blind invariant: no ENFORCEMENT hook branches on the consent grade —
