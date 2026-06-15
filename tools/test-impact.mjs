@@ -124,30 +124,37 @@ function hostsBroadening(path, suites) {
 }
 
 /**
- * Is the Project Map present and parseable? Its ABSENCE is an uncertainty signal
- * (SPEC §4.4) → the caller escalates to full. We only need presence here; the
- * manifest is module-coarse, so importer closure degrades to "missing ⇒ full".
+ * Probe whether the Project Map is present on disk. Its ABSENCE is an uncertainty
+ * signal (SPEC §4.4) → the caller escalates to full. We only need presence here;
+ * the manifest is module-coarse, so importer closure degrades to "missing ⇒ full".
+ *
+ * NOTE: `contextkit/` is gitignored, so the map is absent in a clean CI checkout —
+ * there the selector correctly runs full. Tests inject the signal (below) instead
+ * of depending on the ambient filesystem, so they stay hermetic across machines.
  * @returns {boolean}
  */
-function projectMapPresent() {
+function probeProjectMap() {
   return existsSync(PROJECT_MAP);
 }
 
 /**
- * Core selection. Pure: no I/O beyond the Project-Map presence probe. Returns BOTH
- * the chosen suites and a structured explanation so the CLI can print reasons.
- * @param {{changed:string[],suites:ReadonlyArray<object>}} input
+ * Core selection. Pure: no I/O beyond the Project-Map presence probe (which the
+ * caller may override via `projectMapPresent` to stay hermetic in tests/CI).
+ * Returns BOTH the chosen suites and a structured explanation for the CLI.
+ * @param {{changed:string[],suites:ReadonlyArray<object>,projectMapPresent?:boolean}} input
  * @returns {{selected:object[],included:Map<string,string>,excluded:Map<string,string>,confidence:string,full:boolean,fullReason:string|null}}
  */
-function decide({ changed, suites }) {
+function decide({ changed, suites, projectMapPresent }) {
   const all = Array.isArray(suites) ? suites : [];
   const byId = new Map(all.map((suite) => [suite.id, suite]));
   const mapPath = makeMapPath(all);
   const paths = (Array.isArray(changed) ? changed : []).map(norm).filter(Boolean);
 
   // Uncertainty: empty diff on a (presumed) dirty tree, or no Project Map → full.
+  // `projectMapPresent` (boolean) overrides the FS probe so tests are hermetic.
   if (paths.length === 0) return fullSelection(all, 'rule:full (empty diff / dirty tree, uncertainty)');
-  if (!projectMapPresent()) return fullSelection(all, 'rule:full (Project Map missing, uncertainty)');
+  const hasMap = typeof projectMapPresent === 'boolean' ? projectMapPresent : probeProjectMap();
+  if (!hasMap) return fullSelection(all, 'rule:full (Project Map missing, uncertainty)');
 
   const included = new Map();
   for (const path of paths) {
@@ -191,21 +198,21 @@ function fullSelection(all, reason) {
 /**
  * Public selector seam (consumed by `tools/run-suites.mjs --impact`). Returns the
  * suites to run; NEVER an empty array when there are changes (full instead).
- * @param {{changed:string[],suites:ReadonlyArray<object>}} input
+ * @param {{changed:string[],suites:ReadonlyArray<object>,projectMapPresent?:boolean}} input
  * @returns {object[]} the selected suites (full list on any uncertainty).
  */
-export function selectSuites({ changed, suites } = {}) {
-  return decide({ changed, suites }).selected;
+export function selectSuites({ changed, suites, projectMapPresent } = {}) {
+  return decide({ changed, suites, projectMapPresent }).selected;
 }
 
 /**
  * Full explanation for the CLI / tests: the selected suites plus per-suite
  * include/exclude reasons and an overall confidence.
- * @param {{changed:string[],suites:ReadonlyArray<object>}} input
+ * @param {{changed:string[],suites:ReadonlyArray<object>,projectMapPresent?:boolean}} input
  * @returns {{selected:object[],included:Map<string,string>,excluded:Map<string,string>,confidence:string,full:boolean,fullReason:string|null}}
  */
-export function explainSelection({ changed, suites } = {}) {
-  return decide({ changed, suites });
+export function explainSelection({ changed, suites, projectMapPresent } = {}) {
+  return decide({ changed, suites, projectMapPresent });
 }
 
 /**

@@ -53,12 +53,15 @@ const FIXTURES = Object.freeze([
 
 /** Run the synthetic table — one row per behaviour, naming the layer it covers. */
 function unitTable() {
-  const sel = (changed) => selectSuites({ changed, suites: FIXTURES });
+  // Inject `projectMapPresent: true` so the MAPPING/broadening logic is exercised
+  // deterministically — independent of whether the (gitignored) Project Map exists
+  // on this machine. The "map missing ⇒ full" rule has its own explicit case below.
+  const sel = (changed) => selectSuites({ changed, suites: FIXTURES, projectMapPresent: true });
   const ALL = FIXTURES.map((s) => s.id);
 
   // Happy path: a single unique touch selects exactly that one suite (not full).
   assertIds('single-suite touch (happy)', sel(['templates/contextkit/runtime/alpha/x.mjs']), ['only-a']);
-  const single = explainSelection({ changed: ['templates/contextkit/runtime/alpha/x.mjs'], suites: FIXTURES });
+  const single = explainSelection({ changed: ['templates/contextkit/runtime/alpha/x.mjs'], suites: FIXTURES, projectMapPresent: true });
   single.confidence === 'high' ? ok('single-suite → confidence high') : bad(`single-suite confidence ${single.confidence}`);
   single.full === false ? ok('single-suite → not a full run') : bad('single-suite escalated to full');
 
@@ -81,9 +84,13 @@ function unitTable() {
 
   // Uncertainty → FULL: an unmapped SOURCE path forces the whole list.
   assertIds('rule:full (unmapped source)', sel(['templates/contextkit/runtime/zzz/new.mjs']), ALL);
+  // Uncertainty → FULL: a missing Project Map forces the whole list (the signal a
+  // clean CI checkout sends — contextkit/ is gitignored). Injected, not ambient.
+  assertIds('rule:full (project map missing)',
+    selectSuites({ changed: ['templates/contextkit/runtime/alpha/x.mjs'], suites: FIXTURES, projectMapPresent: false }), ALL);
   // Uncertainty → FULL: empty diff on a (dirty) tree forces the whole list.
   assertIds('rule:full (empty diff)', sel([]), ALL);
-  const emptyConf = explainSelection({ changed: [], suites: FIXTURES });
+  const emptyConf = explainSelection({ changed: [], suites: FIXTURES, projectMapPresent: true });
   emptyConf.confidence === 'low' ? ok('empty diff → confidence low') : bad(`empty diff confidence ${emptyConf.confidence}`);
 }
 
@@ -100,7 +107,9 @@ function noEmptyGuard() {
   ];
   let empties = 0;
   for (const changed of probes) {
-    const selected = selectSuites({ changed, suites: SUITES });
+    // Inject map-present so the guard exercises real mapping deterministically
+    // (with the map absent every probe is full — also non-empty, but less telling).
+    const selected = selectSuites({ changed, suites: SUITES, projectMapPresent: true });
     if (!Array.isArray(selected) || selected.length === 0) {
       empties += 1;
       bad(`EMPTY selection for changed=[${changed.join(', ')}] (cardinal sin)`);
