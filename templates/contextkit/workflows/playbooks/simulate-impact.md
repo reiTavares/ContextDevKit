@@ -1,3 +1,11 @@
+---
+phases:
+  - intake
+  - spec
+  - adr
+squads:
+  - devteam
+---
 # Playbook — `/simulate-impact`
 
 > Operational spec: [`.claude/commands/simulate-impact.md`](../../../.claude/commands/simulate-impact.md).

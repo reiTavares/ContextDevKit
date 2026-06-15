@@ -13,11 +13,17 @@
  */
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, dirname, extname, resolve } from 'node:path';
+import { basename, dirname, extname, relative, resolve } from 'node:path';
 import { DEP_EXTS, extractImports, linkDeps } from './project-map-deps.mjs';
 import { extractSymbols } from './project-map-symbols.mjs';
+import { resolveRoots } from './project-map-roots.mjs';
 
-/** Dirs never worth mapping (deps, build output, VCS, the platform itself). */
+/**
+ * Legacy flat exclude set — retained as a public export for back-compat (imported
+ * by selfcheck + project-map-roots' default catalogue). The walker now resolves
+ * excludes via `resolveRoots` (CDK-050) so `contextkit` is root-anchored and the
+ * dogfood source under `templates/contextkit/` is mapped. [project-map / CDK-050]
+ */
 export const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out', '.next', '.nuxt',
   '.turbo', '.expo', '.svelte-kit', 'coverage', '__pycache__', '.pytest_cache',
@@ -67,7 +73,7 @@ function classifyRole(dirName, extCounts) {
 }
 
 /** Recursively collect source files under a module dir (bounded). */
-function walkModule(absDir, acc) {
+function walkModule(root, absDir, acc, isExcluded) {
   if (acc.files.length >= CAP_FILES_PER_MODULE) return;
   let entries;
   try {
@@ -80,8 +86,9 @@ function walkModule(absDir, acc) {
     if (e.name.startsWith('.') && e.name !== '.github') continue;
     const full = resolve(absDir, e.name);
     if (e.isDirectory()) {
-      if (IGNORE_DIRS.has(e.name)) continue;
-      walkModule(full, acc);
+      const rel = relative(root, full).replaceAll('\\', '/');
+      if (isExcluded(rel, e.name)) continue;
+      walkModule(root, full, acc, isExcluded);
     } else {
       const ext = extname(e.name).toLowerCase();
       if (!EXT_LANG[ext]) continue;
@@ -102,9 +109,9 @@ function walkModule(absDir, acc) {
  * walked file for imports (top-of-file, cheap on-demand); symbols stay sampled to
  * the first CAP_SAMPLE_FILES to keep the inventory bounded.
  */
-function buildModule(root, absDir, relPath) {
+function buildModule(root, absDir, relPath, isExcluded) {
   const acc = { files: [], extCounts: {}, bytes: 0 };
-  walkModule(absDir, acc);
+  walkModule(root, absDir, acc, isExcluded);
   if (acc.files.length === 0) return null;
   const languages = [...new Set(acc.files.map((f) => EXT_LANG[extname(f).toLowerCase()]))].sort();
   const symbols = [];
@@ -138,7 +145,7 @@ function buildModule(root, absDir, relPath) {
 const MONOREPO_PARENTS = ['apps', 'packages', 'services', 'modules'];
 
 /** Top-level (and one-level-deep for monorepos) module directories to map. */
-function moduleDirs(root) {
+function moduleDirs(root, isExcluded) {
   const dirs = [];
   let top;
   try {
@@ -147,7 +154,7 @@ function moduleDirs(root) {
     return dirs;
   }
   for (const e of top) {
-    if (!e.isDirectory() || IGNORE_DIRS.has(e.name) || e.name.startsWith('.')) continue;
+    if (!e.isDirectory() || isExcluded(e.name, e.name) || e.name.startsWith('.')) continue;
     if (MONOREPO_PARENTS.includes(e.name)) {
       let kids = [];
       try {
@@ -155,7 +162,10 @@ function moduleDirs(root) {
       } catch {
         /* ignore */
       }
-      for (const k of kids) if (k.isDirectory() && !IGNORE_DIRS.has(k.name)) dirs.push(`${e.name}/${k.name}`);
+      for (const k of kids) {
+        const rel = `${e.name}/${k.name}`;
+        if (k.isDirectory() && !isExcluded(rel, k.name)) dirs.push(rel);
+      }
     } else {
       dirs.push(e.name);
     }
@@ -221,12 +231,16 @@ function projectName(root) {
  *
  * @param {string} root project root to map
  * @param {number} [nowMs] generation timestamp (ms since epoch)
+ * @param {object|null} [config] loaded config — `config.projectMap.{roots,excludes}`
+ *   tune the scan scope (CDK-050). `null` ⇒ the hardcoded defaults (legacy scan,
+ *   with `contextkit` root-anchored so the dogfood source is mapped).
  * @returns {object} the project-map model
  */
-export function scanProject(root, nowMs = Date.now()) {
+export function scanProject(root, nowMs = Date.now(), config = null) {
+  const { isExcluded } = resolveRoots(config, root);
   const modules = [];
-  for (const rel of moduleDirs(root)) {
-    const mod = buildModule(root, resolve(root, rel), rel);
+  for (const rel of moduleDirs(root, isExcluded)) {
+    const mod = buildModule(root, resolve(root, rel), rel, isExcluded);
     if (mod) modules.push(mod);
   }
   modules.sort((a, b) => b.files - a.files);

@@ -1,3 +1,9 @@
+---
+phases:
+  - conclusion
+squads:
+  - devteam
+---
 # Playbook — Distillation cycle (L5 Stage 2)
 
 > Operational: `.claude/commands/{distill-sessions,distill-apply}.md` + the Stage 2

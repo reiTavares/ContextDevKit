@@ -1,3 +1,10 @@
+---
+phases:
+  - pipeline
+  - conclusion
+squads:
+  - devteam
+---
 # Playbook — `/tech-debt-sweep`
 
 > Operational spec: [`.claude/commands/tech-debt-sweep.md`](../../../.claude/commands/tech-debt-sweep.md).

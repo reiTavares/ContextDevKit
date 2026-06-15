@@ -58,13 +58,34 @@ function unknown(name) {
   process.exit(1);
 }
 
-function list() {
-  const files = listFiles();
+/**
+ * Lists the registry, optionally scoped by workflow phase or squad (CDK-053).
+ * Filtering is a lazy import so the unscoped path stays zero-dep and fast;
+ * a load failure falls back to the unfiltered list (fail-open).
+ *
+ * @param {{ phase?: string, squad?: string }} [filter]
+ */
+async function list(filter = {}) {
+  let files = listFiles();
   if (files.length === 0) {
     console.log('No playbooks found in contextkit/workflows/playbooks/.');
     return;
   }
-  console.log(`📓 Playbooks (${files.length}) — contextkit/workflows/playbooks/\n`);
+  let label = '';
+  if (filter.phase || filter.squad) {
+    try {
+      const { playbooksByPhase, playbooksBySquad } = await import('./playbook-scope.mjs');
+      const matches = filter.phase
+        ? playbooksByPhase(PLAYBOOKS_DIR, filter.phase)
+        : playbooksBySquad(PLAYBOOKS_DIR, filter.squad);
+      const matchSet = new Set(matches.map((m) => m.file));
+      files = files.filter((f) => matchSet.has(f));
+      label = filter.phase ? ` [phase: ${filter.phase}]` : ` [squad: ${filter.squad}]`;
+    } catch {
+      /* scope module unavailable — fall back to the full list */
+    }
+  }
+  console.log(`📓 Playbooks (${files.length}${label}) — contextkit/workflows/playbooks/\n`);
   for (const f of files) console.log(`  • ${f.replace(/\.md$/, '')} — ${titleOf(f)}`);
   console.log('\nRun one with:  node contextkit/tools/scripts/playbook.mjs run <name>');
 }
@@ -103,19 +124,28 @@ function runs() {
   console.log(readFileSync(RUNS_LOG, 'utf-8'));
 }
 
-function main() {
-  const [cmd, name, ...rest] = process.argv.slice(2);
+/** Parses a `--key value` or `--key=value` flag from argv. */
+function flagValue(argv, key) {
+  const eq = argv.find((a) => a.startsWith(`${key}=`));
+  if (eq) return eq.slice(key.length + 1);
+  const i = argv.indexOf(key);
+  return i >= 0 ? argv[i + 1] : undefined;
+}
+
+async function main() {
+  const argv = process.argv.slice(2);
+  const [cmd, name, ...rest] = argv;
   switch (cmd) {
     case 'list':
-      return list();
+      return list({ phase: flagValue(argv, '--phase'), squad: flagValue(argv, '--squad') });
     case 'show':
       return show(name);
     case 'run':
-      return run(name, rest.join(' '));
+      return run(name, rest.filter((a) => !a.startsWith('--')).join(' '));
     case 'runs':
       return runs();
     default:
-      console.error('Usage: playbook.mjs <list | show <name> | run <name> [note] | runs>');
+      console.error('Usage: playbook.mjs <list [--phase p|--squad s] | show <name> | run <name> [note] | runs>');
       process.exit(1);
   }
 }
