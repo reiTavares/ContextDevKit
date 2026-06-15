@@ -21,6 +21,38 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Layered test execution architecture (TEA-001..007, WF0024 / ADR-0093)** — the
+  kit's own dev harness gains a conservative impact selector, a `ci:fast`/`ci:full`
+  split, compact agent-friendly output, selfcheck quiet mode, and per-run duration
+  telemetry. Details:
+  - **Layered `test:*` suites (TEA-002)** — `test:smoke`, `test:selfcheck`,
+    `test:unit`, `test:integration` (+ six sub-clusters: `core` / `installer` /
+    `hosts` / `workflow` / `enforcement` / `ecosystem`), `test:full` — all backed
+    by `tools/run-suites.mjs` reading a single `tools/test-suites.mjs` registry.
+    `npm test` behavior is **preserved** (runs the full set, serial, fail-fast).
+  - **Conservative `test:impact` selector (TEA-003)** — maps changed files to
+    suites via a static `touches[]` map + importer closure; broadens to full on
+    any unmapped path, missing Project Map, config-core change, or test-infra
+    change. False-negative-averse: an unmapped path always escalates to full.
+    Explains every include/exclude decision in output.
+  - **`ci:fast` / `ci:full` split (TEA-005)** — `ci:fast` runs `test:impact` +
+    tech-debt on a single Node version (PR gate); `ci:full` runs the full suite +
+    tech-debt on Node 18/20/22 (main/release gate, mandatory before publish,
+    never gated by the selector). `npm run ci` remains an alias for `ci:full`.
+  - **Compact output + selfcheck quiet mode (TEA-004)** — one line per suite on
+    pass (`✓ smoke 1.5s`); failed suites surface at the top; full logs written to
+    gitignored `runs/`. `selfcheck.mjs` now prints a single count line on pass
+    (`selfcheck: 666/666`) instead of streaming 660+ lines; `--verbose` restores
+    the full stream; failures always print in full.
+  - **Duration-history telemetry (TEA-006)** — per-suite `{id, tier, ms, exitCode,
+    selected?, selectionReason?, logPath}` appended to `runs/` on every invocation;
+    derives p50/p95 once enough samples accumulate; feeds the autonomy/economy
+    reports (P10/P11). Append-only, gitignored.
+  - **Test-architecture docs (TEA-007)** — README test-scripts table, CONTRIBUTING
+    test-workflow section, CHANGELOG entries, `instrucoes.md` pt-BR summary.
+  - CI workflow updated: new `test-fast` PR job runs `ci:fast` with a docs/planning
+    path filter (skips code suites on docs-only PRs); full-matrix `test` job (Node
+    18/20/22) runs `ci:full` on push-to-main and `workflow_dispatch`.
 - **Completion evidence gate (PKG-04 / CDK-040, advisory & dormant)** — a `Stop`
   hook (`completion-gate.mjs`) that, for the session's active task, checks the
   execution contract's `requiredBeforeCompletion` capabilities against real on-disk

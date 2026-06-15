@@ -108,6 +108,22 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/watch` — acompanha edits da sessão atual. `--follow` faz streaming.
 - `/runs` — lista runs recentes (tarefas + pipeline) entre squads.
 
+### Scripts de teste (arquitetura em camadas — WF0024 / ADR-0093)
+
+| Script | Quando usar | O que faz |
+|---|---|---|
+| `npm run test:smoke` | Loop interno — após cada edição | Suites herméticas, sem install (~1,5 s) |
+| `npm run test:impact` | Loop interno — seletor conservador | Mapeia arquivos alterados → suites; cai para full se incerto |
+| `npm run test:selfcheck` | Após mudanças de wiring | Verificações estáticas (660+ asserções); silencioso no sucesso |
+| `npm run test:integration:<cluster>` | Fechar um card nessa área | Um cluster: `core` / `installer` / `hosts` / `workflow` / `enforcement` / `ecosystem` |
+| `npm test` | Antes do push | Suite completa, serial, fail-fast — **comportamento preservado** |
+| `npm run ci:fast` | Gate de PR (CI roda isso) | `test:impact` + tech-debt; Node único; faz upload dos logs em `runs/` |
+| `npm run ci:full` | Gate de main/release | Suite completa + tech-debt no Node 18/20/22; **obrigatório antes do release** |
+
+Use `test:impact` ou `test:smoke` no loop interno. `ci:full` é o gate definitivo.
+`npm test`, `npm run ci` e `npm run check` mantêm o significado exato — callers
+externos não são afetados. Logs ficam em `runs/` (gitignored).
+
 ### Qualidade (L4/L5)
 - `/test-plan` · `/scaffold-tests` · `/qa-signoff` — squad de QA. O fluxo começa
   por `scaffold-tests.mjs plan`, que detecta stack/runner e monta casos
