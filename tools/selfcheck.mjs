@@ -33,16 +33,17 @@ import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 import { runEacpChecks } from './selfcheck-eacp.mjs';
+import { runEacpCostChecks } from './selfcheck-eacp-cost.mjs';
+import { runEacpPressureChecks } from './selfcheck-eacp-pressure.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
 /**
- * Floor for the total number of executed checks (passes + failures). Guards
- * the runner wiring itself: losing a whole sibling module in a future split
- * (the silent failure mode of task-104-style refactors) drops the count far
- * below the floor and fails loudly. Raise as the suite grows; lowering it
- * requires an ADR (ADR-0041 F0, task 104 — count was 666 at extraction).
+ * Floor for total executed checks (passes + failures). Guards runner wiring:
+ * losing a sibling module drops the count below the floor and fails loudly.
+ * Raise as the suite grows; lowering requires an ADR (ADR-0041 F0, task 104 —
+ * count was 666 at extraction; 1225 after Wave 2; 1265 after Wave 3 pressure).
  */
-const MIN_CHECKS = 660;
+const MIN_CHECKS = 1265;
 let failures = 0;
 let passes = 0;
 const VERBOSE = process.argv.includes('--verbose');
@@ -283,6 +284,8 @@ async function main() {
   await runEnforcementChecks({ ok, bad }, { KIT });
   await runEnforcementGateChecks({ ok, bad }, { KIT });
   await runEacpChecks({ ok, bad }, { KIT });
+  await runEacpCostChecks({ ok, bad }, { KIT });
+  await runEacpPressureChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;
@@ -298,7 +301,6 @@ async function main() {
   console.log(failures === 0 ? '\n✅ All checks passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }
-
 main().catch((err) => {
   console.error('self-check crashed:', err);
   process.exit(1);

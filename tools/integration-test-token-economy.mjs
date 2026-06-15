@@ -26,9 +26,18 @@ try {
   const ttx = join(proj, '_ttx');
   mkdirSync(ttx, { recursive: true });
   const usageLine = (i, o, extra = {}) => { const { model, ...rest } = extra; return JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, ...rest, message: { role: 'assistant', model, usage: { input_tokens: i, output_tokens: o, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } }); };
+  // Wave 3 (EACP #236/#237): inject tool_use content into the first line so token totals stay 475
+  // while tool events (repeated reads + search) are available for map-effectiveness analysis.
+  const w3ToolUseContent = [
+    { type: 'tool_use', name: 'Read', input: { file_path: '/proj/contextkit/project-map.md' } },
+    { type: 'tool_use', name: 'Grep', input: { pattern: 'export function' } },
+    { type: 'tool_use', name: 'Read', input: { file_path: '/proj/src/engine.mjs' } },
+    { type: 'tool_use', name: 'Read', input: { file_path: '/proj/src/engine.mjs' } },
+  ];
+  const line1WithTools = JSON.stringify({ type: 'assistant', sessionId: 'sess1', timestamp: '2026-05-24T00:00:00Z', cwd: proj, message: { role: 'assistant', model: 'claude-opus-4-8', content: w3ToolUseContent, usage: { input_tokens: 100, output_tokens: 200, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } });
   // Main-loop (opus), a /ship line (opus), and a /debate subagent on a CHEAP model (haiku) → exercises
   // ADR-0044 D3 attribution AND the ADR-0052 byModel split (premium main loop vs cheap fan-out).
-  writeFileSync(join(ttx, 'sess1.jsonl'), [usageLine(100, 200, { model: 'claude-opus-4-8' }), usageLine(50, 25, { attributionSkill: 'ship', model: 'claude-opus-4-8' }), usageLine(40, 60, { isSidechain: true, attributionSkill: 'debate', model: 'claude-haiku-4-5' }), '{ bad json'].join('\n'));
+  writeFileSync(join(ttx, 'sess1.jsonl'), [line1WithTools, usageLine(50, 25, { attributionSkill: 'ship', model: 'claude-opus-4-8' }), usageLine(40, 60, { isSidechain: true, attributionSkill: 'debate', model: 'claude-haiku-4-5' }), '{ bad json'].join('\n'));
   const tr = script('token-report.mjs', '--from', ttx, '--json');
   (() => { try { const j = JSON.parse(tr.stdout); return j.sessions === 1 && j.totals.total === 475 && j.totals.input === 190; } catch { return false; } })()
     ? ok('token-report aggregates token usage from transcripts') : bad(`token-report failed: ${tr.stdout || tr.stderr}`);
@@ -111,6 +120,73 @@ try {
     return res.confidence === 'direct';
   } catch { return false; } })()
     ? ok('economics: inclusive lens returns confidence="direct"') : bad('economics: inclusive lens confidence wrong');
+
+  // EACP Wave 2 (registry → cost → Report v2) — WF0018 / ADR-0079
+  // (d) Registry loaded from installed proj: 4 models, inferredCount === 1
+  await (async () => { try {
+    const regLib = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/pricing/pricing-registry.mjs').replaceAll('\\', '/'));
+    const reg = regLib.loadRegistry();
+    const summary = regLib.registrySummary(reg);
+    return reg?.models?.length === 4 && summary.inferredCount === 1;
+  } catch { return false; } })()
+    ? ok('economics Wave 2: registry from proj has 4 models, inferredCount=1') : bad('economics Wave 2: registry model count or inferredCount wrong in installed proj');
+
+  // (e) Cost engine golden numbers + inferred gate from installed proj
+  await (async () => { try {
+    const regLib = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/pricing/pricing-registry.mjs').replaceAll('\\', '/'));
+    const costLib = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/cost-engine.mjs').replaceAll('\\', '/'));
+    const reg = regLib.loadRegistry();
+    const buckets = { freshInput: 200, output: 100, cacheRead: 1000, cacheWrite: 1000, reasoning: 0 };
+    const opusEntry = regLib.priceFor(reg, 'opus');
+    const fableEntry = regLib.priceFor(reg, 'fable-5');
+    const gross = costLib.grossCacheValue(buckets, opusEntry);
+    const fableCost = costLib.actualCost(buckets, fableEntry);
+    return gross.usd > 0 && fableCost.usd === null;
+  } catch { return false; } })()
+    ? ok('economics Wave 2: grossCacheValue > 0 and inferred fable cost → usd null (installed proj)') : bad('economics Wave 2: cost engine golden or inferred gate failed in installed proj');
+
+  // (f) token-report --json now carries schemaVersion + financial block (eacp-token-report/2)
+  // NOTE: legacy assertions on totals.total===475 etc. remain and were checked above (lines 33-40).
+  (() => { try {
+    const j = JSON.parse(tr.stdout);
+    return j.schemaVersion === 'eacp-token-report/2' &&
+      j.financial != null &&
+      typeof j.financial.confidence === 'string' &&
+      j.financial.totals != null;
+  } catch { return false; } })()
+    ? ok('economics Wave 2: token-report --json carries schemaVersion="eacp-token-report/2" and financial block') : bad(`economics Wave 2: token-report missing schemaVersion or financial block: ${tr.stdout?.slice(0,200)}`);
+  (() => { try {
+    const fin = JSON.parse(tr.stdout).financial;
+    // opus + haiku both have direct confidence → aggregate confidence direct
+    return fin.confidence === 'direct' && typeof fin.totals.actualUsd === 'number' && fin.totals.actualUsd > 0;
+  } catch { return false; } })()
+    ? ok('economics Wave 2: financial.confidence="direct" and totals.actualUsd > 0 (opus+haiku both priced direct)') : bad(`economics Wave 2: financial confidence or actualUsd wrong: ${tr.stdout?.slice(0,300)}`);
+
+  // EACP Wave 3 (cards #236/#237): pressure + map-effectiveness advisory blocks.
+  // Legacy guard: token totals must be unchanged after adding tool_use content to line 1.
+  (() => { try { const j = JSON.parse(tr.stdout); return j.schemaVersion === 'eacp-token-report/2' && j.totals.total === 475; } catch { return false; } })()
+    ? ok('economics Wave 3: schemaVersion still "eacp-token-report/2" and totals.total===475 (legacy preserved)') : bad(`economics Wave 3: schemaVersion or totals.total regressed: ${tr.stdout?.slice(0,200)}`);
+  // Pressure block: must be a populated object with schemaVersion, numeric sessions, bands, hottest with a valid band.
+  (() => { try {
+    const p = JSON.parse(tr.stdout).pressure;
+    const { PRESSURE_BANDS } = { PRESSURE_BANDS: ['healthy', 'elevated', 'hot', 'critical'] };
+    return p?.schemaVersion === 'eacp-pressure/1' && typeof p.sessions === 'number' &&
+      p.bands != null && typeof p.bands === 'object' && PRESSURE_BANDS.includes(p.hottest?.band);
+  } catch { return false; } })()
+    ? ok('economics Wave 3: pressure block has schemaVersion, numeric sessions, bands object, hottest.band in PRESSURE_BANDS') : bad(`economics Wave 3: pressure block malformed: ${tr.stdout?.slice(0,400)}`);
+  // Map-effectiveness block: populated (we injected tool_use events); repeatedRead detected + path redacted.
+  (() => { try {
+    const me = JSON.parse(tr.stdout).mapEffectiveness;
+    if (me?.schemaVersion !== 'eacp-map-effectiveness/1') return false;
+    if (typeof me.mapConsulted !== 'boolean') return false;
+    if (!Array.isArray(me.repeatedReads)) return false;
+    // engine.mjs was read twice → repeatedReads must contain an entry for it
+    const rr = me.repeatedReads.find(r => r.path.endsWith('engine.mjs'));
+    if (!rr || rr.count < 2) return false;
+    // Path must be redacted: [8hex]/basename, not the raw /proj/src/ prefix
+    return /^\[[0-9a-f]{8}\]\/engine\.mjs$/.test(rr.path);
+  } catch { return false; } })()
+    ? ok('economics Wave 3: mapEffectiveness has schemaVersion, repeated engine.mjs read detected, path redacted as [8hex]/basename') : bad(`economics Wave 3: mapEffectiveness block wrong: ${JSON.stringify(JSON.parse(tr.stdout || '{}').mapEffectiveness)?.slice(0,400)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

@@ -20,6 +20,9 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { attribute, totalOf } from './token-attribution.mjs';
+import { financialSummary, presentFinancial, REPORT_SCHEMA_VERSION } from './economics/token-report-cost.mjs';
+import { advisorySummary, presentAdvisories, normalizeToolUse } from './economics/report-advisories.mjs';
+import { resolvePrivacyConfig } from './economics/privacy.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -65,11 +68,13 @@ function isoWeek(ts) {
 /**
  * sessionId → token totals, built from `message.usage` entries (filtered by cwd
  * unless --all). Also returns the per-agent / per-command attribution (ADR-0044
- * D3) over the same filtered entries — derived in one pass, no second read.
+ * D3) and a normalized toolEvents array (EACP Wave 3 / cards #236-#237) — all
+ * derived in one pass, no second read.
  */
 function aggregate(files, all) {
   const sessions = new Map();
   const attrEntries = [];
+  const toolEvents = [];
   for (const file of files) {
     let text;
     try {
@@ -89,6 +94,17 @@ function aggregate(files, all) {
       if (!usage) continue;
       if (!all && norm(entry.cwd) !== ROOT_N) continue;
       attrEntries.push({ message: { usage, model: entry?.message?.model }, isSidechain: entry.isSidechain, attributionSkill: entry.attributionSkill });
+      // Collect tool_use events for EACP Wave 3 map-effectiveness analysis.
+      if (Array.isArray(entry.message?.content)) {
+        for (const item of entry.message.content) {
+          if (item?.type === 'tool_use') {
+            const ev = normalizeToolUse(item.name, item.input);
+            if (ev !== null) {
+              toolEvents.push({ ...ev, ts: Date.parse(entry.timestamp) || undefined });
+            }
+          }
+        }
+      }
       const sid = entry.sessionId || file;
       const s = sessions.get(sid) || { input: 0, output: 0, cacheRead: 0, cacheCreate: 0, turns: 0, at: '', week: 'unknown' };
       s.input += usage.input_tokens || 0;
@@ -103,7 +119,7 @@ function aggregate(files, all) {
       sessions.set(sid, s);
     }
   }
-  return { sessions, attribution: attribute(attrEntries) };
+  return { sessions, attribution: attribute(attrEntries), toolEvents };
 }
 
 const sessionTotal = (s) => s.input + s.output + s.cacheRead + s.cacheCreate;
@@ -154,13 +170,18 @@ function printAttribution(attribution) {
 }
 
 function main() {
-  const budget = loadConfigSync(ROOT).tokens || { budgetPerSession: 0, warnAtPct: 80 };
+  const cfg = loadConfigSync(ROOT);
+  const budget = cfg.tokens || { budgetPerSession: 0, warnAtPct: 80 };
+  const privacy = resolvePrivacyConfig(cfg);
   const files = findTranscripts(opt('--from'));
-  const { sessions: rawSessions, attribution } = aggregate(files, flag('--all'));
+  const { sessions: rawSessions, attribution, toolEvents } = aggregate(files, flag('--all'));
   const { rows, totals, weeks, sessions } = summarize(rawSessions);
 
+  const financial = financialSummary(attribution);
+  const advisories = advisorySummary({ perSession: rows, toolEvents }, { privacy });
+
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ sessions, totals, weeks, budget, perSession: rows, attribution }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness }, null, 2) + '\n');
     return;
   }
 
@@ -184,6 +205,11 @@ function main() {
   for (const [week, total] of Object.entries(weeks).sort()) console.log(`  ${week}  ${n(total)}`);
 
   printAttribution(attribution);
+
+  console.log('');
+  console.log(presentFinancial(financial));
+  console.log('');
+  console.log(presentAdvisories(advisories));
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));
