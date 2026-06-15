@@ -48,15 +48,40 @@ Point `l5.contractGlobs` at the export surface you consider public so
   (real hooks end-to-end).
 - `docs/` — LEVELS, ARCHITECTURE, CUSTOMIZING.
 
+## Test workflow
+
+The kit has a layered execution architecture — pick the right tier for your loop:
+
+| Script | When | Responsibility |
+|---|---|---|
+| `npm run test:smoke` | Every edit | Hermetic suites only, no install (~1.5 s) |
+| `npm run test:impact` | Inner loop, after larger changes | Conservative selector: maps changed files → relevant suites; falls back to full on any uncertainty; never the release gate |
+| `npm run test:selfcheck` | After wiring changes | Static engine checks (660+ assertions); quiet on pass |
+| `npm run test:integration:<cluster>` | Closing a card | One integration cluster: `core` / `installer` / `hosts` / `workflow` / `enforcement` / `ecosystem` |
+| `npm test` | Pre-push baseline | Full suite (all suites, serial, fail-fast) — **behavior preserved** |
+| `npm run ci:fast` | What CI runs on PRs | `test:impact` + tech-debt; single Node version; uploads `runs/` logs |
+| `npm run ci:full` | Main / release gate | Full suite + tech-debt on Node 18/20/22 — **mandatory before release** |
+
+Use `test:impact` or `test:smoke` for the inner loop; `ci:full` is the gate. Run
+`npm run ci:full` before any push to `main`. Logs land in the gitignored `runs/`
+directory.
+
+**Compatibility guarantee:** `npm test`, `npm run ci`, and `npm run check` keep their
+exact meaning — external callers and automation are unaffected.
+
+**Rollback:** to revert to the pre-TEA execution chain, run `run-suites.mjs` with the
+`--legacy` flag; `selfcheck.mjs --verbose` restores the full 660-line output if the
+quiet mode hides something.
+
 ## Before you push
 
 ```bash
-npm test        # selfcheck + integration test
+npm run ci:full     # full suite + tech-debt RED-line gate
 ```
 
-Both must pass. CI runs them on Node 18/20/22. If you add a hook, slash command,
-script, or change the level wiring, **add a check** to `tools/selfcheck.mjs` or
-`tools/integration-test.mjs` that would fail if it regressed.
+This must be green before any push to `main`. CI runs it on Node 18/20/22. If you
+add a hook, slash command, script, or change the level wiring, **add a check** to
+`tools/selfcheck.mjs` or `tools/integration-test.mjs` that would fail if it regressed.
 
 ## Adding things
 
