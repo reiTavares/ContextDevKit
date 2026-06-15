@@ -28,10 +28,11 @@
  * string interpolation, forward-slash paths, tolerant of a path with a space.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allSuites, suitesForTier } from './test-suites.mjs';
+import { recordRun } from './test-telemetry.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RUNS_DIR = join(KIT, 'runs');
@@ -227,6 +228,9 @@ async function main() {
     : `\n❌ suite "${records[records.length - 1]?.id}" failed (exit ${exitCode}).\n`);
 
   persistRun(records, { mode, exitCode, totalMs });
+  // Append run summary to the durable history log (TEA-006). Fail-open: an
+  // error here must NEVER prevent the runner from exiting with the correct code.
+  try { recordRun(JSON.parse(readFileSync(join(RUNS_DIR, 'last-run.json'), 'utf-8').replace(/^﻿/, ''))); } catch { /* telemetry is best-effort */ }
   process.exit(exitCode);
 }
 
