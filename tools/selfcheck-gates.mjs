@@ -59,11 +59,9 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
   //    shipped INERT (advisory-only, no side effects until wired) and will be
   //    registered in a follow-up settings-compose pass once the contract
   //    substrate is fully adopted. Must be kept short and each entry annotated.
-  const UNREGISTERED_ALLOWED = new Set([
-    'execution-gate.mjs',           // CDK-032 v1: advisory PreToolUse gate; silent until contracts exist (ADR-0072).
-    'execution-contract-hook.mjs',  // CDK-031 v1: UserPromptSubmit hook; dormant until activation card wires it via settings-compose (ADR-0072).
-    'indirect-write-reconcile.mjs', // CDK-034 v1: PostToolUse advisory reconciler; ships UNREGISTERED until settings-compose wires it (ADR-0072).
-  ]);
+  // (Empty — the PKG-03 enforcement hooks are now wired into settings-compose at L5,
+  // advisory by default. ADR-0072.)
+  const UNREGISTERED_ALLOWED = new Set([]);
   const unregistered = present.filter((f) => {
     if (UNREGISTERED_ALLOWED.has(f)) return false;
     const src = readFileSync(resolve(hooksDir, f), 'utf-8');
