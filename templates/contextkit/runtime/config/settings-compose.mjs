@@ -11,9 +11,11 @@
  *   2  + PostToolUse (Edit|Write|MultiEdit), Stop
  *   3  + PreToolUse  (concurrency-guard) — and git hooks (installed separately)
  *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
- *   5  + Capability Enforcement (ADR-0072, advisory): UserPromptSubmit
+ *   5  + Capability Enforcement (ADR-0072/0097, advisory): UserPromptSubmit
  *        (execution-contract-hook), PreToolUse (execution-gate), PostToolUse
- *        (indirect-write-reconcile) — fail-open, warn-only until enforcement.mode raised
+ *        (indirect-write-reconcile), Stop (completion-gate), PreToolUse[Task] +
+ *        SubagentStop (subagent-gate), PreCompact + SessionStart
+ *        (compaction-continuity) — fail-open, warn-only until enforcement.mode raised
  * (Level 4 adds agents — not Claude hooks.)
  *
  * @param {Record<string, any> | null} existing parsed settings.json (or null)
@@ -25,7 +27,7 @@ export function composeSettings(existing, level) {
   if (!settings['$schema']) settings['$schema'] = 'https://json.schemastore.org/claude-code-settings.json';
   const hooks = settings.hooks && typeof settings.hooks === 'object' ? settings.hooks : {};
 
-  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse', 'UserPromptSubmit']) {
+  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse', 'UserPromptSubmit', 'SubagentStop', 'PreCompact']) {
     if (!Array.isArray(hooks[evt])) continue;
     hooks[evt] = hooks[evt]
       .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !String(h.command || '').includes('contextkit/runtime/hooks')) }))
@@ -61,6 +63,14 @@ export function composeSettings(existing, level) {
     add('UserPromptSubmit', null, 'execution-contract-hook.mjs'); // CDK-031 — records the contract
     add('PreToolUse', 'Read|Edit|Write|MultiEdit|Grep|Glob|Bash', 'execution-gate.mjs'); // CDK-032/033/035 — warns
     add('PostToolUse', 'Edit|Write|MultiEdit|Bash', 'indirect-write-reconcile.mjs'); // CDK-034 — reconciles
+    // Capability Enforcement (PKG-04, ADR-0072/0097) — advisory continuity + evidence
+    // gates. All warn-only, fail-open, once-per-session debounced. (CDK-043 status-line
+    // compliance segment ships inside statusline.mjs, already wired above.)
+    add('Stop', null, 'completion-gate.mjs'); // CDK-040 — completion evidence nudge
+    add('PreToolUse', 'Task', 'subagent-gate.mjs'); // CDK-041 — subagent spawn scope
+    add('SubagentStop', null, 'subagent-gate.mjs'); // CDK-041 — subagent completion
+    add('PreCompact', null, 'compaction-continuity.mjs'); // CDK-042 — persist obligations
+    add('SessionStart', null, 'compaction-continuity.mjs'); // CDK-042 — resurface on resume
   }
 
   settings.hooks = hooks;

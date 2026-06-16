@@ -91,6 +91,12 @@ function main() {
     'tools/selfcheck-pkg07-071.mjs', 'tools/selfcheck-pkg07-072.mjs', 'tools/selfcheck-pkg07-073.mjs',
     'tools/selfcheck-pkg07-074.mjs', 'tools/selfcheck-pkg07-075.mjs', 'tools/selfcheck-pkg07-076.mjs',
     'tools/selfcheck-pkg07-077.mjs',
+    // PKG-08 — fleet & agent platform (CDK-080/081/082); sibling, dispatched directly.
+    'tools/selfcheck-pkg08-fleet.mjs',
+    // WF0020 Economy Runtime — Wave 1 aggregate; sibling, dispatched directly.
+    'tools/selfcheck-economy-wave1.mjs',
+    // WF0020 Economy Runtime — Wave 2 aggregate; sibling, dispatched directly.
+    'tools/selfcheck-economy-wave2.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

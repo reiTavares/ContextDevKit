@@ -208,6 +208,20 @@ export const SUITES = Object.freeze([
   { id: 'pkg07-readiness', file: 'tools/selfcheck-pkg07-077.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/autonomy-readiness-v2', 'templates/contextkit/tools/scripts/engineering-scorecard'] },
 
+  // PKG-08 — Fleet & agent platform (CDK-080/081/082), read-only advisory, unregistered.
+  { id: 'pkg08-fleet', file: 'tools/selfcheck-pkg08-fleet.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/fleet-compliance', 'templates/contextkit/tools/scripts/agent-registry', 'templates/contextkit/tools/scripts/policy-distribution'] },
+
+  // WF0020 Economy Runtime — Wave 1 (ECON-01..07/11), advisory + unregistered;
+  // aggregates the eight cards' econCheck* exports into one in-process suite.
+  { id: 'economy-wave1', file: 'tools/selfcheck-economy-wave1.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/economy/'] },
+
+  // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10), gate-coupled advisory signals,
+  // UNREGISTERED; aggregates lean-loop/loop-breaker/patch-economy econCheck* exports.
+  { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/economy/'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

@@ -75,7 +75,9 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'lineage-public.mjs', 'lineage-public-core.mjs', 'lineage-calibration.mjs', 'lineage-calibration-core.mjs',
     'lineage-rules.mjs', 'lineage-rules-core.mjs', 'policy-registry.mjs',
     'evidence-taxonomy.mjs', 'evidence-taxonomy-core.mjs', 'engineering-scorecard.mjs', 'engineering-scorecard-core.mjs',
-    'autonomy-readiness-v2.mjs', 'autonomy-readiness-v2-core.mjs']) {
+    'autonomy-readiness-v2.mjs', 'autonomy-readiness-v2-core.mjs',
+    'fleet-compliance.mjs', 'fleet-compliance-core.mjs', 'agent-registry.mjs', 'agent-registry-core.mjs',
+    'policy-distribution.mjs', 'policy-distribution-core.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);

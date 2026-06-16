@@ -2,16 +2,11 @@
 /**
  * Integration test — installer config-section auto-migration (ADR-0095).
  *
- * Tests `migrateConfigSections(cfg, defaults)` from `tools/install/config-migrate.mjs`.
- * All cases operate purely in-process (no tmp filesystem) because the function
- * under test is a pure function.  Covers:
- *   A. A missing top-level section is added and recorded.
- *   B. Existing user values survive verbatim (never clobbered at any depth).
- *   C. Idempotency — a second pass (or a fully populated cfg) yields added=[].
- *   D. Arrays are leaves — a user's array is kept; a missing array is copied whole.
- *   E. Inputs are never mutated — the original cfg and frozen defaults are intact.
- *   F. Nested partial cfg — parent key present, one child key missing.
- *   G. Real DEFAULT_CONFIG smoke — round-trips against the actual shipped defaults.
+ * Tests `migrateConfigSections` (config-migrate.mjs, pure) cases A–G and
+ * `migratePolicyStores` (policy-migrate.mjs, ADR-0097, tmp-fs) case H. Covers:
+ *   A added+recorded · B user values survive · C idempotency · D arrays are
+ *   leaves · E inputs unmutated · F nested partial · G real DEFAULT_CONFIG smoke
+ *   · H additive policy distribution into an existing store (user value wins).
  *
  * Run:  node tools/integration-test-config-migrate.mjs
  */
@@ -30,6 +25,12 @@ const { ok, bad } = rep;
  */
 async function loadMigrate() {
   const url = 'file:///' + resolve(KIT, 'tools/install/config-migrate.mjs').replaceAll('\\', '/');
+  return import(url);
+}
+
+/** Loads the policy-store additive distributor (ADR-0097/CDK-082). */
+async function loadPolicyMigrate() {
+  const url = 'file:///' + resolve(KIT, 'tools/install/policy-migrate.mjs').replaceAll('\\', '/');
   return import(url);
 }
 
@@ -243,9 +244,30 @@ async function caseG(migrateConfigSections, DEFAULT_CONFIG) {
     : bad(`G: second pass still added: ${JSON.stringify(added2)}`);
 }
 
+// ── H. Policy-store additive distribution (ADR-0097) — I/O on a tmp fixture ──
+async function caseH(migratePolicyStores) {
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const polDir = (root) => { const d = resolve(root, 'contextkit', 'policy'); mkdirSync(d, { recursive: true }); return d; };
+  const tgt = mkdtempSync(resolve(tmpdir(), 'pm-tgt-'));
+  const tpl = mkdtempSync(resolve(tmpdir(), 'pm-tpl-'));
+  writeFileSync(resolve(polDir(tpl), 'routing-policy.json'), JSON.stringify({ version: 2, newKey: { a: 1 }, mode: 'shadow' }));
+  writeFileSync(resolve(polDir(tgt), 'routing-policy.json'), JSON.stringify({ version: 1, mode: 'active' }));
+  const io = { read: async (p) => readFileSync(p, 'utf8'), overwrite: async (p, c) => writeFileSync(p, c) };
+  const report = [];
+  await migratePolicyStores(tgt, tpl, io, report);
+  const merged = JSON.parse(readFileSync(resolve(polDir(tgt), 'routing-policy.json'), 'utf8'));
+  merged.newKey?.a === 1 ? ok('H: missing baseline policy key added to existing store') : bad('H: newKey not added');
+  merged.mode === 'active' ? ok('H: user policy value preserved (not clobbered)') : bad('H: user value clobbered');
+  report.some((r) => r.includes('routing-policy.json')) ? ok('H: report records the distributed store') : bad('H: no report line');
+  const report2 = [];
+  await migratePolicyStores(tgt, tpl, io, report2);
+  report2.length === 0 ? ok('H: second run is idempotent (added nothing)') : bad('H: not idempotent');
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 (async () => {
-  console.log('\n🌀 Integration test — config-section auto-migration (ADR-0095)\n');
+  console.log('\n🌀 Integration test — config + policy distribution (ADR-0095/0097)\n');
 
   let migrateConfigSections, DEFAULT_CONFIG;
   try {
@@ -273,5 +295,13 @@ async function caseG(migrateConfigSections, DEFAULT_CONFIG) {
   await caseF(migrateConfigSections);
   await caseG(migrateConfigSections, DEFAULT_CONFIG);
 
-  rep.finish('config-section auto-migration (ADR-0095)');
+  try {
+    const { migratePolicyStores } = await loadPolicyMigrate();
+    ok('tools/install/policy-migrate.mjs imports cleanly');
+    await caseH(migratePolicyStores);
+  } catch (err) {
+    bad(`policy-migrate failed: ${err?.message ?? err}`);
+  }
+
+  rep.finish('config + policy distribution (ADR-0095/0097)');
 })();

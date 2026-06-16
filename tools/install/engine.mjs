@@ -12,6 +12,7 @@ import { existsSync } from 'node:fs';
 import { PLATFORM_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { applyPreset, listPresets } from '../../templates/contextkit/runtime/config/presets.mjs';
 import { migrateConfigSections } from './config-migrate.mjs';
+import { migratePolicyStores } from './policy-migrate.mjs';
 import { DEFAULT_CONFIG } from '../../templates/contextkit/runtime/config/defaults.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { read, overwrite, atomicWrite, backup, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
@@ -29,7 +30,8 @@ const MEMORY_SEEDS = [
   'memory/workflows/_TEMPLATE/tasks.md', 'memory/workflows/_TEMPLATE/memory.md',
   'memory/workflows/_TEMPLATE/reports/.gitkeep', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
-  'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', 'policy/squads-registry.json', '.env.example',
+  'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', 'policy/squads-registry.json',
+  'policy/capability-registry.json', '.env.example',
 ];
 
 /** Copies the engine (always overwrite — kit code) and stamps the version [ADR-0033]. */
@@ -158,6 +160,9 @@ async function seedDocs(target, tplDir, name, report) {
 export async function installEngine(target, tplDir, ctx, report) {
   await copyEngine(target, tplDir, ctx.version, report);
   await seedSubstrate(target, tplDir, ctx, report);
+  // Additively distribute new policy keys into existing stores (ADR-0097/CDK-082).
+  // Idempotent + additive; runs after seeding so freshly-seeded stores are skipped.
+  await migratePolicyStores(target, tplDir, { read, overwrite }, report);
   await syncContextReadme(target, tplDir, ctx, report);
   await writeConfig(target, tplDir, ctx.level, ctx.args, report);
   await seedDocs(target, tplDir, ctx.name, report);

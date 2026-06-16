@@ -14,7 +14,7 @@
  *   ship-state.mjs current [--json]             → the in-flight ship, for resume
  */
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { writeState, listStates } from '../../runtime/state/state-io.mjs';
+import { writeState, readState, listStates } from '../../runtime/state/state-io.mjs';
 
 /** The 9 stages of ship.md, in order. `step.current` is one of these. */
 export const SHIP_STAGES = ['scope', 'design', 'plan-tests', 'implement', 'self-review', 'test', 'quality-gates', 'record', 'report'];
@@ -81,6 +81,64 @@ function current() {
   console.log(`\nResume from the reported stage, or close it: ship-state.mjs end done`);
 }
 
+/**
+ * Stamps a `resume` object into an existing pipeline-run state so a future
+ * session can reconstruct context without re-reading every prior log.
+ *
+ * The `resumeObj` shape (all fields optional but recommended):
+ *   {
+ *     objective: string,       // human-readable goal (mirrors the run's purpose)
+ *     currentStep: string,     // stage name at checkpoint time
+ *     decisions: string[],     // non-derivable "why" choices made so far
+ *     touchSet: Array<{ path: string, why: string }>,  // files edited + rationale
+ *     openThreads: string[],   // next 1-3 things to do on resume
+ *     pointers: {              // PATHS, never file bodies
+ *       adr?: string, spec?: string, session?: string
+ *     },
+ *     stampedAt: number        // auto-set if absent
+ *   }
+ *
+ * Advisory + fail-open: a missing run logs a warning but does not throw.
+ *
+ * @param {string} pipeDir
+ * @param {string} id
+ * @param {object} resumeObj
+ * @returns {object | null} merged state, or null if the run could not be found
+ */
+export function checkpoint(pipeDir, id, resumeObj) {
+  if (!resumeObj || typeof resumeObj !== 'object') {
+    process.stderr.write(`[ship-state] checkpoint: resumeObj must be an object\n`);
+    return null;
+  }
+  const existing = readState(pipeDir, id);
+  if (!existing) {
+    process.stderr.write(`[ship-state] checkpoint: run "${id}" not found — skipping\n`);
+    return null;
+  }
+  const stamped = {
+    objective: typeof resumeObj.objective === 'string' ? resumeObj.objective : '',
+    currentStep: typeof resumeObj.currentStep === 'string' ? resumeObj.currentStep : (existing.step?.current ?? ''),
+    decisions: Array.isArray(resumeObj.decisions) ? resumeObj.decisions : [],
+    touchSet: Array.isArray(resumeObj.touchSet) ? resumeObj.touchSet : [],
+    openThreads: Array.isArray(resumeObj.openThreads) ? resumeObj.openThreads : [],
+    pointers: (resumeObj.pointers && typeof resumeObj.pointers === 'object') ? resumeObj.pointers : {},
+    stampedAt: typeof resumeObj.stampedAt === 'number' ? resumeObj.stampedAt : Date.now(),
+  };
+  return writeState(pipeDir, id, { resume: stamped });
+}
+
+function cliCheckpoint() {
+  const id = resolveRunId(getArg('id'));
+  // Accept resume JSON from --data arg or stdin placeholder; for CLI use a minimal stub.
+  const rawData = getArg('data');
+  let resumeObj = {};
+  if (rawData) {
+    try { resumeObj = JSON.parse(rawData); } catch { process.stderr.write('[ship-state] checkpoint: --data is not valid JSON\n'); }
+  }
+  const result = checkpoint(PIPE, id, resumeObj);
+  if (result) console.log(`[ship-state] checkpoint stamped on ${id} at ${new Date(result.resume.stampedAt).toISOString()}`);
+}
+
 function main() {
   const cmd = process.argv[2];
   if (cmd === 'begin') begin(process.argv[3]);
@@ -89,7 +147,8 @@ function main() {
   else if (cmd === 'run') setStatus('running', '▶');
   else if (cmd === 'end') end(process.argv[3]);
   else if (cmd === 'current') current();
-  else { console.error('Usage: ship-state.mjs <begin|step|block|run|end|current> [...]'); process.exit(1); }
+  else if (cmd === 'checkpoint') cliCheckpoint();
+  else { console.error('Usage: ship-state.mjs <begin|step|block|run|end|current|checkpoint> [...]'); process.exit(1); }
 }
 
 if (process.argv[1]?.endsWith('ship-state.mjs')) main();
