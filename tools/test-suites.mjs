@@ -213,6 +213,11 @@ export const SUITES = Object.freeze([
   { id: 'economy-wave1', file: 'tools/selfcheck-economy-wave1.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/economy/'] },
 
+  // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10), gate-coupled advisory signals,
+  // UNREGISTERED; aggregates lean-loop/loop-breaker/patch-economy econCheck* exports.
+  { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/economy/'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
