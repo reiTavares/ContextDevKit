@@ -15,8 +15,9 @@ import { migrateConfigSections } from './config-migrate.mjs';
 import { migratePolicyStores } from './policy-migrate.mjs';
 import { DEFAULT_CONFIG } from '../../templates/contextkit/runtime/config/defaults.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
-import { read, overwrite, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
+import { read, overwrite, atomicWrite, backup, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
 import { syncFile, syncTree } from './sync.mjs';
+import { migrateConfigPaths } from './config-paths.mjs';
 
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
@@ -76,46 +77,41 @@ async function syncContextReadme(target, tplDir, ctx, report) {
 }
 
 /**
- * Migrates a config path list off a renamed platform dir (deferred half of card
- * 145; ticket 146). The folder migration (`migrateLegacy`) moves `vibekit/` →
- * `contextkit/` on disk but leaves the `ledger.*` / `l5.highRiskPaths` /
- * `qa.criticalPaths` STRINGS inside config.json pointing at the dead prefix —
- * doctor flags that rot (card 145), this heals it.
- *
- * Generic by construction (rule 4 — no literal "vibekit"): for each entry that
- * does NOT resolve on disk, it swaps the leading path segment for the current
- * `PLATFORM_DIR` and adopts the rewrite ONLY when the candidate exists (rule 8 —
- * never silently rewrite to another nonexistent path; leave the rest for doctor).
- * @param {string} target project root
- * @param {string[]|undefined} entries the path list to heal
- * @param {{n:number}} counter mutated with the number of rewrites
- * @returns {string[]|undefined} the healed list (same reference shape)
+ * Updates an existing config.json: level, first-run flag, legacy-path healing and
+ * additive section merge. Writes ATOMICALLY and only when the content actually
+ * changed (idempotent — a second `--update` is a no-op). A legacy-path rewrite is
+ * a repair, so the original is backed up to `config.json.bak` first; a malformed
+ * file is left untouched (P0 hotfix 3.0.1).
  */
-function healPathList(target, entries, counter) {
-  if (!Array.isArray(entries)) return entries;
-  return entries.map((entry) => {
-    if (typeof entry !== 'string' || !entry.includes('/')) return entry;
-    if (existsSync(join(target, entry))) return entry; // current path is fine
-    const head = entry.slice(0, entry.indexOf('/'));
-    if (head === PLATFORM_DIR) return entry; // already current prefix, genuinely missing — doctor's job
-    const candidate = `${PLATFORM_DIR}/${entry.slice(entry.indexOf('/') + 1)}`;
-    if (!existsSync(join(target, candidate))) return entry; // unverifiable — don't guess
-    counter.n += 1;
-    return candidate;
-  });
-}
-
-/** Heals every renamed-dir entry across the three path-bearing config lists; returns rewrite count. */
-function migrateConfigPaths(target, cfg) {
-  const counter = { n: 0 };
-  if (cfg.ledger) {
-    for (const key of ['registration', 'important', 'irrelevant']) {
-      if (cfg.ledger[key]) cfg.ledger[key] = healPathList(target, cfg.ledger[key], counter);
-    }
+async function updateConfig(target, cfgPath, level, preset, report) {
+  let original;
+  try {
+    original = await read(cfgPath);
+  } catch {
+    return; // unreadable — leave it for the user
   }
-  if (cfg.l5) cfg.l5.highRiskPaths = healPathList(target, cfg.l5.highRiskPaths, counter);
-  if (cfg.qa) cfg.qa.criticalPaths = healPathList(target, cfg.qa.criticalPaths, counter);
-  return counter.n;
+  let cfg;
+  try {
+    cfg = JSON.parse(original);
+  } catch {
+    report.push('⚠️  contextkit/config.json is not valid JSON — left untouched (run /context-doctor)');
+    return;
+  }
+  cfg.level = level;
+  if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
+  const healed = migrateConfigPaths(target, cfg); // allowlist-gated; never touches project paths
+  const { cfg: withDefaults, added } = migrateConfigSections(cfg, DEFAULT_CONFIG);
+  cfg = withDefaults;
+  if (preset) cfg = applyPreset(cfg, preset);
+  const next = JSON.stringify(cfg, null, 2) + '\n';
+  if (next === original) return; // no change — don't rewrite (idempotent)
+  if (healed > 0 && !(await backup(cfgPath))) {
+    report.push('⚠️  could not write config.json.bak before the legacy-path repair — proceeding (allowlist-gated, non-destructive)');
+  }
+  await atomicWrite(cfgPath, next);
+  report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
+  if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
+  if (healed > 0) report.push(`✓ migrated ${healed} legacy 'vibekit/' config path(s) onto ${PLATFORM_DIR}/ (backup: config.json.bak)`);
 }
 
 /** Creates config.json (level + first-run flag) or updates the level, preserving a finished setup. */
@@ -124,23 +120,7 @@ async function writeConfig(target, tplDir, level, args, report) {
   const preset = args.preset && listPresets().includes(args.preset) ? args.preset : null;
   if (args.preset && !preset) report.push(`⚠️  unknown --preset "${args.preset}" (have: ${listPresets().join(', ')}) — ignored`);
   if (existsSync(cfgPath)) {
-    try {
-      let cfg = JSON.parse(await read(cfgPath));
-      cfg.level = level;
-      if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
-      const healed = migrateConfigPaths(target, cfg);
-      // Additively merge any new default config sections introduced in this kit version.
-      // Never clobbers user values — migrateConfigSections is strictly additive [ADR-0037].
-      const { cfg: withDefaults, added } = migrateConfigSections(cfg, DEFAULT_CONFIG);
-      cfg = withDefaults;
-      if (preset) cfg = applyPreset(cfg, preset);
-      await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-      report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
-      if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
-      if (healed > 0) report.push(`✓ migrated ${healed} config path(s) onto ${PLATFORM_DIR}/ (renamed platform dir)`);
-    } catch {
-      /* leave malformed file for the user */
-    }
+    await updateConfig(target, cfgPath, level, preset, report);
   } else {
     let cfg = JSON.parse(await read(join(tplDir, 'contextkit', 'config.json')));
     cfg.level = level;

@@ -188,6 +188,10 @@ export const SUITES = Object.freeze([
   { id: 'routing', file: it('routing'), tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/routing/', 'templates/contextkit/runtime/hooks/session-start', 'templates/contextkit/runtime/config/defaults'] },
 
+  // HIGH hotfix 3.0.1 — routing wired into the REAL UserPromptSubmit hook (ADR-0094 §Decision).
+  { id: 'routing-hook', file: it('routing-hook'), tier: 'integration:core',
+    touches: ['templates/contextkit/runtime/execution/routing-runtime', 'templates/contextkit/runtime/hooks/execution-contract-hook', 'templates/contextkit/tools/scripts/routing/'] },
+
   // PKG-07 — Lineage consumers (CDK-071…077), read-only advisory, unregistered.
   { id: 'pkg07-public', file: 'tools/selfcheck-pkg07-071.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/lineage-public'] },

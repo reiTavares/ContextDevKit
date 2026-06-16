@@ -20,6 +20,80 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-06-16
+
+Hotfix release on top of the 3.1.0 feature merges. Closes two defects found in
+the public `3.0.0`: a P0 config corruption during `--update`, and the HIGH gap
+where automatic routing was a
+library but never wired into real prompts. No breaking changes; drop-in upgrade.
+
+### Fixed
+
+- **P0 — `--update` could corrupt `config.json` path lists.** The v3.0.0
+  installer's path-migration healer treated the first segment of ANY
+  non-resolving path as a legacy platform prefix, accepted an empty suffix
+  (`dist/` → `contextkit/`), and adopted the rewrite merely because `contextkit/`
+  exists on disk after install. *Symptom:* legitimate lists such as
+  `["src/","lib/","node_modules/","dist/","build/","coverage/"]` collapsed into
+  duplicate `["contextkit/", …]` entries ("migrated N config path(s) onto
+  contextkit/"). *Fix:* migration is now allowlist-gated — it rewrites only a
+  KNOWN legacy prefix (`vibekit`, single-sourced from the installer's rename map),
+  never an empty suffix, only when the rewritten target resolves on disk, and
+  never touches globs, URLs, absolute, Windows or variable paths; order-preserving
+  and idempotent. `config.json` is now written atomically (tmp + rename, never
+  partial) and only when changed, backing up to `config.json.bak` before any
+  legacy-path repair. *Compatibility:* fully backward compatible; a clean v3.0.0
+  config is left byte-identical. *Rollback:* revert to 3.0.0 (re-introduces the
+  bug); no data migration needed. (`tools/install/config-paths.mjs`, `engine.mjs`,
+  `fs.mjs`)
+- **P0 — recovery for already-affected installs.** `/context-doctor` now detects
+  the collapse signature and a new `contextkit/tools/scripts/config-health.mjs`
+  diagnoses + safely recovers: states `healthy / suspected_corruption / repairable
+  / manual_repair_required / repaired / skipped`, `--json` output, dry-run by
+  default. It NEVER invents values — the collapsed strings are unrecoverable from
+  the file, so an ambiguous case is `manual_repair_required`; deterministic
+  recovery is offered only from a healthy `config.json.bak` and only after
+  re-verifying the restored config is itself clean, preserving the corrupted file
+  as `config.json.corrupt` evidence.
+- **HIGH — automatic routing now runs on real prompts.** In v3.0.0 the ADR-0094
+  routing modules (classifier, decision, telemetry) were reachable only from tests
+  and the boot banner: the real `UserPromptSubmit` hook built an Execution Contract
+  but never classified the prompt, decided a route, or wrote
+  `routing-decisions.jsonl` — so `shadow` observed nothing and `/token-report` had
+  no data. *Fix:* a thin orchestrator (`runtime/execution/routing-runtime.mjs`)
+  composes the canonical modules and the hook now records a real decision per task
+  prompt and surfaces the recommendation on the contract. *Host limitation
+  (honest by design, ADR-0094 §Decision):* no host can switch the current session's
+  model from a hook, so a decision's `applied` is always `false` with an explicit
+  reason (`shadow_mode` / `host_does_not_support_in_session_model_switch` / …);
+  `recommendedTier`, `selectedTier` and `actualTier` are distinct, no economy is
+  ever claimed while `applied=false`, and the full prompt is fingerprinted, never
+  stored. Decisions are idempotent per `(session, prompt-fingerprint, policy)` and
+  telemetry failure is fail-open (never blocks the prompt).
+
+## [3.1.0] - 2026-06-16
+
+Feature merges into `main` after 3.0.0, shipped together under this minor. All
+additive, advisory and fail-open — no breaking changes.
+
+### Added
+
+- **Capability Enforcement PKG-08 — fleet & agent platform (CDK-080..083,
+  ADR-0072, WF0031).** The final capability package: fleet-wide compliance
+  reporting (`fleet-compliance.mjs`), an agent registry (`agent-registry.mjs`),
+  and the cross-repo platform read consumed by `/state` and `/fleet`. Advisory,
+  UNREGISTERED by default.
+- **PKG-04 go-live — advisory hooks + `/state` fleet read + installer policy
+  distribution (ADR-0097).** Activates the PKG-04 advisory hooks, surfaces a fleet
+  read in `/state`, and distributes policy on install/update via
+  `tools/install/policy-migrate.mjs` + `policy-distribution.mjs` (additive,
+  user-overrides preserved).
+- **Economy Runtime — WF0020 Waves 1 & 2 (ECON-01..11).** Output/lifecycle
+  actuation and advisory gate signals: output contracts, run-compaction,
+  resume packs, lean-loop, loop-breaker, patch-economy and findings-merge under
+  `templates/contextkit/tools/scripts/economy/`. Advisory + controller-scoped;
+  rides the existing WF0019 guard (no new gate).
+
 ## [3.0.0] - 2026-06-16
 
 Version 3.0 is the major consolidation release for ContextDevKit's intelligence

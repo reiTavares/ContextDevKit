@@ -20,6 +20,7 @@ import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { checkConfigPathRot, checkConfigCorruption } from './doctor-config.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -55,26 +56,6 @@ function checkConfig() {
   const level = getLevel(ROOT);
   isValidLevel(level) ? pass(`config valid — level L${level}`) : note('config.level out of range', `use /context-level <${MIN_LEVEL}-${MAX_LEVEL}>`);
   return level;
-}
-
-/**
- * Config path-rot guard (ticket 145). A renamed platform dir / moved file leaves
- * config.json pointing at dead paths, and consumers fail SILENTLY. Registration
- * rot is CRITICAL (breaks an L2 contract); the gate/QA lists are advisory (L4/L5).
- */
-function checkConfigPathRot() {
-  const cfg = loadConfigSync(ROOT);
-  const probe = (entries, label, report) => {
-    const missing = (entries ?? []).filter((p) => !existsSync(resolve(ROOT, p)));
-    if (missing.length === 0) {
-      if ((entries ?? []).length > 0) pass(`${label} paths all exist on disk`);
-      return;
-    }
-    report(`${label} points at nonexistent path(s): ${missing.join(', ')}`, 'edit contextkit/config.json — was the platform dir or file renamed/moved? (e.g. a vibekit-era install)');
-  };
-  probe(cfg?.ledger?.registration, 'ledger.registration', fail);
-  probe(cfg?.l5?.highRiskPaths, 'l5.highRiskPaths', note);
-  probe(cfg?.qa?.criticalPaths, 'qa.criticalPaths', note);
 }
 
 function checkWiring(level) {
@@ -286,7 +267,8 @@ function checkInstallMode() {
 
 checkNode();
 const level = checkConfig();
-checkConfigPathRot();
+checkConfigPathRot({ ROOT, pass, fail, note });
+checkConfigCorruption({ ROOT, pass, note });
 checkWiring(level);
 checkGitHooks(level);
 checkMemory();

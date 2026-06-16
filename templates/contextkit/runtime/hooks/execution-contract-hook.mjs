@@ -28,15 +28,19 @@
  * track receipt deltas (future card). Documented here so the next engineer
  * knows the choice was deliberate.
  */
-import { getLevel } from '../config/load.mjs';
+import { join } from 'node:path';
+import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { readLedger, writeLedger, sanitizeSid } from './ledger.mjs';
 import { hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { intake } from '../execution/task-intake.mjs';
 import { buildContract, saveContract } from '../execution/execution-contract.mjs';
+import { routePrompt } from '../execution/routing-runtime.mjs';
 import { getBranch } from './boot-signals.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
+/** Canonical telemetry ledger consumed by `/token-report` (ADR-0094 §7). */
+const ROUTING_LOG = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
 
 // ---------------------------------------------------------------------------
 // stdin reader (mirrors simulate-gate.mjs pattern)
@@ -172,7 +176,7 @@ export function resolveTaskId(prompt, ledger, sessionShort) {
  * @param {boolean} isNew true when a new task id was minted
  * @returns {string}
  */
-export function renderChecklist(contract, taskId, isNew) {
+export function renderChecklist(contract, taskId, isNew, routing = null) {
   const tier = contract.signals?.tier ?? 'unknown';
   const write = contract.requiredBeforeWrite ?? [];
   const complete = contract.requiredBeforeCompletion ?? [];
@@ -189,7 +193,39 @@ export function renderChecklist(contract, taskId, isNew) {
   if (write.length === 0 && complete.length === 0) {
     lines.push('  No required capabilities for this tier.');
   }
+  // ADR-0094 routing surface — short, deterministic, recommendation-only (spec §6.4).
+  if (routing && routing.active) {
+    lines.push(`  Routing: ${routing.mode} — recommend ${routing.recommendedTier} · applied: no (${routing.reason})`);
+  }
   return lines.join('\n') + '\n';
+}
+
+/**
+ * Runs the ADR-0094 routing pass for a real prompt — classify, decide, record.
+ * Best-effort and fail-open (immutable rule 2): any failure returns null and the
+ * contract proceeds unchanged. Telemetry failure never blocks the user (spec §6.5).
+ *
+ * @param {string} promptText trimmed prompt
+ * @param {string} sessionId resolved session id
+ * @param {string} taskId resolved task id
+ * @returns {object|null} routing summary ({ active, mode, recommendedTier, reason, summary }) or null
+ */
+function runRouting(promptText, signals, sessionId, taskId) {
+  try {
+    return routePrompt({
+      promptText,
+      intakeSignals: signals,
+      sessionId,
+      taskId,
+      host: HOST,
+      level: getLevel(ROOT),
+      projectRouting: loadConfigSync(ROOT)?.routing,
+      logFile: ROUTING_LOG,
+      at: new Date().toISOString(),
+    });
+  } catch {
+    return null; // routing is advisory; never break the prompt
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -245,8 +281,10 @@ async function main() {
     { root: ROOT },
   );
 
-  // Build and persist the execution contract.
+  // Build the execution contract, then run routing and attach its recommendation.
   const contract = buildContract(signals);
+  const routing = runRouting(promptText, signals, sessionId, taskId);
+  if (routing && routing.active) contract.routing = routing.summary;
   saveContract(ROOT, taskId, contract);
 
   // Persist the active task id and counter back to the session ledger.
@@ -255,7 +293,7 @@ async function main() {
   await writeLedger(sessionId, ledger);
 
   // Print the short advisory checklist to stdout.
-  process.stdout.write(renderChecklist(contract, taskId, isNew));
+  process.stdout.write(renderChecklist(contract, taskId, isNew, routing));
 }
 
 main().catch(() => process.exit(0));
