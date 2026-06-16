@@ -143,10 +143,13 @@ function makeLegacy(proj, { withGit = false } = {}) {
     // real engine refreshed (the dummy 1-line hook is replaced by the actual script)
     const hook = join(proj, 'contextkit', 'runtime', 'hooks', 'session-start.mjs');
     existsSync(hook) && read(hook).length > 200 ? rep.ok('--update refreshed the real engine') : rep.bad('engine not refreshed');
-    // no duplicate hooks: exactly one SessionStart group, referencing contextkit/
+    // no duplicate hooks: each SessionStart command appears once (PKG-04 adds a
+    // legitimate 2nd SessionStart hook — compaction-continuity — so assert
+    // UNIQUENESS, not a count of 1), and no legacy vibekit/ refs remain.
     const s = JSON.parse(read(join(proj, '.claude', 'settings.json')));
-    const ss = s.hooks?.SessionStart || [];
-    ss.length === 1 && !JSON.stringify(s).includes('vibekit/') ? rep.ok('no duplicate hooks after --update') : rep.bad(`duplicate/legacy hooks remain (SessionStart groups: ${ss.length})`);
+    const ssCmds = (s.hooks?.SessionStart || []).flatMap((g) => (g.hooks || []).map((h) => h.command));
+    const noDupes = ssCmds.length === new Set(ssCmds).size;
+    noDupes && !JSON.stringify(s).includes('vibekit/') ? rep.ok('no duplicate hooks after --update') : rep.bad(`duplicate/legacy hooks remain (SessionStart cmds: ${ssCmds.length}, unique: ${new Set(ssCmds).size})`);
   } finally { rmSync(proj, { recursive: true, force: true }); }
 })();
 

@@ -12,6 +12,13 @@ Summarize the current state of this project in at most 12 lines. To do so:
    open backlog, and recent ADRs. Reason over the pack instead of opening those
    files separately; open a full file only if the pack flags something to inspect.
 
+2. **(Level ≥ 7 only — fleet capability, ADR-0097)** Optionally add a one-line
+   **Fleet/Agents** read by running `node contextkit/tools/scripts/fleet-compliance.mjs`
+   and `node contextkit/tools/scripts/agent-registry.mjs` (both `--json`, advisory,
+   read-only, fail-open). Surface just the headline — fleet repos scanned + weakest
+   compliance, and agent count + agents without a briefing. Omit the line entirely
+   when the fleet registry is empty or the data is unavailable (never invent).
+
 Structure the answer in 3 blocks:
 
 - **State**: what is done, what is in progress.
