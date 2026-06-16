@@ -176,6 +176,10 @@ export const SUITES = Object.freeze([
   { id: 'pkg06-cache-churn', file: 'tools/selfcheck-pkg06-067.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/cache-churn-health'] },
 
+  // PKG-07 — Lineage graph (CDK-070), read-only advisory, unregistered.
+  { id: 'selfcheck-lineage', file: 'tools/selfcheck-lineage.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/lineage-graph', 'templates/contextkit/runtime/execution/receipt-store', 'templates/contextkit/runtime/state/state-io'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

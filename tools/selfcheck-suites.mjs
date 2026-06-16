@@ -82,6 +82,8 @@ function main() {
     'tools/selfcheck-pkg06-065.mjs', 'tools/selfcheck-pkg06-068.mjs',
     // PKG-06 cost consumers (wf 0027) — siblings, dispatched directly.
     'tools/selfcheck-pkg06-063.mjs', 'tools/selfcheck-pkg06-066.mjs', 'tools/selfcheck-pkg06-067.mjs',
+    // PKG-07 — lineage graph (CDK-070); sibling, dispatched directly.
+    'tools/selfcheck-lineage.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
