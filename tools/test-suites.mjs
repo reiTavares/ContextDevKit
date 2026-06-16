@@ -168,6 +168,14 @@ export const SUITES = Object.freeze([
   { id: 'pkg06-wiring-drift', file: 'tools/selfcheck-pkg06-068.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/wiring-drift'] },
 
+  // PKG-06 cost consumers (wf 0027) — advisory consumers of the EACP economics layer.
+  { id: 'pkg06-host-cost', file: 'tools/selfcheck-pkg06-063.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/host-cost'] },
+  { id: 'pkg06-capability-roi', file: 'tools/selfcheck-pkg06-066.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/capability-roi'] },
+  { id: 'pkg06-cache-churn', file: 'tools/selfcheck-pkg06-067.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/cache-churn-health'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
