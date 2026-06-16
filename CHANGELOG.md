@@ -20,6 +20,125 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-06-16
+
+Version 3.0 is the major consolidation release for ContextDevKit's intelligence
+layer. It closes out the full **Capability Enforcement program** (PKG-05..07,
+CDK-050..077), ships the **Economic & Autonomy Control Plane** (EACP, WF0018)
+measurement plane across eight waves, and introduces **automatic per-session
+model routing** (ADR-0094) in `shadow` mode — recommend-and-measure-only, never
+blocking. The release also ships installer config-section auto-migration on
+`--update` (ADR-0095) so existing projects gain new default config blocks without
+losing user overrides.
+
+### Added
+
+- **Capability Enforcement PKG-05 — project-map & adaptive context (CDK-050..056,
+  WF0026, ADR-0072).** Seven advisory, additive, zero-dep deliverables: configurable
+  project-map `roots`/`excludes` with a two-tier exclude model (CDK-050), read-only
+  coverage report (CDK-051), deterministic executable context manifest tool
+  (CDK-052, boot-hook injection deferred), playbooks scoped by workflow phase/squad
+  (CDK-053), zero-dep BM25 lexical retrieval ranking (CDK-054), rule fossilization
+  ledger for deprecated rules (CDK-055), and multi-host selective context-load parity
+  check across Claude/Codex/agy (CDK-056). All fail-open, UNREGISTERED.
+
+- **Capability Enforcement PKG-06 — multi-host telemetry, compliance, benchmark &
+  drift (CDK-060..068, WF0027, ADR-0072).** Nine advisory consumers: native-skill
+  resolver (CDK-060), per-host compliance matrix (CDK-061), host telemetry adapter
+  consuming EACP usage-events with zero writes under `economics/` (CDK-062),
+  per-host financial cost + gross-cache-value report (CDK-063), capability ROI lens
+  joining `attributionSkill` → registry aliases → cost (CDK-066), cache-churn health
+  correlating wiring-drift with gross cache value (CDK-067), continuous
+  tokens-per-completed-task ledger (CDK-065), and wiring-drift guard (CDK-068). All
+  zero-dep, UNREGISTERED, fail-open.
+
+- **Capability Enforcement PKG-07 — lineage graph + seven consumers (CDK-070..077,
+  WF0029, ADR-0072).** CDK-070 provides the canonical lineage graph; CDK-071..077
+  are seven read-only advisory consumers: public ADR projection (`lineage-public`),
+  lineage calibration (`lineage-calibration`), executable business rules
+  (`lineage-rules`), governance policy index (`policy-registry`), canonical evidence
+  taxonomy (`evidence-taxonomy`), engineering scorecard (`engineering-scorecard`),
+  and autonomy-readiness v2 (`autonomy-readiness-v2`). Each composes existing signals
+  with no new state and zero writes to any source store. Completes the 42/50
+  Capability Enforcement program. All UNREGISTERED, fail-open.
+
+- **EACP Wave 1 — economic measurement core (WF0018, ADR-0078/0081).** Zero-hot-path
+  `economics/` module cluster: canonical `UsageEvent` schema with bucket-close
+  invariant and `toDelta` normalization preventing cumulative-summing errors
+  (EACP-01); privacy/retention foundation with local-first, metadata-only defaults
+  and opt-out consent gates (EACP-02); sanitized synthetic fixtures proving the
+  normalization pipeline (EACP-03). Advisory/measurement-only.
+
+- **EACP Wave 2 — pricing registry & cost semantics (WF0018, ADR-0079).** Versioned
+  offline pricing registry with TTL-aware cache prices and confidence tiers
+  (EACP-04); cost engine covering actual cost, no-cache cost, gross cache value
+  (labeled "provider feature, NOT kit contribution"), routing savings quality-gated,
+  and cost-per-QA-green-task (EACP-05); Token Report v2 with additive `financial`
+  block — registry absent degrades to `skipped`, never fabricated (EACP-06).
+
+- **EACP Wave 3 — session pressure & context-health advisories (WF0018, ADR-0077/0081).**
+  Session-pressure score + band (`healthy|elevated|hot|critical`) with `splitRecommended`
+  and actionable recommendations; absent signals degrade to `skipped`, never false
+  `healthy` (EACP-07). Repeated-read and map-effectiveness analysis over metadata
+  only, paths redacted (EACP-08). Both surfaced via additive Token Report v2 keys.
+
+- **EACP Wave 4 — budgets/cost-guards & model-routing economics (WF0018, ADR-0045/0052/0077).**
+  Budget engine evaluating 13 scopes into a `observe→warn→ask→downgrade→split→block`
+  mode ladder; its only enforcement coupling is the existing `budgetExhausted` boolean
+  the autonomy resolver already consumes (EACP-09). Model-routing economics with
+  quality-gated `routingROI` — null + `unknown` confidence when QA signals are absent,
+  never a fabricated number — and `fableAudit` documenting the manual-only Fable-5
+  premium path (EACP-10). Surfaced via additive Token Report v2 keys.
+
+- **EACP Wave 5 — quota snapshots & the Autonomy Multiplier (WF0018, ADR-0080/0081).**
+  Append-only quota snapshots with confidence tiers; most hosts expose no quota API so
+  capture is `inferred`, missing percentage degrades to `null` + `unknown` — never
+  fabricated (EACP-11). Autonomy Multiplier: `(QA-green tasks per quota unit with
+  kit) ÷ (baseline)`, Goodhart-guarded against raw action counts; targets 1.30×/1.50×/
+  1.70× are stated as targets only, `claim` is hardcoded `null` until the benchmark
+  proves it (EACP-12).
+
+- **EACP Wave 6 — benchmark pilot harness (WF0018, ADR-0080, card #242).** A/B/C
+  benchmark harness scaffold (`benchmark-design.mjs`, `benchmark-run.mjs`,
+  `benchmark-report.mjs`) with deterministic mock provider, append-only JSONL, and
+  independent-QA scoring with evaluator-≠-operator gate. Honesty-gated: the #176/
+  CDK-003 baseline is unbuilt, so every real-measurement path returns `skipped`/
+  `unknown` and `claim` is always `null` (ADR-0080 evidence tier). Mock runs are
+  labeled and excluded from claims.
+
+- **EACP Wave 7 — benchmark baseline harness + ADR-0080/0081 ratification (WF0018).**
+  Baseline scaffold extending Wave 6; baseline data pending a real run — claim remains
+  null.
+
+- **EACP Wave 8 — routing economics wiring (WF0018).** Final EACP wave wiring
+  routing economics into the measurement spine; all ADRs ratified.
+
+- **Automatic model routing for standard sessions (ADR-0094).** Persistent,
+  default-on routing posture — Haiku operates, Sonnet executes, Opus decides — active
+  in every session (not just `/swarm`), with no re-prompting. New
+  `tools/scripts/routing/` module cluster: deterministic `task-classifier.mjs`
+  (complexity × risk → executor tier), `routing-decision.mjs` (runner-first
+  over-orchestration guard + cost estimate), `routing-config.mjs` (session > project
+  > default precedence), `routing-telemetry.mjs` (append-only decision ledger,
+  kit-routing economics only — never the provider's cache savings). New `routing:`
+  config block defaults to **`shadow`** mode (recommend + measure only;
+  `canary`/`active` are deliberate, telemetry-gated promotions). `/token-report`
+  gains an additive `routingTelemetry` surface. Fable-5 is never auto-selected.
+
+- **Installer config-section auto-migration on `--update` (ADR-0095).** `npx
+  contextdevkit --update` now additively merges new default config sections (e.g. the
+  `routing:` block) into an existing project's saved `config.json`, preserving every
+  user override; idempotent across runs. A version-aware "Updated vX → vY" notice is
+  shown on each successful migration.
+
+### Changed
+
+- **Test suite coverage expanded.** New `selfcheck-routing.mjs` (42 checks, floor
+  raised to 1480+) and `integration-test-routing.mjs` (20 acceptance scenarios);
+  seven EACP selfcheck runners aggregated behind `selfcheck-eacp-all.mjs` to keep
+  `selfcheck.mjs` under the line budget. `npm run ci` green at 63 suites + tech-debt
+  0 RED / 375 files.
+
 ## [2.8.0] - 2026-06-15
 
 The **Capability Enforcement program** (PKG-01..04, ADR-0072) lands as an
