@@ -295,6 +295,9 @@ try {
       ? ok('economics Wave 5: countUseful greenCount===2 over 3 tasks (1 failed acceptance)')
       : bad(`Wave 5 autonomy: countUseful wrong — ${JSON.stringify(ct)}`);
   } catch (err) { bad(`Wave 5 quota+autonomy crashed: ${err?.message ?? err}`); } })();
+  const benchRep = await import('file://' + (await import('node:path')).resolve(proj, 'contextkit/tools/scripts/economics/benchmark-report.mjs').replaceAll('\\', '/')); // Wave 6 (EACP #242)
+  const benchCmp = benchRep.comparePilot({ A: { qaGreen: 6, units: 5, mock: true }, C: { qaGreen: 10, units: 5 } });
+  benchCmp.confidence === 'unknown' && benchCmp.claim === null ? ok('economics Wave 6: benchmark comparePilot degrades to "unknown"+claim null from installed proj (no #176 baseline)') : bad(`Wave 6 benchmark: comparePilot should degrade — ${JSON.stringify(benchCmp)?.slice(0, 140)}`);
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
