@@ -71,7 +71,11 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'skill-runner.mjs', 'capability-compliance.mjs', 'benchmark-task.mjs',
     'wiring-drift.mjs', 'wiring-drift-core.mjs', 'wiring-drift-checks.mjs',
     'host-cost.mjs', 'capability-roi.mjs', 'capability-roi-core.mjs', 'cache-churn-health.mjs',
-    'lineage-graph.mjs', 'lineage-graph-core.mjs']) {
+    'lineage-graph.mjs', 'lineage-graph-core.mjs',
+    'lineage-public.mjs', 'lineage-public-core.mjs', 'lineage-calibration.mjs', 'lineage-calibration-core.mjs',
+    'lineage-rules.mjs', 'lineage-rules-core.mjs', 'policy-registry.mjs',
+    'evidence-taxonomy.mjs', 'evidence-taxonomy-core.mjs', 'engineering-scorecard.mjs', 'engineering-scorecard-core.mjs',
+    'autonomy-readiness-v2.mjs', 'autonomy-readiness-v2-core.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);

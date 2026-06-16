@@ -180,6 +180,22 @@ export const SUITES = Object.freeze([
   { id: 'selfcheck-lineage', file: 'tools/selfcheck-lineage.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/lineage-graph', 'templates/contextkit/runtime/execution/receipt-store', 'templates/contextkit/runtime/state/state-io'] },
 
+  // PKG-07 — Lineage consumers (CDK-071…077), read-only advisory, unregistered.
+  { id: 'pkg07-public', file: 'tools/selfcheck-pkg07-071.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/lineage-public'] },
+  { id: 'pkg07-calibration', file: 'tools/selfcheck-pkg07-072.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/lineage-calibration', 'templates/contextkit/tools/scripts/predictions-review'] },
+  { id: 'pkg07-rules', file: 'tools/selfcheck-pkg07-073.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/lineage-rules'] },
+  { id: 'pkg07-policy', file: 'tools/selfcheck-pkg07-074.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/policy-registry'] },
+  { id: 'pkg07-evidence', file: 'tools/selfcheck-pkg07-075.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/evidence-taxonomy', 'templates/contextkit/runtime/execution/receipt-store'] },
+  { id: 'pkg07-scorecard', file: 'tools/selfcheck-pkg07-076.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/engineering-scorecard', 'templates/contextkit/tools/scripts/lineage-rules', 'templates/contextkit/tools/scripts/evidence-taxonomy'] },
+  { id: 'pkg07-readiness', file: 'tools/selfcheck-pkg07-077.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/autonomy-readiness-v2', 'templates/contextkit/tools/scripts/engineering-scorecard'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

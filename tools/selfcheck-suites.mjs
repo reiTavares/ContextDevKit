@@ -84,6 +84,10 @@ function main() {
     'tools/selfcheck-pkg06-063.mjs', 'tools/selfcheck-pkg06-066.mjs', 'tools/selfcheck-pkg06-067.mjs',
     // PKG-07 — lineage graph (CDK-070); sibling, dispatched directly.
     'tools/selfcheck-lineage.mjs',
+    // PKG-07 — lineage consumers (CDK-071…077); siblings, dispatched directly.
+    'tools/selfcheck-pkg07-071.mjs', 'tools/selfcheck-pkg07-072.mjs', 'tools/selfcheck-pkg07-073.mjs',
+    'tools/selfcheck-pkg07-074.mjs', 'tools/selfcheck-pkg07-075.mjs', 'tools/selfcheck-pkg07-076.mjs',
+    'tools/selfcheck-pkg07-077.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
