@@ -126,10 +126,18 @@ async function main() {
 
   const report = [];
   const version = await kitVersion();
+
+  // Read the prior installed engine version BEFORE installEngine stamps the new one,
+  // so the update notice can honestly show the "from → to" delta.
+  let priorVersion = null;
+  try {
+    priorVersion = (await read(join(target, 'contextkit', '.engine-version'))).trim() || null;
+  } catch { /* no prior install — first-run */ }
+
   // Shared 3-way-sync context [ADR-0054]: host installers collect conflicts here;
   // they are resolved in ONE pass below, then the manifest baseline is stamped.
   const sync = { manifest: await loadManifest(target), nextFiles: {}, conflicts: [] };
-  const ctx = { name, level, mode, version, args, sync };
+  const ctx = { name, level, mode, version, args, sync, priorVersion };
 
   // 1. Claude Code settings.json (the hook wiring). `--rewire` stops right after this.
   await wireClaudeSettings(target, level, report);
@@ -189,6 +197,11 @@ async function main() {
     console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
     console.log('   and every agent/command/workflow YOU personalized (conflicts: see ⚠️ lines above).');
     console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
+    // Honest version-delta notice: only shown when a real version change occurred.
+    // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).
+    if (priorVersion && priorVersion !== version) {
+      console.log(`\n📦 Updated v${priorVersion} → v${version}. New config sections were merged where missing (see the ✓ lines above); full change list in CHANGELOG.md.`);
+    }
     console.log('');
     return;
   }

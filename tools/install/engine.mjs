@@ -11,6 +11,8 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { PLATFORM_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { applyPreset, listPresets } from '../../templates/contextkit/runtime/config/presets.mjs';
+import { migrateConfigSections } from './config-migrate.mjs';
+import { DEFAULT_CONFIG } from '../../templates/contextkit/runtime/config/defaults.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
 import { read, overwrite, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
 import { syncFile, syncTree } from './sync.mjs';
@@ -125,9 +127,14 @@ async function writeConfig(target, tplDir, level, args, report) {
       cfg.level = level;
       if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
       const healed = migrateConfigPaths(target, cfg);
+      // Additively merge any new default config sections introduced in this kit version.
+      // Never clobbers user values — migrateConfigSections is strictly additive [ADR-0037].
+      const { cfg: withDefaults, added } = migrateConfigSections(cfg, DEFAULT_CONFIG);
+      cfg = withDefaults;
       if (preset) cfg = applyPreset(cfg, preset);
       await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
       report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
+      if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
       if (healed > 0) report.push(`✓ migrated ${healed} config path(s) onto ${PLATFORM_DIR}/ (renamed platform dir)`);
     } catch {
       /* leave malformed file for the user */
