@@ -32,16 +32,12 @@ import { runEncodingChecks } from './selfcheck-encoding.mjs';
 import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
-import { runEacpChecks } from './selfcheck-eacp.mjs';
-import { runEacpCostChecks } from './selfcheck-eacp-cost.mjs';
-import { runEacpPressureChecks } from './selfcheck-eacp-pressure.mjs';
-import { runEacpBudgetChecks } from './selfcheck-eacp-budget.mjs';
-import { runEacpRoutingChecks } from './selfcheck-eacp-routing.mjs';
+import { runAllEacpChecks } from './selfcheck-eacp-all.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
 /** Floor for total executed checks. Guards runner wiring (ADR-0041 F0, task 104).
- *  Raise as suite grows; 666→1225→1265→1308 (Wave 4 budget+routing). */
-const MIN_CHECKS = 1308;
+ *  Raise as suite grows; 666→1225→1265→1308→1373 (Wave 5 quota+autonomy). */
+const MIN_CHECKS = 1372;
 let failures = 0;
 let passes = 0;
 const VERBOSE = process.argv.includes('--verbose');
@@ -281,11 +277,7 @@ async function main() {
   await runCapabilityChecks({ ok, bad }, { KIT });
   await runEnforcementChecks({ ok, bad }, { KIT });
   await runEnforcementGateChecks({ ok, bad }, { KIT });
-  await runEacpChecks({ ok, bad }, { KIT });
-  await runEacpCostChecks({ ok, bad }, { KIT });
-  await runEacpPressureChecks({ ok, bad }, { KIT });
-  await runEacpBudgetChecks({ ok, bad }, { KIT });
-  await runEacpRoutingChecks({ ok, bad }, { KIT });
+  await runAllEacpChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

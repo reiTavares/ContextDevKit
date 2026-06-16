@@ -254,6 +254,47 @@ try {
       ? ok('economics Wave 4: token-report --json has routing.premiumModels including "claude-opus-4-8" (#239)')
       : bad(`Wave 4 token-report: routing.premiumModels wrong — ${JSON.stringify(j.routing)?.slice(0,200)}`);
   } catch (err) { bad(`Wave 4 token-report JSON parse crashed: ${err?.message ?? err}`); } })();
+
+  // EACP Wave 5 (cards #240/#241): quota snapshots + autonomy multiplier.
+  await (async () => { try {
+    const qL = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/quota-snapshots.mjs').replaceAll('\\', '/'));
+    const aL  = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/autonomy-multiplier.mjs').replaceAll('\\', '/'));
+    // (a) Write inferred + unknown snapshots; verify round-trip confidence.
+    const sf = join(proj, 'contextkit', 'memory', 'quota-snapshots.jsonl');
+    qL.appendSnapshot(qL.buildSnapshot({ host: 'claude', remainingPct: 55, captureMethod: 'manual' }), sf);
+    qL.appendSnapshot(qL.buildSnapshot({ host: 'cursor', captureMethod: 'manual' }), sf);
+    const recs = qL.readSnapshots(sf);
+    recs.length === 2 && recs[0].confidence === 'inferred' && recs[1].confidence === 'unknown'
+      ? ok('economics Wave 5: appendSnapshot+readSnapshots round-trip (inferred+unknown) from installed proj')
+      : bad(`Wave 5 quota: round-trip wrong — ${JSON.stringify(recs)}`);
+    // (b) token-report --json now carries quota + autonomy keys at schema v2
+    const trW5 = script('token-report.mjs', '--from', ttx, '--json');
+    (() => { try { const j = JSON.parse(trW5.stdout); return j.schemaVersion === 'eacp-token-report/2' && 'quota' in j && 'autonomy' in j; } catch { return false; } })()
+      ? ok('economics Wave 5: token-report --json carries "quota" and "autonomy" keys at schemaVersion "eacp-token-report/2"')
+      : bad(`Wave 5 token-report: quota/autonomy keys missing — ${trW5.stdout?.slice(0, 200)}`);
+    // (c) quota block is populated (snapshots written above)
+    (() => { try { const j = JSON.parse(trW5.stdout); return j.quota && j.quota.status !== 'skipped' && j.quota.hosts >= 1; } catch { return false; } })()
+      ? ok('economics Wave 5: token-report quota block populated (hosts>=1) after writing snapshots')
+      : bad(`Wave 5 token-report: quota block not populated — ${JSON.stringify(JSON.parse(trW5.stdout || '{}').quota)?.slice?.(0, 200)}`);
+    // (d) autonomyMultiplier: ratio≈1.667, confidence 'derived', claim null
+    const mD = aL.autonomyMultiplier({ qaGreen: 10, units: 5 }, { qaGreen: 6, units: 5 }, { unit: 'quota' });
+    typeof mD.multiplier === 'number' && Math.abs(mD.multiplier - 10 / 6) < 0.001 && mD.confidence === 'derived' && mD.claim === null
+      ? ok('economics Wave 5: autonomyMultiplier derived — ratio≈1.667, confidence="derived", claim===null')
+      : bad(`Wave 5 autonomy: derived result wrong — ${JSON.stringify(mD)?.slice(0, 200)}`);
+    // (e) substitute unit → confidence 'inferred'
+    aL.autonomyMultiplier({ qaGreen: 10, units: 5 }, { qaGreen: 6, units: 5 }, { unit: 'effective-mtok' }).confidence === 'inferred'
+      ? ok('economics Wave 5: autonomyMultiplier substitute unit ("effective-mtok") → confidence "inferred"')
+      : bad('Wave 5 autonomy: substitute unit should produce "inferred"');
+    // (f) Goodhart guard: criticalBypass blocks even with all criteria met
+    aL.usefulAutonomy({ acceptanceMet: true, testsRun: true, qaGreen: true, criticalBypass: true }) === false
+      ? ok('economics Wave 5: usefulAutonomy Goodhart guard — criticalBypass blocks even with full green')
+      : bad('Wave 5 autonomy: criticalBypass should block usefulAutonomy');
+    // (g) countUseful: 2 green out of 3 (1 failed acceptance)
+    const ct = aL.countUseful([{ acceptanceMet: true, testsRun: true, qaGreen: true }, { acceptanceMet: true, testsRun: true, qaGreen: true }, { acceptanceMet: false }]);
+    ct.greenCount === 2 && ct.total === 3
+      ? ok('economics Wave 5: countUseful greenCount===2 over 3 tasks (1 failed acceptance)')
+      : bad(`Wave 5 autonomy: countUseful wrong — ${JSON.stringify(ct)}`);
+  } catch (err) { bad(`Wave 5 quota+autonomy crashed: ${err?.message ?? err}`); } })();
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

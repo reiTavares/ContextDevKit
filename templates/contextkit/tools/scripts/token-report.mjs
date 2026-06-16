@@ -27,6 +27,8 @@ import { evaluateBudget } from './economics/budgets.mjs';
 import { presentBudget } from './economics/budgets-report.mjs';
 import { routingSummary, presentRouting } from './economics/routing-economics.mjs';
 import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
+import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-snapshots.mjs';
+import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -197,8 +199,17 @@ function main() {
   try { registry = loadRegistry(); } catch { registry = null; }
   const routing = routingSummary({ byModel: attribution.byModel, registry });
 
+  // EACP Wave 5 (#240) — quota snapshots from the append-only state substrate
+  // (read-only here; capture is an explicit step). Skipped when none recorded.
+  const quotaFile = join(ROOT, 'contextkit', 'memory', 'quota-snapshots.jsonl');
+  const quota = quotaSummary(readSnapshots(quotaFile));
+  // EACP Wave 5 (#241) — autonomy multiplier. Transcripts carry no QA-green or
+  // quota signal, so this honestly degrades to skipped() in the live report
+  // (never a fabricated multiplier). Real signals arrive via the #242 benchmark.
+  const autonomy = multiplierSummary({ quotaObservable: false, availableUnits: ['effective-mtok'] });
+
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing, quota, autonomy }, null, 2) + '\n');
     return;
   }
 
@@ -230,6 +241,10 @@ function main() {
   if (budgetGuard) { console.log(''); console.log(presentBudget(budgetGuard)); }
   console.log('');
   console.log(presentRouting(routing));
+  console.log('');
+  console.log(presentQuota(quota));
+  console.log('');
+  console.log(presentAutonomy(autonomy));
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));
