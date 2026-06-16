@@ -23,11 +23,11 @@ const TOOLS_DIR = resolve(KIT, 'tools');
 
 /**
  * Floor for the number of on-disk suite files the list must cover. The current
- * inventory is 42 product suites (selfcheck.mjs + 41 integration-test*.mjs,
- * incl. integration-test-pkg05-052 from PKG-05).
+ * inventory is 43 product suites (selfcheck.mjs + 42 integration-test*.mjs,
+ * incl. integration-test-eacp.mjs split from token-economy in Wave 7 tech-debt).
  * Lowering this requires an ADR; raise it as suites are added.
  */
-const MIN_SUITES = 42;
+const MIN_SUITES = 43;
 
 let failures = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);

@@ -1,5 +1,5 @@
 /**
- * EACP self-check aggregator — runs all seven EACP cluster runners in order.
+ * EACP self-check aggregator — runs all eight EACP cluster runners in order.
  *
  * Cohesion note: this module exists solely to aggregate the EACP-cluster
  * selfcheck wiring so that the main selfcheck.mjs runner stays under the
@@ -7,13 +7,14 @@
  *
  * Zero runtime dependencies — node:* only (imports are all relative).
  */
-import { runEacpChecks }         from './selfcheck-eacp.mjs';
-import { runEacpCostChecks }     from './selfcheck-eacp-cost.mjs';
-import { runEacpPressureChecks } from './selfcheck-eacp-pressure.mjs';
-import { runEacpBudgetChecks }   from './selfcheck-eacp-budget.mjs';
-import { runEacpRoutingChecks }  from './selfcheck-eacp-routing.mjs';
-import { runEacpAutonomyChecks } from './selfcheck-eacp-autonomy.mjs';
-import { runEacpBenchmarkChecks } from './selfcheck-eacp-benchmark.mjs';
+import { runEacpChecks }           from './selfcheck-eacp.mjs';
+import { runEacpCostChecks }       from './selfcheck-eacp-cost.mjs';
+import { runEacpPressureChecks }   from './selfcheck-eacp-pressure.mjs';
+import { runEacpBudgetChecks }     from './selfcheck-eacp-budget.mjs';
+import { runEacpRoutingChecks }    from './selfcheck-eacp-routing.mjs';
+import { runEacpAutonomyChecks }   from './selfcheck-eacp-autonomy.mjs';
+import { runEacpBenchmarkChecks }  from './selfcheck-eacp-benchmark.mjs';
+import { runEacpBaselineChecks }   from './selfcheck-eacp-baseline.mjs';
 
 /**
  * Runs all EACP cluster self-checks in order.
@@ -28,4 +29,5 @@ export async function runAllEacpChecks({ ok, bad }, { KIT }) {
   await runEacpRoutingChecks({ ok, bad }, { KIT });
   await runEacpAutonomyChecks({ ok, bad }, { KIT });
   await runEacpBenchmarkChecks({ ok, bad }, { KIT });
+  await runEacpBaselineChecks({ ok, bad }, { KIT });
 }
