@@ -161,6 +161,12 @@ async function runDoctorHealthChecks({ ok, bad }, { KIT }) {
   planRepair(corruptFixture(), corruptFixture()).status === S.MANUAL
     ? ok('doctor: corrupted backup is rejected (manual, never trusts damage)')
     : bad('doctor: corrupted backup was trusted');
+  // A "healthy" backup that OMITS the corrupted list cannot repair it — must be manual,
+  // never a false 'repaired' over a still-corrupt config (constitution §8; Agent C P0 finding).
+  const listless = planRepair(corruptFixture(), { level: 6, setup: { completed: true } });
+  listless.status === S.MANUAL && listless.restored === null
+    ? ok('doctor: healthy-but-listless backup → manual (no false repair over corruption)')
+    : bad(`doctor: listless backup wrongly accepted: ${JSON.stringify(listless.status)}`);
 
   // End-to-end on disk: corrupt config + healthy .bak → dry-run repairable, then --repair applies.
   const root = mkdtempSync(resolve(tmpdir(), 'cdk-doc-'));
@@ -179,6 +185,22 @@ async function runDoctorHealthChecks({ ok, bad }, { KIT }) {
       : bad(`doctor: repair did not restore correctly: ${JSON.stringify(applied.status)}`);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+
+  // On-disk: --repair with a healthy-but-listless backup must NOT report repaired,
+  // and must leave the corrupt config untouched (no false 'repaired' on disk).
+  const root2 = mkdtempSync(resolve(tmpdir(), 'cdk-doc3-'));
+  try {
+    mkdirSync(resolve(root2, 'contextkit'), { recursive: true });
+    writeFileSync(resolve(root2, 'contextkit/config.json'), JSON.stringify(corruptFixture()));
+    writeFileSync(resolve(root2, 'contextkit/config.json.bak'), JSON.stringify({ level: 6, setup: { completed: true } }));
+    const res = runConfigHealth(root2, { repair: true });
+    const cfgAfter = JSON.parse(readFileSync(resolve(root2, 'contextkit/config.json'), 'utf8'));
+    res.status === S.MANUAL && res.repair.applied === false && JSON.stringify(cfgAfter.ledger.important) === JSON.stringify(['contextkit/', 'contextkit/', 'contextkit/'])
+      ? ok('doctor: listless backup on disk → manual, config left untouched (no false repair)')
+      : bad(`doctor: listless backup repaired falsely: ${JSON.stringify(res.status)}/${res.repair?.applied}`);
+  } finally {
+    rmSync(root2, { recursive: true, force: true });
   }
 
   // Missing/invalid config is skipped, never a false positive.

@@ -93,6 +93,12 @@ export function planRepair(corrupt, backup) {
     if (!restored[head] || typeof restored[head] !== 'object') restored[head] = {};
     restored[head][key] = JSON.parse(JSON.stringify(fromBackup));
   }
+  // Verify the restored config is actually clean before claiming it is repairable
+  // (constitution §8 — never an assumed pass). A "healthy" backup that simply OMITS
+  // the corrupted list(s) would leave them in place; that is a manual repair, not a fix.
+  if (detectConfigCorruption(restored).status !== CONFIG_HEALTH_STATES.HEALTHY) {
+    return { status: CONFIG_HEALTH_STATES.MANUAL, restored: null, method: 'config.json.bak does not supply a clean replacement for the corrupted list(s) — manual repair' };
+  }
   return { status: CONFIG_HEALTH_STATES.REPAIRABLE, restored, method: 'restore path lists from healthy config.json.bak' };
 }
 
@@ -137,11 +143,13 @@ export function runConfigHealth(root, opts = {}) {
 
   if (opts.repair && plan.restored) {
     try {
-      copyFileSync(cfgPath, `${cfgPath}.corrupt`); // preserve evidence before overwriting
+      // Preserve evidence without clobbering a prior .corrupt capture.
+      const evidence = existsSync(`${cfgPath}.corrupt`) ? `${cfgPath}.corrupt-${process.pid}` : `${cfgPath}.corrupt`;
+      copyFileSync(cfgPath, evidence);
       atomicWriteJson(cfgPath, plan.restored);
       result.status = CONFIG_HEALTH_STATES.REPAIRED;
       result.repair.applied = true;
-      result.repair.backupOfCorrupt = `${cfgPath}.corrupt`;
+      result.repair.backupOfCorrupt = evidence;
     } catch (err) {
       result.repair.error = String(err?.message ?? err);
     }

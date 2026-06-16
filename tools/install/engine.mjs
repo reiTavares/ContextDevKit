@@ -103,7 +103,9 @@ async function updateConfig(target, cfgPath, level, preset, report) {
   if (preset) cfg = applyPreset(cfg, preset);
   const next = JSON.stringify(cfg, null, 2) + '\n';
   if (next === original) return; // no change — don't rewrite (idempotent)
-  if (healed > 0) await backup(cfgPath); // repair: keep a recoverable copy first
+  if (healed > 0 && !(await backup(cfgPath))) {
+    report.push('⚠️  could not write config.json.bak before the legacy-path repair — proceeding (allowlist-gated, non-destructive)');
+  }
   await atomicWrite(cfgPath, next);
   report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
   if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
