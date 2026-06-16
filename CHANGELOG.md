@@ -20,10 +20,11 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [3.0.1] - 2026-06-16
+## [3.1.1] - 2026-06-16
 
-Hotfix release. Closes two defects found in the public `3.0.0`: a P0 config
-corruption during `--update`, and the HIGH gap where automatic routing was a
+Hotfix release on top of the 3.1.0 feature merges. Closes two defects found in
+the public `3.0.0`: a P0 config corruption during `--update`, and the HIGH gap
+where automatic routing was a
 library but never wired into real prompts. No breaking changes; drop-in upgrade.
 
 ### Fixed
@@ -69,6 +70,29 @@ library but never wired into real prompts. No breaking changes; drop-in upgrade.
   ever claimed while `applied=false`, and the full prompt is fingerprinted, never
   stored. Decisions are idempotent per `(session, prompt-fingerprint, policy)` and
   telemetry failure is fail-open (never blocks the prompt).
+
+## [3.1.0] - 2026-06-16
+
+Feature merges into `main` after 3.0.0, shipped together under this minor. All
+additive, advisory and fail-open — no breaking changes.
+
+### Added
+
+- **Capability Enforcement PKG-08 — fleet & agent platform (CDK-080..083,
+  ADR-0072, WF0031).** The final capability package: fleet-wide compliance
+  reporting (`fleet-compliance.mjs`), an agent registry (`agent-registry.mjs`),
+  and the cross-repo platform read consumed by `/state` and `/fleet`. Advisory,
+  UNREGISTERED by default.
+- **PKG-04 go-live — advisory hooks + `/state` fleet read + installer policy
+  distribution (ADR-0097).** Activates the PKG-04 advisory hooks, surfaces a fleet
+  read in `/state`, and distributes policy on install/update via
+  `tools/install/policy-migrate.mjs` + `policy-distribution.mjs` (additive,
+  user-overrides preserved).
+- **Economy Runtime — WF0020 Waves 1 & 2 (ECON-01..11).** Output/lifecycle
+  actuation and advisory gate signals: output contracts, run-compaction,
+  resume packs, lean-loop, loop-breaker, patch-economy and findings-merge under
+  `templates/contextkit/tools/scripts/economy/`. Advisory + controller-scoped;
+  rides the existing WF0019 guard (no new gate).
 
 ## [3.0.0] - 2026-06-16
 
