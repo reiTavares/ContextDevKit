@@ -20,6 +20,10 @@ so any future session — human or AI — can pick up exactly where the last one
 
 ---
 
+## What's new in v3.0.1
+
+> **Hotfix.** Fixes a `--update` bug that could corrupt `config.json` path lists (with `/context-doctor` detection + safe recovery), and wires automatic model routing into real prompts. Routing **recommends and measures** in `shadow` mode — it records a decision per prompt and surfaces it on the Execution Contract, but it does **not** switch the session's model (no host supports an in-session switch from a hook), so a decision's `applied` is always `false`. Recommendation, selection and observation stay distinct; no economy is ever claimed for an unapplied route.
+
 ## What's new in v3.0.0
 
 > **Major consolidation release.** v3.0.0 completes the Capability Enforcement program (PKG-05..07) with automatic model routing ([ADR-0094](contextkit/memory/decisions/0094-automatic-model-routing-and-cost-control-defaults.md)), EACP economic measurement, and 7 lineage-graph consumers. All routing is advisory/fail-open, benchmarks are scaffolds.
