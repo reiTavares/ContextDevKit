@@ -2,6 +2,12 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - conclusion
+squads:
+  - devteam
+---
 # Playbook — Distillation cycle (L5 Stage 2)
 
 > Operational: `.agents/skills/{distill-sessions,distill-apply}.md` + the Stage 2

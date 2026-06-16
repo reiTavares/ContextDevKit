@@ -126,6 +126,7 @@ export function freshLedger(sessionId) {
     completionWarnedAt: null,
     simulations: [],
     squads: [],
+    routing: null,
   };
 }
 
@@ -153,6 +154,7 @@ function normalizeLedger(obj, sessionId) {
     completionWarnedAt: typeof obj.completionWarnedAt === 'number' ? obj.completionWarnedAt : null,
     simulations: Array.isArray(obj.simulations) ? obj.simulations : [],
     squads: Array.isArray(obj.squads) ? obj.squads : [],
+    routing: obj.routing && typeof obj.routing === 'object' ? obj.routing : null,
   };
 }
 

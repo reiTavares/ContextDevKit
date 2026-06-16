@@ -45,6 +45,7 @@ import {
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
+import { resolveRoutingConfig, routingBannerLine } from '../../tools/scripts/routing/routing-config.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 import { renderBootBanner } from './boot-banner.mjs';
@@ -112,9 +113,21 @@ async function main() {
   const level = getLevel(ROOT);
   const needsSetup = loadConfigSync(ROOT)?.setup?.completed !== true;
 
+  // ADR-0094 — resolve the routing posture once; best-effort, never blocks boot.
+  let routingLine = null;
+  let routingState = null;
+  try {
+    const routing = resolveRoutingConfig({ project: loadConfigSync(ROOT)?.routing, level });
+    routingLine = routingBannerLine(routing);
+    routingState = { active: routing.active, mode: routing.mode };
+  } catch {
+    /* routing surface is best-effort (rule 2) */
+  }
+
   const squadContext = readSquadContext(ROOT, level);
   const ledger = freshLedger(sessionId);
   if (squadContext) ledger.squads = squadContext.squads;
+  if (routingState) ledger.routing = routingState;
   await writeLedger(sessionId, ledger);
 
   const drift = level >= 2 ? await analyzePriorLedgers(sessionId) : [];
@@ -149,6 +162,7 @@ async function main() {
     level,
     projectName: await projectName(ROOT),
     autonomyBadge: autonomyBadge(ROOT),
+    routingLine,
     needsSetup,
     greenfield: needsSetup ? isGreenfield(ROOT) : false,
     practicesActive: loadConfigSync(ROOT)?.practices?.active === true,

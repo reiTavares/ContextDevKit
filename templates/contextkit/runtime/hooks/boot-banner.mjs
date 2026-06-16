@@ -27,6 +27,12 @@ export function renderBootBanner(boot) {
   out.push(`Session id: \`${boot.sessionId.slice(0, 16)}\` · Branch: \`${boot.branch}\` · ContextDevKit level: \`L${boot.level}\`${boot.autonomyBadge}`);
   out.push('');
 
+  // ADR-0094 — one short routing-posture line (null when routing is inert).
+  if (boot.routingLine) {
+    out.push(boot.routingLine);
+    out.push('');
+  }
+
   if (boot.engineSignal) {
     out.push(boot.engineSignal);
     out.push('');

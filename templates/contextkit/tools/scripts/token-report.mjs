@@ -29,6 +29,7 @@ import { routingSummary, presentRouting } from './economics/routing-economics.mj
 import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
 import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-snapshots.mjs';
 import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
+import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -208,8 +209,14 @@ function main() {
   // (never a fabricated multiplier). Real signals arrive via the #242 benchmark.
   const autonomy = multiplierSummary({ quotaObservable: false, availableUnits: ['effective-mtok'] });
 
+  // ADR-0094 — routing decision telemetry (kit-routing economics only; never the
+  // provider's native cache savings). Read-only from the append-only ledger that
+  // shadow/canary/active modes write; "no decisions yet" when empty (never faked).
+  const routingLogFile = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
+  const routingTelemetry = routingTelemetrySummary(readDecisions(routingLogFile));
+
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing, quota, autonomy }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing, quota, autonomy, routingTelemetry }, null, 2) + '\n');
     return;
   }
 
@@ -245,6 +252,8 @@ function main() {
   console.log(presentQuota(quota));
   console.log('');
   console.log(presentAutonomy(autonomy));
+  console.log('');
+  console.log(presentRoutingTelemetry(routingTelemetry));
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));

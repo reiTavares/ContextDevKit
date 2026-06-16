@@ -2,6 +2,14 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - intake
+  - spec
+  - adr
+squads:
+  - devteam
+---
 # Playbook — `/simulate-impact`
 
 > Operational spec: [`.agents/skills/simulate-impact.md`](../../../.agents/skills/simulate-impact.md).

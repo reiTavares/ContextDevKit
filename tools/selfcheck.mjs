@@ -33,11 +33,12 @@ import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 import { runAllEacpChecks } from './selfcheck-eacp-all.mjs';
+import { runRoutingChecks } from './selfcheck-routing.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
 /** Floor for total executed checks. Guards runner wiring (ADR-0041 F0, task 104).
- *  Raise as suite grows; 666→1225→1265→1308→1373 (Wave 5 quota+autonomy). */
-const MIN_CHECKS = 1372;
+ *  Raise as suite grows; 666→1225→1265→1308→1373 (Wave 5 quota+autonomy)→1480 (ADR-0094 routing). */
+const MIN_CHECKS = 1480;
 let failures = 0;
 let passes = 0;
 const VERBOSE = process.argv.includes('--verbose');
@@ -278,6 +279,7 @@ async function main() {
   await runEnforcementChecks({ ok, bad }, { KIT });
   await runEnforcementGateChecks({ ok, bad }, { KIT });
   await runAllEacpChecks({ ok, bad }, { KIT });
+  await runRoutingChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

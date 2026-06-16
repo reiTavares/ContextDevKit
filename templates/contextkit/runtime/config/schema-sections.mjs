@@ -148,6 +148,40 @@ export const PredictionsReviewSchema = z
   .passthrough()
   .default({});
 
+// -- Automatic model routing (ADR-0094) --------------------------------------
+
+const ROUTING_MODES = ['shadow', 'canary', 'active'];
+const EXECUTOR_TIERS = ['haiku', 'sonnet', 'opus'];
+
+// ADR-0094 - standard-session routing posture. `mode` is the deployment gear
+// (shadow=measure-only default); executor aliases are tier names, never versioned
+// model ids (ADR-0052). Modelled so `/context-config` refuses an invalid mode or a
+// raw model id before persisting; `.passthrough()` keeps forward knobs.
+export const RoutingSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    mode: z
+      .enum(ROUTING_MODES, { error: () => 'routing.mode must be one of: ' + ROUTING_MODES.join(', ') })
+      .default('shadow'),
+    applyToStandardSessions: z.boolean().default(true),
+    canaryPct: z.number().int().min(0).max(100).default(10),
+    mechanicalExecutor: z.enum(EXECUTOR_TIERS).default('haiku'),
+    implementationExecutor: z.enum(EXECUTOR_TIERS).default('sonnet'),
+    reasoningExecutor: z.enum(EXECUTOR_TIERS).default('opus'),
+    allowOpusCoding: z.boolean().default(true),
+    allowAutomaticFable: z.boolean().default(false),
+    escalationEnabled: z.boolean().default(true),
+    compactHandoffs: z.boolean().default(true),
+    useProjectMapFirst: z.boolean().default(true),
+    routeToolOperationsToHaiku: z.boolean().default(true),
+    routeSessionLoggingToHaiku: z.boolean().default(true),
+    runnerFirstMaxCommands: z.number().int().min(1).max(10).default(3),
+    handoffMaxTokens: z.number().int().min(0).default(2000),
+    minLevel: LevelBound.default(4),
+  })
+  .passthrough()
+  .default({});
+
 // -- Small boolean-toggle sections + L3 --------------------------------------
 
 /** { active: boolean } toggle reused by practices/behaviors. */

@@ -182,6 +182,10 @@ export const SUITES = Object.freeze([
   { id: 'selfcheck-lineage', file: 'tools/selfcheck-lineage.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/lineage-graph', 'templates/contextkit/runtime/execution/receipt-store', 'templates/contextkit/runtime/state/state-io'] },
 
+  // ADR-0094 — automatic model routing for standard sessions (additive, advisory).
+  { id: 'routing', file: it('routing'), tier: 'integration:core',
+    touches: ['templates/contextkit/tools/scripts/routing/', 'templates/contextkit/runtime/hooks/session-start', 'templates/contextkit/runtime/config/defaults'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

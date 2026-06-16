@@ -2,7 +2,16 @@
 description: Register the current session (creates a session file + updates CHANGELOG). Use at the end.
 ---
 
-Register the current work session. Steps:
+Register the current work session.
+
+> **Routing posture (ADR-0094).** The data-gathering below is deterministic — run
+> the `node …` scripts (`session-draft`, `session-reindex`, `predictions-review`,
+> `distill-detect`) **directly via the runner**; if a step needs broad mechanical
+> investigation (git diff/log triage, multi-file evidence), batch it to a **Haiku**
+> agent and accept its compact pack rather than re-reading files in premium context.
+> Reserve Opus/Sonnet for writing the *narrative*. (Silent if `routing.enabled=false`.)
+
+Steps:
 
 1. **Find the next session number.** List `contextkit/memory/sessions/`. Each file is
    `<YYYY-MM-DD>-<NN>-<slug>.md`. The next `NN` = highest existing + 1 (zero-padded, min 2 digits).

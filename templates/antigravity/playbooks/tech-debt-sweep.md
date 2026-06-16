@@ -2,6 +2,13 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - pipeline
+  - conclusion
+squads:
+  - devteam
+---
 # Playbook — `/tech-debt-sweep`
 
 > Operational spec: [`.agents/skills/tech-debt-sweep.md`](../../../.agents/skills/tech-debt-sweep.md).

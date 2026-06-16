@@ -2,6 +2,13 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - intake
+  - spec
+squads:
+  - devteam
+---
 # Playbook — TanStack
 
 > Operational entry points: `/aidevtool-from0` Phase 3 (proposing the stack),

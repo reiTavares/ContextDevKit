@@ -10,8 +10,11 @@
  * The defaults intentionally describe a *generic* repository (`src/`, `lib/`,
  * `app/`, `packages/`, ...). The installer tunes these per detected stack and
  * the user refines them with `/context-config`.
+ *
+ * Split note: the `routing` key defaults live in `defaults-routing.mjs` (ADR-0094)
+ * to keep this file within the 308-line budget (constitution §1 +10% tolerance).
  */
-
+import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -187,6 +190,8 @@ export const DEFAULT_CONFIG = Object.freeze({
    * unreviewed `/simulate-impact` predictions, so it stays silent otherwise.
    */
   predictionsReview: { active: true, everyNSessions: 10 },
+  /** Automatic model routing for STANDARD sessions (ADR-0094). See defaults-routing.mjs. */
+  routing: ROUTING_DEFAULTS,
 
   /**
    * Deliberations (L5+, ADR-0035 / ADR-0070) — multi-agent debate artifact that

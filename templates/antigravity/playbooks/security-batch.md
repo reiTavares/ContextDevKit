@@ -2,6 +2,13 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - pipeline
+  - ship
+squads:
+  - security-team
+---
 # Playbook — Security batch (recurring security sweep)
 
 > Operational specs: [`.agents/skills/deep-analysis.md`](../../../.agents/skills/deep-analysis.md)

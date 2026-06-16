@@ -2,6 +2,14 @@
 
 > Reusable procedure. Follow the steps below when invoked.
 
+---
+phases:
+  - spec
+  - pipeline
+  - ship
+squads:
+  - design-team
+---
 # Playbook — Landing page & high-conversion sites
 
 > Operational entry: `/landing-page` (the skill) calls the
