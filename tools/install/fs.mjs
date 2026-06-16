@@ -6,7 +6,7 @@
  * `{{var}}` template rendering. Zero third-party deps — the installer must run
  * via `npx` on a machine with nothing else installed.
  */
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -30,6 +30,36 @@ export async function writeIfMissing(path, content, force) {
 export async function overwrite(path, content) {
   await ensureDir(dirname(path));
   await writeFile(path, content, 'utf-8');
+}
+
+/**
+ * Atomically writes `content`: a sibling tmp file + rename, so a crash mid-write
+ * can never leave `path` partially written (P0 hotfix 3.0.1). On failure the
+ * original file is left intact and the tmp is best-effort removed.
+ * @param {string} path destination
+ * @param {string} content payload
+ */
+export async function atomicWrite(path, content) {
+  await ensureDir(dirname(path));
+  const tmp = `${path}.tmp-${process.pid}`;
+  try {
+    await writeFile(tmp, content, 'utf-8');
+    await rename(tmp, path);
+  } catch (err) {
+    try { const { rm } = await import('node:fs/promises'); await rm(tmp, { force: true }); } catch { /* ignore */ }
+    throw err;
+  }
+}
+
+/**
+ * Copies an existing file to `${path}.bak` before a destructive repair. No-op
+ * (returns false) when the source is absent. Best-effort — never throws.
+ * @param {string} path file to back up
+ * @returns {Promise<boolean>} true when a backup was written
+ */
+export async function backup(path) {
+  if (!existsSync(path)) return false;
+  try { await copyFile(path, `${path}.bak`); return true; } catch { return false; }
 }
 
 export async function copyTree(src, dest) {
