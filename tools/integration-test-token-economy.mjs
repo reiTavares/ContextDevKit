@@ -187,6 +187,73 @@ try {
     return /^\[[0-9a-f]{8}\]\/engine\.mjs$/.test(rr.path);
   } catch { return false; } })()
     ? ok('economics Wave 3: mapEffectiveness has schemaVersion, repeated engine.mjs read detected, path redacted as [8hex]/basename') : bad(`economics Wave 3: mapEffectiveness block wrong: ${JSON.stringify(JSON.parse(tr.stdout || '{}').mapEffectiveness)?.slice(0,400)}`);
+
+  // EACP Wave 4 (cards #238 / #239): budget→resolver path + routing ROI + token-report keys.
+
+  // Wave 4 budget→resolver path (headline #238 assertion — ADR-0044 D3).
+  await (async () => { try {
+    const budLib      = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/budgets.mjs').replaceAll('\\', '/'));
+    const resolverLib = await import('file://' + path.resolve(proj, 'contextkit/runtime/config/resolve-autonomy.mjs').replaceAll('\\', '/'));
+    // Over-limit spend → budgetExhausted true
+    const adv = budLib.evaluateBudget({ tokens: 200 }, { scope: 'session', limit: 100, hardCap: 150 }, {});
+    if (adv.budgetExhausted !== true) { bad('Wave 4 budget: budgetExhausted should be true for 200/100/150'); return; }
+    ok('economics Wave 4: evaluateBudget 200/100 hardCap 150 → budgetExhausted true (#238)');
+    // Grade 4 WITH budgetExhausted → mode 'suggest' (ADR-0044 D3)
+    const withBudget = resolverLib.resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, { budgetExhausted: adv.budgetExhausted });
+    withBudget.mode === 'suggest'
+      ? ok('economics Wave 4: grade-4 edit + budgetExhausted → mode "suggest" (ADR-0044 D3 budget→resolver path)')
+      : bad(`Wave 4 budget→resolver: expected mode "suggest", got "${withBudget.mode}"`);
+    // Grade 4 WITHOUT budgetExhausted → mode 'auto'
+    const withoutBudget = resolverLib.resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, {});
+    withoutBudget.mode === 'auto'
+      ? ok('economics Wave 4: grade-4 edit without budgetExhausted → mode "auto"')
+      : bad(`Wave 4 budget→resolver: grade-4 no-budget expected "auto", got "${withoutBudget.mode}"`);
+    // area 'adr' is ALWAYS mode 'manual' — floor holds regardless of grade
+    const adrResult = resolverLib.resolveAutonomy('adr', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, {});
+    adrResult.mode === 'manual'
+      ? ok('economics Wave 4: area "adr" → mode "manual" at grade 4 (floor holds)')
+      : bad(`Wave 4 budget→resolver: adr floor broken — got "${adrResult.mode}"`);
+  } catch (err) { bad(`Wave 4 budget→resolver crashed: ${err?.message ?? err}`); } })();
+
+  // Wave 4 routing ROI + fableAudit (#239 assertion).
+  await (async () => { try {
+    const routLib = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/routing-economics.mjs').replaceAll('\\', '/'));
+    const regLib  = await import('file://' + path.resolve(proj, 'contextkit/tools/scripts/economics/pricing/pricing-registry.mjs').replaceAll('\\', '/'));
+    // routingROI quality withheld → savings null
+    const roiNoQa = routLib.routingROI({ usd: 1 }, { usd: 0.4 }, {});
+    roiNoQa.savings === null
+      ? ok('economics Wave 4: routingROI no qa signals → savings null (quality withheld)')
+      : bad(`Wave 4 routingROI: savings should be null without qa, got ${roiNoQa.savings}`);
+    // routingROI equivalent quality → savings > 0
+    const roiEquiv = routLib.routingROI({ usd: 1 }, { usd: 0.4 }, { baselinePassRate: 0.9, routedPassRate: 0.9 });
+    typeof roiEquiv.savings === 'number' && roiEquiv.savings > 0
+      ? ok('economics Wave 4: routingROI equivalent quality (0.9/0.9) → savings > 0')
+      : bad(`Wave 4 routingROI: equivalent-quality savings wrong: ${roiEquiv.savings}`);
+    // fableAudit: price.input===10 OR skipped path (degrade-to-skip is valid per §8)
+    const reg = regLib.loadRegistry();
+    const fableVerdict = routLib.fableAudit(reg, {});
+    if (fableVerdict?.status === 'skipped') {
+      ok('economics Wave 4: fableAudit → skipped (fable-5 absent from installed registry — degrade-to-skip)');
+    } else {
+      fableVerdict.price?.input === 10
+        ? ok('economics Wave 4: fableAudit price.input === 10 (offline registry)')
+        : bad(`Wave 4 fableAudit: price.input should be 10, got ${fableVerdict.price?.input}`);
+    }
+  } catch (err) { bad(`Wave 4 routing crashed: ${err?.message ?? err}`); } })();
+
+  // Wave 4 token-report JSON: budgetGuard key exists + routing.premiumModels includes opus.
+  (() => { try {
+    const j = JSON.parse(tr.stdout);
+    // budgetGuard key must exist (value may be null if no budget configured in fixture)
+    'budgetGuard' in j
+      ? ok('economics Wave 4: token-report --json has top-level "budgetGuard" key (#238)')
+      : bad(`Wave 4 token-report: "budgetGuard" key missing from JSON — keys: ${Object.keys(j).join(', ')}`);
+    // routing key must exist and premiumModels must include the opus model from the fixture
+    j.routing != null && Array.isArray(j.routing.premiumModels) &&
+    j.routing.premiumModels.includes('claude-opus-4-8')
+      ? ok('economics Wave 4: token-report --json has routing.premiumModels including "claude-opus-4-8" (#239)')
+      : bad(`Wave 4 token-report: routing.premiumModels wrong — ${JSON.stringify(j.routing)?.slice(0,200)}`);
+  } catch (err) { bad(`Wave 4 token-report JSON parse crashed: ${err?.message ?? err}`); } })();
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {

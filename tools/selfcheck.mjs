@@ -35,15 +35,13 @@ import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 import { runEacpChecks } from './selfcheck-eacp.mjs';
 import { runEacpCostChecks } from './selfcheck-eacp-cost.mjs';
 import { runEacpPressureChecks } from './selfcheck-eacp-pressure.mjs';
+import { runEacpBudgetChecks } from './selfcheck-eacp-budget.mjs';
+import { runEacpRoutingChecks } from './selfcheck-eacp-routing.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
-/**
- * Floor for total executed checks (passes + failures). Guards runner wiring:
- * losing a sibling module drops the count below the floor and fails loudly.
- * Raise as the suite grows; lowering requires an ADR (ADR-0041 F0, task 104 —
- * count was 666 at extraction; 1225 after Wave 2; 1265 after Wave 3 pressure).
- */
-const MIN_CHECKS = 1265;
+/** Floor for total executed checks. Guards runner wiring (ADR-0041 F0, task 104).
+ *  Raise as suite grows; 666→1225→1265→1308 (Wave 4 budget+routing). */
+const MIN_CHECKS = 1308;
 let failures = 0;
 let passes = 0;
 const VERBOSE = process.argv.includes('--verbose');
@@ -286,6 +284,8 @@ async function main() {
   await runEacpChecks({ ok, bad }, { KIT });
   await runEacpCostChecks({ ok, bad }, { KIT });
   await runEacpPressureChecks({ ok, bad }, { KIT });
+  await runEacpBudgetChecks({ ok, bad }, { KIT });
+  await runEacpRoutingChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;

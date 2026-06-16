@@ -23,6 +23,10 @@ import { attribute, totalOf } from './token-attribution.mjs';
 import { financialSummary, presentFinancial, REPORT_SCHEMA_VERSION } from './economics/token-report-cost.mjs';
 import { advisorySummary, presentAdvisories, normalizeToolUse } from './economics/report-advisories.mjs';
 import { resolvePrivacyConfig } from './economics/privacy.mjs';
+import { evaluateBudget } from './economics/budgets.mjs';
+import { presentBudget } from './economics/budgets-report.mjs';
+import { routingSummary, presentRouting } from './economics/routing-economics.mjs';
+import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -180,8 +184,21 @@ function main() {
   const financial = financialSummary(attribution);
   const advisories = advisorySummary({ perSession: rows, toolEvents }, { privacy });
 
+  // EACP Wave 4 (#238) — session-scope budget guard, advisory-only. Spend is the
+  // hottest session's token total; the Wave-3 pressure band escalates the mode.
+  // It only computes the `budgetExhausted` signal the autonomy resolver consumes;
+  // this report is grade-blind (display only) and never calls the resolver.
+  const sessionLimit = Number(budget.budgetPerSession) || 0;
+  const budgetGuard = sessionLimit > 0 && rows.length
+    ? evaluateBudget({ tokens: rows[0].total }, { scope: 'session', limit: sessionLimit, warnAtPct: budget.warnAtPct }, { pressureBand: advisories.pressure?.hottest?.band })
+    : null;
+  // EACP Wave 4 (#239) — routing economics + Fable audit from the per-model split.
+  let registry = null;
+  try { registry = loadRegistry(); } catch { registry = null; }
+  const routing = routingSummary({ byModel: attribution.byModel, registry });
+
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness }, null, 2) + '\n');
+    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing }, null, 2) + '\n');
     return;
   }
 
@@ -210,6 +227,9 @@ function main() {
   console.log(presentFinancial(financial));
   console.log('');
   console.log(presentAdvisories(advisories));
+  if (budgetGuard) { console.log(''); console.log(presentBudget(budgetGuard)); }
+  console.log('');
+  console.log(presentRouting(routing));
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));
