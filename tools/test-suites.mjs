@@ -222,6 +222,15 @@ export const SUITES = Object.freeze([
   { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/economy/'] },
 
+  // WF0033 project-map auto-baseline (PMB-01..03, ADR-0098) — advisory + fail-open;
+  // the baseline is generated on --update / onboarding and nudged at boot when missing.
+  { id: 'projmap-baseline', file: it('projmap-baseline'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/project-map-baseline.mjs'] },
+  { id: 'projmap-onboarding', file: 'tools/selfcheck-projmap-onboarding.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/setup-complete.mjs', 'templates/claude/commands/setup/setupcontextdevkit.md'] },
+  { id: 'projmap-boot-nudge', file: 'tools/selfcheck-boot-signals-projmap.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/runtime/hooks/boot-signals-projmap.mjs'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

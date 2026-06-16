@@ -97,6 +97,8 @@ function main() {
     'tools/selfcheck-economy-wave1.mjs',
     // WF0020 Economy Runtime — Wave 2 aggregate; sibling, dispatched directly.
     'tools/selfcheck-economy-wave2.mjs',
+    // WF0033 project-map auto-baseline (PMB-02/03); siblings, dispatched directly.
+    'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
