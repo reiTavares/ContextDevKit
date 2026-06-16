@@ -92,6 +92,8 @@ function main() {
     'tools/selfcheck-pkg07-077.mjs',
     // PKG-08 — fleet & agent platform (CDK-080/081/082); sibling, dispatched directly.
     'tools/selfcheck-pkg08-fleet.mjs',
+    // WF0020 Economy Runtime — Wave 1 aggregate; sibling, dispatched directly.
+    'tools/selfcheck-economy-wave1.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

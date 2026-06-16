@@ -262,5 +262,8 @@ function normalize(obj) {
     endedAt: typeof safe.endedAt === 'number' ? safe.endedAt : null,
     cycles: safe.cycles && typeof safe.cycles === 'object' ? safe.cycles : {},
     events: Array.isArray(safe.events) ? safe.events : [],
+    // Checkpoint/resume pack stamped by ship-state.mjs `checkpoint` verb (ECON-07).
+    // Passthrough: present when a checkpoint exists, null otherwise.
+    resume: safe.resume && typeof safe.resume === 'object' ? safe.resume : null,
   };
 }

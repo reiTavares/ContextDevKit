@@ -17,7 +17,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { digestLatestSession, extractUnreleased, readChangelog } from '../../runtime/hooks/boot-context-readers.mjs';
+import { digestLatestSession, extractUnreleased, digestUnreleased, readChangelog } from '../../runtime/hooks/boot-context-readers.mjs';
 import { section } from '../../runtime/hooks/md-extract.mjs';
 import { ADR_FILENAME_RE, parseAdr, renderCatalogLine } from './adr-digest-core.mjs';
 import { retrieveMemory, renderRetrieval } from './memory-retrieve.mjs';
@@ -83,7 +83,7 @@ async function openBacklog(cap = 8) {
 async function build() {
   const [session, unreleased, rules, adrs, backlog] = await Promise.all([
     digestLatestSession(ROOT),
-    readChangelog(ROOT).then((c) => extractUnreleased(c)),
+    readChangelog(ROOT).then((c) => digestUnreleased(extractUnreleased(c))),
     immutableRules(),
     recentAdrs(),
     openBacklog(),
@@ -140,7 +140,7 @@ const head = (text, lines) => (text ? text.split('\n').filter((l) => l.trim()).s
 async function buildSubagentPack(objective) {
   const [session, unreleased, rules, claims, retrieval] = await Promise.all([
     digestLatestSession(ROOT),
-    readChangelog(ROOT).then((c) => extractUnreleased(c)),
+    readChangelog(ROOT).then((c) => digestUnreleased(extractUnreleased(c))),
     immutableRules(),
     openClaims(),
     retrieveMemory(ROOT, objective),
