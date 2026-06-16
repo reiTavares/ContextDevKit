@@ -69,7 +69,8 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'project-map-roots.mjs', 'project-map-coverage.mjs', 'context-manifest.mjs', 'context-manifest-readers.mjs',
     'playbook-scope.mjs', 'memory-score.mjs', 'rule-archive.mjs', 'host-parity.mjs', 'host-parity-core.mjs',
     'skill-runner.mjs', 'capability-compliance.mjs', 'benchmark-task.mjs',
-    'wiring-drift.mjs', 'wiring-drift-core.mjs', 'wiring-drift-checks.mjs']) {
+    'wiring-drift.mjs', 'wiring-drift-core.mjs', 'wiring-drift-checks.mjs',
+    'host-cost.mjs', 'capability-roi.mjs', 'capability-roi-core.mjs', 'cache-churn-health.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
   }
   const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
