@@ -90,6 +90,8 @@ function main() {
     'tools/selfcheck-pkg07-071.mjs', 'tools/selfcheck-pkg07-072.mjs', 'tools/selfcheck-pkg07-073.mjs',
     'tools/selfcheck-pkg07-074.mjs', 'tools/selfcheck-pkg07-075.mjs', 'tools/selfcheck-pkg07-076.mjs',
     'tools/selfcheck-pkg07-077.mjs',
+    // PKG-08 — fleet & agent platform (CDK-080/081/082); sibling, dispatched directly.
+    'tools/selfcheck-pkg08-fleet.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

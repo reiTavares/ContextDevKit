@@ -204,6 +204,10 @@ export const SUITES = Object.freeze([
   { id: 'pkg07-readiness', file: 'tools/selfcheck-pkg07-077.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/autonomy-readiness-v2', 'templates/contextkit/tools/scripts/engineering-scorecard'] },
 
+  // PKG-08 — Fleet & agent platform (CDK-080/081/082), read-only advisory, unregistered.
+  { id: 'pkg08-fleet', file: 'tools/selfcheck-pkg08-fleet.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/fleet-compliance', 'templates/contextkit/tools/scripts/agent-registry', 'templates/contextkit/tools/scripts/policy-distribution'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
