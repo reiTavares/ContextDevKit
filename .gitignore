@@ -31,3 +31,18 @@ runs/
 vibekit/memory/tech-debt-findings.json
 vibekit/memory/deps-findings.json
 vibekit/memory/deep-analysis-findings.json
+
+# ContextDevKit — local runtime state (do not commit)
+.claude/.sessions/
+.claude/.workspace/
+.codex/.sessions/
+.codex/.workspace/
+contextkit/pipeline/state/
+.context-snapshot.md
+.distillation-proposal.md
+.agent-tuning-proposal.md
+contextkit/memory/tech-debt-findings.json
+contextkit/memory/deps-findings.json
+contextkit/memory/deep-analysis-findings.json
+contextkit/.cache/
+contextkit/.updates/

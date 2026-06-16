@@ -83,6 +83,8 @@ export const SUITES = Object.freeze([
     touches: ['install.mjs', 'templates/contextkit/tools/scripts/migrate'] },
   { id: 'update-safety', file: it('update-safety'), tier: 'integration:installer',
     touches: ['install.mjs'] },
+  { id: 'config-migrate', file: it('config-migrate'), tier: 'integration:installer',
+    touches: ['tools/install/config-migrate.mjs', 'templates/contextkit/runtime/config/defaults.mjs'] },
   { id: 'antigravity', file: it('antigravity'), tier: 'integration:hosts',
     touches: ['templates/contextkit/runtime/antigravity/', 'templates/ctx.mjs'] },
   { id: 'active-squads', file: it('active-squads'), tier: 'integration:hosts',

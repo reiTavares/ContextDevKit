@@ -7,3 +7,8 @@
 # VibeDevKit — keep engine scripts and git-hook wrappers LF on all platforms.
 vibekit/**/*.mjs text eol=lf
 .claude/**/*.json text eol=lf
+# ContextDevKit — keep engine scripts and git-hook wrappers LF on all platforms.
+contextkit/**/*.mjs text eol=lf
+.claude/**/*.json text eol=lf
+.codex/**/*.json text eol=lf
+.codex/**/*.toml text eol=lf

@@ -20,6 +20,12 @@ so any future session — human or AI — can pick up exactly where the last one
 
 ---
 
+## What's new in v3.0.0
+
+> **Major consolidation release.** v3.0.0 completes the Capability Enforcement program (PKG-05..07) with automatic model routing ([ADR-0094](contextkit/memory/decisions/0094-automatic-model-routing-and-cost-control-defaults.md)), EACP economic measurement, and 7 lineage-graph consumers. All routing is advisory/fail-open, benchmarks are scaffolds.
+
+---
+
 ## The 60-second mental model
 
 Everything in the kit serves one thesis: **don't depend on the AI's goodwill — make
@@ -38,18 +44,16 @@ high-risk edit, a half-finished workflow, or an unreviewed decision from sliding
 through. You adopt it gradually through **seven levels**, and a separate
 **autonomy dial** decides how much the AI may do without asking.
 
-## What's new in v2.7.0
-
-> **Governance that the engine enforces — not the prompt.** v2.7.0 lands three
-> systems that move enforcement out of "please remember to…" and into code: an
-> eight-feature parity import, an auto-invoked deliberation council, and a
-> workflow journey gate.
+<details>
+<summary><strong>Earlier highlights (v2.7 — governance enforcement)</strong></summary>
 
 | System | What it does | Deep dive |
 |---|---|---|
 | **ContextKit parity import** ([ADR-0060 → 0068](contextkit/memory/decisions/)) | Eight zero-dep, level-aware, warn-first features ported from `nolrm/contextkit`: PostToolUse auto-format, multi-language pre-push quality gates, hook-manager coexistence, an opt-in CI squad action, a ≥3-occurrence standards-promotion threshold, `/context-budget` + `@`-imports, marker-idempotent injection, and **context bridges for six more tools** (Cursor, Copilot, Gemini, Windsurf, Aider, Continue — context only, governance stays native) | [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) |
 | **Deliberation council** ([ADR-0070](contextkit/memory/decisions/0070-auto-invoked-deliberation-and-tiered-council.md)) | Multi-agent deliberation is now **auto-invoked** at the two moments it matters — opening a feature and recording a decision — at autonomy grade ≥ 3. A deterministic, *named* specialist council scales to the question; a tiered research swarm gathers evidence cheaply (Haiku scouts) before the reasoning voices (Opus) argue. The ADR write itself stays manual at every grade | [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) |
 | **Workflow governance** ([ADR-0071](contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md)) | The `/workflow` journey is now **enforced in the engine**: `advance` refuses to leave a phase with missing deliverables (every CLI held to the same bar), `--force` is the explicit escape. Workflows are numbered `NNNN-slug` like ADRs, and the L5 mutation guard is **branch-scoped** so a parallel session no longer blocks unrelated edits | [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) |
+
+</details>
 
 <details>
 <summary><strong>Earlier highlights (v2.6 — active squads)</strong></summary>
@@ -146,7 +150,7 @@ $ npx contextdevkit --target . --yes
 > tool: install it like any dependency you run. `npx` writes git hooks under
 > `.git/hooks/` (L≥3) and Claude Code hooks into `.claude/settings.json`, which then
 > run `node` on each session/commit/push. **Pin a tag** for a reproducible install:
-> `npx github:reiTavares/ContextDevKit#v2.7.0 --target . --yes`. An existing git hook
+> `npx github:reiTavares/ContextDevKit#v3.0.0 --target . --yes`. An existing git hook
 > is never clobbered (backed up to `<hook>.bak`). `/fleet` and custom
 > `contextkit/detectors/*.mjs` execute with full Node privileges — only register
 > repos and add detectors you trust.
