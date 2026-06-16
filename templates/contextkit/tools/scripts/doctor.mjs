@@ -20,7 +20,7 @@ import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
-import { runConfigHealth, summarizeForDoctor, CONFIG_HEALTH_STATES } from './config-health.mjs';
+import { checkConfigPathRot, checkConfigCorruption } from './doctor-config.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -56,41 +56,6 @@ function checkConfig() {
   const level = getLevel(ROOT);
   isValidLevel(level) ? pass(`config valid — level L${level}`) : note('config.level out of range', `use /context-level <${MIN_LEVEL}-${MAX_LEVEL}>`);
   return level;
-}
-
-/**
- * Config path-rot guard (ticket 145). A renamed platform dir / moved file leaves
- * config.json pointing at dead paths, and consumers fail SILENTLY. Registration
- * rot is CRITICAL (breaks an L2 contract); the gate/QA lists are advisory (L4/L5).
- */
-function checkConfigPathRot() {
-  const cfg = loadConfigSync(ROOT);
-  const probe = (entries, label, report) => {
-    const missing = (entries ?? []).filter((p) => !existsSync(resolve(ROOT, p)));
-    if (missing.length === 0) {
-      if ((entries ?? []).length > 0) pass(`${label} paths all exist on disk`);
-      return;
-    }
-    report(`${label} points at nonexistent path(s): ${missing.join(', ')}`, 'edit contextkit/config.json — was the platform dir or file renamed/moved? (e.g. a vibekit-era install)');
-  };
-  probe(cfg?.ledger?.registration, 'ledger.registration', fail);
-  probe(cfg?.l5?.highRiskPaths, 'l5.highRiskPaths', note);
-  probe(cfg?.qa?.criticalPaths, 'qa.criticalPaths', note);
-}
-
-/**
- * v3.0.0 config-corruption guard (P0 hotfix 3.0.1). Detects path lists that
- * collapsed to bare `contextkit/` entries and points at the safe recovery path.
- * Advisory (never fails doctor) — the user decides whether to restore.
- */
-function checkConfigCorruption() {
-  const result = runConfigHealth(ROOT, { repair: false });
-  if (result.status === CONFIG_HEALTH_STATES.HEALTHY || result.status === CONFIG_HEALTH_STATES.SKIPPED) {
-    if (result.status === CONFIG_HEALTH_STATES.HEALTHY) pass('config.json free of v3.0.0 path-collapse corruption');
-    return;
-  }
-  const s = summarizeForDoctor(result);
-  note(s.message, s.fix);
 }
 
 function checkWiring(level) {
@@ -302,8 +267,8 @@ function checkInstallMode() {
 
 checkNode();
 const level = checkConfig();
-checkConfigPathRot();
-checkConfigCorruption();
+checkConfigPathRot({ ROOT, pass, fail, note });
+checkConfigCorruption({ ROOT, pass, note });
 checkWiring(level);
 checkGitHooks(level);
 checkMemory();
