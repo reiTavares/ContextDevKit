@@ -113,8 +113,16 @@ Confirm before any push/repo-creation (outward-facing).
 ## Phase 7 — Record the baseline
 1. Create `contextkit/memory/decisions/0001-<stack-slug>.md` (use `/new-adr` style)
    capturing the chosen stack + immutable rules as the baseline decision.
-2. Run `/log-session` to register this onboarding session.
-3. The `setup-complete.mjs` call already flipped `config.setup.completed = true`,
+2. **Generate the project-map baseline** (skip if greenfield):
+   ```
+   node contextkit/tools/scripts/project-map.mjs
+   ```
+   Then read `contextkit/memory/project-map/00-index.md` and give the user a
+   3–5 line summary: how many modules, the frontend/backend split, the stack,
+   and anything surprising. (`setup-complete.mjs --detect` already runs this
+   automatically — verify `manifest.json` was written; if absent, run it now.)
+3. Run `/log-session` to register this onboarding session.
+4. The `setup-complete.mjs` call already flipped `config.setup.completed = true`,
    so the first-run trigger will no longer fire. Confirm it is `true`.
 
 ## Phase 8 — Report

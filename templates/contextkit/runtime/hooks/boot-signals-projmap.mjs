@@ -8,9 +8,30 @@
  * STALENESS nudge (a BOUNDED files+bytes recompute — structural, clone-safe,
  * churn-free). Self-contained: no `tools/` import. Silent without a map or on error.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../config/paths.mjs';
+
+/**
+ * Common top-level directories that indicate a project has source code.
+ * Mirrors the identical list in `boot-signals.mjs#isGreenfield` — kept
+ * in-sync manually so this module stays self-contained and avoids a
+ * cross-hook import that could introduce circular dependencies.
+ */
+const SOURCE_SENTINEL_DIRS = ['src', 'app', 'apps', 'packages', 'lib', 'components', 'pages', 'server', 'cmd', 'internal'];
+
+/**
+ * True when the project tree contains at least one recognised source directory.
+ * Uses the same sentinel-dir heuristic as `boot-signals.mjs#isGreenfield` so
+ * the two checks stay behaviorally in step. Cheap: only `existsSync` calls, no
+ * recursive walk — safe on the boot hot path.
+ *
+ * @param {string} root - absolute project root
+ * @returns {boolean}
+ */
+function hasSourceDirs(root) {
+  return SOURCE_SENTINEL_DIRS.some((dirName) => existsSync(resolve(root, dirName)));
+}
 
 /** Source extensions the map counts — kept in sync with project-map-core's EXT_LANG. */
 const MAP_SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte', '.py', '.go', '.rs', '.java', '.kt', '.rb', '.php', '.cs', '.sql']);
@@ -68,6 +89,16 @@ function mapIsStale(root, manifest) {
 export function projectMapStale(root) {
   try {
     const dir = pathsFor(root).projectMap;
+
+    // Missing-baseline branch: no manifest yet — nudge only when there IS source.
+    // Greenfield projects (no source dirs) stay silent so the first-run /aidevtool-from0
+    // flow is not cluttered with a project-map nudge that would be premature.
+    if (!existsSync(resolve(dir, 'manifest.json'))) {
+      return hasSourceDirs(root)
+        ? '🗺️ No project map yet — run /project-map to create the durable baseline.'
+        : null;
+    }
+
     const manifest = JSON.parse(readFileSync(resolve(dir, 'manifest.json'), 'utf-8'));
     if (!Array.isArray(manifest.modules) || manifest.modules.length === 0) return null;
     const lines = [];
