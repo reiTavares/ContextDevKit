@@ -34,6 +34,7 @@ import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sy
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { renumberByStarted } from './templates/contextkit/tools/scripts/workflow-number.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
+import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
 const TPL = resolve(KIT_ROOT, 'templates');
@@ -192,6 +193,11 @@ async function main() {
     console.log('   Good for solo / experiments. Team, multi-machine, or CI? Re-run with --tracked, then `git add` the kit.');
   }
   if (args.update) {
+    // PMB-01 (ADR-0098): generate the first project-map baseline when absent.
+    // Advisory + fail-open: the note is printed inline; never blocks the update.
+    const baselineNote = await maybeGenerateBaseline(target);
+    if (baselineNote) console.log(`  ${baselineNote}`);
+
     console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
     console.log('   Refreshed: engine + host assets + hook wiring. Untouched: CLAUDE.md, AGENTS.md, config,');
     console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
