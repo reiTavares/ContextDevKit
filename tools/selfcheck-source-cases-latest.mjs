@@ -41,7 +41,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['INSTRUCTIONS.md.tpl references no nonexistent engine-keeper persona (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*engine-keeper)[\s\S]*$/],
     // Encoding + config-rot guards (tickets 144-145).
     ['selfcheck wires the tree-wide mojibake gate (ticket 144)', 'tools/selfcheck.mjs', /runEncodingChecks\(\{ ok, bad \}, \{ KIT \}\)/],
-    ['doctor probes config paths that no longer exist — registration rot is critical (ticket 145)', 'templates/contextkit/tools/scripts/doctor.mjs', /probe\(cfg\?\.ledger\?\.registration, 'ledger\.registration', fail\)/],
+    ['doctor probes config paths that no longer exist — registration rot is critical (ticket 145)', 'templates/contextkit/tools/scripts/doctor-config.mjs', /probe\(cfg\?\.ledger\?\.registration, 'ledger\.registration', fail\)/],
     // ADR-0052 Phase 2 — /fable, the manual premium tier (Fable stays manual-only).
     ['/fable dispatches the task to a Fable subagent via the Agent tool model param (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Agent tool with[\s\S]*`model: fable`/],
     ['/fable is explicit-only — never invoked on the agent own initiative (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Never invoke Fable on your own initiative/],
