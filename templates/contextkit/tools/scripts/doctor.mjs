@@ -20,6 +20,7 @@ import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { runConfigHealth, summarizeForDoctor, CONFIG_HEALTH_STATES } from './config-health.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -75,6 +76,21 @@ function checkConfigPathRot() {
   probe(cfg?.ledger?.registration, 'ledger.registration', fail);
   probe(cfg?.l5?.highRiskPaths, 'l5.highRiskPaths', note);
   probe(cfg?.qa?.criticalPaths, 'qa.criticalPaths', note);
+}
+
+/**
+ * v3.0.0 config-corruption guard (P0 hotfix 3.0.1). Detects path lists that
+ * collapsed to bare `contextkit/` entries and points at the safe recovery path.
+ * Advisory (never fails doctor) — the user decides whether to restore.
+ */
+function checkConfigCorruption() {
+  const result = runConfigHealth(ROOT, { repair: false });
+  if (result.status === CONFIG_HEALTH_STATES.HEALTHY || result.status === CONFIG_HEALTH_STATES.SKIPPED) {
+    if (result.status === CONFIG_HEALTH_STATES.HEALTHY) pass('config.json free of v3.0.0 path-collapse corruption');
+    return;
+  }
+  const s = summarizeForDoctor(result);
+  note(s.message, s.fix);
 }
 
 function checkWiring(level) {
@@ -287,6 +303,7 @@ function checkInstallMode() {
 checkNode();
 const level = checkConfig();
 checkConfigPathRot();
+checkConfigCorruption();
 checkWiring(level);
 checkGitHooks(level);
 checkMemory();
