@@ -31,6 +31,7 @@ import {
   BehaviorsSchema,
   BootSchema,
   BridgesSchema,
+  EacpSchema,
   ForwardSection,
   L3Schema,
   PracticesSchema,
@@ -165,6 +166,7 @@ export const ConfigSchema = z
     behaviors: BehaviorsSchema,
     setup: SetupSchema,
     boot: BootSchema,
+    eacp: EacpSchema,
     forward: ForwardSection,
   })
   .passthrough()

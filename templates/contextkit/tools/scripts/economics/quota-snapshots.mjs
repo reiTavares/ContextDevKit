@@ -1,16 +1,31 @@
 /**
- * Quota snapshots — EACP Wave 5 / card #240 (EACP-11).
+ * Quota snapshots — EACP Wave 8 / card #240 (EACP-11).
  *
  * Advisory quota observations per host stored as append-only JSONL. Callers
  * inject `now` (epoch ms) — no Date.now() / Math.random() / new Date() here.
  * Missing pct fields → null + confidence 'unknown'; no fabricated numbers.
  * Invalid/missing host → skipped(); skipped markers never reach disk.
- * Zero runtime dependencies — node:fs, node:path, and relative imports only.
+ * Zero runtime dependencies — node:crypto, relative imports only.
+ *
+ * Persistence layer (serializeSnapshot, appendSnapshot, readSnapshots) lives in
+ * ./quota-store.mjs and is re-exported below to preserve the public surface.
+ *
+ * Privacy contract (ADR-0081):
+ *   - appendSnapshot (in quota-store.mjs) calls assertNoTranscriptContent before
+ *     every write. No transcript content may appear in any quota record.
+ *   - assertNoForbiddenFields deferred until quota fields are registered in
+ *     privacy-field-policy.mjs (tracked: field policy update, Wave 8 follow-on).
+ *
+ * Idempotent retry: same (host, windowStart, captureMethod, usedPct, remainingPct)
+ * tuple produces the same fingerprint; appendSnapshot is a no-op when the
+ * fingerprint already exists in the file (safe retry, no duplicates).
  */
 
-import { mkdirSync, appendFileSync, readFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 import { skipped } from './privacy.mjs';
+
+// Re-export persistence layer so existing importers keep resolving.
+export { serializeSnapshot, appendSnapshot, readSnapshots } from './quota-store.mjs';
 
 // ---------------------------------------------------------------------------
 // Public constants
@@ -30,14 +45,39 @@ export const CAPTURE_METHODS = Object.freeze(['api', 'manual', 'inferred']);
 // ---------------------------------------------------------------------------
 
 /** Non-empty string → value; else null. */
-function str(v) { return (typeof v === 'string' && v.trim().length > 0) ? v : null; }
+function str(v) {
+  return (typeof v === 'string' && v.trim().length > 0) ? v : null;
+}
 
 /** Finite number in [0,100] → value; else null. */
-function pct(v) { return (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100) ? v : null; }
+function pct(v) {
+  return (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100) ? v : null;
+}
 
 // ---------------------------------------------------------------------------
 // Exported functions
 // ---------------------------------------------------------------------------
+
+/**
+ * Computes a short deterministic fingerprint for a snapshot record.
+ *
+ * The fingerprint is derived from the fields that make a quota observation
+ * logically unique: host, windowStart, captureMethod, usedPct, remainingPct.
+ * Used by appendSnapshot to detect and reject duplicate retries.
+ *
+ * @param {object} record - A snapshot record (not a skipped marker).
+ * @returns {string} 12-character lowercase hex fingerprint.
+ */
+export function fingerprintSnapshot(record) {
+  const key = [
+    record?.host ?? '',
+    record?.windowStart ?? '',
+    record?.captureMethod ?? '',
+    String(record?.usedPct ?? ''),
+    String(record?.remainingPct ?? ''),
+  ].join('\0');
+  return createHash('sha256').update(key).digest('hex').slice(0, 12);
+}
 
 /**
  * Builds a frozen quota snapshot record from raw input.
@@ -45,9 +85,14 @@ function pct(v) { return (typeof v === 'number' && Number.isFinite(v) && v >= 0 
  * Confidence: no valid pct → 'unknown'; api + valid pct → 'direct'; else 'inferred'.
  * capturedAt is null when opts.now is absent (deterministic/testable mode).
  *
+ * Linkage fields (sessionId, runId, taskId) are included when provided; unknown
+ * hosts (e.g., claude-code) must use captureMethod 'manual' — never 'api' unless
+ * a real supported API is available for that host.
+ *
  * @param {{ host: unknown, plan?: unknown, windowType?: unknown,
  *   windowStart?: unknown, resetAt?: unknown, remainingPct?: unknown,
- *   usedPct?: unknown, captureMethod?: unknown }} input
+ *   usedPct?: unknown, captureMethod?: unknown, source?: unknown,
+ *   sessionId?: unknown, runId?: unknown, taskId?: unknown }} input
  * @param {{ now?: number }} [opts] - epoch ms injected by caller; never internal Date.
  * @returns {Readonly<object>|Readonly<{status:'skipped',reason:string}>}
  */
@@ -74,7 +119,7 @@ export function buildSnapshot(input, opts = {}) {
   const nowVal = opts?.now;
   const capturedAt = (typeof nowVal === 'number' && Number.isFinite(nowVal)) ? nowVal : null;
 
-  return Object.freeze({
+  const record = {
     schemaVersion: QUOTA_SNAPSHOT_SCHEMA_VERSION,
     host:          hostVal,
     plan:          str(input?.plan),
@@ -86,72 +131,16 @@ export function buildSnapshot(input, opts = {}) {
     captureMethod,
     confidence,
     capturedAt,
-  });
-}
+    source:        str(input?.source),
+    sessionId:     str(input?.sessionId),
+    runId:         str(input?.runId),
+    taskId:        str(input?.taskId),
+  };
 
-/**
- * Serialises a snapshot record to a single-line JSON string.
- *
- * @param {object} record - Frozen snapshot (not a skipped marker).
- * @returns {string} Single-line JSON suitable for JSONL append.
- * @throws {TypeError} When record is null, non-object, or carries status 'skipped'.
- */
-export function serializeSnapshot(record) {
-  if (record === null || typeof record !== 'object') {
-    throw new TypeError('serializeSnapshot: record must be a non-null object');
-  }
-  if (record.status === 'skipped') {
-    throw new TypeError('serializeSnapshot: refuse to serialise a skipped marker — only capture records are allowed');
-  }
-  return JSON.stringify(record);
-}
+  // Compute fingerprint after all identity fields are set.
+  record.fingerprint = fingerprintSnapshot(record);
 
-/**
- * Appends a snapshot record to the JSONL file (the mutator). Creates parent
- * directories as needed. Refuses to persist a skipped marker.
- *
- * @param {object} record - Frozen snapshot (not a skipped marker).
- * @param {string} file - Path to the JSONL log file (non-empty string).
- * @returns {string} The file path (for caller confirmation).
- * @throws {TypeError} When record carries status 'skipped' or file is invalid.
- */
-export function appendSnapshot(record, file) {
-  if (record?.status === 'skipped') {
-    throw new TypeError('appendSnapshot: refuse to persist a skipped marker');
-  }
-  if (typeof file !== 'string' || file.trim().length === 0) {
-    throw new TypeError('appendSnapshot: file must be a non-empty string');
-  }
-  mkdirSync(dirname(file), { recursive: true });
-  appendFileSync(file, serializeSnapshot(record) + '\n', 'utf-8');
-  return file;
-}
-
-/**
- * Reads all snapshot records from a JSONL file. Missing/unreadable file → [].
- * Blank and malformed JSON lines are silently skipped. Never throws.
- *
- * @param {string} file - Path to the JSONL quota-snapshots log.
- * @returns {object[]} Parsed records (may be empty).
- */
-export function readSnapshots(file) {
-  let raw;
-  try {
-    raw = readFileSync(file, 'utf-8');
-  } catch {
-    return [];
-  }
-  const records = [];
-  for (const line of raw.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    try {
-      records.push(JSON.parse(trimmed));
-    } catch {
-      // Skip malformed lines — JSONL is append-only; bad lines must not crash.
-    }
-  }
-  return records;
+  return Object.freeze(record);
 }
 
 /**

@@ -193,6 +193,85 @@ export const SetupSchema = z.object({ completed: z.boolean() }).passthrough().pa
 export const BootSchema = z.object({ valueLine: z.boolean() }).passthrough().partial().default({});
 export const L3Schema = z.object({ mainBranch: z.string().min(1) }).passthrough().partial().default({});
 
+// -- EACP (Economic & Autonomy Control Plane) — WF0018 / ADR-0077..0081 -------
+// All fields are optional and advisory-safe. No REQUIRED field is introduced —
+// an existing config without an `eacp` key validates cleanly and gets the
+// defaults from defaults-eacp.mjs. Passthrough on every sub-object so forward
+// flags (phases, future package keys) round-trip without error.
+
+const EacpBudgetMode = z.enum(['observe', 'warn', 'ask', 'downgrade', 'split', 'block'], {
+  error: () => 'eacp.budgetGuards.mode must be one of: observe, warn, ask, downgrade, split, block',
+});
+
+const EacpCostEngineSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    grossCacheValueSeparate: z.boolean().default(true),
+  })
+  .passthrough()
+  .default({});
+
+const EacpMeasurementSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    costEngine: EacpCostEngineSchema,
+  })
+  .passthrough()
+  .default({});
+
+const EacpAdvisoryToggle = z.object({ enabled: z.boolean().default(true) }).passthrough().default({});
+
+const EacpAdvisorySchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    sessionPressure: EacpAdvisoryToggle,
+    mapEffectiveness: EacpAdvisoryToggle,
+    quotaSnapshots: EacpAdvisoryToggle,
+    autonomyMultiplier: EacpAdvisoryToggle,
+  })
+  .passthrough()
+  .default({});
+
+const EacpBudgetGuardsSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    mode: EacpBudgetMode.default('observe'),
+  })
+  .passthrough()
+  .default({});
+
+const EacpPrivacySchema = z
+  .object({
+    metadataOnly: z.boolean().default(true),
+    optOut: z.boolean().default(false),
+    retentionDays: z.number().int().positive().default(90),
+  })
+  .passthrough()
+  .default({});
+
+/**
+ * Full EACP config section (WF0018). Advisory-first; all sub-sections optional.
+ * `enabled: false` restores legacy token-report behavior (no data loss — events
+ * are append-only). No strict defaults before dogfood (#246 AC).
+ */
+export const EacpSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    rolloutPhase: z.number().int().min(0).max(5).default(0),
+    measurement: EacpMeasurementSchema,
+    advisory: EacpAdvisorySchema,
+    budgetGuards: EacpBudgetGuardsSchema,
+    routingEconomics: z.object({ enabled: z.boolean().default(false) }).passthrough().default({}),
+    benchmark: z
+      .object({ pilotEnabled: z.boolean().default(false), fullBenchmarkEnabled: z.boolean().default(false) })
+      .passthrough()
+      .default({}),
+    fleet: z.object({ enabled: z.boolean().default(false) }).passthrough().default({}),
+    privacy: EacpPrivacySchema,
+  })
+  .passthrough()
+  .default({});
+
 /**
  * Forward slot for future enforcement (CDK-013). Sections we have NOT modelled
  * yet validate through this: an object whose unknown keys are RETAINED. It
