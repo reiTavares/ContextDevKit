@@ -208,7 +208,9 @@ export function evaluateBudget(spend, budget, context = {}) {
   const mode = BUDGET_MODES[Math.min(modeIndex(escalatedMode), modeIndex(ceilingMode))];
 
   // 8. Budget exhausted signal for autonomy resolver (ADR-0044 D3).
-  const budgetExhausted = ['downgrade', 'split', 'block'].includes(mode);
+  // 'ask' is included: spec §13.1 says ask/downgrade map to existing `suggest` semantics,
+  // so at grade 4 the resolver returns grade-2 behaviour (suggest) — never blocks an edit.
+  const budgetExhausted = ['ask', 'downgrade', 'split', 'block'].includes(mode);
 
   // 9. Floor preservation for critical tasks.
   const floorPreserved = context.criticalTask === true;

@@ -1,9 +1,14 @@
 /**
- * Benchmark run scaffold — EACP Wave 6 / card #242 (EACP-13).
+ * Benchmark run scaffold — EACP Wave 6/9 / card #242 (EACP-13).
  *
  * Executes the harness PLUMBING only. There is no real provider and no spend in
  * this wave: a deterministic MOCK provider exercises the run/record path so the
  * harness can be tested end-to-end, and every run is labeled `provider:'mock'`.
+ *
+ * Wave 9 adds:
+ *   - runCell(): executes exactly `minReps` repetitions per arm × task cell,
+ *     propagating cacheWarmth onto each record (§13.3 items 9 and 10).
+ *   - runArm records now carry `cacheWarmth` from the spec.
  *
  * Honesty gate (the #176 baseline is unbuilt — constitution §8):
  *   - A mock run is ALWAYS labeled and carries confidence 'mock' + claim null;
@@ -18,7 +23,7 @@
 import { mkdirSync, appendFileSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { skipped } from './privacy.mjs';
-import { BENCHMARK_SCHEMA_VERSION } from './benchmark-design.mjs';
+import { BENCHMARK_SCHEMA_VERSION, CACHE_WARMTH, MIN_REPS_PER_CELL } from './benchmark-design.mjs';
 
 /** Canonical schema identifier for benchmark run records. */
 export const BENCHMARK_RUN_SCHEMA_VERSION = 'eacp-benchmark-run/1';
@@ -101,11 +106,16 @@ export function runArm(spec, arm, opts = {}) {
   const nowVal = opts?.now;
   const capturedAt = (typeof nowVal === 'number' && Number.isFinite(nowVal)) ? nowVal : null;
 
+  // Propagate cache warmth from the spec onto the record (§13.3 item 9).
+  const rawWarmth = typeof spec.cacheWarmth === 'string' ? spec.cacheWarmth : 'unknown';
+  const cacheWarmth = CACHE_WARMTH.includes(rawWarmth) ? rawWarmth : 'unknown';
+
   return Object.freeze({
     schemaVersion: BENCHMARK_RUN_SCHEMA_VERSION,
     task: spec.task,
     commit: spec.commit,
     arm,
+    cacheWarmth,
     provider: outcome?.provider ?? provider.id ?? 'unknown',
     operator: (typeof opts?.operator === 'string' && opts.operator.trim()) ? opts.operator.trim() : null,
     // A mock run is real plumbing but not a real measurement → confidence 'mock'.
@@ -131,6 +141,46 @@ export function runArm(spec, arm, opts = {}) {
 export function runPilot(spec, opts = {}) {
   if (!isRunSpec(spec)) return skipped('invalid or skipped run spec');
   return Object.freeze(spec.arms.map((arm) => runArm(spec, arm, opts)));
+}
+
+/**
+ * Runs a single arm × task cell for the required number of repetitions (§13.3
+ * items 9 and 10). The repetition count is taken from spec.minReps (floor of the
+ * spec value, minimum MIN_REPS_PER_CELL). Each repetition produces a run record
+ * stamped with the 1-based `rep` index and the spec's `cacheWarmth` tier.
+ *
+ * Returns skipped() when the spec is invalid, the arm is not in the spec, or no
+ * provider is supplied. Otherwise returns a frozen array of `minReps` run records.
+ *
+ * @param {object} spec - frozen run spec from buildRunSpec.
+ * @param {string} armKey - arm key (must be present in spec.arms).
+ * @param {{ provider?: object, now?: number, operator?: string }} [opts]
+ * @returns {Readonly<object[]>|Readonly<{status:'skipped',reason:string}>}
+ */
+export function runCell(spec, armKey, opts = {}) {
+  if (!isRunSpec(spec)) return skipped('invalid or skipped run spec');
+  if (!spec.arms.includes(armKey)) return skipped(`arm "${armKey}" not in spec.arms`);
+
+  const provider = opts?.provider ?? null;
+  if (provider === null || typeof provider.execute !== 'function') {
+    return skipped('no provider — real benchmark runs are deferred (no #176 baseline)');
+  }
+
+  const reps = (typeof spec.minReps === 'number' && Number.isFinite(spec.minReps) && spec.minReps >= MIN_REPS_PER_CELL)
+    ? Math.floor(spec.minReps)
+    : MIN_REPS_PER_CELL;
+
+  const records = [];
+  for (let rep = 1; rep <= reps; rep++) {
+    const baseRecord = runArm(spec, armKey, opts);
+    if (baseRecord?.status === 'skipped') {
+      // If a single arm run skips, the whole cell skips — preserve honesty.
+      return baseRecord;
+    }
+    // Stamp the 1-based rep index onto the record (immutable freeze).
+    records.push(Object.freeze({ ...baseRecord, rep }));
+  }
+  return Object.freeze(records);
 }
 
 // ---------------------------------------------------------------------------

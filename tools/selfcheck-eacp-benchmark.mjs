@@ -62,9 +62,11 @@ export async function runEacpBenchmarkChecks({ ok, bad }, { KIT }) {
   catch (err) { bad(`benchmark-report.mjs import failed: ${err?.message ?? err}`); return; }
 
   const { BENCHMARK_SCHEMA_VERSION, ARMS, PILOT_ARMS, TASK_STRATA,
-          BENCHMARK_TARGETS, buildRunSpec, pilotSpec } = design;
-  const { MOCK_PROVIDER, runArm, runPilot, appendRun, readRuns } = run;
-  const { scoreRun, comparePilot, benchmarkReport, presentBenchmark } = report;
+          BENCHMARK_TARGETS, buildRunSpec, pilotSpec,
+          CACHE_WARMTH, MIN_REPS_PER_CELL, shuffleCells } = design;
+  const { MOCK_PROVIDER, runArm, runPilot, runCell, appendRun, readRuns } = run;
+  const { scoreRun, comparePilot, benchmarkReport, presentBenchmark,
+          withinCellVariance } = report;
 
   // ── benchmark-design: constants ───────────────────────────────────────────
   BENCHMARK_SCHEMA_VERSION === 'eacp-benchmark/1'
@@ -182,6 +184,116 @@ export async function runEacpBenchmarkChecks({ ok, bad }, { KIT }) {
     : bad('report: presentBenchmark missing honesty framing');
   presentBenchmark(benchmarkReport([])).includes('no runs')
     ? ok('report: presentBenchmark empty → "no runs"') : bad('report: empty report presentation wrong');
+
+  // ── Wave 9: CACHE_WARMTH + MIN_REPS_PER_CELL constants ───────────────────
+  (Array.isArray(CACHE_WARMTH) && CACHE_WARMTH.includes('cold') &&
+    CACHE_WARMTH.includes('warm') && CACHE_WARMTH.includes('unknown'))
+    ? ok('design: CACHE_WARMTH includes cold/warm/unknown')
+    : bad(`design: CACHE_WARMTH wrong: ${JSON.stringify(CACHE_WARMTH)}`);
+  MIN_REPS_PER_CELL === 3
+    ? ok('design: MIN_REPS_PER_CELL === 3')
+    : bad(`design: MIN_REPS_PER_CELL is ${MIN_REPS_PER_CELL}, expected 3`);
+
+  // ── Wave 9: pilotSpec / buildRunSpec carry cacheWarmth + minReps + maxBudgetUsd
+  const wave9Input = { repo: 'r', commit: 'c1', task: 't', model: 'opus', host: 'claude' };
+  const wave9Spec = design.pilotSpec(wave9Input);
+  wave9Spec.cacheWarmth === 'unknown'
+    ? ok('design: pilotSpec carries cacheWarmth default "unknown"')
+    : bad(`design: pilotSpec.cacheWarmth wrong: ${wave9Spec.cacheWarmth}`);
+  wave9Spec.minReps === MIN_REPS_PER_CELL
+    ? ok('design: pilotSpec carries minReps === MIN_REPS_PER_CELL (3)')
+    : bad(`design: pilotSpec.minReps wrong: ${wave9Spec.minReps}`);
+  wave9Spec.maxBudgetUsd === null
+    ? ok('design: pilotSpec maxBudgetUsd null when not supplied')
+    : bad(`design: pilotSpec.maxBudgetUsd should be null, got ${wave9Spec.maxBudgetUsd}`);
+  const w9Cold = design.buildRunSpec(
+    { ...wave9Input, arms: ['A', 'C'], cacheWarmth: 'cold', minReps: 5, maxBudgetUsd: 99.9 },
+  );
+  w9Cold.cacheWarmth === 'cold' && w9Cold.minReps === 5 && w9Cold.maxBudgetUsd === 99.9
+    ? ok('design: buildRunSpec carries cacheWarmth cold + raised minReps + maxBudgetUsd')
+    : bad(`design: buildRunSpec wave9 fields wrong: ${JSON.stringify(w9Cold).slice(0, 160)}`);
+
+  // ── Wave 9: runCell — minReps reps per cell, rep-indexed, cacheWarmth propagated
+  const cellResult = runCell(wave9Spec, 'A', { provider: MOCK_PROVIDER });
+  Array.isArray(cellResult) && cellResult.length === MIN_REPS_PER_CELL
+    ? ok('run: runCell returns exactly minReps (3) records')
+    : bad(`run: runCell length wrong: ${Array.isArray(cellResult) ? cellResult.length : cellResult?.status}`);
+  (Array.isArray(cellResult) &&
+    cellResult[0]?.rep === 1 && cellResult[1]?.rep === 2 && cellResult[2]?.rep === 3)
+    ? ok('run: runCell records are rep-indexed 1..3')
+    : bad(`run: runCell rep indices wrong: ${JSON.stringify((cellResult ?? []).map(r => r?.rep))}`);
+  (Array.isArray(cellResult) && cellResult.every((r) => r.claim === null))
+    ? ok('run: runCell all records carry claim null')
+    : bad('run: runCell has record with non-null claim');
+  (Array.isArray(cellResult) && cellResult.every((r) => r.cacheWarmth === wave9Spec.cacheWarmth))
+    ? ok('run: runCell propagates cacheWarmth from spec onto every record')
+    : bad(`run: runCell cacheWarmth mismatch: ${JSON.stringify((cellResult ?? []).map(r => r?.cacheWarmth))}`);
+  runCell(wave9Spec, 'B', { provider: MOCK_PROVIDER })?.status === 'skipped'
+    ? ok('run: runCell arm not in spec → skipped')
+    : bad('run: runCell arm-not-in-spec should skip');
+
+  // ── Wave 9: shuffleCells — deterministic LCG, no Math.random ─────────────
+  const scArms  = ['A', 'C'];
+  const scTasks = ['t1', 't2'];
+  const scReps  = 3;
+  const scSeed  = 42;
+  const sc1 = shuffleCells(scArms, scTasks, scReps, scSeed);
+  const sc2 = shuffleCells(scArms, scTasks, scReps, scSeed);
+  JSON.stringify(sc1) === JSON.stringify(sc2)
+    ? ok('design: shuffleCells same seed → same order (deterministic)')
+    : bad('design: shuffleCells same seed gave different orders');
+  const sc3 = shuffleCells(scArms, scTasks, scReps, 99);
+  JSON.stringify(sc1) !== JSON.stringify(sc3)
+    ? ok('design: shuffleCells different seed → different order')
+    : bad('design: shuffleCells different seed gave same order (not randomizing)');
+  sc1.length === scArms.length * scTasks.length * scReps
+    ? ok(`design: shuffleCells total cells = arms×tasks×reps (${sc1.length})`)
+    : bad(`design: shuffleCells total cells wrong: ${sc1.length}`);
+  let scRepThrew = false;
+  try { shuffleCells(scArms, scTasks, 2, scSeed); } catch { scRepThrew = true; }
+  scRepThrew
+    ? ok('design: shuffleCells throws on reps < MIN_REPS_PER_CELL')
+    : bad('design: shuffleCells should throw when reps < 3');
+  let scSeedThrew = false;
+  try { shuffleCells(scArms, scTasks, scReps, Infinity); } catch { scSeedThrew = true; }
+  scSeedThrew
+    ? ok('design: shuffleCells throws on non-finite seed')
+    : bad('design: shuffleCells should throw on non-finite seed');
+  sc1.every((c) => c.cacheWarmth === 'unknown')
+    ? ok('design: shuffleCells default cacheWarmth is "unknown" on all cells')
+    : bad('design: shuffleCells default cacheWarmth not propagated');
+  const scCold = shuffleCells(scArms, scTasks, scReps, scSeed, 'cold');
+  scCold.every((c) => c.cacheWarmth === 'cold')
+    ? ok('design: shuffleCells propagates explicit cacheWarmth "cold" to all cells')
+    : bad('design: shuffleCells cold cacheWarmth not on all cells');
+
+  // ── Wave 9: withinCellVariance ────────────────────────────────────────────
+  const cellRecs = runCell(wave9Spec, 'A', { provider: MOCK_PROVIDER });
+  const wv3 = withinCellVariance(Array.isArray(cellRecs) ? cellRecs : [], 'mockTokens');
+  wv3.n === 3 && Number.isFinite(wv3.variance) && wv3.claim === null && wv3.confidence === 'mock'
+    ? ok('report: withinCellVariance 3 reps → n=3, finite variance, claim null, confidence "mock"')
+    : bad(`report: withinCellVariance 3-rep wrong: ${JSON.stringify(wv3)}`);
+  const wv1 = withinCellVariance(Array.isArray(cellRecs) ? [cellRecs[0]] : [], 'mockTokens');
+  wv1.n === 1 && wv1.variance === null
+    ? ok('report: withinCellVariance single rep → variance null (never fabricated)')
+    : bad(`report: withinCellVariance single-rep wrong: ${JSON.stringify(wv1)}`);
+  const wv0 = withinCellVariance([], 'mockTokens');
+  wv0.n === 0 && wv0.variance === null
+    ? ok('report: withinCellVariance empty → n=0, variance null')
+    : bad(`report: withinCellVariance empty wrong: ${JSON.stringify(wv0)}`);
+
+  // ── Wave 9: benchmarkReport powerCalcFeed ────────────────────────────────
+  const pRunsA = Array.isArray(cellRecs) ? cellRecs : [];
+  const pRep = benchmarkReport(pRunsA);
+  typeof pRep.powerCalcFeed === 'object' && pRep.powerCalcFeed !== null
+    ? ok('report: benchmarkReport emits powerCalcFeed object')
+    : bad(`report: benchmarkReport missing powerCalcFeed: ${JSON.stringify(pRep).slice(0, 160)}`);
+  pRep.powerCalcFeed['A']?.n === pRunsA.length
+    ? ok('report: benchmarkReport powerCalcFeed[A].n matches arm-A record count')
+    : bad(`report: powerCalcFeed.A.n ${pRep.powerCalcFeed['A']?.n} !== ${pRunsA.length}`);
+  pRep.claim === null
+    ? ok('report: benchmarkReport claim === null (regression guard — Wave 9)')
+    : bad(`report: benchmarkReport claim must be null, got ${pRep.claim}`);
 
   // ── Zero-dep invariant ────────────────────────────────────────────────────
   let zeroDepsOk = true;
