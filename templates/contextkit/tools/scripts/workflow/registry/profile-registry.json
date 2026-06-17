@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "pipeline-only": {
+      "requiredFiles": [],
+      "optionalFiles": [],
+      "defaultPattern": null,
+      "minGates": 0,
+      "continuationRequired": false,
+      "riskRegisterRecommended": false,
+      "adrRecommended": false,
+      "taskCountGuidance": "No pack — a single DevPipeline card covers the whole change.",
+      "parallelismGuidance": "None — trivial chores run inline, no waves, no agents."
+    },
+    "basic": {
+      "requiredFiles": ["index", "spec", "tasks", "decisions", "reports", "workflow-plan", "workflow-state"],
+      "optionalFiles": ["prd", "memory", "continuation"],
+      "defaultPattern": "single-delivery",
+      "minGates": 1,
+      "continuationRequired": false,
+      "riskRegisterRecommended": false,
+      "adrRecommended": false,
+      "taskCountGuidance": "1 wave, 1-3 tasks — keep a relevant bug or small feature small.",
+      "parallelismGuidance": "Sequential by default; parallel only if tasks own disjoint paths."
+    },
+    "standard": {
+      "requiredFiles": ["index", "prd", "spec", "tasks", "decisions", "reports", "workflow-plan", "workflow-state"],
+      "optionalFiles": ["memory", "continuation", "acceptance-matrix", "risk-register"],
+      "defaultPattern": "discovery-build-validate",
+      "minGates": 2,
+      "continuationRequired": true,
+      "riskRegisterRecommended": false,
+      "adrRecommended": true,
+      "taskCountGuidance": "3-4 waves (W0-W3), a handful of tasks per wave.",
+      "parallelismGuidance": "Parallelize build-wave tasks across disjoint ownership; one gate per wave."
+    },
+    "advanced": {
+      "requiredFiles": ["index", "prd", "spec", "decisions", "tasks", "reports", "acceptance-matrix", "risk-register", "workflow-plan", "workflow-state"],
+      "optionalFiles": ["memory", "continuation", "rollout-plan"],
+      "defaultPattern": "architecture-foundation-integration",
+      "minGates": 3,
+      "continuationRequired": true,
+      "riskRegisterRecommended": true,
+      "adrRecommended": true,
+      "taskCountGuidance": "5-7 waves; cross-cutting architecture with several integrations.",
+      "parallelismGuidance": "Disjoint-ownership swarms per wave; orchestrator owns shared files and integration."
+    },
+    "program": {
+      "requiredFiles": ["index", "prd", "spec", "decisions", "tasks", "memory", "reports", "acceptance-matrix", "risk-register", "rollout-plan", "continuation", "workflow-plan", "workflow-state"],
+      "optionalFiles": [],
+      "defaultPattern": "large-program",
+      "minGates": 4,
+      "continuationRequired": true,
+      "riskRegisterRecommended": true,
+      "adrRecommended": true,
+      "taskCountGuidance": "Arbitrary DAG of waves/tasks/gates; multi-week, multi-session.",
+      "parallelismGuidance": "Multiple concurrent waves and runs bounded by capacity; orchestrator integrates."
+    }
+  }
+}

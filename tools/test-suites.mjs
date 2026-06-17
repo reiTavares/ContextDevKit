@@ -263,6 +263,20 @@ export const SUITES = Object.freeze([
   { id: 'projmap-boot-nudge', file: 'tools/selfcheck-boot-signals-projmap.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/runtime/hooks/boot-signals-projmap.mjs'] },
 
+  // WF0035 Universal Wave-Based Workflow Engine (ADR-0100) — WAVE 1 core model:
+  // registries/profiles/file-catalog, plan model + validation, machine state,
+  // wave-pack creation, and managed-block rendering. Additive; legacy CLI intact.
+  { id: 'workflow-registries', file: it('workflow-registries'), tier: 'integration:workflow',
+    touches: ['templates/contextkit/tools/scripts/workflow/profiles', 'templates/contextkit/tools/scripts/workflow/files', 'templates/contextkit/tools/scripts/workflow/patterns', 'templates/contextkit/tools/scripts/workflow/addons', 'templates/contextkit/tools/scripts/workflow/registry/'] },
+  { id: 'workflow-plan', file: it('workflow-plan'), tier: 'integration:workflow',
+    touches: ['templates/contextkit/tools/scripts/workflow/plan', 'templates/contextkit/tools/scripts/workflow/validate', 'templates/contextkit/tools/scripts/workflow/io'] },
+  { id: 'workflow-state', file: it('workflow-state'), tier: 'integration:workflow',
+    touches: ['templates/contextkit/tools/scripts/workflow/state', 'templates/contextkit/tools/scripts/workflow/io'] },
+  { id: 'workflow-create', file: it('workflow-create'), tier: 'integration:workflow',
+    touches: ['templates/contextkit/tools/scripts/workflow/create', 'templates/contextkit/tools/scripts/workflow/create-files'] },
+  { id: 'workflow-render', file: it('workflow-render'), tier: 'integration:workflow',
+    touches: ['templates/contextkit/tools/scripts/workflow/render'] },
+
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
