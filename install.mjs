@@ -23,7 +23,10 @@ import { createInterface } from 'node:readline/promises';
 import { ensureDir, read } from './tools/install/fs.mjs';
 import { requireBasename, looksGreenfield } from './tools/install/project.mjs';
 import { installVcsIntegration } from './tools/install/git.mjs';
-import { installEngine } from './tools/install/engine.mjs';
+import { installEngine, stampEngineVersion } from './tools/install/engine.mjs';
+import { runPreflight } from './tools/install/update-preflight.mjs';
+import { snapshotCriticalState, newUpdateId } from './tools/install/update-snapshot.mjs';
+import { DEFERRED_ACTIVE_SESSIONS, DEFERRED_SELF_UPDATE, FAILED_SNAPSHOT, UPDATED_WITH_PENDING_MERGES } from './tools/install/update-status.mjs';
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
@@ -140,15 +143,42 @@ async function main() {
   const sync = { manifest: await loadManifest(target), nextFiles: {}, conflicts: [] };
   const ctx = { name, level, mode, version, args, sync, priorVersion };
 
-  // 1. Claude Code settings.json (the hook wiring). `--rewire` stops right after this.
-  await wireClaudeSettings(target, level, report);
+  // --rewire: recompose ONLY .claude/settings.json for the level, then stop.
   if (args.rewire) {
+    await wireClaudeSettings(target, level, report);
     console.log(report.join('\n'));
     console.log(`\n✅ Rewired to Level ${level}. Restart your host (Claude Code, Antigravity, or Codex) to load the new hooks.`);
     return;
   }
 
-  // 2. Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
+  // Preflight + external snapshot (UPDATE only) — runs BEFORE the first mutation so
+  // an unsafe update defers with ZERO writes [ADR-0099 P0-02/03/04]. Active sessions
+  // or a self-hosted source update default to a deferral; explicit flags override
+  // (one consent never implies the other). The snapshot lives OUTSIDE the repo.
+  if (args.update) {
+    const preflight = await runPreflight(target, KIT_ROOT, args);
+    if (preflight.status) {
+      console.log(`\n⏸️  ContextDevKit update DEFERRED: ${preflight.status} — no changes were made.`);
+      for (const reason of preflight.reasons) console.log(`   • ${reason}`);
+      if (preflight.status === DEFERRED_ACTIVE_SESSIONS) {
+        console.log('   Override (after saving your work): re-run with --allow-active-sessions.');
+      }
+      if (preflight.status === DEFERRED_SELF_UPDATE) {
+        console.log('   Override: re-run with --allow-self-update (add --allow-active-sessions if both apply).');
+      }
+      return;
+    }
+    const updateId = newUpdateId();
+    const snap = await snapshotCriticalState(target, updateId);
+    if (!snap.ok) {
+      console.error(`\n❌ ContextDevKit update ABORTED: ${FAILED_SNAPSHOT} — external critical-state snapshot failed to verify. No changes were made.`);
+      return;
+    }
+    ctx.preflight = preflight;
+    report.push(`✓ external snapshot taken before update (${snap.files.length} file(s), id ${updateId})`);
+  }
+
+  // Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
   await installEngine(target, TPL, ctx, report);
 
   // 2b. Number existing workflows by start date (ADR-0071) — idempotent; a no-op
@@ -172,12 +202,23 @@ async function main() {
   report.push(...(await resolveConflicts(target, sync, version)));
   await saveManifest(target, sync, version);
 
+  // 5c. Claude Code settings.json (hook wiring) written LATE [ADR-0099 P0-05]: after
+  // engine + hosts, write-if-changed, so file-watchers fire at most once and an
+  // unchanged settings.json never churns mtime (the host-reload trigger).
+  await wireClaudeSettings(target, level, report);
+
   // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
   await installVcsIntegration(target, TPL, level, args, report);
 
   // 7. Context bridges for non-native tools — opt-in per tool via config
   //    `bridges.enabled`; context only, no enforcement [ADR-0068].
   await installBridges(target, ctx, report);
+
+  // FINAL critical write [ADR-0099 P0-06/P0-08]: stamp .engine-version only now that
+  // engine, hosts, config, conflicts and settings have all landed. A throw at any
+  // earlier step leaves the prior version (the update never "half-claims" success).
+  await stampEngineVersion(target, version);
+  report.push(`✓ .engine-version stamped → v${version}`);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
@@ -193,15 +234,24 @@ async function main() {
     console.log('   Good for solo / experiments. Team, multi-machine, or CI? Re-run with --tracked, then `git add` the kit.');
   }
   if (args.update) {
-    // PMB-01 (ADR-0098): generate the first project-map baseline when absent.
-    // Advisory + fail-open: the note is printed inline; never blocks the update.
-    const baselineNote = await maybeGenerateBaseline(target);
-    if (baselineNote) console.log(`  ${baselineNote}`);
+    // PMB-01 (ADR-0098) + P0-09 (ADR-0099): generate the first project-map baseline
+    // when absent — but DEFER while sessions are active / on a self-update (preflight
+    // carries the signal). Post-update + fail-open: non-critical, never blocks/aborts.
+    const baseline = await maybeGenerateBaseline(target, { preflight: ctx.preflight });
+    if (baseline?.note) console.log(`  ${baseline.note}`);
 
-    console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
-    console.log('   Refreshed: engine + host assets + hook wiring. Untouched: CLAUDE.md, AGENTS.md, config,');
-    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
-    console.log('   and every agent/command/workflow YOU personalized (conflicts: see ⚠️ lines above).');
+    // Honest status [ADR-0099 P0-07/P0-10]: a non-TTY run that deferred real merges
+    // preserved both sides but is NOT a clean success — say so.
+    if (sync.pendingMerges > 0) {
+      console.log(`\n⚠️  ${UPDATED_WITH_PENDING_MERGES}: v${version} applied, but ${sync.pendingMerges} personalization conflict(s) were preserved unresolved (your files kept; kit versions stashed under contextkit/.updates/v${version}/). Merge them by hand.`);
+    } else {
+      console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
+    }
+    console.log('   Refreshed: engine + host assets + hook wiring.');
+    console.log('   Never modifies user-authored memory (ADRs, sessions, roadmap, business rules, project');
+    console.log('   docs), CLAUDE.md, AGENTS.md, config, or pipeline tasks. Every agent/command/workflow');
+    console.log('   YOU personalized is kept (conflicts: see ⚠️ lines above). Derived artifacts (project-map)');
+    console.log('   may be regenerated transactionally when safe.');
     console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
     // Honest version-delta notice: only shown when a real version change occurred.
     // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).

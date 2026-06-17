@@ -203,13 +203,28 @@ async function stash(target, version, rel, content) {
 
 /**
  * Resolves every collected conflict. Interactive (both stdio are TTYs): the
- * user picks per file. Non-interactive: "both" — keep the user's file, stash
- * the kit's version. Always stamps the new kit hash so a file the kit does NOT
- * touch in the next release never re-conflicts.
+ * user picks per file. Non-interactive (CI / piped / --update without a
+ * terminal): defaults to "both" — keeps the user's file on disk untouched and
+ * stashes the kit's incoming version under `contextkit/.updates/v<version>/`
+ * so no data is ever lost.
  *
- * @returns {Promise<string[]>} report lines for the install summary
+ * Non-TTY conflicts are counted and surfaced on `sync.pendingMerges` so the
+ * orchestrator (install.mjs / update-status.mjs) can report an honest
+ * UPDATED_WITH_PENDING_MERGES status instead of a clean "UPDATED SUCCESSFULLY"
+ * — the P0-07 honesty fix. The orchestrator reads `sync.pendingMerges` after
+ * this call; this function only sets it.
+ *
+ * `sync.pendingMerges` is always initialized to 0 (even when there are no
+ * conflicts) so callers can test `> 0` without an existence guard.
+ *
+ * @param {string} target project root
+ * @param {{ manifest:object, nextFiles:object, conflicts:Array, pendingMerges:number }} sync
+ *   shared sync context — `pendingMerges` is SET here (initialized to 0 first)
+ * @param {string} version kit semver (used to name the stash directory)
+ * @returns {Promise<string[]>} report lines for the install summary (return type unchanged)
  */
 export async function resolveConflicts(target, sync, version) {
+  sync.pendingMerges = 0; // always initialize so callers can rely on the field
   const lines = [];
   if (sync.conflicts.length === 0) return lines;
   const interactive = process.stdin.isTTY && process.stdout.isTTY;
@@ -224,8 +239,11 @@ export async function resolveConflicts(target, sync, version) {
     let choice = sticky || 'b';
     if (!sticky && rl) {
       const answer = await rl.question(
-        `  ${conflict.destRel}\n    [b]oth (keep mine, stash the kit's) · [r]eplace with the kit's · [k]eep mine only` +
-          `\n    — append 'a' to apply to ALL remaining (e.g. 'ba' / 'ra' / 'ka') (b): `,
+        `  ${conflict.destRel}\n` +
+          `    [b]oth  — YOUR file stays on disk; the kit's new version is stashed under contextkit/.updates/ so you can diff & merge later\n` +
+          `    [r]eplace — the KIT's version replaces your file; YOUR version is stashed as <file>.mine so you can recover it\n` +
+          `    [k]eep  — YOUR file stays; the kit's version is DISCARDED (cannot be recovered)\n` +
+          `    — append 'a' to apply to ALL remaining (e.g. 'ba' / 'ra' / 'ka') (b): `,
       );
       const parsed = parseConflictChoice(answer);
       choice = parsed.choice;
@@ -242,8 +260,11 @@ export async function resolveConflicts(target, sync, version) {
     } else if (choice === 'k') {
       lines.push(`⚠️  conflict ${conflict.destRel}: kept yours (kit version discarded)`);
     } else {
+      // "both": keep user's file, stash the kit's incoming version for later manual merge.
+      // In non-TTY mode this is the automatic default — no user data is lost.
       const stashed = await stash(target, version, conflict.destRel, conflict.templateBuffer);
       lines.push(`⚠️  conflict ${conflict.destRel}: kept yours — kit version stashed at ${stashed} (diff & merge by hand)`);
+      if (!interactive) sync.pendingMerges += 1;
     }
     sync.nextFiles[conflict.destRel] = conflict.templateHash;
   }

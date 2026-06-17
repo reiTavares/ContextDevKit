@@ -165,7 +165,10 @@ try {
     ? ok('tech-debt-scan loads a drop-in custom detector (contextkit/detectors/)') : bad('custom detector not loaded');
 
   // Stack presets: install --preset merges stack paths into config (union with defaults).
-  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go']);
+  // --allow-active-sessions: an earlier track-edits call left a ledger in proj, which the
+  // 3.1.2 active-session guard (ADR-0099 P0-02) would otherwise defer on; this scripted
+  // update opts out (it tests preset-merge, not the guard).
+  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go', '--allow-active-sessions']);
   (readJson(cfgPath).ledger?.important || []).includes('internal/')
     ? ok('install --preset merges a stack preset into config') : bad('preset paths not merged into config');
 

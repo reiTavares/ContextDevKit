@@ -146,8 +146,14 @@ Setup do `/media-gen`:
 - `/context-doctor` — saúde do install. `/context-stats` — métricas.
 - `/audit` — auditoria geral (bom agendar via `/loop` ou `/schedule`).
 - `/dashboard` — visual do estado em HTML; `--watch` em tempo real.
-- Atualizar o kit: rode o instalador de novo (não perde memória/config) ou
+- Atualizar o kit: rode o instalador de novo ou
   `npx contextdevkit@latest --target . --update`.
+  Nunca modifica memória de autoria do usuário (ADRs, sessões, roadmap, regras
+  de negócio, docs do projeto), `CLAUDE.md`, config ou personalizações — apenas
+  o engine e os comandos. Artefatos derivados como o project-map podem ser
+  gerados de forma transacional quando seguro (adiado com sessões ativas).
+  Use `--allow-active-sessions` para prosseguir com sessões ativas (um snapshot
+  é tirado antes); `--allow-self-update` ao atualizar o próprio repositório do kit.
   O update também refresca `contextkit/README.md` pelo caminho seguro de
   manifesto e regenera `docs/README.md`; o `README.md` raiz do seu produto
   continua sendo seu.

@@ -1,6 +1,6 @@
 {
   "name": "contextdevkit",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Portable, level-based AI-assisted development platform for Claude Code, Google Antigravity, and OpenAI Codex — hooks, commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
@@ -32,6 +32,7 @@
     "ci": "npm test && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
     "ci:full": "npm run ci",
     "ci:fast": "node tools/run-suites.mjs --impact && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
+    "dogfood:tarball": "node tools/dogfood-tarball.mjs",
     "preflight-release": "npm run ci && node tools/preflight-version.mjs",
     "prepublishOnly": "npm run ci"
   },

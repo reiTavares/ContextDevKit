@@ -87,7 +87,8 @@ async function caseA(maybeGenerateBaseline) {
     let runnerCalled = false;
     const stubRunner = () => { runnerCalled = true; };
 
-    const note = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const result = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const note = result?.note ?? result; // structured result (v3.1.2) falls back to bare string
 
     runnerCalled
       ? ok('A: runner invoked when manifest is absent and source files exist')
@@ -95,7 +96,7 @@ async function caseA(maybeGenerateBaseline) {
 
     typeof note === 'string' && note.includes('generated')
       ? ok('A: success note contains "generated"')
-      : bad(`A: expected success note with "generated"; got: ${JSON.stringify(note)}`);
+      : bad(`A: expected success note with "generated"; got: ${JSON.stringify(result)}`);
   } finally {
     cleanup();
   }
@@ -112,15 +113,16 @@ async function caseB(maybeGenerateBaseline) {
     let runnerCalled = false;
     const stubRunner = () => { runnerCalled = true; };
 
-    const note = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const resultB = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const noteB = resultB?.note ?? resultB;
 
     !runnerCalled
       ? ok('B: runner NOT invoked when manifest already exists')
       : bad('B: runner was called despite existing manifest (should skip)');
 
-    typeof note === 'string' && note.toLowerCase().includes('skip')
+    typeof noteB === 'string' && noteB.toLowerCase().includes('skip')
       ? ok('B: skip note returned when manifest already exists')
-      : bad(`B: expected a skip note; got: ${JSON.stringify(note)}`);
+      : bad(`B: expected a skip note; got: ${JSON.stringify(resultB)}`);
   } finally {
     cleanup();
   }
@@ -136,15 +138,16 @@ async function caseC(maybeGenerateBaseline) {
     let runnerCalled = false;
     const stubRunner = () => { runnerCalled = true; };
 
-    const note = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const resultC = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const noteC = resultC?.note ?? resultC;
 
     !runnerCalled
       ? ok('C: runner NOT invoked for a greenfield project (no source files)')
       : bad('C: runner was called on a greenfield project (should skip)');
 
-    typeof note === 'string' && note.toLowerCase().includes('skip')
+    typeof noteC === 'string' && noteC.toLowerCase().includes('skip')
       ? ok('C: skip note returned for greenfield project')
-      : bad(`C: expected a skip note for greenfield; got: ${JSON.stringify(note)}`);
+      : bad(`C: expected a skip note for greenfield; got: ${JSON.stringify(resultC)}`);
   } finally {
     cleanup();
   }
@@ -160,20 +163,21 @@ async function caseD(maybeGenerateBaseline) {
     const throwingRunner = () => { throw new Error('simulated generator failure'); };
 
     let threwOutside = false;
-    let note;
+    let resultD;
     try {
-      note = await maybeGenerateBaseline(dir, { runGenerator: throwingRunner });
+      resultD = await maybeGenerateBaseline(dir, { runGenerator: throwingRunner });
     } catch {
       threwOutside = true;
     }
+    const noteD = resultD?.note ?? resultD;
 
     !threwOutside
       ? ok('D: exception from runner does not escape maybeGenerateBaseline (fail-open)')
       : bad('D: exception escaped maybeGenerateBaseline (must be caught internally)');
 
-    typeof note === 'string' && note.toLowerCase().includes('skip')
+    typeof noteD === 'string' && noteD.toLowerCase().includes('skip')
       ? ok('D: skip-with-reason note returned when runner throws')
-      : bad(`D: expected skip-with-reason note; got: ${JSON.stringify(note)}`);
+      : bad(`D: expected skip-with-reason note; got: ${JSON.stringify(resultD)}`);
   } finally {
     cleanup();
   }
@@ -189,15 +193,16 @@ async function caseE(maybeGenerateBaseline) {
     let runnerCalled = false;
     const stubRunner = () => { runnerCalled = true; };
 
-    const note = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const resultE = await maybeGenerateBaseline(dir, { runGenerator: stubRunner });
+    const noteE = resultE?.note ?? resultE;
 
     !runnerCalled
       ? ok('E: runner NOT invoked when generator script is missing')
       : bad('E: runner was called despite missing generator script');
 
-    typeof note === 'string' && note.toLowerCase().includes('skip')
+    typeof noteE === 'string' && noteE.toLowerCase().includes('skip')
       ? ok('E: skip note returned when generator script is absent')
-      : bad(`E: expected skip note; got: ${JSON.stringify(note)}`);
+      : bad(`E: expected skip note; got: ${JSON.stringify(resultE)}`);
   } finally {
     cleanup();
   }

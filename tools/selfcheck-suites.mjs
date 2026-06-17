@@ -23,14 +23,14 @@ const TOOLS_DIR = resolve(KIT, 'tools');
 
 /**
  * Floor for the number of on-disk suite files the list must cover. The current
- * inventory is 46 product suites (selfcheck.mjs + 45 integration-test*.mjs,
- * incl. integration-test-eacp.mjs split from token-economy in Wave 7 tech-debt,
- * integration-test-routing.mjs for ADR-0094 automatic routing,
- * integration-test-config-migrate.mjs for ADR-0095 config-section auto-migration,
- * and integration-test-routing-hook.mjs for the 3.0.1 real-hook routing wiring).
- * Lowering this requires an ADR; raise it as suites are added.
+ * inventory is 60 product suites (selfcheck.mjs + 59 integration-test*.mjs). The
+ * 3.1.2 updater-safety hotfix (ADR-0099, WF0034) added eleven across RUN 1 + RUN 2:
+ * vibekit-compat, session-safety, safe-writes, update-preflight, update-snapshot,
+ * projmap-defer, sync-conflict, session-adversarial, vibekit-adversarial,
+ * update-idempotency, update-failure. Lowering this requires an ADR; raise it as
+ * suites are added.
  */
-const MIN_SUITES = 46;
+const MIN_SUITES = 60;
 
 let failures = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);

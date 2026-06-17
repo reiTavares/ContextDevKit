@@ -17,7 +17,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['claim sanitizes the session id', 'templates/contextkit/tools/scripts/claim.mjs', /sanitizeSid/],
     ['release sanitizes the session id', 'templates/contextkit/tools/scripts/release.mjs', /sanitizeSid/],
     ['track-edits sanitizes the session id', 'templates/contextkit/runtime/hooks/track-edits.mjs', /sanitizeSid/],
-    ['session-start guards live ledgers from deletion', 'templates/contextkit/runtime/hooks/session-start.mjs', /maybeLive/],
+    ['session-start never deletes ledgers (ADR-0099 P0-01)', 'templates/contextkit/runtime/hooks/session-start.mjs', /NEVER deleted here[\s\S]*ADR-0099/],
     ['config schema is passthrough', 'templates/contextkit/runtime/config/schema.mjs', /\.passthrough\(\)/],
     ['config schema bounds level by MAX_LEVEL', 'templates/contextkit/runtime/config/schema.mjs', /max\(MAX_LEVEL\)/],
     ['installer labels single-sourced from levels.mjs', 'tools/install/cli.mjs', /levels\.mjs/],

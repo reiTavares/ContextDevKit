@@ -222,6 +222,38 @@ export const SUITES = Object.freeze([
   { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/economy/'] },
 
+  // 3.1.2 hotfix — VibeKit backward-compatibility regression lock (P0-08).
+  // Calls migrateLegacy / migrateConfigPaths directly; covers ONLY-VIBEKIT,
+  // ONLY-CONTEXTKIT, HYBRID (refuse+preserve), LEGACY-CFG-PATHS, NO-GLOBAL-REPLACE,
+  // and IDEMPOTENT-SECOND-RUN (scenarios 1-6, ADR-0095).
+  { id: 'vibekit-compat', file: it('vibekit-compat'), tier: 'integration:installer',
+    touches: ['tools/install/migrate.mjs', 'tools/install/config-paths.mjs'] },
+
+  // 3.1.2 updater-safety hotfix (ADR-0099, WF0034) — session/ledger preservation,
+  // safe writes, external preflight/snapshot/status, project-map safe deferral.
+  { id: 'session-safety', file: it('session-safety'), tier: 'integration:core',
+    touches: ['templates/contextkit/runtime/hooks/session-start.mjs', 'templates/contextkit/runtime/hooks/ledger.mjs'] },
+  { id: 'safe-writes', file: it('safe-writes'), tier: 'integration:installer',
+    touches: ['tools/install/fs.mjs', 'tools/install/claude.mjs'] },
+  { id: 'update-preflight', file: it('update-preflight'), tier: 'integration:installer',
+    touches: ['tools/install/update-preflight.mjs', 'tools/install/update-status.mjs'] },
+  { id: 'update-snapshot', file: it('update-snapshot'), tier: 'integration:installer',
+    touches: ['tools/install/update-snapshot.mjs', 'tools/install/update-status.mjs'] },
+  { id: 'projmap-defer', file: it('projmap-defer'), tier: 'integration:installer',
+    touches: ['tools/install/project-map-baseline.mjs'] },
+  // 3.1.2 RUN 2 hardening — non-TTY conflict honesty, adversarial matrices,
+  // idempotency + failure boundaries (ADR-0099, WF0034).
+  { id: 'sync-conflict', file: it('sync-conflict'), tier: 'integration:installer',
+    touches: ['tools/install/sync.mjs'] },
+  { id: 'session-adversarial', file: it('session-adversarial'), tier: 'integration:core',
+    touches: ['templates/contextkit/runtime/hooks/session-start.mjs', 'tools/install/update-preflight.mjs'] },
+  { id: 'vibekit-adversarial', file: it('vibekit-adversarial'), tier: 'integration:installer',
+    touches: ['tools/install/migrate.mjs'] },
+  { id: 'update-idempotency', file: it('update-idempotency'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/engine.mjs', 'tools/install/fs.mjs'] },
+  { id: 'update-failure', file: it('update-failure'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/update-snapshot.mjs', 'tools/install/update-preflight.mjs'] },
+
   // WF0033 project-map auto-baseline (PMB-01..03, ADR-0098) — advisory + fail-open;
   // the baseline is generated on --update / onboarding and nudged at boot when missing.
   { id: 'projmap-baseline', file: it('projmap-baseline'), tier: 'integration:installer',

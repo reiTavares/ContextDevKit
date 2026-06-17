@@ -389,7 +389,9 @@ The roadmap says *what* to build; the pipeline *runs* the work.
 # diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
 /context-doctor          # or: agy doctor / node contextkit/tools/scripts/doctor.mjs
 
-# safe update — refresh engine, commands, agents, configs (NEVER touches CLAUDE.md, memory, custom settings)
+# safe update — refresh engine, commands, agents, configs
+# (never modifies user-authored memory, CLAUDE.md, or custom settings;
+#  project-map may be generated/refreshed when safe — deferred on active sessions)
 npx contextdevkit@latest --target . --update
 
 # change level (rewires settings.json, installs git hooks at L≥3)

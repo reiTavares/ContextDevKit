@@ -84,7 +84,9 @@ try {
     : bad(`doctor missing Codex checks: ${doctor.stdout.slice(-500)}`);
 
   writeFileSync(join(proj, 'AGENTS.md'), '# Custom Codex instructions\n');
-  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+  // --allow-active-sessions: a prior track-edits left a ledger in proj; opt out of the
+  // 3.1.2 active-session guard (ADR-0099 P0-02) — this tests AGENTS.md handling.
+  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions']);
   const refreshedAgents = readFileSync(join(proj, 'AGENTS.contextdevkit.md'), 'utf-8');
   update.status === 0 && /Complete Session Workflow \(Codex\)/.test(refreshedAgents)
     ? ok('--update preserves AGENTS.md and writes refreshed AGENTS.contextdevkit.md')

@@ -56,14 +56,22 @@ change it. Higher levels add capability — earlier ones stay active.
 
 ## Updating the engine
 
-Re-run the kit installer over the project to pull engine updates without losing
-your memory or config:
+Re-run the kit installer over the project to pull engine updates. It never
+modifies user-authored memory (ADRs, executed workflows, sessions, roadmap,
+business rules, project docs), `CLAUDE.md`, or your config overrides. Derived
+artifacts such as the project-map may be generated or refreshed transactionally
+when safe (deferred if active sessions or a self-update are detected):
 
 ```bash
 npx contextdevkit@latest --target . --update
 # or, offline / from GitHub:
 npx github:reiTavares/ContextDevKit --target . --update
 ```
+
+Use `--allow-active-sessions` to proceed with active sessions detected (a
+snapshot is taken to `~/.contextdevkit/projects/<id>/backups/` first).
+Use `--allow-self-update` when updating the kit's own source repo. Both flags
+are required when both risks apply.
 
 `--update` also refreshes the installed kit README through the conflict-safe
 manifest path and regenerates `docs/README.md`. Your product's root `README.md`
