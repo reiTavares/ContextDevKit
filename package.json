@@ -32,6 +32,7 @@
     "ci": "npm test && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
     "ci:full": "npm run ci",
     "ci:fast": "node tools/run-suites.mjs --impact && node templates/contextkit/tools/scripts/tech-debt-scan.mjs --ci",
+    "dogfood:tarball": "node tools/dogfood-tarball.mjs",
     "preflight-release": "npm run ci && node tools/preflight-version.mjs",
     "prepublishOnly": "npm run ci"
   },
