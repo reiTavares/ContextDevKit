@@ -110,7 +110,11 @@ async function updateConfig(target, cfgPath, level, preset, report) {
     return;
   }
   cfg.level = level;
-  if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
+  // Preserve an existing installedAt so a repeated --update is byte-idempotent
+  // (P0-05): only stamp it the first time the marker is written, never re-churn it.
+  if (cfg.setup?.completed !== true) {
+    cfg.setup = { completed: false, installedAt: cfg.setup?.installedAt ?? new Date().toISOString() };
+  }
   const healed = migrateConfigPaths(target, cfg); // allowlist-gated; never touches project paths
   const { cfg: withDefaults, added } = migrateConfigSections(cfg, DEFAULT_CONFIG);
   cfg = withDefaults;
