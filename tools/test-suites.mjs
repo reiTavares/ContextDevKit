@@ -29,6 +29,8 @@
  * invokes the group is new.
  * @type {readonly string[]}
  */
+import { WORKFLOW_ENGINE_SUITES } from './test-suites-workflow.mjs';
+
 export const TIERS = Object.freeze([
   'smoke',
   'selfcheck',
@@ -42,17 +44,6 @@ export const TIERS = Object.freeze([
 
 /** Conventional integration-test file path from its short name. */
 const it = (name) => `tools/integration-test-${name}.mjs`;
-
-/**
- * WF0035 universal wave workflow engine suites (ADR-0100). Generated compactly
- * from the module names — every `tools/integration-test-workflow-<name>.mjs`
- * registers here under integration:workflow. Additive; legacy CLI unchanged.
- * @type {ReadonlyArray<{id:string,file:string,tier:string,touches:string[]}>}
- */
-const WORKFLOW_ENGINE_SUITES = ['registries', 'plan', 'state', 'create', 'render', 'dag', 'ownership', 'gates', 'scheduler', 'continuation'].map((name) => ({
-  id: `workflow-${name}`, file: it(`workflow-${name}`), tier: 'integration:workflow',
-  touches: [`templates/contextkit/tools/scripts/workflow/${name}`, 'templates/contextkit/tools/scripts/workflow/io'],
-}));
 
 /**
  * The full suite inventory, in LEGACY execution order. 41 product suites + the

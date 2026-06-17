@@ -13,6 +13,10 @@ _Getting started lives in the root [README](../README.md)._
 _Recipes that solve a specific real-world problem for someone who already knows the basics._
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
+- [File Catalog Guide](workflow-engine/file-catalog-guide.md) — Every workflow artifact, its purpose, who authors it, its single source of
+- [Migration Guide](workflow-engine/migration-guide.md) — Migrating a legacy workflow onto the wave engine is **opt-in and
+- [Profile Guide](workflow-engine/profile-guide.md) — A profile is the complexity dial. Values below are read directly from
+- [Workflow Guide](workflow-engine/workflow-guide.md) — How to use the wave engine end-to-end. See the [README](./README.md) for
 
 ## 📚 Reference — information-oriented
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
@@ -22,6 +26,7 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 - [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
+- [CLI Reference](workflow-engine/cli-reference.md) — Every `workflow` command, its flags, one example, and whether it **writes
 
 ## 💡 Explanation — understanding-oriented
 _Background and rationale — the why behind the decisions._
@@ -40,3 +45,8 @@ _Background and rationale — the why behind the decisions._
 ## 🗂️ Planning & meta
 
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
+
+## ❓ Unclassified
+_Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
+
+- [Universal Wave-Based Workflow Engine](workflow-engine/README.md) — One wave-based execution model for every workflow size — from a one-wave Basic

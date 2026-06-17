@@ -13,7 +13,7 @@ import { refreshIndex, refreshTasks } from './workflow/render.mjs';
 import { explainFile, requiredFiles } from './workflow/files.mjs';
 import { listProfiles } from './workflow/profiles.mjs';
 import { readJsonSafe } from './workflow/io.mjs';
-import { approveGateCmd, checkGate, closeWave, nextRun, ownershipCheck, recordResult, refreshContinuationCmd } from './workflow/commands.mjs';
+import { approveGateCmd, auditCmd, checkGate, closeWave, migrateCmd, migratePlanCmd, nextRun, ownershipCheck, recordResult, refreshContinuationCmd } from './workflow/commands.mjs';
 
 /** Best-effort git facts for the continuation prompt (never throws). */
 function gitFacts() {
@@ -162,6 +162,23 @@ function run() {
       if (!outcome.applied && apply) process.exit(1);
       return;
     }
+    if (cmd === 'audit') {
+      const [slug] = positional();
+      console.log(JSON.stringify(auditCmd(ROOT, slug), null, 2));
+      return;
+    }
+    if (cmd === 'migrate-plan') {
+      const [slug] = positional();
+      console.log(JSON.stringify(migratePlanCmd(ROOT, slug), null, 2));
+      return;
+    }
+    if (cmd === 'migrate') {
+      const [slug] = positional();
+      const apply = process.argv.includes('--apply');
+      const outcome = migrateCmd(ROOT, slug, { apply, now: new Date().toISOString() });
+      console.log(JSON.stringify(outcome, null, 2));
+      return;
+    }
     if (cmd === 'explain-file') {
       const [artifactId] = positional();
       console.log(JSON.stringify(explainFile(artifactId), null, 2));
@@ -206,7 +223,7 @@ function run() {
       console.log(`Workflow report written: ${reportPath}`);
       return;
     }
-    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | new <slug> --profile <p> [--pattern p] [--addon a]... [--plan file] | advance <slug> [--ref ref] [--force] | check <slug> | status [slug] [--json] | refresh <slug> | next-run <slug> | ownership-check <slug> | record-agent-result <slug> --file f | check-gate <slug> <gate> | approve-gate <slug> <gate> --approver name [--evidence f] | close-wave <slug> <wave> [--apply] | explain-file <id> | required-files [--profile p] | report <slug> [--task id] [--force]>');
+    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | new <slug> --profile <p> [--pattern p] [--addon a]... [--plan file] | advance <slug> [--ref ref] [--force] | check <slug> | status [slug] [--json] | refresh <slug> | next-run <slug> | ownership-check <slug> | record-agent-result <slug> --file f | check-gate <slug> <gate> | approve-gate <slug> <gate> --approver name [--evidence f] | close-wave <slug> <wave> [--apply] | audit <slug> | migrate-plan <slug> | migrate <slug> [--apply] | explain-file <id> | required-files [--profile p] | report <slug> [--task id] [--force]>');
     process.exit(1);
   } catch (err) {
     console.error(`workflow: ${err?.message ?? err}`);

@@ -20,6 +20,8 @@ import { detectCollisions, validateResultPaths } from './ownership.mjs';
 import { approveGate, evaluateGate, readGateResult } from './gates.mjs';
 import { recordAgentResult } from './results.mjs';
 import { refreshContinuation } from './continuation.mjs';
+import { auditWorkflow } from './audit.mjs';
+import { migrateApply, migrateDryRun, migrationPlan } from './migrate.mjs';
 
 /** Resolve a workflow pack directory from a slug/number, or throw. */
 function resolvePackDir(root, slug) {
@@ -140,4 +142,24 @@ export function refreshContinuationCmd(root, slug, { gitFacts, now }) {
   const { packDir, plan, state } = loadPack(root, slug);
   const scheduleOutput = computeSchedule(plan, state || {});
   return refreshContinuation(packDir, { scheduleOutput, gitFacts, now });
+}
+
+/** Read-only consistency + redundancy audit of one workflow pack. */
+export function auditCmd(root, slug) {
+  return auditWorkflow(resolvePackDir(root, slug));
+}
+
+/** Non-destructive migration proposal (zero writes) for one workflow pack. */
+export function migratePlanCmd(root, slug) {
+  return migrationPlan(resolvePackDir(root, slug));
+}
+
+/**
+ * Migrate a legacy pack. `--dry-run` (default) writes nothing; `--apply` requires
+ * an explicit force flag and inserts generated artifacts non-destructively.
+ * @returns {object} dry-run preview or the apply receipt
+ */
+export function migrateCmd(root, slug, { apply, now }) {
+  const packDir = resolvePackDir(root, slug);
+  return apply ? migrateApply(packDir, { now, force: true }) : migrateDryRun(packDir);
 }
