@@ -241,6 +241,18 @@ export const SUITES = Object.freeze([
     touches: ['tools/install/update-snapshot.mjs', 'tools/install/update-status.mjs'] },
   { id: 'projmap-defer', file: it('projmap-defer'), tier: 'integration:installer',
     touches: ['tools/install/project-map-baseline.mjs'] },
+  // 3.1.2 RUN 2 hardening — non-TTY conflict honesty, adversarial matrices,
+  // idempotency + failure boundaries (ADR-0099, WF0034).
+  { id: 'sync-conflict', file: it('sync-conflict'), tier: 'integration:installer',
+    touches: ['tools/install/sync.mjs'] },
+  { id: 'session-adversarial', file: it('session-adversarial'), tier: 'integration:core',
+    touches: ['templates/contextkit/runtime/hooks/session-start.mjs', 'tools/install/update-preflight.mjs'] },
+  { id: 'vibekit-adversarial', file: it('vibekit-adversarial'), tier: 'integration:installer',
+    touches: ['tools/install/migrate.mjs'] },
+  { id: 'update-idempotency', file: it('update-idempotency'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/engine.mjs', 'tools/install/fs.mjs'] },
+  { id: 'update-failure', file: it('update-failure'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/update-snapshot.mjs', 'tools/install/update-preflight.mjs'] },
 
   // WF0033 project-map auto-baseline (PMB-01..03, ADR-0098) — advisory + fail-open;
   // the baseline is generated on --update / onboarding and nudged at boot when missing.

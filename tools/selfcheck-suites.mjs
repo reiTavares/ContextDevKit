@@ -23,13 +23,14 @@ const TOOLS_DIR = resolve(KIT, 'tools');
 
 /**
  * Floor for the number of on-disk suite files the list must cover. The current
- * inventory is 52 product suites (selfcheck.mjs + 51 integration-test*.mjs).
- * The 3.1.2 updater-safety hotfix (ADR-0099, WF0034) added five:
- * integration-test-{session-safety,safe-writes,update-preflight,update-snapshot,
- * projmap-defer}.mjs — on top of integration-test-vibekit-compat.mjs (3.1.2 P0-08).
- * Lowering this requires an ADR; raise it as suites are added.
+ * inventory is 60 product suites (selfcheck.mjs + 59 integration-test*.mjs). The
+ * 3.1.2 updater-safety hotfix (ADR-0099, WF0034) added eleven across RUN 1 + RUN 2:
+ * vibekit-compat, session-safety, safe-writes, update-preflight, update-snapshot,
+ * projmap-defer, sync-conflict, session-adversarial, vibekit-adversarial,
+ * update-idempotency, update-failure. Lowering this requires an ADR; raise it as
+ * suites are added.
  */
-const MIN_SUITES = 52;
+const MIN_SUITES = 60;
 
 let failures = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);
