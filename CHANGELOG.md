@@ -20,6 +20,55 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Updater-safety hotfix (3.1.2 candidate — ADR-0099, WF0034)
+
+Bounded hotfix making `node install.mjs --update` incapable of silently
+destroying session or user state. A dogfood revealed that an `--update` restarts
+the host, fires `SessionStart`, and its 15-minute temporal heuristic deleted
+recently-resolved peer ledgers from the board. The larger transactional updater
+(full journal, resumable updates, rollback engine, BASE/MINE/THEIRS blob store,
+semantic merge, ownership registry, layout-migration registry) is deferred to
+**3.2.0** by design — see ADR-0099 for the scope boundary.
+
+#### Fixed
+- **P0-01** — `SessionStart` never deletes ledgers: removed the `rm()` reap from
+  `session-start.mjs`. Registered/resolved/concurrent ledgers survive host
+  restarts (the incident's proximate cause). Drift detection is preserved.
+- **P0-05** — `atomicWriteIfChanged`: `.claude/settings.json` is written via
+  atomic tmp+rename and only when content changed (no `mtime` churn / watcher
+  trips), and is committed late in the update sequence.
+- **P0-06** — `.engine-version` is stamped LAST (only on final success), so the
+  prior version remains on any earlier failure.
+- **P0-07** — honest non-TTY conflict status: unresolved conflicts preserve both
+  sides (kit copy stashed under `contextkit/.updates/`) and report
+  `UPDATED_WITH_PENDING_MERGES` instead of a clean success.
+- Config `installedAt` no longer re-stamps on every `--update` before setup
+  completes (config.json is now byte-idempotent across repeated updates).
+
+#### Added
+- **P0-02 / P0-03** — update preflight guards: `--update` defers with
+  `DEFERRED_ACTIVE_SESSIONS` (active sessions) or `DEFERRED_SELF_UPDATE`
+  (updating the kit's own source repo) and makes ZERO writes, unless overridden
+  with `--allow-active-sessions` / `--allow-self-update` (both required when both
+  risks apply — one consent never implies the other).
+- **P0-04** — external critical-state snapshot under
+  `~/.contextdevkit/projects/<id>/backups/<update-id>/` (hashed + verified, never
+  inside the repo) taken before the first mutation; aborts with `FAILED_SNAPSHOT`
+  on a verification failure.
+- **P0-09** — the project-map baseline (WF0033) defers generation while sessions
+  are active or on a self-update, and never regenerates an existing map.
+- Honest update statuses (`UPDATED` / `UPDATED_WITH_PENDING_MERGES` /
+  `DEFERRED_*` / `FAILED_*`) and corrected user-facing docs: `--update` "never
+  modifies user-authored memory (ADRs, sessions, roadmap, business rules, project
+  docs)"; derived artifacts like the project-map may be refreshed when safe.
+
+#### Compatibility
+- **P0-08** — VibeKit backward compatibility is unchanged and now regression
+  -locked: only-`vibekit/` migrates (user data byte-for-byte), only-`contextkit/`
+  no-ops, a hybrid tree is detected + preserved + reported (no destructive
+  resolution), legacy config paths migrate by allowlist only, historical prose is
+  never globally rewritten, and a second migration run is idempotent.
+
 ## [3.1.1] - 2026-06-16
 
 Hotfix release on top of the 3.1.0 feature merges. Closes two defects found in

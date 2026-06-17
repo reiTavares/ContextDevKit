@@ -180,7 +180,9 @@ else references the literal name.
 ## 9. Updating the engine later
 
 Re-run the installer over the project. It overwrites only the engine and slash
-commands; it never touches your memory, config overrides, or `CLAUDE.md`:
+commands. It never modifies user-authored memory (ADRs, executed workflows,
+sessions, roadmap, business rules, project docs), `CLAUDE.md`, or your config
+overrides:
 
 ```bash
 node /path/to/contextdevkit/install.mjs --target . --level <N> --yes
@@ -193,8 +195,26 @@ npx contextdevkit@latest --target . --update
 ```
 
 This refreshes engine + slash commands + hook wiring for your **current** level.
-It **never** touches `CLAUDE.md`, `contextkit/config.json`, memory (ADRs/sessions/
-roadmap), pipeline tasks, scoped module `CLAUDE.md`, or your `contextkit/.env`.
+It never modifies user-authored memory (ADRs, executed workflows, sessions,
+roadmap, business rules, project docs), `CLAUDE.md`, `contextkit/config.json`,
+pipeline tasks, scoped module `CLAUDE.md`, or your `contextkit/.env`. Derived
+artifacts such as the project-map may be generated or refreshed transactionally
+when safe (deferred if active sessions or a self-update are detected).
+
+**Safety flags (v3.1.2+):**
+
+- `--allow-active-sessions` — proceed even when active sessions are detected
+  (default: defer with zero writes; a snapshot is taken before proceeding).
+- `--allow-self-update` — proceed when updating the kit's own source repo
+  (default: defer). Both flags are required when both risks apply.
+
+When a non-TTY conflict cannot be interactively resolved, both versions are
+preserved and the update completes with status `UPDATED_WITH_PENDING_MERGES` —
+the kit's version is stashed under `contextkit/.updates/` for manual review.
+
+A point-in-time snapshot of critical state is written to
+`~/.contextdevkit/projects/<id>/backups/<update-id>/` before any destructive
+step (never inside the project repo).
 
 ## Uninstall
 
