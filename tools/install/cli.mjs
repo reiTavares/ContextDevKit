@@ -5,7 +5,7 @@
 export { LEVEL_LABELS } from '../../templates/contextkit/runtime/config/levels.mjs';
 
 export function parseArgs(argv) {
-  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false, migrate: false, dryRun: false, tracked: false };
+  const args = { yes: false, rewire: false, force: false, uninstall: false, help: false, version: false, purge: false, update: false, migrate: false, dryRun: false, tracked: false, allowActiveSessions: false, allowSelfUpdate: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--yes' || a === '-y') args.yes = true;
@@ -25,6 +25,8 @@ export function parseArgs(argv) {
     else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--preset') args.preset = argv[++i];
     else if (a === '--ci-squad') args.ciSquad = true; // ADR-0064 opt-in (left undefined → prompt/skip)
+    else if (a === '--allow-active-sessions') args.allowActiveSessions = true; // P0-02: bypass active-session defer
+    else if (a === '--allow-self-update') args.allowSelfUpdate = true; // P0-03: bypass self-host defer
   }
   return args;
 }
@@ -58,6 +60,11 @@ Flags:
                     Files YOU personalized are kept; a real conflict (you changed it
                     AND the kit changed it) asks you — keep both / replace / keep mine
                     (no TTY: keeps yours + stashes the kit's under contextkit/.updates/)
+  --allow-active-sessions   with --update: proceed even when active sessions are
+                    detected (default: defer with zero writes). Snapshots first.
+  --allow-self-update       with --update: proceed when updating the kit's own
+                    source repo (default: defer). Both flags are required when
+                    active sessions AND a self-update are both detected.
   --tracked         commit the install: skip the local git exclude the installer
                     writes by default (default: install artifacts stay untracked,
                     so updates never flood your git history)

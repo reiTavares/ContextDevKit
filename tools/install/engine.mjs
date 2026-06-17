@@ -34,13 +34,25 @@ const MEMORY_SEEDS = [
   'policy/capability-registry.json', '.env.example',
 ];
 
-/** Copies the engine (always overwrite — kit code) and stamps the version [ADR-0033]. */
-async function copyEngine(target, tplDir, version, report) {
+/** Copies the engine (always overwrite — kit code). The version is NOT stamped
+ *  here: `.engine-version` is written LAST, only on final success [ADR-0099 P0-06],
+ *  via {@link stampEngineVersion}, so a crash mid-install leaves the prior version. */
+async function copyEngine(target, tplDir, report) {
   await copyTree(join(tplDir, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
   await copyTree(join(tplDir, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
-  // SessionStart compares this to a per-session "seen" marker and announces updates.
-  await overwrite(join(target, 'contextkit', '.engine-version'), `${version}\n`);
   report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
+}
+
+/**
+ * Stamps `contextkit/.engine-version` — the FINAL write of a successful install/
+ * update [ADR-0099 P0-06]. SessionStart compares this to a per-session "seen"
+ * marker to announce updates. Called by the orchestrator only after engine,
+ * hosts, config, conflicts, settings and the post-update steps have all landed.
+ * @param {string} target project root
+ * @param {string} version kit version to record
+ */
+export async function stampEngineVersion(target, version) {
+  await overwrite(join(target, 'contextkit', '.engine-version'), `${version}\n`);
 }
 
 /** Seeds memory, pipeline and detectors (write-if-missing, user-owned); syncs workflows, overwrites starters. */
@@ -158,7 +170,7 @@ async function seedDocs(target, tplDir, name, report) {
  * @param {string[]} report - mutated with progress lines
  */
 export async function installEngine(target, tplDir, ctx, report) {
-  await copyEngine(target, tplDir, ctx.version, report);
+  await copyEngine(target, tplDir, report);
   await seedSubstrate(target, tplDir, ctx, report);
   // Additively distribute new policy keys into existing stores (ADR-0097/CDK-082).
   // Idempotent + additive; runs after seeding so freshly-seeded stores are skipped.

@@ -105,7 +105,10 @@ function testConcurrencyExternalEdit(proj) {
 function testMalformedSettingsRecovery(proj) {
   const settings = join(proj, '.claude', 'settings.json');
   writeFileSync(settings, '{ this is : not json ,,');
-  const res = run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+  // --allow-active-sessions: a prior track-edits left a ledger in proj; the 3.1.2
+  // active-session guard (ADR-0099 P0-02) would defer otherwise. This tests settings
+  // recovery, not the guard, so it opts out.
+  const res = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions']);
   let parsed = null;
   try {
     parsed = readJson(settings);
@@ -131,7 +134,9 @@ function testUpdateRefreshesKitOwned(proj) {
   const manifest = readJson(manifestPath);
   manifest.files['contextkit/workflows/playbooks/simulate-impact.md'] = createHash('sha256').update(staleBody).digest('hex');
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+  // --allow-active-sessions: opt out of the 3.1.2 active-session guard (ADR-0099
+  // P0-02) — this tests kit-owned playbook refresh, not the guard.
+  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions']);
   const fresh = readFileSync(stale, 'utf-8');
   !fresh.includes('STALE FROM OLD KIT') && !fresh.includes('vibekit/')
     ? ok('--update refreshes kit-owned playbooks (no stale content survives)') : bad('--update left a stale playbook unrefreshed');
