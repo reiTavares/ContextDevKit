@@ -56,7 +56,10 @@ Flags:
   --yes, -y         non-interactive (use flags/defaults, no prompts)
   --force           overwrite CLAUDE.md / memory seeds if they exist
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
-                    the CURRENT level; never touches CLAUDE.md, config, or memory.
+                    the CURRENT level. Never modifies user-authored memory (ADRs,
+                    sessions, roadmap, project docs), CLAUDE.md, or config. Derived
+                    artifacts (project-map) may be refreshed when safe. Defers on
+                    active sessions / self-update (override: --allow-* flags).
                     Files YOU personalized are kept; a real conflict (you changed it
                     AND the kit changed it) asks you — keep both / replace / keep mine
                     (no TTY: keeps yours + stashes the kit's under contextkit/.updates/)

@@ -14,6 +14,13 @@
 export const UPDATED = 'UPDATED';
 
 /**
+ * Update applied, but one or more personalization conflicts were preserved
+ * unresolved in a non-interactive run (both sides kept, kit versions stashed).
+ * Honest status [P0-07]: NOT a clean success — the user must merge by hand.
+ */
+export const UPDATED_WITH_PENDING_MERGES = 'UPDATED_WITH_PENDING_MERGES';
+
+/**
  * One or more active sessions were detected in the target project and
  * `args.allowActiveSessions` was not set. Update deferred to protect
  * in-flight work.

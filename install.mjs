@@ -26,7 +26,7 @@ import { installVcsIntegration } from './tools/install/git.mjs';
 import { installEngine, stampEngineVersion } from './tools/install/engine.mjs';
 import { runPreflight } from './tools/install/update-preflight.mjs';
 import { snapshotCriticalState, newUpdateId } from './tools/install/update-snapshot.mjs';
-import { DEFERRED_ACTIVE_SESSIONS, DEFERRED_SELF_UPDATE, FAILED_SNAPSHOT } from './tools/install/update-status.mjs';
+import { DEFERRED_ACTIVE_SESSIONS, DEFERRED_SELF_UPDATE, FAILED_SNAPSHOT, UPDATED_WITH_PENDING_MERGES } from './tools/install/update-status.mjs';
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
@@ -240,10 +240,18 @@ async function main() {
     const baseline = await maybeGenerateBaseline(target, { preflight: ctx.preflight });
     if (baseline?.note) console.log(`  ${baseline.note}`);
 
-    console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
-    console.log('   Refreshed: engine + host assets + hook wiring. Untouched: CLAUDE.md, AGENTS.md, config,');
-    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files,');
-    console.log('   and every agent/command/workflow YOU personalized (conflicts: see ⚠️ lines above).');
+    // Honest status [ADR-0099 P0-07/P0-10]: a non-TTY run that deferred real merges
+    // preserved both sides but is NOT a clean success — say so.
+    if (sync.pendingMerges > 0) {
+      console.log(`\n⚠️  ${UPDATED_WITH_PENDING_MERGES}: v${version} applied, but ${sync.pendingMerges} personalization conflict(s) were preserved unresolved (your files kept; kit versions stashed under contextkit/.updates/v${version}/). Merge them by hand.`);
+    } else {
+      console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
+    }
+    console.log('   Refreshed: engine + host assets + hook wiring.');
+    console.log('   Never modifies user-authored memory (ADRs, sessions, roadmap, business rules, project');
+    console.log('   docs), CLAUDE.md, AGENTS.md, config, or pipeline tasks. Every agent/command/workflow');
+    console.log('   YOU personalized is kept (conflicts: see ⚠️ lines above). Derived artifacts (project-map)');
+    console.log('   may be regenerated transactionally when safe.');
     console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
     // Honest version-delta notice: only shown when a real version change occurred.
     // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).
