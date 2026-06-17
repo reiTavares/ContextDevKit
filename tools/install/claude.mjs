@@ -11,7 +11,7 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { composeSettings } from '../../templates/contextkit/runtime/config/settings-compose.mjs';
 import { detectStack } from './project.mjs';
-import { read, overwrite, copyTree, render } from './fs.mjs';
+import { read, overwrite, atomicWriteIfChanged, copyTree, render } from './fs.mjs';
 import { syncTree } from './sync.mjs';
 
 /**
@@ -31,8 +31,13 @@ export async function wireClaudeSettings(target, level, report) {
       report.push('⚠️  existing .claude/settings.json was malformed — recreated');
     }
   }
-  await overwrite(settingsPath, JSON.stringify(composeSettings(existingSettings, level), null, 2) + '\n');
-  report.push(`✓ .claude/settings.json wired for L${level}`);
+  const composed = JSON.stringify(composeSettings(existingSettings, level), null, 2) + '\n';
+  const { written } = await atomicWriteIfChanged(settingsPath, composed);
+  if (written) {
+    report.push(`✓ .claude/settings.json wired for L${level}`);
+  } else {
+    report.push(`✓ .claude/settings.json already current for L${level} (no change)`);
+  }
 }
 
 /** Renders CLAUDE.md when missing; on a name collision drops a side file to merge. Never touched on --update. */

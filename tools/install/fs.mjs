@@ -52,6 +52,35 @@ export async function atomicWrite(path, content) {
 }
 
 /**
+ * Atomically writes `content` ONLY when the file's current bytes differ from
+ * `content`, eliminating spurious mtime churn that trips file-watchers on
+ * host editors (the no-churn guarantee — P0-05 / 3.1.2 hotfix).
+ *
+ * Comparison is an exact UTF-8 string equality check against the raw on-disk
+ * bytes — matching how callers serialize (JSON.stringify + '\n'). A BOM is NOT
+ * stripped before comparing; callers must never write a BOM (all kit writes use
+ * 'utf-8' without BOM).
+ *
+ * Falls through to write when the existing file cannot be read (missing,
+ * permission error, etc.) so the caller always ends up with a valid file.
+ *
+ * @param {string} path  destination file path
+ * @param {string} content  serialized content to write
+ * @returns {Promise<{ written: boolean }>}  `{ written: true }` when the file
+ *   was (re)written, `{ written: false }` when it was already up-to-date.
+ */
+export async function atomicWriteIfChanged(path, content) {
+  if (existsSync(path)) {
+    try {
+      const current = await readFile(path, 'utf-8');
+      if (current === content) return { written: false };
+    } catch { /* fall through to write */ }
+  }
+  await atomicWrite(path, content);
+  return { written: true };
+}
+
+/**
  * Copies an existing file to `${path}.bak` before a destructive repair. No-op
  * (returns false) when the source is absent. Best-effort — never throws.
  * @param {string} path file to back up
