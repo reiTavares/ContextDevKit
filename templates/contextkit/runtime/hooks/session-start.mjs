@@ -5,14 +5,14 @@
  * Behavior:
  *   1. `git fetch origin` silently to surface ahead/behind divergence.
  *   2. Detects drift from prior sessions (ledgers with unregistered important
- *      modifications) and emits a banner. Cleans up resolved ledgers.
+ *      modifications) and emits a banner. Never deletes ledgers — session
+ *      cleanup is a separate explicit command [ADR-0099].
  *   3. Includes the latest registered session, the CHANGELOG `[Unreleased]`,
  *      and active workspace claims when present.
  *
  * Constraints: concise output, all errors silent (NEVER block a session),
  * zero third-party deps.
  */
-import { rm } from 'node:fs/promises';
 import {
   digestLatestSession,
   digestUnreleased,
@@ -37,7 +37,6 @@ import {
 } from './boot-signals.mjs';
 import {
   freshLedger,
-  ledgerPathFor,
   listAllLedgers,
   pendingImportantPaths,
   wasRegisteredDuringSession,
@@ -65,9 +64,6 @@ async function readStdin() {
   });
 }
 
-/** A ledger touched within this window may belong to a LIVE concurrent session. */
-const ACTIVE_GRACE_MS = 15 * 60 * 1000;
-
 /** Most recent activity timestamp for a ledger (its start, or its last edit). */
 function lastActivityAt(ledger) {
   const mods = Array.isArray(ledger.modifications) ? ledger.modifications : [];
@@ -78,19 +74,15 @@ function lastActivityAt(ledger) {
 async function analyzePriorLedgers(currentSessionId) {
   const all = await listAllLedgers();
   const drift = [];
-  const now = Date.now();
   for (const { sessionId, ledger } of all) {
     if (sessionId === currentSessionId) continue;
-    const mods = Array.isArray(ledger.modifications) ? ledger.modifications : [];
     const registered = ledger.registered || wasRegisteredDuringSession(ledger);
     const pending = pendingImportantPaths(ledger);
     if (registered || pending.length === 0) {
-      // Reap a resolved ledger — but NEVER an empty one, nor one touched within the
-      // grace window: that may be a LIVE concurrent session that just wrote its
-      // fresh (empty) ledger. Deleting it was the race (008): a booting session
-      // wiped a live peer. The owning session cleans up its own ledger.
-      const maybeLive = mods.length === 0 || now - lastActivityAt(ledger) < ACTIVE_GRACE_MS;
-      if (!maybeLive) await rm(ledgerPathFor(sessionId), { force: true }).catch(() => {});
+      // Resolved ledgers (registered or no pending important paths) are skipped
+      // from drift detection. They are NEVER deleted here — ledger cleanup is a
+      // separate explicit command (ADR-0099). Deleting here caused the incident:
+      // an --update restart fired SessionStart and wiped recently-resolved peers.
       continue;
     }
     drift.push({ sessionId, paths: pending, at: lastActivityAt(ledger) });
