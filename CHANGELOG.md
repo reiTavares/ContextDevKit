@@ -20,7 +20,9 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Updater-safety hotfix (3.1.2 candidate — ADR-0099, WF0034)
+## [3.1.2] - 2026-06-17
+
+### Updater-safety hotfix (ADR-0099, WF0034)
 
 Bounded hotfix making `node install.mjs --update` incapable of silently
 destroying session or user state. A dogfood revealed that an `--update` restarts
