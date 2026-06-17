@@ -1,9 +1,15 @@
 /**
- * Benchmark scoring + advisory report — EACP Wave 6 / card #242 (EACP-13).
+ * Benchmark scoring + advisory report — EACP Wave 6/9 / card #242 (EACP-13).
  *
  * Independent QA scoring of a run, the matched-pair C-vs-A comparison, and the
  * advisory report. This wave ships NO claim: comparisons degrade to
  * confidence 'unknown' because the #176 baseline is unbuilt and runs are mock.
+ *
+ * Wave 9 adds:
+ *   - withinCellVariance(): computes sample variance of a numeric metric across
+ *     repetition records in one cell (§13.3 item 15).
+ *   - benchmarkReport() now emits `powerCalcFeed` — per-cell sample size and
+ *     variance for the #243 statistical power calculation (§13.3 item 16).
  *
  * QA independence (benchmark-plan §"QA independence", panel M7):
  *   - The evaluator MUST differ from the run operator; otherwise the verdict is
@@ -113,12 +119,74 @@ export function comparePilot(arms) {
 }
 
 // ---------------------------------------------------------------------------
+// Within-cell variance (§13.3 item 15 — feeds #243 power calculation)
+// ---------------------------------------------------------------------------
+
+/**
+ * Computes the sample variance (Bessel-corrected, n−1 denominator) of a numeric
+ * metric extracted from an array of repetition records within one cell.
+ *
+ * Returns null when fewer than 2 non-null, finite numeric values exist — a
+ * variance from a single observation is undefined, not zero (constitution §8:
+ * never fabricate precision). Carries `confidence: 'mock'` when any record is
+ * mock; otherwise 'unknown' (real but not powered — ADR-0080).
+ *
+ * The result is shaped for the #243 power calculation: `{ n, mean, variance,
+ * confidence, claim }` where `claim` is always null (evidence gate not met).
+ *
+ * @param {object[]} reps - Repetition records from runCell (arm × task).
+ * @param {string} metricKey - Key to extract from each record's metrics object
+ *   (e.g. 'mockTokens'). Must be a non-empty string.
+ * @returns {Readonly<{ n: number, mean: number|null, variance: number|null,
+ *   confidence: string, claim: null }>}
+ */
+export function withinCellVariance(reps, metricKey) {
+  const base = { n: 0, mean: null, variance: null, confidence: 'unknown', claim: null };
+
+  if (!Array.isArray(reps) || reps.length === 0) return Object.freeze(base);
+  if (typeof metricKey !== 'string' || metricKey.trim().length === 0) return Object.freeze(base);
+
+  const key = metricKey.trim();
+  let hasMock = false;
+  const values = [];
+
+  for (const rec of reps) {
+    if (rec === null || typeof rec !== 'object' || rec.status === 'skipped') continue;
+    if (rec.confidence === 'mock') hasMock = true;
+    const val = rec.metrics?.[key];
+    if (typeof val === 'number' && Number.isFinite(val)) values.push(val);
+  }
+
+  if (values.length < 2) {
+    // Fewer than 2 values → variance undefined, not zero.
+    return Object.freeze({ ...base, n: values.length, confidence: hasMock ? 'mock' : 'unknown' });
+  }
+
+  const mean = values.reduce((s, v) => s + v, 0) / values.length;
+  // Bessel-corrected sample variance (n−1).
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1);
+
+  return Object.freeze({
+    n: values.length,
+    mean,
+    variance,
+    confidence: hasMock ? 'mock' : 'unknown',
+    claim: null,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Advisory report + presentation
 // ---------------------------------------------------------------------------
 
 /**
  * Builds an advisory benchmark report from run records + an optional comparison.
  * Never asserts a claim. Empty runs → a report flagged 'no runs'.
+ *
+ * Wave 9: emits `powerCalcFeed` — a record of per-arm sample sizes and within-
+ * cell variances for the mockTokens metric. This is the shape #243 consumes for
+ * its sample-size / power calculation. The feed is advisory only; confidence
+ * propagates from the underlying records.
  *
  * @param {object[]} runs - run records (may include skipped markers; counted).
  * @param {ReturnType<typeof comparePilot>|null} [comparison]
@@ -134,6 +202,21 @@ export function benchmarkReport(runs, comparison = null) {
     else if (run?.confidence === 'mock') { mock++; }
     else { real++; }
   }
+
+  // Build powerCalcFeed: per-arm within-cell variance over mockTokens.
+  // Groups non-skipped runs by arm, computes within-cell variance for each.
+  const byArm = {};
+  for (const run of list) {
+    if (!run || typeof run !== 'object' || run.status === 'skipped') continue;
+    const armKey = typeof run.arm === 'string' ? run.arm : 'unknown';
+    if (!byArm[armKey]) byArm[armKey] = [];
+    byArm[armKey].push(run);
+  }
+  const powerCalcFeed = {};
+  for (const [armKey, armRuns] of Object.entries(byArm)) {
+    powerCalcFeed[armKey] = withinCellVariance(armRuns, 'mockTokens');
+  }
+
   return Object.freeze({
     schemaVersion: BENCHMARK_REPORT_SCHEMA_VERSION,
     runs: list.length,
@@ -141,6 +224,7 @@ export function benchmarkReport(runs, comparison = null) {
     realRuns: real,
     skippedRuns: skippedCount,
     comparison: comparison ?? comparePilot(null),
+    powerCalcFeed: Object.freeze(powerCalcFeed),
     claim: null,
     targets: BENCHMARK_TARGETS,
   });
