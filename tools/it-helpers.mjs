@@ -18,8 +18,29 @@ import { fileURLToPath } from 'node:url';
 
 export const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 export const node = process.execPath;
-export const run = (args, opts = {}) => spawnSync(node, args, { encoding: 'utf-8', ...opts });
-export const git = (args, cwd) => spawnSync('git', args, { cwd, encoding: 'utf-8' });
+
+/**
+ * Strips inherited git-repo-location env vars so a spawned git/installer
+ * resolves the repo from `cwd`, not a leaked `GIT_DIR`. Without this, these
+ * tests fail when run INSIDE a git hook (e.g. the kit's own pre-push during a
+ * release self-push): the outer push exports GIT_DIR/GIT_INDEX_FILE, which then
+ * hijack the temp project's `git init`, so its hooks are never installed.
+ * @param {NodeJS.ProcessEnv} [base] env to sanitize (default process.env)
+ * @returns {NodeJS.ProcessEnv}
+ */
+export function cleanGitEnv(base = process.env) {
+  const env = { ...base };
+  for (const key of ['GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE', 'GIT_PREFIX', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY']) {
+    delete env[key];
+  }
+  return env;
+}
+
+export const run = (args, opts = {}) => {
+  const { env, ...rest } = opts;
+  return spawnSync(node, args, { encoding: 'utf-8', ...rest, env: cleanGitEnv(env ?? process.env) });
+};
+export const git = (args, cwd) => spawnSync('git', args, { cwd, encoding: 'utf-8', env: cleanGitEnv() });
 export const readJson = (p) => JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
 
 /** A pass/fail reporter with its own failure counter. `finish` sets the exit code. */
