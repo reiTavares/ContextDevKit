@@ -244,9 +244,48 @@ export async function runEacpBudgetChecks({ ok, bad }, { KIT }) {
     ? ok('presentBudget: populated advisory → string contains "Budget guard"')
     : bad(`presentBudget: populated should contain "Budget guard", got: ${preFull.slice(0, 200)}`);
 
+  // ── ask-mode budgetExhausted; all scopes; fail-open; resolver integration (#238) ──
+
+  // 22. ask mode + over-limit → budgetExhausted===true
+  const askAdv = budLib.evaluateBudget({tokens:110},{scope:'session',limit:100,ceilingMode:'ask'},{});
+  askAdv.mode === 'ask' && askAdv.budgetExhausted === true
+    ? ok('evaluateBudget: ceilingMode "ask" + over-limit → mode "ask", budgetExhausted true')
+    : bad(`evaluateBudget: ask mode wrong — mode="${askAdv.mode}" budgetExhausted=${askAdv.budgetExhausted}`);
+
+  // 23. All 13 BUDGET_SCOPES produce non-skipped result with valid spend/limit
+  const scopeFails = budLib.BUDGET_SCOPES.filter(scope => {
+    const r = budLib.evaluateBudget({tokens:50},{scope,limit:100},{});
+    return r?.status === 'skipped' || typeof r?.spend !== 'number' || typeof r?.limit !== 'number';
+  });
+  scopeFails.length === 0
+    ? ok(`evaluateBudget: all ${budLib.BUDGET_SCOPES.length} BUDGET_SCOPES produce non-skipped result`)
+    : bad(`evaluateBudget: scopes with bad result: ${scopeFails.join(', ')}`);
+
+  // 24. Invalid spend type → skipped (fail-open, constitution §8)
+  budLib.evaluateBudget('invalid',{scope:'session',limit:100},{})?.status === 'skipped'
+    ? ok('evaluateBudget: non-object spend → skipped (fail-open, constitution §8)')
+    : bad('evaluateBudget: invalid spend should skip');
+
+  // 25. Resolver integration (ADR-0044 D3): grade4+budgetExhausted→edit='suggest', swarm='manual'
+  const raPath = resolve(KIT, 'templates/contextkit/runtime/config/resolve-autonomy.mjs');
+  let raLib;
+  try { raLib = await import(pathToFileURL(raPath).href); }
+  catch (err) { bad(`resolve-autonomy import failed: ${err?.message ?? err}`); raLib = null; }
+  if (raLib) {
+    const cfg4 = { autonomy: { grade: 4 }, deliberations: { active: true } };
+    const editRes = raLib.resolveAutonomy('edit', cfg4, null, { budgetExhausted: true });
+    editRes.mode === 'suggest'
+      ? ok('resolver: grade4+budgetExhausted → edit="suggest" (never blocks, ADR-0044 D3)')
+      : bad(`resolver: grade4+budgetExhausted edit wrong: "${editRes.mode}"`);
+    const swarmRes = raLib.resolveAutonomy('swarm-dispatch', cfg4, null, { budgetExhausted: true });
+    swarmRes.mode === 'manual'
+      ? ok('resolver: grade4+budgetExhausted → swarm-dispatch="manual" (fan-out blocked)')
+      : bad(`resolver: grade4+budgetExhausted swarm-dispatch wrong: "${swarmRes.mode}"`);
+  }
+
   // ── Zero-dep invariant ────────────────────────────────────────────────────
 
-  // 22. Both budget modules satisfy the zero-dep contract
+  // 26. Both budget modules satisfy the zero-dep contract
   let zeroDepsOk = true;
   for (const [name, path] of modDefs) {
     const result = await checkModuleZeroDep(name, path);

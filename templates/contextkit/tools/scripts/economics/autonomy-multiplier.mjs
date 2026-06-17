@@ -47,9 +47,12 @@ const UNBENCHMARKED_NOTE =
 /**
  * Returns true only when a task counts as "useful autonomy."
  * Goodhart guard: outcomes only — acceptance + tests + QA, never raw turns.
+ * §13.2 independence gates: `externalCriteria` (independently-authored acceptance
+ * criteria required) and `evaluatorNotOperator` (reviewer ≠ implementer required).
  * Missing fields are treated as false (most conservative interpretation).
  *
  * @param {{ acceptanceMet?: boolean, testsRun?: boolean, qaGreen?: boolean,
+ *   externalCriteria?: boolean, evaluatorNotOperator?: boolean,
  *   criticalBypass?: boolean, immediateRollback?: boolean,
  *   materialErrorReopen?: boolean, humanIntervention?: boolean,
  *   humanInterventionLogged?: boolean }} task
@@ -58,9 +61,11 @@ const UNBENCHMARKED_NOTE =
 export function usefulAutonomy(task) {
   if (task === null || typeof task !== 'object' || Array.isArray(task)) return false;
   return (
-    task.acceptanceMet    === true &&
-    task.testsRun         === true &&
-    task.qaGreen          === true &&
+    task.acceptanceMet        === true &&
+    task.testsRun             === true &&
+    task.qaGreen              === true &&
+    task.externalCriteria     === true &&
+    task.evaluatorNotOperator === true &&
     !task.criticalBypass  &&
     !task.immediateRollback &&
     !task.materialErrorReopen &&
@@ -71,8 +76,10 @@ export function usefulAutonomy(task) {
 /**
  * Returns specific exclusion reasons for a task. Empty array → task is useful.
  * Drives transparency: no silent caps, every criterion named individually.
+ * §13.2: includes independence gates (externalCriteria, evaluatorNotOperator).
  *
  * @param {{ acceptanceMet?: boolean, testsRun?: boolean, qaGreen?: boolean,
+ *   externalCriteria?: boolean, evaluatorNotOperator?: boolean,
  *   criticalBypass?: boolean, immediateRollback?: boolean,
  *   materialErrorReopen?: boolean, humanIntervention?: boolean,
  *   humanInterventionLogged?: boolean }} task
@@ -83,12 +90,14 @@ export function usefulReasons(task) {
     return ['not a valid task object'];
   }
   const reasons = [];
-  if (task.acceptanceMet !== true)  reasons.push('acceptance criteria not met');
-  if (task.testsRun      !== true)  reasons.push('tests not run');
-  if (task.qaGreen       !== true)  reasons.push('QA not green');
-  if (task.criticalBypass)          reasons.push('critical bypass present');
-  if (task.immediateRollback)       reasons.push('immediate rollback');
-  if (task.materialErrorReopen)     reasons.push('material-error reopen');
+  if (task.acceptanceMet        !== true) reasons.push('acceptance criteria not met');
+  if (task.testsRun             !== true) reasons.push('tests not run');
+  if (task.qaGreen              !== true) reasons.push('QA not green');
+  if (task.externalCriteria     !== true) reasons.push('acceptance criteria not independently authored');
+  if (task.evaluatorNotOperator !== true) reasons.push('evaluator is the operator (not independent)');
+  if (task.criticalBypass)                reasons.push('critical bypass present');
+  if (task.immediateRollback)             reasons.push('immediate rollback');
+  if (task.materialErrorReopen)           reasons.push('material-error reopen');
   if (task.humanIntervention && task.humanInterventionLogged !== true) {
     reasons.push('human intervention not logged');
   }
@@ -145,10 +154,13 @@ export function selectUnit(quotaObservable, available = []) {
  * confidence: 'derived' for quota, 'inferred' for other recognised substitutes,
  * 'unknown' when unit is null or unrecognised.
  * `claim` is ALWAYS null — targets are not asserted until #242.
+ * `baselineMeasured` is ALWAYS false pre-benchmark (card #242 pending).
+ * `evidenceIds` lists external evidence IDs supplied by the caller (default []).
+ * `reasonUnavailable` captures why a result cannot be more confident.
  *
  * @param {{ qaGreen: number, units: number }} withKit
  * @param {{ qaGreen: number, units: number }} baseline
- * @param {{ unit?: string }} [opts]
+ * @param {{ unit?: string, evidenceIds?: string[], reasonUnavailable?: string }} [opts]
  * @returns {Readonly<object>|Readonly<{status:'skipped', reason:string}>}
  */
 export function autonomyMultiplier(withKit, baseline, opts = {}) {
@@ -175,8 +187,11 @@ export function autonomyMultiplier(withKit, baseline, opts = {}) {
   const baselineRate = baseline.qaGreen / baseline.units;
   if (baselineRate <= 0) return skipped('baselineRate <= 0; cannot compute multiplier');
 
-  const multiplier = withKitRate / baselineRate;
-  const unit       = opts.unit ?? null;
+  const multiplier        = withKitRate / baselineRate;
+  const unit              = opts.unit ?? null;
+  const evidenceIds       = Array.isArray(opts.evidenceIds) ? [...opts.evidenceIds] : [];
+  const reasonUnavailable = typeof opts.reasonUnavailable === 'string'
+    ? opts.reasonUnavailable : 'baseline not yet measured (card #242 pending)';
   const confidence = unit === 'quota'                           ? 'derived'
     : (unit !== null && SUBSTITUTE_UNITS.includes(unit))       ? 'inferred'
     : 'unknown';
@@ -184,6 +199,9 @@ export function autonomyMultiplier(withKit, baseline, opts = {}) {
   return Object.freeze({
     schemaVersion: AUTONOMY_MULTIPLIER_SCHEMA_VERSION,
     unit, withKitRate, baselineRate, multiplier, confidence,
+    evidenceIds,
+    reasonUnavailable,
+    baselineMeasured: false,
     targets: AUTONOMY_TARGETS,
     claim: null,
     note: UNBENCHMARKED_NOTE,
@@ -218,6 +236,7 @@ export function multiplierSummary(input) {
     useful: { greenCount: useful.greenCount, total: useful.total },
     multiplier: mult,
     targets: AUTONOMY_TARGETS,
+    baselineMeasured: false,
   });
 }
 

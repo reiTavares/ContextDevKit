@@ -11,6 +11,11 @@
  * YAML).
  *
  * Single-sourced paths via `paths.mjs` per rule 4.
+ *
+ * EACP-15 extension (card #244): exports `buildEconomicDashboardData()`
+ * which surfaces economic summaries (financial, quota, autonomy, routing,
+ * advisories) for the dashboard panel. Privacy: per-repo consent, k-anon,
+ * metadata-only. Depends on economic-report.mjs (pure aggregator).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -23,6 +28,13 @@ import {
   CHANGELOG,
   CONFIG_FILE,
 } from '../../runtime/config/paths.mjs';
+import {
+  buildRepoEconomicSummary,
+  buildTrendSlice,
+  aggregateFleetEconomics,
+  ECONOMIC_REPORT_SCHEMA_VERSION,
+  MIN_COHORT_SIZE,
+} from './economics/economic-report.mjs';
 
 const PIPELINE_DIR = `${PLATFORM_DIR}/pipeline`;
 const ROADMAP_FILE = `${MEMORY_DIR}/roadmap.md`;
@@ -196,3 +208,74 @@ export function buildDashboardData(root) {
 }
 
 export const DASHBOARD_LANES = LANES;
+
+// ---------------------------------------------------------------------------
+// EACP-15 / card #244 — Economic dashboard data builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the §13.4 economic panel data for the dashboard.
+ *
+ * Pure composer: accepts pre-computed EACP module summaries and delegates to
+ * economic-report.mjs (per-repo + trend) and economic-report-fleet.mjs (fleet).
+ * No fs reads, Date.now() calls, or HTML production.
+ *
+ * Surfaces: economicSummary (=perProject), costTrend, contextHealthTrend,
+ * autonomyTrend, fleet (cross-repo k-anon), schemaVersion, provenance notes.
+ * Metadata-only export is available via buildExportPackage() from economic-report.mjs.
+ *
+ * Privacy: consent enforced per-repo (ADR-0081); unconsented → explicit skip,
+ * never silently excluded. Fleet withheld below MIN_COHORT_SIZE (k-anonymity).
+ *
+ * @param {{
+ *   repoId: string, config: object|null,
+ *   financial?: object|null, quota?: object|null,
+ *   multiplier?: object|null, routing?: object|null,
+ *   pressure?: object|null, mapEffectiveness?: object|null,
+ *   costPeriods?: Array<object>, contextHealthPeriods?: Array<object>,
+ *   autonomyPeriods?: Array<object>, fleetSummaries?: Array<object>,
+ *   nowMs?: number,
+ * }} input
+ * @returns {Readonly<object>}
+ */
+export function buildEconomicDashboardData(input) {
+  const {
+    repoId, config,
+    financial = null, quota = null, multiplier = null,
+    routing = null, pressure = null, mapEffectiveness = null,
+    costPeriods = [], contextHealthPeriods = [],
+    autonomyPeriods = [], fleetSummaries = [],
+    nowMs,
+  } = input ?? {};
+
+  // Consent-gated per-repo summary; explicit skip when not consented.
+  const economicSummary = buildRepoEconomicSummary({
+    repoId, config, financial, quota, multiplier,
+    routing, pressure, mapEffectiveness, nowMs,
+  });
+
+  // Trend slices — skipped() when no period data available.
+  const costTrend          = buildTrendSlice(costPeriods);
+  const contextHealthTrend = buildTrendSlice(contextHealthPeriods);
+  const autonomyTrend      = buildTrendSlice(autonomyPeriods);
+
+  // Cross-repo fleet (k-anon; aggregates withheld below MIN_COHORT_SIZE).
+  const fleet = aggregateFleetEconomics(fleetSummaries);
+
+  return Object.freeze({
+    schemaVersion: ECONOMIC_REPORT_SCHEMA_VERSION,
+    minCohortSize: MIN_COHORT_SIZE,
+    generatedAt: typeof nowMs === 'number' ? nowMs : null,
+    economicSummary,
+    perProject: economicSummary,
+    costTrend,
+    contextHealthTrend,
+    autonomyTrend,
+    fleet,
+    provenance: {
+      usdNote: 'USD is estimated API-equivalent; subscription billing is not metered. Original USD always shown.',
+      confidenceNote: 'Confidence reflects price-lookup quality: direct > inferred > unknown.',
+      skippedNote: 'Skipped entries represent unconsented or unavailable data — never silently excluded.',
+    },
+  });
+}

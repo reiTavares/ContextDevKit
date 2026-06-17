@@ -1,29 +1,16 @@
 /**
  * Self-check — EACP Wave 5 quota snapshots + autonomy multiplier (cards #240/#241).
  *
- * Asserts both modules are internally sound:
- * - Schema version constants (quota + autonomy).
- * - buildSnapshot: host-required skip; confidence 'unknown'/'inferred'/'direct';
- *   capturedAt from opts.now; capturedAt null when opts absent.
- * - appendSnapshot + readSnapshots round-trip through a mkdtempSync temp file.
- * - appendSnapshot throws on a skipped marker; readSnapshots on missing file → [].
- * - quotaSummary: empty → skipped; populated → hosts count + latest array.
- * - presentQuota: skipped vs populated string.
- * - usefulAutonomy: true case + each negative guard (bypass, rollback, reopen,
- *   missing field, unlogged human intervention); logged intervention → true.
- * - usefulReasons: non-empty for bad task; empty for good task.
- * - countUseful: greenCount vs excluded; non-array → graceful empty.
- * - selectUnit: quota primary; fallback to first available substitute; null when none.
- * - autonomyMultiplier: derived (quota), inferred (substitute), skipped (null baseline).
- *   claim === null ALWAYS (#242 pending). Ratio ≈ 1.667 verified.
- * - AUTONOMY_TARGETS: {pilot:1.30, product:1.50, potential:1.70} exact.
- * - multiplierSummary: skipped (empty) vs populated (schema + useful + rate).
- * - presentAutonomy: skipped → "skipped"; populated → contains "target".
- * - Zero-dep invariant on both new modules.
+ * Asserts quota-snapshots.mjs and autonomy-multiplier.mjs are internally sound:
+ * schema versions, buildSnapshot confidence/capturedAt, appendSnapshot+readSnapshots
+ * round-trip, quotaSummary, presentQuota, usefulAutonomy (§13.2 independence gates:
+ * externalCriteria + evaluatorNotOperator required), usefulReasons, countUseful,
+ * selectUnit, autonomyMultiplier (ratio, evidenceIds, reasonUnavailable,
+ * baselineMeasured===false, claim===null ALWAYS), multiplierSummary,
+ * presentAutonomy, fingerprintSnapshot, zero-dep invariant.
  *
- * Mirrors the structure of selfcheck-eacp-pressure.mjs exactly.
  * Cohesion note (constitution §1, +10% tolerance): one cohesive assertion suite
- * for a single wave; splitting ok()/bad() across files is premature abstraction.
+ * for a single wave; splitting ok()/bad() is premature abstraction here.
  * Zero runtime dependencies — node:* only.
  */
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -156,9 +143,15 @@ export async function runEacpAutonomyChecks({ ok, bad }, { KIT }) {
     : bad(`presentQuota: missing host names: ${popStr.slice(0, 200)}`);
 
   // ── usefulAutonomy ────────────────────────────────────────────────────────
-  const good = { acceptanceMet: true, testsRun: true, qaGreen: true };
+  // §13.2 independence gates: externalCriteria + evaluatorNotOperator required.
+  // A "good" task must carry BOTH flags — this is adding now-required fields, not weakening.
+  const good = {
+    acceptanceMet: true, testsRun: true, qaGreen: true,
+    externalCriteria: true, evaluatorNotOperator: true,
+  };
   usefulAutonomy(good) === true
-    ? ok('usefulAutonomy: acceptance+tests+QA → true') : bad('usefulAutonomy: good task should be true');
+    ? ok('usefulAutonomy: acceptance+tests+QA+independence → true')
+    : bad('usefulAutonomy: good task should be true');
   usefulAutonomy({ ...good, criticalBypass: true }) === false
     ? ok('usefulAutonomy: criticalBypass → false (Goodhart guard)') : bad('usefulAutonomy: criticalBypass should block');
   usefulAutonomy({ ...good, immediateRollback: true }) === false
@@ -172,18 +165,34 @@ export async function runEacpAutonomyChecks({ ok, bad }, { KIT }) {
   usefulAutonomy({ ...good, humanIntervention: true, humanInterventionLogged: true }) === true
     ? ok('usefulAutonomy: logged humanIntervention → true') : bad('usefulAutonomy: logged intervention should pass');
 
+  // §13.2 independence gates: each gate must independently block
+  usefulAutonomy({ acceptanceMet: true, testsRun: true, qaGreen: true, evaluatorNotOperator: true }) === false
+    ? ok('usefulAutonomy: missing externalCriteria → false (not independently authored)')
+    : bad('usefulAutonomy: missing externalCriteria must block');
+  usefulAutonomy({ acceptanceMet: true, testsRun: true, qaGreen: true, externalCriteria: true }) === false
+    ? ok('usefulAutonomy: missing evaluatorNotOperator → false (evaluator is the operator)')
+    : bad('usefulAutonomy: missing evaluatorNotOperator must block');
+
   // ── usefulReasons ─────────────────────────────────────────────────────────
   const badReasons = usefulReasons({ acceptanceMet: false, criticalBypass: true });
   Array.isArray(badReasons) && badReasons.length > 0
     ? ok('usefulReasons: bad task → non-empty reasons') : bad('usefulReasons: bad task should have reasons');
   Array.isArray(usefulReasons(good)) && usefulReasons(good).length === 0
     ? ok('usefulReasons: good task → empty (no exclusions)') : bad('usefulReasons: good task should have no reasons');
+  const noExtReasons = usefulReasons({ acceptanceMet: true, testsRun: true, qaGreen: true, evaluatorNotOperator: true });
+  noExtReasons.some(r => r.includes('independently authored'))
+    ? ok('usefulReasons: missing externalCriteria → reason includes "independently authored"')
+    : bad(`usefulReasons: missing externalCriteria reason wrong: ${JSON.stringify(noExtReasons)}`);
+  const noEvalReasons = usefulReasons({ acceptanceMet: true, testsRun: true, qaGreen: true, externalCriteria: true });
+  noEvalReasons.some(r => r.includes('evaluator is the operator'))
+    ? ok('usefulReasons: missing evaluatorNotOperator → reason includes "evaluator is the operator"')
+    : bad(`usefulReasons: missing evaluatorNotOperator reason wrong: ${JSON.stringify(noEvalReasons)}`);
 
   // ── countUseful ───────────────────────────────────────────────────────────
   const mixedTasks = [good, good, { acceptanceMet: false }, { ...good, criticalBypass: true }];
   const counted = countUseful(mixedTasks);
   counted.greenCount === 2 && counted.total === 4 && counted.excluded.length === 2
-    ? ok('countUseful: 4 tasks (2 green) → greenCount===2, excluded.length===2')
+    ? ok('countUseful: 4 tasks (2 green with independence flags) → greenCount===2, excluded.length===2')
     : bad(`countUseful: wrong: ${JSON.stringify(counted)}`);
   const cn = countUseful(null);
   cn.greenCount === 0 && cn.total === 0
@@ -217,6 +226,21 @@ export async function runEacpAutonomyChecks({ ok, bad }, { KIT }) {
     ? ok('autonomyMultiplier: null baseline → skipped (constitution §8 refuse)')
     : bad('autonomyMultiplier: null baseline should skip');
 
+  // evidenceIds defaults []; accepts supplied ids; reasonUnavailable has default; baselineMeasured===false
+  Array.isArray(mD.evidenceIds) && mD.evidenceIds.length === 0
+    ? ok('autonomyMultiplier: evidenceIds defaults to []')
+    : bad(`autonomyMultiplier: evidenceIds default wrong: ${JSON.stringify(mD.evidenceIds)}`);
+  const mEv = autonomyMultiplier({qaGreen:10,units:5},{qaGreen:6,units:5},{unit:'quota',evidenceIds:['ev-001','ev-002']});
+  Array.isArray(mEv.evidenceIds) && mEv.evidenceIds.length === 2 && mEv.evidenceIds[0] === 'ev-001'
+    ? ok('autonomyMultiplier: evidenceIds carries supplied ids')
+    : bad(`autonomyMultiplier: evidenceIds supplied wrong: ${JSON.stringify(mEv.evidenceIds)}`);
+  typeof mD.reasonUnavailable === 'string' && mD.reasonUnavailable.length > 0
+    ? ok('autonomyMultiplier: reasonUnavailable has a default string')
+    : bad(`autonomyMultiplier: reasonUnavailable default wrong: ${JSON.stringify(mD.reasonUnavailable)}`);
+  mD.baselineMeasured === false && mI.baselineMeasured === false
+    ? ok('autonomyMultiplier: baselineMeasured===false ALWAYS (derived and inferred)')
+    : bad(`autonomyMultiplier: baselineMeasured must be false: derived=${mD.baselineMeasured} inferred=${mI.baselineMeasured}`);
+
   // ── AUTONOMY_TARGETS ──────────────────────────────────────────────────────
   AUTONOMY_TARGETS.pilot === 1.30 && AUTONOMY_TARGETS.product === 1.50 && AUTONOMY_TARGETS.potential === 1.70
     ? ok('AUTONOMY_TARGETS: {pilot:1.30, product:1.50, potential:1.70} exact (targets, not claims)')
@@ -236,6 +260,11 @@ export async function runEacpAutonomyChecks({ ok, bad }, { KIT }) {
   sumFull.useful?.greenCount === 2 && sumFull.multiplier?.confidence === 'derived'
     ? ok('multiplierSummary: populated → schemaVersion, useful.greenCount===2, rate derived')
     : bad(`multiplierSummary: populated wrong: ${JSON.stringify(sumFull)}`);
+
+  // baselineMeasured is ALWAYS false on populated result (#242 pending)
+  sumFull.baselineMeasured === false
+    ? ok('multiplierSummary: populated → baselineMeasured===false ALWAYS')
+    : bad(`multiplierSummary: baselineMeasured must be false, got ${sumFull.baselineMeasured}`);
 
   // ── presentAutonomy ───────────────────────────────────────────────────────
   presentAutonomy(multiplierSummary({})).includes('skipped')
