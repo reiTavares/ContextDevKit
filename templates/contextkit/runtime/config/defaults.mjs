@@ -7,14 +7,12 @@
  * with nothing installed. Level 5 validation (`/context-config`) layers an
  * optional zod schema on top — see `schema.mjs`.
  *
- * The defaults intentionally describe a *generic* repository (`src/`, `lib/`,
- * `app/`, `packages/`, ...). The installer tunes these per detected stack and
- * the user refines them with `/context-config`.
- *
- * Split note: the `routing` key defaults live in `defaults-routing.mjs` (ADR-0094)
- * to keep this file within the 308-line budget (constitution §1 +10% tolerance).
+ * The defaults describe a *generic* repository; the installer tunes them per
+ * detected stack. Split note: `routing` defaults live in defaults-routing.mjs,
+ * `eacp` in defaults-eacp.mjs — keeping this file within the 308-line budget.
  */
 import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
+import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -304,4 +302,6 @@ export const DEFAULT_CONFIG = Object.freeze({
       },
     },
   },
+  // EACP (WF0018/ADR-0077..0081) advisory-first; disabling restores legacy. See defaults-eacp.mjs.
+  eacp: EACP_DEFAULTS,
 });

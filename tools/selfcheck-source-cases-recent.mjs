@@ -240,7 +240,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     // ADR-0044 F3 D3 — per-agent / per-command token attribution.
     ['token-attribution splits cost by agent (sidechain) and command (attributionSkill) (ADR-0044 D3)', 'templates/contextkit/tools/scripts/token-attribution.mjs', /entry\.isSidechain \? agents\.subagent : agents\.main[\s\S]*entry\.attributionSkill/],
     ['token-attribution derives only from parsed records — no persisted artifact (ADR-0044, anti-inflation)', 'templates/contextkit/tools/scripts/token-attribution.mjs', /export function attribute/],
-    ['token-report surfaces the D3 attribution + exposes it in --json (ADR-0044)', 'templates/contextkit/tools/scripts/token-report.mjs', /attribution,.*toolEvents.*\} = aggregate[\s\S]*attribution.*\}, null, 2/],
+    ['token-report surfaces the D3 attribution + exposes it in --json (ADR-0044)', 'templates/contextkit/tools/scripts/token-report.mjs', /attribution,.*toolEvents.*\} = aggregate[\s\S]*attribution[\s\S]*JSON\.stringify\([\s\S]*null, 2\)/],
     // ADR-0044 F3 D1/D5 — bounded subagent pack + the deterministic memory retriever.
     ['memory-retrieve selects existing digests — no generation, hard-capped (ADR-0044 D5)', 'templates/contextkit/tools/scripts/memory-retrieve.mjs', /export const CAP = 40[\s\S]*retrieved, not generated/],
     ['memory-retrieve guards its CLI so import never runs main (ADR-0044, rule 2)', 'templates/contextkit/tools/scripts/memory-retrieve.mjs', /fileURLToPath\(import\.meta\.url\) === resolve\(process\.argv\[1\]\)/],

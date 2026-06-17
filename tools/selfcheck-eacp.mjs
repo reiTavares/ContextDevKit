@@ -274,4 +274,24 @@ export async function runEacpChecks({ ok, bad }, { KIT }) {
     }
   }
   if (zeroDepsOk) ok('zero-dep invariant: all economics modules import only node:/* or relative paths');
+
+  // === ASSERTION 9: EACP config flags (defaults + schema + reversibility) ===
+  // Surface 6: EACP_DEFAULTS.enabled exists and is true (advisory-first default).
+  const defEacpPath = resolve(KIT, 'templates/contextkit/runtime/config/defaults-eacp.mjs');
+  let defEacpLib;
+  try {
+    defEacpLib = await import(pathToFileURL(defEacpPath).href);
+    ok('defaults-eacp.mjs imports cleanly');
+  } catch (err) {
+    bad(`defaults-eacp.mjs import failed: ${err?.message ?? err}`);
+    return;
+  }
+  defEacpLib.EACP_DEFAULTS.enabled === true
+    ? ok('eacp config: EACP_DEFAULTS.enabled === true (advisory-first, ADR-0077)')
+    : bad(`eacp config: EACP_DEFAULTS.enabled should be true, got ${defEacpLib.EACP_DEFAULTS?.enabled}`);
+
+  // Disabling is representable: { enabled: false } is a valid config state (reversibility).
+  defEacpLib.EACP_DEFAULTS.enabled !== undefined
+    ? ok('eacp config: enabled flag exists (disabling is representable — reversibility ADR-0077)')
+    : bad('eacp config: enabled flag missing from EACP_DEFAULTS');
 }

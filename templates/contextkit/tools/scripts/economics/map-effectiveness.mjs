@@ -118,7 +118,8 @@ function extractRepeatedReads(perFileReadCount) {
 
 /**
  * Builds the human-readable observed-facts array.
- * Every string describes a DIRECTLY COUNTED observation — no inference.
+ * Every string starts with "Observed:" for directly counted facts, separating
+ * them from any downstream estimates. No estimates or inferences are emitted here.
  *
  * @param {object} params
  * @param {number} params.totalReads
@@ -139,20 +140,20 @@ function buildObservedFacts({
   filesOpenedAfterMap,
   searchCount,
 }) {
-  const facts = [`${totalReads} read(s) across ${distinctFiles} file(s)`];
+  const facts = [`Observed: ${totalReads} read(s) across ${distinctFiles} file(s)`];
 
   for (const { path, count } of repeatedReads) {
-    facts.push(`file ${path} read ${count}×`);
+    facts.push(`Observed: file ${path} read ${count}×`);
   }
 
   if (mapConsulted) {
     facts.push(
-      `${broadSearchesBeforeMap} broad search(es) before project-map; ` +
+      `Observed: ${broadSearchesBeforeMap} broad search(es) before project-map; ` +
       `${filesOpenedAfterMap} file(s) opened after`
     );
   } else {
     facts.push(
-      `project-map not consulted; ${searchCount} broad search(es) ran without it`
+      `Observed: project-map not consulted; ${searchCount} broad search(es) ran without it`
     );
   }
 
@@ -187,11 +188,19 @@ function buildObservedFacts({
  *   schemaVersion: string,
  *   totalReads: number,
  *   distinctFiles: number,
+ *   perFileReadCount: Record<string, number>,
  *   repeatedReads: Array<{path: string, count: number}>,
  *   searchCount: number,
  *   mapConsulted: boolean,
+ *   mapBeforeExploration: boolean,
  *   broadSearchesBeforeMap: number,
  *   filesOpenedAfterMap: number,
+ *   fullMapVsFocused: null,
+ *   rangedReadCount: null,
+ *   bytesReturnedAvailable: false,
+ *   readAfterUnchangedCount: null,
+ *   estimatedReadSaving: { confidence: 'unknown', reason: string },
+ *   roiDirection: { confidence: 'unknown', reason: string },
  *   confidence: 'derived',
  *   observedFacts: string[],
  *   note: string,
@@ -252,15 +261,40 @@ export function readFacts(toolEvents, opts) {
     searchCount,
   });
 
+  // mapBeforeExploration: true when at least one search occurred before the first
+  // project-map consultation. Derived directly from broadSearchesBeforeMap.
+  const mapBeforeExploration = mapConsulted && broadSearchesBeforeMap === 0;
+
   return {
     schemaVersion: MAP_EFFECTIVENESS_SCHEMA_VERSION,
     totalReads,
     distinctFiles,
+    // Full per-file read-count map (redacted paths). Callers needing the complete
+    // breakdown (not just the top-5 repeatedReads) may consume this directly.
+    perFileReadCount,
     repeatedReads,
     searchCount,
     mapConsulted,
+    // true when project-map was consulted BEFORE any broad searches — the ideal
+    // "map first, then explore" pattern. false when searches preceded the map or
+    // the map was not consulted at all.
+    mapBeforeExploration,
     broadSearchesBeforeMap,
     filesOpenedAfterMap,
+    // Fields unavailable in current event schema — null = recognized but unsupported,
+    // never fabricated (constitution §8). 'unknown' confidence = no counterfactual.
+    fullMapVsFocused: null,          // events carry no focused/full-map distinction
+    rangedReadCount: null,           // events carry no ranged-read flag
+    bytesReturnedAvailable: false,   // events carry no byte-count field
+    readAfterUnchangedCount: null,   // no file-system change-tracking in metadata
+    estimatedReadSaving: {
+      confidence: 'unknown',
+      reason: 'no counterfactual baseline — cannot assert tokens saved by map usage',
+    },
+    roiDirection: {
+      confidence: 'unknown',
+      reason: 'no benchmark — ROI direction unconfirmed; use observed facts only',
+    },
     // 'derived': counts are directly observed from metadata; the map-ROI
     // framing is a computed ratio, not a model inference. This is a stronger
     // signal than 'inferred' but weaker than 'measured' (which would require

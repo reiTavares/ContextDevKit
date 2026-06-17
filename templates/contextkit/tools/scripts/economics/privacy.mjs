@@ -7,7 +7,8 @@
  *
  * Design invariants (see ADR-0081 §privacy, ADR-0077 §principles):
  *   - LOCAL-FIRST: nothing leaves the machine by default. externalSend defaults
- *     to false and only flips on explicit user consent.
+ *     to false and only flips on explicit user consent. Local telemetry and
+ *     external export are distinct paths (localTelemetryEnabled vs externalSend).
  *   - METADATA-ONLY by default: aggregate reports MUST NOT read transcript
  *     content. Content-diagnostic mode is deferred to card #253 and defaults
  *     OFF here. The contentReadsAllowed() guard is the single place callers
@@ -17,6 +18,9 @@
  *     pass (constitution §8, false-negative trap).
  *   - DETERMINISTIC: no internal calls to Date.now() or Math.random(). Callers
  *     inject `now` (epoch ms) so results are reproducible and testable.
+ *   - FIELD CLASSIFICATION: every field in a persisted/exported record carries a
+ *     classification (safe/redact/hash/forbidden). New unregistered fields default
+ *     to forbidden. `raw_ref` is permanently forbidden in persisted/exported records.
  *
  * Central-schema registration (runtime/config/schema.mjs) is a later wave;
  * this module reads config defensively and falls back to PRIVACY_DEFAULTS on
@@ -36,20 +40,25 @@ import { createHash } from 'node:crypto';
  * All keys are the authoritative fallback used by resolvePrivacyConfig when
  * user config is absent, partial, or invalid.
  *
- * mode:           'metadata-only' — aggregate token/timing stats only; no
- *                 transcript content access. Flip to 'content-diagnostic' (card
- *                 #253) for content-level diagnostics, which requires explicit
- *                 opt-in AND contentReads: true.
- * contentReads:   false — content access is off even in content-diagnostic
- *                 mode unless this is also explicitly set true.
- * externalSend:   false — no data leaves the machine without explicit consent.
- * redactPaths:    true  — file paths in records are redacted to hash+basename.
- * retentionDays:  90    — usage records older than this are eligible for purge.
+ * mode:                    'metadata-only' — aggregate token/timing stats only;
+ *                          no transcript content access. Flip to
+ *                          'content-diagnostic' (card #253) for content-level
+ *                          diagnostics, which requires explicit opt-in AND
+ *                          contentReads: true.
+ * contentReads:            false — content access is off even in
+ *                          content-diagnostic mode unless this is also true.
+ * externalSend:            false — no data leaves the machine without consent.
+ * localTelemetryEnabled:   true  — local metadata telemetry is opt-OUT (on by
+ *                          default); users may disable it. This is a separate
+ *                          path from externalSend.
+ * redactPaths:             true  — file paths are redacted to hash+basename.
+ * retentionDays:           90    — records older than this are eligible for purge.
  */
 export const PRIVACY_DEFAULTS = Object.freeze({
   mode: 'metadata-only',
   contentReads: false,
   externalSend: false,
+  localTelemetryEnabled: true,
   redactPaths: true,
   retentionDays: 90,
 });
@@ -70,9 +79,9 @@ const VALID_MODES = new Set(['metadata-only', 'content-diagnostic']);
  *
  * @param {object|null|undefined} config - Raw project config object. Expected
  *   shape: { economics?: { privacy?: { mode?, contentReads?, externalSend?,
- *   redactPaths?, retentionDays? } } }. All fields optional.
+ *   localTelemetryEnabled?, redactPaths?, retentionDays? } } }. All optional.
  * @returns {Readonly<{mode: string, contentReads: boolean, externalSend: boolean,
- *   redactPaths: boolean, retentionDays: number}>} Frozen resolved config.
+ *   localTelemetryEnabled: boolean, redactPaths: boolean, retentionDays: number}>}
  */
 export function resolvePrivacyConfig(config) {
   const raw = config?.economics?.privacy;
@@ -88,6 +97,11 @@ export function resolvePrivacyConfig(config) {
     ? raw.externalSend
     : PRIVACY_DEFAULTS.externalSend;
 
+  // localTelemetryEnabled is opt-OUT (defaults true); explicit false disables it.
+  const localTelemetryEnabled = typeof raw?.localTelemetryEnabled === 'boolean'
+    ? raw.localTelemetryEnabled
+    : PRIVACY_DEFAULTS.localTelemetryEnabled;
+
   const redactPaths = typeof raw?.redactPaths === 'boolean'
     ? raw.redactPaths
     : PRIVACY_DEFAULTS.redactPaths;
@@ -99,7 +113,7 @@ export function resolvePrivacyConfig(config) {
       ? rawDays
       : PRIVACY_DEFAULTS.retentionDays;
 
-  return Object.freeze({ mode, contentReads, externalSend, redactPaths, retentionDays });
+  return Object.freeze({ mode, contentReads, externalSend, localTelemetryEnabled, redactPaths, retentionDays });
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +142,8 @@ export function contentReadsAllowed(resolved) {
  * Any network egress of economics data requires this guard. The default
  * (externalSend: false) keeps all data strictly local. No external send is
  * permitted without a deliberate user opt-in recorded in config.
+ * Local telemetry and external export are SEPARATE paths — this guard covers
+ * only external export. Use localTelemetryAllowed() for the local path.
  *
  * @param {ReturnType<typeof resolvePrivacyConfig>} resolved - Resolved config.
  * @returns {boolean}
@@ -136,9 +152,51 @@ export function externalSendAllowed(resolved) {
   return resolved.externalSend === true;
 }
 
+/**
+ * Returns true when local metadata telemetry collection is enabled.
+ *
+ * Local telemetry is opt-OUT (default on). Users may set localTelemetryEnabled:
+ * false in config to disable it entirely. This is distinct from externalSend,
+ * which governs network egress — a local-only deployment never calls the
+ * externalSend path regardless of localTelemetryEnabled.
+ *
+ * @param {ReturnType<typeof resolvePrivacyConfig>} resolved - Resolved config.
+ * @returns {boolean}
+ */
+export function localTelemetryAllowed(resolved) {
+  return resolved.localTelemetryEnabled !== false;
+}
+
 // ---------------------------------------------------------------------------
 // Path redaction
 // ---------------------------------------------------------------------------
+
+/**
+ * Hashes a filesystem path with a per-install salt for cross-install isolation.
+ *
+ * Different installations produce different hashes for the same path, preventing
+ * cross-install path correlation. The salt should be a stable per-install
+ * identifier (e.g., generated at install time and stored in config). Returns
+ * the first 16 hex characters of SHA-256(salt + '\0' + normalised path).
+ *
+ * @param {string} pathStr - The filesystem path to hash.
+ * @param {string} installSalt - Per-install opaque string; must be non-empty.
+ * @returns {string} 16-character lowercase hex hash prefix.
+ * @throws {TypeError} If pathStr or installSalt are not non-empty strings.
+ */
+export function hashPathWithSalt(pathStr, installSalt) {
+  if (typeof pathStr !== 'string') {
+    throw new TypeError(`hashPathWithSalt: pathStr must be a string, got ${typeof pathStr}`);
+  }
+  if (typeof installSalt !== 'string' || installSalt === '') {
+    throw new TypeError('hashPathWithSalt: installSalt must be a non-empty string');
+  }
+  const normalised = pathStr.replace(/\\/g, '/');
+  return createHash('sha256')
+    .update(`${installSalt}\0${normalised}`)
+    .digest('hex')
+    .slice(0, 16);
+}
 
 /**
  * Redacts a filesystem path to protect potentially sensitive directory names.
@@ -146,20 +204,17 @@ export function externalSendAllowed(resolved) {
  * When redaction is enabled (resolved.redactPaths === true), the leading path
  * components are replaced with the first 8 hex characters of the SHA-256 hash
  * of the full original path, and only the final segment (basename) is kept
- * in clear text. This provides:
- *   - Determinism: the same input always yields the same hash prefix.
- *   - Traceability: the basename remains human-readable for diagnostics.
- *   - Privacy: parent directories (which may encode user names, project names,
- *     or org structure) are not stored in aggregate reports.
- *
- * When redaction is disabled, the path is returned unchanged.
+ * in clear text. An optional `installSalt` produces cross-install-isolated
+ * hashes (preferred for multi-install deployments; use hashPathWithSalt when
+ * you need the salt-differentiated form directly).
  *
  * @param {string} pathStr - The path to redact.
  * @param {ReturnType<typeof resolvePrivacyConfig>} resolved - Resolved config.
+ * @param {string} [installSalt] - Optional per-install salt (see hashPathWithSalt).
  * @returns {string} The redacted or unchanged path.
  * @throws {TypeError} If pathStr is not a string.
  */
-export function redactPath(pathStr, resolved) {
+export function redactPath(pathStr, resolved, installSalt) {
   if (typeof pathStr !== 'string') {
     throw new TypeError(`redactPath: expected a string path, got ${typeof pathStr}`);
   }
@@ -168,7 +223,10 @@ export function redactPath(pathStr, resolved) {
   }
   // Forward-slash normalisation for cross-platform determinism in the hash.
   const normalised = pathStr.replace(/\\/g, '/');
-  const hash = createHash('sha256').update(normalised).digest('hex').slice(0, 8);
+  const hashInput = (typeof installSalt === 'string' && installSalt !== '')
+    ? `${installSalt}\0${normalised}`
+    : normalised;
+  const hash = createHash('sha256').update(hashInput).digest('hex').slice(0, 8);
   // Extract basename: the segment after the last slash (or the whole string
   // if there is no slash — a bare filename is already safe to store in full).
   const slashIndex = normalised.lastIndexOf('/');

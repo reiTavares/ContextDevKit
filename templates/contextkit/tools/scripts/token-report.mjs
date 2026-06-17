@@ -184,39 +184,41 @@ function main() {
   const { sessions: rawSessions, attribution, toolEvents } = aggregate(files, flag('--all'));
   const { rows, totals, weeks, sessions } = summarize(rawSessions);
 
-  const financial = financialSummary(attribution);
-  const advisories = advisorySummary({ perSession: rows, toolEvents }, { privacy });
-
-  // EACP Wave 4 (#238) — session-scope budget guard, advisory-only. Spend is the
-  // hottest session's token total; the Wave-3 pressure band escalates the mode.
-  // It only computes the `budgetExhausted` signal the autonomy resolver consumes;
-  // this report is grade-blind (display only) and never calls the resolver.
-  const sessionLimit = Number(budget.budgetPerSession) || 0;
-  const budgetGuard = sessionLimit > 0 && rows.length
-    ? evaluateBudget({ tokens: rows[0].total }, { scope: 'session', limit: sessionLimit, warnAtPct: budget.warnAtPct }, { pressureBand: advisories.pressure?.hottest?.band })
-    : null;
-  // EACP Wave 4 (#239) — routing economics + Fable audit from the per-model split.
-  let registry = null;
-  try { registry = loadRegistry(); } catch { registry = null; }
-  const routing = routingSummary({ byModel: attribution.byModel, registry });
-
-  // EACP Wave 5 (#240) — quota snapshots from the append-only state substrate
-  // (read-only here; capture is an explicit step). Skipped when none recorded.
-  const quotaFile = join(ROOT, 'contextkit', 'memory', 'quota-snapshots.jsonl');
-  const quota = quotaSummary(readSnapshots(quotaFile));
-  // EACP Wave 5 (#241) — autonomy multiplier. Transcripts carry no QA-green or
-  // quota signal, so this honestly degrades to skipped() in the live report
-  // (never a fabricated multiplier). Real signals arrive via the #242 benchmark.
-  const autonomy = multiplierSummary({ quotaObservable: false, availableUnits: ['effective-mtok'] });
-
-  // ADR-0094 — routing decision telemetry (kit-routing economics only; never the
-  // provider's native cache savings). Read-only from the append-only ledger that
-  // shadow/canary/active modes write; "no decisions yet" when empty (never faked).
-  const routingLogFile = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
-  const routingTelemetry = routingTelemetrySummary(readDecisions(routingLogFile));
+  // EACP advisory surfaces (WF0018 / #246). Disabling `cfg.eacp.enabled` restores
+  // the legacy report (totals + attribution + budget only): no EACP module is
+  // evaluated and the EACP keys are omitted from --json. No data loss.
+  const eacpEnabled = cfg.eacp?.enabled !== false;
+  let financial = null, advisories = null, budgetGuard = null;
+  let routing = null, quota = null, autonomy = null, routingTelemetry = null;
+  if (eacpEnabled) {
+    financial = financialSummary(attribution);
+    advisories = advisorySummary({ perSession: rows, toolEvents }, { privacy });
+    // #238 — session-scope budget guard, advisory-only (grade-blind display; the
+    // pressure band escalates the mode; never calls the autonomy resolver).
+    const sessionLimit = Number(budget.budgetPerSession) || 0;
+    budgetGuard = sessionLimit > 0 && rows.length
+      ? evaluateBudget({ tokens: rows[0].total }, { scope: 'session', limit: sessionLimit, warnAtPct: budget.warnAtPct }, { pressureBand: advisories.pressure?.hottest?.band })
+      : null;
+    // #239 — routing economics + Fable audit from the per-model split.
+    let registry = null;
+    try { registry = loadRegistry(); } catch { registry = null; }
+    routing = routingSummary({ byModel: attribution.byModel, registry });
+    // #240 — quota snapshots from the append-only substrate (read-only here).
+    const quotaFile = join(ROOT, 'contextkit', 'memory', 'quota-snapshots.jsonl');
+    quota = quotaSummary(readSnapshots(quotaFile));
+    // #241 — autonomy multiplier; degrades to skipped() without QA-green/quota.
+    autonomy = multiplierSummary({ quotaObservable: false, availableUnits: ['effective-mtok'] });
+    // ADR-0094 — routing decision telemetry (kit routing only, not provider cache).
+    const routingLogFile = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
+    routingTelemetry = routingTelemetrySummary(readDecisions(routingLogFile));
+  }
 
   if (flag('--json')) {
-    process.stdout.write(JSON.stringify({ schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution, financial, pressure: advisories.pressure, mapEffectiveness: advisories.mapEffectiveness, budgetGuard, routing, quota, autonomy, routingTelemetry }, null, 2) + '\n');
+    const base = { schemaVersion: REPORT_SCHEMA_VERSION, sessions, totals, weeks, budget, perSession: rows, attribution };
+    const out = eacpEnabled
+      ? { ...base, eacp: true, financial, pressure: advisories?.pressure, mapEffectiveness: advisories?.mapEffectiveness, budgetGuard, routing, quota, autonomy, routingTelemetry }
+      : { ...base, eacp: false };
+    process.stdout.write(JSON.stringify(out, null, 2) + '\n');
     return;
   }
 
@@ -241,19 +243,21 @@ function main() {
 
   printAttribution(attribution);
 
-  console.log('');
-  console.log(presentFinancial(financial));
-  console.log('');
-  console.log(presentAdvisories(advisories));
-  if (budgetGuard) { console.log(''); console.log(presentBudget(budgetGuard)); }
-  console.log('');
-  console.log(presentRouting(routing));
-  console.log('');
-  console.log(presentQuota(quota));
-  console.log('');
-  console.log(presentAutonomy(autonomy));
-  console.log('');
-  console.log(presentRoutingTelemetry(routingTelemetry));
+  if (eacpEnabled) {
+    console.log('');
+    console.log(presentFinancial(financial));
+    console.log('');
+    console.log(presentAdvisories(advisories));
+    if (budgetGuard) { console.log(''); console.log(presentBudget(budgetGuard)); }
+    console.log('');
+    console.log(presentRouting(routing));
+    console.log('');
+    console.log(presentQuota(quota));
+    console.log('');
+    console.log(presentAutonomy(autonomy));
+    console.log('');
+    console.log(presentRoutingTelemetry(routingTelemetry));
+  }
 
   if (budget.budgetPerSession > 0) {
     console.log(`\nBudget: ${n(budget.budgetPerSession)}/session (warn at ${budget.warnAtPct}%).` + (over.length ? ` ⚠️ ${over.length} session(s) over the warn line.` : ' ✅ all within budget.'));

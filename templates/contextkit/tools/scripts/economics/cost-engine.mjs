@@ -48,7 +48,7 @@ export const COST_SCHEMA_VERSION = 'eacp-cost/1';
  * @param {...string} tiers - Confidence strings from cost result objects.
  * @returns {'direct'|'derived'|'inferred'|'unknown'}
  */
-function lowestConfidence(...tiers) {
+export function lowestConfidence(...tiers) {
   const ORDER = { direct: 0, derived: 1, inferred: 2, unknown: 3 };
   let worst = 0;
   for (const tier of tiers) {
@@ -240,6 +240,10 @@ export function costPerQaGreenTask(attributableUsd, qaGreenCount) {
   }
   return { usd: attributableUsd / qaGreenCount, confidence: 'derived' };
 }
+
+// FX-conversion responsibility extracted to fx-conversion.mjs (ADR-0079 §FX).
+// Re-exported here to preserve the public surface for all existing consumers.
+export { applyFxSnapshot } from './fx-conversion.mjs';
 
 /**
  * Estimates cost for a task tier using the illustrative forge matrix price

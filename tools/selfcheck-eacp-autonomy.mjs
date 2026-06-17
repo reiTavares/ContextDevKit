@@ -253,4 +253,17 @@ export async function runEacpAutonomyChecks({ ok, bad }, { KIT }) {
     if (result.error) { bad(`zero-dep Wave 5: ${name} ${result.error}`); zeroDepsOk = false; }
   }
   if (zeroDepsOk) ok('zero-dep invariant: both Wave 5 modules import only node:/* or relative paths');
+
+  // ── Surface 5 (Wave 8): fingerprintSnapshot determinism ──────────────────
+  const { fingerprintSnapshot } = quotaLib;
+  const fpRec = buildSnapshot({ host: 'fp-h', remainingPct: 42, captureMethod: 'manual' });
+  const fp1 = fingerprintSnapshot(fpRec);
+  fp1 === fingerprintSnapshot({ ...fpRec }) && typeof fp1 === 'string' && fp1.length === 12
+    ? ok('quota: fingerprintSnapshot deterministic (12-char hex)')
+    : bad(`quota: fingerprintSnapshot not deterministic or wrong length: fp=${fp1}`);
+  fp1 !== fingerprintSnapshot(buildSnapshot({ host: 'fp-h', remainingPct: 99, captureMethod: 'manual' }))
+    ? ok('quota: fingerprintSnapshot differs for different identity tuples')
+    : bad('quota: different tuples must produce different fingerprints');
+  // Full Wave 8 quota-store surface (idempotent, transcript rejection, linkage,
+  // claude-code host guard) lives in selfcheck-eacp-quota-store.mjs.
 }
