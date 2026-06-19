@@ -120,7 +120,8 @@ try {
         ? ok('economics Wave 5: autonomyMultiplier substitute unit → confidence "inferred"') : bad('Wave 5 autonomy: substitute unit should produce "inferred"');
       aL.usefulAutonomy({ acceptanceMet: true, testsRun: true, qaGreen: true, criticalBypass: true }) === false
         ? ok('economics Wave 5: usefulAutonomy Goodhart guard blocks criticalBypass') : bad('Wave 5 autonomy: criticalBypass should block usefulAutonomy');
-      const ct = aL.countUseful([{ acceptanceMet: true, testsRun: true, qaGreen: true }, { acceptanceMet: true, testsRun: true, qaGreen: true }, { acceptanceMet: false }]);
+      const goodTask = { acceptanceMet: true, testsRun: true, qaGreen: true, externalCriteria: true, evaluatorNotOperator: true };
+      const ct = aL.countUseful([{ ...goodTask }, { ...goodTask }, { acceptanceMet: false }]);
       ct.greenCount === 2 && ct.total === 3 ? ok('economics Wave 5: countUseful greenCount===2 of 3') : bad(`Wave 5 countUseful wrong: ${JSON.stringify(ct)}`);
     } catch (err) { bad(`Wave 5 crashed: ${err?.message ?? err}`); }
   })();

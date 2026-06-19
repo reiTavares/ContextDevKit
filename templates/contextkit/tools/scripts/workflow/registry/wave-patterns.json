@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "patterns": {
+    "single-delivery": {
+      "id": "single-delivery",
+      "description": "One wave that delivers and validates a small, cohesive change.",
+      "recommendedProfiles": ["basic"],
+      "waveTemplates": [
+        { "id": "W1", "title": "Delivery and validation", "dependsOn": [], "gate": "G-W1" }
+      ],
+      "defaultDependencies": {},
+      "defaultGates": { "G-W1": "machine" },
+      "customizationRules": ["Keep it one wave; escalate the profile before adding a second wave."]
+    },
+    "discovery-build-validate": {
+      "id": "discovery-build-validate",
+      "description": "Classic three/four-stage flow: discover, build, validate (W0-W3).",
+      "recommendedProfiles": ["standard"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Discovery", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Build", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Validation", "dependsOn": ["W1"], "gate": "G-W2" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "machine", "G-W2": "machine" },
+      "customizationRules": ["Split Build into parallel tasks; add a W3 hardening wave when needed."]
+    },
+    "architecture-foundation-integration": {
+      "id": "architecture-foundation-integration",
+      "description": "Cross-cutting arch change: discovery, architecture, foundation, implementation, integration, hardening.",
+      "recommendedProfiles": ["advanced", "program"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Discovery and governance", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Architecture", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Foundation", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Implementation", "dependsOn": ["W2"], "gate": "G-W3" },
+        { "id": "W4", "title": "Integration", "dependsOn": ["W3"], "gate": "G-W4" },
+        { "id": "W5", "title": "Hardening", "dependsOn": ["W4"], "gate": "G-W5" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"], "W4": ["W3"], "W5": ["W4"] },
+      "defaultGates": { "G-W0": "human", "G-W1": "human", "G-W2": "machine", "G-W3": "machine", "G-W4": "machine", "G-W5": "human" },
+      "customizationRules": ["Parallelize W2/W3 tasks across disjoint ownership; W5 may carry a human gate."]
+    },
+    "incident-hotfix": {
+      "id": "incident-hotfix",
+      "description": "Bounded hotfix: factual diagnosis, minimal correction, regression+dogfood, hard gate.",
+      "recommendedProfiles": ["basic", "standard"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Factual diagnosis", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Minimal correction", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Regression and dogfood", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Hard gate", "dependsOn": ["W2"], "gate": "G-W3" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "machine", "G-W2": "machine", "G-W3": "human" },
+      "customizationRules": ["Keep correction minimal; the hard gate requires explicit human approval."]
+    },
+    "database-migration": {
+      "id": "database-migration",
+      "description": "Schema/data migration with backup, dual-write, cutover, and verified hash preservation.",
+      "recommendedProfiles": ["advanced", "program"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Backup and snapshot", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Schema and migration build", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Dual-write and backfill", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Cutover", "dependsOn": ["W2"], "gate": "G-W3" },
+        { "id": "W4", "title": "Verification and cleanup", "dependsOn": ["W3"], "gate": "G-W4" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"], "W4": ["W3"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "machine", "G-W2": "machine", "G-W3": "human", "G-W4": "machine" },
+      "customizationRules": ["Backup must be verified before cutover; preserve and assert row/hash counts."]
+    },
+    "research-benchmark": {
+      "id": "research-benchmark",
+      "description": "Investigate options, build a benchmark, measure, and decide on evidence.",
+      "recommendedProfiles": ["standard", "advanced"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Research and options", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Benchmark harness", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Measurement", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Decision and recommendation", "dependsOn": ["W2"], "gate": "G-W3" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "machine", "G-W2": "machine", "G-W3": "human" },
+      "customizationRules": ["Record sources in an evidence-register; the decision gate is human."]
+    },
+    "release-upgrade": {
+      "id": "release-upgrade",
+      "description": "Cut a release or dependency upgrade with changelog, validation, and reversible rollout.",
+      "recommendedProfiles": ["standard", "advanced"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Release planning", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Upgrade and changelog", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Validation", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Rollout and tag", "dependsOn": ["W2"], "gate": "G-W3" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "machine", "G-W2": "machine", "G-W3": "human" },
+      "customizationRules": ["Tag/publish only behind a human gate; the rollout must be reversible."]
+    },
+    "multi-host-integration": {
+      "id": "multi-host-integration",
+      "description": "Add or extend a native host integration with a parity matrix across hosts.",
+      "recommendedProfiles": ["advanced", "program"],
+      "waveTemplates": [
+        { "id": "W0", "title": "Discovery and parity baseline", "dependsOn": [], "gate": "G-W0" },
+        { "id": "W1", "title": "Bridge architecture", "dependsOn": ["W0"], "gate": "G-W1" },
+        { "id": "W2", "title": "Host implementation", "dependsOn": ["W1"], "gate": "G-W2" },
+        { "id": "W3", "title": "Parity and integration", "dependsOn": ["W2"], "gate": "G-W3" },
+        { "id": "W4", "title": "Hardening", "dependsOn": ["W3"], "gate": "G-W4" }
+      ],
+      "defaultDependencies": { "W1": ["W0"], "W2": ["W1"], "W3": ["W2"], "W4": ["W3"] },
+      "defaultGates": { "G-W0": "machine", "G-W1": "human", "G-W2": "machine", "G-W3": "machine", "G-W4": "human" },
+      "customizationRules": ["Maintain a parity-matrix; one host implementation task per host, disjoint ownership."]
+    },
+    "large-program": {
+      "id": "large-program",
+      "description": "Configurable multi-week skeleton — an arbitrary DAG of waves/tasks/gates, no fixed graph.",
+      "recommendedProfiles": ["program"],
+      "waveTemplates": [],
+      "defaultDependencies": {},
+      "defaultGates": {},
+      "customizationRules": ["Author the DAG explicitly; every wave declares dependsOn and a gate; no implicit shape."]
+    }
+  }
+}

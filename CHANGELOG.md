@@ -20,6 +20,32 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Economic & Autonomy Control Plane (EACP) — WF0018, Waves 8–10** (ADR-0077..0081,
+  ADR-0100). Advisory-first, local-first, zero hot-path dependencies. `/token-report`
+  now surfaces (all gated behind the new `eacp.*` config flags; set `eacp.enabled:false`
+  to restore the legacy report):
+  - **Cost** — estimated/API-equivalent (clearly *not billed*) cost, FX conversion that
+    preserves the original USD, unknown models reported as `unknown` (never `$0`), and
+    gross cache value labelled as *provider* value (never represented as kit savings).
+  - **Privacy** — metadata-only by default: per-install salted path hashing, a
+    safe/redact/hash/forbidden field-classification policy (new fields default forbidden),
+    transcript-content guard, retention purge with preview/cascade/report, and per-repo
+    consent + k-anonymity on cross-repo reporting.
+  - **Budgets** — advisory budget guards across 13 scopes / 6 modes that ride the existing
+    autonomy resolver (no new gate); blocking is fan-out-only and never blocks edits;
+    fail-open; bypass is audited.
+  - **Autonomy & quota** — QA-green Autonomy Multiplier (independent-evaluator gated;
+    reports `claim: null` until a real benchmark) and append-only quota snapshots.
+  - **Benchmark** — A-vs-C pilot harness (mock-only; honest `claim: null`) plus a
+    deterministic statistics module (median/p95/CIs/matched-pair/effect-size/
+    Holm-Bonferroni) and pre-registration. Real powered results are evidence-gated.
+  - **Routing economics** — host-honest model-routing economics (records recommend vs
+    applied; never claims a model switch the host can't perform) and a Fable-5 price audit.
+  - **ADR-0100** — diagnostic content-mode gate (structurally isolated, audited; accepted,
+    implementation deferred).
+
 ## [3.1.2] - 2026-06-17
 
 ### Updater-safety hotfix (ADR-0099, WF0034)

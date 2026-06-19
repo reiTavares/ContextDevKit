@@ -29,6 +29,8 @@
  * invokes the group is new.
  * @type {readonly string[]}
  */
+import { WORKFLOW_ENGINE_SUITES } from './test-suites-workflow.mjs';
+
 export const TIERS = Object.freeze([
   'smoke',
   'selfcheck',
@@ -262,6 +264,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/setup-complete.mjs', 'templates/claude/commands/setup/setupcontextdevkit.md'] },
   { id: 'projmap-boot-nudge', file: 'tools/selfcheck-boot-signals-projmap.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/runtime/hooks/boot-signals-projmap.mjs'] },
+
+  ...WORKFLOW_ENGINE_SUITES,
 
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
