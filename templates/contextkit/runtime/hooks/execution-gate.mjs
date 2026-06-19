@@ -28,6 +28,7 @@ import { listWorkflows, currentBranch, PHASES } from '../../tools/scripts/workfl
 import { pathsFor } from '../config/paths.mjs';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { buildEconomyAdvisory } from '../../tools/scripts/economy/gate-advisory.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -232,6 +233,18 @@ async function main() {
 
   const { toolName } = normalizeToolPayload(payload);
   if (!toolName) return;
+
+  // ADR-0103: economy advisory (warn-only, fail-open) — runs for any gated tool
+  // call, independent of the capability contract. NEVER blocks (immutable rule 2).
+  if (toolMoment(toolName, payload?.tool_input ?? {}) !== null) {
+    const ecoText = await buildEconomyAdvisory({
+      config: await loadConfig(ROOT),
+      payload, toolName, root: ROOT,
+      sessionId: resolveHookSessionId(payload, HOST, ROOT),
+      readLedger,
+    });
+    if (ecoText) process.stderr.write(ecoText);
+  }
 
   // No taskId → no contract → gate is silent for unregistered tasks.
   const taskId = extractTaskId(payload);

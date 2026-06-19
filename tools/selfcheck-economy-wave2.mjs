@@ -9,6 +9,8 @@
  * UNREGISTERED — nothing wires them into the live gate (deferred activation).
  *
  * Cards: #261 lean-loop, #262 loop-breaker, #263 patch-economy.
+ * Plus gate-advisory (ADR-0103): the WIRED adapter that emits #262/#263 as
+ * warn-only nudges on the live CDK-032 PreToolUse gate (fail-open, never blocks).
  *
  * Standalone runnable: `node tools/selfcheck-economy-wave2.mjs`
  * Exit 0 on all-pass, exit 1 on any failure. Zero runtime deps — node:* only.
@@ -25,6 +27,7 @@ const CARDS = [
   ['#261 lean-loop', 'lean-loop.mjs', 'econCheckLeanLoop'],
   ['#262 loop-breaker', 'loop-breaker.mjs', 'econCheckLoopBreaker'],
   ['#263 patch-economy', 'patch-economy.mjs', 'econCheckPatchEconomy'],
+  ['gate-advisory (wired)', 'gate-advisory.mjs', 'econCheckGateAdvisory'],
 ];
 
 let failures = 0;
