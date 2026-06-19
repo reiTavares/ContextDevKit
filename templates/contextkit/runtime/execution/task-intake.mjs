@@ -12,6 +12,7 @@
  * Zero runtime dependencies — only `node:*` and the canonical platform helpers.
  */
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
+import { classifyWork, loadWorkPolicy } from './work-classifier.mjs';
 
 /**
  * Converts a task request into canonical, deterministic signals plus a human-
@@ -61,6 +62,12 @@ export function intake(request, env = {}) {
     phase: request.phase ?? '*',
     level,
   };
+
+  // ADDITIVE (A2, BIZ-0001/WF-0036, ADR-0102): attach the deterministic
+  // methodology classification under a NEW namespace. The legacy tier keys above
+  // are untouched — `signals.work` is a pure superset, so existing consumers
+  // (execution-contract.mjs, the gate) are unaffected (design §6.1).
+  signals.work = classifyWork(objective, loadWorkPolicy(env.root));
 
   return { signals, reasons };
 }

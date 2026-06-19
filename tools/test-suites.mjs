@@ -30,6 +30,7 @@
  * @type {readonly string[]}
  */
 import { WORKFLOW_ENGINE_SUITES } from './test-suites-workflow.mjs';
+import { BDM_SUITES } from './test-suites-bdm.mjs';
 
 export const TIERS = Object.freeze([
   'smoke',
@@ -264,6 +265,10 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/setup-complete.mjs', 'templates/claude/commands/setup/setupcontextdevkit.md'] },
   { id: 'projmap-boot-nudge', file: 'tools/selfcheck-boot-signals-projmap.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/runtime/hooks/boot-signals-projmap.mjs'] },
+
+  // BIZ-0001 / WF-0036+WF-0037 (Business-driven methodology) — split into its own
+  // module to keep this registry within the line budget (see test-suites-bdm.mjs).
+  ...BDM_SUITES,
 
   ...WORKFLOW_ENGINE_SUITES,
 

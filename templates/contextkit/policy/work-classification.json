@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "_note": "A2 methodology classifiers (BIZ-0001/WF-0036, governed by ADR-0102). Deterministic substring scoring — NOT LLM. ADDITIVE to complexity-rubric.json: this file owns Business-vs-Operation, kind, value-intent, growth-lever, execution-mode. Editing a row is an ADR act (constitution §9). Enums marked PROPOSED are minimal/grounded and may be ratified by a follow-up ADR. growthLever vocabulary is fixed by growth.md — do NOT invent levers. value-intent + execution-mode map to runtime/work/enums.mjs (imported, never forked).",
+
+  "nature": {
+    "default": "operation",
+    "margin": 1,
+    "business": {
+      "signals": [
+        { "s": "strategy", "w": 3 }, { "s": "strategic", "w": 3 },
+        { "s": "initiative", "w": 3 }, { "s": "program", "w": 3 },
+        { "s": "roadmap", "w": 2 }, { "s": "portfolio", "w": 2 },
+        { "s": "capability", "w": 2 }, { "s": "platform", "w": 2 },
+        { "s": "north star", "w": 3 }, { "s": "business case", "w": 3 },
+        { "s": "quarter", "w": 1 }, { "s": "okr", "w": 2 }, { "s": "goal", "w": 1 },
+        { "s": "compliance", "w": 3 }, { "s": "governance", "w": 2 }, { "s": "methodology", "w": 2 }
+      ]
+    },
+    "operation": {
+      "signals": [
+        { "s": "fix ", "w": 3 }, { "s": "bug", "w": 3 }, { "s": "add ", "w": 2 },
+        { "s": "implement", "w": 2 }, { "s": "update ", "w": 2 },
+        { "s": "refactor", "w": 2 }, { "s": "ticket", "w": 2 },
+        { "s": "task", "w": 1 }, { "s": "endpoint", "w": 1 },
+        { "s": "rename", "w": 2 }, { "s": "migrate", "w": 1 },
+        { "s": "incident", "w": 3 }, { "s": "hotfix", "w": 3 }, { "s": "batch", "w": 1 }
+      ]
+    }
+  },
+
+  "businessKind": {
+    "default": "capability",
+    "kinds": {
+      "capability":  [ { "s": "platform", "w": 2 }, { "s": "capability", "w": 3 }, { "s": "engine", "w": 1 }, { "s": "framework", "w": 1 } ],
+      "product":     [ { "s": "product", "w": 3 }, { "s": "feature set", "w": 2 }, { "s": "offering", "w": 2 }, { "s": "launch", "w": 1 } ],
+      "initiative":  [ { "s": "initiative", "w": 3 }, { "s": "program", "w": 2 }, { "s": "migration program", "w": 2 }, { "s": "rollout", "w": 1 } ],
+      "compliance":  [ { "s": "compliance", "w": 3 }, { "s": "lgpd", "w": 2 }, { "s": "audit", "w": 2 }, { "s": "regulatory", "w": 2 } ]
+    }
+  },
+
+  "operationKind": {
+    "default": "change",
+    "kinds": {
+      "change":            [ { "s": "add ", "w": 2 }, { "s": "implement", "w": 2 }, { "s": "feature", "w": 2 }, { "s": "endpoint", "w": 1 }, { "s": "component", "w": 1 } ],
+      "fix":               [ { "s": "fix ", "w": 3 }, { "s": "bug", "w": 3 }, { "s": "broken", "w": 2 }, { "s": "regression", "w": 2 }, { "s": "hotfix", "w": 3 } ],
+      "maintenance":       [ { "s": "refactor", "w": 2 }, { "s": "rename", "w": 2 }, { "s": "bump", "w": 2 }, { "s": "cleanup", "w": 2 }, { "s": "lint", "w": 1 }, { "s": "tidy", "w": 1 } ],
+      "investigation":     [ { "s": "investigate", "w": 3 }, { "s": "diagnose", "w": 3 }, { "s": "root cause", "w": 3 }, { "s": "why ", "w": 1 }, { "s": "audit", "w": 1 } ],
+      "operationalresponse": [ { "s": "incident", "w": 3 }, { "s": "outage", "w": 3 }, { "s": "rollback", "w": 2 }, { "s": "restore", "w": 2 }, { "s": "recover", "w": 2 } ]
+    }
+  },
+
+  "valueIntent": {
+    "default": "IMPROVE",
+    "secondaryMargin": 2,
+    "intents": {
+      "CREATE":   [ { "s": "new ", "w": 2 }, { "s": "build", "w": 2 }, { "s": "create", "w": 3 }, { "s": "add ", "w": 1 }, { "s": "launch", "w": 2 } ],
+      "PROTECT":  [ { "s": "secure", "w": 3 }, { "s": "harden", "w": 3 }, { "s": "protect", "w": 3 }, { "s": "prevent", "w": 2 }, { "s": "vulnerab", "w": 2 } ],
+      "RECOVER":  [ { "s": "fix ", "w": 2 }, { "s": "restore", "w": 3 }, { "s": "recover", "w": 3 }, { "s": "rollback", "w": 2 }, { "s": "incident", "w": 2 }, { "s": "outage", "w": 2 } ],
+      "ENABLE":   [ { "s": "enable", "w": 3 }, { "s": "unblock", "w": 2 }, { "s": "foundation", "w": 2 }, { "s": "infrastructure", "w": 2 }, { "s": "platform", "w": 2 }, { "s": "seam", "w": 1 }, { "s": "capability", "w": 3 }, { "s": "strategic", "w": 2 }, { "s": "initiative", "w": 2 } ],
+      "IMPROVE":  [ { "s": "improve", "w": 3 }, { "s": "optimi", "w": 2 }, { "s": "faster", "w": 2 }, { "s": "refactor", "w": 2 }, { "s": "polish", "w": 1 }, { "s": "reduce", "w": 1 } ],
+      "LEARN":    [ { "s": "investigate", "w": 3 }, { "s": "research", "w": 3 }, { "s": "spike", "w": 2 }, { "s": "explore", "w": 2 }, { "s": "diagnose", "w": 2 }, { "s": "measure", "w": 1 } ],
+      "COMPLY":   [ { "s": "lgpd", "w": 3 }, { "s": "compliance", "w": 3 }, { "s": "consent", "w": 2 }, { "s": "audit", "w": 2 }, { "s": "regulatory", "w": 3 }, { "s": "pii", "w": 2 } ],
+      "SERVE_MISSION": [ { "s": "mission", "w": 3 }, { "s": "open source", "w": 2 }, { "s": "community", "w": 2 }, { "s": "accessib", "w": 2 } ]
+    }
+  },
+
+  "growthLever": {
+    "default": null,
+    "levers": {
+      "STRATEGIC_ENABLEMENT":   [ { "s": "platform", "w": 2 }, { "s": "enable", "w": 2 }, { "s": "forecast", "w": 2 }, { "s": "portfolio", "w": 3 }, { "s": "foundation", "w": 2 }, { "s": "capability", "w": 2 } ],
+      "OPERATIONAL_EFFICIENCY": [ { "s": "ceremony", "w": 3 }, { "s": "automate", "w": 2 }, { "s": "faster", "w": 2 }, { "s": "batch", "w": 2 }, { "s": "workflow", "w": 1 }, { "s": "reduce friction", "w": 3 }, { "s": "export", "w": 2 }, { "s": "endpoint", "w": 1 }, { "s": "report", "w": 1 } ],
+      "QUALITY":                [ { "s": "test", "w": 2 }, { "s": "validate", "w": 2 }, { "s": "coverage", "w": 2 }, { "s": "correct", "w": 2 }, { "s": "review", "w": 1 }, { "s": "lint", "w": 1 }, { "s": "harden", "w": 2 }, { "s": "self-approve", "w": 2 }, { "s": "recorded", "w": 1 } ],
+      "COST_EFFICIENCY":        [ { "s": "cost", "w": 3 }, { "s": "token", "w": 2 }, { "s": "quota", "w": 2 }, { "s": "budget", "w": 2 }, { "s": "cache", "w": 1 } ],
+      "RELIABILITY":            [ { "s": "idempotent", "w": 2 }, { "s": "deterministic", "w": 2 }, { "s": "rebuild", "w": 2 }, { "s": "stable", "w": 1 }, { "s": "registry", "w": 1 }, { "s": "regression", "w": 2 }, { "s": "rollback", "w": 2 }, { "s": "updater", "w": 2 }, { "s": "guard", "w": 2 }, { "s": "worktree", "w": 1 }, { "s": "across the repo", "w": 2 } ]
+    }
+  },
+
+  "executionMode": {
+    "default": "direct",
+    "precedence": [ "workflow", "batch", "direct" ],
+    "modes": {
+      "workflow": [ { "s": "multi-step", "w": 3 }, { "s": "several phases", "w": 3 }, { "s": "wave", "w": 2 }, { "s": "milestones", "w": 2 }, { "s": "across modules", "w": 2 }, { "s": "program", "w": 2 }, { "s": "epic", "w": 2 } ],
+      "batch":    [ { "s": "all ", "w": 1 }, { "s": "every ", "w": 2 }, { "s": "bulk", "w": 3 }, { "s": "across the", "w": 2 }, { "s": "each ", "w": 1 }, { "s": "sweep", "w": 2 }, { "s": "rename all", "w": 3 }, { "s": "a few", "w": 2 }, { "s": "warnings", "w": 1 } ],
+      "direct":   [ { "s": "fix ", "w": 1 }, { "s": "one ", "w": 1 }, { "s": "single", "w": 2 }, { "s": "quick", "w": 1 } ]
+    }
+  },
+
+  "businessMatch": {
+    "weights": { "valueIntent": 3, "kind": 2, "token": 1 },
+    "thresholds": { "suggested": 0.45, "confirmed": 0.75 },
+    "winnerMargin": 0.1,
+    "kindAffinity": {
+      "fix": ["capability", "product"],
+      "change": ["capability", "product"],
+      "maintenance": ["capability"],
+      "investigation": ["capability", "compliance"],
+      "operationalresponse": ["capability", "product"]
+    }
+  }
+}
