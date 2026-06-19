@@ -29,7 +29,10 @@ import { routingSummary, presentRouting } from './economics/routing-economics.mj
 import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
 import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-snapshots.mjs';
 import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
+import { deriveOutcomes } from './economics/autonomy-outcomes.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+import { listStates } from '../../runtime/state/state-io.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -206,8 +209,12 @@ function main() {
     // #240 — quota snapshots from the append-only substrate (read-only here).
     const quotaFile = join(ROOT, 'contextkit', 'memory', 'quota-snapshots.jsonl');
     quota = quotaSummary(readSnapshots(quotaFile));
-    // #241 — autonomy multiplier; degrades to skipped() without QA-green/quota.
-    autonomy = multiplierSummary({ quotaObservable: false, availableUnits: ['effective-mtok'] });
+    // #241/#255 — autonomy multiplier, fed from real QA-green outcomes derived
+    // from the append-only state substrate (actor:'qa' transitions — ADR-0105).
+    // The useful count is now measured; the ratio still degrades to skipped until
+    // a baseline arm-A (#176) exists — honest, claim null throughout.
+    const autonomyTasks = deriveOutcomes(listStates(pathsFor(ROOT).pipeline, { kind: 'task' }));
+    autonomy = multiplierSummary({ tasks: autonomyTasks, quotaObservable: false, availableUnits: ['effective-mtok'] });
     // ADR-0094 — routing decision telemetry (kit routing only, not provider cache).
     const routingLogFile = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
     routingTelemetry = routingTelemetrySummary(readDecisions(routingLogFile));
