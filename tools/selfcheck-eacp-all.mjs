@@ -19,6 +19,7 @@ import { runEacpPrivacyChecks }      from './selfcheck-eacp-privacy.mjs';
 import { runEacpCostScenarioChecks } from './selfcheck-eacp-cost-scenarios.mjs';
 import { runEacpQuotaStoreChecks }   from './selfcheck-eacp-quota-store.mjs';
 import { runEacpReportingChecks }    from './selfcheck-eacp-reporting.mjs';
+import { runEacpStatisticsChecks }   from './selfcheck-eacp-statistics.mjs';
 
 /**
  * Runs all EACP cluster self-checks in order.
@@ -38,4 +39,5 @@ export async function runAllEacpChecks({ ok, bad }, { KIT }) {
   await runEacpCostScenarioChecks({ ok, bad }, { KIT });
   await runEacpQuotaStoreChecks({ ok, bad }, { KIT });
   await runEacpReportingChecks({ ok, bad }, { KIT });
+  await runEacpStatisticsChecks({ ok, bad }, { KIT });
 }

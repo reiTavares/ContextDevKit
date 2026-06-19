@@ -198,6 +198,13 @@ export async function runEacpRoutingChecks({ ok, bad }, { KIT }) {
       vDetect.accidentalRisk === 'detected'
         ? ok('fableAudit: accidentalRisk "detected" when routedModels contains a /fable/i id')
         : bad(`fableAudit: accidentalRisk should be "detected", got "${vDetect.accidentalRisk}"`);
+
+      // 14a. Updated fableAudit shape: priceConfidence + aliases (card #239 Wave 10)
+      verdict.priceConfidence === 'inferred' ? ok('fableAudit: priceConfidence === "inferred"')
+        : bad(`fableAudit: priceConfidence wrong — got "${verdict.priceConfidence}"`);
+      (Array.isArray(verdict.aliases) && verdict.aliases.length > 0)
+        ? ok('fableAudit: aliases is a non-empty array')
+        : bad(`fableAudit: aliases wrong — got ${JSON.stringify(verdict.aliases)}`);
     }
   }
 
@@ -258,11 +265,39 @@ export async function runEacpRoutingChecks({ ok, bad }, { KIT }) {
   typeof preFull === 'string' && preFull.includes('Routing economics')
     ? ok('presentRouting: populated summary → string contains "Routing economics"')
     : bad(`presentRouting: populated should contain "Routing economics", got: ${preFull.slice(0, 200)}`);
+  // ── analyzeDecisionRecords (card #239 Wave 10) ───────────────────────────
+  // 22. Empty → skipped
+  const adrEmpty = routLib.analyzeDecisionRecords([]);
+  adrEmpty?.status === 'skipped' ? ok('analyzeDecisionRecords([]): skipped')
+    : bad(`analyzeDecisionRecords([]): expected skipped, got ${JSON.stringify(adrEmpty)}`);
+  // 23. Shadow-mode → hostLimitation, honestReason, savingsEligible:false
+  const adrShadow = routLib.analyzeDecisionRecords([{ executor: 'sonnet', mode: 'shadow', applied: false }]);
+  (adrShadow.hostLimitation === true &&
+   adrShadow.honestReason === 'host_does_not_support_in_session_model_switch' &&
+   adrShadow.savingsEligible === false)
+    ? ok('analyzeDecisionRecords: shadow → hostLimitation true, honestReason set, savingsEligible false')
+    : bad(`analyzeDecisionRecords: shadow wrong — ${JSON.stringify(adrShadow)}`);
+  // 24. Applied + observedModel → savingsEligible true
+  const adrApplied = routLib.analyzeDecisionRecords(
+    [{ executor: 'sonnet', mode: 'applied', applied: true }], { observedModel: 'claude-sonnet-4-5' });
+  adrApplied.savingsEligible === true ? ok('analyzeDecisionRecords: applied+obs → savingsEligible true')
+    : bad(`analyzeDecisionRecords: applied+obs wrong — ${JSON.stringify(adrApplied)}`);
+  // 25. Below floor → floorProtected false, floorViolations 1
+  const adrFloor = routLib.analyzeDecisionRecords(
+    [{ executor: 'runner', mode: 'applied', applied: true }], { floorTier: 'haiku' });
+  (adrFloor.floorProtected === false && adrFloor.floorViolations === 1)
+    ? ok('analyzeDecisionRecords: below-floor → floorProtected false, floorViolations 1')
+    : bad(`analyzeDecisionRecords: floor wrong — ${JSON.stringify(adrFloor)}`);
+  // 26. Mixed → recommendedTiers includes shadow executor; selectedTier === first applied
+  const adrMixed = routLib.analyzeDecisionRecords([
+    { executor: 'haiku', mode: 'shadow', applied: false },
+    { executor: 'sonnet', mode: 'applied', applied: true },
+  ]);
+  (adrMixed.recommendedTiers.includes('haiku') && adrMixed.selectedTier === 'sonnet')
+    ? ok('analyzeDecisionRecords: mixed → haiku in recommendedTiers, selectedTier===sonnet')
+    : bad(`analyzeDecisionRecords: mixed wrong — ${JSON.stringify(adrMixed)}`);
 
-  // ── Zero-dep invariant ────────────────────────────────────────────────────
-
-  // 21. routing-economics.mjs satisfies zero-dep contract
-  // (imports cost-engine.mjs, pricing-registry.mjs, privacy.mjs — all relative)
+  // ── Zero-dep invariant — routing-economics.mjs (all imports node:* or relative) ─
   const result = await checkModuleZeroDep('routing-economics.mjs', routingPath);
   if (result.error) {
     bad(`zero-dep Wave 4 routing: routing-economics.mjs ${result.error}`);
