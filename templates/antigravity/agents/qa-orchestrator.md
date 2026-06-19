@@ -43,3 +43,27 @@ specialists and assemble their results into one verdict.
 - Prefer the project's existing framework and conventions; never add a second one.
 - If the squad specialists aren't available in this environment, do their work
   yourself but keep the same plan → write → consolidate → sign-off structure.
+
+---
+
+## Output Contract
+
+- **artifact-first**: yes — write findings to an artifact first; the response is a summary pointer.
+- **no-echo**: yes — never re-paste raw tool output into your response.
+- **max tokens (advisory)**: 1200
+- **max response lines**: 40
+
+### Max findings by severity
+
+| Severity | Cap |
+| --- | --- |
+| critical | UNCAPPED |
+| high     | UNCAPPED |
+| medium   | 8 |
+| low      | 5 |
+
+### Evidence rule
+
+Every **critical** or **high** finding MUST carry evidence: file path + line
+reference + a one-sentence explanation of why it is critical or high.
+Findings without evidence are rejected by the qa-orchestrator.

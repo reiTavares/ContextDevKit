@@ -51,3 +51,27 @@ the runner is a project dependency, never the kit's).
 
 You cover the critical journeys end-to-end and report what they protect — and
 explicitly what is left to the faster layers.
+
+---
+
+## Output Contract
+
+- **artifact-first**: yes — write findings to an artifact first; the response is a summary pointer.
+- **no-echo**: yes — never re-paste raw tool output into your response.
+- **max tokens (advisory)**: 1200
+- **max response lines**: 40
+
+### Max findings by severity
+
+| Severity | Cap |
+| --- | --- |
+| critical | UNCAPPED |
+| high     | UNCAPPED |
+| medium   | 8 |
+| low      | 5 |
+
+### Evidence rule
+
+Every **critical** or **high** finding MUST carry evidence: file path + line
+reference + a one-sentence explanation of why it is critical or high.
+Findings without evidence are rejected by the qa-orchestrator.

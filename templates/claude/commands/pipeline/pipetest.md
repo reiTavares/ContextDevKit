@@ -52,3 +52,15 @@ the suite line. Note any card the human still has to look at.
 - Evidence is mandatory and goes on the card + the event log (actor `qa`).
 - Swarm runs never call this themselves — a human invoking `/pipetest` over the
   parked lane is the designed closing move after `/swarm review`.
+
+## Token economy (ADR-0103)
+
+Run the test suite through the compact runner so only a bounded summary enters
+context, not the full log:
+
+```
+node contextkit/tools/scripts/economy/run-compact.mjs <your test command>
+```
+
+The full log is written to `runs/<id>/` (gitignored); the exit code is the only
+pass/fail source. Skip only if `economy.compaction.enabled` is false in config.

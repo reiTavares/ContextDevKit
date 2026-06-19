@@ -102,3 +102,9 @@ Only after review: for each non-active workstream, `git worktree remove <path>`
 - Grade-4 quorum per workstream follows the `/ship` hardened-quorum section
   (blind voices, deterministic voice, security veto, unresolved → human) and
   stamps the deliberation id into the manifest (`deliberationId`).
+
+## Token economy (ADR-0103)
+
+Default to **delegate-to-worker**: dispatch the mechanical work to a worker via
+the §A output envelope and merge the structured result — do NOT re-prose a
+subagent report. Controller-scoped only; honor `economy.leanLoop.enabled`.

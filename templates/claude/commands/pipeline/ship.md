@@ -129,3 +129,9 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
 
 If any agent isn't available in this environment, do that stage yourself but keep
 the gates. Never skip the review and test stages to "save time".
+
+## Token economy (ADR-0103)
+
+Default to **delegate-to-worker**: dispatch the mechanical work to a worker via
+the §A output envelope and merge the structured result — do NOT re-prose a
+subagent report. Controller-scoped only; honor `economy.leanLoop.enabled`.
