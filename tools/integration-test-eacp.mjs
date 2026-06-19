@@ -170,10 +170,33 @@ try {
         : bad(`Wave 7 (f): scenarios wrong — length=${sL.SCENARIOS.length}, missing: ${sL.SCENARIO_KINDS.filter((k) => !kinds.has(k)).join(',')}`);
     } catch (err) { bad(`Wave 7 crashed: ${err?.message ?? err}`); }
   })();
+
+  // ── Subscription mode (#254 / ADR-0104): effective-MTok-denominated multiplier ─
+  await (async () => {
+    try {
+      const subL = await import(econUrl('benchmark-subscription.mjs'));
+      const good = { acceptanceMet: true, testsRun: true, qaGreen: true, externalCriteria: true, evaluatorNotOperator: true };
+      const greenN = (n) => Array.from({ length: n }, () => ({ ...good }));
+      // arm C 8/2 MTok vs arm A 5/2 MTok → ratio 1.6×, observable unit, claim null.
+      const pilot = subL.subscriptionPilot(
+        { tasks: greenN(5), tokens: { input: 1000000, output: 1000000 } },
+        { tasks: greenN(8), tokens: { input: 1000000, output: 1000000 } },
+        { host: 'claude-code-max' },
+      );
+      pilot.unit === 'effective-mtok' && Math.abs(pilot.multiplier.multiplier - 1.6) < 1e-9 &&
+      pilot.multiplier.confidence === 'inferred' && pilot.claim === null && pilot.baselineMeasured === false
+        ? ok('economics subscription: A(5/2) vs C(8/2) → 1.6× effective-mtok, inferred, claim null')
+        : bad(`subscription pilot wrong: ${JSON.stringify(pilot.multiplier)?.slice(0, 160)}`);
+      // No API key / no USD needed — denominator is observable tokens, not spend.
+      subL.subscriptionPilot({ tasks: greenN(2), tokens: { input: 1000000 } }, { tasks: greenN(2), quotaDeltaPct: 5 })?.status === 'skipped'
+        ? ok('economics subscription: unit mismatch → skipped (no denominator-shopping)')
+        : bad('subscription: unit mismatch should skip');
+    } catch (err) { bad(`subscription crashed: ${err?.message ?? err}`); }
+  })();
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
   fx.cleanup();
 }
 
-rep.finish('Integration (EACP economics Waves 1-7)');
+rep.finish('Integration (EACP economics Waves 1-7 + subscription)');
