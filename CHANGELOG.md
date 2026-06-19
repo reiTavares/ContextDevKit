@@ -20,6 +20,41 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Universal wave-based workflow engine (ADR-0101, WF0035)
+
+One wave-based execution model for every formal workflow size — a basic workflow
+is a single wave; a program is an arbitrary DAG of waves, tasks, gates, and runs.
+Complexity is progressive via `profile` (`pipeline-only`/`basic`/`standard`/
+`advanced`/`program`) + wave `pattern` + add-ons; there is no separate "program
+engine". Opt-in — the legacy `new`/`advance`/`check`/`status`/`report` CLI is
+behaviour-unchanged. Built across WAVE 0–3 (5-agent swarms); full CI green
+(103 suites, tech-debt 0 RED). Refines ADR-0057 + ADR-0071.
+
+#### Added
+- **Single source of truth** — `workflow-plan.json` (topology) +
+  `workflow-state.json` (machine-owned: monotonic revision, plan-hash guard,
+  atomic writes). Task/status/continuation Markdown become generated projections
+  in idempotent managed blocks, ending hand-maintained, contradictory status
+  across files.
+- **Deterministic engine** (`templates/contextkit/tools/scripts/workflow/`) — pure
+  DAG (cycle/topo/ready/blocked/critical-path), scheduler (capacity ceilings, run
+  batches, execution-mode filtering, priority order), ownership (glob collision +
+  result-path validation), first-class gates (machine gates evaluate from facts;
+  **human gates never auto-pass** — explicit named approver only), structured
+  agent/wave/gate results, and one compact `CONTINUATION-PROMPT.md`.
+- **Four versioned registries** — profiles, 9 wave-patterns, an 18-artifact
+  file-catalog, 9 add-ons — answering deterministically why a file exists, whether
+  it is required, and what it must not duplicate.
+- **Non-destructive migration** — `audit` reports legacy contradictions without
+  resolving them; `migrate --dry-run` performs zero writes; `--apply` is
+  force-gated, idempotent, and preserves human prose outside managed blocks. The
+  Origem CRM WF0016 ships as a read-only fixture proving detection without loss.
+- **CLI** — `new --profile`, `refresh`, `next-run`, `ownership-check`,
+  `record-agent-result`, `check-gate`, `approve-gate`, `close-wave`, `audit`,
+  `migrate-plan`, `migrate`, `explain-file`, `required-files`. Engine distributed
+  via `copyEngine()`; 15 suites under `integration:workflow`; guides in
+  `docs/workflow-engine/`. Zero new hot-path dependencies (ADR-0001).
+
 ## [3.1.2] - 2026-06-17
 
 ### Updater-safety hotfix (ADR-0099, WF0034)
