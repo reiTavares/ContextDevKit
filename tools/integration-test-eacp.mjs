@@ -193,10 +193,33 @@ try {
         : bad('subscription: unit mismatch should skip');
     } catch (err) { bad(`subscription crashed: ${err?.message ?? err}`); }
   })();
+
+  // ── Autonomy outcomes (#255 / ADR-0105): substrate qa-events → multiplier ──────
+  await (async () => {
+    try {
+      const outL = await import(econUrl('autonomy-outcomes.mjs'));
+      const amL = await import(econUrl('autonomy-multiplier.mjs'));
+      const mk = (id, evs) => ({ kind: 'task', id, events: evs.map(([from, to, actor]) => ({ from, to, actor })) });
+      const states = [
+        mk('g', [['testing', 'conclusion', 'qa']]),                                      // green
+        mk('i', [['backlog', 'working', 'auto']]),                                        // in-flight → dropped
+        mk('r', [['testing', 'conclusion', 'qa'], ['conclusion', 'working', 'human']]),   // reopened
+      ];
+      const sum = outL.outcomesSummary(states);
+      sum.decided === 2 && sum.green === 1 && sum.reopened === 1
+        ? ok('economics outcomes: substrate → decided 2 / green 1 / reopened 1 (in-flight dropped)')
+        : bad(`outcomes summary wrong: ${JSON.stringify(sum)?.slice(0, 160)}`);
+      // The derived tasks feed the multiplier numerator — no longer always "skipped".
+      const fed = amL.multiplierSummary({ tasks: sum.tasks, quotaObservable: false, availableUnits: ['effective-mtok'] });
+      fed.status !== 'skipped' && fed.useful?.greenCount === 1 && fed.baselineMeasured === false
+        ? ok('economics outcomes→multiplier: useful greenCount===1, ratio pending baseline (claim null)')
+        : bad(`outcomes→multiplier wrong: ${JSON.stringify(fed)?.slice(0, 160)}`);
+    } catch (err) { bad(`autonomy outcomes crashed: ${err?.message ?? err}`); }
+  })();
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);
 } finally {
   fx.cleanup();
 }
 
-rep.finish('Integration (EACP economics Waves 1-7 + subscription)');
+rep.finish('Integration (EACP economics Waves 1-7 + subscription + outcomes)');

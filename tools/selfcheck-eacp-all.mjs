@@ -21,6 +21,7 @@ import { runEacpQuotaStoreChecks }   from './selfcheck-eacp-quota-store.mjs';
 import { runEacpReportingChecks }    from './selfcheck-eacp-reporting.mjs';
 import { runEacpStatisticsChecks }   from './selfcheck-eacp-statistics.mjs';
 import { runEacpSubscriptionChecks } from './selfcheck-eacp-subscription.mjs';
+import { runEacpOutcomesChecks }     from './selfcheck-eacp-outcomes.mjs';
 
 /**
  * Runs all EACP cluster self-checks in order.
@@ -42,4 +43,5 @@ export async function runAllEacpChecks({ ok, bad }, { KIT }) {
   await runEacpReportingChecks({ ok, bad }, { KIT });
   await runEacpStatisticsChecks({ ok, bad }, { KIT });
   await runEacpSubscriptionChecks({ ok, bad }, { KIT });
+  await runEacpOutcomesChecks({ ok, bad }, { KIT });
 }
