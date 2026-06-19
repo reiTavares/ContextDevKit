@@ -22,3 +22,27 @@ to break them.
   and boundary numbers, duplicate keys, prototype-pollution-shaped payloads.
 
 Report the invariants tested and any minimal counterexamples found.
+
+---
+
+## Output Contract
+
+- **artifact-first**: yes — write findings to an artifact first; the response is a summary pointer.
+- **no-echo**: yes — never re-paste raw tool output into your response.
+- **max tokens (advisory)**: 1200
+- **max response lines**: 40
+
+### Max findings by severity
+
+| Severity | Cap |
+| --- | --- |
+| critical | UNCAPPED |
+| high     | UNCAPPED |
+| medium   | 8 |
+| low      | 5 |
+
+### Evidence rule
+
+Every **critical** or **high** finding MUST carry evidence: file path + line
+reference + a one-sentence explanation of why it is critical or high.
+Findings without evidence are rejected by the qa-orchestrator.

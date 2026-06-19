@@ -67,3 +67,28 @@ export const ECONOMY_DEFAULTS = Object.freeze({
     }),
   }),
 });
+
+/**
+ * Per-module advisory toggle keys for Economy Runtime (ADR-0103 activation
+ * go-live). Each key maps to one wired module; users disable any module via
+ * `contextkit/config.json` → `economy.<key>.enabled = false`.
+ *
+ * Single source: FLAG_DEFAULTS (economy-governance-core.mjs) and EconomySchema
+ * (runtime/config/schema-sections.mjs) both build their per-module surface from
+ * THIS list, so adding/removing a module is a one-line change here.
+ *
+ * @type {readonly string[]}
+ */
+export const ECONOMY_MODULE_KEYS = Object.freeze([
+  'outputContract',  // ECON-01 #254 — worker output contract + envelope
+  'findings',        // ECON-02 #255 — findings protocol + merge
+  'agentContract',   // ECON-03 #256 — per-agent contract injection
+  'compaction',      // ECON-04 #257 — compact command runner
+  'contextProfiles', // ECON-05 #258 — context-pack profiles + digest parity
+  'bootDelta',       // ECON-06 #259 — boot-section delta gating
+  'resumePack',      // ECON-07 #260 — checkpoint / resume-pack
+  'leanLoop',        // ECON-08 #261 — delegate-to-worker in controllers
+  'loopBreaker',     // ECON-09 #262 — advisory loop-breaker gate signal
+  'patchEconomy',    // ECON-10 #263 — advisory patch-over-rewrite signal
+  'measurement',     // ECON-11 #264 — before/after savings measurement
+]);

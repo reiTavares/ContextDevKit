@@ -25,6 +25,7 @@
  */
 import { z } from 'zod';
 import { MAX_LEVEL, MIN_LEVEL } from './levels.mjs';
+import { EconomySchema } from './schema-economy.mjs';
 import {
   AdvisorSchema,
   AutoFormatSchema,
@@ -167,6 +168,7 @@ export const ConfigSchema = z
     setup: SetupSchema,
     boot: BootSchema,
     eacp: EacpSchema,
+    economy: EconomySchema,
     forward: ForwardSection,
   })
   .passthrough()

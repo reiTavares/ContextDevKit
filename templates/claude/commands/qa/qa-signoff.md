@@ -22,3 +22,15 @@ Act as **qa-orchestrator** and produce the final QA verdict.
 
 This is advisory by default — it informs `/close-version`, it doesn't hard-block.
 Treat a NEEDS-WORK on a critical path as a real blocker worth fixing first.
+
+## Token economy (ADR-0103)
+
+Run the test suite through the compact runner so only a bounded summary enters
+context, not the full log:
+
+```
+node contextkit/tools/scripts/economy/run-compact.mjs <your test command>
+```
+
+The full log is written to `runs/<id>/` (gitignored); the exit code is the only
+pass/fail source. Skip only if `economy.compaction.enabled` is false in config.
