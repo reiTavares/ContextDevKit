@@ -2,24 +2,17 @@
  * Routing economics — EACP Wave 4 / card #239 (§F model-routing economics +
  * Fable-5 audit). Wires §F decision factors into the economics layer and
  * exposes the Fable-5 audit that guards against accidental premium routing.
- *
- * Cohesion note: all exports operate on the same §F routing domain (factors →
- * strategy → ROI → unit cost → tier cost → Fable audit → summary/present).
+ * Cohesion: all exports share the §F routing domain (factors → strategy → ROI →
+ * unit cost → tier cost → decision analysis → Fable audit → summary/present).
  * No distinct second consumer yet — one file per ADR-0079 §cohesion.
- *
  * Constitution §8: quality not evaluated → savings withheld; Fable absent →
  * skipped(); no per-model usage → skipped(). Never fabricate a pass/figure.
- * DETERMINISTIC: no Date.now() / Math.random() / new Date() anywhere.
- * Zero runtime dependencies — node:* or relative imports only.
+ * DETERMINISTIC (no Date.now/Math.random/new Date); zero runtime deps (node or relative).
  */
 
 import { routingSavings, costPerQaGreenTask, projectTierCost } from './cost-engine.mjs';
 import { priceFor } from './pricing/pricing-registry.mjs';
 import { skipped } from './privacy.mjs';
-
-// ---------------------------------------------------------------------------
-// Public constants
-// ---------------------------------------------------------------------------
 
 /** Canonical schema identifier for routing-economics result objects. */
 export const ROUTING_SCHEMA_VERSION = 'eacp-routing-economics/1';
@@ -33,10 +26,6 @@ export const ROUTING_STRATEGIES = Object.freeze([
   'quality-evaluated', 'local-first', 'privacy-constrained',
 ]);
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 /** Maps a complexity/risk scalar or 'low'|'medium'|'high' label to 0-1. */
 function normalizeComplexity(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -46,21 +35,11 @@ function normalizeComplexity(value) {
   return (typeof value === 'string' && value in MAP) ? MAP[value] : null;
 }
 
-// ---------------------------------------------------------------------------
-// Exported functions
-// ---------------------------------------------------------------------------
-
 /**
  * Normalizes §F decision factors into a frozen object with safe defaults.
  * All inputs optional; invalid fields fall back to null/false, never throw.
  *
- * @param {{ taskType?: unknown, complexity?: unknown, risk?: unknown,
- *   paths?: unknown, squad?: unknown, phase?: unknown,
- *   toolCalling?: unknown, structuredOutput?: unknown,
- *   privacySensitive?: unknown, budgetExhausted?: unknown,
- *   qaPassRate?: unknown, retryRate?: unknown, latencyMs?: unknown,
- *   latencySensitive?: unknown, localPreferred?: unknown,
- *   contextWindow?: unknown }} [context]
+ * @param {object} [context] - See source for full field list (all optional).
  * @returns {Readonly<object>}
  */
 export function routingFactors(context = {}) {
@@ -97,9 +76,7 @@ export function routingFactors(context = {}) {
  */
 export function selectStrategy(factors) {
   if (factors == null) return { strategy: 'fixed', reasons: ['no factors → default fixed'] };
-
   const reasons = [];
-
   if (factors.privacySensitive) {
     reasons.push('privacySensitive → privacy-constrained');
     return { strategy: 'privacy-constrained', reasons };
@@ -137,8 +114,7 @@ export function selectStrategy(factors) {
  *
  * @param {{ usd: number|null }} baseline
  * @param {{ usd: number|null }} routed
- * @param {{ tolerance?: number, baselinePassRate?: number,
- *   routedPassRate?: number }} [qaSignals]
+ * @param {{ tolerance?: number, baselinePassRate?: number, routedPassRate?: number }} [qaSignals]
  * @returns {Readonly<object>} Frozen ROI result or skipped() marker.
  */
 export function routingROI(baseline, routed, qaSignals = {}) {
@@ -172,7 +148,6 @@ export function routingROI(baseline, routed, qaSignals = {}) {
 
 /**
  * Cost per QA-green task. Thin composition over cost-engine — not a fork.
- *
  * @param {number|null} attributableUsd
  * @param {number} qaGreenCount
  * @returns {{ usd: number|null, confidence: 'derived'|'unknown' }}
@@ -183,12 +158,11 @@ export function costPerCorrectTask(attributableUsd, qaGreenCount) {
 
 /**
  * Estimates cost for a routing tier via the forge matrix (model-policy).
- * This FINALLY WIRES model-policy.priceForTier through cost-engine.projectTierCost.
- * Tier prices are illustrative; confidence stays 'inferred' at best.
+ * Wires priceForTier through cost-engine.projectTierCost.
+ * Confidence stays 'inferred' — matrix prices are illustrative.
  *
  * @param {string} tier
- * @param {{ freshInput: number, output: number, cacheRead: number,
- *   cacheWrite: number, reasoning: number }} buckets
+ * @param {{ freshInput: number, output: number, cacheRead: number, cacheWrite: number, reasoning: number }} buckets
  * @param {{ policy?: object }} [opts]
  * @returns {Promise<Readonly<object>>}
  */
@@ -201,6 +175,46 @@ export async function tierEconomics(tier, buckets, opts = {}) {
     usd:        cost.usd        ?? null,
     confidence: cost.confidence ?? 'inferred',
     modelId:    cost.modelId    ?? null,
+  });
+}
+
+/**
+ * Consumes real routing decision records (from routing-telemetry.decisionRecord),
+ * distinguishing recommended / selected / applied / observed tiers.
+ *
+ * Use actual applied model ONLY when independently observed (opts.observedModel).
+ * Savings eligible only when applied + observed — never from shadow-only records.
+ * Enforces floor-agent protection: applied tier must be ≥ opts.floorTier.
+ * Honest about host limitation: Claude Code UserPromptSubmit cannot switch the
+ * in-session model → applied stays false → honestReason is host_does_not_support.
+ *
+ * @param {object[]} records - routing-telemetry decisionRecord[]
+ * @param {{ floorTier?: string, observedModel?: string|null }} [opts]
+ * @returns {Readonly<object>|Readonly<{status:'skipped',reason:string}>}
+ */
+export function analyzeDecisionRecords(records, opts = {}) {
+  if (!Array.isArray(records) || records.length === 0) return skipped('no decision records');
+  const RANK = { runner: 0, haiku: 1, sonnet: 2, opus: 3, fable: 4 };
+  const floor = (typeof opts.floorTier === 'string') ? opts.floorTier : 'haiku';
+  const obs = (typeof opts.observedModel === 'string' && opts.observedModel.trim())
+    ? opts.observedModel.trim() : null;
+  const applied   = records.filter(r => r.applied === true);
+  const shadows   = records.filter(r => r.mode === 'shadow');
+  const hostLimit = shadows.length > 0 && applied.length === 0;
+  const recTiers  = [...new Set(records.map(r => r.executor).filter(Boolean))];
+  const applTiers = [...new Set(applied.map(r => r.executor).filter(Boolean))];
+  const floorViol = applied.filter(r => (RANK[r.executor] ?? 99) < (RANK[floor] ?? 0));
+  return Object.freeze({
+    schemaVersion: ROUTING_SCHEMA_VERSION,
+    total: records.length, appliedCount: applied.length,
+    recommendedTiers: recTiers, appliedTiers: applTiers,
+    selectedTier: applTiers[0] ?? null, observedModel: obs,
+    hostLimitation: hostLimit,
+    honestReason: hostLimit ? 'host_does_not_support_in_session_model_switch'
+      : applied.length > 0 ? 'routing_applied' : 'shadow_recommendations_only',
+    floorProtected: floorViol.length === 0,
+    floorViolations: floorViol.length,
+    savingsEligible: applied.length > 0 && obs !== null,
   });
 }
 
@@ -222,9 +236,11 @@ export function fableAudit(registry, opts = {}) {
 
   return Object.freeze({
     schemaVersion: ROUTING_SCHEMA_VERSION,
-    model:    entry.canonicalId,
-    price:    { input: entry.input, output: entry.output, currency: entry.currency },
-    premium:  true,
+    model:           entry.canonicalId,
+    aliases:         Array.isArray(entry.aliases) ? [...entry.aliases] : [],
+    price:           { input: entry.input, output: entry.output, currency: entry.currency },
+    priceConfidence: entry.confidence ?? 'unknown',
+    premium:         true,
     whatItIs: 'Claude Fable 5 — a deliberately expensive, capacity-limited premium tier (ADR-0052).',
     whenSelected: 'Manual only — one task via the /fable skill, explicit opt-in.',
     who:      'A human invoking /fable. Never an automatic router decision.',
@@ -242,8 +258,7 @@ export function fableAudit(registry, opts = {}) {
  * models (opus / fable / reasoning) and runs fableAudit when Fable is present.
  * Degrades to skipped() when byModel is absent or empty.
  *
- * @param {{ byModel?: Record<string,{turns?:number,input?:number,output?:number}>,
- *   registry?: object|null, premiumIds?: string[] }} input
+ * @param {{ byModel?: Record<string,object>, registry?: object|null }} input
  * @returns {Readonly<object>|Readonly<{status:'skipped',reason:string}>}
  */
 export function routingSummary(input) {
