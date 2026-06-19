@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "addons": {
+    "research-evidence": {
+      "id": "research-evidence",
+      "additionalFiles": [
+        "evidence-register"
+      ],
+      "additionalValidations": [
+        "every claim in the decision cites an evidence-register source"
+      ],
+      "additionalGates": [
+        "evidence-reviewed"
+      ],
+      "recommendedPatterns": [
+        "research-benchmark"
+      ],
+      "incompatibilities": []
+    },
+    "benchmark": {
+      "id": "benchmark",
+      "additionalFiles": [
+        "benchmark-plan"
+      ],
+      "additionalValidations": [
+        "benchmark methodology is reproducible and inputs are pinned"
+      ],
+      "additionalGates": [
+        "benchmark-measured"
+      ],
+      "recommendedPatterns": [
+        "research-benchmark"
+      ],
+      "incompatibilities": []
+    },
+    "release": {
+      "id": "release",
+      "additionalFiles": [
+        "release-plan"
+      ],
+      "additionalValidations": [
+        "changelog updated",
+        "version bump follows semver"
+      ],
+      "additionalGates": [
+        "release-approved"
+      ],
+      "recommendedPatterns": [
+        "release-upgrade"
+      ],
+      "incompatibilities": []
+    },
+    "migration": {
+      "id": "migration",
+      "additionalFiles": [
+        "rollout-plan"
+      ],
+      "additionalValidations": [
+        "migration is reversible",
+        "dry-run performs zero writes"
+      ],
+      "additionalGates": [
+        "migration-applied"
+      ],
+      "recommendedPatterns": [
+        "database-migration"
+      ],
+      "incompatibilities": []
+    },
+    "compliance": {
+      "id": "compliance",
+      "additionalFiles": [
+        "risk-register"
+      ],
+      "additionalValidations": [
+        "data-protection obligations recorded",
+        "no compliance contradiction"
+      ],
+      "additionalGates": [
+        "compliance-reviewed"
+      ],
+      "recommendedPatterns": [],
+      "incompatibilities": []
+    },
+    "security": {
+      "id": "security",
+      "additionalFiles": [
+        "threat-model"
+      ],
+      "additionalValidations": [
+        "trust boundaries identified",
+        "no secret committed"
+      ],
+      "additionalGates": [
+        "security-reviewed"
+      ],
+      "recommendedPatterns": [],
+      "incompatibilities": []
+    },
+    "host-integration": {
+      "id": "host-integration",
+      "additionalFiles": [
+        "parity-matrix"
+      ],
+      "additionalValidations": [
+        "host parity matrix is complete across declared hosts"
+      ],
+      "additionalGates": [
+        "parity-verified"
+      ],
+      "recommendedPatterns": [
+        "multi-host-integration"
+      ],
+      "incompatibilities": []
+    },
+    "database-migration": {
+      "id": "database-migration",
+      "additionalFiles": [
+        "rollout-plan"
+      ],
+      "additionalValidations": [
+        "backup verified before cutover",
+        "row/hash counts preserved"
+      ],
+      "additionalGates": [
+        "backup-verified",
+        "migration-applied"
+      ],
+      "recommendedPatterns": [
+        "database-migration"
+      ],
+      "incompatibilities": []
+    },
+    "async-runtime": {
+      "id": "async-runtime",
+      "additionalFiles": [
+        "rollout-plan"
+      ],
+      "additionalValidations": [
+        "no blocking call on the hot path",
+        "graceful degradation on failure"
+      ],
+      "additionalGates": [
+        "async-validated"
+      ],
+      "recommendedPatterns": [],
+      "incompatibilities": []
+    }
+  }
+}
