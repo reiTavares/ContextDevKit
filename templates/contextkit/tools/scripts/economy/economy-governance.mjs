@@ -45,6 +45,7 @@ import {
   rolloutGate,
   measureBeforeAfter,
 } from './economy-governance-core.mjs';
+import { ECONOMY_MODULE_KEYS } from './economy-defaults.mjs';
 
 // ---------------------------------------------------------------------------
 // CI check export
@@ -144,6 +145,24 @@ export function econCheckGovernance(_root) {
     });
     const result = rolloutGate(flags, 'compaction');
     assert(result === false, 'master enabled:false must gate all sub-features');
+  });
+
+  // ADR-0103 activation go-live: every wired module is ON by default (advisory).
+  check('ADR-0103: all wired modules default ON (advisory go-live)', () => {
+    const flags = resolveEconomyFlags({});
+    for (const key of ECONOMY_MODULE_KEYS) {
+      assert(rolloutGate(flags, key) === true,
+        `module '${key}' must default enabled:true at go-live, got ${rolloutGate(flags, key)}`);
+    }
+  });
+
+  // Each module remains individually opt-out-able via config (user can disable one).
+  check('ADR-0103: a single module can be disabled without affecting others', () => {
+    const flags = resolveEconomyFlags({ economy: { loopBreaker: { enabled: false } } });
+    assert(rolloutGate(flags, 'loopBreaker') === false,
+      'loopBreaker explicitly disabled must gate to false');
+    assert(rolloutGate(flags, 'patchEconomy') === true,
+      'disabling one module must NOT disable the others');
   });
 
   return checks;

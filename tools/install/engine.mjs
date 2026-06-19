@@ -19,6 +19,13 @@ import { read, overwrite, atomicWrite, backup, copyTree, copyTreeIfMissing, writ
 import { syncFile, syncTree } from './sync.mjs';
 import { migrateConfigPaths } from './config-paths.mjs';
 
+// ADR-0103 activation go-live notice: Economy Runtime ships ON (advisory). Shown
+// once when the `economy` config section is freshly created or distributed.
+const ECONOMY_NOTICE =
+  '📊 Economy Runtime is ON by default (advisory — it never blocks your work). ' +
+  'Disable one module via contextkit/config.json → economy.<module>.enabled=false, ' +
+  'or turn it all off with economy.enabled=false.';
+
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
@@ -127,6 +134,7 @@ async function updateConfig(target, cfgPath, level, preset, report) {
   await atomicWrite(cfgPath, next);
   report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
   if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
+  if (added.includes('economy')) report.push(ECONOMY_NOTICE);
   if (healed > 0) report.push(`✓ migrated ${healed} legacy 'vibekit/' config path(s) onto ${PLATFORM_DIR}/ (backup: config.json.bak)`);
 }
 
@@ -144,6 +152,7 @@ async function writeConfig(target, tplDir, level, args, report) {
     if (preset) cfg = applyPreset(cfg, preset);
     await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
     report.push(`✓ created contextkit/config.json (level ${level}, first-run pending${preset ? `, preset ${preset}` : ''})`);
+    report.push(ECONOMY_NOTICE);
   }
 }
 

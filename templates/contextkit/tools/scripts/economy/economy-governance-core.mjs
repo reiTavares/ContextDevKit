@@ -20,7 +20,7 @@
 
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve, join }     from 'node:path';
-import { ECONOMY_DEFAULTS }  from './economy-defaults.mjs';
+import { ECONOMY_DEFAULTS, ECONOMY_MODULE_KEYS } from './economy-defaults.mjs';
 
 // ---------------------------------------------------------------------------
 // Default governance flags
@@ -31,22 +31,32 @@ import { ECONOMY_DEFAULTS }  from './economy-defaults.mjs';
  * @property {boolean} enabled         - Master switch for Economy Runtime
  * @property {'advisory'|'blocking'}  mode - Execution mode; always 'advisory' by default
  * @property {Object} output           - Output contract overrides (ECON-01 owns schema)
- * @property {{ enabled: boolean }} compaction      - ECON-04 compaction runner flag
- * @property {{ enabled: boolean }} contextProfiles - ECON-05 context profiles flag
- * @property {{ enabled: boolean }} resumePack      - ECON-06 resume-pack flag
- * @property {{ enabled: boolean }} measurement     - ECON-11 governance measurement flag
+ *
+ * Plus one `{ enabled: boolean }` sub-flag per ECONOMY_MODULE_KEYS entry
+ * (outputContract, findings, agentContract, compaction, contextProfiles,
+ * bootDelta, resumePack, leanLoop, loopBreaker, patchEconomy, measurement).
  */
 
-/** @type {EconomyFeatureFlags} */
-export const FLAG_DEFAULTS = Object.freeze({
-  enabled:         true,
-  mode:            'advisory',
-  output:          ECONOMY_DEFAULTS.output,
-  compaction:      Object.freeze({ enabled: false }),
-  contextProfiles: Object.freeze({ enabled: false }),
-  resumePack:      Object.freeze({ enabled: false }),
-  measurement:     Object.freeze({ enabled: false }),
-});
+/**
+ * Default governance flags. ADR-0103 activation go-live: every wired module is
+ * ON by default, advisory + fail-open. Each sub-flag is individually
+ * overridable via config (`economy.<key>.enabled = false`); the master
+ * `enabled` and `mode` gate the whole stack. Sub-flags are built from the
+ * single-source ECONOMY_MODULE_KEYS so this object can never drift from the
+ * schema/config seed.
+ *
+ * @type {EconomyFeatureFlags}
+ */
+export const FLAG_DEFAULTS = Object.freeze(
+  ECONOMY_MODULE_KEYS.reduce(
+    (acc, key) => { acc[key] = Object.freeze({ enabled: true }); return acc; },
+    {
+      enabled: true,
+      mode:    'advisory',
+      output:  ECONOMY_DEFAULTS.output,
+    },
+  ),
+);
 
 // ---------------------------------------------------------------------------
 // resolveEconomyFlags
@@ -79,7 +89,7 @@ export function resolveEconomyFlags(cfg) {
     return defVal;
   };
 
-  return {
+  const resolved = {
     enabled:
       typeof econCfg.enabled === 'boolean' ? econCfg.enabled : FLAG_DEFAULTS.enabled,
     mode: resolvedMode,
@@ -87,11 +97,10 @@ export function resolveEconomyFlags(cfg) {
       econCfg.output && typeof econCfg.output === 'object'
         ? econCfg.output
         : FLAG_DEFAULTS.output,
-    compaction:      mergeSubFeature('compaction'),
-    contextProfiles: mergeSubFeature('contextProfiles'),
-    resumePack:      mergeSubFeature('resumePack'),
-    measurement:     mergeSubFeature('measurement'),
   };
+  // Resolve every wired module sub-flag from the single-source key list.
+  for (const key of ECONOMY_MODULE_KEYS) resolved[key] = mergeSubFeature(key);
+  return resolved;
 }
 
 // ---------------------------------------------------------------------------

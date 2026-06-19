@@ -13,6 +13,7 @@
  */
 import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
 import { EACP_DEFAULTS } from './defaults-eacp.mjs';
+import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -302,6 +303,6 @@ export const DEFAULT_CONFIG = Object.freeze({
       },
     },
   },
-  // EACP (WF0018/ADR-0077..0081) advisory-first; disabling restores legacy. See defaults-eacp.mjs.
-  eacp: EACP_DEFAULTS,
+  eacp: EACP_DEFAULTS,                // advisory-first; see defaults-eacp.mjs (disable restores legacy)
+  economy: ECONOMY_CONFIG_DEFAULTS,   // ADR-0103 go-live; see defaults-economy.mjs (per-module toggles)
 });

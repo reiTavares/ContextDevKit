@@ -65,5 +65,20 @@
         "quick": { "cadenceDays": 3, "scope": "red-zone-only" }
       }
     }
+  },
+  "economy": {
+    "enabled": true,
+    "mode": "advisory",
+    "outputContract": { "enabled": true },
+    "findings": { "enabled": true },
+    "agentContract": { "enabled": true },
+    "compaction": { "enabled": true },
+    "contextProfiles": { "enabled": true },
+    "bootDelta": { "enabled": true },
+    "resumePack": { "enabled": true },
+    "leanLoop": { "enabled": true },
+    "loopBreaker": { "enabled": true },
+    "patchEconomy": { "enabled": true },
+    "measurement": { "enabled": true }
   }
 }
