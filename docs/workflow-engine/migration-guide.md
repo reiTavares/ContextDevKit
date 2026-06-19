@@ -1,12 +1,12 @@
 # Migration Guide
 
 Migrating a legacy workflow onto the wave engine is **opt-in and
-non-destructive** (ADR-0100 §11). There is no forced or global rewrite, and
+non-destructive** (ADR-0101 §11). There is no forced or global rewrite, and
 legacy + hybrid workflows keep working unchanged — legacy support is not removed
 in this release.
 
 > **Implementation status (be accurate):** the migration **pipeline is a design
-> contract in ADR-0100 §11 and the [WF0035 spec](../../contextkit/memory/workflows/0035-universal-wave-workflow-engine/spec.md)**
+> contract in ADR-0101 §11 and the [WF0035 spec](../../contextkit/memory/workflows/0035-universal-wave-workflow-engine/spec.md)**
 > (WAVE 3). At the time of writing, `workflow.mjs` does **not** yet expose
 > `audit` / `migrate` subcommands and no `audit.mjs` / `migrate.mjs` module
 > ships in `workflow/`. This guide documents the intended pipeline and the

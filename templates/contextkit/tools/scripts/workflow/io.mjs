@@ -1,5 +1,5 @@
 /**
- * Shared safe-I/O foundation for the universal wave workflow engine (ADR-0100
+ * Shared safe-I/O foundation for the universal wave workflow engine (ADR-0101
  * §12, WF0035). Orchestrator-owned: every `workflow/*.mjs` module imports from
  * here, so it cannot belong to a single agent's lane.
  *

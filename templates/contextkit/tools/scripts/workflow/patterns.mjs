@@ -1,5 +1,5 @@
 /**
- * Wave-pattern resolver for the universal wave workflow engine (ADR-0100 §5,
+ * Wave-pattern resolver for the universal wave workflow engine (ADR-0101 §5,
  * WF0035). Loads `registry/wave-patterns.json` relative to this module dir (works
  * in source and installed trees) and returns wave skeletons for a pattern.
  *

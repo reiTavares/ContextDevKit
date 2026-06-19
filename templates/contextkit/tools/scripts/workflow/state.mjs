@@ -1,6 +1,6 @@
 /**
  * Machine-owned execution state for the universal wave workflow engine
- * (`workflow-state.json`, ADR-0100 §State, WF0035). State is NEVER hand-edited:
+ * (`workflow-state.json`, ADR-0101 §State, WF0035). State is NEVER hand-edited:
  * only the mutators in this module produce the next revision. Every accepted
  * write increments `revision` monotonically; a stale `expectedRevision` or a
  * `planHash` mismatch is a typed refusal (fail-fast, ADR §8 "default to refuse").

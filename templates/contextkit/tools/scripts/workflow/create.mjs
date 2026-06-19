@@ -1,5 +1,5 @@
 /**
- * Wave-workflow creator for the universal wave engine (WF0035, ADR-0100 §5).
+ * Wave-workflow creator for the universal wave engine (WF0035, ADR-0101 §5).
  *
  * Creates a wave-based workflow pack from a PROFILE (+ optional PATTERN and
  * add-ons), or from a caller-provided PLAN (the `program` path). The pack mirrors
@@ -10,7 +10,7 @@
  * Default-refuse: an existing target folder is never clobbered (throws). All
  * registry lookups throw on an unknown profile/pattern/add-on. The clock is
  * injected (`now`) — no `new Date()` / `Date.now()` deep in this module so two
- * runs with the same inputs are byte-identical (ADR-0100 §Contracts).
+ * runs with the same inputs are byte-identical (ADR-0101 §Contracts).
  *
  * Zero runtime dependencies — `node:*` + sibling workflow modules only (ADR-0001).
  */

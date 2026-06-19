@@ -1,5 +1,5 @@
 /**
- * Pure validation for the universal wave workflow engine (WF0035, ADR-0100).
+ * Pure validation for the universal wave workflow engine (WF0035, ADR-0101).
  * Holds `validatePlan` (structure + direct-reference existence over a normalized
  * `workflow-plan.json`) and the full-pack entry `validatePack`, which later waves
  * extend with state + files-vs-catalog checks.

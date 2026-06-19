@@ -1,5 +1,5 @@
 /**
- * WF0035 universal wave workflow engine suite registrations (ADR-0100), split
+ * WF0035 universal wave workflow engine suite registrations (ADR-0101), split
  * out of `test-suites.mjs` so the engine's growing suite list has its own home
  * and the central registry stays within the line budget. Spread into `SUITES`
  * via `...WORKFLOW_ENGINE_SUITES`. Additive; legacy workflow CLI unchanged.

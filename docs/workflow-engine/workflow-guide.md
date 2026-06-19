@@ -77,7 +77,7 @@ outside the block is always preserved).
 | Activation & reversibility | `rollout-plan.md` | human |
 | Session continuation | generated `CONTINUATION-PROMPT.md` | **projection** |
 
-The full matrix is ADR-0100 §3; the per-file rules are in
+The full matrix is ADR-0101 §3; the per-file rules are in
 [file-catalog-guide.md](./file-catalog-guide.md).
 
 ## A typical wave loop

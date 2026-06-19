@@ -12,7 +12,7 @@ by four versioned JSON registries (profiles, patterns, files, add-ons), so the
 CLI stays thin and explainable. The full rationale is in the ADR — these guides
 are the practical reference.
 
-> Canonical decision: [ADR-0100](../../contextkit/memory/decisions/0100-universal-wave-based-workflow-engine.md)
+> Canonical decision: [ADR-0101](../../contextkit/memory/decisions/0101-universal-wave-based-workflow-engine.md)
 > · Spec: [WF0035 spec.md](../../contextkit/memory/workflows/0035-universal-wave-workflow-engine/spec.md)
 
 ## Guides
@@ -25,7 +25,7 @@ are the practical reference.
 | [cli-reference.md](./cli-reference.md) | Every `workflow` command + flags, with one example each and which write state. |
 | [migration-guide.md](./migration-guide.md) | The non-destructive migration pipeline and the opt-in rollout stages. |
 
-## Terminology (ADR-0100 §7)
+## Terminology (ADR-0101 §7)
 
 - **Wave** — a logical delivery stage with `dependsOn` (other waves it waits on)
   and a gate. Its status is **not** stored in the plan; it is a projection from

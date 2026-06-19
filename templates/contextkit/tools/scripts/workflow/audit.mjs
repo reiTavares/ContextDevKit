@@ -1,6 +1,6 @@
 /**
  * READ-ONLY legacy consistency + redundancy audit for the universal wave
- * workflow engine (WF0035, spec §22 "Audit mode", ADR-0100 §11).
+ * workflow engine (WF0035, spec §22 "Audit mode", ADR-0101 §11).
  *
  * Given a legacy/hybrid pack directory it scans the human Markdown breadcrumbs
  * (`index.md` frontmatter + History, `tasks.md`, `memory.md`,

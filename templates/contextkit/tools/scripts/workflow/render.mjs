@@ -1,6 +1,6 @@
 /**
  * Markdown PROJECTIONS for the universal wave workflow engine (WF0035,
- * ADR-0067 / ADR-0100 §17). Renders the static plan (`workflow-plan.json`) +
+ * ADR-0067 / ADR-0101 §17). Renders the static plan (`workflow-plan.json`) +
  * machine state (`workflow-state.json`) into managed blocks inside human-authored
  * documents (`tasks.md`, `index.md`), preserving everything OUTSIDE the markers
  * byte-for-byte.

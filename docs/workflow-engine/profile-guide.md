@@ -57,4 +57,4 @@ A plan's `capacity` block (`maxConcurrentWaves`, `maxConcurrentRuns`,
 slot; `deterministic | orchestrator | human` tasks never do. Shared
 orchestration files (the `workflow.mjs` CLI, `tools/test-suites.mjs`, package
 scripts, shared doc indexes) are owned by the orchestrator alone and are never
-edited by parallel agents (ADR-0100 §8).
+edited by parallel agents (ADR-0101 §8).

@@ -1,5 +1,5 @@
 /**
- * File-catalog resolver for the universal wave workflow engine (ADR-0100 §3/§5,
+ * File-catalog resolver for the universal wave workflow engine (ADR-0101 §3/§5,
  * WF0035). Loads `registry/file-catalog.json` relative to this module dir (works
  * in source and installed trees) and answers "why does this file exist / is it
  * required / what must it not duplicate?" deterministically.

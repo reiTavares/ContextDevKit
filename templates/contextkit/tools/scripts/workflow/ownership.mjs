@@ -4,7 +4,7 @@
  * A task declares ownership lanes (`allowedPaths`, `forbiddenPaths`,
  * `readOnlyPaths`, `sharedPaths`, `integrationOwner`). This module prevents
  * parallel agents from writing the same file and enforces that shared
- * orchestration files are touched by the orchestrator alone (ADR-0100 §8).
+ * orchestration files are touched by the orchestrator alone (ADR-0101 §8).
  *
  * Glob matching lives in `./glob.mjs` (the matched responsibility seam). This
  * module stays no-I/O, no-clock, deterministic, and default-refuse: an
@@ -24,7 +24,7 @@ const OWNERSHIP_REQUIRED_PROFILES = new Set(['standard', 'advanced', 'program'])
 
 /**
  * Default orchestrator-only shared files: the CLI entrypoint, central test
- * registration, and shared package surfaces (ADR-0100 §8). A documented default,
+ * registration, and shared package surfaces (ADR-0101 §8). A documented default,
  * overridable via `orchestratorOwned`'s `sharedRegistry` argument.
  * @type {ReadonlyArray<string>}
  */

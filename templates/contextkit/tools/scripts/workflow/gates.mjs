@@ -1,6 +1,6 @@
 /**
  * Gate evaluation + explicit human approval for the universal wave workflow
- * engine (ADR-0100 §9, WF0035, spec §Contracts). Gates are first-class: a wave
+ * engine (ADR-0101 §9, WF0035, spec §Contracts). Gates are first-class: a wave
  * cannot close while its gate is incomplete, and **human approval is never
  * inferred** — it is recorded explicitly by a named approver or it does not
  * exist.

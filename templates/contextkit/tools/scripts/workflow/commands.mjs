@@ -1,5 +1,5 @@
 /**
- * Command glue for the universal wave workflow engine CLI (ADR-0100 §12, WF0035).
+ * Command glue for the universal wave workflow engine CLI (ADR-0101 §12, WF0035).
  * Orchestrator-owned: keeps `workflow.mjs` a thin dispatcher by holding the
  * load-plan+state → compute → (maybe) update-state flow for the WAVE 2 verbs
  * (next-run, ownership-check, record-agent-result, check-gate, approve-gate,

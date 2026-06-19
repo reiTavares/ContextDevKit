@@ -1,5 +1,5 @@
 /**
- * Plan model for the universal wave workflow engine (WF0035, ADR-0100 §Contracts).
+ * Plan model for the universal wave workflow engine (WF0035, ADR-0101 §Contracts).
  * Reads / normalizes / validates / mutates the `workflow-plan.json` machine
  * contract — the static execution topology (waves, tasks, gates, capacity).
  *

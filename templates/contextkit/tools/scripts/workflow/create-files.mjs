@@ -1,5 +1,5 @@
 /**
- * File-template strings for the wave-workflow creator (WF0035, ADR-0100 §5).
+ * File-template strings for the wave-workflow creator (WF0035, ADR-0101 §5).
  *
  * Split out of `create.mjs` so that module stays inside the line budget while
  * keeping the human-file seed text in one cohesive place. Every template is a

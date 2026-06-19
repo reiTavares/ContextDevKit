@@ -1,6 +1,6 @@
 /**
  * NON-DESTRUCTIVE legacy migration for the universal wave workflow engine
- * (WF0035, spec §22, ADR-0100 §11). Pipeline:
+ * (WF0035, spec §22, ADR-0101 §11). Pipeline:
  * `discover → audit → propose → dry-run → explicit apply → verify → receipt`.
  *
  * Legacy/hybrid packs are user-authored project memory — there is NO forced or

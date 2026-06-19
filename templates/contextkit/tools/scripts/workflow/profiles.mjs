@@ -1,5 +1,5 @@
 /**
- * Profile resolver for the universal wave workflow engine (ADR-0100 §5, WF0035).
+ * Profile resolver for the universal wave workflow engine (ADR-0101 §5, WF0035).
  *
  * Loads `registry/profile-registry.json` relative to this module dir (so it
  * resolves in both the source tree and an installed `contextkit/` tree) and

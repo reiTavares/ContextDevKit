@@ -1,6 +1,6 @@
 /**
  * Structured result contracts + ingestion for the universal wave workflow
- * engine (ADR-0100 §9, WF0035, spec §Contracts). Three result shapes flow out
+ * engine (ADR-0101 §9, WF0035, spec §Contracts). Three result shapes flow out
  * of a wave run: per-agent results, the wave-level rollup, and gate verdicts.
  * This module is the single source of truth for their shape and persistence.
  *

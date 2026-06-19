@@ -1,9 +1,9 @@
 /**
  * Compact CONTINUATION-PROMPT.md generator for the universal wave workflow engine
- * (WF0035, ADR-0100 §10/§18). Renders ONE canonical continuation file that lets a
+ * (WF0035, ADR-0101 §10/§18). Renders ONE canonical continuation file that lets a
  * fresh session resume the workflow without re-reading the transcript.
  *
- * Token-efficiency rule (ADR-0100 §18): completed history is compacted to one line
+ * Token-efficiency rule (ADR-0101 §18): completed history is compacted to one line
  * per wave; the wave(s) currently in flight get full task-level detail; future
  * waves are reduced to title + deps + status. No transcript content is ever
  * embedded — only machine-derived facts from plan + state + scheduler output.
@@ -183,7 +183,7 @@ export function renderContinuation({ plan, state, scheduleOutput, gitFacts, now 
   const heading = `# CONTINUATION — WF${normalized.workflowId || '????'} ${normalized.title || ''}`.trim();
   const sections = [
     heading,
-    `> One canonical continuation (ADR-0100 §10). Completed = 1 line/wave; current =\n> full detail; future = title + deps + status. Regenerated ${now}.`,
+    `> One canonical continuation (ADR-0101 §10). Completed = 1 line/wave; current =\n> full detail; future = title + deps + status. Regenerated ${now}.`,
     renderGitState(gitFacts),
     renderWorkflowSection(normalized, state),
     renderWaveSections(normalized, state),

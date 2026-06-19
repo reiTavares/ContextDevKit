@@ -1,5 +1,5 @@
 /**
- * Add-on resolver for the universal wave workflow engine (ADR-0100 §5, WF0035).
+ * Add-on resolver for the universal wave workflow engine (ADR-0101 §5, WF0035).
  * Loads `registry/addon-registry.json` relative to this module dir (works in
  * source and installed trees) and answers what extra files/validations/gates an
  * add-on (or a set of add-ons) requires.
