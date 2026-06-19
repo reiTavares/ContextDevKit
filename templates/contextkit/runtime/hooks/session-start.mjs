@@ -49,6 +49,7 @@ import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 import { renderBootBanner } from './boot-banner.mjs';
 import { readSquadContext } from './squad-context.mjs';
+import { applyBootDeltaGate } from '../../tools/scripts/economy/boot-delta-gate.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -146,7 +147,9 @@ async function main() {
   const unreleased = changelog ? digestUnreleased(changelog) || extractUnreleased(changelog) : null;
 
   // Hand the gathered signals to the pure presentation layer (boot-banner.mjs).
-  const banner = renderBootBanner({
+  // ADR-0103: boot-delta (#259) gates UNCHANGED informational sections — fail-open
+  // (a broken gate returns the full bundle), Process rules + drift never gated.
+  const boot = {
     host: HOST,
     isCodex,
     sessionId,
@@ -174,7 +177,8 @@ async function main() {
     unreleased,
     value,
     hasSnapshot,
-  });
+  };
+  const banner = renderBootBanner(applyBootDeltaGate(boot, { root: ROOT, config: loadConfigSync(ROOT) }));
 
   process.stdout.write(banner);
 }

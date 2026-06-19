@@ -30,6 +30,7 @@ const CARDS = [
   ['#257 run-compact', 'run-compact.mjs', 'econCheckRunCompact'],
   ['#258 context-profiles', 'context-profiles.mjs', 'econCheckProfiles'],
   ['#259 boot-delta', 'boot-delta.mjs', 'econCheckBootDelta'],
+  ['#259 boot-delta-gate (wired)', 'boot-delta-gate.mjs', 'econCheckBootDeltaGate'],
   ['#260 resume-pack', 'resume-pack.mjs', 'econCheckResumePack'],
   ['#264 economy-governance', 'economy-governance.mjs', 'econCheckGovernance'],
 ];
