@@ -44,6 +44,7 @@ _Background and rationale — the why behind the decisions._
 
 ## 🗂️ Planning & meta
 
+- [Changelog](CHANGELOG.md) — All notable changes to devtool_ia-bdm are documented here.
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
 
 ## ❓ Unclassified

@@ -46,6 +46,36 @@ export const WORKSPACE_INDEX = `${MEMORY_DIR}/WORKSPACE.md`;
 /** Architecture Decision Records (immutable once accepted). */
 export const DECISIONS_DIR = `${MEMORY_DIR}/decisions`;
 
+/**
+ * Business-driven methodology roots (BIZ-0001 / WF-0036). Single-sourced off
+ * `MEMORY_DIR`/`DECISIONS_DIR` so the platform folder name lives ONLY in
+ * `PLATFORM_DIR` (immutable rule 4). See `architecture/schema-plan.md`.
+ */
+
+/** Business work contexts — one folder per `BIZ-####`. */
+export const BUSINESS_DIR = `${MEMORY_DIR}/business`;
+
+/** Operation work contexts — one folder per `OP-####`. */
+export const OPERATIONS_DIR = `${MEMORY_DIR}/operations`;
+
+/** Decision subtree for Business-owned ADRs (used by WF-0037). */
+export const DECISIONS_BUSINESS_DIR = `${DECISIONS_DIR}/business`;
+
+/** Decision subtree for Operation-owned ADRs (used by WF-0037). */
+export const DECISIONS_OPERATIONS_DIR = `${DECISIONS_DIR}/operations`;
+
+/** Decision subtree for legacy (pre-methodology) ADRs (used by WF-0037). */
+export const DECISIONS_LEGACY_DIR = `${DECISIONS_DIR}/legacy`;
+
+/** Generated index of work contexts (BIZ-#### ∪ OP-####). Built by A1-T3/B1. */
+export const WORK_CONTEXT_REGISTRY = `${MEMORY_DIR}/work-context-registry.json`;
+
+/** Generated index resolving WF-#### + legacy NNNN-slug workflows. Built later. */
+export const WORKFLOW_REGISTRY = `${MEMORY_DIR}/workflow-registry.json`;
+
+/** Generated index of decisions across new + legacy roots. Built later. */
+export const DECISION_REGISTRY = `${MEMORY_DIR}/decision-registry.json`;
+
 /** Domain glossary — UI/business term ↔ code identifier. */
 export const GLOSSARY = `${MEMORY_DIR}/GLOSSARY.md`;
 
@@ -97,6 +127,14 @@ export function pathsFor(root = process.cwd()) {
     sessionsIndex: at(SESSIONS_INDEX),
     workspaceIndex: at(WORKSPACE_INDEX),
     decisions: at(DECISIONS_DIR),
+    business: at(BUSINESS_DIR),
+    operations: at(OPERATIONS_DIR),
+    decisionsBusiness: at(DECISIONS_BUSINESS_DIR),
+    decisionsOperations: at(DECISIONS_OPERATIONS_DIR),
+    decisionsLegacy: at(DECISIONS_LEGACY_DIR),
+    workContextRegistry: at(WORK_CONTEXT_REGISTRY),
+    workflowRegistry: at(WORKFLOW_REGISTRY),
+    decisionRegistry: at(DECISION_REGISTRY),
     glossary: at(GLOSSARY),
     predictions: at(PREDICTIONS_DIR),
     projectMap: at(PROJECT_MAP_DIR),
@@ -122,5 +160,6 @@ export function pathsFor(root = process.cwd()) {
     policy: at(`${PLATFORM_DIR}/policy`),
     complexityRubric: at(`${PLATFORM_DIR}/policy/complexity-rubric.json`),
     capabilityRegistry: at(`${PLATFORM_DIR}/policy/capability-registry.json`),
+    workClassification: at(`${PLATFORM_DIR}/policy/work-classification.json`),
   };
 }

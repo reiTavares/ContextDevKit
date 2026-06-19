@@ -36,6 +36,7 @@ import { intake } from '../execution/task-intake.mjs';
 import { buildContract, saveContract } from '../execution/execution-contract.mjs';
 import { routePrompt } from '../execution/routing-runtime.mjs';
 import { getBranch } from './boot-signals.mjs';
+import { runMethodology } from '../execution/intake-methodology.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -292,8 +293,16 @@ async function main() {
   ledger.taskCounter = counter;
   await writeLedger(sessionId, ledger);
 
-  // Print the short advisory checklist to stdout.
+  // Print the short advisory checklist to stdout (legacy output — unchanged).
   process.stdout.write(renderChecklist(contract, taskId, isNew, routing));
+
+  // A2 (BIZ-0001/WF-0036, ADR-0102) — ADDITIVE, fail-open methodology surface.
+  // Reads `signals.work` (A2-T1, never reclassifies), matches a Business for
+  // operation-nature, persists a temporary intake proposal, and appends ONE
+  // advisory line. Mirrors `runRouting`: null on any failure, legacy path above
+  // already complete + byte-identical (rule 2); nothing surfaced if work absent.
+  const methodology = runMethodology({ root: ROOT, taskId, objective: promptText, work: signals.work });
+  if (methodology && methodology.line) process.stdout.write(`${methodology.line}\n`);
 }
 
 main().catch(() => process.exit(0));
