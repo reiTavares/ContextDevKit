@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * UserPromptSubmit hook (Level >= 3) — generates an Execution Contract
  * for each incoming task prompt (CDK-031, ADR-0072).
@@ -27,16 +27,21 @@
  * This is intentionally simple -- reclassify() is the right tool once we
  * track receipt deltas (future card). Documented here so the next engineer
  * knows the choice was deliberate.
+ *
+ * Advisory/routing/methodology output is delegated to
+ * execution-contract-advisory.mjs (B3-split, BIZ-0001/WF-0037).
  */
 import { join } from 'node:path';
-import { getLevel, loadConfigSync } from '../config/load.mjs';
+import { getLevel } from '../config/load.mjs';
 import { readLedger, writeLedger, sanitizeSid } from './ledger.mjs';
 import { hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { intake } from '../execution/task-intake.mjs';
 import { buildContract, saveContract } from '../execution/execution-contract.mjs';
-import { routePrompt } from '../execution/routing-runtime.mjs';
 import { getBranch } from './boot-signals.mjs';
-import { runMethodology } from '../execution/intake-methodology.mjs';
+import { runAdvisory, renderChecklist } from './execution-contract-advisory.mjs';
+// Re-export for backward compatibility: consumers (enforcement gate + integration
+// suites) import `renderChecklist` from the hook; the split kept that surface stable.
+export { renderChecklist };
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -164,72 +169,6 @@ export function resolveTaskId(prompt, ledger, sessionShort) {
 }
 
 // ---------------------------------------------------------------------------
-// Checklist renderer (exported for test assertions)
-// ---------------------------------------------------------------------------
-
-/**
- * Formats a SHORT actionable checklist for the UserPromptSubmit surface.
- * Advisory only -- guidance, not a block. Maximum 8 lines so it never
- * overwhelms the agent context surface.
- *
- * @param {object} contract execution contract from buildContract()
- * @param {string} taskId resolved task id
- * @param {boolean} isNew true when a new task id was minted
- * @returns {string}
- */
-export function renderChecklist(contract, taskId, isNew, routing = null) {
-  const tier = contract.signals?.tier ?? 'unknown';
-  const write = contract.requiredBeforeWrite ?? [];
-  const complete = contract.requiredBeforeCompletion ?? [];
-  const lines = [
-    `[execution-contract] ${isNew ? 'New task' : 'Follow-up'}: ${taskId}`,
-    `  Tier: ${tier}`,
-  ];
-  if (write.length > 0) {
-    lines.push(`  Required before write: ${write.join(', ')}`);
-  }
-  if (complete.length > 0) {
-    lines.push(`  Required before completion: ${complete.join(', ')}`);
-  }
-  if (write.length === 0 && complete.length === 0) {
-    lines.push('  No required capabilities for this tier.');
-  }
-  // ADR-0094 routing surface — short, deterministic, recommendation-only (spec §6.4).
-  if (routing && routing.active) {
-    lines.push(`  Routing: ${routing.mode} — recommend ${routing.recommendedTier} · applied: no (${routing.reason})`);
-  }
-  return lines.join('\n') + '\n';
-}
-
-/**
- * Runs the ADR-0094 routing pass for a real prompt — classify, decide, record.
- * Best-effort and fail-open (immutable rule 2): any failure returns null and the
- * contract proceeds unchanged. Telemetry failure never blocks the user (spec §6.5).
- *
- * @param {string} promptText trimmed prompt
- * @param {string} sessionId resolved session id
- * @param {string} taskId resolved task id
- * @returns {object|null} routing summary ({ active, mode, recommendedTier, reason, summary }) or null
- */
-function runRouting(promptText, signals, sessionId, taskId) {
-  try {
-    return routePrompt({
-      promptText,
-      intakeSignals: signals,
-      sessionId,
-      taskId,
-      host: HOST,
-      level: getLevel(ROOT),
-      projectRouting: loadConfigSync(ROOT)?.routing,
-      logFile: ROUTING_LOG,
-      at: new Date().toISOString(),
-    });
-  } catch {
-    return null; // routing is advisory; never break the prompt
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -282,9 +221,11 @@ async function main() {
     { root: ROOT },
   );
 
-  // Build the execution contract, then run routing and attach its recommendation.
+  // Build the execution contract, then run advisory passes (routing +
+  // methodology) via the extracted helper. Advisory output is written to
+  // stdout inside runAdvisory(); routing result is returned for the checklist.
   const contract = buildContract(signals);
-  const routing = runRouting(promptText, signals, sessionId, taskId);
+  const { routing } = runAdvisory({ promptText, signals, sessionId, taskId, root: ROOT, host: HOST, routingLog: ROUTING_LOG });
   if (routing && routing.active) contract.routing = routing.summary;
   saveContract(ROOT, taskId, contract);
 
@@ -295,14 +236,6 @@ async function main() {
 
   // Print the short advisory checklist to stdout (legacy output — unchanged).
   process.stdout.write(renderChecklist(contract, taskId, isNew, routing));
-
-  // A2 (BIZ-0001/WF-0036, ADR-0102) — ADDITIVE, fail-open methodology surface.
-  // Reads `signals.work` (A2-T1, never reclassifies), matches a Business for
-  // operation-nature, persists a temporary intake proposal, and appends ONE
-  // advisory line. Mirrors `runRouting`: null on any failure, legacy path above
-  // already complete + byte-identical (rule 2); nothing surfaced if work absent.
-  const methodology = runMethodology({ root: ROOT, taskId, objective: promptText, work: signals.work });
-  if (methodology && methodology.line) process.stdout.write(`${methodology.line}\n`);
 }
 
 main().catch(() => process.exit(0));

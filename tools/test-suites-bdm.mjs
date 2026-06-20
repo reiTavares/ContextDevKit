@@ -93,4 +93,17 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/migration-plan.mjs',
     ],
   },
+  {
+    id: 'b3-bdm',
+    file: 'tools/integration-test-b3-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      'templates/contextkit/tools/scripts/work-decision-mirror.mjs',
+      'templates/contextkit/tools/scripts/work-decision-supersede.mjs',
+      'templates/contextkit/tools/scripts/work-decision-ownership.mjs',
+      'templates/contextkit/tools/scripts/decision-coverage.mjs',
+      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
+      'templates/contextkit/runtime/hooks/execution-contract-advisory.mjs',
+    ],
+  },
 ]);

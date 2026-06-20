@@ -50,6 +50,9 @@ const SCRIPT_FILES = [
   'work-business-dispatch.mjs', 'work-decision-hash.mjs',
   // A4 (WF-0036) — workflow nesting & migration planning.
   'migration-plan.mjs',
+  // B3 (WF-0037) — lifecycle integration: mirroring/supersession/coverage.
+  'work-decision-mirror.mjs', 'work-decision-supersede.mjs', 'work-decision-ownership.mjs',
+  'decision-coverage.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
