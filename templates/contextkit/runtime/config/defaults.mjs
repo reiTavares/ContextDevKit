@@ -13,6 +13,7 @@
  * defaults-ledger.mjs — keeping this file within the 308-line budget.
  */
 import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
+import { ORCHESTRATION_DEFAULTS } from './defaults-orchestration.mjs';
 import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
 import { LEDGER_DEFAULTS } from './defaults-ledger.mjs';
@@ -184,9 +185,18 @@ export const DEFAULT_CONFIG = Object.freeze({
     minLevel: 5,
     nudgeOnHighRisk: true,
     council: { autoSelect: true, min: 3, max: 6 },
-    autoInvoke: { newFeature: true, decision: true },
+    autoInvoke: { newFeature: true, decision: true, standardRequests: true, business: true, materialDecision: true, shipCheckpoint: true },
+    materialityThreshold: 0.6,
     research: { tiered: true, scoutTier: 'fast', verifyTier: 'powerful' },
   },
+
+  /**
+   * Automatic Request Orchestration (L7, ADR-0107, WF0038). Additive + gated —
+   * see defaults-orchestration.mjs. Reuses `routing`/`advisor`/`deliberations`;
+   * never duplicates them. Real dispatch is honored only in active routing under
+   * the over-orchestration guard; the routing-default flip stays human-gated.
+   */
+  orchestration: ORCHESTRATION_DEFAULTS,
 
   /**
    * Proactive Advisor (L6, ADR-0028) — the six-lane improvement engine. When

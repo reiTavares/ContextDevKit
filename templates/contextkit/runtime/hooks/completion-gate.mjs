@@ -22,6 +22,8 @@
  */
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { loadContract } from '../execution/execution-contract.mjs';
+import { loadEnvelope } from '../execution/request-envelope.mjs';
+import { readDispatchedAgents, comparePlannedActual } from '../execution/request-directive.mjs';
 import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
 import { evaluateCompletion } from '../execution/evaluate-completion.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
@@ -97,6 +99,47 @@ function buildCompletionBlockText(result, taskId) {
   return lines.join('\n');
 }
 
+/**
+ * Augments a completion result with the orchestration planned-vs-actual check
+ * (ADR-0107 §13/§21). Adds reason codes + remediation when a required deliberation
+ * or required specialist was not executed; escalates `decision` to 'deny' ONLY for
+ * a material decision (the guarded/strict caller then blocks; advisory still only
+ * nudges). Trivial requests are never escalated. Fail-open — never throws.
+ *
+ * @param {object} result evaluateCompletion result (mutated in place)
+ * @param {string} root project root
+ * @param {string} taskId task id
+ * @param {string} mode resolved enforcement mode (advisory|guarded|strict)
+ * @returns {void}
+ */
+function augmentWithOrchestration(result, root, taskId, mode) {
+  try {
+    const envelope = loadEnvelope(root, taskId);
+    if (!envelope) return;
+    const wantsDebate = envelope.deliberation?.required;
+    const plannedSpecialists = [envelope.agents?.lead, ...(envelope.agents?.reviewers ?? [])].filter(Boolean);
+    if (!wantsDebate && plannedSpecialists.length === 0) return;
+
+    const cmp = comparePlannedActual(envelope, readDispatchedAgents(root, taskId));
+    if (cmp.ok) return;
+
+    for (const reason of cmp.reasons) {
+      result.reasonCodes.push(`orchestration: ${reason}`);
+      if (Array.isArray(result.detail?.missing)) result.detail.missing.push(reason);
+    }
+    if (Array.isArray(result.remediation)) {
+      if (cmp.requiredDebateMissing) result.remediation.push(`Convene the council [${(envelope.agents?.council ?? []).join(', ')}] before completing (ADR-0107 §21).`);
+      if (cmp.missingSpecialists.length) result.remediation.push(`Dispatch the required specialist(s): ${cmp.missingSpecialists.join(', ')}.`);
+    }
+    // Block material decisions ONLY in guarded/strict — advisory must never flip a
+    // warn into a deny (ADR-0107 §2: advisory toward permission). Trivial never blocks.
+    if (cmp.requiredDebateMissing && mode !== 'advisory'
+      && envelope.classification?.intent === 'material-decision') {
+      result.decision = 'deny';
+    }
+  } catch { /* fail-open — orchestration completion check never breaks the gate */ }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -140,6 +183,10 @@ async function main() {
   const mode = resolveEnforcementMode(config);
 
   const result = evaluateCompletion({ contract, scope, mode, root: ROOT });
+
+  // WF0038 / ADR-0107 §13/§21 — planned-vs-actual orchestration check. A material
+  // request may not complete with a required-but-unexecuted debate / specialist.
+  augmentWithOrchestration(result, ROOT, taskId, mode);
 
   // Silence rule: nothing to say - return immediately.
   if (result.reasonCodes.length === 0) return;
