@@ -33,6 +33,26 @@ import { buildWorkContextRegistry } from './registry/work-context.mjs';
 const HARD_DUP_KIND = /\bid\b|duplicate-id/i;
 
 /**
+ * Counts the decision references a workflow plan declares, across the accepted
+ * shapes (`decisionRefs` as an array, as `{primary, governing}`, or `decisions.primary`).
+ * Used to refuse a vacuous pass: a governed workflow with ZERO references is not
+ * "covered", it is unwired (constitution §8 — default to refuse).
+ *
+ * @param {object} plan
+ * @returns {number}
+ */
+function countDecisionRefs(plan) {
+  const refs = plan?.decisionRefs;
+  if (Array.isArray(refs)) return refs.filter((id) => typeof id === 'string').length;
+  if (refs && typeof refs === 'object') {
+    const governing = Array.isArray(refs.governing) ? refs.governing.filter((id) => typeof id === 'string').length : 0;
+    return (typeof refs.primary === 'string' ? 1 : 0) + governing;
+  }
+  if (plan?.decisions && typeof plan.decisions.primary === 'string') return 1;
+  return 0;
+}
+
+/**
  * Pure governance assessment over already-parsed inputs.
  *
  * @param {object} inputs
@@ -52,9 +72,12 @@ export function assessProgramGovernance(inputs) {
 
   const refs = (Array.isArray(workflowPlans) ? workflowPlans : []).map((plan) => {
     const result = validateWorkflowDecisionRefs(plan, registry);
+    const refCount = countDecisionRefs(plan);
     return {
       workflowId: plan?.workflowId ?? null,
-      ok: result.ok !== false,
+      // A governed workflow must declare ≥1 reference AND have every reference resolve.
+      ok: result.ok === true && refCount > 0,
+      refCount,
       missing: result.missing || [],
       superseded: result.superseded || [],
     };
@@ -100,10 +123,10 @@ export function validateProgramGovernance(root = process.cwd(), opts = {}) {
     }
     const parsed = readFrontMatter(readFileSync(`${root}/${adrRel}`, 'utf8'));
     const registry = buildDecisionRegistry(root);
-    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-    const registriesIdempotent = eq(buildDecisionRegistry(root), registry)
-      && eq(buildWorkflowRegistry(root), buildWorkflowRegistry(root))
-      && eq(buildWorkContextRegistry(root), buildWorkContextRegistry(root));
+    const jsonEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const registriesIdempotent = jsonEqual(buildDecisionRegistry(root), registry)
+      && jsonEqual(buildWorkflowRegistry(root), buildWorkflowRegistry(root))
+      && jsonEqual(buildWorkContextRegistry(root), buildWorkContextRegistry(root));
     const workflowPlans = planPaths
       .filter((rel) => existsSync(`${root}/${rel}`))
       .map((rel) => JSON.parse(readFileSync(`${root}/${rel}`, 'utf8').replace(/^﻿/, '')));
