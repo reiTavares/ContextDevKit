@@ -83,4 +83,14 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/registry/decision.mjs',
     ],
   },
+  {
+    id: 'a4-bdm',
+    file: 'tools/integration-test-a4-bdm.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      'templates/contextkit/tools/scripts/registry/workflow.mjs',
+      'templates/contextkit/tools/scripts/registry/ids.mjs',
+      'templates/contextkit/tools/scripts/migration-plan.mjs',
+    ],
+  },
 ]);

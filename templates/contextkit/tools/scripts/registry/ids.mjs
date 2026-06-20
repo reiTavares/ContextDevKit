@@ -1,5 +1,10 @@
 /**
- * Global ID allocation across every methodology root (BIZ-0001 / WF-0036, A1-T3).
+ * Global ID allocation across every methodology root (BIZ-0001 / WF-0036).
+ *
+ * A1-T3 seam: `workflowRoots` + `nextWorkflowNumber` (base foundation).
+ * A4-T1 addition: `allocateWorkflowId(root)` — the public allocator that
+ * returns a formatted `WF-####` string, scanning ALL roots (new + legacy)
+ * so ids never collide across the full hierarchy.
  *
  * Reuses the `workflow-number.mjs` allocator pattern (`nextNumber` over `NNNN-`
  * folders) rather than forking it: `nextWorkflowNumber` delegates to that module
@@ -118,4 +123,21 @@ export function nextWorkflowNumber(root = process.cwd()) {
     globalMax = Math.max(globalMax, legacyMax, maxNewWorkflowNumber(dir));
   }
   return String(globalMax + 1).padStart(4, '0');
+}
+
+/**
+ * Allocates the next free workflow id as a formatted `WF-####` string by scanning
+ * EVERY workflow root (new-format `WF-####` dirs + legacy `NNNN-slug` dirs) so the
+ * returned id is globally collision-free across all methodology roots.
+ *
+ * This is the public allocator that callers (CLI, orchestrator) should use for new
+ * workflow creation; it wraps `nextWorkflowNumber` to always return the complete
+ * prefixed form. The seam contract is frozen by the A4-T1 interface specification
+ * (BIZ-0001 / WF-0036 spec §A4).
+ *
+ * @param {string} [root] - project root (default cwd).
+ * @returns {string} the next free `WF-####` id, e.g. `"WF-0038"`.
+ */
+export function allocateWorkflowId(root = process.cwd()) {
+  return `WF-${nextWorkflowNumber(root)}`;
 }

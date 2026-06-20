@@ -48,6 +48,8 @@ const SCRIPT_FILES = [
   'business-growth-validator.mjs', 'business-render.mjs', 'business-templates.mjs',
   'business-template-strings.mjs', 'work-business-lifecycle.mjs', 'work-business-gate.mjs',
   'work-business-dispatch.mjs', 'work-decision-hash.mjs',
+  // A4 (WF-0036) — workflow nesting & migration planning.
+  'migration-plan.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
