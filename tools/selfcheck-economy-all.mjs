@@ -14,9 +14,17 @@ import { runEconomyActivationChecks } from './selfcheck-economy-activation.mjs';
 import { runEconomyDispatchChecks }   from './selfcheck-economy-dispatch.mjs';
 import { runEconomyAutoActivateChecks } from './selfcheck-economy-autoactivate.mjs';
 import { runEconomySavingsChecks }    from './selfcheck-economy-savings.mjs';
+import { runTcTelemetryChecks }        from './selfcheck-tc-telemetry.mjs';
+import { runTcIntentChecks }           from './selfcheck-tc-intent.mjs';
+import { runTcRelatedChecks }          from './selfcheck-tc-related.mjs';
+import { runTcRouteChecks }            from './selfcheck-tc-route.mjs';
+import { runTcValidateChecks }         from './selfcheck-tc-validate.mjs';
+import { runTcAcceptChecks }           from './selfcheck-tc-accept.mjs';
 
 /**
- * Runs all economy-stack feature self-checks in order.
+ * Runs all economy-stack feature self-checks in order. The tc-* ladder runners
+ * (WF0022 Wave 1: telemetry · intent/ambiguity · related/closure · router ·
+ * result-validator) are aggregated here so selfcheck.mjs stays under budget.
  * @param {{ ok: (m: string) => void, bad: (m: string) => void }} reporter
  * @param {{ KIT: string }} ctx - repo root
  */
@@ -27,4 +35,10 @@ export async function runAllEconomyChecks({ ok, bad }, { KIT }) {
   await runEconomyDispatchChecks({ ok, bad }, { KIT });
   await runEconomyAutoActivateChecks({ ok, bad }, { KIT });
   await runEconomySavingsChecks({ ok, bad }, { KIT });
+  await runTcTelemetryChecks({ ok, bad }, { KIT });
+  await runTcIntentChecks({ ok, bad }, { KIT });
+  await runTcRelatedChecks({ ok, bad }, { KIT });
+  await runTcRouteChecks({ ok, bad }, { KIT });
+  await runTcValidateChecks({ ok, bad }, { KIT });
+  await runTcAcceptChecks({ ok, bad }, { KIT });
 }
