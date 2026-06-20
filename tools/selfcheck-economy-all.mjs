@@ -21,11 +21,17 @@ import { runTcRelatedChecks }          from './selfcheck-tc-related.mjs';
 import { runTcRouteChecks }            from './selfcheck-tc-route.mjs';
 import { runTcValidateChecks }         from './selfcheck-tc-validate.mjs';
 import { runTcAcceptChecks }           from './selfcheck-tc-accept.mjs';
+import { runTcCacheChecks }            from './selfcheck-tc-cache.mjs';
+import { runTcTransformChecks }        from './selfcheck-tc-transform.mjs';
+import { runTcScaffoldChecks }         from './selfcheck-tc-scaffold.mjs';
+import { runTcRecipeRunnerChecks }     from './selfcheck-tc-recipe-runner.mjs';
+import { runTcDispatchChecks }         from './selfcheck-tc-dispatch.mjs';
 
 /**
  * Runs all economy-stack feature self-checks in order. The tc-* ladder runners
  * (WF0022 Wave 1: telemetry · intent/ambiguity · related/closure · router ·
- * result-validator) are aggregated here so selfcheck.mjs stays under budget.
+ * result-validator · acceptance-gate · content-cache; Wave 2: transform+codemod)
+ * are aggregated here so selfcheck.mjs stays under budget.
  * @param {{ ok: (m: string) => void, bad: (m: string) => void }} reporter
  * @param {{ KIT: string }} ctx - repo root
  */
@@ -43,4 +49,9 @@ export async function runAllEconomyChecks({ ok, bad }, { KIT }) {
   await runTcValidateChecks({ ok, bad }, { KIT });
   await runTcAcceptChecks({ ok, bad }, { KIT });
   await runSessionAutonomyChecks({ ok, bad }, { KIT });
+  await runTcCacheChecks({ ok, bad }, { KIT });
+  await runTcTransformChecks({ ok, bad }, { KIT });
+  await runTcScaffoldChecks({ ok, bad }, { KIT });
+  await runTcRecipeRunnerChecks({ ok, bad }, { KIT });
+  await runTcDispatchChecks({ ok, bad }, { KIT });
 }
