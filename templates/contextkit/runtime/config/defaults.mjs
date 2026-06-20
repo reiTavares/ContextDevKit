@@ -9,11 +9,13 @@
  *
  * The defaults describe a *generic* repository; the installer tunes them per
  * detected stack. Split note: `routing` defaults live in defaults-routing.mjs,
- * `eacp` in defaults-eacp.mjs — keeping this file within the 308-line budget.
+ * `eacp` in defaults-eacp.mjs, `economy` in defaults-economy.mjs, `ledger` in
+ * defaults-ledger.mjs — keeping this file within the 308-line budget.
  */
 import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
 import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
+import { LEDGER_DEFAULTS } from './defaults-ledger.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -84,45 +86,7 @@ export const DEFAULT_CONFIG = Object.freeze({
    *   - `irrelevant`: never tracked (build output, caches, runtime state).
    *   - `registration`: an edit here counts AS registering the session.
    */
-  ledger: {
-    important: [
-      'src/',
-      'lib/',
-      'app/',
-      'apps/',
-      'packages/',
-      'components/',
-      'pages/',
-      'server/',
-      'contextkit/',
-      '.claude/',
-      '.github/',
-      'CLAUDE.md',
-      'package.json',
-      'tsconfig.json',
-      'pyproject.toml',
-      'go.mod',
-      'Cargo.toml',
-    ],
-    irrelevant: [
-      'node_modules/',
-      'dist/',
-      'build/',
-      'out/',
-      '.next/',
-      '.turbo/',
-      '.expo/',
-      '.svelte-kit/',
-      'coverage/',
-      '__pycache__/',
-      'target/',
-      'vendor/',
-      '.context-snapshot.md',
-      '.claude/.sessions/',
-      '.claude/.workspace/',
-    ],
-    registration: ['contextkit/memory/SESSIONS.md', 'docs/CHANGELOG.md'],
-  },
+  ledger: LEDGER_DEFAULTS,            // see defaults-ledger.mjs (path classification)
 
   /** L3 — Multi-session. `mainBranch` is the upstream the pre-push conflict check compares against. */
   l3: { mainBranch: 'main' },
