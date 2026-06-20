@@ -67,6 +67,13 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
+  if (boot.economyActivation) {
+    out.push(`## ${boot.economyActivation.title}`);
+    out.push('');
+    for (const line of boot.economyActivation.lines) out.push(`- ${line}`);
+    out.push('');
+  }
+
   if (boot.behaviorsActive) {
     out.push('## 🧭 Behavioral discipline is ACTIVE');
     out.push('');

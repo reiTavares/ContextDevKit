@@ -14,6 +14,12 @@
  * strict-validator shape (runtime/config/schema-sections.mjs → EconomySchema),
  * and the runtime flag layer (economy-governance-core.mjs → FLAG_DEFAULTS).
  *
+ * Auto-activation (autoActivate + tools.*): the activation module reads these
+ * flags at session-start. Absent keys are treated as ON (fail-open), so these
+ * are explicit defaults that make the behaviour visible and reversible.
+ * Setting `economy.enabled = false` (master switch) disables everything,
+ * including auto-activation, regardless of the values below.
+ *
  * Zero runtime dependencies — pure data.
  */
 export const ECONOMY_CONFIG_DEFAULTS = Object.freeze({
@@ -30,4 +36,28 @@ export const ECONOMY_CONFIG_DEFAULTS = Object.freeze({
   loopBreaker:     { enabled: true },
   patchEconomy:    { enabled: true },
   measurement:     { enabled: true },
+  /**
+   * autoActivate — emit the economy guidance block at session start by default.
+   * Set to false to suppress the activation message without touching other flags.
+   * Ignored when economy.enabled === false.
+   */
+  autoActivate: true,
+  /**
+   * tools — per-lever on/off switches for the 5 economy tool capabilities.
+   * Each key maps to an independently disableable economy lever.
+   * All default ON; set any to false to suppress that lever's guidance.
+   * Ignored when economy.enabled === false.
+   */
+  tools: Object.freeze({
+    /** find — economy-aware file-search guidance (avoid re-reading, cache hits). */
+    find:            true,
+    /** runCompact — trigger a compaction run when context budget is tight. */
+    runCompact:      true,
+    /** workPacket — decompose large tasks into bounded work packets. */
+    workPacket:      true,
+    /** subagentProfile — select the cheapest capable subagent for the task. */
+    subagentProfile: true,
+    /** loopBreaker — detect and break token-burning retry loops. */
+    loopBreaker:     true,
+  }),
 });

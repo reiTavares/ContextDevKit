@@ -50,6 +50,7 @@ import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-ad
 import { renderBootBanner } from './boot-banner.mjs';
 import { readSquadContext } from './squad-context.mjs';
 import { applyBootDeltaGate } from '../../tools/scripts/economy/boot-delta-gate.mjs';
+import { economyActivationSection } from '../../tools/scripts/economy/economy-session-activation.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -177,6 +178,9 @@ async function main() {
     unreleased,
     value,
     hasSnapshot,
+    // Economy stack auto-activation (ADR-0103): emits the deterministic-tools
+    // guidance every session by default. Best-effort; never blocks boot (rule 2).
+    economyActivation: (() => { try { return economyActivationSection(loadConfigSync(ROOT)); } catch { return null; } })(),
   };
   const banner = renderBootBanner(applyBootDeltaGate(boot, { root: ROOT, config: loadConfigSync(ROOT) }));
 

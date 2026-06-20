@@ -33,6 +33,7 @@ import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
 import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
 import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 import { runAllEacpChecks } from './selfcheck-eacp-all.mjs';
+import { runAllEconomyChecks } from './selfcheck-economy-all.mjs';
 import { runRoutingChecks } from './selfcheck-routing.mjs';
 import { runConfigPathChecks } from './selfcheck-config-paths.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -280,6 +281,7 @@ async function main() {
   await runEnforcementChecks({ ok, bad }, { KIT });
   await runEnforcementGateChecks({ ok, bad }, { KIT });
   await runAllEacpChecks({ ok, bad }, { KIT });
+  await runAllEconomyChecks({ ok, bad }, { KIT });
   await runRoutingChecks({ ok, bad }, { KIT });
   await runConfigPathChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
