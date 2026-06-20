@@ -150,6 +150,7 @@ export function pathsFor(root = process.cwd()) {
     tools: at(`${PLATFORM_DIR}/tools`),
     scripts: at(`${PLATFORM_DIR}/tools/scripts`),
     squads: at(`${PLATFORM_DIR}/squads`),
+    policy: at(`${PLATFORM_DIR}/policy`),
     workflows: at(`${PLATFORM_DIR}/workflows`),
     playbooks: at(`${PLATFORM_DIR}/workflows/playbooks`),
     detectors: at(`${PLATFORM_DIR}/detectors`),

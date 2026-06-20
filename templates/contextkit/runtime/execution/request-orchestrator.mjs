@@ -18,6 +18,8 @@
  */
 import { classifyRequest } from './request-classify.mjs';
 import { buildEnvelope } from './request-envelope.mjs';
+import { selectAgents } from './request-agent-select.mjs';
+import { selectPlaybooks, compilePlaybookContext } from './playbook-compile.mjs';
 import { resolveAutonomy } from '../config/resolve-autonomy.mjs';
 
 /** Anti-trigger contexts that must never convene a council (ADR-0107 §7.2). */
@@ -150,10 +152,26 @@ export function orchestrate(payload, env = {}) {
     const delib = decideDeliberation(cls, config, effectiveGrade ?? 0, auton.mode, overrides);
     const routing = decideRouting(cls, config, overrides);
 
-    // Agent + playbook selection are the W2 seam — empty with an explicit reason.
-    const agents = { lead: null, council: [], scouts: [], reviewers: [], synthesizer: null };
-    const playbooks = [];
-    routing.reasonCodes.push('agents/playbooks=pending-w2 (registry selection not yet wired)');
+    // Agent + playbook selection (W2). Skipped for trivial-direct work (the
+    // over-orchestration guard, §15) — recording a recommendation there is waste.
+    const selectCtx = { root: env.root, paths: p.signals?.paths, phase: p.context?.phase };
+    const trivialDirect = routing.directExecutionAllowed
+      && cls.complexity === 'trivial' && !cls.needsDebate
+      && cls.primaryType !== 'business' && cls.primaryType !== 'decision';
+    let agents = { lead: null, council: [], scouts: [], reviewers: [], synthesizer: null };
+    let playbooks = [];
+    if (trivialDirect) {
+      routing.reasonCodes.push('agents/playbooks=skipped (trivial-direct, over-orchestration guard)');
+    } else {
+      const sel = selectAgents(cls, selectCtx, config);
+      agents = { lead: sel.lead, council: sel.council, scouts: sel.scouts, reviewers: sel.reviewers, synthesizer: sel.synthesizer };
+      const pbSel = selectPlaybooks(cls, selectCtx);
+      const maxTokens = config?.orchestration?.playbooks?.maxContextTokens ?? 3000;
+      const compiled = compilePlaybookContext(pbSel.selected, { root: env.root, maxTokens });
+      playbooks = compiled.playbooks.map((pb) => ({ id: pb.id, sections: pb.sections.map((s) => s.name) }));
+      routing.reasonCodes.push(...sel.reasonCodes.slice(0, 6), ...pbSel.reasonCodes.slice(0, 4));
+      if (compiled.missingCoverage.length) routing.reasonCodes.push(`playbook-missing-coverage=${compiled.missingCoverage.length}`);
+    }
 
     const dispatchPlanId = `dispatch-${p.requestId ?? 'req'}`;
     const envelope = buildEnvelope({

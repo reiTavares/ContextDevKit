@@ -36,7 +36,7 @@ import { runAllEacpChecks } from './selfcheck-eacp-all.mjs';
 import { runAllEconomyChecks } from './selfcheck-economy-all.mjs';
 import { runRoutingChecks } from './selfcheck-routing.mjs';
 import { runConfigPathChecks } from './selfcheck-config-paths.mjs';
-import { runRequestOrchestrationChecks } from './selfcheck-request-orchestration.mjs';
+import { runAllRequestOrchestrationChecks } from './selfcheck-request-all.mjs';
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
 /** Floor for total executed checks. Guards runner wiring (ADR-0041 F0, task 104).
@@ -285,7 +285,7 @@ async function main() {
   await runAllEconomyChecks({ ok, bad }, { KIT });
   await runRoutingChecks({ ok, bad }, { KIT });
   await runConfigPathChecks({ ok, bad }, { KIT });
-  await runRequestOrchestrationChecks({ ok, bad }, { KIT });
+  await runAllRequestOrchestrationChecks({ ok, bad }, { KIT });
   // Zero-dep invariant — ADR-0001 / ADR-0031
   try {
     const pkgDeps = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).dependencies;
