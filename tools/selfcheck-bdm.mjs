@@ -56,6 +56,10 @@ const SCRIPT_FILES = [
   // A5 (WF-0036) — intelligence & outcomes: forecast adapter + recurrence/outcomes.
   'economics/investment-forecast-core.mjs', 'economics/investment-forecast.mjs',
   'operation-recurrence-core.mjs', 'operation-recurrence.mjs',
+  // B4 (WF-0037) — legacy ADR tooling: indexing, migration, anti-redundancy.
+  'adr-index.mjs', 'adr-migrate.mjs', 'adr-migrate-core.mjs', 'adr-redundancy.mjs', 'adr-redundancy-core.mjs',
+  // B5 (WF-0037) — program-governance validator.
+  'program-governance.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];

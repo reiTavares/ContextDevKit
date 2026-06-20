@@ -105,6 +105,8 @@ function main() {
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
     'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
+    // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
+    'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

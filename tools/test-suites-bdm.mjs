@@ -152,4 +152,14 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/registry/decision.mjs',
     ],
   },
+  {
+    id: 'b5-governance',
+    file: 'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/program-governance.mjs',
+      'templates/contextkit/tools/scripts/decision-coverage.mjs',
+      'templates/contextkit/runtime/work/schema-decision.mjs',
+    ],
+  },
 ]);
