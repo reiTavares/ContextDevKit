@@ -51,6 +51,7 @@ import { renderBootBanner } from './boot-banner.mjs';
 import { readSquadContext } from './squad-context.mjs';
 import { applyBootDeltaGate } from '../../tools/scripts/economy/boot-delta-gate.mjs';
 import { economyActivationSection } from '../../tools/scripts/economy/economy-session-activation.mjs';
+import { logSavingSync } from '../../tools/scripts/economy/economy-savings.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -183,6 +184,13 @@ async function main() {
     economyActivation: (() => { try { return economyActivationSection(loadConfigSync(ROOT)); } catch { return null; } })(),
   };
   const banner = renderBootBanner(applyBootDeltaGate(boot, { root: ROOT, config: loadConfigSync(ROOT) }));
+
+  // Observed economy (best-effort): boot-delta gated unchanged sections; the saving
+  // is the banner-size reduction vs the ungated render. Never blocks boot (rule 2).
+  try {
+    const fullLen = renderBootBanner(boot).length;
+    logSavingSync(ROOT, { lever: 'boot-delta', savedTokens: Math.max(0, Math.round((fullLen - banner.length) / 4)), sessionId }, { now: Date.now() });
+  } catch { /* advisory */ }
 
   process.stdout.write(banner);
 }

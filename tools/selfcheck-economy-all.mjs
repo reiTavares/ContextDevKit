@@ -13,6 +13,7 @@ import { runTcPacketChecks }          from './selfcheck-tc-packet.mjs';
 import { runEconomyActivationChecks } from './selfcheck-economy-activation.mjs';
 import { runEconomyDispatchChecks }   from './selfcheck-economy-dispatch.mjs';
 import { runEconomyAutoActivateChecks } from './selfcheck-economy-autoactivate.mjs';
+import { runEconomySavingsChecks }    from './selfcheck-economy-savings.mjs';
 
 /**
  * Runs all economy-stack feature self-checks in order.
@@ -25,4 +26,5 @@ export async function runAllEconomyChecks({ ok, bad }, { KIT }) {
   await runEconomyActivationChecks({ ok, bad }, { KIT });
   await runEconomyDispatchChecks({ ok, bad }, { KIT });
   await runEconomyAutoActivateChecks({ ok, bad }, { KIT });
+  await runEconomySavingsChecks({ ok, bad }, { KIT });
 }

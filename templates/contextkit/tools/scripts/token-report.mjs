@@ -31,6 +31,7 @@ import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-sna
 import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
 import { deriveOutcomes } from './economics/autonomy-outcomes.mjs';
 import { presentPilot } from './economics/benchmark-pilot.mjs';
+import { readSavingsSync, savingsSummary, presentSavings, savingsFile } from './economy/economy-savings.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { listStates } from '../../runtime/state/state-io.mjs';
@@ -265,6 +266,8 @@ function main() {
     console.log(presentAutonomy(autonomy));
     const pilotLine = presentPilot(ROOT);
     if (pilotLine) { console.log(''); console.log(pilotLine); }
+    console.log('');
+    console.log(presentSavings(savingsSummary(readSavingsSync(savingsFile(ROOT)))));
     console.log('');
     console.log(presentRoutingTelemetry(routingTelemetry));
   }
