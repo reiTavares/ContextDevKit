@@ -24,6 +24,7 @@ import { scanProject } from './project-map-core.mjs';
 import { renderAll } from './project-map-render.mjs';
 import { computeInsights, manifestDelta, subgraphFor } from './project-map-insights.mjs';
 import { evaluateRules, loadRules } from './project-map-rules.mjs';
+import { buildDenseIndex, findSymbol, renderDense } from './project-map-dense.mjs';
 
 const ROOT = process.cwd();
 // CDK-050: config-driven scan scope (roots/excludes). Falls back to defaults.
@@ -70,6 +71,13 @@ async function generate(dir) {
     violations: model.violations,
   };
   await writeFile(resolve(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
+  // --dense: emit a COMPLETE per-file symbol index + reverse lookup (grep
+  // replacement for large repos), additive to the sampled base map.
+  if (flag('--dense')) {
+    const index = buildDenseIndex(ROOT);
+    await writeFile(resolve(dir, '03-symbols-dense.md'), renderDense(model, index), 'utf-8');
+    console.log(`   + dense symbol index: 03-symbols-dense.md (${index.fileCount} files · ${index.symbolCount} symbols).`);
+  }
   console.log(`✅ Project map written to contextkit/memory/project-map/ (${model.modules.length} modules · ${model.fileCount} files).`);
   printInsights(model);
   console.log('   Read 00-index.md first — it replaces re-greping the tree.');
@@ -127,11 +135,29 @@ async function coverage(dir) {
   return 0;
 }
 
+/**
+ * Finds and prints symbols matching `query` in the dense index.
+ * Exact match first, then case-insensitive substrings. Capped at 50 results.
+ * @param {string} query - the symbol name or substring to locate
+ * @returns {0}
+ */
+function findSymbolCmd(query) {
+  const index = buildDenseIndex(ROOT);
+  const matches = findSymbol(index, query);
+  if (matches.length === 0) {
+    console.log(`no symbol matching "${query}"`);
+    return 0;
+  }
+  for (const { symbol, files } of matches) console.log(`${symbol} → ${files.join(', ')}`);
+  return 0;
+}
+
 async function main() {
   const dir = pathsFor(ROOT).projectMap;
   if (flag('--for')) process.exit(forPath(valueOf('--for')));
   if (flag('--coverage')) process.exit(await coverage(dir));
   if (flag('--check')) process.exit(await check(dir));
+  if (flag('--find')) process.exit(findSymbolCmd(valueOf('--find') ?? ''));
   await generate(dir);
 }
 
