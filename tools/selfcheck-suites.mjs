@@ -101,6 +101,10 @@ function main() {
     'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
     // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
     'tools/selfcheck-bdm.mjs',
+    // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
+    'tools/selfcheck-tc-cache.mjs',
+    // WF0022 TC-12 deterministic transforms (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
+    'tools/selfcheck-tc-transform.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
