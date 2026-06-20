@@ -50,10 +50,33 @@ async function stepDiscover(root) {
   try { return fn ? fn(root) : []; } catch { return []; }
 }
 
-/** AUDIT — collision descriptors across roots; [] when dep absent. */
+/**
+ * Normalises whatever `detectWorkflowCollisions` returns into an ARRAY of
+ * collision descriptors. The resolver returns `{ duplicateIds, duplicatePaths }`
+ * (an object); flatten it to flagged descriptors that carry NO `from`/`to`, so
+ * `stepPropose` records them without ever auto-moving anything (no-auto-move rule).
+ * Accepts an already-array input, an object, or null → always returns an array.
+ *
+ * @param {{duplicateIds?: string[], duplicatePaths?: string[]}|Array|null} found
+ * @returns {Array<object>}
+ */
+export function normalizeCollisions(found) {
+  if (Array.isArray(found)) return found;
+  if (found && typeof found === 'object') {
+    return [
+      ...(Array.isArray(found.duplicateIds) ? found.duplicateIds : [])
+        .map((id) => ({ kind: 'duplicate-id', id })),
+      ...(Array.isArray(found.duplicatePaths) ? found.duplicatePaths : [])
+        .map((path) => ({ kind: 'duplicate-path', path })),
+    ];
+  }
+  return [];
+}
+
+/** AUDIT — collision descriptors across roots as an array; [] when dep absent. */
 async function stepAudit(root) {
   const fn = await tryImport(WF_PATH, 'detectWorkflowCollisions');
-  try { return fn ? (fn(root) ?? []) : []; } catch { return []; }
+  try { return normalizeCollisions(fn ? fn(root) : null); } catch { return []; }
 }
 
 /**
@@ -187,6 +210,7 @@ export async function planMigration(root, opts = {}) {
   return {
     steps: PIPELINE_STEPS,
     stepsCompleted,
+    collisions,
     proposed,
     dryRunLines,
     applied,

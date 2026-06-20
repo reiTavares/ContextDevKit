@@ -23,13 +23,29 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
-import { planMigration, PIPELINE_STEPS } from './migration-plan.mjs';
+import { planMigration, PIPELINE_STEPS, normalizeCollisions } from './migration-plan.mjs';
 
 const failures = [];
 
 function assert(label, cond) {
   process.stdout.write(`  ${cond ? 'ok  ' : 'FAIL'} ${label}\n`);
   if (!cond) failures.push(label);
+}
+
+// ---------------------------------------------------------------------------
+// Regression — detectWorkflowCollisions returns { duplicateIds, duplicatePaths }
+// (an OBJECT). stepAudit must normalise it to an ARRAY so stepPropose's
+// `for..of` never throws "collisions is not iterable" on a reproducible checkout.
+// ---------------------------------------------------------------------------
+process.stdout.write('\nBlock R — normalizeCollisions (object → array, never non-iterable)\n');
+{
+  const fromObject = normalizeCollisions({ duplicateIds: ['WF-0001'], duplicatePaths: ['/a/b'] });
+  assert('object → array', Array.isArray(fromObject));
+  assert('object → 2 flagged descriptors (no from/to ⇒ no auto-move)',
+    fromObject.length === 2 && fromObject.every((c) => !c.from && !c.to));
+  assert('empty object → []', Array.isArray(normalizeCollisions({})) && normalizeCollisions({}).length === 0);
+  assert('null → []', Array.isArray(normalizeCollisions(null)) && normalizeCollisions(null).length === 0);
+  assert('array passes through', normalizeCollisions([{ from: '/x', to: '/y' }]).length === 1);
 }
 
 // ---------------------------------------------------------------------------

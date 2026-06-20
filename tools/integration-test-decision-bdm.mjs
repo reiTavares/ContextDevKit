@@ -13,7 +13,7 @@
  */
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { validateDecision, classifyDecisionFile } from '../templates/contextkit/runtime/work/schema-decision.mjs';
 import { readFrontMatter } from '../templates/contextkit/runtime/work/front-matter.mjs';
 import { stripBom } from '../templates/contextkit/runtime/work/enums.mjs';
@@ -30,14 +30,25 @@ const check = (m, cond) => (cond ? ok(m) : bad(m));
 
 console.log('\n🌀 WF-0037 B1 — decision contracts & registry\n');
 
-// 1. schema v2 validator on the real ADR-0102.
+// The live-tree checks (ADR-0102 + registry-over-dogfood) depend on the gitignored
+// dogfood under contextkit/memory/. On a fresh clone that tree is absent — those
+// checks are SKIPPED (constitution §8: report skipped, never a false pass/fail);
+// the synthetic schema/template checks below always run and gate the contract.
+const skip = (m) => console.log(`  ⊘ ${m} — skipped (no dogfood decision tree on this checkout)`);
 const adr0102Path = resolve(KIT, 'contextkit/memory/decisions/business/ADR-0102-business-driven-methodology.md');
-try {
-  const front = readFrontMatter(stripBom(readFileSync(adr0102Path, 'utf-8')));
-  check('ADR-0102 front matter parses (schemaVersion 2)', front.ok && front.data && front.data.schemaVersion === 2);
-  check('ADR-0102 validates under schema v2', validateDecision(front.data).ok === true);
-} catch {
-  bad('ADR-0102 unreadable (live decision tree missing)');
+const HAS_DECISION_TREE = existsSync(adr0102Path);
+
+// 1. schema v2 validator on the real ADR-0102 (dogfood-dependent).
+if (HAS_DECISION_TREE) {
+  try {
+    const front = readFrontMatter(stripBom(readFileSync(adr0102Path, 'utf-8')));
+    check('ADR-0102 front matter parses (schemaVersion 2)', front.ok && front.data && front.data.schemaVersion === 2);
+    check('ADR-0102 validates under schema v2', validateDecision(front.data).ok === true);
+  } catch {
+    bad('ADR-0102 present but unreadable/invalid');
+  }
+} else {
+  skip('ADR-0102 live-tree validation');
 }
 check('malformed record rejected', validateDecision({ schemaVersion: 2, id: 'bad' }).ok === false);
 check('legacy front-matter shape accepted', validateDecision({
@@ -49,17 +60,27 @@ check('legacy front-matter shape accepted', validateDecision({
 }).ok === true);
 check('plain legacy ADR classified legacy', classifyDecisionFile('0099-x.md', '# ADR-0099\n\n- **Status:** Accepted\n').kind === 'legacy');
 
-// 2. decision-registry over the live tree + byte-idempotent rebuild.
-try {
-  const built = buildDecisionRegistry(KIT);
-  check('registry indexes the live tree', built.decisions.length >= 1);
-  check('registry has a new ADR (ADR-0102)', built.decisions.some((r) => r.format === 'new' && r.id === 'ADR-0102'));
-  check('registry has legacy ADRs', built.decisions.some((r) => r.format === 'legacy'));
-  const ids = built.decisions.map((r) => String(r.id));
-  check('registry sorted by id', ids.slice().sort().join() === ids.join());
-  check('rebuild byte-idempotent', serializeRegistry(buildDecisionRegistry(KIT)) === serializeRegistry(buildDecisionRegistry(KIT)));
-} catch (err) {
-  bad(`registry build failed: ${err && err.message}`);
+// 2. decision-registry over the live tree + byte-idempotent rebuild (dogfood-dependent).
+if (HAS_DECISION_TREE) {
+  try {
+    const built = buildDecisionRegistry(KIT);
+    check('registry indexes the live tree', built.decisions.length >= 1);
+    check('registry has a new ADR (ADR-0102)', built.decisions.some((r) => r.format === 'new' && r.id === 'ADR-0102'));
+    check('registry has legacy ADRs', built.decisions.some((r) => r.format === 'legacy'));
+    const ids = built.decisions.map((r) => String(r.id));
+    check('registry sorted by id', ids.slice().sort().join() === ids.join());
+    check('rebuild byte-idempotent', serializeRegistry(buildDecisionRegistry(KIT)) === serializeRegistry(buildDecisionRegistry(KIT)));
+  } catch (err) {
+    bad(`registry build failed: ${err && err.message}`);
+  }
+} else {
+  // Registry generator must still be byte-idempotent on an EMPTY tree (synthetic).
+  try {
+    check('registry rebuild byte-idempotent (empty tree)',
+      serializeRegistry(buildDecisionRegistry(KIT)) === serializeRegistry(buildDecisionRegistry(KIT)));
+  } catch (err) {
+    bad(`registry build threw on empty tree: ${err && err.message}`);
+  }
 }
 
 // 3. all four templates render valid + deterministic.
