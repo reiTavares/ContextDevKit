@@ -109,6 +109,8 @@ function main() {
     'tools/selfcheck-tc-scaffold.mjs',
     // WF0022 TC-15 recipe-runner DAG (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
     'tools/selfcheck-tc-recipe-runner.mjs',
+    // WF0022 TC-16 ephemeral dispatch (ADR-0111); sibling, dispatched via selfcheck-economy-all.mjs.
+    'tools/selfcheck-tc-dispatch.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

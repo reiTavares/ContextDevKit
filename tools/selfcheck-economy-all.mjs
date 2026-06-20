@@ -24,6 +24,7 @@ import { runTcCacheChecks }            from './selfcheck-tc-cache.mjs';
 import { runTcTransformChecks }        from './selfcheck-tc-transform.mjs';
 import { runTcScaffoldChecks }         from './selfcheck-tc-scaffold.mjs';
 import { runTcRecipeRunnerChecks }     from './selfcheck-tc-recipe-runner.mjs';
+import { runTcDispatchChecks }         from './selfcheck-tc-dispatch.mjs';
 
 /**
  * Runs all economy-stack feature self-checks in order. The tc-* ladder runners
@@ -50,4 +51,5 @@ export async function runAllEconomyChecks({ ok, bad }, { KIT }) {
   await runTcTransformChecks({ ok, bad }, { KIT });
   await runTcScaffoldChecks({ ok, bad }, { KIT });
   await runTcRecipeRunnerChecks({ ok, bad }, { KIT });
+  await runTcDispatchChecks({ ok, bad }, { KIT });
 }
