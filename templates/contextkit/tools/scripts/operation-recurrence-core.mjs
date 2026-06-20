@@ -102,12 +102,16 @@ export function detectRecurrence(operations = [], opts = {}) {
     if (!key) continue;
     if (!buckets.has(key)) {
       buckets.set(key, {
-        contextId: String(op.contextId).trim(),
-        kind:      String(op.kind).trim(),
-        ids:       [],
+        contextId:   String(op.contextId).trim(),
+        kind:        String(op.kind).trim(),
+        ids:         [],
+        occurrences: 0,
       });
     }
     const bucket = buckets.get(key);
+    // Count EVERY occurrence (recurrence is about how often the work recurs, not
+    // how many ops happen to carry a string id). Anonymous/numeric-id ops still count.
+    bucket.occurrences += 1;
     if (typeof op.id === 'string' && op.id.trim()) {
       bucket.ids.push(op.id.trim());
     }
@@ -117,8 +121,8 @@ export function detectRecurrence(operations = [], opts = {}) {
   const sortedKeys = [...buckets.keys()].sort();
 
   const groups = sortedKeys.map((key) => {
-    const { contextId, kind, ids } = buckets.get(key);
-    const count = ids.length;
+    const { contextId, kind, ids, occurrences } = buckets.get(key);
+    const count = occurrences;
     let recommendation;
     let recommendationReason;
 

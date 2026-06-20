@@ -105,6 +105,9 @@ function isFiniteNum(v) {
  * @returns {Readonly<object>} Frozen forecast object.
  */
 export function buildForecast(signals = {}) {
+  // Guard null explicitly: a default param only covers `undefined`, but a caller
+  // (or a nulled pipeline slot) may pass `null`, which would throw on destructuring.
+  const safeSignals = signals ?? {};
   const {
     telemetrySummary  = null,
     savingsSummaryObj = null,
@@ -112,7 +115,7 @@ export function buildForecast(signals = {}) {
     budgetAdvisory    = null,
     routingSummaryObj = null,
     pressureResult    = null,
-  } = signals;
+  } = safeSignals;
 
   // Routing telemetry.
   const routingDecisions = orUnknown(
@@ -244,7 +247,7 @@ export function quotaTimingRecommendation(forecast, latestQuotaHosts, opts = {})
   // Step 3: any host quota low.
   const lowHosts = hosts.filter(h => isFiniteNum(h?.remainingPct) && h.remainingPct < QUOTA_LOW_THRESHOLD);
   if (lowHosts.length > 0) {
-    const labels = lowHosts.map(h => `${h.host}=${h.remainingPct}%`).join(', ');
+    const labels = lowHosts.map(h => `${h?.host ?? '(unknown-host)'}=${h.remainingPct}%`).join(', ');
     reasons.push(`quota low on: ${labels} (threshold=${QUOTA_LOW_THRESHOLD}%)`);
     return Object.freeze({ schemaVersion: FORECAST_SCHEMA_VERSION,
       recommendation: 'defer-quota-low', reasons, confidence: 'derived', capturedAt });
@@ -272,6 +275,13 @@ export function quotaTimingRecommendation(forecast, latestQuotaHosts, opts = {})
     reasons.push(`all ${hosts.length} quota host(s) comfortable; routing net-benefit=${netB}`);
     return Object.freeze({ schemaVersion: FORECAST_SCHEMA_VERSION,
       recommendation: 'invest-now', reasons, confidence: 'derived', capturedAt });
+  }
+  // Distinguish a KNOWN-negative net-benefit from genuinely-unknown data (honesty:
+  // do not label a known negative number "unknown" in the audit trail).
+  if (netB !== 'unknown' && isFiniteNum(netB)) {
+    reasons.push(`quota comfortable but routing net-benefit negative (${netB}) — observe before investing`);
+    return Object.freeze({ schemaVersion: FORECAST_SCHEMA_VERSION,
+      recommendation: 'observe', reasons, confidence: 'derived', capturedAt });
   }
 
   reasons.push('quota comfortable but routing benefit unknown — observe before investing');

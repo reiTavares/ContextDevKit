@@ -107,6 +107,8 @@ function main() {
     'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
     'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
+    // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
+    'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

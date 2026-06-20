@@ -165,7 +165,12 @@ export function detectValueIntentOverlap(newRows) {
   });
 
   for (let i = 0; i < keyed.length; i += 1) {
-    if (!keyed[i].key || keyed[i].key === '::::') continue;
+    // Skip rows lacking BOTH a decisionKind and a value-intent: sharing only a
+    // context type/id is NOT a value-intent overlap. parts = [type, id, kind, primary].
+    // (The previous `=== '::::'` sentinel never matched — the 4-field join yields
+    // six colons, not four — so sparse rows produced false positives.)
+    const partsI = keyed[i].key.split('::');
+    if (!partsI[2] && !partsI[3]) continue;
     for (let j = i + 1; j < keyed.length; j += 1) {
       if (keyed[i].key === keyed[j].key) {
         findings.push({

@@ -162,4 +162,15 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/runtime/work/schema-decision.mjs',
     ],
   },
+  {
+    id: 'session4-regression',
+    file: 'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/economics/investment-forecast-core.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate-core.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy-core.mjs',
+    ],
+  },
 ]);

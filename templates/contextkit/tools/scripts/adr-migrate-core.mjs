@@ -79,11 +79,14 @@ export async function stepDiscover(root) {
  * @returns {object[]} normalised collision descriptors.
  */
 export function stepAudit(legacyEntries, newRows) {
-  const legacyIds = new Set(legacyEntries.map((e) => e.id));
-  const newIds = new Set(newRows.map((r) => r.id));
+  // Defensive: a caller (or a pipeline stage) may pass null/undefined; never throw.
+  const legacy = Array.isArray(legacyEntries) ? legacyEntries : [];
+  const rows = Array.isArray(newRows) ? newRows : [];
+  const legacyIds = new Set(legacy.map((e) => e.id));
+  const newIds = new Set(rows.map((r) => r.id));
   const duplicateIds = [...legacyIds].filter((id) => newIds.has(id));
-  const legacyPaths = new Set(legacyEntries.map((e) => e.absolutePath));
-  const newPaths = new Set(newRows.map((r) => r.path || '').filter(Boolean));
+  const legacyPaths = new Set(legacy.map((e) => e.absolutePath));
+  const newPaths = new Set(rows.map((r) => r.path || '').filter(Boolean));
   const duplicatePaths = [...legacyPaths].filter((p) => newPaths.has(p));
   return normalizeCollisions({ duplicateIds, duplicatePaths });
 }
