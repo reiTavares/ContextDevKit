@@ -24,6 +24,7 @@
 
 import { mkdirSync, writeFileSync, createWriteStream } from 'node:fs';
 import { resolve } from 'node:path';
+import { logSavingSync } from './economy-savings.mjs';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import {
@@ -135,7 +136,12 @@ export async function runCompact(cmd, opts = {}) {
   };
 
   // Write summary (best-effort + redact).
-  try { writeFileSync(summaryPath, redactSecrets(JSON.stringify(summary, null, 2)), 'utf-8'); } catch { /* advisory */ }
+  const summaryJson = JSON.stringify(summary, null, 2);
+  try { writeFileSync(summaryPath, redactSecrets(summaryJson), 'utf-8'); } catch { /* advisory */ }
+
+  // Observed economy (best-effort): the full output went to disk; only the compact
+  // summary entered context. savedTokens ≈ (full − compact) / 4. Not a causal claim.
+  logSavingSync(root, { lever: 'run-compact', savedTokens: Math.max(0, Math.round((rawOutput.length - summaryJson.length) / 4)), kind: resolvedKind }, { now: Date.now() });
 
   // Ring-prune.
   pruneRuns(runsDir);
