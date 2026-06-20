@@ -15,10 +15,55 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
-import { extractSymbols } from './project-map-symbols.mjs';
 
 /** Per-file symbol cap — high enough to be effectively complete for real files. */
 const DENSE_CAP_PER_FILE = 400;
+
+/**
+ * Dense symbol extractors per language — exported AND UNEXPORTED. Unlike the base
+ * map's `extractSymbols` (export-only sampling), a dense index must be COMPLETE:
+ * a Go helper like `normalizeWorkflowName` (lowercase) must be locatable too.
+ */
+const DENSE_SYMBOL_RES = {
+  javascript: [
+    /(?:^|\s)(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
+    /(?:^|\s)(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/gm,
+    /(?:^|\s)(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/gm,
+  ],
+  python: [/^\s*def\s+([A-Za-z_]\w*)/gm, /^\s*class\s+([A-Za-z_]\w*)/gm],
+  go: [/^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)/gm, /^type\s+([A-Za-z_]\w*)/gm],
+  rust: [/(?:pub\s+)?fn\s+([A-Za-z_]\w*)/g, /(?:pub\s+)?(?:struct|enum|trait)\s+([A-Za-z_]\w*)/g],
+  ruby: [/^\s*def\s+([A-Za-z_]\w*)/gm, /^\s*(?:class|module)\s+([A-Za-z_]\w*)/gm],
+};
+DENSE_SYMBOL_RES.typescript = [
+  ...DENSE_SYMBOL_RES.javascript,
+  /(?:^|\s)(?:export\s+)?(?:type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm,
+];
+DENSE_SYMBOL_RES.vue = DENSE_SYMBOL_RES.typescript;
+DENSE_SYMBOL_RES.svelte = DENSE_SYMBOL_RES.typescript;
+
+/** Extracts exported + unexported symbol names (deduped, capped) from one file. */
+function extractDense(text, lang, cap) {
+  const out = [];
+  const seen = new Set();
+  for (const re of DENSE_SYMBOL_RES[lang] || []) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) && out.length < cap) {
+      const name = m[1];
+      if (name && !seen.has(name)) { seen.add(name); out.push(name); }
+    }
+  }
+  return out;
+}
+
+/** True for test/spec files, which should never be the primary --find target. */
+const TEST_FILE_RE = /(?:_test\.go|_test\.py|test_[^/]*\.py|\.test\.[jt]sx?|\.spec\.[jt]sx?|_spec\.rb|_test\.rb)$/i;
+
+/** Repo-relative path → true when it is a test/spec file (deprioritised in --find). */
+export function isTestFile(path) {
+  return typeof path === 'string' && TEST_FILE_RE.test(path);
+}
 
 /** Directories never walked (mirrors project-map-core's exclude set). */
 const EXCLUDE = new Set([
@@ -71,7 +116,7 @@ export function buildDenseIndex(root) {
     if (!lang) continue;
     let text = '';
     try { text = readFileSync(join(root, rel), 'utf-8'); } catch { continue; }
-    const names = extractSymbols(text, lang, rel, DENSE_CAP_PER_FILE).map((s) => s.name);
+    const names = extractDense(text, lang, DENSE_CAP_PER_FILE);
     if (names.length === 0) continue;
     const unique = [...new Set(names)];
     const module = rel.split('/').slice(0, 2).join('/') || rel;
@@ -79,6 +124,10 @@ export function buildDenseIndex(root) {
     fileCount++;
     symbolCount += unique.length;
     for (const name of unique) (bySymbol[name] ||= []).push(rel);
+  }
+  // Source files before test/spec files so --find anchors on the real definition.
+  for (const name of Object.keys(bySymbol)) {
+    bySymbol[name].sort((a, b) => (isTestFile(a) ? 1 : 0) - (isTestFile(b) ? 1 : 0));
   }
   const byModule = Object.keys(groups).sort().map((module) => ({ module, files: groups[module] }));
   return { byModule, bySymbol, fileCount, symbolCount };
