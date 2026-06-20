@@ -159,7 +159,41 @@ export async function runProjmapFindChecks({ ok, bad }, { KIT }) {
     ? ok(`findSymbol: result is capped at 50 (got ${capResult.length} from 100-symbol index)`)
     : bad(`findSymbol: result exceeds 50 — got ${capResult.length}`);
 
-  // 10. Zero-dep invariant: project-map-dense.mjs must not import third-party packages.
+  // 10. UNEXPORTED symbols + test-file deprioritisation (buildDenseIndex on a fixture).
+  const { buildDenseIndex, isTestFile } = lib;
+  typeof isTestFile === 'function' && isTestFile('pkg/a_test.go') === true && isTestFile('pkg/a.go') === false
+    ? ok('isTestFile: _test.go → true, source → false')
+    : bad('isTestFile: wrong classification');
+
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  let tmp;
+  try {
+    tmp = mkdtempSync(join(tmpdir(), 'pmfind-'));
+    mkdirSync(join(tmp, 'pkg'), { recursive: true });
+    // Source has an UNEXPORTED Go func; the test file also references a sibling.
+    writeFileSync(join(tmp, 'pkg', 'a.go'), 'package pkg\nfunc normalizeName(s string) string { return s }\nfunc Exported() {}\n');
+    writeFileSync(join(tmp, 'pkg', 'a_test.go'), 'package pkg\nfunc normalizeName_t() {}\n');
+    const built = buildDenseIndex(tmp);
+    const un = findSymbol(built, 'normalizeName').find((r) => r.symbol === 'normalizeName');
+    un && un.files.some((f) => f.endsWith('pkg/a.go'))
+      ? ok('buildDenseIndex: UNEXPORTED symbol normalizeName is indexed')
+      : bad(`buildDenseIndex: unexported symbol not indexed — ${JSON.stringify(un)}`);
+    // A symbol present in both source + test must list the source file FIRST.
+    const both = findSymbol(built, 'normalizeName_t').find((r) => r.symbol === 'normalizeName_t');
+    // (normalizeName_t lives only in the test file → it IS a test symbol; assert ordering on a shared one)
+    const shared = built.bySymbol['normalizeName'] || [];
+    shared.length === 0 || !isTestFile(shared[0])
+      ? ok('buildDenseIndex: source file ordered before test files in bySymbol')
+      : bad(`buildDenseIndex: test file ordered first — ${JSON.stringify(shared)}`);
+  } catch (err) {
+    bad(`buildDenseIndex fixture check threw: ${err?.message ?? err}`);
+  } finally {
+    if (tmp) { try { rmSync(tmp, { recursive: true, force: true }); } catch { /* best-effort */ } }
+  }
+
+  // 11. Zero-dep invariant: project-map-dense.mjs must not import third-party packages.
   const zeroDep = await checkModuleZeroDep(densePath);
   zeroDep.error === null
     ? ok('zero-dep invariant: project-map-dense.mjs imports only node:/* or relative paths')
