@@ -17,6 +17,23 @@ import { z } from 'zod';
 /** A single Economy Runtime module toggle. Defaults ON at go-live (ADR-0103). */
 const EconModuleToggle = z.object({ enabled: z.boolean().default(true) }).passthrough().default({});
 
+/** Session Autonomy Receipt config (spec §29). Advisory; conservative default. */
+const SessionAutonomyReceiptSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    generateOnSessionFinalize: z.boolean().default(true),
+    showTerminalSummary: z.boolean().default(true),
+    signReceipts: z.boolean().default(true),
+    estimationMode: z.enum(['conservative', 'balanced', 'experimental']).default('conservative'),
+    minimumConfidenceToDisplay: z.enum(['insufficient', 'low', 'medium', 'high']).default('low'),
+    storeMarkdown: z.boolean().default(true),
+    storeJson: z.boolean().default(true),
+    tokenAccounting: z.object({}).passthrough().default({}),
+    financialAccounting: z.object({}).passthrough().default({}),
+  })
+  .passthrough()
+  .default({});
+
 /**
  * Full Economy Runtime config section. Every wired module ships ON, advisory +
  * fail-open; users disable any one via `economy.<module>.enabled = false`.
@@ -41,6 +58,7 @@ export const EconomySchema = z
     loopBreaker:     EconModuleToggle,
     patchEconomy:    EconModuleToggle,
     measurement:     EconModuleToggle,
+    sessionAutonomyReceipt: SessionAutonomyReceiptSchema,
   })
   .passthrough()
   .default({});

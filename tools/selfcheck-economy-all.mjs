@@ -14,6 +14,7 @@ import { runEconomyActivationChecks } from './selfcheck-economy-activation.mjs';
 import { runEconomyDispatchChecks }   from './selfcheck-economy-dispatch.mjs';
 import { runEconomyAutoActivateChecks } from './selfcheck-economy-autoactivate.mjs';
 import { runEconomySavingsChecks }    from './selfcheck-economy-savings.mjs';
+import { runSessionAutonomyChecks }  from './selfcheck-session-autonomy-all.mjs';
 import { runTcTelemetryChecks }        from './selfcheck-tc-telemetry.mjs';
 import { runTcIntentChecks }           from './selfcheck-tc-intent.mjs';
 import { runTcRelatedChecks }          from './selfcheck-tc-related.mjs';
@@ -41,4 +42,5 @@ export async function runAllEconomyChecks({ ok, bad }, { KIT }) {
   await runTcRouteChecks({ ok, bad }, { KIT });
   await runTcValidateChecks({ ok, bad }, { KIT });
   await runTcAcceptChecks({ ok, bad }, { KIT });
+  await runSessionAutonomyChecks({ ok, bad }, { KIT });
 }

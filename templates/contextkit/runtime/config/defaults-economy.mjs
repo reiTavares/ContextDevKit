@@ -37,6 +37,24 @@ export const ECONOMY_CONFIG_DEFAULTS = Object.freeze({
   patchEconomy:    { enabled: true },
   measurement:     { enabled: true },
   /**
+   * sessionAutonomyReceipt — generate a per-session Session Autonomy Receipt at
+   * finalization (advisory, fail-open). Public default 'conservative' estimation;
+   * receipts are stored beside the session ledger and signed only when a key is
+   * configured (else hash-only). Subscription mode never invents financial savings.
+   */
+  sessionAutonomyReceipt: Object.freeze({
+    enabled: true,
+    generateOnSessionFinalize: true,
+    showTerminalSummary: true,
+    signReceipts: true,
+    estimationMode: 'conservative',
+    minimumConfidenceToDisplay: 'low',
+    storeMarkdown: true,
+    storeJson: true,
+    tokenAccounting: Object.freeze({ enabled: true, preserveRawUsageReference: true, strictReconciliation: false }),
+    financialAccounting: Object.freeze({ enabled: true, allowEstimatedCost: true, allowUserSuppliedPricing: true, preserveHistoricalPricingSnapshot: true }),
+  }),
+  /**
    * autoActivate — emit the economy guidance block at session start by default.
    * Set to false to suppress the activation message without touching other flags.
    * Ignored when economy.enabled === false.

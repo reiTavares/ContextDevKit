@@ -56,6 +56,8 @@ export const SUITES = Object.freeze([
   // selfcheck (static, in-process wiring) — 1
   { id: 'selfcheck', file: 'tools/selfcheck.mjs', tier: 'selfcheck',
     touches: ['tools/selfcheck', 'templates/contextkit/runtime/', 'install.mjs'] },
+  { id: 'session-autonomy', file: 'tools/selfcheck-session-autonomy-all.mjs', tier: 'smoke',
+    touches: ['templates/contextkit/tools/scripts/economics/session-autonomy/', 'templates/contextkit/tools/scripts/economics/calibration/'] },
 
   // integration:core — engine + real hooks — 5
   { id: 'integration-test', file: 'tools/integration-test.mjs', tier: 'integration:core',
