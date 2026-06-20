@@ -30,6 +30,7 @@ import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
 import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-snapshots.mjs';
 import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
 import { deriveOutcomes } from './economics/autonomy-outcomes.mjs';
+import { presentPilot } from './economics/benchmark-pilot.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { listStates } from '../../runtime/state/state-io.mjs';
@@ -262,6 +263,8 @@ function main() {
     console.log(presentQuota(quota));
     console.log('');
     console.log(presentAutonomy(autonomy));
+    const pilotLine = presentPilot(ROOT);
+    if (pilotLine) { console.log(''); console.log(pilotLine); }
     console.log('');
     console.log(presentRoutingTelemetry(routingTelemetry));
   }
