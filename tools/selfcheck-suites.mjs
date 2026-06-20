@@ -105,6 +105,10 @@ function main() {
     'tools/selfcheck-tc-cache.mjs',
     // WF0022 TC-12 deterministic transforms (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
     'tools/selfcheck-tc-transform.mjs',
+    // WF0022 TC-13 scaffold-from-pattern (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
+    'tools/selfcheck-tc-scaffold.mjs',
+    // WF0022 TC-15 recipe-runner DAG (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
+    'tools/selfcheck-tc-recipe-runner.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
