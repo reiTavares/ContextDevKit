@@ -44,6 +44,15 @@ const RUNTIME_FILES = [
 const SCRIPT_FILES = [
   'work.mjs', 'work-io.mjs', 'work-operation.mjs', 'work-render.mjs', 'work-templates.mjs',
   'registry/serialize.mjs', 'registry/ids.mjs', 'registry/work-context.mjs', 'registry/workflow.mjs',
+  // A3 (WF-0036) — Business lifecycle & Growth source modules.
+  'business-growth-validator.mjs', 'business-render.mjs', 'business-templates.mjs',
+  'business-template-strings.mjs', 'work-business-lifecycle.mjs', 'work-business-gate.mjs',
+  'work-business-dispatch.mjs', 'work-decision-hash.mjs',
+  // A4 (WF-0036) — workflow nesting & migration planning.
+  'migration-plan.mjs',
+  // B3 (WF-0037) — lifecycle integration: mirroring/supersession/coverage.
+  'work-decision-mirror.mjs', 'work-decision-supersede.mjs', 'work-decision-ownership.mjs',
+  'decision-coverage.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
@@ -209,9 +218,26 @@ for (const { rel, abs } of A2_FILES) {
 }
 
 // ---------------------------------------------------------------------------
+// 8. [B2] line budget — decision-intelligence source files (WF-0037 Wave B2).
+// ---------------------------------------------------------------------------
+console.log('\n[B2] line budget — no decision-intelligence file over the 308 hard ceiling\n');
+const B2_FILES = [
+  { rel: 'execution/decision-need-classifier.mjs', abs: resolve(RUNTIME, 'execution/decision-need-classifier.mjs') },
+  { rel: 'execution/materiality-score.mjs', abs: resolve(RUNTIME, 'execution/materiality-score.mjs') },
+  { rel: 'execution/decision-triple.mjs', abs: resolve(RUNTIME, 'execution/decision-triple.mjs') },
+  { rel: 'scripts/decision-search-match.mjs', abs: resolve(SCRIPTS, 'decision-search-match.mjs') },
+  { rel: 'scripts/decision-search-score.mjs', abs: resolve(SCRIPTS, 'decision-search-score.mjs') },
+];
+for (const { rel, abs } of B2_FILES) {
+  let lines = 0;
+  try { lines = readFileSync(abs, 'utf-8').split('\n').length; } catch (err) { bad(`${rel}: unreadable — ${err?.message ?? err}`); continue; }
+  lines <= HARD_CEILING ? ok(`${rel}: ${lines} ≤ ${HARD_CEILING}`) : bad(`${rel}: ${lines} lines — over the ${HARD_CEILING} hard ceiling`);
+}
+
+// ---------------------------------------------------------------------------
 console.log(
   failures === 0
-    ? '\n  PASS — A1+A2 (BIZ-0001/WF-0036) static self-check: all checks passed.\n'
-    : `\n  FAIL — A1+A2 static self-check: ${failures} check(s) failed.\n`,
+    ? '\n  PASS — A1+A2+B2 (BIZ-0001/WF-0036+WF-0037) static self-check: all checks passed.\n'
+    : `\n  FAIL — A1+A2+B2 static self-check: ${failures} check(s) failed.\n`,
 );
 process.exit(failures === 0 ? 0 : 1);

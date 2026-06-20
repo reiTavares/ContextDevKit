@@ -23,14 +23,11 @@ import { parseArgs, resolvePosture, formatReceipt, makeReceipt } from './work-io
 import { runOperationCreate } from './work-operation.mjs';
 import { renderTasksFile } from './work-render.mjs';
 import { parseFrontmatter, listTasks } from './pipeline-tasks.mjs';
+import { handleBusinessTransition, handleBusinessStatus } from './work-business-dispatch.mjs';
 
 /** Full command surface (spec §"Interfaces / contracts"); some land later. */
 const FUTURE_COMMANDS = Object.freeze([
   'intake',
-  'approve',
-  'revise',
-  'reject',
-  'status',
   'link',
   'unlink',
   'promote',
@@ -115,11 +112,20 @@ export function dispatch(parsed, env = {}) {
       return runOperationCreate({ ...parsed, apply, root });
     case 'render':
       return handleRender({ flags: parsed.flags, root });
+    case 'approve':
+    case 'revise':
+    case 'reject':
+      return handleBusinessTransition({ command: parsed.command, flags: parsed.flags, apply, root });
+    case 'status':
+      return handleBusinessStatus({ flags: parsed.flags, root });
     default:
       if (FUTURE_COMMANDS.includes(parsed.command)) {
         throw new Error(`work: command "${parsed.command}" is part of WF-0036 but not yet wired in this wave`);
       }
-      throw new Error(`work: unknown command "${parsed.command || ''}". Try: operation | render`);
+      throw new Error(
+        `work: unknown command "${parsed.command || ''}". ` +
+        `Try: operation | render | approve | revise | reject | status`,
+      );
   }
 }
 

@@ -191,3 +191,33 @@ export function writeDecisionRegistry(root = process.cwd()) {
   writeFileAtomicSync(pathsFor(root).decisionRegistry, text);
   return text;
 }
+
+/**
+ * Returns all registry rows whose triple matches the given components.
+ * Pure: no I/O, no side effects. Added by B2-T2 (WF-0037) as a
+ * query extension over the existing READ API — existing exports unchanged.
+ *
+ * A null/undefined argument for any component is treated as "match any"
+ * (wildcard), so callers with a provisional context.id can still find
+ * kind-only matches. All three set means exact-triple filtering.
+ *
+ * @param {object} registry - a built decision registry (`buildDecisionRegistry`).
+ * @param {object|null|undefined} primaryContext - `{ type, id }` shape; null = any.
+ * @param {string|null|undefined} decisionKind - closed-set kind string; null = any.
+ * @param {string|null|undefined} decisionScope - closed-set scope string; null = any.
+ * @returns {object[]} matching rows (may be empty), in registry sort order.
+ */
+export function queryByTriple(registry, primaryContext, decisionKind, decisionScope) {
+  if (!registry || !Array.isArray(registry.decisions)) return [];
+  return registry.decisions.filter((row) => {
+    if (decisionKind != null && row.decisionKind !== decisionKind) return false;
+    if (decisionScope != null && row.decisionScope !== decisionScope) return false;
+    if (primaryContext != null) {
+      const rc = row.primaryContext;
+      if (!rc) return false;
+      if (primaryContext.type != null && rc.type !== primaryContext.type) return false;
+      if (primaryContext.id != null && rc.id !== primaryContext.id) return false;
+    }
+    return true;
+  });
+}

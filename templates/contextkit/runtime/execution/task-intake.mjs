@@ -10,9 +10,28 @@
  * that chain to avoid circular imports (ADR-0001 / immutable rule 1).
  *
  * Zero runtime dependencies — only `node:*` and the canonical platform helpers.
+ *
+ * ADDITIVE (B2, BIZ-0001/WF-0037, ADR-0102): `signals.decisionNeed` and
+ * `signals.decisionMatch` are attached after the existing A2 `signals.work`.
+ * All prior keys are untouched. The B2 enrichment is fail-open: any error
+ * omits the two keys entirely without affecting the tier/domain/work flow.
  */
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { classifyWork, loadWorkPolicy } from './work-classifier.mjs';
+import { classifyDecisionNeed } from './decision-need-classifier.mjs';
+import { pathsFor } from '../config/paths.mjs';
+
+// Attempt to import B2-T2's searchDecisions at module init — degrade silently
+// when the module does not yet exist (parallel wave). The variable is null until
+// B2-T2 ships; the intake() function checks before calling (fail-open).
+let _searchDecisions = null;
+try {
+  // eslint-disable-next-line n/no-missing-import
+  const _mod = await import('../../tools/scripts/decision-search-match.mjs');
+  if (typeof _mod?.searchDecisions === 'function') _searchDecisions = _mod.searchDecisions;
+} catch { /* B2-T2 not yet present — degrade silently */ }
 
 /**
  * Converts a task request into canonical, deterministic signals plus a human-
@@ -28,6 +47,8 @@ import { classifyWork, loadWorkPolicy } from './work-classifier.mjs';
  *           phase?: string, host?: string }} request task request object
  * @param {{ root?: string, level?: number }} [env] runtime environment hints
  * @returns {{ signals: object, reasons: string[] }}
+ *   signals includes: tier, domain, needsAdr, paths, phase, level, work (A2),
+ *   and (when B2 is active) decisionNeed, decisionMatch.
  *
  * @example
  * const { signals, reasons } = intake({ objective: 'fix typo in README' });
@@ -69,7 +90,46 @@ export function intake(request, env = {}) {
   // (execution-contract.mjs, the gate) are unaffected (design §6.1).
   signals.work = classifyWork(objective, loadWorkPolicy(env.root));
 
+  // ADDITIVE (B2, BIZ-0001/WF-0037, ADR-0102): enrich with decision-need
+  // classification + registry match. Wrapped in try/catch — fail-open always.
+  // The decision registry is loaded ONCE from the generated/cached file; we never
+  // rebuild it by scanning the tree on the hot path (frozen interface contract §4).
+  // `_searchDecisions` is B2-T2's export resolved at module init; null until B2-T2
+  // ships (parallel wave) — this block degrades silently in that case.
+  try {
+    const registry = loadDecisionRegistry(env.root);
+    const needInput = { signals: { ...signals, objective }, decisionRegistry: registry, platformRoot: env.root };
+    signals.decisionNeed = classifyDecisionNeed(needInput);
+
+    if (typeof _searchDecisions === 'function' && registry) {
+      signals.decisionMatch = _searchDecisions(registry, signals.decisionNeed);
+    }
+  } catch {
+    // B2 enrichment is advisory — never break the existing intake contract.
+  }
+
   return { signals, reasons };
+}
+
+/**
+ * Loads the pre-built decision registry from its generated/cached JSON path.
+ * Returns null (fail-open) on any error. Never scans the ADR tree at call time.
+ *
+ * @param {string} [root] - project root; used to locate the registry cache.
+ * @returns {object[]|null}
+ */
+function loadDecisionRegistry(root) {
+  try {
+    if (!root) return null;
+    // Canonical cached projection path (immutable rule 4 — never hardcode it).
+    const registryPath = pathsFor(root).decisionRegistry;
+    if (!existsSync(registryPath)) return null;
+    const parsed = JSON.parse(readFileSync(registryPath, 'utf-8').replace(/^﻿/, ''));
+    // searchDecisions(registry, need) reads `registry.decisions`; pass the object through.
+    return (parsed && Array.isArray(parsed.decisions)) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
