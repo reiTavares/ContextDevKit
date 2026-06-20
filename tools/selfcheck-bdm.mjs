@@ -53,6 +53,9 @@ const SCRIPT_FILES = [
   // B3 (WF-0037) — lifecycle integration: mirroring/supersession/coverage.
   'work-decision-mirror.mjs', 'work-decision-supersede.mjs', 'work-decision-ownership.mjs',
   'decision-coverage.mjs',
+  // A5 (WF-0036) — intelligence & outcomes: forecast adapter + recurrence/outcomes.
+  'economics/investment-forecast-core.mjs', 'economics/investment-forecast.mjs',
+  'operation-recurrence-core.mjs', 'operation-recurrence.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];

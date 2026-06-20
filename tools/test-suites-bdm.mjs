@@ -106,4 +106,15 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/runtime/hooks/execution-contract-advisory.mjs',
     ],
   },
+  {
+    id: 'a5-bdm',
+    file: 'tools/integration-test-a5-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      'templates/contextkit/tools/scripts/economics/investment-forecast.mjs',
+      'templates/contextkit/tools/scripts/economics/investment-forecast-core.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
+    ],
+  },
 ]);
