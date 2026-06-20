@@ -55,4 +55,19 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/memory/decisions/_templates/',
     ],
   },
+  {
+    id: 'a3-bdm',
+    file: 'tools/integration-test-a3-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      'templates/contextkit/tools/scripts/business-growth-validator.mjs',
+      'templates/contextkit/tools/scripts/business-render.mjs',
+      'templates/contextkit/tools/scripts/business-templates.mjs',
+      'templates/contextkit/tools/scripts/business-template-strings.mjs',
+      'templates/contextkit/tools/scripts/work-business-lifecycle.mjs',
+      'templates/contextkit/tools/scripts/work-business-gate.mjs',
+      'templates/contextkit/tools/scripts/work-business-dispatch.mjs',
+      'templates/contextkit/tools/scripts/work-decision-hash.mjs',
+    ],
+  },
 ]);

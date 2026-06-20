@@ -44,6 +44,10 @@ const RUNTIME_FILES = [
 const SCRIPT_FILES = [
   'work.mjs', 'work-io.mjs', 'work-operation.mjs', 'work-render.mjs', 'work-templates.mjs',
   'registry/serialize.mjs', 'registry/ids.mjs', 'registry/work-context.mjs', 'registry/workflow.mjs',
+  // A3 (WF-0036) — Business lifecycle & Growth source modules.
+  'business-growth-validator.mjs', 'business-render.mjs', 'business-templates.mjs',
+  'business-template-strings.mjs', 'work-business-lifecycle.mjs', 'work-business-gate.mjs',
+  'work-business-dispatch.mjs', 'work-decision-hash.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
