@@ -3,9 +3,13 @@
  * UserPromptSubmit hook (Level >= 3) — generates an Execution Contract
  * for each incoming task prompt (CDK-031, ADR-0072).
  *
- * Advisory + dormant: this hook is UNREGISTERED by default (not wired into
- * settings-compose). Activation is a separate deliberate step. When active it
- * never blocks: any error exits 0 silently (immutable rule 2).
+ * Registered at Level >= 5 by settings-compose (advisory). It NEVER blocks: any
+ * error exits 0 silently (immutable rule 2).
+ *
+ * WF0038/ADR-0107: at Level >= orchestration.minLevel (7) with orchestration
+ * enabled, it also runs the RequestOrchestrator (classify → envelope → directive).
+ * That path is wrapped fail-open and is behavior-shadow-safe while routing.mode is
+ * `shadow` (no real dispatch — the shadow→active flip stays human-gated per the ADR).
  *
  * Inert conditions (silent exit 0):
  *   - Level < 3.

@@ -101,4 +101,14 @@ export async function runRequestW3Checks({ ok, bad }, { KIT }) {
   /execution-contract-hook\.mjs/.test(composeSrc)
     ? ok('settings-compose still registers execution-contract-hook (regression)')
     : bad('settings-compose no longer registers the request hook');
+
+  // ── 10. orchestration gated by minLevel in the hook (inert below L7) ─────
+  /orch\.minLevel/.test(hookSrc) && /orch\??\.enabled/.test(hookSrc)
+    ? ok('hook gates orchestration on enabled + minLevel (inert below L7)')
+    : bad('hook does not gate orchestration on minLevel');
+
+  // ── 11. completion-gate deny is mode-gated (advisory only nudges, §2) ────
+  /mode !== 'advisory'/.test(gateSrc)
+    ? ok('completion-gate deny is mode-gated (advisory never blocks, ADR §2)')
+    : bad('completion-gate deny is NOT mode-gated — advisory could over-block');
 }

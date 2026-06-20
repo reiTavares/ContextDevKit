@@ -108,6 +108,13 @@ export async function runRequestRegistryChecks({ ok, bad }, { KIT }) {
     ? ok('selectAgents: trivial/doc → no council (anti-trigger respected)')
     : bad(`selectAgents trivial wrong: council=${JSON.stringify(trivSel.council)}`);
 
+  // ── 6b. intent bridge: ordinary implementation surfaces a reviewer ───────
+  const implCls = { primaryType: 'implementation', intent: 'implementation', complexity: 'feature', risk: 'medium', needsDebate: false };
+  const implSel = selectAgents(implCls, { paths: [] }, {}, agentReg);
+  (implSel.lead || implSel.reviewers.length || implSel.reasonCodes.length)
+    ? ok('selectAgents: ordinary implementation surfaces specialists (intent bridge)')
+    : bad('selectAgents: ordinary implementation selected nothing (intent vocabulary dark)');
+
   // ── 7. playbook selection ────────────────────────────────────────────────
   const pbSel = selectPlaybooks(secCls, { paths: ['src/auth/x.ts'] }, pbReg);
   pbSel.selected.some((pb) => pb.id === 'squad-security')

@@ -109,9 +109,10 @@ function buildCompletionBlockText(result, taskId) {
  * @param {object} result evaluateCompletion result (mutated in place)
  * @param {string} root project root
  * @param {string} taskId task id
+ * @param {string} mode resolved enforcement mode (advisory|guarded|strict)
  * @returns {void}
  */
-function augmentWithOrchestration(result, root, taskId) {
+function augmentWithOrchestration(result, root, taskId, mode) {
   try {
     const envelope = loadEnvelope(root, taskId);
     if (!envelope) return;
@@ -130,8 +131,10 @@ function augmentWithOrchestration(result, root, taskId) {
       if (cmp.requiredDebateMissing) result.remediation.push(`Convene the council [${(envelope.agents?.council ?? []).join(', ')}] before completing (ADR-0107 §21).`);
       if (cmp.missingSpecialists.length) result.remediation.push(`Dispatch the required specialist(s): ${cmp.missingSpecialists.join(', ')}.`);
     }
-    // Block material decisions only (guarded/strict caller enforces; advisory nudges).
-    if (cmp.requiredDebateMissing && envelope.classification?.intent === 'material-decision') {
+    // Block material decisions ONLY in guarded/strict — advisory must never flip a
+    // warn into a deny (ADR-0107 §2: advisory toward permission). Trivial never blocks.
+    if (cmp.requiredDebateMissing && mode !== 'advisory'
+      && envelope.classification?.intent === 'material-decision') {
       result.decision = 'deny';
     }
   } catch { /* fail-open — orchestration completion check never breaks the gate */ }
@@ -183,7 +186,7 @@ async function main() {
 
   // WF0038 / ADR-0107 §13/§21 — planned-vs-actual orchestration check. A material
   // request may not complete with a required-but-unexecuted debate / specialist.
-  augmentWithOrchestration(result, ROOT, taskId);
+  augmentWithOrchestration(result, ROOT, taskId, mode);
 
   // Silence rule: nothing to say - return immediately.
   if (result.reasonCodes.length === 0) return;

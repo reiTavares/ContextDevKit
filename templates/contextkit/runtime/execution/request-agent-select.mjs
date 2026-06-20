@@ -51,10 +51,28 @@ function pathOwns(patterns, paths) {
   });
 }
 
+/**
+ * Bridges the classifier's intent vocabulary to the registry's review-intent
+ * vocabulary so ordinary requests surface the right reviewers/specialists — not
+ * just the few agents that happen to list the bare classifier intent. Without
+ * this, the most common class (medium-risk `implementation`) would match almost
+ * no reviewer and the selection seam stays dark.
+ */
+const INTENT_BRIDGE = Object.freeze({
+  implementation: ['implementation', 'implementation-review', 'code-review'],
+  'workflow-task': ['implementation', 'implementation-review', 'code-review', 'architecture-review'],
+  decision: ['architecture-review', 'material-decision'],
+  'material-decision': ['material-decision', 'architecture-review'],
+  operation: ['implementation-review', 'incident-response'],
+  'incident-response': ['incident-response', 'security-review', 'implementation-review'],
+});
+
 /** Maps a classification intent to the registry review-intent vocabulary. */
 function intentMatches(agent, cls) {
   const intents = Array.isArray(agent.intents) ? agent.intents : [];
   if (intents.includes(cls.intent)) return true;
+  const bridged = INTENT_BRIDGE[cls.intent] ?? [];
+  if (bridged.some((i) => intents.includes(i))) return true;
   if (cls.needsDebate && intents.includes('material-decision')) return true;
   if ((cls.risk === 'high' || cls.risk === 'critical') && intents.includes('implementation-review')) return true;
   return false;
