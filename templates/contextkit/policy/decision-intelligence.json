@@ -1,0 +1,74 @@
+{
+  "_note": "B2 Decision Intelligence policy — ALL materiality weights, band thresholds, and routine ceiling in one data block (BIZ-0001 / WF-0037 / B2-T1, governed by ADR-0102). Editing any weight or threshold is an ADR act (constitution §9). Modules that use this: runtime/execution/materiality-score.mjs, runtime/execution/decision-need-classifier.mjs.",
+  "schemaVersion": 1,
+
+  "materialityWeights": {
+    "_note": "Additive integer weights. One signal per key. See design doc §2.1.",
+    "tierArchitectural":        5,
+    "tierFeature":              2,
+    "tierTrivial":              0,
+    "regulatedDomain":          4,
+    "materialKind":             3,
+    "routineKind":             -4,
+    "emergencyKind":            1,
+    "scopePlatform":            3,
+    "scopeBusiness":            2,
+    "scopeOperationWorkflow":   1,
+    "crossContext":             3,
+    "irreversible":             3,
+    "reviewableData":           3,
+    "lowConfidence":            1
+  },
+
+  "materialityBands": {
+    "_note": "Inclusive bounds. required: score >= required; recommended: recommended <= score <= (required-1); none: score <= none. Design doc §2.2.",
+    "required":    6,
+    "recommended": 3,
+    "none":        2
+  },
+
+  "routineCeilingDefault": 3,
+
+  "regulatedDomains": ["lgpd", "fintech", "healthcare"],
+
+  "materialKinds": [
+    "ARCHITECTURE",
+    "POLICY",
+    "COMPLIANCE",
+    "BUSINESS_AUTHORIZATION",
+    "OPERATION_AUTHORIZATION",
+    "LIFECYCLE"
+  ],
+
+  "irreversibleTokens": [
+    "migrate", "migration", "breaking", "rewrite", "replace", "deprecate",
+    "rename public", "schema", "data model", "protocol", "encryption",
+    "delete data", "drop column", "irreversible", "one-way"
+  ],
+
+  "reviewableDataTokens": [
+    "price", "pricing", "model list", "threshold", "quota",
+    "budget", "policy", "retention", "naming"
+  ],
+
+  "crossContextTokens": [
+    "across modules", "across the repo", "kit-wide", "fleet"
+  ],
+
+  "emergencyEnvelope": {
+    "_note": "K2 EMERGENCY_GOVERNANCE fires ONLY on these token groups (design §6).",
+    "restoreSafety": ["revert", "rollback", "restore", "roll back"],
+    "productionHotfix": ["hotfix", "production incident", "prod down", "outage"],
+    "updaterSafety": ["updater", "--update", "defer update"]
+  },
+
+  "lifecycleTokens": [
+    "supersede", "deprecate", "transfer ownership", "replace adr"
+  ],
+
+  "platformTokens": ["platform", "across modules", "kit-wide"],
+
+  "decisionScopeMap": {
+    "_note": "Used internally; the canonical enum is in decision-enums.mjs."
+  }
+}

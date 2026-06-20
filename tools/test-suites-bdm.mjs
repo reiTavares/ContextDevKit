@@ -70,4 +70,17 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/work-decision-hash.mjs',
     ],
   },
+  {
+    id: 'b2-bdm',
+    file: 'tools/integration-test-b2-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      `${EXEC}/decision-need-classifier.mjs`, `${EXEC}/materiality-score.mjs`,
+      `${EXEC}/decision-triple.mjs`, `${EXEC}/task-intake.mjs`,
+      'templates/contextkit/policy/decision-intelligence.json',
+      'templates/contextkit/tools/scripts/decision-search-match.mjs',
+      'templates/contextkit/tools/scripts/decision-search-score.mjs',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
 ]);
