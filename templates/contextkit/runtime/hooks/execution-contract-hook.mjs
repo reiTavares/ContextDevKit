@@ -40,6 +40,7 @@ import { buildContract, saveContract } from '../execution/execution-contract.mjs
 import { orchestrate } from '../execution/request-orchestrator.mjs';
 import { saveEnvelope } from '../execution/request-envelope.mjs';
 import { renderDirective } from '../execution/request-directive.mjs';
+import { recordOrchestration } from '../execution/request-telemetry.mjs';
 import { getBranch } from './boot-signals.mjs';
 import { runAdvisory, renderChecklist } from './execution-contract-advisory.mjs';
 // Re-export for backward compatibility: consumers (enforcement gate + integration
@@ -251,6 +252,7 @@ async function main() {
         { root: ROOT, level: getLevel(ROOT), config: cfg },
       );
       if (orch.persistIntentEnvelope !== false) saveEnvelope(ROOT, taskId, envelope);
+      recordOrchestration(ROOT, envelope); // §23 — one telemetry record per request
       const directive = renderDirective(envelope);
       if (directive) process.stdout.write('\n' + directive);
     }

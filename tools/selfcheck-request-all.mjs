@@ -12,6 +12,7 @@
 import { runRequestOrchestrationChecks } from './selfcheck-request-orchestration.mjs';
 import { runRequestRegistryChecks } from './selfcheck-request-registries.mjs';
 import { runRequestW3Checks } from './selfcheck-request-w3.mjs';
+import { runRequestW4Checks } from './selfcheck-request-w4.mjs';
 
 /**
  * Runs all Automatic Request Orchestration self-checks in order (W1 foundations,
@@ -24,4 +25,5 @@ export async function runAllRequestOrchestrationChecks(reporter, ctx) {
   await runRequestOrchestrationChecks(reporter, ctx);
   await runRequestRegistryChecks(reporter, ctx);
   await runRequestW3Checks(reporter, ctx);
+  await runRequestW4Checks(reporter, ctx);
 }
