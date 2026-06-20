@@ -117,4 +117,39 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
     ],
   },
+  {
+    id: 'b4-adr-tooling',
+    file: 'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/adr-index.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate-core.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy-core.mjs',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
+  {
+    id: 'b4-legacy-coexistence',
+    file: 'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/adr-index.mjs',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
+  {
+    id: 'b4-bdm',
+    file: 'tools/integration-test-b4-bdm.mjs',
+    tier: 'integration:installer',
+    touches: [
+      'install.mjs', 'tools/install/engine.mjs',
+      'templates/contextkit/memory/decisions/business/',
+      'templates/contextkit/memory/decisions/operations/',
+      'templates/contextkit/memory/decisions/legacy/',
+      'templates/contextkit/memory/decisions/_templates/',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
 ]);

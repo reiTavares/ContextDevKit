@@ -101,6 +101,10 @@ function main() {
     'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
     // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
     'tools/selfcheck-bdm.mjs',
+    // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
+    // under templates/ (engine source), registered as suites, dispatched directly.
+    'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
+    'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)
