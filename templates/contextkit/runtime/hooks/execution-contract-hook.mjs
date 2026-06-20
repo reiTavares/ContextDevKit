@@ -32,11 +32,14 @@
  * execution-contract-advisory.mjs (B3-split, BIZ-0001/WF-0037).
  */
 import { join } from 'node:path';
-import { getLevel } from '../config/load.mjs';
+import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { readLedger, writeLedger, sanitizeSid } from './ledger.mjs';
 import { hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { intake } from '../execution/task-intake.mjs';
 import { buildContract, saveContract } from '../execution/execution-contract.mjs';
+import { orchestrate } from '../execution/request-orchestrator.mjs';
+import { saveEnvelope } from '../execution/request-envelope.mjs';
+import { renderDirective } from '../execution/request-directive.mjs';
 import { getBranch } from './boot-signals.mjs';
 import { runAdvisory, renderChecklist } from './execution-contract-advisory.mjs';
 // Re-export for backward compatibility: consumers (enforcement gate + integration
@@ -236,6 +239,22 @@ async function main() {
 
   // Print the short advisory checklist to stdout (legacy output — unchanged).
   process.stdout.write(renderChecklist(contract, taskId, isNew, routing));
+
+  // WF0038 / ADR-0107 — request-level orchestration. Gated by config + level;
+  // wrapped fail-open so it can never break the legacy contract path (rule 2).
+  try {
+    const cfg = loadConfigSync(ROOT);
+    const orch = cfg?.orchestration;
+    if (orch?.enabled && getLevel(ROOT) >= (orch.minLevel ?? 7)) {
+      const envelope = orchestrate(
+        { requestId: taskId, requestText: promptText, sessionId, signals, context: { taskId, branch } },
+        { root: ROOT, level: getLevel(ROOT), config: cfg },
+      );
+      if (orch.persistIntentEnvelope !== false) saveEnvelope(ROOT, taskId, envelope);
+      const directive = renderDirective(envelope);
+      if (directive) process.stdout.write('\n' + directive);
+    }
+  } catch { /* orchestration is additive — never break the hook (fail-open) */ }
 }
 
 main().catch(() => process.exit(0));
