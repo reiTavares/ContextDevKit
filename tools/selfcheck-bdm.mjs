@@ -225,6 +225,7 @@ const B2_FILES = [
   { rel: 'execution/decision-need-classifier.mjs', abs: resolve(RUNTIME, 'execution/decision-need-classifier.mjs') },
   { rel: 'execution/materiality-score.mjs', abs: resolve(RUNTIME, 'execution/materiality-score.mjs') },
   { rel: 'execution/decision-triple.mjs', abs: resolve(RUNTIME, 'execution/decision-triple.mjs') },
+  { rel: 'execution/decision-routine-coverage.mjs', abs: resolve(RUNTIME, 'execution/decision-routine-coverage.mjs') },
   { rel: 'scripts/decision-search-match.mjs', abs: resolve(SCRIPTS, 'decision-search-match.mjs') },
   { rel: 'scripts/decision-search-score.mjs', abs: resolve(SCRIPTS, 'decision-search-score.mjs') },
 ];
