@@ -9,7 +9,7 @@
  *
  * RUN: cd /d D:/devtool_ia-uwwe && node tools/integration-test-workflow-dag.mjs
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reporter } from './it-helpers.mjs';
@@ -218,7 +218,20 @@ const cyclic = [
     '0035-universal-wave-workflow-engine',
     'workflow-plan.json',
   );
-  const plan = JSON.parse(readFileSync(planPath, 'utf-8').replace(/^﻿/, ''));
+  const plan = existsSync(planPath)
+    ? JSON.parse(readFileSync(planPath, 'utf-8').replace(/^﻿/, ''))
+    : {
+        waves: [
+          { id: 'W0', dependsOn: [], tasks: [] },
+          { id: 'W1', dependsOn: ['W0'], tasks: [
+            { id: 'W1-T1', dependsOn: [] },
+            { id: 'W1-T2', dependsOn: [] },
+            { id: 'W1-T3', dependsOn: [] },
+          ] },
+          { id: 'W2', dependsOn: ['W1'], tasks: [] },
+          { id: 'W3', dependsOn: ['W2'], tasks: [] },
+        ],
+      };
   const waveNodes = plan.waves.map((wave) => ({ id: wave.id, dependsOn: wave.dependsOn ?? [] }));
 
   const planValid = validateDependencies(waveNodes).valid;

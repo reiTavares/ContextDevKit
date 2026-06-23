@@ -52,6 +52,27 @@ parse miss (Rule 2/8):
    `/dev-start`/`/state`/`/ship` pre-reads into one call.
 5. **Boot rewire** — 60 raw lines → ~12-line digest, with raw-truncated fallback.
 
+### Automatic `/dev-start` economy pipeline
+
+`/dev-start` resolves a deterministic economy plan before broad context
+expansion. The bootstrap fingerprints (but does not persist) the raw objective,
+probes resume state, evaluates Project Map freshness plus a focused path/symbol
+lookup, reuses the L7 RequestOrchestrator, and then points to the bounded
+`dev-start` context profile and `run-compact` for test/build commands.
+
+Lifecycle ownership is deliberately split:
+
+- `economy-events.jsonl` records economy-lever lifecycle facts.
+- `routing-decisions.jsonl` records routing policy plus correlated execution
+  acknowledgements.
+- `economy-savings.jsonl` records only observed savings, never recommendations.
+- `/token-report` reads and reconciles those ledgers; it does not create facts.
+
+`policyWouldApply` is recommendation truth. `applied=true` requires a valid
+execution acknowledgement correlated to the decision/session/task. Missing or
+invalid acknowledgements remain unapplied, and provider cache value stays
+separate from ContextDevKit-attributable savings.
+
 ## 4. Estimated token savings
 
 **Assumptions (stated honestly):** ~12 input tokens per dense markdown line; figures

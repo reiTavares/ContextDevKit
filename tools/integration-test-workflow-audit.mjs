@@ -179,7 +179,8 @@ unchanged ? rep.ok('audit is READ-ONLY: content + mtime identical before/after')
 // --- Optional: real workflows dir (read-only, bounded) ----------------------
 
 const realRoot = join(process.cwd(), 'contextkit', 'memory', 'workflows');
-if (existsSync(realRoot)) {
+const realWf0019 = join(realRoot, '0019-economic-autonomy-control-plane');
+if (existsSync(realWf0019)) {
   let realReports;
   let threw = false;
   try { realReports = auditAll(realRoot); } catch { threw = true; }
@@ -190,7 +191,7 @@ if (existsSync(realRoot)) {
   wf0019 && wf0019.redundancies.some((r) => r.kind === 'fragmented-continuation')
     ? rep.ok('real WF0019 flagged for fragmented continuation') : rep.bad('real WF0019 should flag fragmented continuation');
 } else {
-  rep.ok('real workflows dir absent — optional real-tree check skipped');
+  rep.ok('complete dogfood WF0019 absent — optional real-tree check skipped');
 }
 
 // --- Cleanup ----------------------------------------------------------------

@@ -12,6 +12,7 @@
  */
 
 import { appendFileSync, readFileSync, existsSync } from 'node:fs';
+import { reconcileDecisionExecution } from '../../../runtime/execution/economy-lifecycle.mjs';
 
 /**
  * Normalize a decision (from `decideRoute`) into a compact telemetry record.
@@ -22,6 +23,10 @@ import { appendFileSync, readFileSync, existsSync } from 'node:fs';
 export function decisionRecord(decision, extra = {}) {
   const d = decision || {};
   const est = d.estimate || {};
+  const reconciled = reconcileDecisionExecution({
+    ...d,
+    decisionId: extra.decisionId ?? d.decisionId ?? null,
+  }, extra.executionAck ?? d.executionAck ?? null);
   return {
     at: extra.at ?? null,
     sessionId: extra.sessionId ?? null,
@@ -29,7 +34,18 @@ export function decisionRecord(decision, extra = {}) {
     executor: d.executor ?? null,
     model: d.model ?? null,
     mode: d.mode ?? null,
-    applied: !!d.applied,
+    status: reconciled.status,
+    evaluated: reconciled.evaluated,
+    eligible: reconciled.eligible,
+    recommended: reconciled.recommended,
+    directed: reconciled.directed,
+    attempted: reconciled.attempted,
+    applied: reconciled.applied,
+    skipped: reconciled.skipped,
+    failed: reconciled.failed,
+    policyWouldApply: reconciled.policyWouldApply,
+    reasonCodes: reconciled.reasonCodes,
+    executionAck: reconciled.executionAck,
     runnerFirst: !!d.runnerFirst,
     complexity: d.classification?.complexity ?? null,
     risk: d.classification?.risk ?? null,
@@ -88,15 +104,41 @@ export function readDecisions(file) {
 export function routingTelemetrySummary(decisions = []) {
   const list = Array.isArray(decisions) ? decisions : [];
   const byExecutor = {};
-  let runnerFirst = 0, applied = 0, escalations = 0, fableAuto = 0;
+  const byReason = {};
+  const lifecycle = Object.fromEntries([
+    'evaluated', 'eligible', 'recommended', 'directed',
+    'attempted', 'applied', 'skipped', 'failed',
+  ].map((key) => [key, 0]));
+  let runnerFirst = 0, applied = 0, recommended = 0, shadow = 0, skipped = 0;
+  let escalations = 0, fableAuto = 0;
   let directUnits = 0, delegatedUnits = 0;
   const escalationReasons = [];
 
   for (const rec of list) {
+    const truth = reconcileDecisionExecution(rec, rec.executionAck ?? null);
+    const isApplied = truth.applied === true;
     const ex = rec.executor || 'unknown';
     byExecutor[ex] = (byExecutor[ex] || 0) + 1;
     if (rec.runnerFirst) runnerFirst += 1;
-    if (rec.applied) applied += 1;
+    if (isApplied) applied += 1;
+    const wasRecommended = truth.recommended === true
+      || (truth.recommended == null && typeof rec.executor === 'string');
+    if (wasRecommended) recommended += 1;
+    if (rec.mode === 'shadow') shadow += 1;
+    const wasSkipped = truth.skipped === true || truth.status === 'skipped'
+      || rec.reason === 'shadow_mode';
+    if (wasSkipped) skipped += 1;
+    for (const key of Object.keys(lifecycle)) {
+      if (key === 'recommended' ? wasRecommended
+        : key === 'applied' ? isApplied
+          : key === 'skipped' ? wasSkipped
+            : truth[key] === true) lifecycle[key] += 1;
+    }
+    const reasonCodes = Array.isArray(truth.reasonCodes) && truth.reasonCodes.length > 0
+      ? truth.reasonCodes : (typeof rec.reason === 'string' ? [rec.reason] : []);
+    for (const reason of reasonCodes) {
+      if (typeof reason === 'string' && reason) byReason[reason] = (byReason[reason] || 0) + 1;
+    }
     if (rec.escalated) { escalations += 1; if (rec.escalationReason) escalationReasons.push(rec.escalationReason); }
     if (ex === 'fable' && rec.mode !== 'manual') fableAuto += 1; // invariant: must stay 0
     if (typeof rec.directRelative === 'number') directUnits += rec.directRelative;
@@ -111,7 +153,13 @@ export function routingTelemetrySummary(decisions = []) {
     byExecutor: Object.freeze({ ...byExecutor }),
     runnerFirst,
     runnerFirstPct: total ? Math.round((runnerFirst / total) * 100) : 0,
+    recommended,
+    recommendedPct: total ? Math.round((recommended / total) * 100) : 0,
     applied,
+    shadow,
+    skipped,
+    lifecycle: Object.freeze({ ...lifecycle }),
+    byReason: Object.freeze({ ...byReason }),
     escalations,
     escalationReasons,
     fableAutoSelected: fableAuto,
@@ -139,7 +187,8 @@ export function presentRoutingTelemetry(summary) {
     : `~${Math.abs(summary.netBenefitUnits)} relative units OVER baseline (routing not paying off)`;
   return [
     `**Routing telemetry** (${summary.total} decisions) — ${exLine}`,
-    `- runner-first: ${summary.runnerFirst} (${summary.runnerFirstPct}%) · applied: ${summary.applied} · escalations: ${summary.escalations}`,
+    `- recommended: ${summary.recommended ?? 0} · applied: ${summary.applied} · shadow: ${summary.shadow ?? 0} · skipped: ${summary.skipped ?? 0}`,
+    `- runner-first: ${summary.runnerFirst} (${summary.runnerFirstPct}%) · escalations: ${summary.escalations}`,
     `- estimated net routing benefit: ${benefit}`,
     `- Fable auto-selected: ${summary.fableAutoSelected} (must be 0)`,
     `- _${summary.note}_`,

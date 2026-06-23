@@ -47,7 +47,9 @@ async function main() {
   check(route({ kind: 'glob' }, { batch: true }).executor === 'haiku', '4. glob → Haiku');
 
   // 5. a single deterministic bash command → runner (no agent), batch → haiku
-  check(route({ kind: 'shell' }, { commandCount: 1, expectedOutput: 'short' }).executor === 'runner', '5. single deterministic command → runner-first (no agent)');
+  check(route({ kind: 'shell' }, {
+    commandCount: 1, expectedOutput: 'short', needsInterpretation: false, batch: false,
+  }).executor === 'runner', '5. single deterministic command → runner-first (no agent)');
 
   // 6. tests + lint → haiku
   check(route({ kind: 'test' }, { batch: true }).executor === 'haiku', '6. tests/lint → Haiku');

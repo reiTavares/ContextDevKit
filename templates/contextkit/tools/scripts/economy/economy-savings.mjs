@@ -12,22 +12,10 @@
 import { appendFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-// ---------------------------------------------------------------------------
-// Public constants
-// ---------------------------------------------------------------------------
-
-/**
- * Canonical schema identifier stamped on every savings record.
- * Bump the version suffix when the shape changes in a breaking way.
- * @type {string}
- */
+/** Canonical non-breaking schema identifier. */
 export const ECONOMY_SAVINGS_SCHEMA_VERSION = 'cdk-economy-savings/1';
 
-/**
- * Valid economy levers that may generate savings observations.
- * Extending this list requires an ADR — each lever has its own activation path.
- * @type {Readonly<string[]>}
- */
+/** Valid observed-savings levers; lifecycle-only levers live in economy-events. */
 export const LEVERS = Object.freeze([
   'boot-delta',
   'run-compact',
@@ -35,29 +23,13 @@ export const LEVERS = Object.freeze([
   'routing',
 ]);
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Returns true when value is a finite number >= 0 (valid token count).
- * @param {unknown} v
- * @returns {boolean}
- */
+/** True for a finite, non-negative observed token count. */
 function isValidTokenCount(v) {
   return typeof v === 'number' && Number.isFinite(v) && v >= 0;
 }
 
-// ---------------------------------------------------------------------------
-// recordSaving
-// ---------------------------------------------------------------------------
-
 /**
  * Builds a frozen savings record from raw input.
- *
- * Returns a skipped marker when:
- *   - `lever` is not one of the four canonical LEVERS, or
- *   - `savedTokens` is not a finite number >= 0 (negative/NaN rejected).
  *
  * `capturedAt` is `opts.now` (epoch ms) when a finite number, else `null` —
  * deterministic and safe in test environments.
@@ -65,13 +37,9 @@ function isValidTokenCount(v) {
  * There is intentionally NO `claim` field: a savings record is an observation
  * that a lever fired, not a causal claim vs a no-kit baseline (see #243).
  *
- * @param {{
- *   lever: string,
- *   savedTokens: number,
- *   kind?: string,
- *   sessionId?: string,
- *   note?: string
- * }} input
+ * Optional lifecycle/mode evidence refuses recommended, shadow, skipped, or
+ * failed records. Legacy callers without those fields remain compatible.
+ * @param {object} input
  * @param {{ now?: number }} [opts] — epoch ms injected by caller; never Date.now().
  * @returns {Readonly<{
  *   schemaVersion: string, lever: string, savedTokens: number,
@@ -79,7 +47,8 @@ function isValidTokenCount(v) {
  *   note: string|null
  * }> | Readonly<{ status: 'skipped', reason: string }>}
  */
-export function recordSaving({ lever, savedTokens, kind, sessionId, note }, opts = {}) {
+export function recordSaving(input = {}, opts = {}) {
+  const { lever, savedTokens, kind, sessionId, note } = input;
   if (!LEVERS.includes(lever)) {
     return Object.freeze({ status: 'skipped', reason: `unknown lever: ${lever}` });
   }
@@ -88,6 +57,11 @@ export function recordSaving({ lever, savedTokens, kind, sessionId, note }, opts
       status: 'skipped',
       reason: `savedTokens must be a finite number >= 0, got: ${savedTokens}`,
     });
+  }
+  const lifecycle = input.lifecycle ?? input.status;
+  if ((typeof lifecycle === 'string' && lifecycle !== 'applied') ||
+      input.mode === 'shadow' || input.observed === false) {
+    return Object.freeze({ status: 'skipped', reason: 'savings require an observed applied event' });
   }
 
   const nowVal = opts?.now;
@@ -101,12 +75,12 @@ export function recordSaving({ lever, savedTokens, kind, sessionId, note }, opts
     sessionId: (typeof sessionId === 'string' && sessionId.length > 0) ? sessionId : null,
     capturedAt,
     note:      (typeof note      === 'string' && note.length      > 0) ? note      : null,
+    observed: true,
+    requestId: typeof input.requestId === 'string' && input.requestId ? input.requestId : null,
+    decisionId: typeof input.decisionId === 'string' && input.decisionId ? input.decisionId : null,
+    eventId: typeof input.eventId === 'string' && input.eventId ? input.eventId : null,
   });
 }
-
-// ---------------------------------------------------------------------------
-// appendSaving
-// ---------------------------------------------------------------------------
 
 /**
  * Appends a savings record to the JSONL file (the mutator).
@@ -131,10 +105,6 @@ export async function appendSaving(record, file) {
   appendFileSync(file, JSON.stringify(record) + '\n', 'utf-8');
   return file;
 }
-
-// ---------------------------------------------------------------------------
-// readSavings
-// ---------------------------------------------------------------------------
 
 /**
  * Reads all savings records from a JSONL file.
@@ -183,10 +153,6 @@ export function readSavingsSync(file) {
   return records;
 }
 
-// ---------------------------------------------------------------------------
-// savingsSummary
-// ---------------------------------------------------------------------------
-
 /**
  * Reduces an array of savings records into a frozen summary object.
  *
@@ -205,6 +171,7 @@ export function readSavingsSync(file) {
 export function savingsSummary(records) {
   /** @type {Record<string, number>} */
   const byLever = {};
+  const observationsByLever = {};
   for (const lever of LEVERS) byLever[lever] = 0;
 
   if (!Array.isArray(records) || records.length === 0) {
@@ -212,6 +179,7 @@ export function savingsSummary(records) {
       schemaVersion: ECONOMY_SAVINGS_SCHEMA_VERSION,
       totalSaved: 0,
       byLever: Object.freeze({ ...byLever }),
+      observationsByLever: Object.freeze({}),
       entries:  0,
       sessions: 0,
     });
@@ -227,6 +195,7 @@ export function savingsSummary(records) {
     if (LEVERS.includes(lever) && isValidTokenCount(savedTokens)) {
       byLever[lever] += savedTokens;
       totalSaved     += savedTokens;
+      observationsByLever[lever] = (observationsByLever[lever] ?? 0) + 1;
     }
     if (typeof sessionId === 'string' && sessionId.length > 0) {
       sessionSet.add(sessionId);
@@ -237,14 +206,11 @@ export function savingsSummary(records) {
     schemaVersion: ECONOMY_SAVINGS_SCHEMA_VERSION,
     totalSaved,
     byLever: Object.freeze({ ...byLever }),
+    observationsByLever: Object.freeze({ ...observationsByLever }),
     entries:  records.length,
     sessions: sessionSet.size,
   });
 }
-
-// ---------------------------------------------------------------------------
-// presentSavings
-// ---------------------------------------------------------------------------
 
 /**
  * Renders a savings summary as a human-readable multi-line string.
@@ -260,7 +226,7 @@ export function savingsSummary(records) {
  * @returns {string}
  */
 export function presentSavings(summary) {
-  if (!summary || summary.totalSaved === 0) {
+  if (!summary || summary.entries === 0) {
     return '💸 Economy in effect: none observed yet (levers advisory/opt-in)';
   }
 
@@ -270,14 +236,37 @@ export function presentSavings(summary) {
 
   for (const lever of LEVERS) {
     const tokens = summary.byLever?.[lever] ?? 0;
-    if (tokens === 0) {
-      lines.push(`  ${lever}: 0  (dormant — lever not firing yet)`);
-    } else {
+    if ((summary.observationsByLever?.[lever] ?? 0) > 0) {
       lines.push(`  ${lever}: ${tokens} tokens saved`);
+    } else {
+      lines.push(`  ${lever}: dormant — no observed savings event`);
     }
   }
 
   return lines.join('\n');
+}
+
+/** JSON projection where absent and observed-zero are explicitly distinct. */
+export function observedSavingsReport(summary) {
+  if (!summary || summary.entries === 0) {
+    return Object.freeze({
+      schemaVersion: ECONOMY_SAVINGS_SCHEMA_VERSION,
+      status: 'no-observations', reason: 'no observed savings events',
+      byLever: Object.freeze({}),
+    });
+  }
+  const byLever = {};
+  for (const lever of LEVERS) {
+    const samples = summary.observationsByLever?.[lever] ?? 0;
+    if (samples > 0) byLever[lever] = Object.freeze({ savedTokens: summary.byLever[lever], samples });
+  }
+  return Object.freeze({
+    schemaVersion: ECONOMY_SAVINGS_SCHEMA_VERSION,
+    status: 'observed', totalSaved: summary.totalSaved,
+    entries: summary.entries, sessions: summary.sessions,
+    reason: summary.totalSaved === 0 ? 'observed events reported zero saved tokens' : null,
+    byLever: Object.freeze(byLever),
+  });
 }
 
 /** Canonical ledger path under a project root. */

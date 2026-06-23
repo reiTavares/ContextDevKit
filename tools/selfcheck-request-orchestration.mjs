@@ -148,7 +148,7 @@ export async function runRequestOrchestrationChecks({ ok, bad }, { KIT }) {
 
   // ── 12. config wiring ────────────────────────────────────────────────────
   const orch = DEFAULT_CONFIG.orchestration;
-  orch && orch.enabled === true && orch.specialists?.maxParallelAgents === 6
+  orch && orch.enabled === true && orch.specialists?.maxParallelAgents === 5
     && DEFAULT_CONFIG.deliberations?.autoInvoke?.standardRequests === true
     && DEFAULT_CONFIG.deliberations?.materialityThreshold === 0.6
     ? ok('config: orchestration defaults + autoInvoke.standardRequests + materialityThreshold wired')

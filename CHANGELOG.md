@@ -20,6 +20,26 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Automatic economy pipeline at `/dev-start` (WF0037)
+
+- A deterministic, zero-dependency bootstrap now fingerprints the objective,
+  probes resumable state, checks Project Map freshness and focused matches before
+  broad context, reuses the L7 RequestOrchestrator, and emits bounded
+  context/run-compact guidance. Free-form objectives remain data only through
+  the `--objective -- ...` contract.
+- New append-only lifecycle events and correlated execution acknowledgements
+  distinguish evaluated, eligible, recommended, directed, attempted, applied,
+  skipped, and failed. Policy intent never becomes `applied` without a valid
+  matching acknowledgement; repeated bootstrap events are idempotent and raw
+  objectives are not persisted.
+- Runner-first now requires explicit deterministic command facts, routing
+  economics retains structured `reasonCodes`, Fable remains disabled by default,
+  and `/token-report` renders lifecycle/observed-savings evidence even with no
+  transcript usage.
+- Codex and Antigravity outputs were rebuilt so recently merged L7 orchestration,
+  Session Autonomy Receipt, Task Compiler, QA, pipeline, and log-session source
+  changes are projected consistently.
+
 ### Universal wave-based workflow engine (ADR-0101, WF0035)
 
 One wave-based execution model for every formal workflow size — a basic workflow

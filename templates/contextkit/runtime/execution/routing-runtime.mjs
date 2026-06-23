@@ -6,9 +6,9 @@
  *
  * Honest by construction (ADR-0094 §Decision; spec §6.3/§6.8): the kit is a
  * governance layer, not a model scheduler. No current host (claude/codex/agy) can
- * switch the session model from a hook, so a decision's top-level `applied` is
- * ALWAYS false and `actualTier` is null — the record carries `recommendedTier` /
- * `selectedTier` (the policy's verdict) and a `reason` that names the host limit.
+ * switch the session model from a hook, so the normal hook record keeps
+ * `applied:false` and `actualTier:null`. A separate executor may later provide a
+ * valid correlated acknowledgement; only that reconciliation can set applied.
  * This makes `shadow` actually observe real prompts (its whole purpose) without
  * ever claiming a model switch or a saving that did not happen.
  *
@@ -20,6 +20,9 @@ import { resolveRoutingConfig } from '../../tools/scripts/routing/routing-config
 import { classifyTask, signalsFromTitle } from '../../tools/scripts/routing/task-classifier.mjs';
 import { decideRoute } from '../../tools/scripts/routing/routing-decision.mjs';
 import { decisionRecord, appendDecision, readDecisions } from '../../tools/scripts/routing/routing-telemetry.mjs';
+import {
+  ECONOMY_EVENT_SCHEMA, createEconomyEvent, reconcileDecisionExecution,
+} from './economy-lifecycle.mjs';
 
 /** Decision-record schema (spec §6.5). */
 export const ROUTING_DECISION_SCHEMA = 'routing-decision/1';
@@ -76,23 +79,28 @@ export function hostCanSwitchModel(_host) {
 }
 
 /**
- * Maps mode + the policy decision to the honest outcome fields. `applied` is the
- * POLICY verdict from decideRoute; the host-application truth is decided by the
- * caller (always false today).
+ * Maps mode + the policy decision to honest direction fields. Execution truth is
+ * reconciled separately from a correlated acknowledgement.
  * @param {string} mode
  * @param {object} decision route from decideRoute
  * @param {string} host
- * @returns {{ reason: string, selectedTier: string|null }}
+ * @returns {{ reason: string, selectedTier: string|null, directed:boolean }}
  */
 function resolveOutcome(mode, decision, host) {
-  if (mode === 'shadow') return { reason: 'shadow_mode', selectedTier: null };
-  const policyWouldApply = !!decision.applied;
+  if (mode === 'shadow') return { reason: 'shadow_mode', selectedTier: null, directed: false };
+  const policyWouldApply = decision.policyWouldApply === true;
   if (policyWouldApply) {
     // Policy selected a route, but the host cannot enact it from a hook.
-    if (!hostCanSwitchModel(host)) return { reason: 'host_does_not_support_in_session_model_switch', selectedTier: decision.executor };
-    return { reason: `${mode}_applied`, selectedTier: decision.executor };
+    if (!hostCanSwitchModel(host)) {
+      return { reason: 'host_does_not_support_in_session_model_switch', selectedTier: decision.executor, directed: false };
+    }
+    return { reason: `${mode}_directed`, selectedTier: decision.executor, directed: true };
   }
-  return { reason: mode === 'canary' ? 'canary_not_sampled_or_ineligible' : 'active_no_net_benefit', selectedTier: null };
+  return {
+    reason: mode === 'canary' ? 'canary_not_sampled_or_ineligible' : 'active_no_net_benefit',
+    selectedTier: null,
+    directed: false,
+  };
 }
 
 /**
@@ -139,12 +147,17 @@ function isDisabled(projectRouting, session) {
  * @param {number} [input.level] resolved ContextDevKit level
  * @param {object} [input.projectRouting] config.json `routing` block
  * @param {object} [input.session] per-session routing override
+ * @param {object} [input.commandFacts] explicit { commandCount, expectedOutput, needsInterpretation, batch }
+ * @param {object|null} [input.executionAck] correlated `cdk-economy-ack/1`
  * @param {string|null} [input.logFile] telemetry jsonl path (null → no append)
  * @param {string|null} [input.at] ISO timestamp (caller-supplied; null-safe)
  * @returns {object} `{ active, mode?, reason, decisionId?, recommendedTier?, applied, record?, summary?, logged?, duplicate? }`
  */
 export function routePrompt(input = {}) {
-  const { promptText, intakeSignals, sessionId, taskId, host = 'claude', level, projectRouting, session, logFile = null, at = null } = input;
+  const {
+    promptText, intakeSignals, sessionId, taskId, host = 'claude', level,
+    projectRouting, session, commandFacts, logFile = null, at = null, executionAck = null,
+  } = input;
 
   if (isDisabled(projectRouting, session)) return { active: false, mode: 'disabled', reason: 'routing_disabled', applied: false };
   const resolved = resolveRoutingConfig({ project: projectRouting, session, level });
@@ -152,20 +165,55 @@ export function routePrompt(input = {}) {
   if (!promptText || typeof promptText !== 'string') return { active: false, mode: resolved.mode, reason: 'no_prompt', applied: false };
 
   const classification = classifyTask(classifierSignals(promptText, intakeSignals));
+  const explicitCommandFacts = commandFacts && typeof commandFacts === 'object'
+    ? {
+        ...(Object.hasOwn(commandFacts, 'commandCount') ? { commandCount: commandFacts.commandCount } : {}),
+        ...(Object.hasOwn(commandFacts, 'expectedOutput') ? { expectedOutput: commandFacts.expectedOutput } : {}),
+        ...(Object.hasOwn(commandFacts, 'needsInterpretation') ? { needsInterpretation: commandFacts.needsInterpretation } : {}),
+        ...(Object.hasOwn(commandFacts, 'batch') ? { batch: commandFacts.batch } : {}),
+      }
+    : {};
   const decision = decideRoute(
     classification,
-    { taskId, host, currentTier: resolved.config.reasoningExecutor || 'opus' },
+    { taskId, host, currentTier: resolved.config.reasoningExecutor || 'opus', ...explicitCommandFacts },
     resolved.config,
   );
 
   const fingerprint = fnv1aHex(promptText);
   const policyVersion = policyVersionFor(resolved.config);
   const decisionId = decisionIdFor({ sessionId, fingerprint, policyVersion });
-  const { reason, selectedTier } = resolveOutcome(resolved.mode, decision, host);
+  const { reason: outcomeReason, selectedTier, directed } = resolveOutcome(resolved.mode, decision, host);
+  const reconciled = reconcileDecisionExecution({
+    ...decision,
+    decisionId,
+    selectedTier,
+    directed,
+    reason: outcomeReason,
+  }, executionAck);
+  const economyEvent = createEconomyEvent({
+    ...reconciled,
+    at,
+    lever: 'routing',
+    sessionId,
+    taskId,
+    decisionId,
+    executor: decision.executor,
+    executionAck,
+  });
+  const reason = executionAck && reconciled.ackValid === false
+    ? 'execution_ack_invalid'
+    : reconciled.failed
+      ? 'execution_failed'
+      : reconciled.applied
+        ? 'execution_applied'
+        : reconciled.attempted
+          ? 'execution_attempted'
+          : outcomeReason;
 
   const record = {
-    ...decisionRecord(decision, { at, sessionId, taskId }),
+    ...decisionRecord(reconciled, { at, sessionId, taskId, decisionId, executionAck }),
     schemaVersion: ROUTING_DECISION_SCHEMA,
+    lifecycleSchemaVersion: ECONOMY_EVENT_SCHEMA,
     decisionId,
     timestamp: at,
     promptFingerprint: fingerprint,
@@ -173,8 +221,20 @@ export function routePrompt(input = {}) {
     classification: { complexity: classification.complexity, risk: classification.risk, confidence: classification.confidence },
     recommendedTier: decision.executor,
     selectedTier,
-    actualTier: null, // unobserved — the host never reports the model it actually ran (spec §6.8)
-    applied: false, // host cannot switch the session model from a hook (ADR-0094 §Decision)
+    actualTier: economyEvent.applied ? economyEvent.executionAck?.executor ?? null : null,
+    evaluated: economyEvent.evaluated,
+    eligible: economyEvent.eligible,
+    recommended: economyEvent.recommended,
+    directed: economyEvent.directed,
+    attempted: economyEvent.attempted,
+    applied: economyEvent.applied,
+    skipped: economyEvent.skipped,
+    failed: economyEvent.failed,
+    status: economyEvent.status,
+    policyWouldApply: economyEvent.policyWouldApply,
+    reasonCodes: economyEvent.reasonCodes,
+    executionAck: economyEvent.executionAck,
+    economyEvent,
     reason,
     policyVersion,
     host,
@@ -194,10 +254,20 @@ export function routePrompt(input = {}) {
     reason,
     decisionId,
     recommendedTier: decision.executor,
-    applied: false,
+    policyWouldApply: economyEvent.policyWouldApply,
+    status: economyEvent.status,
+    applied: economyEvent.applied,
     record,
     logged,
     duplicate,
-    summary: { mode: resolved.mode, recommendedTier: decision.executor, applied: false, reason, decisionId },
+    summary: {
+      mode: resolved.mode,
+      recommendedTier: decision.executor,
+      policyWouldApply: economyEvent.policyWouldApply,
+      status: economyEvent.status,
+      applied: economyEvent.applied,
+      reason,
+      decisionId,
+    },
   };
 }

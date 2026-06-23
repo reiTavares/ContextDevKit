@@ -41,9 +41,16 @@ export function envelopeToRecord(envelope, dispatched = []) {
   const e = envelope && typeof envelope === 'object' ? envelope : {};
   const cls = e.classification ?? {};
   const agents = e.agents ?? {};
+  const eventRefs = Array.isArray(e.economy?.eventIds)
+    ? e.economy.eventIds
+    : Array.isArray(e.economyEvents)
+      ? e.economyEvents.map((event) => typeof event === 'string' ? event : event?.eventId)
+      : [];
   return {
     schema: ORCH_TELEMETRY_SCHEMA,
     requestId: e.requestId ?? null,
+    decisionId: e.routing?.decisionId ?? e.routing?.summary?.decisionId ?? null,
+    economyEventIds: [...new Set(eventRefs.filter((id) => typeof id === 'string' && id.length > 0))],
     sessionId: e.sessionId ?? null,
     receivedAt: e.receivedAt ?? null,
     primaryType: e.context?.primaryType ?? null,

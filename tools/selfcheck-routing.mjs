@@ -76,11 +76,17 @@ export async function runRoutingChecks({ ok, bad }, { KIT }) {
   signalsFromTitle('grep the codebase').kind === 'search' ? ok('signalsFromTitle derives search kind') : bad('signalsFromTitle kind wrong');
 
   // -- Decision guard: runner-first + modes ---------------------------------
-  const single = decideRoute(grep, { commandCount: 1, expectedOutput: 'short' }, cfg);
+  const single = decideRoute(grep, {
+    commandCount: 1, expectedOutput: 'short', needsInterpretation: false, batch: false,
+  }, cfg);
   single.executor === 'runner' && single.runnerFirst ? ok('runner-first: 1 simple cmd → runner') : bad(`runner-first failed: ${single.executor}`);
-  const fourCmds = decideRoute(grep, { commandCount: 5, expectedOutput: 'short' }, cfg);
+  const fourCmds = decideRoute(grep, {
+    commandCount: 5, expectedOutput: 'short', needsInterpretation: false, batch: false,
+  }, cfg);
   fourCmds.executor === 'haiku' ? ok('>N commands → haiku batch (not runner)') : bad('command-count guard failed');
-  const batch = decideRoute(grep, { batch: true }, cfg);
+  const batch = decideRoute(grep, {
+    commandCount: 2, expectedOutput: 'short', needsInterpretation: false, batch: true,
+  }, cfg);
   batch.executor === 'haiku' ? ok('batch mechanical → haiku (not runner)') : bad('batch guard failed');
 
   // shadow never applies
@@ -89,18 +95,28 @@ export async function runRoutingChecks({ ok, bad }, { KIT }) {
 
   // canary: deterministic sampling, low-risk mechanical only
   const canaryCfg = { ...cfg, mode: 'canary', canaryPct: 100 };
-  decideRoute(crud, { taskId: 'x' }, canaryCfg).applied === true ? ok('canary 100% applies low-risk') : bad('canary 100% did not apply');
+  const canarySelected = decideRoute(crud, { taskId: 'x' }, canaryCfg);
+  canarySelected.policyWouldApply === true && canarySelected.applied === false
+    ? ok('canary 100% selects policy but waits for execution acknowledgement')
+    : bad('canary 100% policy/ack semantics are wrong');
   const canary0 = { ...cfg, mode: 'canary', canaryPct: 0 };
-  decideRoute(crud, { taskId: 'x' }, canary0).applied === false ? ok('canary 0% applies nothing') : bad('canary 0% applied');
-  decideRoute(auth, { taskId: 'x' }, canaryCfg).applied === false ? ok('canary never applies critical-risk') : bad('canary applied a critical task');
+  decideRoute(crud, { taskId: 'x' }, canary0).policyWouldApply === false ? ok('canary 0% selects nothing') : bad('canary 0% selected a route');
+  decideRoute(auth, { taskId: 'x' }, canaryCfg).policyWouldApply === false ? ok('canary never selects critical-risk') : bad('canary selected a critical task');
 
   // active: applies on net benefit (mechanical/runner or cheaper tier)
   const activeCfg = { ...cfg, mode: 'active' };
-  decideRoute(crud, {}, activeCfg).applied === true ? ok('active applies a beneficial delegation') : bad('active did not apply a beneficial route');
-  decideRoute(auth, {}, activeCfg).applied === false ? ok('active keeps critical work direct (no benefit)') : bad('active applied critical work');
+  const activeSelected = decideRoute(crud, {}, activeCfg);
+  activeSelected.policyWouldApply === true && activeSelected.applied === false
+    ? ok('active selects a beneficial route but waits for acknowledgement')
+    : bad('active policy/ack semantics are wrong');
+  decideRoute(auth, {}, activeCfg).policyWouldApply === false ? ok('active keeps critical work direct (no benefit)') : bad('active selected critical work');
 
   // decideRoute defensively clamps an injected fable executor
   const fableClass = { complexity: 'complex', risk: 'high', executor: 'fable' };
+  const explicitFable = decideRoute(fableClass, {}, { ...cfg, allowAutomaticFable: true });
+  explicitFable.executor === 'fable' && explicitFable.applied === false
+    ? ok('explicit Fable policy is preserved but remains unacknowledged')
+    : bad('explicit Fable compatibility knob was ignored or falsely applied');
   decideRoute(fableClass, {}, cfg).executor !== 'fable' ? ok('decideRoute clamps fable → reasoning tier') : bad('decideRoute let fable through');
 
   // estimate enrichment degrades gracefully without buckets

@@ -30,7 +30,9 @@ export const ORCHESTRATION_DEFAULTS = Object.freeze({
     autoSelect: true,
     autoDispatch: true,
     requireReasonCodes: true,
-    maxParallelAgents: 6,
+    // BIZ-0001 / swarm hard ceiling: one request may fan out to at most five
+    // concurrent specialists, including reviewers and a distinct synthesizer.
+    maxParallelAgents: 5,
   }),
   playbooks: Object.freeze({
     autoSelect: true,

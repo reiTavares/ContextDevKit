@@ -1,32 +1,19 @@
 /**
- * Routing economics — EACP Wave 4 / card #239 (§F model-routing economics +
- * Fable-5 audit). Wires §F decision factors into the economics layer and
- * exposes the Fable-5 audit that guards against accidental premium routing.
- * Cohesion: all exports share the §F routing domain (factors → strategy → ROI →
- * unit cost → tier cost → decision analysis → Fable audit → summary/present).
- * No distinct second consumer yet — one file per ADR-0079 §cohesion.
- * Constitution §8: quality not evaluated → savings withheld; Fable absent →
- * skipped(); no per-model usage → skipped(). Never fabricate a pass/figure.
- * DETERMINISTIC (no Date.now/Math.random/new Date); zero runtime deps (node or relative).
+ * Routing economics (EACP #239): factors, quality-gated ROI, decision analysis
+ * and Fable audit. Deterministic, zero-dep, and refuse-to-invent.
  */
 
 import { routingSavings, costPerQaGreenTask, projectTierCost } from './cost-engine.mjs';
 import { priceFor } from './pricing/pricing-registry.mjs';
 import { skipped } from './privacy.mjs';
 
-/** Canonical schema identifier for routing-economics result objects. */
 export const ROUTING_SCHEMA_VERSION = 'eacp-routing-economics/1';
 
-/**
- * Advisory routing strategies, frozen; order mirrors selectStrategy() priority.
- * @type {Readonly<string[]>}
- */
 export const ROUTING_STRATEGIES = Object.freeze([
   'fixed', 'fallback', 'cost-optimized', 'latency-optimized',
   'quality-evaluated', 'local-first', 'privacy-constrained',
 ]);
 
-/** Maps a complexity/risk scalar or 'low'|'medium'|'high' label to 0-1. */
 function normalizeComplexity(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.min(1, Math.max(0, value));
@@ -35,19 +22,11 @@ function normalizeComplexity(value) {
   return (typeof value === 'string' && value in MAP) ? MAP[value] : null;
 }
 
-/**
- * Normalizes §F decision factors into a frozen object with safe defaults.
- * All inputs optional; invalid fields fall back to null/false, never throw.
- *
- * @param {object} [context] - See source for full field list (all optional).
- * @returns {Readonly<object>}
- */
 export function routingFactors(context = {}) {
   const ctx = (context !== null && typeof context === 'object') ? context : {};
   const str = (v) => (typeof v === 'string' && v.trim().length > 0) ? v.trim() : null;
   const num = (v) => (typeof v === 'number' && Number.isFinite(v)) ? v : null;
   const bool = (v) => Boolean(v);
-
   return Object.freeze({
     taskType:         str(ctx.taskType),
     complexity:       normalizeComplexity(ctx.complexity),
@@ -68,12 +47,7 @@ export function routingFactors(context = {}) {
   });
 }
 
-/**
- * Deterministic advisory strategy selector. First-match priority (see order).
- *
- * @param {ReturnType<typeof routingFactors>|null|undefined} factors
- * @returns {{ strategy: string, reasons: string[] }}
- */
+/** Deterministic advisory strategy selector; first match wins. */
 export function selectStrategy(factors) {
   if (factors == null) return { strategy: 'fixed', reasons: ['no factors → default fixed'] };
   const reasons = [];
@@ -198,23 +172,42 @@ export function analyzeDecisionRecords(records, opts = {}) {
   const floor = (typeof opts.floorTier === 'string') ? opts.floorTier : 'haiku';
   const obs = (typeof opts.observedModel === 'string' && opts.observedModel.trim())
     ? opts.observedModel.trim() : null;
-  const applied   = records.filter(r => r.applied === true);
-  const shadows   = records.filter(r => r.mode === 'shadow');
-  const hostLimit = shadows.length > 0 && applied.length === 0;
-  const recTiers  = [...new Set(records.map(r => r.executor).filter(Boolean))];
-  const applTiers = [...new Set(applied.map(r => r.executor).filter(Boolean))];
-  const floorViol = applied.filter(r => (RANK[r.executor] ?? 99) < (RANK[floor] ?? 0));
+  const recommendedOf = r => r.recommendedTier ?? r.executor ?? null;
+  const appliedOf = r => r.actualTier ?? r.selectedTier ?? r.executor ?? null;
+  const applied = records.filter(r => r.applied === true);
+  const recTiers = [...new Set(records.map(recommendedOf).filter(Boolean))];
+  const applTiers = [...new Set(applied.map(appliedOf).filter(Boolean))];
+  const floorViol = applied.filter(r => (RANK[appliedOf(r)] ?? 99) < (RANK[floor] ?? 0));
+  const hostLimit = applied.length === 0 && records.some(
+    r => r.mode === 'shadow' || r.reason === 'host_does_not_support_in_session_model_switch',
+  );
+  const reasonCounts = {};
+  for (const r of records) {
+    const reasons = [
+      ...(Array.isArray(r.reasonCodes) ? r.reasonCodes : []),
+      ...(Array.isArray(r.reasons) ? r.reasons : []),
+      r.reason,
+    ];
+    for (const reason of [...new Set(reasons.filter(Boolean))]) {
+      reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
+    }
+  }
   return Object.freeze({
     schemaVersion: ROUTING_SCHEMA_VERSION,
     total: records.length, appliedCount: applied.length,
     recommendedTiers: recTiers, appliedTiers: applTiers,
     selectedTier: applTiers[0] ?? null, observedModel: obs,
+    decisionIds: [...new Set(records.map(r => r.decisionId).filter(Boolean))],
+    requestIds: [...new Set(records.map(r => r.requestId).filter(Boolean))],
+    reasons: Object.entries(reasonCounts).map(([reason, count]) => ({ reason, count })),
     hostLimitation: hostLimit,
     honestReason: hostLimit ? 'host_does_not_support_in_session_model_switch'
       : applied.length > 0 ? 'routing_applied' : 'shadow_recommendations_only',
     floorProtected: floorViol.length === 0,
     floorViolations: floorViol.length,
-    savingsEligible: applied.length > 0 && obs !== null,
+    savingsEligible: applied.length > 0 && obs !== null && floorViol.length === 0,
+    providerCacheExcluded: true,
+    note: 'routing decisions only; provider cache value remains a separate financial signal',
   });
 }
 
@@ -284,24 +277,31 @@ export function routingSummary(input) {
  * trailing newline). Handles skipped markers and null gracefully.
  *
  * @param {ReturnType<typeof routingSummary>|null|undefined} summary
+ * @param {ReturnType<typeof analyzeDecisionRecords>|null|undefined} decisions
  * @returns {string}
  */
-export function presentRouting(summary) {
-  if (!summary) return 'Routing economics: skipped (no data)';
-  if (summary.status === 'skipped') return 'Routing economics: skipped (' + summary.reason + ')';
-
-  const lines = [
-    'Routing economics (advisory): ' + summary.models + ' model(s), ' + summary.premiumModels.length + ' premium',
-  ];
-  if (summary.premiumModels.length > 0) lines.push('  premium: ' + summary.premiumModels.join(', '));
-
-  const fable = summary.fable;
+export function presentRouting(summary, decisions = null) {
+  const lines = [];
+  if (!summary || summary.status === 'skipped') {
+    lines.push('Routing economics: skipped (' + (summary?.reason ?? 'no data') + ')');
+  } else {
+    lines.push('Routing economics (advisory): ' + summary.models + ' model(s), ' + summary.premiumModels.length + ' premium');
+    if (summary.premiumModels.length > 0) lines.push('  premium: ' + summary.premiumModels.join(', '));
+  }
+  const fable = summary?.fable;
   if (fable && fable.status !== 'skipped') {
     lines.push(
       '  ⚠️ Fable-5 used — premium $' + fable.price.input + '/$' + fable.price.output +
       ' MTok; intentional? (' + fable.accidentalRisk + ')'
     );
   }
-
+  if (decisions?.status === 'skipped') lines.push('  decision lifecycle: skipped (' + decisions.reason + ')');
+  else if (decisions) {
+    lines.push(`  decisions: evaluated ${decisions.total}; applied ${decisions.appliedCount}; savings eligible ${decisions.savingsEligible ? 'yes' : 'no'} (${decisions.honestReason})`);
+    if (decisions.reasons?.length) {
+      lines.push('  reasons: ' + decisions.reasons.map(r => `${r.reason} (${r.count})`).join(', '));
+    }
+    lines.push('  provider cache: excluded from kit-routing savings');
+  }
   return lines.join('\n');
 }

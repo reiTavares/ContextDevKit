@@ -18,15 +18,29 @@ You just entered **dev-start** mode with the objective:
    their CI/review status** (flagging any *awaiting status*). If an open PR or a
    recent branch overlaps this objective, **surface it and confirm with the user
    before duplicating work** — coordinate or `/claim` first. `gh` missing/unauthed
-   degrades to the git-only view; it never blocks. Behind upstream? `git pull`
-   before editing.
+   degrades to the git-only view; it never blocks. Behind upstream is a fact to
+   surface; **do not pull automatically**.
 
-2. **Read the current state first** — run `node contextkit/tools/scripts/context-pack.mjs`
+2. **Resolve the economy plan before broad context**. Pass the objective as one
+   explicit argv value — it is classified as data and is never executed:
+   ```
+   node contextkit/tools/scripts/economy/dev-start-bootstrap.mjs --objective -- "<user-specified argument>"
+   ```
+   The fail-open, read-mostly bootstrap reports ordered stages and structured
+   lever states for resume/checkpoint, Project Map freshness + focused path/symbol
+   lookup, task intake, RequestOrchestrator, the `dev-start` context profile and
+   `run-compact`. It never regenerates Project Map, runs free-form text, changes
+   git state or moves a card. Use `--json` for `cdk-dev-start-bootstrap/1`.
+
+3. **Read the current state first** — run:
+   ```
+   node contextkit/tools/scripts/context-pack.mjs --profile dev-start
+   ```
    [ADR-0027]: **one** bounded bundle (latest-session digest + `[Unreleased]` +
    immutable rules + open backlog + recent ADRs) in a single call instead of
    opening each file. Open a full source only if the pack flags something to inspect.
 
-3. **Right-size the work** [ADR-0030]. Classify the objective before committing
+4. **Right-size the work** [ADR-0030]. Classify the objective before committing
    to a process — don't over-engineer a typo or under-plan a migration:
    ```
    node contextkit/tools/scripts/complexity-rubric.mjs classify "<user-specified argument>"
@@ -38,14 +52,13 @@ You just entered **dev-start** mode with the objective:
    advisory, not a cage — state it and adjust with the user if it misreads.
 
    **Auto-start a referenced task** [ADR-0034]: if the objective names a backlog
-   task id (e.g. "fix 042" / "ticket 058"), move it into `working/` and attach it
-   to this session so the board tracks it live:
+   task id (e.g. "fix 042" / "ticket 058"), use the bootstrap's correlated id,
+   move it into `working/`, and attach it to this session:
    ```
    node contextkit/tools/scripts/pipeline.mjs start <id>
    ```
-   While you work, the task's heartbeat is renewed on every edit; when you finish,
-   **check off its acceptance criteria** — the Stop hook then auto-concludes it
-   (working → conclusion). No manual `move` needed.
+   While you work, the task heartbeat is renewed on every edit. At completion,
+   check off its acceptance criteria so the Stop hook can auto-conclude it.
 
    **Model routing is active** [ADR-0094] — the boot banner shows the mode
    (`shadow` by default). Apply the posture *Haiku operates · Sonnet executes ·
@@ -59,14 +72,14 @@ You just entered **dev-start** mode with the objective:
    cost, not just per-token price — don't delegate when coordination costs more
    than direct execution. Disable per session via `routing.enabled=false`.
 
-4. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
+5. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```
    ✅ IN-SCOPE: <what we will touch>
    ❌ OUT-OF-SCOPE: <what we will NOT touch, even if tempting>
    ```
    Ask for confirmation before proceeding if there is ambiguity.
 
-5. **Scope lock during the session**:
+6. **Scope lock during the session**:
    - Do NOT suggest refactors in files outside IN-SCOPE.
    - Do NOT "while we're here" rename/reorganize adjacent code.
    - Do NOT add new dependencies without asking.
@@ -77,28 +90,28 @@ You just entered **dev-start** mode with the objective:
      dependency, or an auth change), STOP and re-classify with the user before
      continuing — don't silently let scope creep past the tier you agreed on.
 
-6. **Break the objective into 3–7 concrete tasks** and track them with task.md artifact (or equivalent tracking).
+7. **Break the objective into 3–7 concrete tasks** and track them with task.md artifact (or equivalent tracking).
 
-7. **Workflow spec pack context** [ADR-0057]: if the objective names a workflow
+8. **Workflow spec pack context** [ADR-0057]: if the objective names a workflow
    slug or the task card has `workflow:` / `spec:` metadata, read
    `contextkit/memory/workflows/<slug>/prd.md`, `spec.md`, `tasks.md`, and
    `memory.md` before editing. Do not duplicate those artifacts in the task;
    link them and keep implementation evidence in the card/report.
 
-8. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
+9. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
    ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
    `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
    `*.scratch.md` — scratches are local-only. At conclude time, summarise the
    useful parts into the ticket body and let the scratch be discarded.
 
-9. **Before opening a PR — re-check sync** [ADR-0026]. Run
+10. **Before opening a PR — re-check sync** [ADR-0026]. Run
    `node contextkit/tools/scripts/sync-check.mjs prepr --fetch` (or just use `/git pr`,
    which runs it): it re-confirms you are not behind `main` and that **no open PR
    already exists for this branch** before you create one. (`--fetch` refreshes
    remote refs — read-only checks skip the fetch by default, ticket 065.) Don't duplicate a PR;
    push to update the existing one.
 
-10. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
+11. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
 
 ## Why this mode exists
 
