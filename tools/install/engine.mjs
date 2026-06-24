@@ -30,6 +30,12 @@ const ECONOMY_NOTICE =
 const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
   'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md',
+  // BIZ-0001 / WF-0037 — new decision subtree (business/operation/legacy guides + ADR templates),
+  // seeded write-if-missing so a fresh install gains them and user edits survive --update.
+  'memory/decisions/business/README.md', 'memory/decisions/operations/README.md', 'memory/decisions/legacy/README.md',
+  'memory/decisions/_templates/adr-business.template.md', 'memory/decisions/_templates/adr-operation.template.md',
+  'memory/decisions/_templates/adr-routine-operation-governance.template.md',
+  'memory/decisions/_templates/adr-emergency-governance.template.md',
   'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md',
   'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/project-map/rules.example.json', 'memory/sessions/.gitkeep',
   'memory/workflows/.gitkeep', 'memory/workflows/_TEMPLATE/index.md', 'memory/workflows/_TEMPLATE/prd.md',

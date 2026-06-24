@@ -15,16 +15,18 @@
  * Zero I/O beyond policy loading. Pure given (signals, registry, policy). No LLM,
  * no embeddings, no Math.random. Fail-open to recommended/NEEDS_DECISION always.
  *
- * COHESION NOTE (300 lines — 280 yellow zone, < 308 hard RED): §2, §3, and §7
- * are a single gate pipeline (score → routine-check → hard rules → verdict).
- * Splitting would separate the pipeline from its inputs and create stub modules
- * with no independent consumer. The §1 triple-derivation (a prior pipeline stage)
- * was already extracted to decision-triple.mjs. No further split has a real seam.
+ * COHESION NOTE (~250 lines — clear of the 280 yellow zone): the module is the
+ * §2 materiality + §7 hard-rule verdict pipeline (score → routine-check → hard
+ * rules → verdict). Two prior pipeline stages were extracted to siblings with a
+ * real responsibility seam: §1 triple-derivation → `decision-triple.mjs`, and §3
+ * routine-coverage detection → `decision-routine-coverage.mjs`. What remains is a
+ * single cohesive gate that consumes their outputs; no further split has a seam.
  *
  * @module decision-need-classifier
  */
 import { materialityScore as computeMateriality, DEFAULT_DECISION_POLICY, loadDecisionPolicy } from './materiality-score.mjs';
 import { derivePrimaryContext, deriveDecisionKind, deriveDecisionScope } from './decision-triple.mjs';
+import { detectRoutineCoverage } from './decision-routine-coverage.mjs';
 import { DECISION_KINDS, DECISION_SCOPES, DECISION_COVERAGE_MODES } from '../work/decision-enums.mjs';
 
 // ─── Registry normalizer ──────────────────────────────────────────────────────
@@ -43,64 +45,6 @@ function normalizeRegistry(reg) {
     if (Array.isArray(reg.entries))   return reg.entries;
   }
   return [];
-}
-
-// ─── §3: Routine-coverage detection ──────────────────────────────────────────
-
-/**
- * Checks RC1..RC4 (§3). Returns `covered:false` by default (material path is
- * the safe default — constitution §8 "refuse-to-false-negative").
- *
- * @param {{ primaryContext: object, decisionKind: string }} triple
- * @param {object[]} rows - flat registry rows.
- * @param {string} objectiveLower - lowercased objective.
- * @param {number} matScore - computed materiality score.
- * @param {object} policy - decision-intelligence policy.
- * @returns {{ covered: boolean, adrid: string|null, reason: string }}
- */
-function detectRoutineCoverage(triple, rows, objectiveLower, matScore, policy) {
-  const ceiling = policy.routineCeilingDefault ?? 3;
-
-  // RC1: accepted ROUTINE_OPERATION_GOVERNANCE ADR for this context
-  const standingAdr = rows.find((row) =>
-    row.decisionKind === 'ROUTINE_OPERATION_GOVERNANCE'
-    && row.status === 'accepted'
-    && row.primaryContext?.type === triple.primaryContext?.type
-    && (triple.primaryContext?.id === null
-        || row.primaryContext?.id === triple.primaryContext?.id
-        || triple.primaryContext?.type === 'platform'),
-  );
-  if (!standingAdr) {
-    return { covered: false, adrid: null, reason: 'RC1 fail: no accepted ROUTINE_OPERATION_GOVERNANCE ADR for this context' };
-  }
-
-  // RC2: at least one declared routine class matches the objective
-  const routineClasses = Array.isArray(standingAdr.routineClasses) ? standingAdr.routineClasses : [];
-  const classHit = routineClasses.find((cls) => {
-    const sigs = Array.isArray(cls.signals) ? cls.signals : [];
-    // signals can be { s, w } objects or plain strings
-    return sigs.some((s) => {
-      const needle = typeof s === 'object' ? String(s.s ?? '') : String(s);
-      return needle && objectiveLower.includes(needle.toLowerCase());
-    });
-  });
-  if (!classHit) {
-    return { covered: false, adrid: standingAdr.id, reason: `RC2 fail: no declared routine class in ${standingAdr.id} matched the objective` };
-  }
-
-  // RC3: score below the ADR's declared ceiling (or policy default)
-  const adrCeiling = Number.isFinite(standingAdr.routineCeiling) ? standingAdr.routineCeiling : ceiling;
-  if (matScore >= adrCeiling) {
-    return { covered: false, adrid: standingAdr.id, reason: `RC3 fail: materialityScore ${matScore} >= routineCeiling ${adrCeiling}` };
-  }
-
-  // RC4 is enforced by the caller (HR-4/HR-5 refuse the routine path externally)
-  const className = typeof classHit === 'string' ? classHit : (classHit.name ?? JSON.stringify(classHit));
-  return {
-    covered: true,
-    adrid: standingAdr.id,
-    reason: `ROUTINE_COVERED: matched class '${className}' in ${standingAdr.id} (score ${matScore} < ceiling ${adrCeiling})`,
-  };
 }
 
 // ─── §7 HR-7 advisory helpers ─────────────────────────────────────────────────

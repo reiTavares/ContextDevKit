@@ -53,6 +53,13 @@ const SCRIPT_FILES = [
   // B3 (WF-0037) — lifecycle integration: mirroring/supersession/coverage.
   'work-decision-mirror.mjs', 'work-decision-supersede.mjs', 'work-decision-ownership.mjs',
   'decision-coverage.mjs',
+  // A5 (WF-0036) — intelligence & outcomes: forecast adapter + recurrence/outcomes.
+  'economics/investment-forecast-core.mjs', 'economics/investment-forecast.mjs',
+  'operation-recurrence-core.mjs', 'operation-recurrence.mjs',
+  // B4 (WF-0037) — legacy ADR tooling: indexing, migration, anti-redundancy.
+  'adr-index.mjs', 'adr-migrate.mjs', 'adr-migrate-core.mjs', 'adr-redundancy.mjs', 'adr-redundancy-core.mjs',
+  // B5 (WF-0037) — program-governance validator.
+  'program-governance.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
@@ -225,6 +232,7 @@ const B2_FILES = [
   { rel: 'execution/decision-need-classifier.mjs', abs: resolve(RUNTIME, 'execution/decision-need-classifier.mjs') },
   { rel: 'execution/materiality-score.mjs', abs: resolve(RUNTIME, 'execution/materiality-score.mjs') },
   { rel: 'execution/decision-triple.mjs', abs: resolve(RUNTIME, 'execution/decision-triple.mjs') },
+  { rel: 'execution/decision-routine-coverage.mjs', abs: resolve(RUNTIME, 'execution/decision-routine-coverage.mjs') },
   { rel: 'scripts/decision-search-match.mjs', abs: resolve(SCRIPTS, 'decision-search-match.mjs') },
   { rel: 'scripts/decision-search-score.mjs', abs: resolve(SCRIPTS, 'decision-search-score.mjs') },
 ];
