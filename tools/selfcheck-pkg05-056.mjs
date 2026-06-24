@@ -142,7 +142,7 @@ if (sessionStartRow) {
 
 // ---------------------------------------------------------------------------
 // Section 4 — Capability Enforcement hooks are 'reasoned-skip' not 'GAP'.
-// (Claude-only at L5, ADR-0072. codex and agy don't have UserPromptSubmit.)
+// Claude + Codex wire these at L5; agy remains an explicit reasoned skip.
 // ---------------------------------------------------------------------------
 console.log('\nSection 4: Capability Enforcement hooks → reasoned-skip');
 
@@ -150,6 +150,9 @@ const enforcementHooks = [
   'execution-contract-hook.mjs',
   'execution-gate.mjs',
   'indirect-write-reconcile.mjs',
+  'completion-gate.mjs',
+  'subagent-gate.mjs',
+  'compaction-continuity.mjs',
 ];
 
 for (const hookName of enforcementHooks) {
@@ -161,6 +164,14 @@ for (const hookName of enforcementHooks) {
   assert(
     `4 ${hookName} verdict is 'reasoned-skip' (not 'GAP')`,
     row.verdict === 'reasoned-skip',
+  );
+  assert(
+    `4 ${hookName} is present on Codex`,
+    row.codex === true,
+  );
+  assert(
+    `4 ${hookName} remains an explicit agy limitation`,
+    row.agy === false,
   );
   assert(
     `4 ${hookName} has a reason string`,

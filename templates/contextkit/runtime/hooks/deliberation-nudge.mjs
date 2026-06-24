@@ -117,7 +117,7 @@ async function main() {
   const marker = nudgeMarkerPath(resolveHookSessionId(payload, HOST));
   if (existsSync(marker)) return;
 
-  emitAdvisory(highRisk ? buildNudge(targetPath, highRisk) : buildDecisionNudge(targetPath), HOST);
+  emitAdvisory(highRisk ? buildNudge(targetPath, highRisk) : buildDecisionNudge(targetPath), HOST, 'PreToolUse');
   try {
     await mkdir(SESSIONS_DIR, { recursive: true });
     await writeFileAtomic(marker, String(Date.now()));

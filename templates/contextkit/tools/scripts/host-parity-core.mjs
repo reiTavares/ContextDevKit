@@ -17,20 +17,25 @@ export const REPRESENTATIVE_LEVEL = 5;
 
 // ── Declared skip reasons (hook-level, not command/skill-level) ──────────────
 // Two distinct categories of intentional per-host absence:
-//   A) Capability Enforcement (Claude-only at L5, ADR-0072): hooks only Claude
-//      can wire because Codex and agy lack the UserPromptSubmit event and the
-//      direct-write reconciliation pathway.
+//   A) Capability Enforcement: Claude and Codex wire the shared L5 hooks. agy
+//      still lacks the full prompt/subagent/compaction event contract.
 //   B) agy architectural substitution (ADR-0049): agy routes SessionStart and Stop
 //      through a single session-manager.mjs wrapper rather than the two separate
 //      hooks Claude/Codex use. Both functions are present on agy; the path differs.
 export const ENFORCEMENT_HOOK_REASONS = {
   // Category A — Capability Enforcement.
   'execution-contract-hook.mjs':
-    'Capability Enforcement — Claude-only at L5 (ADR-0072). Codex/agy lack UserPromptSubmit event.',
+    'Capability Enforcement — Claude + Codex at L5; agy has no equivalent UserPromptSubmit contract.',
   'execution-gate.mjs':
-    'Capability Enforcement — Claude-only at L5 (ADR-0072). Advisory mode; codex/agy receive concurrency-guard instead.',
+    'Capability Enforcement — Claude + Codex at L5; agy remains on the narrower native write guards.',
   'indirect-write-reconcile.mjs':
-    'Capability Enforcement — Claude-only at L5 (ADR-0072). Reconciles indirect writes; codex/agy track-edits covers this.',
+    'Capability Enforcement — Claude + Codex reconcile shell/MCP writes; agy has no equivalent supported event contract.',
+  'completion-gate.mjs':
+    'Capability Enforcement — Claude + Codex completion evidence; agy Stop remains the session-manager substitution.',
+  'subagent-gate.mjs':
+    'Capability Enforcement — Claude Task/SubagentStop + Codex SubagentStart/SubagentStop; agy lacks the lifecycle.',
+  'compaction-continuity.mjs':
+    'Capability Enforcement — Claude + Codex compaction continuity; agy has no PreCompact event contract.',
   // Category B — agy session-manager substitution (ADR-0049).
   'session-start.mjs':
     'agy substitution — agy uses session-manager.mjs start (antigravity/) instead of this hook (ADR-0049).',

@@ -16,7 +16,16 @@ export function composeCodexHooks(existing, level) {
   const file = existing && typeof existing === 'object' ? { ...existing } : {};
   const hooks = file.hooks && typeof file.hooks === 'object' ? { ...file.hooks } : {};
 
-  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse']) {
+  for (const evt of [
+    'SessionStart',
+    'PostToolUse',
+    'Stop',
+    'PreToolUse',
+    'UserPromptSubmit',
+    'SubagentStart',
+    'SubagentStop',
+    'PreCompact',
+  ]) {
     if (!Array.isArray(hooks[evt])) continue;
     hooks[evt] = hooks[evt]
       .map((group) => ({
@@ -35,14 +44,22 @@ export function composeCodexHooks(existing, level) {
 
   if (level >= 1) add('SessionStart', null, 'session-start.mjs');
   if (level >= 2) {
-    add('PostToolUse', 'Edit|Write|MultiEdit', 'track-edits.mjs');
+    add('PostToolUse', 'Edit|Write', 'track-edits.mjs');
     add('Stop', null, 'check-registration.mjs');
   }
-  if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
-  if (level >= 4) add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+  if (level >= 3) add('PreToolUse', 'Edit|Write', 'concurrency-guard.mjs');
+  if (level >= 4) add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
   if (level >= 5) {
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs');
+    add('PreToolUse', 'Edit|Write', 'simulate-gate.mjs');
+    add('PreToolUse', 'Edit|Write', 'deliberation-nudge.mjs');
+    add('UserPromptSubmit', null, 'execution-contract-hook.mjs');
+    add('PreToolUse', 'Edit|Write|Bash|mcp__.*', 'execution-gate.mjs');
+    add('PostToolUse', 'Edit|Write|Bash|mcp__.*', 'indirect-write-reconcile.mjs');
+    add('Stop', null, 'completion-gate.mjs');
+    add('SubagentStart', null, 'subagent-gate.mjs');
+    add('SubagentStop', null, 'subagent-gate.mjs');
+    add('PreCompact', null, 'compaction-continuity.mjs');
+    add('SessionStart', 'compact|resume', 'compaction-continuity.mjs');
   }
 
   file.hooks = hooks;

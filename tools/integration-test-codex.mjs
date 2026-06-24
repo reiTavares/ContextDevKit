@@ -6,7 +6,7 @@
  * surfaces: AGENTS.md, `.codex/` hooks/subagents, `source-command-*` skills,
  * and the `cdx.mjs` command runner alias.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
 
@@ -28,11 +28,22 @@ try {
   existsSync(join(proj, '.agents', 'skills', 'source-command-state', 'SKILL.md'))
     ? ok('Codex source-command skills installed under .agents/skills')
     : bad('Codex source-command skill missing');
+  readdirSync(join(proj, '.agents', 'skills')).filter((name) => name.startsWith('source-command-')).length === 80
+    ? ok('Codex installs all 80 canonical command projections (zero silent skips)')
+    : bad('Codex command projection count does not match Claude');
 
   const reviewer = readFileSync(join(proj, '.codex', 'agents', 'code-reviewer.toml'), 'utf-8');
   /AGENTS\.md/.test(reviewer) && !/CLAUDE\.md/.test(reviewer)
     ? ok('Codex subagents are adapted to AGENTS.md')
     : bad('Codex subagent still references CLAUDE.md');
+  const architectAgent = readFileSync(join(proj, '.codex', 'agents', 'architect.toml'), 'utf-8');
+  const qaUnitAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-unit.toml'), 'utf-8');
+  const qaOrchestratorAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-orchestrator.toml'), 'utf-8');
+  /model = "gpt-5\.5"/.test(architectAgent) &&
+  /model = "gpt-5\.4-mini"/.test(qaUnitAgent) &&
+  !/^model = /m.test(qaOrchestratorAgent)
+    ? ok('Codex subagents carry host-resolved models and preserve inherit')
+    : bad('Codex subagent model projection is wrong');
 
   const codexModel = run([join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'resolve', '--agent', 'qa-unit', '--task', 'execute', '--host', 'codex'], { cwd: proj });
   (() => { try { return JSON.parse(codexModel.stdout).model === 'gpt-5.4-mini'; } catch { return false; } })()
@@ -45,6 +56,10 @@ try {
   )
     ? ok('.codex/hooks.json wires the L5 simulate gate with the Codex host flag')
     : bad('.codex/hooks.json missing the Codex simulate gate host flag');
+  ['UserPromptSubmit', 'SubagentStart', 'SubagentStop', 'PreCompact'].every((event) => Array.isArray(hooks.hooks?.[event])) &&
+  (hooks.hooks?.Stop ?? []).some((entry) => (entry.hooks ?? []).some((hook) => /completion-gate\.mjs --host codex/.test(hook.command ?? '')))
+    ? ok('.codex/hooks.json wires Codex-native L5 contract/completion/subagent/compaction events')
+    : bad('.codex/hooks.json is missing modern Codex L5 lifecycle hooks');
 
   const agentsMd = readFileSync(join(proj, 'AGENTS.md'), 'utf-8');
   /Complete Session Workflow \(Codex\)/.test(agentsMd) &&
@@ -58,6 +73,19 @@ try {
     ? ok('Codex SessionStart emits Codex-aware boot context')
     : bad(`Codex SessionStart output wrong: ${boot.stdout.slice(0, 300)}`);
 
+  const contract = run([join(proj, 'contextkit', 'runtime', 'hooks', 'execution-contract-hook.mjs'), '--host', 'codex'], {
+    cwd: proj,
+    input: JSON.stringify({
+      session_id: 'codex_local',
+      hook_event_name: 'UserPromptSubmit',
+      prompt: 'Implement a focused feature with tests and update the changelog.',
+    }),
+  });
+  const contractLedger = JSON.parse(readFileSync(join(proj, '.claude', '.sessions', 'codex_local.json'), 'utf-8'));
+  contract.status === 0 && typeof contractLedger.activeTask === 'string'
+    ? ok('Codex UserPromptSubmit creates the shared execution contract')
+    : bad(`Codex execution-contract hook failed: ${(contract.stdout + contract.stderr).slice(0, 300)}`);
+
   writeFileSync(join(proj, 'codex-owned.txt'), 'hello\n');
   run([join(proj, 'contextkit', 'runtime', 'hooks', 'track-edits.mjs'), '--host', 'codex'], {
     cwd: proj,
@@ -67,6 +95,35 @@ try {
   ledger.modifications?.some((entry) => entry.path === 'codex-owned.txt')
     ? ok('Codex hooks share one stable session ledger without session_id')
     : bad('Codex track-edits did not reuse the SessionStart ledger');
+
+  mkdirSync(join(proj, 'src'), { recursive: true });
+  writeFileSync(join(proj, 'src', 'patched.js'), 'export const value = 2;\n');
+  run([join(proj, 'contextkit', 'runtime', 'hooks', 'track-edits.mjs'), '--host', 'codex'], {
+    cwd: proj,
+    input: JSON.stringify({
+      session_id: 'codex_local',
+      hook_event_name: 'PostToolUse',
+      tool_name: 'apply_patch',
+      tool_input: { command: '*** Begin Patch\n*** Update File: src/patched.js\n@@\n-old\n+new\n*** End Patch\n' },
+    }),
+  });
+  const patchedLedger = JSON.parse(readFileSync(join(proj, '.claude', '.sessions', 'codex_local.json'), 'utf-8'));
+  patchedLedger.modifications?.some((entry) => entry.path === 'src/patched.js' && entry.tool === 'Write')
+    ? ok('Codex apply_patch payload records every edited path through the shared adapter')
+    : bad('Codex apply_patch path was invisible to track-edits');
+
+  mkdirSync(join(proj, 'apps', 'codex-module'), { recursive: true });
+  writeFileSync(join(proj, 'apps', 'codex-module', 'package.json'), '{"name":"codex-module"}');
+  const scopedGuide = run([
+    join(proj, 'contextkit', 'tools', 'scripts', 'claude-md.mjs'),
+    'scaffold',
+    '--host',
+    'codex',
+  ], { cwd: proj });
+  existsSync(join(proj, 'apps', 'codex-module', 'AGENTS.md')) &&
+  /Scaffolded 1 scoped AGENTS\.md/.test(scopedGuide.stdout)
+    ? ok('Codex modular-instructions skill scaffolds scoped AGENTS.md')
+    : bad(`Codex scoped AGENTS.md scaffolding failed: ${(scopedGuide.stdout + scopedGuide.stderr).slice(0, 300)}`);
 
   const menu = cdx('help');
   menu.status === 0 && /Command Runner \(Codex\)/.test(menu.stdout)

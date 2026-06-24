@@ -73,9 +73,9 @@ playbook + ADR-0017. Do **not** copy the opt-in starter — `/setupcontextdevkit
 detects and writes rules; the starter is `/aidevtool-from0`-only.
 
 ## Phase 4b — Scoped AGENTS.md per app/module
-Run `node contextkit/tools/scripts/claude-md.mjs find`. For a multi-app/monorepo
+Run `node contextkit/tools/scripts/claude-md.mjs find --host codex`. For a multi-app/monorepo
 project, ensure **each app/module has its own AGENTS.md** (backend, frontend,
-each package/service): `claude-md.mjs scaffold`, then **fill each** with real
+each package/service): `claude-md.mjs scaffold --host codex`, then **fill each** with real
 local rules (role, local stack, local conventions, boundaries) via `/claude-md`.
 Single-package project → the root AGENTS.md is enough; skip.
 

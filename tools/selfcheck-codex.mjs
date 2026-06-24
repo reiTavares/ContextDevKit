@@ -43,7 +43,7 @@ async function checkCodexHooks(rep, KIT) {
     1: ['SessionStart'],
     2: ['PostToolUse', 'SessionStart', 'Stop'],
     3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
   };
   for (const [level, want] of Object.entries(expected)) {
     const got = events(Number(level));
@@ -96,6 +96,43 @@ async function checkSkillCoverage(rep, core, commandFiles, skillDirs) {
   leaked.length === 0
     ? ok(`Host-inappropriate commands skipped (${core.CODEX_SKILL_SKIP_LIST.join(', ')})`)
     : bad(`skip-listed command emitted a Codex skill: ${leaked.join(', ')}`);
+}
+
+async function codexModelMap(KIT) {
+  const raw = await readFile(resolve(KIT, 'templates/contextkit/policy/routing-policy.json'), 'utf-8');
+  const policy = JSON.parse(raw.replace(/^\uFEFF/, ''));
+  const models = {};
+  for (const [tier, definition] of Object.entries(policy.tiers ?? {})) {
+    if (definition?.alias && policy.hostModels?.codex?.[tier]) {
+      models[definition.alias] = policy.hostModels.codex[tier];
+    }
+  }
+  return models;
+}
+
+async function checkGeneratedContent(rep, KIT, core, commandFiles, agentFiles) {
+  const { ok, bad } = rep;
+  const staleSkills = [];
+  for (const file of commandFiles) {
+    if (core.isSkippedForCodex(file)) continue;
+    const raw = await readFile(resolve(KIT, 'templates/claude/commands', file), 'utf-8');
+    const actual = await readFile(resolve(KIT, 'templates/codex/skills', core.codexSkillName(file), 'SKILL.md'), 'utf-8').catch(() => '');
+    if (actual !== core.convertCommandToSkill(raw, file)) staleSkills.push(file);
+  }
+  staleSkills.length === 0
+    ? ok('Every Codex skill is byte-current with its canonical Claude command projection')
+    : bad(`Stale Codex skill projections: ${staleSkills.slice(0, 5).join(', ')}`);
+
+  const hostModels = await codexModelMap(KIT);
+  const staleAgents = [];
+  for (const file of agentFiles) {
+    const raw = await readFile(resolve(KIT, 'templates/claude/agents', file), 'utf-8');
+    const actual = await readFile(resolve(KIT, 'templates/codex/agents', `${basename(file, '.md')}.toml`), 'utf-8').catch(() => '');
+    if (actual !== core.convertAgentToToml(raw, file, { hostModels })) staleAgents.push(file);
+  }
+  staleAgents.length === 0
+    ? ok('Every Codex subagent is byte-current and carries the host-resolved model policy')
+    : bad(`Stale Codex agent projections: ${staleAgents.slice(0, 5).join(', ')}`);
 }
 
 /**
@@ -176,6 +213,25 @@ async function checkCodexParity(rep, KIT) {
   missingAgents.length === 0
     ? ok(`Codex agents track Claude agents (${agentFiles.length} file(s))`)
     : bad(`Codex agents missing: ${missingAgents.slice(0, 5).join(', ')}`);
+  await checkGeneratedContent(rep, KIT, core, commandFiles, agentFiles);
+
+  const architect = await readFile(resolve(KIT, 'templates/codex/agents/architect.toml'), 'utf-8');
+  const qaUnit = await readFile(resolve(KIT, 'templates/codex/agents/qa-unit.toml'), 'utf-8');
+  const qaOrchestrator = await readFile(resolve(KIT, 'templates/codex/agents/qa-orchestrator.toml'), 'utf-8');
+  /model = "gpt-5\.5"/.test(architect) &&
+  /model = "gpt-5\.4-mini"/.test(qaUnit) &&
+  !/^model = /m.test(qaOrchestrator)
+    ? ok('Codex agent models project reasoning/fast tiers and preserve inherit')
+    : bad('Codex agent model projection is incomplete');
+
+  const specialSkills = await Promise.all(['claude-md', 'token-report', 'fable'].map(
+    (name) => readFile(resolve(KIT, `templates/codex/skills/source-command-${name}/SKILL.md`), 'utf-8').catch(() => ''),
+  ));
+  specialSkills[0].includes('AGENTS.md') && specialSkills[0].includes('--host codex') &&
+  specialSkills[1].includes('autonomy-report.mjs') && !specialSkills[1].includes('~/.claude') &&
+  specialSkills[2].includes('model-policy.mjs tier reasoning --host codex')
+    ? ok('Claude-specific commands have honest functional Codex replacements')
+    : bad('Codex replacements for claude-md/token-report/fable are incomplete');
 }
 
 async function checkCodexInventory(rep, KIT) {

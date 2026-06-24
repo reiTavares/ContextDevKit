@@ -36,7 +36,7 @@ import { loadContract } from '../execution/execution-contract.mjs';
 import { readReceipts } from '../execution/receipt-store.mjs';
 import { writeFileAtomicSync, readJsonSafe } from './safe-io.mjs';
 import { readLedger } from './ledger.mjs';
-import { hookHost, resolveHookSessionId } from './host-adapter.mjs';
+import { emitAdvisory, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { pathsFor } from '../config/paths.mjs';
 import { summarizeObligations } from '../execution/compaction-continuity-core.mjs';
 
@@ -117,8 +117,10 @@ async function handlePreCompact(sessionId) {
   mkdirSync(stateDir, { recursive: true });
   writeFileAtomicSync(continuityPathFor(ROOT, taskId), JSON.stringify(record, null, 2));
 
-  process.stdout.write(
-    `[compaction-continuity] Context compacting — task ${taskId} continuity record saved.\n`
+  emitAdvisory(
+    `[compaction-continuity] Context compacting — task ${taskId} continuity record saved.\n`,
+    HOST,
+    'PreCompact',
   );
 }
 
@@ -176,7 +178,7 @@ async function handleSessionStart(sessionId, payload) {
     }`,
     `  Context snapshot: "${record.summary}"`,
   ];
-  process.stdout.write(lines.join('\n') + '\n');
+  emitAdvisory(lines.join('\n') + '\n', HOST, 'SessionStart');
 }
 
 // ---------------------------------------------------------------------------

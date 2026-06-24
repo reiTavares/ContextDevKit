@@ -19,7 +19,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'nod
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { reporter } from './it-helpers.mjs';
+import { reporter, run } from './it-helpers.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const rep = reporter();
@@ -34,6 +34,7 @@ const LEDGER_PATH = resolve(KIT, 'templates/contextkit/runtime/hooks/ledger.mjs'
 const EVAL_PATH = resolve(KIT, 'templates/contextkit/runtime/execution/evaluate-action.mjs');
 const CONTRACT_PATH = resolve(KIT, 'templates/contextkit/runtime/execution/execution-contract.mjs');
 const INTAKE_PATH = resolve(KIT, 'templates/contextkit/runtime/execution/task-intake.mjs');
+const EXEC_GATE_PATH = resolve(KIT, 'templates/contextkit/runtime/hooks/execution-gate.mjs');
 
 let readLedger, writeLedger;
 let evaluateAction;
@@ -71,7 +72,7 @@ function hermeticSession() {
   const sessDir = join(root, '.claude', '.sessions');
   mkdirSync(sessDir, { recursive: true });
   // Provide a minimal config.json so loadConfig and getLevel work.
-  const ckDir = join(root, 'contextkit', 'config');
+  const ckDir = join(root, 'contextkit');
   mkdirSync(ckDir, { recursive: true });
   writeFileSync(join(ckDir, 'config.json'), JSON.stringify({ level: 5 }));
 
@@ -251,6 +252,41 @@ console.log('\nEB6. Fresh project map -> budget rule silent...');
   r.decision === 'allow'
     ? rep.ok('EB6. fresh map + over-count -> allow (budget not the constraint)')
     : rep.bad(`EB6. expected allow, got ${r.decision}`);
+}
+
+// ---------------------------------------------------------------------------
+// EB7. Hook uses ledger.activeTask when tool_input.taskId is absent
+// ---------------------------------------------------------------------------
+console.log('\nEB7. execution-gate falls back to ledger.activeTask...');
+{
+  const sess = hermeticSession();
+  try {
+    const { taskId } = buildFeatureContract(sess.root, sess.sessionId);
+    const ledgerFile = join(sess.root, '.claude', '.sessions', `${sess.sessionId}.json`);
+    writeFileSync(ledgerFile, JSON.stringify({
+      sessionId: sess.sessionId,
+      activeTask: taskId,
+      broadSearchCount: 3,
+      modifications: [],
+      registered: false,
+      startedAt: Date.now(),
+    }, null, 2));
+    const gate = run([EXEC_GATE_PATH, '--host', 'codex'], {
+      cwd: sess.root,
+      input: JSON.stringify({
+        session_id: sess.sessionId,
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Read',
+        tool_input: { file_path: 'src/example.js' },
+      }),
+    });
+    const output = `${gate.stdout}${gate.stderr}`;
+    gate.status === 0 && output.includes('[execution-gate] Advisory') && output.includes('receipt-missing')
+      ? rep.ok('EB7. hook loaded contract through ledger.activeTask fallback')
+      : rep.bad(`EB7. expected execution-gate advisory via activeTask fallback, got: ${output.slice(0, 240)}`);
+  } finally {
+    sess.clean();
+  }
 }
 
 rep.finish('explore-budget counter (CDK-035)');

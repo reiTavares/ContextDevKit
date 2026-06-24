@@ -6,7 +6,8 @@ How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Go
 
 Codex is the third host surface. Claude remains the canonical authored source for
 commands and specialist agents; Codex assets are generated from it so the hosts do
-not drift.
+not drift. The current Codex build emits 80 command-backed skills and 35
+subagents from that source; no Claude command is silently omitted.
 
 ## What Gets Installed
 
@@ -36,11 +37,19 @@ your-project/
 Codex uses `.codex/hooks.json` to run the same governance loop as Claude Code:
 
 - `SessionStart` -> `session-start.mjs --host codex`
-- `PostToolUse` -> `track-edits.mjs --host codex`
+- `UserPromptSubmit` -> `execution-contract-hook.mjs --host codex`
 - `PreToolUse` -> `concurrency-guard.mjs --host codex`
+- `PostToolUse` -> `track-edits.mjs --host codex`
 - L5 `PreToolUse` -> `simulate-gate.mjs --host codex` and
   `deliberation-nudge.mjs --host codex`
-- `Stop` -> `check-registration.mjs --host codex`
+- L5 `PreToolUse` / `PostToolUse` across `Edit|Write|Bash|mcp__.*` ->
+  `execution-gate.mjs --host codex` and
+  `indirect-write-reconcile.mjs --host codex`
+- `Stop` -> `check-registration.mjs --host codex` and, at L5,
+  `completion-gate.mjs --host codex`
+- `SubagentStart` / `SubagentStop` -> `subagent-gate.mjs --host codex`
+- `PreCompact` and compact/resume `SessionStart` ->
+  `compaction-continuity.mjs --host codex`
 
 When Codex does not provide a stable `session_id`, SessionStart mints a local
 Codex marker so later hook events reuse the same ledger instead of fragmenting
@@ -48,11 +57,17 @@ the session. If a Codex surface does not support hooks, the fallback is explicit
 start with `node cdx.mjs state`, use the generated `source-command-*` skills or
 `node cdx.mjs <command>`, and finish with `node cdx.mjs log-session`.
 
+Codex hook output is host-shaped by `host-adapter.mjs`: advisories that would be
+plain text on Claude become Codex JSON advisory payloads, and `apply_patch`
+payloads are normalized into write paths before edit tracking or execution
+guards reason over them.
+
 ## Model Routing
 
 ADR-0052 routing is active on Codex. Dispatching skills call
 `contextkit/tools/scripts/model-policy.mjs --host codex` before spawning a
-subagent, so demand tiers resolve to Codex model overrides:
+subagent, and generated `.codex/agents/*.toml` files project Claude frontmatter
+model tiers to Codex model overrides:
 
 - `fast` -> `gpt-5.4-mini`
 - `powerful` -> `gpt-5.4`
@@ -72,9 +87,15 @@ The build converts:
 - `templates/claude/commands/**/*.md` -> `templates/codex/skills/source-command-*/SKILL.md`
 - `templates/claude/agents/*.md` -> `templates/codex/agents/*.toml`
 
-Selfcheck verifies both name parity and byte-for-byte content parity against an
-in-memory rebuild. If a Claude command or agent changes and Codex is not
-regenerated, CI fails with the `build:codex` hint.
+Selfcheck verifies name parity, byte-for-byte content parity against an
+in-memory rebuild, model-tier projection, and the special host-specific
+projections for `/token-report`, `/fable`, and `/claude-md`. If a Claude command
+or agent changes and Codex is not regenerated, CI fails with the `build:codex`
+hint.
+
+Project-specific MCP rendering remains governed by ADR-0073. The Codex host can
+wire MCP-shaped hook matchers (`mcp__.*`) once tools are invoked, but it does not
+invent a project MCP configuration when no canonical project MCP source exists.
 
 ## Coexistence
 

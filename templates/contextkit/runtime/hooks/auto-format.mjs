@@ -17,9 +17,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { normalizeToolPayload } from './host-adapter.mjs';
+import { emitAdvisory, hookHost, normalizeToolPayload } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
+const HOST = hookHost();
 
 /** Reads the full hook payload from stdin (JSON). Returns {} on any problem. */
 function readStdin() {
@@ -132,7 +133,7 @@ function main() {
     const run = spawnSync(cmd, args, { cwd: ROOT, timeout: 60_000, encoding: 'utf-8', shell: process.platform === 'win32' });
     if (run.status !== 0) {
       // Advisory only — never block (rule 2).
-      process.stdout.write(`auto-format: ${cmd} reported issues (advisory, not blocking).\n`);
+      emitAdvisory(`auto-format: ${cmd} reported issues (advisory, not blocking).\n`, HOST, 'PostToolUse');
     }
   } catch {
     /* never break the agent's work */

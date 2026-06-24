@@ -40,6 +40,29 @@ this project follows [Semantic Versioning](https://semver.org/).
   Session Autonomy Receipt, Task Compiler, QA, pipeline, and log-session source
   changes are projected consistently.
 
+### Codex host parity closure (ADR-0056 follow-up, card 351)
+
+Codex now projects the full Claude command/agent surface instead of carrying
+silent host gaps. The Codex build emits 80 generated `source-command-*` skills
+(0 skipped) and 35 generated TOML subagents, with selfcheck enforcing
+byte-for-byte generated content parity against an in-memory rebuild.
+
+#### Changed
+- **Command parity is explicit.** `/claude-md`, `/token-report`, and `/fable`
+  now have Codex-specific functional projections instead of being omitted. The
+  converter also rewrites `claude-md.mjs` instructions to pass `--host codex`
+  wherever a generated Codex skill references the guide scaffolder.
+- **Agent model intent is preserved.** Claude frontmatter model tiers now project
+  through the Codex host model policy into generated `.codex/agents/*.toml`
+  `model` overrides, while inherited dispatcher agents stay unset.
+- **Capability Enforcement reaches Codex L5.** Codex hook composition now wires
+  execution contracts, execution gates, indirect-write reconciliation,
+  completion evidence, subagent lifecycle checks, and compaction continuity using
+  Codex-native hook events and JSON advisory payloads.
+- **Codex write tracking understands `apply_patch`.** The host adapter extracts
+  file paths from Codex `apply_patch` payloads so shared edit ledgers, gates, and
+  reconciliation reason over the real affected files.
+
 ### Universal wave-based workflow engine (ADR-0101, WF0035)
 
 One wave-based execution model for every formal workflow size — a basic workflow
