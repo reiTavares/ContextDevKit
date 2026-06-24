@@ -54,6 +54,18 @@ You just entered **dev-start** mode with the objective:
    **check off its acceptance criteria** — the Stop hook then auto-concludes it
    (working → conclusion). No manual `move` needed.
 
+   **Model routing is active** [ADR-0094] — the boot banner shows the mode
+   (`shadow` by default). Apply the posture *Haiku operates · Sonnet executes ·
+   Opus decides* without being re-prompted: run ≤3 simple deterministic commands
+   **directly** (runner-first — never spawn an agent for one trivial command);
+   **batch** mechanical investigation (grep/glob/tests/lint/log triage) to a
+   **Haiku** agent that returns a compact pack; delegate bounded low/medium-risk
+   implementation to **Sonnet** under a short contract; keep **Opus** for decisions
+   and for implementing high/critical-risk code directly (auth/RLS, migrations,
+   concurrency, public contracts). Never auto-select Fable. Minimize *total* task
+   cost, not just per-token price — don't delegate when coordination costs more
+   than direct execution. Disable per session via `routing.enabled=false`.
+
 4. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
    ```
    ✅ IN-SCOPE: <what we will touch>

@@ -140,7 +140,7 @@ async function main() {
       }
     }
   }
-  if (collisions.length > 0) emitAdvisory(buildWarning(collisions), HOST);
+  if (collisions.length > 0) emitAdvisory(buildWarning(collisions), HOST, 'PostToolUse');
 }
 
 main().catch((err) => {

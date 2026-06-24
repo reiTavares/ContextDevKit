@@ -12,7 +12,7 @@
 import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve, join, relative, dirname, basename } from 'node:path';
-import { ANTIGRAVITY_DIR, CODEX_DIR } from '../config/paths.mjs';
+import { ANTIGRAVITY_DIR, CODEX_DIR, PLATFORM_DIR } from '../config/paths.mjs';
 import { codexSkillName, convertCommandToSkill, convertAgentToToml, isSkippedForCodex } from './convert-core.mjs';
 
 const ROOT = process.cwd();
@@ -23,6 +23,25 @@ const SRC_BASE = TEMPLATES_MODE ? 'templates/claude' : '.claude';
 const DST_BASE = TEMPLATES_MODE ? 'templates/codex' : CODEX_DIR;
 const SKILLS_DST = TEMPLATES_MODE ? resolve(ROOT, DST_BASE, 'skills') : resolve(ROOT, ANTIGRAVITY_DIR, 'skills');
 const AGENTS_DST = resolve(ROOT, DST_BASE, 'agents');
+
+async function codexHostModels() {
+  try {
+    const policyPath = TEMPLATES_MODE
+      ? resolve(ROOT, 'templates', PLATFORM_DIR, 'policy', 'routing-policy.json')
+      : resolve(ROOT, PLATFORM_DIR, 'policy', 'routing-policy.json');
+    const raw = await readFile(policyPath, 'utf-8');
+    const policy = JSON.parse(raw.replace(/^\uFEFF/, ''));
+    const models = {};
+    for (const [tier, definition] of Object.entries(policy.tiers ?? {})) {
+      if (definition?.alias && policy.hostModels?.codex?.[tier]) {
+        models[definition.alias] = policy.hostModels.codex[tier];
+      }
+    }
+    return models;
+  } catch {
+    return {};
+  }
+}
 
 async function listMdFiles(dir, base = dir) {
   const out = [];
@@ -52,6 +71,7 @@ async function cleanGenerated(dir) {
 
 async function main() {
   const report = { skills: 0, skipped: 0, agents: 0, errors: [] };
+  const hostModels = await codexHostModels();
   if (TEMPLATES_MODE) {
     await cleanGenerated(SKILLS_DST);
     await cleanGenerated(AGENTS_DST);
@@ -76,7 +96,7 @@ async function main() {
     try {
       const raw = await readFile(agent.absolute, 'utf-8');
       const dst = join(AGENTS_DST, `${basename(agent.relative, '.md')}.toml`);
-      await writeOutput(dst, convertAgentToToml(raw, agent.relative));
+      await writeOutput(dst, convertAgentToToml(raw, agent.relative, { hostModels }));
       report.agents++;
     } catch (err) {
       report.errors.push(`agent:${agent.relative}: ${err.message}`);

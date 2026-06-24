@@ -27,7 +27,7 @@ import { readDispatchedAgents, comparePlannedActual } from '../execution/request
 import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
 import { evaluateCompletion } from '../execution/evaluate-completion.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
-import { emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
+import { emitAdvisory, emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { currentBranch } from '../../tools/scripts/workflow-pack.mjs';
 
 const ROOT = process.cwd();
@@ -196,7 +196,7 @@ async function main() {
   await writeLedger(sessionId, ledger);
 
   if (mode === 'advisory' || result.decision !== 'deny') {
-    process.stdout.write(buildAdvisoryText(result, taskId));
+    emitAdvisory(buildAdvisoryText(result, taskId), HOST, 'Stop');
     return;
   }
 

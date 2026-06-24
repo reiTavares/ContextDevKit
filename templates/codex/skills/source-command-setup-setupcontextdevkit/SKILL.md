@@ -73,9 +73,9 @@ playbook + ADR-0017. Do **not** copy the opt-in starter — `/setupcontextdevkit
 detects and writes rules; the starter is `/aidevtool-from0`-only.
 
 ## Phase 4b — Scoped AGENTS.md per app/module
-Run `node contextkit/tools/scripts/claude-md.mjs find`. For a multi-app/monorepo
+Run `node contextkit/tools/scripts/claude-md.mjs find --host codex`. For a multi-app/monorepo
 project, ensure **each app/module has its own AGENTS.md** (backend, frontend,
-each package/service): `claude-md.mjs scaffold`, then **fill each** with real
+each package/service): `claude-md.mjs scaffold --host codex`, then **fill each** with real
 local rules (role, local stack, local conventions, boundaries) via `/claude-md`.
 Single-package project → the root AGENTS.md is enough; skip.
 
@@ -119,8 +119,16 @@ Confirm before any push/repo-creation (outward-facing).
 ## Phase 7 — Record the baseline
 1. Create `contextkit/memory/decisions/0001-<stack-slug>.md` (use `/new-adr` style)
    capturing the chosen stack + immutable rules as the baseline decision.
-2. Run `/log-session` to register this onboarding session.
-3. The `setup-complete.mjs` call already flipped `config.setup.completed = true`,
+2. **Generate the project-map baseline** (skip if greenfield):
+   ```
+   node contextkit/tools/scripts/project-map.mjs
+   ```
+   Then read `contextkit/memory/project-map/00-index.md` and give the user a
+   3–5 line summary: how many modules, the frontend/backend split, the stack,
+   and anything surprising. (`setup-complete.mjs --detect` already runs this
+   automatically — verify `manifest.json` was written; if absent, run it now.)
+3. Run `/log-session` to register this onboarding session.
+4. The `setup-complete.mjs` call already flipped `config.setup.completed = true`,
    so the first-run trigger will no longer fire. Confirm it is `true`.
 
 ## Phase 8 — Report

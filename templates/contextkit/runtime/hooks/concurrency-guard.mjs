@@ -153,7 +153,7 @@ async function main() {
       '   (c) you confirm the file is unrelated to that session\'s task.',
       '</concurrency-deny>',
     ].join('\n');
-    emitAdvisory(out, HOST);
+    emitAdvisory(out, HOST, 'PreToolUse');
     process.exit(1);
   }
 
@@ -168,7 +168,7 @@ async function main() {
     '   changes and add yours — do NOT clobber another session\'s work.',
     '</concurrency-warning>',
   ].join('\n');
-  emitAdvisory(out, HOST);
+  emitAdvisory(out, HOST, 'PreToolUse');
 }
 
 main().catch((err) => {

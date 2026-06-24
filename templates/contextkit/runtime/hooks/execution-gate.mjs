@@ -22,7 +22,7 @@ import { getLevel, loadConfig } from '../config/load.mjs';
 import { loadContract } from '../execution/execution-contract.mjs';
 import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
 import { evaluateAction, toolMoment } from '../execution/evaluate-action.mjs';
-import { emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
+import { emitAdvisory, emitBlockDecision, hookHost, normalizeToolPayload, resolveHookSessionId } from './host-adapter.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
 import { listWorkflows, currentBranch, PHASES } from '../../tools/scripts/workflow-pack.mjs';
 import { pathsFor } from '../config/paths.mjs';
@@ -33,10 +33,6 @@ import { buildEconomyAdvisory } from '../../tools/scripts/economy/gate-advisory.
 const ROOT = process.cwd();
 const HOST = hookHost();
 
-// ---------------------------------------------------------------------------
-// stdin helper (mirrors simulate-gate.mjs pattern)
-// ---------------------------------------------------------------------------
-
 async function readStdin() {
   return new Promise((res) => {
     let buf = '';
@@ -46,10 +42,6 @@ async function readStdin() {
     setTimeout(() => res(buf), 500).unref?.();
   });
 }
-
-// ---------------------------------------------------------------------------
-// projectState builders
-// ---------------------------------------------------------------------------
 
 /**
  * Extracts the taskId from the hook payload. Best-effort: reads
@@ -119,10 +111,6 @@ function isProjectMapFresh(root) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Warning message builder
-// ---------------------------------------------------------------------------
-
 /**
  * Formats a human-readable advisory warning from evaluateAction output.
  *
@@ -167,10 +155,6 @@ function buildBlockText(result, toolName) {
   return lines.join('\n');
 }
 
-// ---------------------------------------------------------------------------
-// CDK-035: broad-search counter helpers
-// ---------------------------------------------------------------------------
-
 /**
  * Returns true when the tool call is a broad exploration (for CDK-035 counter).
  * Mirrors `isBroadSearch` in evaluate-action.mjs — kept local so the gate wrapper
@@ -213,10 +197,6 @@ async function incrementBroadSearchCount(sessionId, projectMapFresh) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
 async function main() {
   // Inert below Level 5.
   if (getLevel(ROOT) < 5) return;
@@ -231,8 +211,11 @@ async function main() {
     return; // malformed stdin → silent, fail-open
   }
 
-  const { toolName } = normalizeToolPayload(payload);
+  const { toolName, filePaths } = normalizeToolPayload(payload);
   if (!toolName) return;
+  const sessionId = resolveHookSessionId(payload, HOST, ROOT);
+  const ledger = await readLedger(sessionId);
+  const advisoryTexts = [];
 
   // ADR-0103: economy advisory (warn-only, fail-open) — runs for any gated tool
   // call, independent of the capability contract. NEVER blocks (immutable rule 2).
@@ -240,18 +223,24 @@ async function main() {
     const ecoText = await buildEconomyAdvisory({
       config: await loadConfig(ROOT),
       payload, toolName, root: ROOT,
-      sessionId: resolveHookSessionId(payload, HOST, ROOT),
+      sessionId,
       readLedger,
     });
-    if (ecoText) process.stderr.write(ecoText);
+    if (ecoText) advisoryTexts.push(ecoText);
   }
 
   // No taskId → no contract → gate is silent for unregistered tasks.
-  const taskId = extractTaskId(payload);
-  if (!taskId) return;
+  const taskId = extractTaskId(payload) ?? ledger.activeTask;
+  if (!taskId) {
+    if (advisoryTexts.length) emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
+    return;
+  }
 
   const contract = loadContract(ROOT, taskId);
-  if (!contract) return; // no contract on disk → silent
+  if (!contract) {
+    if (advisoryTexts.length) emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
+    return;
+  }
 
   const config = await loadConfig(ROOT);
   const mode = resolveEnforcementMode(config);
@@ -261,7 +250,6 @@ async function main() {
   const input = payload?.tool_input ?? {};
   let broadSearchCount = 0;
   if (isBroadExploration(toolName, input)) {
-    const sessionId = resolveHookSessionId(payload, HOST, ROOT);
     broadSearchCount = await incrementBroadSearchCount(sessionId, mapFresh);
   }
 
@@ -269,7 +257,7 @@ async function main() {
     scope: {
       branch: currentBranch(ROOT) ?? 'unknown',
       taskId,
-      paths: payload?.tool_input?.paths ?? [],
+      paths: filePaths,
     },
     root: ROOT,
     requiresHumanApproval: false,
@@ -282,17 +270,21 @@ async function main() {
   const result = evaluateAction({ tool: toolName, input, contract, projectState, mode });
 
   // Silence when nothing to say.
-  if (result.reasonCodes.length === 0) return;
+  if (result.reasonCodes.length === 0) {
+    if (advisoryTexts.length) emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
+    return;
+  }
 
   if (mode === 'advisory' || result.decision !== 'deny') {
     // Advisory mode and non-deny paths: warn to stderr, never block.
     // This is the immutable advisory guarantee: exit 0 always.
-    process.stderr.write(buildAdvisoryText(result, toolName));
+    advisoryTexts.push(buildAdvisoryText(result, toolName));
+    emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
     return;
   }
 
   // mode is guarded/strict and decision is deny → emit block decision.
-  emitBlockDecision(buildBlockText(result, toolName), HOST);
+  emitBlockDecision([...advisoryTexts, buildBlockText(result, toolName)].filter(Boolean).join('\n'), HOST);
 }
 
 main().catch(() => process.exit(0));

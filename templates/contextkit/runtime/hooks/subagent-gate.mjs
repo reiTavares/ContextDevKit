@@ -32,7 +32,7 @@ import { evaluateSubagentScope } from '../execution/evaluate-subagent-scope.mjs'
 import { readJsonSafe, writeFileAtomicSync } from './safe-io.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
 import { pathsFor } from '../config/paths.mjs';
-import { emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
+import { emitAdvisory, emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -122,6 +122,7 @@ function deriveDeclaredTouchSet(input) {
 
 /** Human label for the subagent. @param {Record<string, any>} input @returns {string} */
 function deriveLabel(input) {
+  if (typeof input?.agent_type === 'string' && input.agent_type) return input.agent_type;
   if (typeof input?.subagent_type === 'string' && input.subagent_type) return input.subagent_type;
   if (typeof input?.description === 'string' && input.description) return input.description.slice(0, 60);
   return 'subagent';
@@ -192,7 +193,9 @@ function buildText(result, label, block) {
  * @param {object} payload @param {string} taskId @param {object} config @param {object|null} contract
  */
 async function handleSpawn(payload, taskId, config, contract) {
-  const input = payload?.tool_input ?? {};
+  const input = payload?.hook_event_name === 'SubagentStart'
+    ? { agent_type: payload?.agent_type }
+    : payload?.tool_input ?? {};
   const sessionId = resolveHookSessionId(payload, HOST, ROOT);
 
   // Deterministic spawnId: session + a persisted monotonic counter (NO time/random).
@@ -235,7 +238,7 @@ function handleCompletion(taskId, ledger, mode) {
 
   const label = typeof record.label === 'string' ? record.label : 'subagent';
   if (mode === 'advisory' || result.decision !== 'deny') {
-    process.stdout.write(buildText(result, label, false));
+    emitAdvisory(buildText(result, label, false), HOST, 'SubagentStop');
     return;
   }
   emitBlockDecision(buildText(result, label, true), HOST);
@@ -260,7 +263,7 @@ async function main() {
   const eventName = typeof payload?.hook_event_name === 'string' ? payload.hook_event_name : '';
   const toolName = typeof payload?.tool_name === 'string' ? payload.tool_name : '';
   const isCompletion = eventName === 'SubagentStop';
-  const isSpawn = toolName === 'Task';
+  const isSpawn = eventName === 'SubagentStart' || toolName === 'Task';
   if (!isCompletion && !isSpawn) return; // not our moment → silent
 
   const sessionId = resolveHookSessionId(payload, HOST, ROOT);

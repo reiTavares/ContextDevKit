@@ -69,6 +69,28 @@ function firstPathKey(args) {
 }
 
 /**
+ * Extracts repo paths from the apply_patch command grammar used by Codex.
+ * The hook payload reports tool_name="apply_patch" and puts the complete patch
+ * in tool_input.command; without this parser every Codex write hook sees no path.
+ *
+ * @param {unknown} command raw apply_patch command
+ * @returns {string[]}
+ */
+export function extractApplyPatchPaths(command) {
+  if (typeof command !== 'string') return [];
+  const paths = [];
+  const seen = new Set();
+  const pattern = /^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm;
+  for (const match of command.matchAll(pattern)) {
+    const path = match[1]?.trim();
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    paths.push(path);
+  }
+  return paths;
+}
+
+/**
  * Normalizes a tool payload from either host into `{ toolName, filePaths }`.
  * Claude Code: Edit/Write carry `tool_input.file_path`; MultiEdit may carry an
  * `edits[]` array. agy: `toolCall.args` carries a TargetFile-style key (the
@@ -90,6 +112,9 @@ export function normalizeToolPayload(payload) {
 
   const toolName = typeof payload.tool_name === 'string' ? payload.tool_name : null;
   const input = payload.tool_input ?? {};
+  if (toolName === 'apply_patch') {
+    return { toolName: 'Write', filePaths: extractApplyPatchPaths(input.command) };
+  }
   if (toolName === 'Edit' || toolName === 'Write') {
     return { toolName, filePaths: input.file_path ? [input.file_path] : [] };
   }
@@ -118,18 +143,37 @@ export function emitBlockDecision(reason, host = hookHost()) {
 }
 
 /**
+ * Builds a host-correct advisory payload without writing it. Codex ignores plain
+ * stdout for tool/compaction hooks and requires JSON for Stop/SubagentStop.
+ *
+ * @param {string} text advisory body
+ * @param {'agy'|'claude'|'codex'} host
+ * @param {string} eventName hook event name
+ * @returns {string}
+ */
+export function advisoryPayload(text, host = hookHost(), eventName = '') {
+  if (host === 'agy') return JSON.stringify({ decision: 'allow', reason: text });
+  if (host !== 'codex') return text;
+  if (['SessionStart', 'SubagentStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit'].includes(eventName)) {
+    return JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: eventName,
+        additionalContext: text,
+      },
+    });
+  }
+  return JSON.stringify({ systemMessage: text });
+}
+
+/**
  * Surfaces advisory text without ever blocking. Claude Code shows bare stdout
  * to the agent; agy parses stdout as a decision object, so the text rides an
  * explicit allow (immutable rule 2 — a nudge must never break the tool call).
  * @param {string} text the warning / nudge body
  * @param {'agy'|'claude'} [host]
  */
-export function emitAdvisory(text, host = hookHost()) {
-  if (host === 'agy') {
-    process.stdout.write(JSON.stringify({ decision: 'allow', reason: text }));
-  } else {
-    process.stdout.write(text);
-  }
+export function emitAdvisory(text, host = hookHost(), eventName = '') {
+  process.stdout.write(advisoryPayload(text, host, eventName));
 }
 
 /**

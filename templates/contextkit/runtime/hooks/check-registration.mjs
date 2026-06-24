@@ -34,7 +34,7 @@ import { SESSIONS_DIR as SESSIONS_MD_DIR, SESSIONS_INDEX, pathsFor } from '../co
 import { autonomyDigest, autonomyNudges } from './autonomy-signals.mjs';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { autoAdvanceSessionTasks } from '../../tools/scripts/pipeline-session.mjs';
-import { emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
+import { emitAdvisory, emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -242,7 +242,7 @@ async function main() {
   if (dialDigest) sideSuggestions.push(dialDigest);
   sideSuggestions.push(...autonomyNudges(ROOT));
   const flushSide = () => {
-    if (sideSuggestions.length > 0) process.stdout.write(sideSuggestions.join('\n\n') + '\n');
+    if (sideSuggestions.length > 0) emitAdvisory(sideSuggestions.join('\n\n') + '\n', HOST, 'Stop');
   };
 
   if (ledger.registered || wasRegisteredDuringSession(ledger)) return flushSide();
