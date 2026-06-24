@@ -106,4 +106,71 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/runtime/hooks/execution-contract-advisory.mjs',
     ],
   },
+  {
+    id: 'a5-bdm',
+    file: 'tools/integration-test-a5-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      'templates/contextkit/tools/scripts/economics/investment-forecast.mjs',
+      'templates/contextkit/tools/scripts/economics/investment-forecast-core.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
+    ],
+  },
+  {
+    id: 'b4-adr-tooling',
+    file: 'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/adr-index.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate-core.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy-core.mjs',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
+  {
+    id: 'b4-legacy-coexistence',
+    file: 'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/adr-index.mjs',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
+  {
+    id: 'b4-bdm',
+    file: 'tools/integration-test-b4-bdm.mjs',
+    tier: 'integration:installer',
+    touches: [
+      'install.mjs', 'tools/install/engine.mjs',
+      'templates/contextkit/memory/decisions/business/',
+      'templates/contextkit/memory/decisions/operations/',
+      'templates/contextkit/memory/decisions/legacy/',
+      'templates/contextkit/memory/decisions/_templates/',
+      'templates/contextkit/tools/scripts/registry/decision.mjs',
+    ],
+  },
+  {
+    id: 'b5-governance',
+    file: 'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/program-governance.mjs',
+      'templates/contextkit/tools/scripts/decision-coverage.mjs',
+      'templates/contextkit/runtime/work/schema-decision.mjs',
+    ],
+  },
+  {
+    id: 'session4-regression',
+    file: 'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/economics/investment-forecast-core.mjs',
+      'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
+      'templates/contextkit/tools/scripts/adr-migrate-core.mjs',
+      'templates/contextkit/tools/scripts/adr-redundancy-core.mjs',
+    ],
+  },
 ]);

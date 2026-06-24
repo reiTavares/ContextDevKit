@@ -113,6 +113,14 @@ function main() {
     'tools/selfcheck-tc-recipe-runner.mjs',
     // WF0022 TC-16 ephemeral dispatch (ADR-0111); sibling, dispatched via selfcheck-economy-all.mjs.
     'tools/selfcheck-tc-dispatch.mjs',
+    // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
+    // under templates/ (engine source), registered as suites, dispatched directly.
+    'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
+    'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
+    // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
+    'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
+    // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
+    'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

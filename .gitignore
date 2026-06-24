@@ -46,3 +46,6 @@ contextkit/memory/deps-findings.json
 contextkit/memory/deep-analysis-findings.json
 contextkit/.cache/
 contextkit/.updates/
+
+# #243 benchmark scratch (calibration cells / symptom briefs) — never committed
+_bench243/

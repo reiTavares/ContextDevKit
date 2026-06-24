@@ -51,24 +51,36 @@ function relPath(abs, memoryDir) {
   return abs.slice(memoryDir.length + 1).split('\\').join('/');
 }
 
-/** Builds one index row from a parsed v2 decision record. */
-function newRow(data, rel) {
-  const product = data.product && typeof data.product === 'object' ? data.product : {};
+/**
+ * Builds one index row from a parsed v2 decision record.
+ * Enriched (B4-T1): populates `title` and `valueIntents` from front-matter so
+ * downstream matchers (`titleTokenJaccard`, `valueIntentOverlap`) have real data
+ * instead of falling back to id-based stubs. Legacy row shape is unchanged.
+ */
+function newRow(frontMatter, rel) {
+  const product = frontMatter.product && typeof frontMatter.product === 'object' ? frontMatter.product : {};
+  // `valueIntents` from front-matter: `{ primary, secondary[] }` or null when absent.
+  const valueIntents =
+    frontMatter.valueIntents && typeof frontMatter.valueIntents === 'object' ? frontMatter.valueIntents : null;
   return {
-    id: data.id ?? null,
+    id: frontMatter.id ?? null,
     path: rel,
     format: 'new',
-    status: data.status ?? null,
-    contextType: data.contextType ?? null,
-    primaryContext: data.primaryContext ?? null,
-    decisionKind: data.decisionKind ?? null,
-    decisionScope: data.decisionScope ?? null,
+    // Enriched: title from front-matter (B4-T1; enables titleTokenJaccard matching).
+    title: typeof frontMatter.title === 'string' ? frontMatter.title : null,
+    status: frontMatter.status ?? null,
+    contextType: frontMatter.contextType ?? null,
+    primaryContext: frontMatter.primaryContext ?? null,
+    decisionKind: frontMatter.decisionKind ?? null,
+    decisionScope: frontMatter.decisionScope ?? null,
     product: product.productId ?? null,
     capability: product.capability ?? null,
-    governs: data.governs ?? null,
-    supersedes: Array.isArray(data.supersedes) ? data.supersedes : [],
-    supersededBy: data.supersededBy ?? null,
-    tags: Array.isArray(data.tags) ? data.tags : [],
+    governs: frontMatter.governs ?? null,
+    supersedes: Array.isArray(frontMatter.supersedes) ? frontMatter.supersedes : [],
+    supersededBy: frontMatter.supersededBy ?? null,
+    tags: Array.isArray(frontMatter.tags) ? frontMatter.tags : [],
+    // Enriched: valueIntents from front-matter (B4-T1; enables valueIntentOverlap scoring).
+    valueIntents,
   };
 }
 
