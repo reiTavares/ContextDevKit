@@ -210,7 +210,7 @@ export function orchestrate(payload, env = {}) {
       envelope.autoDeliberation = recommendDeliberation(
         { request: p.requestText, decisionSignal: p.requestText, grade: effectiveGrade ?? 0,
           deliberationsActive: config?.deliberations?.active === true,
-          materiality: cls.materialityScore, complexity: cls.complexity },
+          materiality: cls.materialityScore, complexity: cls.complexity, needsDebate: cls.needsDebate },
         {},
       );
       if (guardMeta) envelope.guard = guardMeta;

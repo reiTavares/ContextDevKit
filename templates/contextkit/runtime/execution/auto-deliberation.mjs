@@ -192,17 +192,28 @@ export function recommendDeliberation(input, opts = {}) {
   // Combine request + decisionSignal into a single matchable string.
   const signalText = [toLower(input.request), toLower(input.decisionSignal)].filter(Boolean).join(' ');
 
-  // Gate 3a: structural trigger (fires independently of numeric threshold).
+  // Gate 3a: structural trigger (always fires, independent of any score/signal).
   const structuralCodes = detectStructuralTriggers(signalText);
-
-  // Gate 3b: numeric materiality.
   const materiality = resolveInputMateriality(input);
-  const meetsThreshold = materiality >= threshold;
-
   const reasonCodes = [...structuralCodes];
-  if (meetsThreshold) reasonCodes.push('materiality-threshold');
 
-  const shouldConvene = structuralCodes.length > 0 || meetsThreshold;
+  // Gate 3b: the upstream classifier's needsDebate is the AUTHORITY on
+  // materiality-based debate (it folds intent + primaryType + materiality
+  // correctly). When provided, defer to it and DO NOT second-guess with the raw
+  // materiality score — which is unreliable (it over-scores mechanical work).
+  // Structural triggers still escalate even when needsDebate is false.
+  let shouldConvene;
+  if (input.needsDebate === true) {
+    reasonCodes.push('classifier-needs-debate');
+    shouldConvene = true;
+  } else if (input.needsDebate === false) {
+    shouldConvene = structuralCodes.length > 0;
+  } else {
+    // No classifier verdict — fall back to the numeric threshold.
+    const meetsThreshold = materiality >= threshold;
+    if (meetsThreshold) reasonCodes.push('materiality-threshold');
+    shouldConvene = structuralCodes.length > 0 || meetsThreshold;
+  }
 
   if (!shouldConvene) {
     return buildResult(false, materiality, threshold, reasonCodes, null);

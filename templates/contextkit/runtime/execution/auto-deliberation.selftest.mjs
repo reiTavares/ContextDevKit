@@ -85,6 +85,34 @@ process.stdout.write('\n[b2] Trivial complexity never convenes (high materiality
 }
 
 // ---------------------------------------------------------------------------
+// [b3] needsDebate is the authority — false + high materiality, no trigger ⇒ no convene
+// ---------------------------------------------------------------------------
+process.stdout.write('\n[b3] classifier needsDebate=false overrides raw materiality\n');
+{
+  const result = recommendDeliberation(
+    { ...ACTIVE_GRADE3, complexity: 'feature', needsDebate: false, materiality: 1, request: 'add a csv export button' },
+  );
+  assert('[b3] shouldConvene false (defers to classifier)', result.shouldConvene === false, `got ${result.shouldConvene}`);
+  assert('[b3] no materiality-threshold reason', !result.reasonCodes.includes('materiality-threshold'));
+}
+
+// ---------------------------------------------------------------------------
+// [b4] needsDebate=false but a STRUCTURAL trigger still escalates; needsDebate=true convenes
+// ---------------------------------------------------------------------------
+process.stdout.write('\n[b4] structural trigger escalates; needsDebate=true convenes\n');
+{
+  const trig = recommendDeliberation(
+    { ...ACTIVE_GRADE3, complexity: 'feature', needsDebate: false, materiality: 0, request: 'change the auth token storage' },
+  );
+  assert('[b4] structural trigger convenes despite needsDebate=false', trig.shouldConvene === true, `got ${trig.shouldConvene}`);
+  const yes = recommendDeliberation(
+    { ...ACTIVE_GRADE3, complexity: 'architectural', needsDebate: true, materiality: 0, request: 'pick a framework' },
+  );
+  assert('[b4] needsDebate=true convenes', yes.shouldConvene === true, `got ${yes.shouldConvene}`);
+  assert('[b4] reason classifier-needs-debate', yes.reasonCodes.includes('classifier-needs-debate'));
+}
+
+// ---------------------------------------------------------------------------
 // [c] Does NOT fire when grade < 3
 // ---------------------------------------------------------------------------
 process.stdout.write('\n[c] Does NOT fire when grade < 3\n');
@@ -120,65 +148,19 @@ process.stdout.write('\n[d] Does NOT fire when deliberations inactive\n');
 }
 
 // ---------------------------------------------------------------------------
-// [e] Structural: auth/security fires even at sub-threshold materiality
+// [e] Structural triggers fire even at materiality 0 (table-driven)
 // ---------------------------------------------------------------------------
-process.stdout.write('\n[e] Structural trigger: auth/security fires at sub-threshold materiality\n');
-{
-  const result = recommendDeliberation(
-    { ...ACTIVE_GRADE3, materiality: 0.1, decisionSignal: 'update oauth token flow' },
-  );
-  assert('[e] shouldConvene true (auth structural)', result.shouldConvene === true, `got ${result.shouldConvene}`);
-  assert('[e] reasonCodes includes auth-security', result.reasonCodes.includes('auth-security'));
-  assert('[e] materiality below threshold but still convenes', result.materiality < result.threshold);
-  assert('[e] recommendedCouncil present', result.recommendedCouncil !== null);
-}
-
-// ---------------------------------------------------------------------------
-// [f] Structural: migration fires at materiality 0
-// ---------------------------------------------------------------------------
-process.stdout.write('\n[f] Structural trigger: migration fires at materiality 0\n');
-{
-  const result = recommendDeliberation(
-    { ...ACTIVE_GRADE3, materiality: 0, decisionSignal: 'migrate the database schema' },
-  );
-  assert('[f] shouldConvene true (migration structural)', result.shouldConvene === true, `got ${result.shouldConvene}`);
-  assert('[f] reasonCodes includes migration', result.reasonCodes.includes('migration'));
-}
-
-// ---------------------------------------------------------------------------
-// [g] Structural: new-dependency fires at materiality 0
-// ---------------------------------------------------------------------------
-process.stdout.write('\n[g] Structural trigger: new-dependency fires at materiality 0\n');
-{
-  const result = recommendDeliberation(
-    { ...ACTIVE_GRADE4, materiality: 0, request: 'add new dependency zod to the project' },
-  );
-  assert('[g] shouldConvene true (new-dependency structural)', result.shouldConvene === true, `got ${result.shouldConvene}`);
-  assert('[g] reasonCodes includes new-dependency', result.reasonCodes.includes('new-dependency'));
-}
-
-// ---------------------------------------------------------------------------
-// [h] Structural: public-contract-change fires
-// ---------------------------------------------------------------------------
-process.stdout.write('\n[h] Structural trigger: public-contract-change fires\n');
-{
-  const result = recommendDeliberation(
-    { ...ACTIVE_GRADE3, materiality: 0, decisionSignal: 'remove endpoint from public api' },
-  );
-  assert('[h] shouldConvene true (public-contract-change)', result.shouldConvene === true, `got ${result.shouldConvene}`);
-  assert('[h] reasonCodes includes public-contract-change', result.reasonCodes.includes('public-contract-change'));
-}
-
-// ---------------------------------------------------------------------------
-// [i] Structural: irreversible-action fires
-// ---------------------------------------------------------------------------
-process.stdout.write('\n[i] Structural trigger: irreversible-action fires\n');
-{
-  const result = recommendDeliberation(
-    { ...ACTIVE_GRADE3, materiality: 0, decisionSignal: 'delete data from production users table' },
-  );
-  assert('[i] shouldConvene true (irreversible-action)', result.shouldConvene === true, `got ${result.shouldConvene}`);
-  assert('[i] reasonCodes includes irreversible-action', result.reasonCodes.includes('irreversible-action'));
+process.stdout.write('\n[e] Structural triggers fire at sub-threshold/zero materiality\n');
+for (const [code, text, mat] of [
+  ['auth-security', 'update oauth token flow', 0.1],
+  ['migration', 'migrate the database schema', 0],
+  ['new-dependency', 'add new dependency zod to the project', 0],
+  ['public-contract-change', 'remove endpoint from public api', 0],
+  ['irreversible-action', 'delete data from production users table', 0],
+]) {
+  const r = recommendDeliberation({ ...ACTIVE_GRADE3, materiality: mat, decisionSignal: text });
+  assert(`[e] ${code} convenes`, r.shouldConvene === true, `got ${r.shouldConvene}`);
+  assert(`[e] ${code} reasonCode present`, r.reasonCodes.includes(code));
 }
 
 // ---------------------------------------------------------------------------
