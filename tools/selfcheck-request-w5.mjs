@@ -109,7 +109,7 @@ export async function runRequestW5Checks({ ok, bad }, { KIT }) {
 
   // ── 8. clean-clone presence ───────────────────────────────────────────────
   const artifacts = [
-    `${EXEC}/active-context-resolver.mjs`, `${EXEC}/auto-deliberation.mjs`,
+    `${EXEC}/active-context-resolver.mjs`, `${EXEC}/active-context-precedence.mjs`, `${EXEC}/auto-deliberation.mjs`,
     `${EXEC}/active-context-resolver.selftest.mjs`, `${EXEC}/auto-deliberation.selftest.mjs`,
   ];
   const missing = artifacts.filter((p) => !existsSync(resolve(KIT, p)));
