@@ -21,6 +21,10 @@ import { buildEnvelope } from './request-envelope.mjs';
 import { selectAgents } from './request-agent-select.mjs';
 import { selectPlaybooks, compilePlaybookContext } from './playbook-compile.mjs';
 import { resolveAutonomy } from '../config/resolve-autonomy.mjs';
+import { resolveActiveContext } from './active-context-resolver.mjs';
+import { recommendDeliberation } from './auto-deliberation.mjs';
+import { applyOverOrchestrationGuard } from './agent-orchestration-guard.mjs';
+import { buildDispatchPlan } from './dispatch-plan.mjs';
 
 /** Anti-trigger contexts that must never convene a council (ADR-0107 §7.2). */
 const DEBATE_ANTI_CONTEXTS = Object.freeze(['maintenance', 'documentation', 'conversation']);
@@ -160,16 +164,19 @@ export function orchestrate(payload, env = {}) {
       && cls.primaryType !== 'business' && cls.primaryType !== 'decision';
     let agents = { lead: null, council: [], scouts: [], reviewers: [], synthesizer: null };
     let playbooks = [];
+    let guardMeta = null;
     if (trivialDirect) {
       routing.reasonCodes.push('agents/playbooks=skipped (trivial-direct, over-orchestration guard)');
     } else {
-      const sel = selectAgents(cls, selectCtx, config);
-      agents = { lead: sel.lead, council: sel.council, scouts: sel.scouts, reviewers: sel.reviewers, synthesizer: sel.synthesizer };
+      // W2 selection, then the A8 per-tier over-orchestration guard caps it (ADR-0112).
+      const guarded = applyOverOrchestrationGuard(selectAgents(cls, selectCtx, config), cls, config);
+      agents = { lead: guarded.lead, council: guarded.council, scouts: guarded.scouts, reviewers: guarded.reviewers, synthesizer: guarded.synthesizer };
+      guardMeta = guarded.guard;
       const pbSel = selectPlaybooks(cls, selectCtx);
       const maxTokens = config?.orchestration?.playbooks?.maxContextTokens ?? 3000;
       const compiled = compilePlaybookContext(pbSel.selected, { root: env.root, maxTokens });
       playbooks = compiled.playbooks.map((pb) => ({ id: pb.id, sections: pb.sections.map((s) => s.name) }));
-      routing.reasonCodes.push(...sel.reasonCodes.slice(0, 6), ...pbSel.reasonCodes.slice(0, 4));
+      routing.reasonCodes.push(...guarded.reasonCodes.slice(0, 6), ...pbSel.reasonCodes.slice(0, 4));
       if (compiled.missingCoverage.length) routing.reasonCodes.push(`playbook-missing-coverage=${compiled.missingCoverage.length}`);
     }
 
@@ -191,6 +198,24 @@ export function orchestrate(payload, env = {}) {
     // Fold deliberation reasons into the envelope routing reason codes (auditable).
     envelope.routing.reasonCodes.push(...delib.reasons);
     envelope.deliberation = { required: delib.required, reasons: delib.reasons };
+
+    // A7-A8 shadow enrichment (ADR-0112) — governed context, auto-deliberation,
+    // the over-orchestration guard verdict, and a (non-dispatching) dispatch plan.
+    // Best-effort: enrichment never breaks the base envelope (rule 2).
+    try {
+      envelope.activeContext = resolveActiveContext(
+        { request: { text: p.requestText }, branch: p.context?.branch, cwd: env.root },
+        { root: env.root },
+      );
+      envelope.autoDeliberation = recommendDeliberation(
+        { request: p.requestText, decisionSignal: p.requestText, grade: effectiveGrade ?? 0,
+          deliberationsActive: config?.deliberations?.active === true,
+          materiality: cls.materialityScore, complexity: cls.complexity },
+        {},
+      );
+      if (guardMeta) envelope.guard = guardMeta;
+      envelope.dispatchPlan = buildDispatchPlan(envelope, config);
+    } catch { /* shadow enrichment is best-effort; base envelope already complete */ }
     return envelope;
   } catch {
     // Fail-open: a minimal, schema-complete, conservative envelope.

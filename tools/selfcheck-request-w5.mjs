@@ -107,6 +107,18 @@ export async function runRequestW5Checks({ ok, bad }, { KIT }) {
     }
   }
 
+  // ── 7b. wiring: orchestrate() emits the A7/A8 shadow enrichment ───────────
+  try {
+    const { orchestrate } = await import(pathToFileURL(resolve(KIT, EXEC, 'request-orchestrator.mjs')).href);
+    const wenv = orchestrate(
+      { requestId: 'w5-wire', requestText: 'choose a database and migrate the schema', context: {} },
+      { root: KIT, config: { deliberations: { active: true }, orchestration: { specialists: {}, overOrchestrationGuard: {}, executeDispatchPlan: true } } },
+    );
+    wenv && wenv.activeContext && wenv.autoDeliberation && wenv.dispatchPlan
+      ? ok('orchestrate() wires A7/A8 shadow enrichment (activeContext + autoDeliberation + dispatchPlan)')
+      : bad('orchestrate() missing A7/A8 shadow enrichment');
+  } catch (err) { bad(`orchestrate() wiring check threw: ${err?.message ?? err}`); }
+
   // ── 8. clean-clone presence ───────────────────────────────────────────────
   const artifacts = [
     `${EXEC}/active-context-resolver.mjs`, `${EXEC}/active-context-precedence.mjs`, `${EXEC}/auto-deliberation.mjs`,
