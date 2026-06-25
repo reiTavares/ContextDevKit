@@ -171,6 +171,13 @@ export function recommendDeliberation(input, opts = {}) {
     ? Math.min(opts.voiceCount, 6)
     : 3;
 
+  // Gate 0: trivial work never convenes a council — mirrors the over-orchestration
+  // guard's trivial⇒0 cap. This defends against an upstream classifier that
+  // over-scores materiality for mechanical work (e.g. a typo fix scoring 1.0).
+  if (input.complexity === 'trivial') {
+    return buildResult(false, resolveInputMateriality(input), threshold, ['trivial-no-debate'], null);
+  }
+
   // Gate 1: grade >= 3 (autonomy consent axis — auto/debate range).
   const grade = typeof input.grade === 'number' ? input.grade : 0;
   if (grade < 3) {

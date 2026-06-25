@@ -71,6 +71,20 @@ process.stdout.write('\n[b] Does NOT fire on trivial request\n');
 }
 
 // ---------------------------------------------------------------------------
+// [b2] Trivial complexity NEVER convenes, even with high materiality / a trigger
+//      (Gate 0 — defends against an upstream classifier over-scoring materiality)
+// ---------------------------------------------------------------------------
+process.stdout.write('\n[b2] Trivial complexity never convenes (high materiality)\n');
+{
+  const result = recommendDeliberation(
+    { ...ACTIVE_GRADE3, complexity: 'trivial', materiality: 1, request: 'migrate the auth token storage' },
+  );
+  assert('[b2] shouldConvene false despite materiality 1 + structural trigger', result.shouldConvene === false, `got ${result.shouldConvene}`);
+  assert('[b2] recommendedCouncil null', result.recommendedCouncil === null);
+  assert('[b2] reasonCodes include trivial-no-debate', result.reasonCodes.includes('trivial-no-debate'));
+}
+
+// ---------------------------------------------------------------------------
 // [c] Does NOT fire when grade < 3
 // ---------------------------------------------------------------------------
 process.stdout.write('\n[c] Does NOT fire when grade < 3\n');
