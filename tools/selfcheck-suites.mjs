@@ -127,6 +127,8 @@ function main() {
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
     'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
+    // OP-0003 / ADR-0123 — ownership-based filing of loose top-level ADRs, under templates/.
+    'templates/contextkit/tools/scripts/decisions-file.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
     'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
     // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.

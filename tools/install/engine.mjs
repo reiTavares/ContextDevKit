@@ -18,6 +18,7 @@ import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reind
 import { read, overwrite, atomicWrite, backup, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
 import { syncFile, syncTree } from './sync.mjs';
 import { migrateConfigPaths } from './config-paths.mjs';
+import { migrateDecisions } from './decisions-migrate.mjs';
 
 // ADR-0103 activation go-live notice: Economy Runtime ships ON (advisory). Shown
 // once when the `economy` config section is freshly created or distributed.
@@ -196,5 +197,8 @@ export async function installEngine(target, tplDir, ctx, report) {
   await migratePolicyStores(target, tplDir, { read, overwrite }, report);
   await syncContextReadme(target, tplDir, ctx, report);
   await writeConfig(target, tplDir, ctx.level, ctx.args, report);
+  // Tidy loose top-level ADRs into owner folders / legacy (ADR-0123). Fail-open;
+  // a fresh install with no loose ADRs is a no-op. Runs after the engine is copied.
+  migrateDecisions(target, report);
   await seedDocs(target, tplDir, ctx.name, report);
 }
