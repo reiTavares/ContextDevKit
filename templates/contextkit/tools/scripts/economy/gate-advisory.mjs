@@ -28,6 +28,7 @@ import { resolve } from 'node:path';
 import { resolveEconomyFlags, rolloutGate } from './economy-governance.mjs';
 import { patchEconomySignal } from './patch-economy.mjs';
 import { loopBreakerSignal } from './loop-breaker.mjs';
+import { emitEconomy } from './telemetry-emit.mjs';
 
 /**
  * Builds the economy advisory text for one gated tool call, or null when there
@@ -43,7 +44,7 @@ import { loopBreakerSignal } from './loop-breaker.mjs';
  * }} params
  * @returns {Promise<string|null>}
  */
-export async function buildEconomyAdvisory({ config, payload, toolName, root, sessionId, readLedger }) {
+export async function buildEconomyAdvisory({ config, payload, toolName, root, sessionId, readLedger, now }) {
   try {
     const flags = resolveEconomyFlags(config);
     if (flags.enabled === false) return null;
@@ -72,7 +73,15 @@ export async function buildEconomyAdvisory({ config, payload, toolName, root, se
         .slice(-6)
         .map((m) => ({ cmd: `${m?.tool ?? '?'}:${m?.path ?? '?'}` }));
       const sig = loopBreakerSignal(history, 'advisory');
-      if (sig.loopBreaker.detected) lines.push(`[economy] ${sig.loopBreaker.suggestion}`);
+      if (sig.loopBreaker.detected) {
+        lines.push(`[economy] ${sig.loopBreaker.suggestion}`);
+        // Honest emit at the wired hook boundary: the loop-breaker advisory was
+        // actually surfaced (fired) to the agent. Guarded on an injected finite
+        // `now` so the pure selfcheck (no `now`) never writes a ledger row.
+        if (Number.isFinite(now)) {
+          emitEconomy(root, 'loop-breaker', { category: 'advisory', action: 'fired', measurement: 'none', sessionId }, { now });
+        }
+      }
     }
 
     return lines.length ? lines.join('\n') + '\n' : null;

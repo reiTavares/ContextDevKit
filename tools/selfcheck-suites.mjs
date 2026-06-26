@@ -102,6 +102,8 @@ function main() {
     'tools/selfcheck-economy-wave1.mjs',
     // OP-0001 economy telemetry completeness gate (ADR-0117).
     'tools/selfcheck-economy-completeness.mjs',
+    // OP-0001 economy instrumentation behavioral check (ADR-0117).
+    'tools/selfcheck-economy-instrumentation.mjs',
     // WF0020 Economy Runtime — Wave 2 aggregate; sibling, dispatched directly.
     'tools/selfcheck-economy-wave2.mjs',
     // WF0033 project-map auto-baseline (PMB-02/03); siblings, dispatched directly.

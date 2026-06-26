@@ -21,6 +21,7 @@ import { digestLatestSession, extractUnreleased, digestUnreleased, readChangelog
 import { section } from '../../runtime/hooks/md-extract.mjs';
 import { ADR_FILENAME_RE, parseAdr, renderCatalogLine } from './adr-digest-core.mjs';
 import { retrieveMemory, renderRetrieval } from './memory-retrieve.mjs';
+import { emitEconomy } from './economy/telemetry-emit.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -157,16 +158,22 @@ async function buildSubagentPack(objective) {
 }
 
 async function main() {
+  // Honest emit: the bundle was actually produced for a session (applied), at the
+  // CLI boundary where Date.now() is legitimate — never in the pure builders.
+  const applied = () => emitEconomy(ROOT, 'context-pack', { category: 'advisory', action: 'applied', measurement: 'none' }, { now: Date.now() });
   if (flag('--for-subagent')) {
     console.log(await buildSubagentPack(valueOf('--objective') || ''));
+    applied();
     return;
   }
   const pack = await build();
   if (flag('--json')) {
     process.stdout.write(JSON.stringify(pack, null, 2) + '\n');
+    applied();
     return;
   }
   console.log(render(pack));
+  applied();
 }
 
 main().catch((err) => {

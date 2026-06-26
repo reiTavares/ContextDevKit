@@ -21,6 +21,7 @@ import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeState } from '../../../runtime/state/state-io.mjs';
 import { checkpoint } from '../ship-state.mjs';
+import { emitEconomy } from './telemetry-emit.mjs';
 
 // ─── Reader ────────────────────────────────────────────────────────────────────
 
@@ -260,6 +261,11 @@ function main() {
   const pipeDir = pathsFor(process.cwd()).pipeline;
   const pack = buildResumePack(pipeDir, runId);
   console.log(renderResumePack(pack));
+  // Honest emit: the resume pack was actually rendered into the resuming session
+  // (applied), not merely computed. A failed/empty pack is not an application.
+  if (pack && pack.ok) {
+    emitEconomy(process.cwd(), 'resume-pack', { category: 'lifecycle', action: 'applied', measurement: 'none' }, { now: Date.now() });
+  }
 }
 
 if (process.argv[1]?.endsWith('resume-pack.mjs')) main();

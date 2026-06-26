@@ -225,6 +225,7 @@ async function main() {
       payload, toolName, root: ROOT,
       sessionId,
       readLedger,
+      now: Date.now(),
     });
     if (ecoText) advisoryTexts.push(ecoText);
   }

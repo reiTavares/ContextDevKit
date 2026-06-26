@@ -27,6 +27,7 @@ import { resolve, dirname }                           from 'node:path';
 import { fileURLToPath }                              from 'node:url';
 import { ECONOMY_DEFAULTS }                           from './economy-defaults.mjs';
 import { applyFindingCaps }                           from './output-contract.mjs';
+import { emitEconomy }                                from './telemetry-emit.mjs';
 import { deduplicateFindings, sortFindings, extractBacklog }
                                                       from './findings-merge-core.mjs';
 import { SEVERITY_ORDER }                             from './findings.mjs';
@@ -272,4 +273,9 @@ if (_isMain) {
 
   const { digest } = mergeFindings(arrays);
   process.stdout.write(JSON.stringify(digest, null, 2) + '\n');
+  // Honest emit at the application boundary: merging applies the findings schema
+  // (dedup/sort/cap) AND the output-contract caps (applyFindingCaps). Both fired.
+  const now = Date.now();
+  emitEconomy(process.cwd(), 'findings', { category: 'advisory', action: 'applied', measurement: 'none' }, { now });
+  emitEconomy(process.cwd(), 'output-contract', { category: 'advisory', action: 'applied', measurement: 'none' }, { now });
 }

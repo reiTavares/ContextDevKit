@@ -223,10 +223,10 @@ export const SUITES = Object.freeze([
   { id: 'pkg08-fleet', file: 'tools/selfcheck-pkg08-fleet.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/fleet-compliance', 'templates/contextkit/tools/scripts/agent-registry', 'templates/contextkit/tools/scripts/policy-distribution'] },
 
-  // WF0020 Economy Runtime — Wave 1 (ECON-01..07/11), advisory + unregistered;
-  // aggregates the eight cards' econCheck* exports into one in-process suite.
+  // WF0020 Economy Runtime — Wave 1 (ECON-01..07/11): aggregates the cards' econCheck* exports.
   { id: 'economy-wave1', file: 'tools/selfcheck-economy-wave1.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/'] },
   { id: 'economy-completeness', file: 'tools/selfcheck-economy-completeness.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/registry.mjs'] },
+  { id: 'economy-instrumentation', file: 'tools/selfcheck-economy-instrumentation.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/'] },
 
   // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10), gate-coupled advisory signals,
   // UNREGISTERED; aggregates lean-loop/loop-breaker/patch-economy econCheck* exports.
