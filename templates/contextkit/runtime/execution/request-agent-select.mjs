@@ -21,7 +21,7 @@ import { pathsFor } from '../config/paths.mjs';
 /** Score weights (§10). Tuned so capability+context dominate, cost trims ties. */
 const W = Object.freeze({
   intent: 5, contextOwnership: 4, pathOwnership: 3, riskMatch: 3,
-  playbookMatch: 2, capabilityHit: 2, antiTrigger: -100, duplicate: -2, coordCost: -1,
+  playbookMatch: 2, capabilityHit: 2, leadRole: 1, antiTrigger: -100, duplicate: -2, coordCost: -1,
 });
 
 /**
@@ -101,6 +101,7 @@ function scoreAgent(agent, cls, ctx) {
   if (pathOwns(agent.pathPatterns, ctx?.paths)) { score += W.pathOwnership; reasons.push('+path-ownership'); }
   if (ownsContext(agent, cls.primaryType)) { score += W.contextOwnership; reasons.push(`+context(${cls.primaryType})`); }
   if (Array.isArray(agent.capabilities) && agent.capabilities.length) { score += W.capabilityHit; reasons.push('+capabilities'); }
+  if (agent.preferredRole === 'lead') { score += W.leadRole; reasons.push('+lead-role'); }
   return { score, reasons: score > 0 ? [`${agent.agent}: ${reasons.join(' ')}`] : [] };
 }
 

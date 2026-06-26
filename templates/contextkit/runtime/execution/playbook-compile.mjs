@@ -38,23 +38,29 @@ export function loadPlaybookRegistry(root) {
 }
 
 /**
- * Scores a playbook's applicability to the classification + context. A positive
- * score means applicable; the reasons explain why.
+ * Scores a playbook's applicability to the classification + context. The booleans
+ * are used by the eligibility gate so generic context/risk matches do not activate
+ * every playbook in the registry.
  *
  * @param {object} pb playbook registry entry
  * @param {object} cls classification
  * @param {object} ctx { phase, paths }
- * @returns {{ score: number, reasons: string[] }}
+ * @returns {{ score: number, reasons: string[], pathMatched: boolean, intentMatched: boolean, contextMatched: boolean, riskMatched: boolean, phaseMatched: boolean }}
  */
 function scorePlaybook(pb, cls, ctx) {
   let score = 0; const reasons = [];
   const has = (arr, v) => Array.isArray(arr) && arr.includes(v);
-  if (has(pb.contexts, cls.primaryType)) { score += 3; reasons.push(`context(${cls.primaryType})`); }
-  if (has(pb.intents, cls.intent)) { score += 3; reasons.push(`intent(${cls.intent})`); }
-  if (has(pb.riskTriggers, cls.risk)) { score += 2; reasons.push(`risk(${cls.risk})`); }
-  if (ctx?.phase && has(pb.workflowPhases, ctx.phase)) { score += 1; reasons.push(`phase(${ctx.phase})`); }
-  if (pathMatch(pb.pathPatterns, ctx?.paths)) { score += 2; reasons.push('path'); }
-  return { score, reasons };
+  const contextMatched = has(pb.contexts, cls.primaryType);
+  const intentMatched = has(pb.intents, cls.intent);
+  const riskMatched = has(pb.riskTriggers, cls.risk);
+  const phaseMatched = Boolean(ctx?.phase && has(pb.workflowPhases, ctx.phase));
+  const pathMatched = pathMatch(pb.pathPatterns, ctx?.paths);
+  if (pathMatched) { score += 6; reasons.push('path'); }
+  if (intentMatched) { score += 4; reasons.push(`intent(${cls.intent})`); }
+  if (contextMatched) { score += 2; reasons.push(`context(${cls.primaryType})`); }
+  if (riskMatched) { score += 1; reasons.push(`risk(${cls.risk})`); }
+  if (phaseMatched) { score += 1; reasons.push(`phase(${ctx.phase})`); }
+  return { score, reasons, pathMatched, intentMatched, contextMatched, riskMatched, phaseMatched };
 }
 
 /** Substring-stem path match (mirrors request-agent-select). */
@@ -67,7 +73,17 @@ function pathMatch(patterns, paths) {
 }
 
 /**
- * Selects applicable playbooks (score > 0), highest first.
+ * True when a playbook should be eligible without a path hit. Intent and phase
+ * matches are explicit enough; context/risk-only matches are advisory and stay
+ * out of the injected playbook pack.
+ */
+function isEligiblePlaybook(s) {
+  return s.intentMatched || s.phaseMatched || (s.contextMatched && s.riskMatched && (s.risk === 'high' || s.risk === 'critical'));
+}
+
+/**
+ * Selects applicable playbooks, highest first. If any playbook owns an affected
+ * path, path ownership is the activation boundary for that request.
  *
  * @param {object} classification result of classifyRequest()
  * @param {object} [ctx] { phase, paths, root }
@@ -79,13 +95,17 @@ export function selectPlaybooks(classification, ctx = {}, registry = null) {
     const cls = classification && typeof classification === 'object' ? classification : {};
     const reg = registry ?? loadPlaybookRegistry(ctx.root);
     const playbooks = Array.isArray(reg.playbooks) ? reg.playbooks : [];
+    if (cls.complexity === 'trivial') return { selected: [], reasonCodes: ['trivial complexity — no playbook injection'] };
     const scored = playbooks
       .map((pb) => ({ pb, ...scorePlaybook(pb, cls, ctx) }))
-      .filter((s) => s.score > 0)
+      .filter((s) => s.score > 0);
+    const pathBound = scored.some((s) => s.pathMatched);
+    const eligible = scored
+      .filter((s) => (pathBound ? s.pathMatched : isEligiblePlaybook({ ...s, risk: cls.risk })))
       .sort((a, b) => b.score - a.score || String(a.pb.id).localeCompare(String(b.pb.id)));
     return {
-      selected: scored.map((s) => s.pb),
-      reasonCodes: scored.map((s) => `${s.pb.id}: ${s.reasons.join(' ')}`),
+      selected: eligible.map((s) => s.pb),
+      reasonCodes: eligible.map((s) => `${s.pb.id}: ${s.reasons.join(' ')}`),
     };
   } catch {
     return { selected: [], reasonCodes: ['fail-open: playbook selection degraded'] };

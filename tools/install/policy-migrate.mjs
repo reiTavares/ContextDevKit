@@ -29,6 +29,8 @@ const POLICY_STORES = [
   'routing-policy.json',
   'squads-registry.json',
   'capability-registry.json',
+  'agent-capability-registry.json',
+  'playbook-registry.json',
 ];
 
 /**

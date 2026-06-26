@@ -36,6 +36,18 @@ try {
   /AGENTS\.md/.test(reviewer) && !/CLAUDE\.md/.test(reviewer)
     ? ok('Codex subagents are adapted to AGENTS.md')
     : bad('Codex subagent still references CLAUDE.md');
+  const installedCodexAgents = readdirSync(join(proj, '.codex', 'agents'))
+    .filter((name) => name.endsWith('.toml') && name !== '_TEMPLATE.toml')
+    .map((name) => name.replace(/\.toml$/, ''))
+    .sort();
+  const installedRegistryAgents = JSON.parse(readFileSync(join(proj, 'contextkit', 'policy', 'agent-capability-registry.json'), 'utf-8'))
+    .agents.map((entry) => entry.agent)
+    .sort();
+  const missingInstalledRegistry = installedCodexAgents.filter((name) => !installedRegistryAgents.includes(name));
+  const extraInstalledRegistry = installedRegistryAgents.filter((name) => !installedCodexAgents.includes(name));
+  missingInstalledRegistry.length === 0 && extraInstalledRegistry.length === 0
+    ? ok(`Codex installed agents match the capability registry (${installedCodexAgents.length}/${installedRegistryAgents.length})`)
+    : bad(`Codex installed agent/registry drift: missing=[${missingInstalledRegistry.join(',')}] extra=[${extraInstalledRegistry.join(',')}]`);
   const architectAgent = readFileSync(join(proj, '.codex', 'agents', 'architect.toml'), 'utf-8');
   const qaUnitAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-unit.toml'), 'utf-8');
   const qaOrchestratorAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-orchestrator.toml'), 'utf-8');

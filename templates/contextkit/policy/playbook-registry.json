@@ -17,6 +17,20 @@
       "sourcePath": "squads/squad-devteam.md"
     },
     {
+      "id": "distillation-cycle",
+      "owningSquad": "devteam",
+      "intents": ["documentation", "implementation-review", "material-decision"],
+      "contexts": ["documentation", "maintenance", "operation"],
+      "workflowPhases": ["conclusion"],
+      "pathPatterns": ["contextkit/memory/sessions/", "contextkit/memory/decisions/", ".distillation-proposal.md", "CLAUDE.md", "AGENTS.md"],
+      "technologies": [],
+      "riskTriggers": ["medium", "high"],
+      "requiredSections": ["The cycle in one sentence", "End-to-end flow", "Anti-patterns"],
+      "incompatibleConditions": [],
+      "version": "1.0.0",
+      "sourcePath": "distillation-cycle.md"
+    },
+    {
       "id": "squad-frontend",
       "owningSquad": "design-team",
       "intents": ["ux-review", "accessibility-review", "implementation"],

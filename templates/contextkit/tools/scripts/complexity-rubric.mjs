@@ -54,9 +54,24 @@ export function loadRubric(root = process.cwd()) {
   }
 }
 
-/** True when any signal occurs as a substring of the lowercased text. */
+/** Escapes a string for a deterministic RegExp literal. */
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** True when one rubric signal matches the lowercased text. */
+function signalMatches(text, signal) {
+  const s = String(signal || '').toLowerCase().trim();
+  if (!s) return false;
+  if (/^[a-z0-9]+$/.test(s) && s.length <= 4) {
+    return new RegExp(`(^|[^a-z0-9])${escapeRegex(s)}([^a-z0-9]|$)`).test(text);
+  }
+  return text.includes(s);
+}
+
+/** True when any signal occurs in the lowercased text. */
 function hasAny(text, signals) {
-  return Array.isArray(signals) && signals.some((s) => s && text.includes(String(s).toLowerCase()));
+  return Array.isArray(signals) && signals.some((s) => signalMatches(text, s));
 }
 
 /**
@@ -81,7 +96,7 @@ export function classify(input, rubric = DEFAULT_RUBRIC) {
   const matched = [];
   for (const [name, def] of Object.entries(rubric.domains || {})) {
     if (name === 'general') continue;
-    const hits = (def.signals || []).filter((s) => text.includes(String(s).toLowerCase()));
+    const hits = (def.signals || []).filter((s) => signalMatches(text, s));
     if (hits.length) matched.push({ name, hits: hits.length, def });
   }
   matched.sort((a, b) => b.hits - a.hits);
