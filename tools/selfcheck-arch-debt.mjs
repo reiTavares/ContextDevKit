@@ -32,6 +32,8 @@ const CHILDREN = [
   'selfcheck-arch-debt-registry.mjs',
   'selfcheck-arch-debt-intentional.mjs',
   'selfcheck-arch-debt-fitness.mjs',
+  // W4 — engine end-to-end integration
+  'selfcheck-arch-debt-gate.mjs',
 ];
 
 let failed = 0;

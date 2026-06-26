@@ -29,7 +29,16 @@ function isIgnored(rel) {
   return IRRELEVANT.some((p) => norm === p || norm.startsWith(p));
 }
 
-function walk(dir, acc) {
+/**
+ * Walk the project's source files (skipping config.ledger.irrelevant paths),
+ * returning their repo-relative forward-slash paths. Exported so the WF-0057
+ * architecture-debt gate REUSES this one walk as its StructuralSignalCollector
+ * input source rather than duplicating the tree traversal (decisions.md Fork-1).
+ * @param {string} dir  absolute directory to walk (typically ROOT).
+ * @param {string[]} acc  accumulator (pass `[]`).
+ * @returns {string[]} repo-relative source file paths.
+ */
+export function walk(dir, acc) {
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -74,7 +83,7 @@ async function loadCustomDetectors() {
   return fns;
 }
 
-function scan(quick, detectors) {
+export function scan(quick, detectors) {
   const files = walk(ROOT, []);
   const findings = [];
   for (const rel of files) {
@@ -158,7 +167,11 @@ async function main() {
   if (report.findings.length > 15) console.log(`   … and ${report.findings.length - 15} more (use --write for the full board).`);
 }
 
-main().catch((err) => {
-  console.error('tech-debt-scan failed:', err?.message ?? err);
-  process.exit(1);
-});
+// Run only when invoked directly as the CLI entry — importing this module (e.g.
+// the WF-0057 gate reusing `walk`/`scan`) must NOT trigger the scan + exit.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  main().catch((err) => {
+    console.error('tech-debt-scan failed:', err?.message ?? err);
+    process.exit(1);
+  });
+}
