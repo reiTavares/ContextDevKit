@@ -33,6 +33,7 @@ import { deriveOutcomes } from './economics/autonomy-outcomes.mjs';
 import { presentPilot } from './economics/benchmark-pilot.mjs';
 import { readSavingsSync, savingsSummary, presentSavings, observedSavingsReport, savingsFile } from './economy/economy-savings.mjs';
 import { readEconomyEventsSync, summarizeEconomyEvents, presentEconomyEvents, economyEventsFile } from './economy/economy-events.mjs';
+import { estimatedLane, presentEstimatedLane } from './economy/kill-criterion.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { listStates } from '../../runtime/state/state-io.mjs';
@@ -288,6 +289,8 @@ function main() {
     if (pilotLine) { console.log(''); console.log(pilotLine); }
     console.log('');
     console.log(presentEconomyEvents(economyLifecycle));
+    console.log('');
+    console.log(presentEstimatedLane(estimatedLane(readEconomyEventsSync(economyEventsFile(ROOT))))); // W8: estimated lane, never folded into observed
     console.log('');
     console.log(presentSavings(savings));
     console.log('');

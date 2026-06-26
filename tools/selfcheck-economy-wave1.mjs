@@ -36,6 +36,7 @@ const CARDS = [
   ['#OP1-W2 redact', 'redact.mjs', 'econCheckRedact'],
   ['#OP1-W1 telemetry-emit', 'telemetry-emit.mjs', 'econCheckTelemetryEmit'],
   ['#OP1-WF39 subagent-profile', 'subagent-profile.mjs', 'econCheckSubagentProfile'],
+  ['#OP1-W8 kill-criterion', 'kill-criterion.mjs', 'econCheckKillCriterion'],
 ];
 
 let failures = 0;
