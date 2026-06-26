@@ -15,7 +15,6 @@ import {
   economyEventsFile,
   recordEconomyEvent,
 } from './economy-events.mjs';
-import { emitEconomy } from './telemetry-emit.mjs';
 export { buildDevStartBootstrap } from './dev-start-economy-core.mjs';
 
 export function parseDevStartArgs(argv = []) {
@@ -67,8 +66,10 @@ function leverFor(stage) {
 
 export function lifecycleEventsForBootstrap(plan, opts = {}) {
   const requestId = plan?.correlation?.requestId ?? `dev-start-${plan?.objective?.fingerprint?.slice(-12) ?? 'unknown'}`;
+  const sessionId = plan?.correlation?.sessionId ?? null;
+  const sourceId = plan?.objective?.fingerprint ?? null;
   const stages = Array.isArray(plan?.stages) ? plan.stages.slice(0, 5) : [];
-  return stages.map((stage) => {
+  const events = stages.map((stage) => {
     const lifecycle = lifecycleFor(stage);
     return recordEconomyEvent({
       eventId: `${requestId}:${stage.order}:${stage.stage}`,
@@ -79,12 +80,30 @@ export function lifecycleEventsForBootstrap(plan, opts = {}) {
       failed: lifecycle === 'failed',
       reasonCodes: [`stage=${stage.stage}`, `status=${stage.status}`],
       requestId,
-      sessionId: plan?.correlation?.sessionId ?? null,
+      sessionId,
       sourceLedger: 'dev-start-bootstrap',
-      sourceId: plan?.objective?.fingerprint ?? null,
+      sourceId,
       capturedAt: opts.now ?? null,
     }, { now: opts.now });
   });
+  // Honest emit (ADR-0117): dev-start consults the context-profiles budget
+  // (profileFor) to recommend the dev-start profile. Recorded with a DETERMINISTIC
+  // eventId so a repeated bootstrap for the same request dedups — idempotent.
+  events.push(recordEconomyEvent({
+    eventId: `${requestId}:context-profiles`,
+    lever: 'context-profiles',
+    lifecycle: 'evaluated',
+    evaluated: true,
+    skipped: false,
+    failed: false,
+    reasonCodes: ['stage=context-profiles', 'status=consulted'],
+    requestId,
+    sessionId,
+    sourceLedger: 'dev-start-bootstrap',
+    sourceId,
+    capturedAt: opts.now ?? null,
+  }, { now: opts.now }));
+  return events;
 }
 
 export function persistBootstrapLifecycle(plan, options = {}) {
@@ -122,12 +141,6 @@ export function runDevStartBootstrap(argv = process.argv.slice(2), root = proces
 export function devStartBootstrap(options = {}) {
   const plan = buildDevStartBootstrap(options);
   const persisted = persistBootstrapLifecycle(plan, options);
-  // Honest emit: dev-start consulted the context-profiles budget (profileFor) to
-  // recommend the dev-start profile. Fired (consulted/surfaced), not applied —
-  // same root convention as the lifecycle events persisted just above.
-  emitEconomy(options.root ?? process.cwd(), 'context-profiles',
-    { category: 'advisory', action: 'fired', measurement: 'none', sessionId: plan?.correlation?.sessionId ?? null },
-    { now: options.now });
   return { ...plan, lifecycle: persisted.events, persistence: persisted.persistence };
 }
 
