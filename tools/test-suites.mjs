@@ -75,6 +75,7 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/token', 'templates/contextkit/runtime/economy/'] },
   { id: 'eacp', file: it('eacp'), tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/economics/'] },
+  { id: 'competitive-followups', file: it('competitive-followups'), tier: 'integration:core', touches: ['templates/contextkit/tools/scripts/claims-gate', 'templates/contextkit/tools/scripts/runs'] },
   { id: 'tooling-pipeline', file: it('tooling-pipeline'), tier: 'integration:workflow',
     touches: ['templates/contextkit/tools/scripts/pipeline', 'templates/contextkit/commands/pipeline'] },
   { id: 'pipeline-substrate', file: it('pipeline-substrate'), tier: 'integration:workflow',
