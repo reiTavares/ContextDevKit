@@ -35,6 +35,7 @@ const CARDS = [
   ['#264 economy-governance', 'economy-governance.mjs', 'econCheckGovernance'],
   ['#OP1-W2 redact', 'redact.mjs', 'econCheckRedact'],
   ['#OP1-W1 telemetry-emit', 'telemetry-emit.mjs', 'econCheckTelemetryEmit'],
+  ['#OP1-WF39 subagent-profile', 'subagent-profile.mjs', 'econCheckSubagentProfile'],
 ];
 
 let failures = 0;

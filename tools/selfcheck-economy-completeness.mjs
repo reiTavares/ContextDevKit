@@ -63,13 +63,16 @@ for (const { resource, category } of ECONOMY_RESOURCES) {
     console.log(`  ✓ ${category} ${resource} — instrumented`);
   }
 }
+// HARD for ALL categories (OP-0001 WF-0039 done-definition): once every resource
+// has a runnable emit-site, a dark non-lever is a regression, not a tracked gap.
 if (advisoryDark.length > 0) {
-  console.log(`  ⚠ ADVISORY — ${advisoryDark.length} non-lever resource(s) not yet instrumented (tracked, non-fatal):`);
-  console.log(`      ${advisoryDark.join(', ')}`);
+  console.error(`  ✗ ${advisoryDark.length} non-lever resource(s) DARK (no emit-site):`);
+  console.error(`      ${advisoryDark.join(', ')}`);
 }
+const totalDark = leverDark + advisoryDark.length;
 console.log(
-  leverDark === 0
-    ? `\n✅ Economy completeness: all ${ECONOMY_RESOURCES.filter((r) => r.category === 'lever').length} measurable levers instrumented (no lever ships dark).\n`
-    : `\n❌ Economy completeness: ${leverDark} lever(s) DARK.\n`,
+  totalDark === 0
+    ? `\n✅ Economy completeness: all ${ECONOMY_RESOURCES.length} resources instrumented (no resource ships dark).\n`
+    : `\n❌ Economy completeness: ${totalDark} resource(s) DARK (${leverDark} lever, ${advisoryDark.length} non-lever).\n`,
 );
-process.exit(leverDark === 0 ? 0 : 1);
+process.exit(totalDark === 0 ? 0 : 1);

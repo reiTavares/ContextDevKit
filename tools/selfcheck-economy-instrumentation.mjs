@@ -97,6 +97,43 @@ for (const [resource, category, action] of ROUTED) {
   } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
 }
 
+// D) Phase-1 runnable surfaces (option-1 wiring): each emits when invoked, with
+// NO auto-hook. tc-packet fires even on an uncompilable symbol (attempted); the
+// downstream ladder fires over a hand-built valid work-packet.
+{
+  const base = tmpRoot();
+  try {
+    const { runTaskCompiler, compileLadderFrom } = await import(pathToFileURL(resolve(ECON, 'task-compiler.mjs')).href);
+    const { runLeanLoop } = await import(pathToFileURL(resolve(ECON, 'lean-loop-cli.mjs')).href);
+    const { applySubagentProfile } = await import(pathToFileURL(resolve(ECON, 'subagent-profile.mjs')).href);
+
+    runTaskCompiler({ objective: 'x', symbol: '__no_such_symbol__', root: base }, { now: NOW });
+    const packet = { schemaVersion: 'cdk-work-packet/1', objective: 'x', taskClass: 'bugfix',
+      files: [{ path: 'a.mjs', symbols: ['f'], lines: [1, 2] }], acceptanceCriteria: [],
+      verification: [], outputContract: { artifactFirst: true }, confidence: 0.5, coverage: 'symbol' };
+    compileLadderFrom(packet, { root: base, now: NOW });
+    runLeanLoop({ controller: 'swarm', touchSet: ['a'] }, base, { now: NOW });
+    applySubagentProfile(base, { now: NOW });
+
+    const rows = readJsonl(economyEventsFile(base)).map((r) => r.lever);
+    for (const id of ['tc-packet', 'tc-route', 'tc-dispatch', 'tc-accept', 'lean-loop', 'subagent-profile']) {
+      rows.includes(id) ? ok(`${id}: runnable surface emits an events row`)
+                        : bad(`${id}: no events row from its runnable surface`);
+    }
+  } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
+}
+
+// E) agent-contract CLI (spawned) emits on a real drift-audit run.
+{
+  const base = tmpRoot();
+  try {
+    spawnSync(process.execPath, [resolve(ECON, 'agent-contract.mjs')], { cwd: base, encoding: 'utf-8' });
+    const hit = readJsonl(economyEventsFile(base)).some((r) => r.lever === 'agent-contract');
+    hit ? ok('agent-contract CLI emits an agent-contract events row')
+        : bad('agent-contract CLI wrote no agent-contract row');
+  } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
+}
+
 console.log(
   failures === 0
     ? '\n✅ Economy instrumentation behavioral check: all checks passed.\n'

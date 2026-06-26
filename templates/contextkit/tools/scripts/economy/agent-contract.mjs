@@ -30,6 +30,7 @@
  */
 
 import { resolveContract } from './output-contract.mjs';
+import { emitEconomy } from './telemetry-emit.mjs';
 
 // auditAgentContractDrift is declared below to avoid a circular import:
 // agent-contract-drift imports renderContractSection from here, so we cannot
@@ -279,4 +280,15 @@ export async function econCheckAgentContract(root) {
   });
 
   return checkResults;
+}
+
+// ─── CLI ────────────────────────────────────────────────────────────────────
+// Runnable surface (read-only): audits the QA-squad agent files for output-
+// contract drift and emits `agent-contract fired` (the contract was resolved,
+// rendered, and compared). Not wired into any hook — fires only when run.
+if (process.argv[1]?.endsWith('agent-contract.mjs')) {
+  auditAgentContractDrift(process.cwd()).then((report) => {
+    emitEconomy(process.cwd(), 'agent-contract', { category: 'advisory', action: 'fired', measurement: 'none' }, { now: Date.now() });
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  }).catch(() => process.exit(0));
 }
