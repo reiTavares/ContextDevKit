@@ -12,13 +12,17 @@
  *   project-map.mjs --check          # delta vs the saved map + rule violations
  *   project-map.mjs --check --strict # exit 1 if stale OR a rule is violated (CI)
  *   project-map.mjs --for <path>     # focused subgraph (module + deps + importers)
+ *   project-map.mjs --memory         # dogfood memory index + fleet-safe next ids
+ *   project-map.mjs --find dogfood   # alias of --memory (ADR-0119)
  *
  * Output path single-sourced via `pathsFor` (rule 4). Best-effort; never throws on
  * a bad file. Rules/insights are opt-in and additive (ADR-0046). [ADR-0038/0039/0040/0046]
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { localVsFleet } from './registry/ids.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { scanProject } from './project-map-core.mjs';
 import { renderAll } from './project-map-render.mjs';
@@ -152,11 +156,47 @@ function findSymbolCmd(query) {
   return 0;
 }
 
+/**
+ * Dogfood memory index (ADR-0119): reads everything under `<memory>/` and maps the
+ * methodology index — counts + the FLEET-reconciled next id per kind so the agent
+ * picks a collision-safe BIZ/OP/WF/ADR number without re-exploring or spending any
+ * tokens. Reused by the intake collision gate.
+ *
+ * @param {string} root - project root.
+ * @returns {0}
+ */
+function memoryIndexCmd(root) {
+  const paths = pathsFor(root);
+  const memory = paths.memory;
+  const dirCount = (dir) => (existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== '_TEMPLATE' && e.name !== 'done').length
+    : 0);
+  const fileCount = (dir, re) => (existsSync(dir) ? readdirSync(dir).filter((n) => re.test(n)).length : 0);
+  const lines = [
+    '🧠 Dogfood memory index — deterministic, zero tokens',
+    '────────────────────────────────────────────────────────',
+    `  decisions (ADR)  : ${fileCount(paths.decisions, /^\d{4}[-.].*\.md$/)}`,
+    `  sessions         : ${fileCount(paths.sessions, /\.md$/)}`,
+    `  business         : ${dirCount(paths.business)}`,
+    `  operations       : ${dirCount(paths.operations)}`,
+    `  workflows active : ${dirCount(`${memory}/workflows`)}`,
+    `  workflows done   : ${dirCount(`${memory}/workflows/done`)}`,
+    '',
+    '  Fleet-reconciled next ids (collision-safe across worktrees):',
+  ];
+  for (const row of localVsFleet(root)) {
+    lines.push(`    ${row.kind.padEnd(4)} → ${row.fleet}${row.diverges ? '  ⚠ local would collide' : ''}`);
+  }
+  console.log(lines.join('\n'));
+  return 0;
+}
+
 async function main() {
   const dir = pathsFor(ROOT).projectMap;
   if (flag('--for')) process.exit(forPath(valueOf('--for')));
   if (flag('--coverage')) process.exit(await coverage(dir));
   if (flag('--check')) process.exit(await check(dir));
+  if (flag('--memory') || valueOf('--find') === 'dogfood') process.exit(memoryIndexCmd(ROOT));
   if (flag('--find')) process.exit(findSymbolCmd(valueOf('--find') ?? ''));
   await generate(dir);
 }

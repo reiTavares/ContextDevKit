@@ -20,6 +20,25 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fleet-aware intake collision gate + done/ workflow lifecycle (WF-0042, ADR-0119)
+
+- Intake numbering (BIZ / OP / WF / ADR) is now reconciled across **every sibling
+  git worktree** on the machine, not just the local copy — two parallel sessions
+  can no longer allocate the same number and collide on merge. New
+  `registry/fleet.mjs` (`listWorktrees`, `fleetMemoryRoots`) feeds the allocators
+  in `registry/ids.mjs`; new `nextAdrNumber` + `localVsFleet` exports.
+- Numbering is also **done-recursive**: the allocator counts `done/` archives, so a
+  filed-away workflow's number is never reused.
+- `intake-collision-gate.mjs` — advisory (never-blocking, exit-0, zero-token) gate
+  that prints the fleet-reconciled next number per kind and warns on divergence.
+- `workflow-done-sweep.mjs` — files concluded workflows into `<owner>/done/`
+  (owned) or `memory/workflows/done/` (unowned); dry-run by default, `--write`
+  atomic, idempotent.
+- `project-map.mjs --memory` (alias `--find dogfood`) — deterministic dogfood
+  memory index + fleet-safe next ids.
+- Tests: `integration-test-intake-gate.mjs` (tier `integration:workflow`) +
+  three co-located selftests. Shadow-first: runtime hook wire-in deferred.
+
 ### Test isolation harness; parallelism declined as measured-slower (WF0025/TEA-008, ADR-0114)
 
 - `run-suites.mjs` gains `--shuffle` + `--repeat N` — the suite-isolation proof

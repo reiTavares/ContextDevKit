@@ -19,6 +19,10 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { nextNumber } from '../workflow-number.mjs';
 import { pathsFor } from '../../../runtime/config/paths.mjs';
+import { fleetMemoryRoots } from './fleet.mjs';
+
+/** Normalise a path to forward slashes (Windows/git spellings, fs-safe). */
+const norm = (value) => String(value).replace(/\\/g, '/');
 
 /** Immediate child directory names of `dir`, or [] when `dir` is absent. */
 function childDirs(dir) {
@@ -52,77 +56,176 @@ function formatId(prefix, number) {
 }
 
 /**
- * Next free Business id scanning the business root (`BIZ-0001` → `BIZ-0002`;
- * empty root → `BIZ-0001`).
+ * Highest prefixed number for a memory subdir (e.g. "business") across a set of
+ * memory roots. The fleet-aware allocators pass every worktree's memory root so
+ * the result is the global max — never a per-worktree local max (ADR-0119).
+ *
+ * @param {string[]} memoryRoots - absolute `memory/` directories.
+ * @param {string} subdir - child of each memory root (e.g. "business").
+ * @param {string} prefix - id prefix without the dash (e.g. "BIZ").
+ * @returns {number} the global max, or 0.
+ */
+function maxPrefixedOver(memoryRoots, subdir, prefix) {
+  let max = 0;
+  for (const memory of memoryRoots) {
+    max = Math.max(max, maxPrefixedNumber(`${memory}/${subdir}`, prefix));
+  }
+  return max;
+}
+
+/**
+ * Next free Business id, reconciled across the whole worktree fleet so two
+ * parallel sessions never allocate the same `BIZ-####` (empty fleet → `BIZ-0001`).
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {string} the next `BIZ-####` id.
  */
 export function nextBusinessId(root = process.cwd()) {
-  return formatId('BIZ', maxPrefixedNumber(pathsFor(root).business, 'BIZ') + 1);
+  return formatId('BIZ', maxPrefixedOver(fleetMemoryRoots(root), 'business', 'BIZ') + 1);
 }
 
 /**
- * Next free Operation id scanning the operations root (empty root → `OP-0001`).
+ * Next free Operation id, reconciled across the whole worktree fleet
+ * (empty fleet → `OP-0001`).
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {string} the next `OP-####` id.
  */
 export function nextOperationId(root = process.cwd()) {
-  return formatId('OP', maxPrefixedNumber(pathsFor(root).operations, 'OP') + 1);
+  return formatId('OP', maxPrefixedOver(fleetMemoryRoots(root), 'operations', 'OP') + 1);
 }
 
 /**
- * Every directory that may hold a `NNNN-slug` (legacy) or `WF-####` workflow:
- * the new top-level workflows root plus per-context `workflows/` subfolders under
- * business/ and operations/. A4 adds duplicate-path detection over this same set.
+ * Every directory that may hold a `NNNN-slug` (legacy) or `WF-####` workflow under
+ * ONE memory root: the top-level `workflows/` and its `done/` archive, plus each
+ * business/ and operations/ context's `workflows/` and `done/` (ADR-0119). The
+ * `done/` archives are included so a concluded, filed-away workflow stays both
+ * resolvable AND counted by the allocator — its number is never reused.
+ *
+ * @param {string} memory - an absolute `memory/` directory.
+ * @returns {string[]} absolute paths of every workflow-holding directory.
+ */
+function workflowDirsUnder(memory) {
+  const dirs = [`${memory}/workflows`, `${memory}/workflows/done`];
+  for (const contextsRoot of [`${memory}/business`, `${memory}/operations`]) {
+    for (const name of childDirs(contextsRoot)) {
+      dirs.push(`${contextsRoot}/${name}/workflows`, `${contextsRoot}/${name}/done`);
+    }
+  }
+  return dirs;
+}
+
+/**
+ * Every workflow-holding directory under the LOCAL project root (active + done).
+ * Used by the resolver/migration tooling, which operate on the current tree only.
+ * A4 duplicate-path detection runs over this same set.
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {string[]} absolute paths of every workflow-holding directory.
  */
 export function workflowRoots(root = process.cwd()) {
-  const paths = pathsFor(root);
-  const roots = [resolveWorkflowsTop(paths)];
-  for (const contextsRoot of [paths.business, paths.operations]) {
-    for (const name of childDirs(contextsRoot)) {
-      roots.push(`${contextsRoot}/${name}/workflows`);
+  return workflowDirsUnder(pathsFor(root).memory);
+}
+
+/**
+ * Highest workflow number (legacy `NNNN-` OR new `WF-####`) in one dir, or 0. The
+ * legacy parsing stays owned by `workflow-number.mjs#nextNumber` (reuse, not fork);
+ * this only adds the `WF-` prefix the legacy allocator does not recognise.
+ */
+function maxWorkflowInDir(dir) {
+  // nextNumber = legacy max+1; subtract 1 to recover the per-dir legacy max.
+  const legacyMax = parseInt(nextNumber(dir), 10) - 1;
+  return Math.max(legacyMax, maxPrefixedNumber(dir, 'WF'));
+}
+
+/** Highest workflow number across a set of memory roots (active + done dirs). */
+function maxWorkflowOver(memoryRoots) {
+  let max = 0;
+  for (const memory of memoryRoots) {
+    for (const dir of workflowDirsUnder(memory)) {
+      max = Math.max(max, maxWorkflowInDir(dir));
     }
   }
-  return roots;
-}
-
-/** The new top-level `memory/workflows/` directory (also holds legacy dirs). */
-function resolveWorkflowsTop(paths) {
-  return `${paths.memory}/workflows`;
+  return max;
 }
 
 /**
- * Highest `WF-####` number among the folder names under `dir`, or 0. The legacy
- * `NNNN-` parsing stays owned by `workflow-number.mjs#nextNumber`; this only adds
- * the NEW-format prefix (`WF-`) that the legacy allocator does not recognise.
- */
-function maxNewWorkflowNumber(dir) {
-  return maxPrefixedNumber(dir, 'WF');
-}
-
-/**
- * Next free workflow number scanning EVERY workflow root (new + legacy) so a new
- * id never collides. For each root it takes the max of the legacy `NNNN-` count
- * (delegated to `workflow-number.mjs#nextNumber` — reuse, not fork) and the new
- * `WF-####` count, then the global max across roots. Returned value is the bare
- * 4-digit string (e.g. "0038"); WF callers prefix with `WF-`. Empty → "0001".
+ * Next free workflow number, reconciled across the whole worktree fleet AND every
+ * `done/` archive (ADR-0119) so a new id never collides with a parallel session's
+ * allocation and never reuses the number of a filed-away workflow. Returned value
+ * is the bare 4-digit string (e.g. "0038"); WF callers prefix with `WF-`.
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {string} the next free 4-digit workflow number, zero-padded.
  */
 export function nextWorkflowNumber(root = process.cwd()) {
-  let globalMax = 0;
-  for (const dir of workflowRoots(root)) {
-    // nextNumber = legacy max+1; subtract 1 to recover the per-root legacy max.
-    const legacyMax = parseInt(nextNumber(dir), 10) - 1;
-    globalMax = Math.max(globalMax, legacyMax, maxNewWorkflowNumber(dir));
+  return String(maxWorkflowOver(fleetMemoryRoots(root)) + 1).padStart(4, '0');
+}
+
+/**
+ * Highest ADR number among `NNNN-*.md` / `NNNN.md` files in one decisions dir, or
+ * 0. ADRs are files (not dirs), and may live under `decisions/` or its
+ * `business/`, `operations/`, `legacy/` subtrees.
+ */
+function maxAdrInDir(dir) {
+  if (!existsSync(dir)) return 0;
+  let max = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const match = entry.name.match(/^(\d{4})[-.]/);
+    if (match) max = Math.max(max, parseInt(match[1], 10));
   }
-  return String(globalMax + 1).padStart(4, '0');
+  return max;
+}
+
+/** Highest ADR number across a set of memory roots (decisions + subtrees). */
+function maxAdrOver(memoryRoots) {
+  let max = 0;
+  for (const memory of memoryRoots) {
+    for (const sub of ['decisions', 'decisions/business', 'decisions/operations', 'decisions/legacy']) {
+      max = Math.max(max, maxAdrInDir(`${memory}/${sub}`));
+    }
+  }
+  return max;
+}
+
+/**
+ * Next free ADR number, reconciled across the whole worktree fleet so two parallel
+ * sessions never allocate the same `NNNN` (the exact failure ADR-0118 records for
+ * 0116/0117). Returned bare 4-digit string; callers prefix with `ADR-`.
+ *
+ * @param {string} [root] - project root (default cwd).
+ * @returns {string} the next free 4-digit ADR number, zero-padded.
+ */
+export function nextAdrNumber(root = process.cwd()) {
+  return String(maxAdrOver(fleetMemoryRoots(root)) + 1).padStart(4, '0');
+}
+
+/**
+ * Diffs the LOCAL-only next id against the FLEET-reconciled next id for every kind
+ * (BIZ / OP / WF / ADR). The advisory collision gate (`intake-collision-gate.mjs`)
+ * renders this: when `diverges` is true, a parallel worktree already holds a higher
+ * number and a local-only allocation would collide on merge.
+ *
+ * @param {string} [root] - project root (default cwd).
+ * @returns {{kind:string, local:string, fleet:string, diverges:boolean}[]}
+ */
+export function localVsFleet(root = process.cwd()) {
+  const localRoots = [norm(pathsFor(root).memory)];
+  const fleetRoots = fleetMemoryRoots(root);
+  const pad = (number) => String(number).padStart(4, '0');
+  const row = (kind, localMax, fleetMax, format) => ({
+    kind,
+    local: format(localMax + 1),
+    fleet: format(fleetMax + 1),
+    diverges: fleetMax > localMax,
+  });
+  return [
+    row('BIZ', maxPrefixedOver(localRoots, 'business', 'BIZ'), maxPrefixedOver(fleetRoots, 'business', 'BIZ'), (n) => formatId('BIZ', n)),
+    row('OP', maxPrefixedOver(localRoots, 'operations', 'OP'), maxPrefixedOver(fleetRoots, 'operations', 'OP'), (n) => formatId('OP', n)),
+    row('WF', maxWorkflowOver(localRoots), maxWorkflowOver(fleetRoots), (n) => `WF-${pad(n)}`),
+    row('ADR', maxAdrOver(localRoots), maxAdrOver(fleetRoots), (n) => `ADR-${pad(n)}`),
+  ];
 }
 
 /**

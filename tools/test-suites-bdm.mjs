@@ -173,4 +173,17 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/adr-redundancy-core.mjs',
     ],
   },
+  {
+    // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
+    id: 'intake-gate',
+    file: 'tools/integration-test-intake-gate.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      'templates/contextkit/tools/scripts/registry/fleet.mjs',
+      'templates/contextkit/tools/scripts/registry/ids.mjs',
+      'templates/contextkit/tools/scripts/intake-collision-gate.mjs',
+      'templates/contextkit/tools/scripts/workflow-done-sweep.mjs',
+      'templates/contextkit/tools/scripts/project-map.mjs',
+    ],
+  },
 ]);
