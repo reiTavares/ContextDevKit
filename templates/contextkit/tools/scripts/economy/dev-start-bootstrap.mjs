@@ -15,6 +15,7 @@ import {
   economyEventsFile,
   recordEconomyEvent,
 } from './economy-events.mjs';
+import { emitEconomy } from './telemetry-emit.mjs';
 export { buildDevStartBootstrap } from './dev-start-economy-core.mjs';
 
 export function parseDevStartArgs(argv = []) {
@@ -121,6 +122,12 @@ export function runDevStartBootstrap(argv = process.argv.slice(2), root = proces
 export function devStartBootstrap(options = {}) {
   const plan = buildDevStartBootstrap(options);
   const persisted = persistBootstrapLifecycle(plan, options);
+  // Honest emit: dev-start consulted the context-profiles budget (profileFor) to
+  // recommend the dev-start profile. Fired (consulted/surfaced), not applied —
+  // same root convention as the lifecycle events persisted just above.
+  emitEconomy(options.root ?? process.cwd(), 'context-profiles',
+    { category: 'advisory', action: 'fired', measurement: 'none', sessionId: plan?.correlation?.sessionId ?? null },
+    { now: options.now });
   return { ...plan, lifecycle: persisted.events, persistence: persisted.persistence };
 }
 
