@@ -80,6 +80,21 @@ Reports include branch, commit, `git diff --stat`, `git diff --numstat`, and
 touched files. They intentionally do not embed full patches; git is the patch
 source of truth.
 
+## Numbering — UNIVERSAL (inviolable law)
+
+> A workflow's number is **unique across the whole hierarchy** as ONE sequence —
+> `memory/workflows/`, every `business/<BIZ>/workflows/`, every
+> `operations/<OP>/workflows/`, and every `done/` archive. **It is NOT
+> per-context.** If a Business already holds workflow `20`, the next workflow —
+> even the first in a brand-new Operation — is `21`, never `01`.
+> (BIZ-0001 / WF-0036 A4 "global numbering scanning every root"; ADR-0119.)
+
+`workflow.mjs new` allocates the id via the universal allocator
+(`registry/ids.mjs` → `nextWorkflowNumber` / `allocateWorkflowId`), which scans
+every root plus the worktree fleet. **Never** hand-pick a number or use a
+per-directory count — that re-introduces the cross-context collisions ADR-0119
+fixed.
+
 ## Compatibility
 
 Legacy breadcrumb files at `contextkit/memory/workflows/<slug>.md` remain

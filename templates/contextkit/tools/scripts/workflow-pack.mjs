@@ -12,7 +12,8 @@ import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { checkPhaseGaps } from './workflow-gate.mjs';
-import { nextNumber, resolveFolderName } from './workflow-number.mjs';
+import { resolveFolderName } from './workflow-number.mjs';
+import { nextWorkflowNumber } from './registry/ids.mjs';
 import { parseFrontmatter } from './workflow-frontmatter.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
@@ -185,7 +186,9 @@ export function createWorkflow(root, slug, kind = 'feature', owner = null) {
   const dir = workflowsDir(root);
   mkdirSync(dir, { recursive: true });
   if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
-  const number = nextNumber(dir);
+  // UNIVERSAL numbering (BIZ-0001 / WF-0036 A4, ADR-0119): global max+1 across every
+  // root (legacy + business + operations + done/), NEVER a per-directory count.
+  const number = nextWorkflowNumber(root);
   mkdirSync(resolve(dir, `${number}-${slug}`), { recursive: true });
   seedFiles(root, slug, kind, number, owner);
   return readWorkflow(root, slug);
