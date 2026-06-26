@@ -134,6 +134,56 @@ for (const [resource, category, action] of ROUTED) {
   } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
 }
 
+// F/G) W7 security: run-compact persists summary-only by default and routes the
+// full tee through the hardened redactor when opted in.
+{
+  const base = tmpRoot();
+  try {
+    const { runCompact } = await import(pathToFileURL(resolve(ECON, 'run-compact.mjs')).href);
+    const GH = 'ghp_ABCDEFGHIJ0123456789XYZ';
+
+    const plain = await runCompact(['node', '-e', 'console.log("hello world")'], { runsDir: base });
+    const defaultLog = resolve(base, plain.id, 'output.log');
+    (plain.logPath === null && !existsSync(defaultLog))
+      ? ok('run-compact: summary-only by default (no output.log persisted)')
+      : bad(`run-compact: default persisted a raw log (logPath=${plain.logPath})`);
+
+    const full = await runCompact(['node', '-e', `console.log("token ${GH} end")`], { runsDir: base, captureFull: true });
+    const fullLog = existsSync(full.logPath) ? readFileSync(full.logPath, 'utf-8') : '';
+    (full.logPath && fullLog.includes('[REDACTED:gh]') && !fullLog.includes(GH))
+      ? ok('run-compact: --capture-full tee is hardened-redacted (gh token masked)')
+      : bad(`run-compact: captured log leaked or unmasked (hasMask=${fullLog.includes('[REDACTED:gh]')} hasRaw=${fullLog.includes(GH)})`);
+  } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
+}
+
+// I) W7 concurrency safety: two processes appending to ONE ledger never tear a
+// JSONL line (the single-line atomic append is what makes per-session shards
+// unnecessary for torn-line safety; read-isolation sharding is a deferred
+// follow-up). Every persisted line must parse.
+{
+  const base = tmpRoot();
+  const emitN = `import('${pathToFileURL(resolve(ECON, 'telemetry-emit.mjs')).href}').then(m=>{for(let i=0;i<60;i++)m.emitEconomy(${JSON.stringify(base)},'context-pack',{category:'advisory',action:'fired',measurement:'none'},{now:${NOW}+i});});`;
+  try {
+    const a = spawnSync(process.execPath, ['-e', emitN], { encoding: 'utf-8' });
+    const b = spawnSync(process.execPath, ['-e', emitN], { encoding: 'utf-8' });
+    const file = economyEventsFile(base);
+    const raw = existsSync(file) ? readFileSync(file, 'utf-8').split('\n').filter(Boolean) : [];
+    let parsed = 0;
+    for (const line of raw) { try { JSON.parse(line); parsed += 1; } catch { /* torn */ } }
+    (raw.length === 120 && parsed === 120 && a.status === 0 && b.status === 0)
+      ? ok(`concurrent appends never tear a line (${parsed}/${raw.length} parse)`)
+      : bad(`torn or missing lines: ${parsed}/${raw.length} parsed (expected 120/120)`);
+  } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
+}
+
+// H) runs/ is gitignored (W7) — diagnostic logs must never be committed.
+{
+  const gi = existsSync(resolve(KIT, '.gitignore')) ? readFileSync(resolve(KIT, '.gitignore'), 'utf-8') : '';
+  /(^|\n)\s*\/?runs\/?\s*(\n|$)/.test(gi)
+    ? ok('runs/ is gitignored at the kit root')
+    : bad('runs/ is NOT gitignored — diagnostic logs could be committed');
+}
+
 console.log(
   failures === 0
     ? '\n✅ Economy instrumentation behavioral check: all checks passed.\n'

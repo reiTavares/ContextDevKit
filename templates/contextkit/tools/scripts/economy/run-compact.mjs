@@ -32,9 +32,11 @@ import {
   failureIdentity,
   deltaRuns,
   matchSummary,
-  redactSecrets,
 } from './run-compact-core.mjs';
 import { makeRunId, resolveRunsDir, pruneRuns, detectKind } from './run-compact-io.mjs';
+// W7 (ADR-0117): persist through the hardened 12-class redactor, not the weak
+// single-regex in run-compact-core, so EVERY persisted byte is masked.
+import { redactSecrets } from './redact.mjs';
 
 // Re-export pure helpers so callers can import everything from one place.
 export { fingerprintRun, failureIdentity, deltaRuns };
@@ -62,7 +64,10 @@ const VALID_KINDS = new Set(['test', 'lint', 'build', 'auto']);
  * @returns {Promise<{ id: string, exitCode: number, summary: object, logPath: string }>}
  */
 export async function runCompact(cmd, opts = {}) {
-  const { kind: kindOpt = 'auto', runsDir: runsDirOpt, root, env } = opts;
+  // captureFull (W7): default summary-only-on-disk. The full raw output tee is
+  // written ONLY behind an explicit opt-in — raw test/build logs are the most
+  // likely place a secret or token leaks onto disk.
+  const { kind: kindOpt = 'auto', runsDir: runsDirOpt, root, env, captureFull = false } = opts;
   const cmdParts = Array.isArray(cmd) ? cmd : String(cmd).trim().split(/\s+/);
   if (cmdParts.length === 0) throw new TypeError('runCompact: cmd must be a non-empty string or array');
 
@@ -77,9 +82,13 @@ export async function runCompact(cmd, opts = {}) {
   // Ensure run dir exists (best-effort).
   try { mkdirSync(runDir, { recursive: true }); } catch { /* advisory */ }
 
-  // Open log stream (best-effort — if it fails we still run the command).
+  // Open the full-output log stream ONLY when explicitly opted in (W7). Default
+  // is summary-only: the raw output stays in-memory for the fingerprint/summary
+  // and is never persisted.
   let logStream = null;
-  try { logStream = createWriteStream(logPath, { encoding: 'utf-8' }); } catch { /* advisory */ }
+  if (captureFull) {
+    try { logStream = createWriteStream(logPath, { encoding: 'utf-8' }); } catch { /* advisory */ }
+  }
 
   const chunks = [];
 
@@ -146,7 +155,9 @@ export async function runCompact(cmd, opts = {}) {
   // Ring-prune.
   pruneRuns(runsDir);
 
-  return { id, exitCode, summary, logPath };
+  // logPath is null when summary-only (W7): callers must not point at a file we
+  // deliberately did not write.
+  return { id, exitCode, summary, logPath: captureFull ? logPath : null, summaryPath };
 }
 
 // ---------------------------------------------------------------------------
@@ -243,18 +254,24 @@ async function main() {
     process.exit(1);
   }
 
-  // Extract --kind flag.
-  const kindIdx = args.indexOf('--kind');
-  let kind = 'auto';
+  // Extract flags.
   const cmdArgs = [...args];
-  if (kindIdx !== -1 && kindIdx + 1 < args.length) {
-    kind = args[kindIdx + 1];
+  const captureFull = (() => {
+    const i = cmdArgs.indexOf('--capture-full');
+    if (i === -1) return false;
+    cmdArgs.splice(i, 1);
+    return true;
+  })();
+  const kindIdx = cmdArgs.indexOf('--kind');
+  let kind = 'auto';
+  if (kindIdx !== -1 && kindIdx + 1 < cmdArgs.length) {
+    kind = cmdArgs[kindIdx + 1];
     cmdArgs.splice(kindIdx, 2);
   }
 
   // ADR-0117: pass root so the line-144 logSavingSync actually records (a missing
   // root silently no-ops — the real reason run-compact stayed dormant when invoked).
-  const { id, exitCode, summary, logPath } = await runCompact(cmdArgs, { kind, root: process.cwd() });
+  const { id, exitCode, summary, logPath } = await runCompact(cmdArgs, { kind, root: process.cwd(), captureFull });
 
   console.log(`\n--- run-compact summary (${id}) ---`);
   console.log(`cmd:      ${summary.cmd}`);
@@ -268,7 +285,7 @@ async function main() {
   if (summary.failures.length > 0) {
     console.log(`failures: ${summary.failures.join(', ')}`);
   }
-  console.log(`log:      ${logPath}`);
+  console.log(`log:      ${logPath ?? '(summary-only on disk; pass --capture-full to persist the raw output)'}`);
 
   process.exit(exitCode);
 }
