@@ -22,7 +22,7 @@ import { resolveProfile, requiredFilesFor } from './profiles.mjs';
 import { resolvePattern, waveSkeleton } from './patterns.mjs';
 import { explainFile } from './files.mjs';
 import { addonRequirements } from './addons.mjs';
-import { nextNumber } from '../workflow-number.mjs';
+import { nextWorkflowNumber } from '../registry/ids.mjs';
 import {
   renderWaveIndex, renderPrd, renderSpec, renderDecisions,
   renderTasks, renderMemory, renderStub,
@@ -138,7 +138,10 @@ export function createWaveWorkflow(root, slug, options = {}) {
 
   const dir = workflowsDir(root);
   mkdirSync(dir, { recursive: true });
-  const number = options.number ?? nextNumber(dir);
+  // Workflow numbering is UNIVERSAL across legacy/business/operations (BIZ-0001 /
+  // WF-0036 A4, ADR-0119): the next id is the global max+1 over every root — NEVER
+  // a per-directory count. `nextWorkflowNumber` is the single source of truth.
+  const number = options.number ?? nextWorkflowNumber(root);
   const packDir = resolve(dir, `${number}-${slug}`);
   if (existsSync(packDir)) throw new Error(`workflow "${slug}" already exists at ${packDir}`);
   mkdirSync(packDir, { recursive: true });

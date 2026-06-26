@@ -1,8 +1,21 @@
 /**
- * Workflow numbering (ADR-0071). Workflows are numbered like ADRs (`NNNN-slug`)
- * so they order and reference cleanly. This module owns the numbering + folder
- * resolution + the date-ordered migration, keeping `workflow-pack.mjs` within the
- * line budget. Pure `node:fs`, zero deps.
+ * Workflow numbering primitives + folder resolution + date-ordered migration.
+ * Workflows are numbered like ADRs (`NNNN-slug`) so they order and reference
+ * cleanly. Pure `node:fs`, zero deps.
+ *
+ * ⛔ INVIOLABLE LAW — workflow ids are UNIVERSAL, never per-directory.
+ * (BIZ-0001 / WF-0036 A4 "global numbering scanning every root"; ADR-0119.)
+ * A workflow's number is unique across the WHOLE hierarchy — legacy
+ * `memory/workflows/`, every `business/<BIZ>/workflows/`, every
+ * `operations/<OP>/workflows/`, and every `done/` archive — as ONE sequence. If a
+ * BIZ already holds workflow 20, the next workflow (even in a brand-new Operation)
+ * is 21, not 01.
+ *
+ * Therefore: to ALLOCATE a new workflow id you MUST call `nextWorkflowNumber` /
+ * `allocateWorkflowId` from `registry/ids.mjs` (the single source of truth, which
+ * scans every root + the worktree fleet). NEVER use `nextNumber` below to allocate
+ * — it is a per-directory primitive that `ids.mjs` composes into the global max.
+ * Using it for allocation collides ids across contexts (the bug ADR-0119 fixes).
  */
 import { existsSync, readdirSync, readFileSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -15,7 +28,17 @@ function dirNames(dir) {
   return readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== '_TEMPLATE').map((e) => e.name);
 }
 
-/** Next 4-digit number = max existing leading `NNNN-` + 1 (starts at 0001). */
+/**
+ * PER-DIRECTORY max+1 of leading `NNNN-` (starts at 0001). Internal primitive only.
+ *
+ * ⛔ NOT a workflow-id allocator. For a new workflow id use `nextWorkflowNumber` /
+ * `allocateWorkflowId` (`registry/ids.mjs`) — ids are UNIVERSAL (see file header).
+ * The only legitimate callers are `ids.mjs` (which folds this into the global max)
+ * and the date-ordered migration below.
+ *
+ * @param {string} dir - a single workflow-holding directory.
+ * @returns {string} the per-directory next number — DO NOT use to allocate an id.
+ */
 export function nextNumber(dir) {
   let max = 0;
   for (const name of dirNames(dir)) {

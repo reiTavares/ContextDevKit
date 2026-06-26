@@ -91,6 +91,17 @@ nx.script('workflow.mjs', 'new', 'owned-feat', '--kind', 'feature', '--operation
 nx.script('workflow.mjs', 'new', 'a-chore', '--kind', 'chore').status === 0
   ? rep.ok('13c. ADR-0116: chore workflow needs no owner')
   : rep.bad('13c. chore workflow wrongly required an owner');
+// --- UNIVERSAL numbering regression (BIZ-0001 / WF-0036 A4, ADR-0119): a new
+// workflow's number is the GLOBAL max+1 across every root, not a per-directory
+// count. Seed a high number in another context (folder name is enough — the
+// allocator reads dir names); the next `new` must jump past it. FAILS under the
+// old per-directory allocator.
+mkdirSync(join(nx.proj, 'contextkit', 'memory', 'operations', 'OP-0001-seed', 'workflows', '0050-seeded'), { recursive: true });
+nx.script('workflow.mjs', 'new', 'universal-check', '--kind', 'chore');
+const afterSeed = readdirSync(nxDir).filter((x) => x !== '_TEMPLATE');
+afterSeed.includes('0051-universal-check')
+  ? rep.ok('11a. UNIVERSAL: new workflow takes global max+1 (0051) across contexts')
+  : rep.bad('11a. expected 0051-universal-check (universal numbering), got: ' + afterSeed.join(', '));
 nx.cleanup();
 
 // --- Date-ordered migration (renumberByStarted), idempotent ---
