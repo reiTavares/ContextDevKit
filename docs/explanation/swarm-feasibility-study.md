@@ -189,7 +189,6 @@ deliberately on each tier):
 
 ---
 
-_Update 2026-06-11: this study has been hardened into
-[ADR-0051](../../contextkit/memory/decisions/0051-swarm-coordinator-parallel-workstreams.md)
+_Update 2026-06-11: this study has been hardened into a formal decision record
 (the maintainer accepted the study as the deliberation input, waiving a separate
 `/debate` round). Next step: the P0 validation run, then swarm v1 (task 123)._

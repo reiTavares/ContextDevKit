@@ -5,36 +5,166 @@
 
 ## O que é
 
-O ContextDevKit transforma "AI-assisted coding" em **engenharia**: em vez de torcer para a
-IA lembrar do contexto, o kit faz o ambiente **forçar** boas práticas e guardar
-o histórico no próprio repositório. Funciona em qualquer projeto — do zero
-(greenfield) ou já existente, qualquer stack — e em **três hosts nativos**:
+O ContextDevKit é uma **plataforma de desenvolvimento orientada ao negócio
+(business-driven)**: ela liga *intenção de negócio* a *execução de engenharia
+governada*. Em vez de torcer para a IA lembrar do contexto, o kit faz o ambiente
+**forçar** boas práticas e guardar o histórico no próprio repositório. Você parte de
+um caso de negócio (problema, hipótese de valor, decisão de investimento) e o trabalho
+é dirigido por essa intenção, não por tickets soltos: requisitos viram workflows,
+workflows viram tarefas governadas, e cada decisão é registrada com o *porquê*. Uma
+regra dura mantém isso honesto — propostas seguem o ciclo rascunhar → aprovar →
+revisar → rejeitar, e a IA **não pode se auto-aprovar**. Funciona em qualquer projeto
+— do zero (greenfield) ou já existente, qualquer stack — e em **três hosts nativos**:
 **Claude Code** (hooks automáticos), **Google Antigravity** (`agy`/`ctx.mjs`) e
 **Codex** (`AGENTS.md`, `.codex/` e `cdx.mjs`).
 
-## Novidades na v2.7.0
+## O que é automático e o que é manual
 
-> **Governança que o motor força — não o prompt.** A v2.7.0 traz três sistemas que
-> tiram o enforcement do "lembre-se de…" e colocam no código: o import de paridade
-> (8 features), o conselho de deliberação auto-invocado e o gate da jornada de workflow.
+Você decide quanto roda sozinho. O **dial de autonomia** (`/autonomy`, graus 1–4) é a
+chave mestra: ele transforma comportamento automático de volta em confirmação manual
+quando você quiser — ou seja, *até o que é automático sempre pode ser feito manual*. O
+nível define **quais** capacidades existem; o dial de autonomia define **quanto** delas
+roda sem você.
 
-| Sistema | O que faz | Aprofundamento |
-|---|---|---|
-| **Import de paridade ContextKit** ([ADR-0060 → 0068](contextkit/memory/decisions/)) | Oito features zero-dep, cientes de nível e *warn-first* portadas do `nolrm/contextkit`: auto-format (PostToolUse), quality gates multi-linguagem no pre-push, coexistência de hook-manager, ação CI Squad opt-in, limite de promoção de padrões (≥3 ocorrências), `/context-budget` + `@`-imports, injeção idempotente por marcador e **bridges de contexto para mais 6 ferramentas** (Cursor, Copilot, Gemini, Windsurf, Aider, Continue — só contexto, governança fica nativa) | [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) |
-| **Conselho de deliberação** ([ADR-0070](contextkit/memory/decisions/0070-auto-invoked-deliberation-and-tiered-council.md)) | A deliberação multi-agente agora é **auto-invocada** nos dois momentos que importam — abrir uma feature e registrar uma decisão — a partir da autonomia grade ≥ 3. Um conselho de specialists *nomeados* e determinístico escala com a pergunta; um swarm de pesquisa em camadas junta evidência barato (scouts Haiku) antes das vozes de raciocínio (Opus) debaterem. A escrita do ADR continua **manual** em toda grade | [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) |
-| **Governança de workflow** ([ADR-0071](contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md)) | A jornada do `/workflow` agora é **forçada no motor**: `advance` recusa sair de uma fase com entregáveis faltando (todo CLI no mesmo nível), `--force` é a saída explícita. Workflows numerados `NNNN-slug` como ADRs, e o guard de mutação L5 é **escopado por branch** — uma sessão paralela não bloqueia mais edições alheias | [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) |
+| Capacidade | Ativo por padrão | Automático | Rodar manualmente |
+| --- | --- | --- | --- |
+| Carregar contexto no início da sessão | ✅ L1+ | ✅ hook de boot | — sempre ligado |
+| Rastreio de edições + detecção de drift | ✅ L2+ | ✅ ledger + nudge no Stop | `/context-stats` · `/watch` |
+| Registro de sessão | ✅ nudge, L2+ | ⚠️ avisado — você confirma | `/log-session` |
+| Conventional Commits + quality gates | ✅ L3+ | ✅ git hooks | — forçado no commit/push |
+| Auto-format na edição | ✅ L4+ | ✅ PostToolUse | — |
+| Roteamento de squads | ✅ L4+ | ✅ no boot | `/squad` |
+| Gate de raio-de-impacto (alto risco) | ✅ L5+ | ✅ antes de edição marcada | `/simulate-impact` |
+| Deliberação antes de uma decisão | grau ≥ 3 | ✅ auto-convocada | `/debate` |
+| Orquestração de requisição | ✅ L7 | ✅ por prompt | `/workflow` · `/new-adr` · `/ship` |
+| Economia de token / custo | ✅ advisory, L6+ | ✅ medida | `/token-report` · alternar p/ blocking |
+| Docs de referência por feature | ✅ | ✅ regeneradas + gate no CI | `/docs-reindex` |
+| Decisões · workflows · entrega | — opt-in | — você dirige | `/new-adr` · `/workflow` · `/ship` · `/swarm` · `/pipeline` |
 
-<details>
-<summary><strong>Destaques anteriores (v2.6 — squads ativos + QA ciente da stack)</strong></summary>
+Baixe o grau para transformar as linhas automáticas em confirmações manuais; suba para
+deixar o harness dirigir. Um piso inegociável mantém segredos, force-push, auto-edição
+de gates, ADRs e mudança de grau **sempre** humanos, em qualquer grau.
 
-| Feature | O que faz |
-|---|---|
-| **Squads ativos** ([ADR-0069](contextkit/memory/decisions/0069-active-agent-squads-integration.md)) | Transforma squads declarados-porém-passivos numa camada roteada e governada: roteamento determinístico (`squads-registry.json` + `/squad route`), ativação explícita de postura (`/squad activate`), playbooks cientes da stack para os 8 squads e auto-auditoria de compliance no gate pré-commit. Veja [docs/explanation/active-squads.md](docs/explanation/active-squads.md) |
-| **QA ciente da stack** | `scaffold-tests.mjs` (zero-dep) detecta Node/JavaScript, Python, Go, Rust e PHP, propõe matriz happy/edge/failure e cria harness starter só com `--write`; `/test-plan` e `/scaffold-tests` partem dele |
-| **`/project-map`** | Mapa estrutural determinístico (zero tokens de IA) — stack, módulos, símbolos exportados e **grafo de dependências entre módulos** para raciocínio de blast radius |
-| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | O artefato de deliberação manual que o conselho da v2.7 automatiza: vozes independentes debatem, um sintetizador converge e o artefato alimenta o Context de um ADR |
+## Os sete sistemas
 
-</details>
+### 1. Memória durável
+
+Toda decisão, sessão e termo de domínio vive em arquivos de texto simples no
+controle de versão. ADRs registram o *porquê* de cada escolha; logs de sessão
+registram o *o quê* de cada sessão de trabalho; o glossário mapeia linguagem de
+interface para identificadores de código; o changelog registra o que foi entregue
+e quando. Sem banco de dados, sem serviço externo — só arquivos que o time possui,
+lê e diferencia.
+
+### 2. Carregamento automático de contexto
+
+O hook de boot dispara antes da primeira mensagem de toda sessão. Ele lê o estado
+do ledger, detecta drift (edições desde o último log de sessão), identifica o
+workflow ativo e sua fase, e monta um pacote de contexto compacto — para que a IA
+nunca comece do zero a partir de um CLAUDE.md em branco. Toda sessão abre com as
+decisões atuais, tarefas abertas e ADRs relevantes já carregados.
+
+### 3. Detecção de drift
+
+Toda edição de arquivo é rastreada em um ledger de sessão append-only. Quando a
+sessão termina sem um `log-session`, o hook Stop sinaliza. `/context-stats` reporta
+a taxa de drift ao longo do tempo. O objetivo é zero sessões não registradas —
+porque uma sessão não registrada é contexto que a próxima sessão nunca consegue
+recuperar.
+
+### 4. Sub-agentes especializados (squads)
+
+O nível 4 instala seis squads de domínio — devteam, qa-team, design-team,
+security-team, compliance-team, ops-team — cada um com um agente roteador que
+escolhe o especialista certo por intenção. O nível 6 adiciona o squad agent-forge,
+o pipeline "agente que constrói agentes". Os squads são ativos: o squad director lê
+o diff atual no boot e ativa apenas as posturas que a sessão realmente precisa,
+mantendo o contexto enxuto.
+
+### 5. Governança pelo harness
+
+O harness aplica regras que não dependem de a IA lembrar. Git hooks aplicam
+Conventional Commits e executam quality gates multi-linguagem no push. Hooks do
+Claude Code injetam contexto no boot, rastreiam edições, incentivam o registro de
+sessão, e no nível 5 executam a verificação de blast-radius do `/simulate-impact`
+antes de qualquer edição em um caminho de alto risco marcado. O hook Stop recusa
+encerrar uma sessão silenciosamente com trabalho não registrado.
+
+### 6. O sistema de níveis
+
+Sete níveis, cada um adicionando capacidade sem remover nada abaixo dele:
+
+| Nível | O que ativa |
+| --- | --- |
+| **L1 Memory** | contexto no boot, `/log-session`, ADRs, changelog |
+| **L2 Ledger** | detecção de drift (recomendado começar aqui) |
+| **L3 Multi** | claims, worktrees, índices auto-gerados, git hooks (Conventional Commits + pre-push que bloqueia conflito real + quality gates multi-linguagem) |
+| **L4 Squads** | sub-agentes especializados — devteam, qa-team, design-team, security-team, compliance-team, ops-team + PostToolUse auto-format |
+| **L5 Proactive** | gate `/simulate-impact`, `/tech-debt-sweep`, `/contract-check`, distill nudge, guard escopado por branch |
+| **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas `/context-stats`, squad agent-forge, conselho de deliberação auto-invocado |
+| **L7 Ecosystem** | `/fleet` (multi-repo), `/tune-agents`, testes visuais, playbook runner, bridges de contexto multi-plataforma |
+
+Trocar de nível (de dentro do projeto):
+
+```
+/context-level 4        # ou: node contextkit/tools/scripts/context-level.mjs 4
+```
+
+Reinicie o Claude Code depois de trocar (ele recarrega os hooks). O instalador
+escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
+
+### 7. O DevPipeline
+
+Dois artefatos distintos gerenciam o trabalho. **`roadmap.md`** (na pasta de memória
+do kit) é o *plano de produto* (capacidades, o quê/porquê). O **DevPipeline**
+(`contextkit/pipeline/`, board em `devpipeline.md`) é *controle de execução* —
+bugs, incrementos, chores e itens do roadmap divididos em tarefas com prioridade,
+SLA, dependências DAG e complexidade, fluindo `backlog → working → testing → conclusion`.
+O roadmap diz *o que* construir; o pipeline *executa* o trabalho.
+
+## As três economias
+
+### Economia de tokens
+
+O kit é construído sobre a disciplina de gastar tokens apenas onde eles mudam o
+resultado. O squad director monta contexto apenas com playbooks dos squads
+correspondentes — não a biblioteca inteira. O roteamento de modelos por custo atribui
+modelos baratos para execução (ler, scaffoldar, empacotar), modelo médio para construção
+e tier de raciocínio para arquitetura e segurança.
+
+### Economia de autonomia
+
+O dial de autonomia (`autonomy.grade` 1–4) decide o que a IA pode fazer sem
+perguntar, em qualquer nível. Grade 1 é totalmente manual; grade 2 (padrão) sugere
+mas espera confirmação; grade 3 auto-executa a maioria das ações mas defere decisões
+para quórum humano; grade 4 é totalmente automático com quórum de deliberação em
+cada gate. Um piso não negociável no código mantém segredos, force-push, auto-edições
+de gates, ADRs e mudanças de grade humanos em toda grade, independente do dial.
+
+Configure com `/autonomy`.
+
+### Economia de custo
+
+O runtime de economia (nível 6+) mede o gasto de tokens de cada sessão, atribui por
+comando e por agente, e exibe os dados no Execution Contract após cada execução. Modo
+advisory reporta; modo blocking aplica um gate de orçamento. O objetivo é tornar os
+custos de desenvolvimento assistido por IA observáveis antes que se acumulem.
+
+## A espinha do workflow
+
+Para features maiores, `/workflow` cria um spec pack em
+`memory/workflows/<slug>/` (na pasta de memória do kit) com `prd.md`, `spec.md`,
+índices de ADRs e tarefas, memória de handoff e relatórios de conclusão datados.
+O motor *força* o ciclo de vida:
+
+```text
+intake → prd → spec → adr → roadmap(se feature) → pipeline → ship → testing → conclusion
+```
+
+`advance` recusa sair de uma fase com entregáveis faltando — ele nomeia as lacunas.
+`--force` é a saída explícita e registrada. Cards do pipeline se vinculam com
+`--workflow <slug>`; mover um card para `testing` carimba `implemented: YYYY-MM-DD`;
+o QA sign-off é o caminho governado para `conclusion`.
 
 ## Instalação
 
@@ -44,6 +174,9 @@ npx contextdevkit --target . --yes
 
 # ou direto do GitHub (sem npm)
 npx github:reiTavares/ContextDevKit --target . --yes
+
+# time / multi-máquina / CI — comita o kit em vez de mantê-lo local-only
+npx contextdevkit --target . --tracked --yes
 ```
 
 Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
@@ -55,27 +188,6 @@ Depois, abra o projeto no Claude Code, aprove os hooks uma vez. Um banner de
 - **Projeto existente:** rode **`/setupcontextdevkit`** — detecta a stack, ajusta o
   config, preenche o `CLAUDE.md`, marca paths de risco, **procura/propõe o
   roadmap**, cria um ADR base e registra a sessão.
-
-## Os 7 níveis (suba conforme a confiança)
-
-| Nível | O que ativa |
-| --- | --- |
-| **L1 Memory** | contexto no boot, `/log-session`, ADRs, changelog |
-| **L2 Ledger** | detecção de drift (recomendado começar aqui) |
-| **L3 Multi** | claims, worktrees, índices auto-gerados, git hooks (Conventional Commits + pre-push que bloqueia conflito real) |
-| **L4 Squads** | sub-agentes especializados — devteam, qa-team, design-team (5 specialists com `seo-specialist` + `landing-architect`), compliance, ops |
-| **L5 Proactive** | gate `/simulate-impact`, `/tech-debt-sweep`, `/contract-check`, distill nudge |
-| **L6 Autonomy** | pipeline `/ship`, learning loop `/retro`, métricas `/context-stats`, squad agent-forge |
-| **L7 Ecosystem** | `/fleet` (multi-repo), `/tune-agents`, testes visuais, playbook runner |
-
-Trocar de nível (de dentro do projeto):
-
-```
-/context-level 4        # ou: node contextkit/tools/scripts/context-level.mjs 4
-```
-
-Reinicie o Claude Code depois de trocar (ele recarrega os hooks). O instalador
-escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 
 ## Comandos por finalidade
 
@@ -108,7 +220,7 @@ escolhe **L3 pra projeto vazio / L7 pra projeto existente** automaticamente.
 - `/watch` — acompanha edits da sessão atual. `--follow` faz streaming.
 - `/runs` — lista runs recentes (tarefas + pipeline) entre squads.
 
-### Scripts de teste (arquitetura em camadas — WF0024 / ADR-0093)
+### Scripts de teste
 
 | Script | Quando usar | O que faz |
 |---|---|---|
@@ -141,7 +253,7 @@ externos não são afetados. Logs ficam em `runs/` (gitignored).
 - `/validate-doc` — gate de qualidade dos artefatos de planejamento (ADRs/roadmap).
 
 ### Landing pages e mídia
-- **`/landing-page <briefing>`** — o squad de conversão (ADR-0023 + ADR-0050):
+- **`/landing-page <briefing>`** — o squad de conversão:
   entrevista de estratégia primeiro (`conversion-strategist` — nicho, dor, CTA
   única, sofisticação do público), indexabilidade decidida antes de tudo
   (`landing-architect`), e geração **determinística**: `lp-scaffold.mjs` cria a
@@ -161,9 +273,9 @@ externos não são afetados. Logs ficam em `runs/` (gitignored).
 - `/pipeline` — DevPipeline (execução): bugs/increments/chores com prioridade,
   SLA, **DAG de dependências** e complexidade fluindo `backlog → working → testing → conclusion`.
 - `/workflow` — organiza features grandes e decisões arquiteturais em
-  `contextkit/memory/workflows/<slug>/` com `prd.md`, `spec.md`, índices de ADRs
-  e tasks, memória de handoff e relatórios diários. Ele referencia roadmap,
-  ADRs e DevPipeline; não cria um segundo board.
+  `memory/workflows/<slug>/` (na pasta de memória do kit) com `prd.md`, `spec.md`,
+  índices de ADRs e tasks, memória de handoff e relatórios diários. Ele referencia
+  roadmap, ADRs e DevPipeline; não cria um segundo board.
 - `/retro` — learning loop (L6).
 - `/context-stats` — métricas (sessões, drift rate, ADRs, cadência).
 - `/distill-sessions` + `/distill-apply` — propõe/aplica refinamentos no `CLAUDE.md`.
@@ -203,15 +315,15 @@ Crie os seus a partir de `_BRIEFING.md.tpl` via `/squad`.
 Procedimentos reutilizáveis em `contextkit/workflows/playbooks/`. Roda com
 `/playbook run <nome>` ou lê sob demanda:
 
-| Playbook | Autoridade | O que cobre |
-|---|---|---|
-| **`landing-page.md`** | ADR-0023 | Regras de dobras, refusals anti-Lovable, recomendações de pacotes datadas, Core Web Vitals |
-| **`seo-aiso.md`** | ADR-0025 | Checklist SEO + checklist AISO (`llms.txt`, FAQ schema, semantic HTML5, detecção de robots.txt bloqueando AI crawlers) |
-| **`tanstack.md`** | ADR-0017 | Família TanStack (Query/Router/Table/Form/Virtual/Start), disciplina de cache key, params tipados |
-| **`simulate-impact.md`** | L5 gate | Mapear blast radius antes de mexer em path de risco |
-| **`tech-debt-sweep.md`** | L5 audit | Scan determinístico da constituição + interpretação |
-| **`distillation-cycle.md`** | L5 retro | Propor refinamentos do CLAUDE.md a partir do histórico |
-| **`security-batch.md`** | security-team | Lote de findings de segurança → ADRs + backlog |
+| Playbook | O que cobre |
+|---|---|
+| **`landing-page.md`** | Regras de dobras, refusals anti-Lovable, recomendações de pacotes datadas, Core Web Vitals |
+| **`seo-aiso.md`** | Checklist SEO + checklist AISO (`llms.txt`, FAQ schema, semantic HTML5, detecção de robots.txt bloqueando AI crawlers) |
+| **`tanstack.md`** | Família TanStack (Query/Router/Table/Form/Virtual/Start), disciplina de cache key, params tipados |
+| **`simulate-impact.md`** | Mapear blast radius antes de mexer em path de risco |
+| **`tech-debt-sweep.md`** | Scan determinístico da constituição + interpretação |
+| **`distillation-cycle.md`** | Propor refinamentos do CLAUDE.md a partir do histórico |
+| **`security-batch.md`** | Lote de findings de segurança → ADRs + backlog |
 
 ## Provider adapters — surface plugável
 
@@ -234,8 +346,7 @@ Setup uma vez:
 3. (Opcional) `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00` pra capar custo por processo
 4. Roda com `node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs ...` (Node 20.6+)
 
-Refusa de cara sem credencial (rule 8 — default refuse), nunca substitui por
-placeholder silenciosamente.
+Recusa de cara sem credencial, nunca substitui por placeholder silenciosamente.
 
 ## Antigravity — o segundo host nativo
 
@@ -292,9 +403,9 @@ O selfcheck falha se Claude e Codex divergirem. Detalhes em
 
 ## Boas práticas
 
-- **Onde começar:** projeto **novo/vazio** (context-code do zero) → **L3**; projeto
-  que **já tem código** → **L7** (use tudo; os gates ficam inertes até configurar
-  `highRiskPaths`). O instalador já escolhe L3/L7. Ajuste com `/context-level <n>`.
+- **Onde começar:** projeto **novo/vazio** → **L3**; projeto **que já tem código** → **L7**
+  (use tudo; os gates ficam inertes até configurar `highRiskPaths`). O instalador já
+  escolhe L3/L7. Ajuste com `/context-level <n>`.
 - **ADR antes de decidir grande.** Stack, biblioteca, padrão → `/new-adr`. ADR
   aceito é **imutável**; para mudar, crie outro que o substitua.
 - **Registre a sessão.** O `drift rate` no `/context-stats` mostra se você está
@@ -368,6 +479,6 @@ Desinstalar: `node <kit>/install.mjs --target . --uninstall` (mantém a memória
 Documentação completa (em inglês): `README.md`, `docs/README.md` (índice
 Diátaxis), `docs/LEVELS.md`, `docs/ARCHITECTURE.md`, `docs/ANTIGRAVITY.md`,
 `docs/CODEX.md`, `docs/CUSTOMIZING.md`, `docs/SQUADS/design-team.md`,
-`docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`. Os "porquês" da v2.7.0 estão em
-`docs/explanation/`: `contextkit-parity.md`, `deliberation-council.md`,
-`workflow-governance.md`, `active-squads.md`.
+`docs/SQUADS/agent-forge.md`, `docs/ROADMAP.md`. Os "porquês" estão em
+`docs/explanation/`: `value-and-impact.md`, `contextkit-parity.md`,
+`deliberation-council.md`, `workflow-governance.md`, `active-squads.md`.

@@ -35,4 +35,14 @@ export const INFRA_SUITES = Object.freeze([
   // selection metric round-trip; also a fast smoke suite.
   { id: 'selfcheck-telemetry', file: 'tools/selfcheck-telemetry.mjs', tier: 'smoke',
     touches: ['tools/selfcheck-telemetry.mjs', 'tools/test-telemetry.mjs', 'tools/test-telemetry-stats.mjs', 'tools/run-suites.mjs'] },
+
+  // DOC-007 / WF0016 — per-PR docs enforcement gate (ADR-0075).
+  // Static wiring: lint + claims + idempotency + structural completeness.
+  { id: 'selfcheck-docs', file: 'tools/selfcheck-docs.mjs', tier: 'selfcheck',
+    touches: ['templates/contextkit/tools/scripts/docs-public-lint.mjs', 'templates/contextkit/tools/scripts/readme-claims.mjs', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'docs/'] },
+
+  // DOC-007 / WF0016 — behavioral integration for the docs gate.
+  // Fixture-driven: lint blocks/passes, claims fail/pass, reindex idempotency, validate-doc advisory.
+  { id: 'integration-test-docs', file: 'tools/integration-test-docs.mjs', tier: 'integration:core',
+    touches: ['templates/contextkit/tools/scripts/docs-public-lint.mjs', 'templates/contextkit/tools/scripts/readme-claims.mjs', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'docs/'] },
 ]);

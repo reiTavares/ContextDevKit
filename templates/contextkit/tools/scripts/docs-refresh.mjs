@@ -8,18 +8,26 @@
  * conflict-safe manifest sync path.
  */
 import { reindexDocs } from './docs-reindex.mjs';
+import { generateReference } from './docs-generate.mjs';
 
 /**
- * Runs every generated-doc refresh that is safe outside the installer.
+ * Runs every generated-doc refresh that is safe outside the installer:
+ * first regenerate the feature-reference fact tables (ADR-0114) from the
+ * registry, then re-index the Diátaxis navigation so the new pages are listed.
  * @param {string} root project root
- * @returns {{ok:boolean, docs: ReturnType<typeof reindexDocs>}} refresh report
+ * @returns {{ok:boolean, reference: ReturnType<typeof generateReference>, docs: ReturnType<typeof reindexDocs>}} refresh report
  */
 export function refreshDocs(root = process.cwd()) {
-  return { ok: true, docs: reindexDocs(root) };
+  const reference = generateReference(root, { write: true });
+  return { ok: true, reference, docs: reindexDocs(root) };
 }
 
 function printReport(report) {
   const docs = report.docs;
+  if (report.reference) {
+    const changed = report.reference.files.filter((f) => f.changed).map((f) => f.path);
+    console.log(`docs-refresh: reference ${changed.length ? 'regenerated (' + changed.join(', ') + ')' : 'in sync'} — commands=${report.reference.counts.commands} agents=${report.reference.counts.agents} hosts=${report.reference.counts.hosts}`);
+  }
   console.log(`docs-refresh: ${docs.indexed} doc(s) indexed`);
   if (docs.seeded.length) console.log(`seeded: ${docs.seeded.join(', ')}`);
   if (!docs.indexWritten) console.log('docs/README.md is hand-written; left untouched');

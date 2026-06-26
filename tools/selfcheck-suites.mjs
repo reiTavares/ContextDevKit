@@ -124,6 +124,8 @@ function main() {
     'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
     // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
     'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
+    // DOC-007 / WF0016 — docs enforcement gate selfcheck; sibling, dispatched directly.
+    'tools/selfcheck-docs.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

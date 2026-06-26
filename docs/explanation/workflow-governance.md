@@ -4,9 +4,9 @@ _Why ContextDevKit makes the `/workflow` lifecycle an engine-enforced gate inste
 
 ## The problem this solves
 
-ContextDevKit's spec-pack workflow ([ADR-0057](../../contextkit/memory/decisions/0057-workflow-spec-packs-and-completion-reports.md)) gave large features a stable narrative: a folder under `contextkit/memory/workflows/<slug>/` carrying a PRD/PDR, a SPEC, ADR links, task links, memory, and dated completion reports. It defined a 9-phase journey with a mandatory artifact at each step. What it did **not** do was *enforce* any of it.
+ContextDevKit's spec-pack workflow gave large features a stable narrative: a folder under `memory/workflows/<slug>/` (inside the installed kit) carrying a PRD/PDR, a SPEC, ADR links, task links, memory, and dated completion reports. It defined a 9-phase journey with a mandatory artifact at each step. What it did **not** do was *enforce* any of it.
 
-That gap surfaced three distinct failures, which [ADR-0071](../../contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md) addresses together:
+That gap surfaced three distinct failures, which the workflow governance engine addresses together:
 
 1. **The journey was advisory.** A model could call `advance` nine times in a row and march from `intake` to `conclusion` leaving `prd.md`, `spec.md`, `decisions.md`, `tasks.md`, and the reports completely empty. The discipline lived entirely in the prompt — and a prompt is a request, not a constraint. Weaker CLIs (a Gemini Flash, say) skip steps and ship half-tracked, buggy work; even a capable model under time pressure cuts the corner. The artifact existed; the *guarantee* did not.
 
@@ -92,8 +92,6 @@ The one residual trade-off is the **legacy null-branch** rule in §3: a workflow
 
 ## See also
 
-- [ADR-0071](../../contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md) — the core decision documented here.
-- [ADR-0057](../../contextkit/memory/decisions/0057-workflow-spec-packs-and-completion-reports.md) — the spec-pack lifecycle this gate hardens.
-- [ADR-0058](../../contextkit/memory/decisions/0058-default-grade-3-and-grade-4-informed-consent.md) — autonomy grades. At higher grades the AI advances workflows on its own, which is exactly why the gate must be enforced rather than trusted.
-- [Active squads](./active-squads.md) — the agent roster the workflow phases hand work to.
-- [The deliberation council](./deliberation-council.md) — the sibling "enforce, don't suggest" mechanism: gates that convene a debate instead of trusting a single voice.
+- [docs/explanation/active-squads.md](./active-squads.md) — the agent roster the workflow phases hand work to.
+- [docs/explanation/deliberation-council.md](./deliberation-council.md) — the sibling "enforce, don't suggest" mechanism: gates that convene a debate instead of trusting a single voice.
+- [docs/LEVELS.md](../LEVELS.md) — autonomy grades and how they interact with the workflow engine at higher levels.

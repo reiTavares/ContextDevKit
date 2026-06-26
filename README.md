@@ -1,4 +1,4 @@
-# 🌀 ContextDevKit
+# ContextDevKit
 
 [![CI](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/contextdevkit)](https://www.npmjs.com/package/contextdevkit)
@@ -6,8 +6,9 @@
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
 
-> A portable, **level-based AI-assisted development platform** that runs natively
-> on **Claude Code**, **Antigravity**, and **Codex**. Drop it into any project —
+> A portable, **business-driven, level-based AI-assisted development platform** that
+> runs natively on **Claude Code**, **Antigravity**, and **Codex**. It connects
+> *business intent* to *governed engineering execution*. Drop it into any project —
 > greenfield or existing, any stack — and the *harness* starts enforcing durable
 > project memory, automatic context loading, drift detection, specialized
 > sub-agents, governed deliberation, and a workflow journey it won't let you skip.
@@ -20,13 +21,57 @@ so any future session — human or AI — can pick up exactly where the last one
 
 ---
 
-## What's new in v3.1.1
+## What ContextDevKit is
 
-> **Feature merges + hotfix.** v3.1.0 added the final Capability Enforcement package (PKG-08 fleet & agent platform, ADR-0072), PKG-04 go-live with installer policy distribution (ADR-0097), and the WF0020 Economy Runtime (advisory output/lifecycle actuation). v3.1.1 then fixes a `--update` bug that could corrupt `config.json` path lists (with `/context-doctor` detection + safe recovery), and wires automatic model routing into real prompts. Routing **recommends and measures** in `shadow` mode — it records a decision per prompt and surfaces it on the Execution Contract, but it does **not** switch the session's model (no host supports an in-session switch from a hook), so a decision's `applied` is always `false`. Recommendation, selection and observation stay distinct; no economy is ever claimed for an unapplied route.
+ContextDevKit is a **business-driven development platform**: it ties *business
+intent* to *governed engineering execution*, and every feature in the kit exists to
+keep that line intact. You start from a business case — the problem, the value
+hypothesis, the investment decision — and the platform drives the work from that
+intent rather than from ad-hoc tickets: requirements become workflows, workflows
+become governed tasks, and each decision is recorded with the *why* so the next
+session continues the same thread. A hard rule keeps it honest — proposals follow a
+draft → approve → revise → reject lifecycle, and the AI **cannot self-approve**.
 
-## What's new in v3.0.0
+Around that spine sit the systems that make it trustworthy, summarised across the
+whole feature set:
 
-> **Major consolidation release.** v3.0.0 completes the Capability Enforcement program (PKG-05..07) with automatic model routing ([ADR-0094](contextkit/memory/decisions/0094-automatic-model-routing-and-cost-control-defaults.md)), EACP economic measurement, and 7 lineage-graph consumers. All routing is advisory/fail-open, benchmarks are scaffolds.
+- **Durable memory** keeps decisions, sessions, and domain language in your repo.
+- **Automatic context loading** opens every session with the current state loaded.
+- **Drift detection** refuses to let work go unrecorded.
+- **Hook-enforced governance** makes the rules the harness *runs*, not requests the AI may ignore.
+- **Specialized squads** route each concern to the right domain agent.
+- **Three economies** — token, cost, autonomy — keep AI-assisted work efficient and accountable.
+- **The level system** lets you adopt all of it gradually.
+
+The result: development that stays **accountable to business value** at every step,
+with a paper trail any future session — human or AI — can pick up.
+
+## What's active by default, what's automatic, what's manual
+
+You decide how much runs on its own. The **autonomy dial** (`/autonomy`, grades 1–4)
+is the master knob: it turns automatic behaviour back into manual confirmation
+whenever you want — so *even what is automatic can always be made manual*. The level
+sets **which** capabilities exist; the autonomy dial sets **how much** of them runs
+without you.
+
+| Capability | Active by default | Automatic | Run it manually |
+| --- | --- | --- | --- |
+| Context loading at session start | ✅ L1+ | ✅ boot hook | — always on |
+| Edit tracking + drift detection | ✅ L2+ | ✅ ledger + Stop nudge | `/context-stats` · `/watch` |
+| Session registration | ✅ nudge, L2+ | ⚠️ nudged — you confirm | `/log-session` |
+| Conventional Commits + quality gates | ✅ L3+ | ✅ git hooks | — enforced on commit/push |
+| Auto-format on edit | ✅ L4+ | ✅ PostToolUse | — |
+| Squad routing | ✅ L4+ | ✅ at boot | `/squad` |
+| High-risk blast-radius gate | ✅ L5+ | ✅ before flagged edits | `/simulate-impact` |
+| Deliberation before a decision | grade ≥ 3 | ✅ auto-convened | `/debate` |
+| Request orchestration | ✅ L7 | ✅ per prompt | `/workflow` · `/new-adr` · `/ship` |
+| Token / cost economy | ✅ advisory, L6+ | ✅ measured | `/token-report` · toggle to blocking |
+| Feature-reference docs | ✅ | ✅ regenerated + CI gate | `/docs-reindex` |
+| Decisions · workflows · shipping | — opt-in | — you drive | `/new-adr` · `/workflow` · `/ship` · `/swarm` · `/pipeline` |
+
+Lower the grade to turn the automatic rows into manual confirmations; raise it to let
+the harness drive. A non-negotiable floor keeps secrets, force-push, gate self-edits,
+ADRs, and grade changes human at **every** grade.
 
 ---
 
@@ -37,9 +82,9 @@ the environment enforce it.** Four durable artifacts, all in your repo, all plai
 
 | Artifact | Question it answers | Where |
 |---|---|---|
-| **ADRs** | *Why* did we decide this? | `contextkit/memory/decisions/` |
-| **Session logs** | *What* happened, session by session? | `contextkit/memory/sessions/` |
-| **Glossary** | What does this domain word *mean* in code? | `contextkit/memory/GLOSSARY.md` |
+| **ADRs** | *Why* did we decide this? | `memory/decisions/` inside the installed kit |
+| **Session logs** | *What* happened, session by session? | `memory/sessions/` inside the installed kit |
+| **Glossary** | What does this domain word *mean* in code? | `memory/GLOSSARY.md` inside the installed kit |
 | **Changelog** | What shipped, and when? | `CHANGELOG.md` |
 
 Around those, **hooks** inject context at session start, track every edit, and
@@ -48,42 +93,124 @@ high-risk edit, a half-finished workflow, or an unreviewed decision from sliding
 through. You adopt it gradually through **seven levels**, and a separate
 **autonomy dial** decides how much the AI may do without asking.
 
-<details>
-<summary><strong>Earlier highlights (v2.7 — governance enforcement)</strong></summary>
+## The seven systems
 
-| System | What it does | Deep dive |
-|---|---|---|
-| **ContextKit parity import** ([ADR-0060 → 0068](contextkit/memory/decisions/)) | Eight zero-dep, level-aware, warn-first features ported from `nolrm/contextkit`: PostToolUse auto-format, multi-language pre-push quality gates, hook-manager coexistence, an opt-in CI squad action, a ≥3-occurrence standards-promotion threshold, `/context-budget` + `@`-imports, marker-idempotent injection, and **context bridges for six more tools** (Cursor, Copilot, Gemini, Windsurf, Aider, Continue — context only, governance stays native) | [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) |
-| **Deliberation council** ([ADR-0070](contextkit/memory/decisions/0070-auto-invoked-deliberation-and-tiered-council.md)) | Multi-agent deliberation is now **auto-invoked** at the two moments it matters — opening a feature and recording a decision — at autonomy grade ≥ 3. A deterministic, *named* specialist council scales to the question; a tiered research swarm gathers evidence cheaply (Haiku scouts) before the reasoning voices (Opus) argue. The ADR write itself stays manual at every grade | [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) |
-| **Workflow governance** ([ADR-0071](contextkit/memory/decisions/0071-workflow-numbering-and-journey-gate.md)) | The `/workflow` journey is now **enforced in the engine**: `advance` refuses to leave a phase with missing deliverables (every CLI held to the same bar), `--force` is the explicit escape. Workflows are numbered `NNNN-slug` like ADRs, and the L5 mutation guard is **branch-scoped** so a parallel session no longer blocks unrelated edits | [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) |
+### 1. Durable memory
 
-</details>
+Every decision, session, and domain term lives in plain-text files under version
+control. ADRs record the *why* behind choices; session logs record the *what* of
+each working session; the glossary maps UI language to code identifiers; the
+changelog records what shipped and when. No database, no external service — just
+files your team owns, reads, and diffs.
 
-<details>
-<summary><strong>Earlier highlights (v2.6 — active squads)</strong></summary>
+### 2. Automatic context loading
 
-| Feature | What it does |
-|---|---|
-| **Active agent squads** ([ADR-0069](contextkit/memory/decisions/0069-active-agent-squads-integration.md)) | Turns passive, declared squads into a governed routing layer: deterministic routing (`squads-registry.json` + `/squad route`), explicit posture activation (`/squad activate`), stack-aware playbook templates for all 8 squads, and compliance auto-auditing at the pre-commit gate. Token-minimized posture assembly via `squad-director.mjs`. See [docs/explanation/active-squads.md](docs/explanation/active-squads.md) |
-| **Stack-aware QA scaffolding** | `/test-plan` and `/scaffold-tests` start from `scaffold-tests.mjs`, a zero-dep script that detects Node/JavaScript, Python, Go, Rust, and PHP, emits happy/edge/failure cases, and writes starter harness tests only with explicit `--write` |
-| **Autonomy dial** ([ADR-0041–0045, 0058](contextkit/memory/decisions/)) | `autonomy.grade` 1–4 — a consent axis orthogonal to levels, with a non-negotiable floor in code (secrets, force-push, gate self-edits, ADRs, grade changes stay human at every grade) |
-| **Swarm coordinator** ([ADR-0051](contextkit/memory/decisions/)) | `/swarm` runs N disjoint backlog tasks in parallel worktrees under the full governance stack; a run finishes at `testing`, never `done` |
-| **Cost-tiered model routing** ([ADR-0052](contextkit/memory/decisions/)) | Every agent declares a `model:` tier (`opus` thinks · `sonnet` builds · `haiku` executes); skills classify the task at dispatch with floors (security never below `sonnet`). Cache-safe by construction |
+The boot hook fires before the first message of every session. It reads the ledger
+state, detects drift (edits since the last session log), identifies the active
+workflow and its phase, and assembles a compact context packet — so the AI is never
+starting cold from a blank CLAUDE.md. Every session opens with the current
+decisions, open tasks, and relevant ADRs already loaded.
 
-</details>
+### 3. Drift detection
 
-<details>
-<summary><strong>Earlier highlights (v1.15–v2.5 — multi-host hardening)</strong></summary>
+Every file edit is tracked in an append-only session ledger. When the session ends
+without a `log-session`, the Stop hook flags it. `/context-stats` reports the drift
+rate over time. The goal is zero unregistered sessions — because an unregistered
+session is context the next session can never recover.
 
-| Feature | What it does |
-|---|---|
-| **Codex + Antigravity native hosts** ([ADR-0036, 0056](contextkit/memory/decisions/)) | Two more first-class hosts alongside Claude Code, regenerated deterministically from the Claude sources; selfcheck parity guards fail if a host diverges |
-| **`/project-map`** ([ADR-0038–0040](contextkit/memory/decisions/)) | Deterministic, zero-AI-token structural map — stack, modules, exported symbols, and a module dependency graph for blast-radius reasoning |
-| **`/debate`** ([ADR-0035](contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md)) | The manual deliberation artifact the v2.7 council automates: independent voices argue, a synthesizer converges, the artifact feeds an ADR |
-| **Landing-page + SEO/AISO** ([ADR-0023, 0025, 0050](contextkit/memory/decisions/)) | `landing-architect` + `conversion-strategist` agents, the anti-Lovable playbook, and `/seo-audit` running 16 static SEO + AI-Search-Optimization checks |
-| **Host-modular installer** ([ADR-0037](contextkit/memory/decisions/0037-host-modular-installer.md)) | `install.mjs` is a thin orchestrator over `tools/install/` — adding a host is one module + one call |
+### 4. Specialized sub-agents (squads)
 
-</details>
+Level 4 installs six domain squads — devteam, qa-team, design-team, security-team,
+compliance-team, ops-team — each with a router agent that picks the right specialist
+by intent. Level 6 adds the agent-forge squad, the "agent that builds agents"
+pipeline. Squads are active: the squad director reads the current diff at boot and
+activates only the postures the session actually needs, keeping context lean.
+
+### 5. Hook-enforced governance
+
+The harness enforces rules that don't rely on the AI remembering. Git hooks enforce
+Conventional Commits and run multi-language quality gates on push. Claude Code hooks
+inject boot context, track edits, nudge session registration, and at Level 5 run the
+`/simulate-impact` blast-radius check before any edit on a flagged high-risk path.
+The Stop hook refuses to let a session close silently with unregistered work.
+
+### 6. The level system
+
+Seven levels, each adding capability without removing anything below it:
+
+| Level | Name | Adds |
+| --- | --- | --- |
+| **1** | Memory | Boot context injection, `/log-session`, ADRs, changelog |
+| **2** | Ledger | Drift detection — tracks edits, nudges you to register the session |
+| **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits + conflict-blocking pre-push + multi-language quality gates) |
+| **4** | Squads | Specialized sub-agents (devteam, qa-team, design-team, security-team, compliance-team, ops-team) + PostToolUse auto-format |
+| **5** | Proactive | `/simulate-impact` gate on high-risk paths, branch-scoped workflow guard, `/tech-debt-sweep`, `/contract-check`, auto-distill nudge |
+| **6** | Autonomy & Insight | `/ship`, `/swarm`, `/pipetest`, the auto-invoked deliberation council, `/retro`, `/context-stats`, agent-forge squad |
+| **7** | Ecosystem | `/fleet` multi-repo control plane, `/tune-agents`, visual tests, playbook runner, multi-platform context bridges |
+
+Change level anytime from inside the project:
+
+```bash
+node contextkit/tools/scripts/context-level.mjs        # show
+node contextkit/tools/scripts/context-level.mjs 4      # move to L4 (or /context-level 4)
+```
+
+Going up adds capability; going down cleanly removes the now-disabled hooks. See
+[docs/LEVELS.md](docs/LEVELS.md).
+
+### 7. The DevPipeline
+
+Two different artifacts manage work. **`roadmap.md`** (in the kit's memory folder)
+is the *product/business plan* (capabilities, the what/why). The **DevPipeline**
+(`contextkit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
+increments, chores, and roadmap items broken into tasks with priority, SLA, DAG
+dependencies, and complexity, flowing `backlog → working → testing → conclusion`.
+The roadmap says *what* to build; the pipeline *runs* the work.
+
+## Three economies
+
+### Token economy
+
+The kit is built on a discipline of spending tokens only where they change the
+outcome. The squad director assembles context from only the matched squads' playbooks
+— not the whole library. Cost-tiered model routing assigns cheap models to execution
+(read, scaffold, package), mid-tier to building, and the reasoning tier to
+architecture and security — so expensive capacity is reserved for decisions that
+genuinely require it.
+
+### Autonomy economy
+
+The autonomy dial (`autonomy.grade` 1–4) decides what the AI may do without asking,
+at any level. Grade 1 is fully manual; grade 2 (the default) suggests but waits for
+confirmation; grade 3 auto-executes most actions but defers decisions to a human
+quorum; grade 4 is full-auto with a deliberation quorum at each gate. A
+non-negotiable floor in code keeps secrets, force-push, gate self-edits, ADRs, and
+grade changes human at every grade, regardless of the dial setting.
+
+Set with `/autonomy`. See [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md)
+for the engineering rationale.
+
+### Cost economy
+
+The economy runtime (Level 6+) measures every session's token spend, attributes it
+per command and per agent, and surfaces the data on the Execution Contract after
+each run. Advisory mode reports; blocking mode enforces a budget gate. The goal is
+making AI-assisted development costs observable before they compound.
+
+## The workflow spine
+
+For larger features, `/workflow` creates a spec pack under the kit's memory folder
+(`memory/workflows/<slug>/`) carrying `prd.md`, `spec.md`, ADR and task indexes,
+and dated completion reports. The engine *enforces* the lifecycle:
+
+```text
+intake → prd → spec → adr → roadmap(if feature) → pipeline → ship → testing → conclusion
+```
+
+`advance` refuses to leave a phase with missing deliverables — it names the gaps.
+`--force` is the explicit, recorded escape. Pipeline cards link back with
+`--workflow <slug>`; moving a card to `testing` stamps `implemented: YYYY-MM-DD`;
+QA sign-off is the governed path into `conclusion`.
 
 ## Requirements
 
@@ -101,7 +228,7 @@ through. You adopt it gradually through **seven levels**, and a separate
 
 | Mode | When | What it does |
 | --- | --- | --- |
-| **Local-only** *(default)* | Solo work, an experiment, or trying the kit | Writes a managed `.git/info/exclude` block so the installed artifacts (`contextkit/`, `.claude/`, `CLAUDE.md`, …) stay out of your git history — updates never flood your commits. Your teammates and CI **won't** see the kit. [ADR-0054] |
+| **Local-only** *(default)* | Solo work, an experiment, or trying the kit | Writes a managed `.git/info/exclude` block so the installed artifacts (`contextkit/`, `.claude/`, `CLAUDE.md`, …) stay out of your git history — updates never flood your commits. Your teammates and CI **won't** see the kit. |
 | **Tracked** *(`--tracked`)* | A team, multiple machines, or CI that needs the kit | Skips the exclude block so you can `git add` and commit the kit — everyone who clones gets the same memory, agents, and governance. |
 
 Not sure? Start **local-only** (just run the command below). Move to tracked the moment a second person or machine needs the kit: re-run with `--tracked` and `git add` the artifacts — switching only toggles the exclude block, it never touches your index or edits. `/context-doctor` reports your current mode and flags a local-only kit in a repo that already has a remote.
@@ -159,34 +286,6 @@ $ npx contextdevkit --target . --yes
 > `contextkit/detectors/*.mjs` execute with full Node privileges — only register
 > repos and add detectors you trust.
 
-## The seven levels
-
-| Level | Name | Adds |
-| --- | --- | --- |
-| **1** | Memory | Boot context injection, `/log-session`, ADRs, changelog |
-| **2** | Ledger | Drift detection — tracks edits, nudges you to register the session |
-| **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits + conflict-blocking pre-push + multi-language quality gates) |
-| **4** | Squads | Specialized sub-agents (devteam, qa-team, design-team, security-team, compliance-team, ops-team) + PostToolUse auto-format |
-| **5** | Proactive | `/simulate-impact` gate on high-risk paths, branch-scoped workflow guard, `/tech-debt-sweep`, `/contract-check`, auto-distill nudge |
-| **6** | Autonomy & Insight | `/ship`, `/swarm`, `/pipetest`, the auto-invoked deliberation council, `/retro`, `/context-stats`, agent-forge squad |
-| **7** | Ecosystem | `/fleet` multi-repo control plane, `/tune-agents`, visual tests, playbook runner, multi-platform context bridges |
-
-> **The autonomy dial is orthogonal to levels.** `autonomy.grade` (1 manual ·
-> 2 suggest *default* · 3 auto-except-decisions · 4 full-auto, experimental) decides
-> what the AI may do *without asking*, at any level — set it with `/autonomy`. A
-> non-negotiable floor in code keeps secrets, force-push, gate self-edits, ADRs, and
-> grade changes human at every grade. See [ADR-0041–0045, 0058](contextkit/memory/decisions/).
-
-Change level anytime, from inside the project:
-
-```bash
-node contextkit/tools/scripts/context-level.mjs        # show
-node contextkit/tools/scripts/context-level.mjs 4      # move to L4 (or /context-level 4)
-```
-
-Going up adds capability; going down cleanly removes the now-disabled hooks. See
-[docs/LEVELS.md](docs/LEVELS.md).
-
 ## Governance — what the harness enforces
 
 This is the part that doesn't rely on the AI remembering. Three layers, each
@@ -194,7 +293,7 @@ documented in its own explanation doc:
 
 - **Hooks & gates.** Boot context injection, edit tracking, a Stop hook that blocks
   ending with unregistered work, the L5 `/simulate-impact` gate on high-risk paths,
-  and (parity import) PostToolUse auto-format + multi-language pre-push quality gates.
+  and PostToolUse auto-format + multi-language pre-push quality gates.
 - **Deliberation council** ([explanation](docs/explanation/deliberation-council.md)).
   At grade ≥ 3, opening a feature or recording a decision auto-convenes a
   deterministic, named specialist council that argues the question before the ADR is
@@ -203,17 +302,6 @@ documented in its own explanation doc:
   `/workflow` won't let `advance` leave a phase with empty deliverables; `--force` is
   the explicit, recorded escape. Numbered `NNNN-slug`; the mutation guard is
   branch-scoped so parallel sessions don't block each other.
-
-For larger features, `/workflow` creates a spec pack in
-`contextkit/memory/workflows/<slug>/` (`prd.md`, `spec.md`, ADR/task indexes, daily
-reports). The lifecycle:
-
-```text
-intake → prd → spec → adr → roadmap(if feature) → pipeline → ship → testing → conclusion
-```
-
-Pipeline cards link back with `--workflow <slug>`; moving a card to `testing` stamps
-`implemented: YYYY-MM-DD`; QA sign-off remains the governed path into `conclusion`.
 
 ## Squads — sub-agents organised by domain
 
@@ -225,7 +313,7 @@ audited at the pre-commit gate — see [docs/explanation/active-squads.md](docs/
 |---|---|---|
 | **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Cross-cutting design + PR review + memory hygiene |
 | **qa-team** | `qa-orchestrator` + `qa-unit` / `qa-integration` / `qa-fuzzer` / `qa-perf` / `qa-e2e` | Testing strategy + execution |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages ([ADR-0050](contextkit/memory/decisions/)) |
+| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages |
 | **security-team** | `security`, `code-security`, `infra-security` | Auth, secrets, dependencies, IaC, supply chain |
 | **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD (Brazilian data protection), policy |
 | **ops-team** | `devops` | CI/CD, deploys, environments, observability |
@@ -255,7 +343,7 @@ your-project/
     runtime/git-hooks/               # pre-commit (reindex), commit-msg, pre-push (conflicts + quality gates)
     runtime/providers/review/        # PR/review CLI adapters (gh)
     runtime/providers/media/         # Veo + Nano Banana adapters
-    runtime/state/                   # canonical append-only state.json substrate (ADR-0015/0043)
+    runtime/state/                   # canonical append-only state.json substrate
     tools/scripts/                   # reindex, dashboard, sync-check, guard, swarm, deliberation-council, audits, …
     memory/decisions/                # ADRs (the why)
     memory/sessions/                 # one file per session (the what)
@@ -312,14 +400,14 @@ see [docs/CODEX.md](docs/CODEX.md).
 <details>
 <summary><strong>Playbooks</strong> — reusable procedures (`/playbook run <name>`)</summary>
 
-| Playbook | Authority | What it covers |
-|---|---|---|
-| **`landing-page.md`** | [ADR-0023](contextkit/memory/decisions/0023-landing-page-and-conversion-posture.md) | Fold rules, anti-Lovable refusals, dated package recs, Core Web Vitals budget |
-| **`seo-aiso.md`** | [ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md) | SEO + AISO checklist (`llms.txt`, FAQ schema, semantic HTML5, AI-crawler robots.txt) |
-| **`tanstack.md`** | [ADR-0017](contextkit/memory/decisions/0017-tanstack-stack-recognition-and-opt-in-starter.md) | TanStack family, cache-key discipline, typed router params |
-| **`simulate-impact.md` / `tech-debt-sweep.md` / `distillation-cycle.md`** | L5 gates/audits | Blast-radius mapping, constitution scan, CLAUDE.md refinement |
-| **`security-batch.md`** | security-team | Batch security findings → ADRs + backlog |
-| **`squads/*.md`** | [ADR-0069](contextkit/memory/decisions/0069-active-agent-squads-integration.md) | Stack-aware posture guide per active squad |
+| Playbook | What it covers |
+|---|---|
+| **`landing-page.md`** | Fold rules, anti-Lovable refusals, dated package recs, Core Web Vitals budget |
+| **`seo-aiso.md`** | SEO + AISO checklist (`llms.txt`, FAQ schema, semantic HTML5, AI-crawler robots.txt) |
+| **`tanstack.md`** | TanStack family, cache-key discipline, typed router params |
+| **`simulate-impact.md` / `tech-debt-sweep.md` / `distillation-cycle.md`** | Blast-radius mapping, constitution scan, CLAUDE.md refinement |
+| **`security-batch.md`** | Batch security findings → ADRs + backlog |
+| **`squads/*.md`** | Stack-aware posture guide per active squad |
 
 </details>
 
@@ -356,7 +444,7 @@ SEO: `SPA_ENTRYPOINT` ⚠️, `MISSING_TITLE`, `MISSING_DESCRIPTION`, `MULTIPLE_
 `MISSING_CANONICAL`, `MISSING_ALT`, `MISSING_SITEMAP`, `MISSING_ROBOTS`.
 AISO: `MISSING_LLMS_TXT`, `MISSING_FAQ_SCHEMA`, `MISSING_ORG_SCHEMA`, `DIV_SOUP`,
 `JS_RENDERED_CONTENT`, `MISSING_AUTHOR_SCHEMA`, `MISSING_DATE_STAMP`, `BLOCKS_AI_CRAWLERS`.
-See [ADR-0025](contextkit/memory/decisions/0025-seo-and-aiso-posture.md).
+See [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md) for the rationale behind AISO.
 
 </details>
 
@@ -373,15 +461,6 @@ node contextkit/tools/scripts/watch.mjs --follow         # tail the ledger
 changelog as self-contained HTML; `/watch` tails the active session ledger.
 
 </details>
-
-## Roadmap vs DevPipeline
-
-Two different artifacts. **`contextkit/memory/roadmap.md`** is the *product/business
-plan* (capabilities, P-IDs, the what/why). The **DevPipeline**
-(`contextkit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
-increments, chores, and roadmap items broken into tasks with priority, SLA, DAG
-dependencies, and complexity, flowing `backlog → working → testing → conclusion`.
-The roadmap says *what* to build; the pipeline *runs* the work.
 
 ## Maintenance
 
@@ -449,7 +528,8 @@ immutable rules (zero hot-path deps, hooks never break work, add a test for anyt
 Organized by [Diátaxis](https://diataxis.fr/) — see [docs/README.md](docs/README.md) for the full index.
 
 **Explanation — the *why*:**
-- [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) — the eight parity-import features and their safety posture.
+- [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md) — the engineering rationale: why enforcement beats instructions, who this is for, and what it costs.
+- [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) — the eight generic-engineering features and their safety posture.
 - [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) — auto-invoked, tiered, named deliberation.
 - [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) — the engine-enforced workflow journey.
 - [docs/explanation/active-squads.md](docs/explanation/active-squads.md) — passive → actively-routed, governed squads.
