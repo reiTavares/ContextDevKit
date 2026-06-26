@@ -35,4 +35,9 @@ export const INFRA_SUITES = Object.freeze([
   // selection metric round-trip; also a fast smoke suite.
   { id: 'selfcheck-telemetry', file: 'tools/selfcheck-telemetry.mjs', tier: 'smoke',
     touches: ['tools/selfcheck-telemetry.mjs', 'tools/test-telemetry.mjs', 'tools/test-telemetry-stats.mjs', 'tools/run-suites.mjs'] },
+
+  // Infra self-test (TEA-008 / ADR-0114) — guards the shuffle + bounded-concurrency
+  // pool (permutation, in-order results, concurrency cap, soft-cancel); fast smoke.
+  { id: 'selfcheck-run-pool', file: 'tools/selfcheck-run-pool.mjs', tier: 'smoke',
+    touches: ['tools/selfcheck-run-pool.mjs', 'tools/run-suites-pool.mjs', 'tools/run-suites.mjs'] },
 ]);

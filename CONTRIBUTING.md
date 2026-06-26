@@ -66,6 +66,16 @@ Use `test:impact` or `test:smoke` for the inner loop; `ci:full` is the gate. Run
 `npm run ci:full` before any push to `main`. Logs land in the gitignored `runs/`
 directory.
 
+**Diagnostics (TEA-008).** `run-suites.mjs` also takes `--shuffle` (randomized
+order) and `--repeat N` (run the set N times) — together they prove suite
+isolation / catch order-dependence + flakiness (e.g. `--tier all --shuffle
+--repeat 3`). There is a `--jobs N` bounded-concurrency flag, but it is
+**EXPERIMENTAL and measured *slower*** on these I/O-bound suites (serial 178s vs
+jobs=4 242s vs jobs=8 367s — the bottleneck is concurrent installs thrashing the
+disk, not CPU). It stays default-off and prints a warning; it exists only as a
+re-measurement instrument, **not** a speedup. Parallelism is declined as a default
+(ADR-0114); CI sharding is deferred until `ci:full` p50 sustains > 8 min.
+
 **Compatibility guarantee:** `npm test`, `npm run ci`, and `npm run check` keep their
 exact meaning — external callers and automation are unaffected.
 

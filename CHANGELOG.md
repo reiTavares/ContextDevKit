@@ -20,6 +20,20 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Test isolation harness; parallelism declined as measured-slower (WF0025/TEA-008, ADR-0114)
+
+- `run-suites.mjs` gains `--shuffle` + `--repeat N` — the suite-isolation proof
+  that TEA-001 specified but never shipped. Proven: 363 suite-runs (121 × 3
+  shuffled passes), 0 failures — order-independent.
+- A spike measured bounded concurrency (`--jobs N`, new) and found it **slower**,
+  not faster (serial 178s vs jobs=4 242s vs jobs=8 367s) — the suites are
+  I/O-bound (concurrent installs thrash the disk). Parallelism is therefore
+  **declined as a default**; `--jobs` ships default-off, labeled EXPERIMENTAL with
+  a stderr warning, as a re-measurement instrument only. CI sharding deferred
+  (trigger: `ci:full` p50 > 8 min sustained). New `tools/run-suites-pool.mjs`
+  (shuffle + bounded pool + `executeProbe`) + `tools/selfcheck-run-pool.mjs`
+  self-test. Default serial `npm test` path is byte-identical.
+
 ### Test fast-path: `selfcheck-request` shard + selection telemetry (WF0025, ADR-0113)
 
 - The request-orchestration self-checks (W1–W7) are now a separately-selectable
