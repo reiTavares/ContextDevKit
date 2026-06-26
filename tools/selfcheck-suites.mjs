@@ -111,6 +111,8 @@ function main() {
     'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
     // WF-0057 W1.1 (ADR-0122) — project-map structural signals; sibling, dispatched directly.
     'tools/selfcheck-projmap-signals.mjs',
+    // WF-0057 W2 (ADR-0122) — arch-debt shared finding contract; sibling, dispatched directly.
+    'tools/selfcheck-arch-debt-finding.mjs',
     // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
     'tools/selfcheck-bdm.mjs',
     // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.
