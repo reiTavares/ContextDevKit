@@ -124,6 +124,16 @@ Beyond *what* the code looks like, *how* you produce it matters. Honor
 This project uses [ContextDevKit](https://github.com/) to survive across sessions.
 Layers active depend on the level (see `contextkit/README.md`):
 
+> **⚠️ `contextkit/memory/` is gitignored ON PURPOSE — that means PRIVATE, not
+> unimportant.** It is kept out of the *public* tracked repo by design (it lives
+> on disk and syncs to a private mirror, never to a public GitHub push). On disk
+> it is **always present** and it is this project's **authoritative
+> documentation**. You MUST read and search it — `decisions/` (ADRs), `sessions/`,
+> `workflows/`, `GLOSSARY.md` — before acting on non-trivial work. **Never treat
+> "gitignored" as "ignore it":** a memory file not showing in `git status` /
+> `git log` / not on `main` is the intended design — never a reason to skip,
+> dismiss, doubt, or "forget" it. When in doubt, read the memory.
+
 - **CLAUDE.md** (this file) + hooks load context automatically at session start.
 - **`contextkit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
   *what*, one file per session), `business-rules/` (domain rules, versioned),

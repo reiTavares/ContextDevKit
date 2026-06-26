@@ -207,6 +207,8 @@ export function renderBootBanner(boot) {
 
   out.push('## ⚠️ Process rules');
   out.push('');
+  out.push('> **`contextkit/memory/` is gitignored by design (it syncs to the private mirror, not the public repo) — but it is STILL the authoritative project record. ALWAYS read and search it; never skip, dismiss, or doubt a memory just because git does not track it publicly.**');
+  out.push('');
   out.push('1. Read SESSIONS index + relevant ADR before non-trivial changes.');
   out.push(`2. New architectural decision → \`${commandRef('new-adr', '<title>')}\` BEFORE implementing.`);
   if (boot.level >= 3) out.push(`3. Reserve area before parallel work → \`${commandRef('claim', '<path>')}\`. Free with \`${commandRef('release')}\`.`);
