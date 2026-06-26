@@ -8,13 +8,17 @@
  *     leaves non-concluded (`conclusion: pending`) workflows in place.
  *  3. `applySweep` performs atomic moves, is idempotent, and the filed number is
  *     still counted by `nextWorkflowNumber` (never reused).
+ *  4. Wave-format conclusion (ADR-0119 amendment): a workflow whose completion lives
+ *     only in `workflow-state.json` (`overallStatus: done`) — with no `conclusion`
+ *     frontmatter and no `owner:` frontmatter — is still swept, and its owner is
+ *     recovered from the context dir path.
  */
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { nextWorkflowNumber } from './registry/ids.mjs';
-import { parseFrontmatter, planSweep, applySweep, resolveOwnerDir } from './workflow-done-sweep.mjs';
+import { parseFrontmatter, planSweep, applySweep, resolveOwnerDir, isConcluded } from './workflow-done-sweep.mjs';
 
 let failures = 0;
 function assert(label, condition) {
@@ -63,6 +67,28 @@ try {
   assert('C4: source dirs gone', !existsSync(resolve(memory, 'workflows', '0070-unowned')));
   assert('C5: re-plan is empty (idempotent)', planSweep(root).length === 0);
   assert('C6: filed number still counted → next ≥ 0072', parseInt(nextWorkflowNumber(root), 10) >= 72);
+
+  process.stdout.write('\nBlock D — wave-format conclusion (workflow-state.json)\n');
+  // A concluded wave workflow: completion only in state json, no conclusion/owner frontmatter.
+  mkdirSync(resolve(memory, 'business', 'BIZ-0002-wave'), { recursive: true });
+  const waveHolder = `${memory}/business/BIZ-0002-wave/workflows`;
+  const doneWave = resolve(waveHolder, 'WF-0099-wave');
+  mkdirSync(doneWave, { recursive: true });
+  writeFileSync(resolve(doneWave, 'index.md'), '# WF-0099-wave\n\n- **Status:** active\n');
+  writeFileSync(resolve(doneWave, 'workflow-state.json'), JSON.stringify({ journeyPhase: 'conclusion', overallStatus: 'done' }));
+  // A not-started wave workflow must NOT be swept.
+  const activeWave = resolve(waveHolder, 'WF-0100-active');
+  mkdirSync(activeWave, { recursive: true });
+  writeFileSync(resolve(activeWave, 'workflow-state.json'), JSON.stringify({ journeyPhase: 'intake', overallStatus: 'not-started' }));
+
+  assert('D0: isConcluded reads state json', isConcluded(doneWave) === true && isConcluded(activeWave) === false);
+  const wavePlan = planSweep(root);
+  assert('D1: exactly 1 wave workflow planned', wavePlan.length === 1);
+  assert('D2: owner derived from path → BIZ-0002', wavePlan[0] && wavePlan[0].owner === 'BIZ-0002');
+  assert('D3: filed to BIZ-0002-wave/done', wavePlan[0] && wavePlan[0].to.replace(/\\/g, '/').endsWith('/BIZ-0002-wave/done/WF-0099-wave'));
+  assert('D4: not-started wave left in place', !wavePlan.some((m) => m.from.endsWith('WF-0100-active')));
+  assert('D5: applied + filed on disk', applySweep(wavePlan).length === 1
+    && existsSync(resolve(memory, 'business', 'BIZ-0002-wave', 'done', 'WF-0099-wave', 'workflow-state.json')));
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

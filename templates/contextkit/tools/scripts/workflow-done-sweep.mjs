@@ -8,6 +8,14 @@
  *   - owned (`owner: BIZ-/OP-####`) → `<owner-dir>/done/<workflow-dir>`
  *   - unowned                       → `memory/workflows/done/<workflow-dir>`
  *
+ * A workflow counts as CONCLUDED when EITHER the legacy `index.md` frontmatter has
+ * `conclusion: done`, OR the wave-engine `workflow-state.json` reports
+ * `overallStatus: done`. (ADR-0119 amendment: the wave format records completion in
+ * its state json rather than index frontmatter, so the original frontmatter-only
+ * check filed nothing for business/operations workflows — their `done/` archives
+ * stayed empty.) For wave workflows, whose index carries no `owner:` frontmatter,
+ * the filing owner is recovered from the context dir the workflow lives under.
+ *
  * The number stays counted after the move because the `ids.mjs` allocator recurses
  * into every `done/` archive — so a filed-away id is NEVER reused.
  *
@@ -23,6 +31,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'node:fs';
 import { basename } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { stripBom } from '../../runtime/work/enums.mjs';
 
 const ROOT = process.cwd();
 
@@ -90,11 +99,63 @@ export function resolveOwnerDir(root, owner) {
 }
 
 /**
- * Plans the moves for every concluded workflow. A workflow is "concluded" when its
- * `index.md` frontmatter has `conclusion: done`. Owned workflows whose owner dir
- * can't be resolved degrade to the global archive with `ownerMissing: true` so the
- * caller can warn (ADR-0116's owner field is the source of truth; a stripped owner
- * is surfaced, never silently lost).
+ * A workflow is "concluded" when EITHER the legacy `index.md` frontmatter carries
+ * `conclusion: done`, OR the wave-engine `workflow-state.json` reports
+ * `overallStatus: done`. Defensive: an unreadable file contributes nothing, so a
+ * malformed workflow is left in place rather than mis-filed.
+ *
+ * @param {string} dir - absolute workflow directory.
+ * @returns {boolean} true when the workflow has reached conclusion.
+ */
+export function isConcluded(dir) {
+  const indexPath = `${dir}/index.md`;
+  if (existsSync(indexPath)) {
+    try {
+      if (parseFrontmatter(readFileSync(indexPath, 'utf-8')).conclusion === 'done') return true;
+    } catch { /* unreadable index → fall through to the state json */ }
+  }
+  const statePath = `${dir}/workflow-state.json`;
+  if (existsSync(statePath)) {
+    try {
+      const state = JSON.parse(stripBom(readFileSync(statePath, 'utf-8')));
+      if (state && state.overallStatus === 'done') return true;
+    } catch { /* unreadable state → not concluded */ }
+  }
+  return false;
+}
+
+/**
+ * Owner id (`BIZ-####`/`OP-####`) implied by a holder PATH, or null for the global
+ * `workflows/` holder. Wave-format index files carry no `owner:` frontmatter, so the
+ * filing owner is recovered from the context dir the workflow lives under. Pure
+ * string parsing — reads no files.
+ *
+ * @param {string} holder - absolute workflow-holding directory.
+ * @returns {string|null}
+ */
+function ownerFromHolder(holder) {
+  const match = holder.replace(/\\/g, '/').match(/\/(?:business|operations)\/((?:BIZ|OP)-\d{4})-[^/]*\/workflows$/);
+  return match ? match[1] : null;
+}
+
+/** Owner id from a legacy `index.md` frontmatter `owner:` field, or null. */
+function ownerFromIndex(dir) {
+  const indexPath = `${dir}/index.md`;
+  if (!existsSync(indexPath)) return null;
+  try {
+    const owner = parseFrontmatter(readFileSync(indexPath, 'utf-8')).owner;
+    return /^(BIZ|OP)-\d{4}$/.test(owner || '') ? owner : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Plans the moves for every concluded workflow (legacy frontmatter OR wave state).
+ * The filing owner is the frontmatter `owner:` when present, else the owner implied
+ * by the holder path. Owned workflows whose owner dir can't be resolved degrade to
+ * the global archive with `ownerMissing: true` so the caller can warn (ADR-0116's
+ * owner field is the source of truth; a stripped owner is surfaced, never lost).
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {{from:string, to:string, owner:string|null, ownerMissing:boolean}[]}
@@ -103,25 +164,14 @@ export function planSweep(root = ROOT) {
   const memory = pathsFor(root).memory;
   const plan = [];
   for (const holder of activeWorkflowDirs(root)) {
+    const holderOwner = ownerFromHolder(holder);
     for (const name of childDirs(holder)) {
-      const indexPath = `${holder}/${name}/index.md`;
-      if (!existsSync(indexPath)) continue;
-      let front;
-      try {
-        front = parseFrontmatter(readFileSync(indexPath, 'utf-8'));
-      } catch {
-        continue; // unreadable index → leave it in place
-      }
-      if (front.conclusion !== 'done') continue;
-      const owner = /^(BIZ|OP)-\d{4}$/.test(front.owner || '') ? front.owner : null;
+      const dir = `${holder}/${name}`;
+      if (!isConcluded(dir)) continue;
+      const owner = ownerFromIndex(dir) || holderOwner;
       const ownerDir = owner ? resolveOwnerDir(root, owner) : null;
       const target = ownerDir ? `${ownerDir}/done` : `${memory}/workflows/done`;
-      plan.push({
-        from: `${holder}/${name}`,
-        to: `${target}/${name}`,
-        owner,
-        ownerMissing: Boolean(owner) && !ownerDir,
-      });
+      plan.push({ from: dir, to: `${target}/${name}`, owner, ownerMissing: Boolean(owner) && !ownerDir });
     }
   }
   return plan;
