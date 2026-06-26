@@ -128,6 +128,7 @@ export function computeRunSummary(run) {
     failCount,                        // OBSERVED
     firstFailMs,                      // OBSERVED
     timeToGreenMs: run.exitCode === 0 ? (run.totalMs ?? 0) : null, // OBSERVED
+    selection: run.selection ?? null, // OBSERVED (impact-run narrowing; null otherwise)
   };
 }
 

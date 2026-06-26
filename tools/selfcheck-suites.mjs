@@ -76,6 +76,9 @@ function main() {
   const onDiskSet = new Set(onDisk);
   const infra = new Set([
     'tools/selfcheck-suites.mjs', 'tools/selfcheck-impact.mjs',
+    // WF0025 request-orchestration shard + telemetry-summary self-test (ADR-0113,
+    // task 301) — sibling selfcheck-*, dispatched directly as their own suites.
+    'tools/selfcheck-request.mjs', 'tools/selfcheck-telemetry.mjs',
     // PKG-05 selfcheck entrypoints — registered suites, dispatched directly
     // (siblings, not discovered as integration-test*).
     'tools/selfcheck-pkg05-050.mjs', 'tools/selfcheck-pkg05-051.mjs', 'tools/selfcheck-pkg05-053.mjs',

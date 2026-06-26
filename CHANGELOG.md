@@ -20,6 +20,23 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Test fast-path: `selfcheck-request` shard + selection telemetry (WF0025, ADR-0113)
+
+- The request-orchestration self-checks (W1–W7) are now a separately-selectable
+  `selfcheck-request` suite (`tools/selfcheck-request.mjs`) so editing
+  `runtime/execution/*` runs them in seconds via `test:impact` instead of dragging
+  in the 8-min `selfcheck` monolith. `selfcheck.mjs` still runs the same block
+  inline on a full pass — the floor is unchanged and `ci:full` stays the gate.
+- The `selfcheck` suite's `touches[]` dropped the over-broad
+  `templates/contextkit/runtime/` seed; runtime subdirs map to their own suites or
+  escalate via the unmapped-source ⇒ full rule (no false-negative). A selector
+  self-test locks the split (an `execution/*` edit must select the shard, not the
+  monolith). Suite registry moved its test-infra self-tests into
+  `tools/test-suites-infra.mjs` to stay under the 308-line budget.
+- `--impact` runs now record their narrowing (selected/total) into
+  `runs/history.jsonl`; `node tools/test-telemetry.mjs` surfaces it and the
+  false-negative watch message reflects the now-present TEA-004 selector (task 301).
+
 ### Automatic economy pipeline at `/dev-start` (WF0037)
 
 - A deterministic, zero-dependency bootstrap now fingerprints the objective,

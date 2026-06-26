@@ -177,7 +177,7 @@ function changedFiles() {
  * per-suite metrics + a run summary to `runs/last-run.json`. Best-effort: an I/O
  * error here never breaks the run (defensive, immutable rule 2).
  * @param {Array<{id:string,tier:string,ms:number,exitCode:number,logBytes:number}>} records
- * @param {{mode:string,exitCode:number,totalMs:number}} summary
+ * @param {{mode:string,exitCode:number,totalMs:number,selection?:{selected:number,total:number}|null}} summary
  * @returns {void}
  */
 function persistRun(records, summary) {
@@ -189,6 +189,7 @@ function persistRun(records, summary) {
       mode: summary.mode,
       exitCode: summary.exitCode,
       totalMs: summary.totalMs,
+      selection: summary.selection ?? null,
       suiteCount: records.length,
       suites: records.map((r) => ({ id: r.id, tier: r.tier, ms: r.ms, exitCode: r.exitCode, logBytes: r.logBytes })),
     };
@@ -207,6 +208,10 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   let mode = opts.legacy ? 'legacy' : opts.list ? 'list' : opts.impact ? 'impact' : `tier:${opts.tier ?? 'all'}`;
   const suites = opts.impact ? await resolveImpactSuites() : resolveSuites(opts);
+  // Selection metric (TEA-006 / task 301): for an --impact run, record how much
+  // the selector narrowed (selected vs the full inventory) so the telemetry sink
+  // can show the inner-loop saving. null for non-impact runs (no narrowing).
+  const selection = opts.impact ? { selected: suites.length, total: allSuites().length } : null;
   const reporter = await loadReporter();
   const records = [];
   const runStarted = Date.now();
@@ -227,7 +232,7 @@ async function main() {
   else console.log(exitCode === 0 ? `\n✅ ${records.length} suite(s) passed (${(totalMs / 1000).toFixed(1)}s).\n`
     : `\n❌ suite "${records[records.length - 1]?.id}" failed (exit ${exitCode}).\n`);
 
-  persistRun(records, { mode, exitCode, totalMs });
+  persistRun(records, { mode, exitCode, totalMs, selection });
   // Append run summary to the durable history log (TEA-006). Fail-open: an
   // error here must NEVER prevent the runner from exiting with the correct code.
   try { recordRun(JSON.parse(readFileSync(join(RUNS_DIR, 'last-run.json'), 'utf-8').replace(/^﻿/, ''))); } catch { /* telemetry is best-effort */ }

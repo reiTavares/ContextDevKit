@@ -73,6 +73,17 @@ exact meaning — external callers and automation are unaffected.
 `--legacy` flag; `selfcheck.mjs --verbose` restores the full 660-line output if the
 quiet mode hides something.
 
+**Impact selector (explainable).** `node tools/test-impact.mjs` prints *why* each
+suite was picked (or why a change forced a full run) — run it to debug a selection.
+The selector is false-negative-averse: an unmapped source path, a missing Project
+Map, or any test-infra/config edit escalates to a full run. It is the inner-loop
+accelerator only — `ci:full` always runs everything and is the gate (ADR-0093).
+Large `selfcheck` blocks are split into their own selectable suites so a scoped edit
+runs seconds, not the 8-min monolith: editing `runtime/execution/*` selects the
+fast `selfcheck-request` shard (ADR-0113), while `selfcheck.mjs` still runs the same
+block inline on a full pass. An `--impact` run records its narrowing (selected/total)
+into `runs/history.jsonl`; see `node tools/test-telemetry.mjs`.
+
 ## Before you push
 
 ```bash
@@ -89,6 +100,11 @@ add a hook, slash command, script, or change the level wiring, **add a check** t
   `description` + prompt body; `$ARGUMENTS` interpolates).
 - **Sub-agent** → `templates/claude/agents/<name>.md` from `_TEMPLATE.md`; sharp,
   narrow `description` (that's how routing works).
+- **Test suite** → register it in `tools/test-suites.mjs` (or a spread sub-module
+  like `test-suites-infra.mjs`) with conservative `touches[]` source seeds so the
+  impact selector can pick it; `tools/selfcheck-suites.mjs` fails loudly if a suite
+  file on disk is unregistered. Keep `touches[]` honest — under-selecting is worse
+  than over-selecting.
 - **Engine change** → keep files under the 280-line constitution; update the
   relevant doc and add a test.
 
