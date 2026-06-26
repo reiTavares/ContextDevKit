@@ -265,6 +265,7 @@ export const SUITES = Object.freeze([
     touches: ['install.mjs', 'tools/install/update-snapshot.mjs', 'tools/install/update-preflight.mjs'] },
 
   { id: 'projmap-signals', file: 'tools/selfcheck-projmap-signals.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/project-map-signals', 'templates/contextkit/tools/scripts/project-map-insights'] }, // WF-0057 W1.1 (ADR-0122) structural signals
+  { id: 'arch-debt', file: 'tools/selfcheck-arch-debt.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/arch-debt/'] }, // WF-0057 W2 (ADR-0122) arch-debt analyzer pipeline aggregator (finding/collector/conformance/classifier/fragmentation/floors)
   // WF0033 project-map auto-baseline (PMB-01..03, ADR-0098) — advisory + fail-open;
   // the baseline is generated on --update / onboarding and nudged at boot when missing.
   { id: 'projmap-baseline', file: it('projmap-baseline'), tier: 'integration:installer',
