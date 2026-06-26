@@ -4,7 +4,7 @@ Every slash command the platform ships, grouped by domain. Generated from the co
 
 <!-- BEGIN AUTO-GENERATED: commands (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->
 
-_80 slash commands across 7 domains._
+_81 slash commands across 8 domains._
 
 ### audit
 
@@ -72,6 +72,12 @@ _80 slash commands across 7 domains._
 | `/token-report` | Token economy & usage insight — report Claude Code token usage per session/week with budget warnings. |
 | `/tune-agents` | L6 — propose outcome-driven refinements to agent briefings (writes a proposal, applies nothing). Mirrors /distill-sessions. |
 | `/watch` | Watch the active session ledger — what got edited, in order. Optional --follow streams new entries. |
+
+### mcp
+
+| Command | What it does |
+| --- | --- |
+| `/mcp` | Manage Model Context Protocol (MCP) servers — discover, add (curated), health-check, audit, and sync host configs from the curated registry. |
 
 ### pipeline
 
