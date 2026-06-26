@@ -12,11 +12,10 @@
  *   - `id`      — short, stable identifier (used by `--list` and reporters).
  *   - `file`    — the `tools/...mjs` path, forward-slashed, relative to repo root.
  *   - `tier`    — EXACTLY ONE of TIERS (see below). Drives the `test:*` scripts.
- *   - `touches` — conservative source-path glob/prefix SEEDS that should select
- *                 this suite when changed. Best-effort only; Wave 2's selector
- *                 (`tools/test-impact.mjs`) refines + broadens. Keep these honest
- *                 and conservative — a false-negative (suite that should run but
- *                 wasn't) is treated as worse than over-selecting.
+ *   - `touches` — conservative source-path SEEDS that select this suite when
+ *                 changed. Best-effort; `tools/test-impact.mjs` refines/broadens.
+ *                 A false-negative (suite that should run but didn't) is worse
+ *                 than over-selecting, so keep these honest and conservative.
  *
  * IMPORTANT: the array order below is the LEGACY execution order (the literal
  * old `package.json:19` `&&` chain). `run-suites.mjs --legacy` replays exactly
