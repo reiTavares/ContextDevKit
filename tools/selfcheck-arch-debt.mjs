@@ -19,12 +19,19 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 /** The per-analyzer selftests this aggregator owns (WF-0057 W2). */
 const CHILDREN = [
+  // W2 — analyzer pipeline
   'selfcheck-arch-debt-finding.mjs',
   'selfcheck-arch-debt-signal-collector.mjs',
   'selfcheck-arch-debt-conformance.mjs',
   'selfcheck-arch-debt-classifier.mjs',
   'selfcheck-arch-debt-fragmentation.mjs',
   'selfcheck-arch-debt-floors.mjs',
+  // W3 — policy, baseline, registry, intentional-debt, fitness
+  'selfcheck-arch-debt-policy.mjs',
+  'selfcheck-arch-debt-baseline.mjs',
+  'selfcheck-arch-debt-registry.mjs',
+  'selfcheck-arch-debt-intentional.mjs',
+  'selfcheck-arch-debt-fitness.mjs',
 ];
 
 let failed = 0;
