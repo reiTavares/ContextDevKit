@@ -2,7 +2,7 @@
 
 The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
 
-<!-- BEGIN AUTO-GENERATED: hosts (docs-generate.mjs, ADR-0114) — edits inside are overwritten -->
+<!-- BEGIN AUTO-GENERATED: hosts (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->
 
 _3 native hosts._
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * docs-generate.mjs — Automatic feature-reference generator (ADR-0114, delta to ADR-0075).
+ * docs-generate.mjs — Automatic feature-reference generator (ADR-0115, delta to ADR-0075).
  *
  * Regenerates the FACT tables under `docs/reference/` from the canonical registry
  * (Claude slash commands, agents, and the shipped host matrix) BETWEEN auto-generated
@@ -110,7 +110,7 @@ const PAGES = {
     intro: 'The editor/agent hosts the platform runs on natively. Generated from the shipped host set.' },
 };
 
-const beginMark = (key) => `<!-- BEGIN AUTO-GENERATED: ${key} (docs-generate.mjs, ADR-0114) — edits inside are overwritten -->`;
+const beginMark = (key) => `<!-- BEGIN AUTO-GENERATED: ${key} (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->`;
 const endMark = (key) => `<!-- END AUTO-GENERATED: ${key} -->`;
 
 /** Replace the marked region (or append a fresh scaffold) and return the new file text. */
@@ -150,7 +150,7 @@ export function generateReference(root, { write = true } = {}) {
 }
 
 /**
- * Coverage debt (ADR-0114 advisory): registry features with no hand-authored prose
+ * Coverage debt (ADR-0115 advisory): registry features with no hand-authored prose
  * (no `/command` or agent-name mention in any tutorial / how-to / explanation doc).
  * The reference layer covers EVERY feature by construction; this surfaces the prose gap.
  * @param {string} root project root

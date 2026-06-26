@@ -2,7 +2,7 @@
 
 The specialized agents available to route work to. Generated from the agent registry.
 
-<!-- BEGIN AUTO-GENERATED: agents (docs-generate.mjs, ADR-0114) — edits inside are overwritten -->
+<!-- BEGIN AUTO-GENERATED: agents (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->
 
 _35 specialized agents._
 

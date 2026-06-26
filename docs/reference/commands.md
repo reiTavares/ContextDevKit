@@ -2,7 +2,7 @@
 
 Every slash command the platform ships, grouped by domain. Generated from the command registry.
 
-<!-- BEGIN AUTO-GENERATED: commands (docs-generate.mjs, ADR-0114) — edits inside are overwritten -->
+<!-- BEGIN AUTO-GENERATED: commands (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->
 
 _80 slash commands across 7 domains._
 

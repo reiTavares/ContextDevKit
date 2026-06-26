@@ -12,7 +12,7 @@ import { generateReference } from './docs-generate.mjs';
 
 /**
  * Runs every generated-doc refresh that is safe outside the installer:
- * first regenerate the feature-reference fact tables (ADR-0114) from the
+ * first regenerate the feature-reference fact tables (ADR-0115) from the
  * registry, then re-index the Diátaxis navigation so the new pages are listed.
  * @param {string} root project root
  * @returns {{ok:boolean, reference: ReturnType<typeof generateReference>, docs: ReturnType<typeof reindexDocs>}} refresh report

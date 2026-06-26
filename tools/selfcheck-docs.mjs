@@ -13,7 +13,7 @@
  *       docs/README.md. Side-effect-free — original bytes always restored.
  *   (d) Structural completeness: 4 Diátaxis buckets + architecture/ exist;
  *       every non-template public .md is classified (no unclassified real doc).
- *   (e) Reference is in sync (ADR-0114): docs-generate regenerate-and-diff finds
+ *   (e) Reference is in sync (ADR-0115): docs-generate regenerate-and-diff finds
  *       no drift — the generated feature tables match the registry. Prints
  *       coverage debt (features lacking hand-authored prose) as an advisory.
  *
@@ -189,11 +189,11 @@ function assertStructuralCompleteness(reindexMod, committedIndex, indexPath) {
 }
 
 // ---------------------------------------------------------------------------
-// Assertion (e): generated reference in sync + coverage debt (ADR-0114)
+// Assertion (e): generated reference in sync + coverage debt (ADR-0115)
 // ---------------------------------------------------------------------------
 
 async function assertReferenceInSync() {
-  console.log('(e) generated reference in sync (ADR-0114)...');
+  console.log('(e) generated reference in sync (ADR-0115)...');
   const mod = await importMod(resolve(SCRIPTS, 'docs-generate.mjs'), 'generateReference');
   if (!mod) return;
   let result;
@@ -204,7 +204,7 @@ async function assertReferenceInSync() {
     const stale = result.files.filter((f) => f.changed).map((f) => f.path);
     bad(`reference is STALE — run docs-generate.mjs to regenerate: ${stale.join(', ')}`);
   }
-  // Advisory only — prose coverage gaps are tracked, never block (ADR-0114 split posture).
+  // Advisory only — prose coverage gaps are tracked, never block (ADR-0115 split posture).
   if (typeof mod.coverageDebt === 'function') {
     try {
       const debt = mod.coverageDebt(KIT);
