@@ -17,6 +17,14 @@
  *   --impact            select suites from a changed-file diff via the optional
  *                       `tools/test-impact.mjs` selector (Wave 2); graceful
  *                       fallback to `--tier all` when absent.
+ *   --shuffle           run in randomized order (isolation proof, TEA-001 gap).
+ *   --repeat <N>        run the set N times (flakiness proof).
+ *   --jobs <N>          bounded concurrency (TEA-008, default 1, cap cpu-2).
+ *                       EXPERIMENTAL — measured SLOWER on these I/O-bound suites
+ *                       (serial 178s vs jobs=4 242s vs jobs=8 367s; ADR-0114). It
+ *                       exists as a re-measurement instrument, NOT a speedup; the
+ *                       default serial path is byte-identical. The shuffle/repeat/
+ *                       pool + `executeProbe` logic lives in `run-suites-pool.mjs`.
  *
  * SEAMS for later waves (we provide the optional hooks, not the impls):
  *   - Reporter seam: a present `tools/test-report.mjs` exporting `renderRun`
@@ -33,6 +41,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allSuites, suitesForTier } from './test-suites.mjs';
 import { recordRun } from './test-telemetry.mjs';
+import { executeProbe } from './run-suites-pool.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RUNS_DIR = join(KIT, 'runs');
@@ -44,7 +53,8 @@ const RUNS_DIR = join(KIT, 'runs');
  * @returns {{tier:string|null,list:string[]|null,legacy:boolean,verbose:boolean,impact:boolean}}
  */
 function parseArgs(argv) {
-  const opts = { tier: null, list: null, legacy: false, verbose: false, impact: false };
+  const opts = { tier: null, list: null, legacy: false, verbose: false, impact: false, jobs: 1, shuffle: false, repeat: 1 };
+  const int = (raw, min) => Math.max(min, parseInt(raw ?? '', 10) || min);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--tier') opts.tier = argv[++i] ?? 'all';
@@ -52,6 +62,9 @@ function parseArgs(argv) {
     else if (arg === '--legacy') opts.legacy = true;
     else if (arg === '--verbose') opts.verbose = true;
     else if (arg === '--impact') opts.impact = true;
+    else if (arg === '--jobs') opts.jobs = int(argv[++i], 1);
+    else if (arg === '--shuffle') opts.shuffle = true;
+    else if (arg === '--repeat') opts.repeat = int(argv[++i], 1);
   }
   return opts;
 }
@@ -202,6 +215,7 @@ function persistRun(records, summary) {
 /**
  * Entry point. Resolves the suite set, runs serially with fail-fast, persists
  * instrumentation, and exits with the first failing suite's code (0 if green).
+ * Delegates to `executeProbe` (run-suites-pool.mjs) for --shuffle/--repeat/--jobs.
  * @returns {Promise<void>}
  */
 async function main() {
@@ -213,6 +227,11 @@ async function main() {
   // can show the inner-loop saving. null for non-impact runs (no narrowing).
   const selection = opts.impact ? { selected: suites.length, total: allSuites().length } : null;
   const reporter = await loadReporter();
+  if (opts.jobs > 1 || opts.shuffle || opts.repeat > 1) {
+    return executeProbe(opts, suites, {
+      KIT, RUNS_DIR, reporter, printCompact, persistRun, recordRun, baseMode: mode, selection,
+    });
+  }
   const records = [];
   const runStarted = Date.now();
   let exitCode = 0;
