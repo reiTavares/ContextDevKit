@@ -21,7 +21,7 @@ const wfDir = (slug) => {
 };
 
 // new -> intake. First advance (intake -> prd) has no leave-gate.
-wf('new', 'gate-test', '--kind', 'feature').status === 0 ? rep.ok('1. new workflow created') : rep.bad('1. new failed');
+wf('new', 'gate-test', '--kind', 'feature', '--business', 'BIZ-0001').status === 0 ? rep.ok('1. new workflow created') : rep.bad('1. new failed');
 wf('advance', 'gate-test').status === 0 ? rep.ok('2. intake -> prd (no gate)') : rep.bad('2. intake advance failed');
 
 // At prd with an empty scaffold, advance MUST refuse.
@@ -55,7 +55,7 @@ fx.cleanup();
 const gx = installFixture(rep);
 const edit = { session_id: 'it', tool_name: 'Edit', tool_input: { file_path: 'src/app.js' } };
 // A fresh pre-ship workflow is stamped with the fixture's current branch (main).
-gx.script('workflow.mjs', 'new', 'branch-wf', '--kind', 'feature');
+gx.script('workflow.mjs', 'new', 'branch-wf', '--kind', 'feature', '--business', 'BIZ-0001');
 let out = gx.hook('simulate-gate.mjs', edit);
 /BLOCKED|workflow/i.test(out)
   ? rep.ok('8. pre-ship workflow blocks edits ON its own branch')
@@ -73,14 +73,24 @@ gx.cleanup();
 // --- Numbering NNNN-slug (ADR-0071) ---
 const nx = installFixture(rep);
 const nxDir = join(nx.proj, 'contextkit', 'memory', 'workflows');
-nx.script('workflow.mjs', 'new', 'num-a', '--kind', 'feature');
-nx.script('workflow.mjs', 'new', 'num-b', '--kind', 'feature');
+nx.script('workflow.mjs', 'new', 'num-a', '--kind', 'feature', '--operation', 'OP-0001');
+nx.script('workflow.mjs', 'new', 'num-b', '--kind', 'feature', '--operation', 'OP-0001');
 const folders = readdirSync(nxDir).filter((f) => f !== '_TEMPLATE');
 folders.includes('0001-num-a') ? rep.ok('10. first workflow folder is 0001-num-a') : rep.bad(`10. expected 0001-num-a, got: ${folders.join(', ')}`);
 folders.includes('0002-num-b') ? rep.ok('11. second workflow folder is 0002-num-b') : rep.bad(`11. expected 0002-num-b, got: ${folders.join(', ')}`);
 // resolve by slug AND by number (check at intake has no gate -> exit 0).
 nx.script('workflow.mjs', 'check', 'num-a').status === 0 ? rep.ok('12. resolves a workflow by slug') : rep.bad('12. slug resolution failed');
 nx.script('workflow.mjs', 'check', '2').status === 0 ? rep.ok('13. resolves a workflow by number') : rep.bad('13. number resolution failed');
+// ADR-0116: a feature/architecture workflow needs an owner work-context; bug/chore/spike do not.
+nx.script('workflow.mjs', 'new', 'noowner-feat', '--kind', 'feature').status === 1
+  ? rep.ok('13a. ADR-0116: ownerless feature workflow is refused')
+  : rep.bad('13a. ownerless feature workflow was wrongly accepted');
+nx.script('workflow.mjs', 'new', 'owned-feat', '--kind', 'feature', '--operation', 'OP-0001').status === 0
+  ? rep.ok('13b. ADR-0116: feature workflow with an owner is accepted')
+  : rep.bad('13b. owned feature workflow was wrongly refused');
+nx.script('workflow.mjs', 'new', 'a-chore', '--kind', 'chore').status === 0
+  ? rep.ok('13c. ADR-0116: chore workflow needs no owner')
+  : rep.bad('13c. chore workflow wrongly required an owner');
 nx.cleanup();
 
 // --- Date-ordered migration (renumberByStarted), idempotent ---
