@@ -133,7 +133,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['workflow-report.mjs SKIPS diff on missing git (ADR-0057 #7)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /SKIPPED: git unavailable \/ not a repository/],
     ['workflow-report.mjs guards same-day overwrite (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /report already exists/],
     ['workflow-report.mjs runs git with a timeout (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-report.mjs', /timeout:\s*GIT_TIMEOUT_MS/],
-    ['workflow-pack.mjs tolerates CRLF frontmatter (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /\/\^---\\r\?\\n/],
+    ['workflow-frontmatter.mjs tolerates CRLF frontmatter (ADR-0057; extracted ADR-0119)', 'templates/contextkit/tools/scripts/workflow-frontmatter.mjs', /\/\^---\\r\?\\n/],
     ['workflow-pack.mjs surfaces malformed packs (ADR-0057)', 'templates/contextkit/tools/scripts/workflow-pack.mjs', /is malformed \(unparseable frontmatter\)/],
     ['/workflow command briefing ships spec-pack lifecycle (ADR-0057)', 'templates/claude/commands/pipeline/workflow.md', /PRD\/PDR \+ SPEC[\s\S]*testing -> conclusion/],
     // ADR-0023 / ticket 052 — landing-page posture (playbook + slash command).

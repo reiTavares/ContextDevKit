@@ -67,6 +67,7 @@ export function composeSettings(existing, level) {
     // gates. All warn-only, fail-open, once-per-session debounced. (CDK-043 status-line
     // compliance segment ships inside statusline.mjs, already wired above.)
     add('Stop', null, 'completion-gate.mjs'); // CDK-040 — completion evidence nudge
+    add('Stop', null, 'done-sweep.mjs'); // ADR-0119 — file concluded workflows into done/ at session end
     add('PreToolUse', 'Task', 'subagent-gate.mjs'); // CDK-041 — subagent spawn scope
     add('SubagentStop', null, 'subagent-gate.mjs'); // CDK-041 — subagent completion
     add('PreCompact', null, 'compaction-continuity.mjs'); // CDK-042 — persist obligations

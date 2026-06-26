@@ -37,7 +37,16 @@ this project follows [Semantic Versioning](https://semver.org/).
 - `project-map.mjs --memory` (alias `--find dogfood`) — deterministic dogfood
   memory index + fleet-safe next ids.
 - Tests: `integration-test-intake-gate.mjs` (tier `integration:workflow`) +
-  three co-located selftests. Shadow-first: runtime hook wire-in deferred.
+  four co-located selftests.
+- **Wired in (not deferred):** the gate surfaces fleet reconciliation at
+  `workflow new` (quiet unless a parallel worktree would have collided); the
+  done-sweep runs automatically at session end via a new `done-sweep` **Stop hook**
+  (composed for Claude + Codex), filing concluded workflows without yanking a
+  workflow's path mid-command.
+- Fixed: `workflow advance` no longer strips the `owner:` frontmatter — owner now
+  survives read→advance→render so owned workflows file under their context (#357).
+- `workflow-pack.mjs` frontmatter parsing extracted to `workflow-frontmatter.mjs`
+  (responsibility split to stay under the 308-line budget).
 
 ### Test isolation harness; parallelism declined as measured-slower (WF0025/TEA-008, ADR-0114)
 
