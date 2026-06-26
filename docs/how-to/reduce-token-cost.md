@@ -161,6 +161,6 @@ large refactors, not every session. A fresh map is read cheaply from disk.
 ## Related
 
 - [`/dev-start`](start-a-focused-session.md) — bootstraps the economy plan at session start.
-- [`/project-map`](../reference/skills.md) — generate or check the project map.
-- [`/distill-sessions`](../reference/skills.md) — compress older session logs.
-- [`/context-stats`](../reference/skills.md) — inspect context usage across sessions.
+- [`/project-map`](../reference/commands.md) — generate or check the project map.
+- [`/distill-sessions`](../reference/commands.md) — compress older session logs.
+- [`/context-stats`](../reference/commands.md) — inspect context usage across sessions.

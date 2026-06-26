@@ -99,7 +99,7 @@ delete individual tasks in the backlog before starting them.
 
 ## Related
 
-- [`/debate`](../reference/skills.md) — convene the deliberation council.
+- [`/debate`](../reference/commands.md) — convene the deliberation council.
 - [`/pipeline`](use-the-pipeline-board.md) — move ADR-generated tasks through backlog to working.
 - [`/workflow`](run-a-workflow.md) — for ADRs that are part of a larger feature workflow.
 - `contextkit/memory/decisions/_TEMPLATE.md` — the canonical record template.

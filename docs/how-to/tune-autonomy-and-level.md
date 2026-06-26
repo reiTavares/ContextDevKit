@@ -152,5 +152,5 @@ Fix: This is a known UX gap. Rename the key to `autonomy.grade` in
 
 - [`/dev-start`](start-a-focused-session.md) — the session where grade 3+ has the most
   visible effect.
-- [`/context-config`](../reference/skills.md) — inspect and validate the full config schema.
-- [`/context-doctor`](../reference/skills.md) — diagnose hook wiring problems after a level change.
+- [`/context-config`](../reference/commands.md) — inspect and validate the full config schema.
+- [`/context-doctor`](../reference/commands.md) — diagnose hook wiring problems after a level change.

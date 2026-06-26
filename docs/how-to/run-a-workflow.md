@@ -165,4 +165,4 @@ you want `report` to work.
 - [`/dev-start`](start-a-focused-session.md) — lock scope for each implementation session.
 - [`/pipeline`](use-the-pipeline-board.md) — manage the cards created by the workflow.
 - [`/new-adr`](record-a-decision.md) — record the architectural decisions the workflow surfaces.
-- [`/ship`](../reference/skills.md) — end-to-end autonomous pipeline for a single scoped objective.
+- [`/ship`](../reference/commands.md) — end-to-end autonomous pipeline for a single scoped objective.

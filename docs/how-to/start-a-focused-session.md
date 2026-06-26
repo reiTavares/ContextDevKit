@@ -112,7 +112,7 @@ the scope.
 
 ## Related
 
-- [`/log-session`](../reference/skills.md) — register the session after it ends.
+- [`/log-session`](../reference/commands.md) — register the session after it ends.
 - [`/new-adr`](record-a-decision.md) — required before architectural work.
 - [`/pipeline`](use-the-pipeline-board.md) — create and move task cards.
 - [`/workflow`](run-a-workflow.md) — for large, multi-session features.

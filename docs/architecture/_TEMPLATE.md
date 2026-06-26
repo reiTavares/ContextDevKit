@@ -55,7 +55,7 @@
      Each gets a bold label, a one-sentence summary, and a link to the ADR
      or explanation doc where the reasoning lives.  Do not repeat the reasoning. -->
 
-**Decision: <label>** — summary. See [Explanation: X](../explanation/X.md).
+**Decision: <label>** — summary. See the relevant `docs/explanation/<topic>.md`.
 
 ## Open questions / known limitations
 

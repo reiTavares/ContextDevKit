@@ -137,5 +137,5 @@ manually and then run `sync`.
 
 - [`/dev-start`](start-a-focused-session.md) — auto-moves the referenced card to `working`.
 - [`/workflow`](run-a-workflow.md) — for multi-card workflows with spec references.
-- [`/pipetest`](../reference/skills.md) — QA-gated close for cards in `testing`.
+- [`/pipetest`](../reference/commands.md) — QA-gated close for cards in `testing`.
 - [`/new-adr`](record-a-decision.md) — generates cards automatically after acceptance.

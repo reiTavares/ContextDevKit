@@ -149,5 +149,5 @@ premium session model — the coordinator must always pass the resolved alias.
 
 - [`/pipeline`](use-the-pipeline-board.md) — view and manage the backlog tasks the swarm pulls from.
 - [`/dev-start`](start-a-focused-session.md) — alternative for single-task focused work.
-- [`/ship`](../reference/skills.md) — end-to-end autonomous pipeline for a single objective.
-- [`/worktree-new`](../reference/skills.md) — create a single isolated worktree manually.
+- [`/ship`](../reference/commands.md) — end-to-end autonomous pipeline for a single objective.
+- [`/worktree-new`](../reference/commands.md) — create a single isolated worktree manually.

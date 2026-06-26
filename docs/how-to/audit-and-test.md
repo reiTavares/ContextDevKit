@@ -175,4 +175,4 @@ exit.
 - [`/dev-start`](start-a-focused-session.md) — scope lock before implementing changes the tests will cover.
 - [`/pipeline`](use-the-pipeline-board.md) — move the cards that audit findings generate.
 - [`/new-adr`](record-a-decision.md) — record decisions surfaced by a deep audit.
-- [`/context-config`](../reference/skills.md) — set `qa.criticalPaths` and `qa.coverageTarget`.
+- [`/context-config`](../reference/commands.md) — set `qa.criticalPaths` and `qa.coverageTarget`.
