@@ -52,6 +52,7 @@ import { readSquadContext } from './squad-context.mjs';
 import { applyBootDeltaGate } from '../../tools/scripts/economy/boot-delta-gate.mjs';
 import { economyActivationSection } from '../../tools/scripts/economy/economy-session-activation.mjs';
 import { logSavingSync } from '../../tools/scripts/economy/economy-savings.mjs';
+import { emitEconomy } from '../../tools/scripts/economy/telemetry-emit.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -190,6 +191,13 @@ async function main() {
   try {
     const fullLen = renderBootBanner(boot).length;
     logSavingSync(ROOT, { lever: 'boot-delta', savedTokens: Math.max(0, Math.round((fullLen - banner.length) / 4)), sessionId }, { now: Date.now() });
+  } catch { /* advisory */ }
+
+  // Economy (ADR-0117): run-compact is evaluated every session but DEFERRED — never
+  // spawned at boot (rule 2). The real saving is recorded when the first test/build
+  // is wrapped through run-compact, not here.
+  try {
+    emitEconomy(ROOT, 'run-compact', { category: 'lever', action: 'deferred', measurement: 'none', sessionId }, { now: Date.now() });
   } catch { /* advisory */ }
 
   process.stdout.write(banner);

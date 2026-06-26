@@ -8,10 +8,11 @@
  */
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { ECONOMY_RESOURCE_IDS } from './registry.mjs';
 
 export const ECONOMY_EVENTS_SCHEMA_VERSION = 'cdk-economy-event/1';
 export const ECONOMY_EVENT_LEVERS = Object.freeze([
-  'run-compact', 'project-map', 'routing', 'runner-first', 'dev-start',
+  ...new Set(['run-compact', 'project-map', 'routing', 'runner-first', 'dev-start', ...ECONOMY_RESOURCE_IDS]),
 ]);
 export const ECONOMY_EVENT_LIFECYCLE = Object.freeze([
   'evaluated', 'eligible', 'recommended', 'directed',
