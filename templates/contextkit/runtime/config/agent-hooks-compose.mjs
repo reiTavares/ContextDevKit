@@ -54,6 +54,7 @@ export function composeAgentHooks(existing, level) {
   if (level >= 5) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
     group.PreToolUse.push(...perWriteTool('deliberation-nudge.mjs'));
+    group.Stop.push(command(`node ${HOOKS_DIR}/done-sweep.mjs --host agy`));
   }
 
   hooksFile[KIT_HOOK_GROUP] = group;
