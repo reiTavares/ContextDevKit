@@ -206,6 +206,13 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   }
   const codexAgents = await readdir(resolve(KIT, 'templates/codex/agents')).catch(() => []);
   codexAgents.filter((f) => f.endsWith('.toml')).length >= 20 ? ok('Codex subagent templates present') : bad('missing Codex subagent templates');
+  const claudeAgentNames = agents.filter((f) => f.endsWith('.md') && f !== '_TEMPLATE.md').map((f) => f.replace(/\.md$/, '')).sort();
+  const codexAgentNames = codexAgents.filter((f) => f.endsWith('.toml') && f !== '_TEMPLATE.toml').map((f) => f.replace(/\.toml$/, '')).sort();
+  const missingCodexAgents = claudeAgentNames.filter((name) => !codexAgentNames.includes(name));
+  const extraCodexAgents = codexAgentNames.filter((name) => !claudeAgentNames.includes(name));
+  missingCodexAgents.length === 0 && extraCodexAgents.length === 0
+    ? ok(`Codex subagent templates exactly match Claude agents (${codexAgentNames.length}/${claudeAgentNames.length})`)
+    : bad(`Codex/Claude agent template drift: missing=[${missingCodexAgents.join(',')}] extra=[${extraCodexAgents.join(',')}]`);
   const codexSkills = await readdir(resolve(KIT, 'templates/codex/skills')).catch(() => []);
   codexSkills.filter((f) => f.startsWith('source-command-')).length >= 35 ? ok('Codex source-command skill templates present') : bad('missing Codex source-command skill templates');
   // ── task 143: INSTRUCTIONS.md.tpl — no hardcoded artifact counts that drift, no ghost personas ──

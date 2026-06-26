@@ -18,12 +18,14 @@
  *
  * @module selfcheck-request-registries
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const EXEC = 'templates/contextkit/runtime/execution';
 const POLICY = 'templates/contextkit/policy';
+const VALID_AGENT_ROLES = new Set(['lead', 'support', 'scout', 'reviewer', 'synthesizer']);
+const VALID_MODEL_TIERS = new Set(['mechanical', 'implementation', 'reasoning']);
 
 /** Zero-dep import scan. */
 async function zeroDepError(modPath) {
@@ -73,17 +75,39 @@ export async function runRequestRegistryChecks({ ok, bad }, { KIT }) {
     pbReg = JSON.parse(await readFile(pbRegPath, 'utf-8'));
   } catch (err) { bad(`registry parse failed: ${err?.message ?? err}`); return; }
 
-  const a0 = agentReg.agents?.[0] ?? {};
-  Array.isArray(agentReg.agents) && agentReg.agents.length >= 20
-    && ['capabilities', 'intents', 'pathPatterns', 'riskTriggers', 'antiTriggers', 'preferredRole', 'modelTier'].every((k) => k in a0)
-    ? ok(`agent-capability-registry: ${agentReg.agents.length} agents, §9 fields present`)
-    : bad('agent-capability-registry: too few agents or missing §9 fields');
-
   const pb0 = pbReg.playbooks?.[0] ?? {};
   Array.isArray(pbReg.playbooks) && pbReg.playbooks.length >= 10
     && ['intents', 'contexts', 'requiredSections', 'sourcePath', 'riskTriggers'].every((k) => k in pb0)
     ? ok(`playbook-registry: ${pbReg.playbooks.length} playbooks, §16 fields present`)
     : bad('playbook-registry: too few playbooks or missing §16 fields');
+
+  const pbIds = new Set((pbReg.playbooks || []).map((pb) => pb.id));
+  const templateAgents = (await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []))
+    .filter((f) => f.endsWith('.md') && f !== '_TEMPLATE.md')
+    .map((f) => f.replace(/\.md$/, ''))
+    .sort();
+  const registryAgents = (agentReg.agents || []).map((a) => a.agent).sort();
+  const agentSet = new Set(registryAgents);
+  const missingAgents = templateAgents.filter((name) => !agentSet.has(name));
+  const extraAgents = registryAgents.filter((name) => !templateAgents.includes(name));
+  missingAgents.length === 0 && extraAgents.length === 0
+    ? ok(`agent-capability-registry: exact template parity (${registryAgents.length}/${templateAgents.length})`)
+    : bad(`agent-capability-registry parity drift: missing=[${missingAgents.join(',')}] extra=[${extraAgents.join(',')}]`);
+
+  const requiredAgentKeys = ['agent', 'squad', 'capabilities', 'intents', 'pathPatterns', 'riskTriggers', 'antiTriggers', 'playbooks', 'contextRequirements', 'preferredRole', 'modelTier'];
+  const duplicates = registryAgents.filter((name, i, arr) => name && arr.indexOf(name) !== i);
+  const invalidAgents = [];
+  for (const a of (agentReg.agents || [])) {
+    const missing = requiredAgentKeys.filter((k) => !(k in a));
+    const badArrays = ['capabilities', 'intents', 'pathPatterns', 'riskTriggers', 'antiTriggers', 'playbooks', 'contextRequirements'].filter((k) => !Array.isArray(a[k]));
+    const unknownPlaybooks = (a.playbooks || []).filter((id) => !pbIds.has(id));
+    if (missing.length || badArrays.length || !VALID_AGENT_ROLES.has(a.preferredRole) || !VALID_MODEL_TIERS.has(a.modelTier) || unknownPlaybooks.length) {
+      invalidAgents.push(`${a.agent ?? '(unnamed)'} missing=[${missing}] arrays=[${badArrays}] role=${a.preferredRole} tier=${a.modelTier} playbooks=[${unknownPlaybooks}]`);
+    }
+  }
+  duplicates.length === 0 && invalidAgents.length === 0
+    ? ok('agent-capability-registry: every entry has valid shape, role/tier, and known playbooks')
+    : bad(`agent-capability-registry invalid entries: duplicates=[${duplicates.join(',')}] ${invalidAgents.join(' | ')}`);
 
   // ── 4. high-risk security selection ──────────────────────────────────────
   const secCls = { primaryType: 'implementation', intent: 'security-review', complexity: 'feature', risk: 'high', needsDebate: false };
@@ -115,11 +139,28 @@ export async function runRequestRegistryChecks({ ok, bad }, { KIT }) {
     ? ok('selectAgents: ordinary implementation surfaces specialists (intent bridge)')
     : bad('selectAgents: ordinary implementation selected nothing (intent vocabulary dark)');
 
+  // ── 6c. agent-forge path ownership ──────────────────────────────────────
+  const forgeCtx = { paths: ['agent-packages/customer-support@1.0.0/manifest.yaml'], phase: 'ship' };
+  const forgeSel = selectAgents(implCls, forgeCtx, {}, agentReg);
+  forgeSel.lead === 'forge-orchestrator'
+    ? ok('selectAgents: agent-packages/* → forge-orchestrator lead')
+    : bad(`selectAgents forge wrong: lead=${forgeSel.lead} supporting=${forgeSel.supporting} reviewers=${forgeSel.reviewers}`);
+
   // ── 7. playbook selection ────────────────────────────────────────────────
   const pbSel = selectPlaybooks(secCls, { paths: ['src/auth/x.ts'] }, pbReg);
-  pbSel.selected.some((pb) => pb.id === 'squad-security')
-    ? ok('selectPlaybooks: security context → squad-security selected')
-    : bad(`selectPlaybooks wrong: ${pbSel.selected.map((p) => p.id).join(',')}`);
+  const secPbIds = pbSel.selected.map((pb) => pb.id);
+  secPbIds[0] === 'squad-security' && secPbIds.includes('security-batch') && !secPbIds.some((id) => ['landing-page', 'seo-aiso', 'squad-growth', 'squad-compliance', 'squad-agent-forge'].includes(id))
+    ? ok(`selectPlaybooks: auth path → precise security playbooks [${secPbIds.join(',')}]`)
+    : bad(`selectPlaybooks security wrong: ${secPbIds.join(',')}`);
+  const forgePbSel = selectPlaybooks(implCls, forgeCtx, pbReg);
+  const forgePbIds = forgePbSel.selected.map((pb) => pb.id);
+  forgePbIds.length === 1 && forgePbIds[0] === 'squad-agent-forge'
+    ? ok('selectPlaybooks: agent-packages/* → squad-agent-forge only')
+    : bad(`selectPlaybooks forge wrong: ${forgePbIds.join(',')}`);
+  const docsPbSel = selectPlaybooks(trivCls, { paths: [] }, pbReg);
+  docsPbSel.selected.length === 0
+    ? ok('selectPlaybooks: trivial docs with no path → no injected playbooks')
+    : bad(`selectPlaybooks trivial docs wrong: ${docsPbSel.selected.map((pb) => pb.id).join(',')}`);
 
   // ── 8. extractSections (emoji-heading tolerant) ──────────────────────────
   const md = '# Title\n\n## 👥 Members\nalice, bob\n\n## 📝 Best Practices\ndo the thing\n';

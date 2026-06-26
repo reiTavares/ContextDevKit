@@ -44,7 +44,7 @@ const MEMORY_SEEDS = [
   'memory/workflows/_TEMPLATE/reports/.gitkeep', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
   'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', 'policy/squads-registry.json',
-  'policy/capability-registry.json', '.env.example',
+  'policy/capability-registry.json', 'policy/agent-capability-registry.json', 'policy/playbook-registry.json', '.env.example',
 ];
 
 /** Copies the engine (always overwrite — kit code). The version is NOT stamped

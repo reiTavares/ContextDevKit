@@ -23,7 +23,7 @@
  *
  * Exit 0 on all-pass, non-zero on any failure. Zero deps — node:* only.
  */
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -108,7 +108,7 @@ console.log('\nF3. Tier flow intact (legacy signals are a frozen superset)...');
     { input: 'store user CPF + consent', tier: 'architectural', domain: 'lgpd', needsAdr: true },
     { input: 'fix typo in README', tier: 'trivial', domain: 'general', needsAdr: false },
   ];
-  const rubric = loadRubric(process.cwd());
+  const rubric = JSON.parse(readFileSync(resolve(KIT, 'templates/contextkit/policy/complexity-rubric.json'), 'utf-8'));
   for (const g of GOLDEN) {
     // Tier classify itself stays deterministic + matches the golden.
     const a = classify(g.input, rubric);
@@ -131,6 +131,26 @@ console.log('\nF3. Tier flow intact (legacy signals are a frozen superset)...');
     LEGACY_KEYS.every((k) => k in signals) && signals.work && typeof signals.work.nature === 'string'
       ? rep.ok(`signals.work is a pure superset for "${g.input}"`)
       : rep.bad(`signals.work superset invariant broken for "${g.input}"`);
+  }
+
+  const SHORT_SIGNAL_NEGATIVES = ['registry cleanup', 'merge PR', 'org settings cleanup', 'forge agent package', 'large refactor', 'author documentation for command', 'fix typo in README about authorship'];
+  for (const input of SHORT_SIGNAL_NEGATIVES) {
+    const r = classify(input, rubric);
+    r.domain === 'general' && !r.requiredAgents.includes('privacy-lgpd') && !r.requiredAgents.includes('security')
+      ? rep.ok(`short signal negative held: "${input}" stays general`)
+      : rep.bad(`short signal false positive: "${input}" → domain=${r.domain} agents=[${r.requiredAgents.join(',')}] tier=${r.tier}`);
+  }
+  classify('author documentation for command', rubric).needsAdr === false
+    ? rep.ok('tier false positive held: "author" does not imply architectural auth')
+    : rep.bad('"author documentation for command" unexpectedly requires ADR');
+  classify('fix typo in README about authorship', rubric).tier === 'trivial'
+    ? rep.ok('tier false positive held: "authorship" still classifies as trivial typo')
+    : rep.bad(`"authorship" typo did not stay trivial: ${classify('fix typo in README about authorship', rubric).tier}`);
+  for (const input of ['store user RG', 'user_rg field', 'CPF + consent']) {
+    const r = classify(input, rubric);
+    r.domain === 'lgpd' && r.requiredAgents.includes('privacy-lgpd')
+      ? rep.ok(`short signal positive held: "${input}" routes LGPD`)
+      : rep.bad(`short signal positive missed: "${input}" → domain=${r.domain} agents=[${r.requiredAgents.join(',')}]`);
   }
 }
 
