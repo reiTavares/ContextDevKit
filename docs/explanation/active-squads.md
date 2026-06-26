@@ -21,8 +21,7 @@ That gap had three concrete costs:
   record that the right specialist posture was even considered, and the L5 gate
   had no way to ask "was this change reviewed under the posture it needed?"
 
-[ADR-0069](../../contextkit/memory/decisions/0069-active-agent-squads-integration.md)
-is the decision to close that gap: keep the squads, but wrap them in a thin,
+The active squads design closes that gap: keep the squads, but wrap them in a thin,
 deterministic, **governed** orchestration layer rather than relying on the AI
 remembering to wear the right hat.
 
@@ -97,9 +96,9 @@ diff actually implicates and assembles a context from just those playbook
 sections. A session that only touches `src/utils/` gets the `devteam` posture and
 nothing else; a session touching `auth/` and a Prisma schema gets security and
 compliance, and still skips growth, design, and ops. This is the same
-cost-discipline instinct that drives the kit's
-[cost-tiered model routing](../../contextkit/memory/decisions/0052-cost-tiered-model-routing-for-kit-agents.md)
-(ADR-0052): spend the expensive resource only where it changes the outcome.
+cost-discipline instinct that drives the kit's cost-tiered model routing (see
+[model-tier-routing-study.md](model-tier-routing-study.md)): spend the expensive
+resource only where it changes the outcome.
 
 ## `route` vs `activate`, and why the gate stays local
 
@@ -149,5 +148,5 @@ difference between squads that exist and squads that *act*.
 - [The deliberation council](deliberation-council.md) and
   [workflow governance](workflow-governance.md) — the other two halves of the
   governed-orchestration story that landed alongside active squads.
-- [ADR-0069](../../contextkit/memory/decisions/0069-active-agent-squads-integration.md)
-  · [ADR-0052](../../contextkit/memory/decisions/0052-cost-tiered-model-routing-for-kit-agents.md)
+- [Model-tier routing study](model-tier-routing-study.md) — the cost-discipline
+  rationale that informs how squad context is assembled.

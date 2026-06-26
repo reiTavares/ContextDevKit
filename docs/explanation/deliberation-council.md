@@ -5,13 +5,12 @@ _Why ContextDevKit convenes a relevant, cheaply-briefed panel of experts before 
 ## The problem this solves
 
 ContextDevKit has always had a place to record *decisions* (ADRs) and their
-trade-offs. What it lacked, until [ADR-0035](../../contextkit/memory/decisions/0035-deliberations-multi-agent-debate-artifact.md),
-was an artifact for the **adversarial reasoning that should precede a decision** —
-the argument where competing positions are weighed before one is chosen.
-Single-pass reasoning has a known failure mode: it anchors on the first plausible
-approach and then rationalizes it. ADR-0035 answered that with a multi-agent
-*deliberation* — independent voices argue, a distinct synthesizer converges, and
-the result feeds an ADR as pre-decision working material.
+trade-offs. What it lacked initially was an artifact for the **adversarial reasoning
+that should precede a decision** — the argument where competing positions are weighed
+before one is chosen. Single-pass reasoning has a known failure mode: it anchors on
+the first plausible approach and then rationalizes it. The `/debate` command answered
+that with a multi-agent *deliberation* — independent voices argue, a distinct
+synthesizer converges, and the result feeds an ADR as pre-decision working material.
 
 That design was correct but under-used. Three structural weaknesses kept the
 deliberation from firing where it was needed:
@@ -29,8 +28,8 @@ deliberation from firing where it was needed:
    deliberation worth convening — cost the same as the reasoning itself. That tax
    discouraged the very legwork the mechanism depends on.
 
-[ADR-0070](../../contextkit/memory/decisions/0070-auto-invoked-deliberation-and-tiered-council.md)
-addresses all three without abandoning the ADR-0035 contract.
+The deliberation council addresses all three without abandoning the original `/debate`
+contract.
 
 ## Three moves
 
@@ -38,13 +37,11 @@ addresses all three without abandoning the ADR-0035 contract.
 
 Two new autonomy areas — `feature-deliberation` and `decision-deliberation` —
 resolve to `debate` mode at **grade ≥ 3**, reusing the exact shape and fail-safe
-that [ADR-0059](../../contextkit/memory/decisions/0059-ship-checkpoint-deliberation-at-grade-3.md)
-gave the `/ship` checkpoint. The mode table reads
+that the `/ship` checkpoint already had. The mode table reads
 `['manual', 'manual', 'debate', 'debate']`: at grades 1–2 nothing auto-fires, at
-grade 3 (the default install posture — [ADR-0058](../../contextkit/memory/decisions/0058-default-grade-3-and-grade-4-informed-consent.md))
-and above the council convenes on its own. Starting a new feature (the
-`/workflow` spec phase) or recording a decision (`/new-adr`) now pulls a council
-together without anyone remembering to.
+grade 3 (the default install posture) and above the council convenes on its own.
+Starting a new feature (the `/workflow` spec phase) or recording a decision
+(`/new-adr`) now pulls a council together without anyone remembering to.
 
 **The crucial nuance — state it plainly: the ADR *write* stays `manual` at every
 grade.** The separate `adr` area is `['manual', 'manual', 'manual', 'manual']` —
@@ -85,9 +82,9 @@ over a preserved fallback, not a replacement that strands old configs.
 ### 3. A tiered research swarm
 
 The third move attacks the cost tax directly, using the cost-tiered routing
-policy of [ADR-0052](../../contextkit/memory/decisions/0052-cost-tiered-model-routing-for-kit-agents.md)
-(*expensive models think, cheap models execute*). A deliberation now runs in
-phases on deliberately different tiers:
+policy (*expensive models think, cheap models execute* — see
+[model-tier routing study](model-tier-routing-study.md)). A deliberation now runs
+in phases on deliberately different tiers:
 
 - **Scouts gather evidence on the `fast` tier (Haiku).** Cheap, parallelizable
   agents assemble the evidence pack *before* anyone argues. This is the legwork

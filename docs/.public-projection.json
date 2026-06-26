@@ -1,0 +1,35 @@
+{
+  "$schema": "internal://contextdevkit/public-projection/v1",
+  "$comment": "Public/internal documentation projection boundary — DOC-001 / ADR-0075. SINGLE SOURCE OF TRUTH for the boundary. Consumed by docs-public-lint.mjs (DOC-005) and selfcheck-docs.mjs (DOC-007). Internal lineage (contextkit/memory/**) is intentionally NOT a public path and keeps its ADR + inspiration references untouched.",
+  "version": 1,
+  "publicPaths": [
+    "README.md",
+    "instrucoes.md",
+    "docs/explanation",
+    "docs/reference",
+    "docs/how-to",
+    "docs/architecture",
+    "docs/tutorials"
+  ],
+  "internalPaths": [
+    "contextkit/memory"
+  ],
+  "bannedTokens": [
+    { "id": "inspiration-nolrm", "pattern": "nolrm/contextkit", "flags": "g", "reason": "Inspiration name — credit only in ACKNOWLEDGEMENTS.md, never in user-facing prose." },
+    { "id": "inspiration-compozy", "pattern": "\\bCompozy\\b", "flags": "g", "reason": "Inspiration name — credit only in ACKNOWLEDGEMENTS.md, never in user-facing prose." },
+    { "id": "adr-citation", "pattern": "\\[ADR-\\d+\\]", "flags": "g", "scope": "prose", "reason": "Public prose links to capability docs, not internal decision ids. Lineage stays in contextkit/memory/**. (Code blocks / inline code are exempt — a literal command may reference a decision file.)" },
+    { "id": "internal-path", "pattern": "contextkit/memory/\\S+", "flags": "g", "scope": "prose", "reason": "Internal lineage path leaked into public prose. (Code blocks / inline code are exempt — a tutorial may show a literal path the reader runs.)" }
+  ],
+  "secretShaped": [
+    { "id": "generic-secret-assignment", "pattern": "(api[_-]?key|secret|password|token)\\s*[:=]\\s*[\"'][A-Za-z0-9_\\-]{16,}[\"']", "flags": "gi", "reason": "Secret-shaped literal assignment — hard stop (the one place a false-pass is catastrophic)." },
+    { "id": "aws-access-key-id", "pattern": "AKIA[0-9A-Z]{16}", "flags": "g", "reason": "AWS access key id." },
+    { "id": "private-key-block", "pattern": "-----BEGIN [A-Z ]*PRIVATE KEY-----", "flags": "g", "reason": "Private key PEM block." }
+  ],
+  "allow": [
+    {
+      "file": "ACKNOWLEDGEMENTS.md",
+      "tokens": ["inspiration-nolrm", "inspiration-compozy"],
+      "reason": "ACKNOWLEDGEMENTS.md is the ONE sanctioned place to credit inspirations (ADR-0075). It is outside publicPaths, so the lint never scans it for inspiration names; this entry records the exception explicitly."
+    }
+  ]
+}

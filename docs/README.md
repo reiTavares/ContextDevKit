@@ -7,12 +7,24 @@ Organized by [Diátaxis](https://diataxis.fr/) — by what you are trying to do.
 ## 🎓 Tutorials — learning-oriented
 _Lessons that take a newcomer by the hand through a first success._
 
-_Getting started lives in the root [README](../README.md)._
+- [Tutorial: From Idea to a Shipped Feature](tutorials/first-shipped-feature.md) — Goal: the reader succeeds at something for the FIRST TIME.
+- [Tutorial: Your First ContextDevKit Session](tutorials/getting-started.md) — Goal: the reader succeeds at something for the FIRST TIME.
+- [Tutorial: <What the reader will accomplish>](tutorials/_TEMPLATE.md) — Goal: the reader succeeds at something for the FIRST TIME.
 
 ## 🔧 How-to — task-oriented
 _Recipes that solve a specific real-world problem for someone who already knows the basics._
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
+- [How to audit and test](how-to/audit-and-test.md) — Goal: reader runs a health audit, creates a test plan, scaffolds tests,
+- [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
+- [How to record a decision](how-to/record-a-decision.md) — Goal: reader writes a well-formed Architecture Decision Record before implementing.
+- [How to reduce token cost](how-to/reduce-token-cost.md) — Goal: reader uses the economy runtime features to lower token spend per session.
+- [How to run a parallel swarm](how-to/run-a-parallel-swarm.md) — Goal: reader plans and runs a swarm of parallel workstreams, then reviews the results.
+- [How to run a workflow](how-to/run-a-workflow.md) — Goal: reader drives a large feature from intake through conclusion using the
+- [How to start a focused session](how-to/start-a-focused-session.md) — Goal: reader starts a scoped session that blocks opportunistic drift.
+- [How to tune autonomy and level](how-to/tune-autonomy-and-level.md) — Goal: reader adjusts how much the AI may do without asking (grade) and which
+- [How to use the pipeline board](how-to/use-the-pipeline-board.md) — Goal: reader creates, moves, and closes pipeline cards.
+- [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
 - [File Catalog Guide](workflow-engine/file-catalog-guide.md) — Every workflow artifact, its purpose, who authors it, its single source of
 - [Migration Guide](workflow-engine/migration-guide.md) — Migrating a legacy workflow onto the wave engine is **opt-in and
 - [Profile Guide](workflow-engine/profile-guide.md) — A profile is the complexity dial. Values below are read directly from
@@ -21,9 +33,10 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 ## 📚 Reference — information-oriented
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
-- [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
-- [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
-- [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
+- [Reference: Agents](reference/agents.md) — The specialized agents available to route work to. Generated from the agent registry.
+- [Reference: Slash commands](reference/commands.md) — Every slash command the platform ships, grouped by domain. Generated from the command registry.
+- [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
+- [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
 - [CLI Reference](workflow-engine/cli-reference.md) — Every `workflow` command, its flags, one example, and whether it **writes
@@ -31,22 +44,33 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 ## 💡 Explanation — understanding-oriented
 _Background and rationale — the why behind the decisions._
 
+- [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
 - [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
+- [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
 - [Architecture](ARCHITECTURE.md) — How ContextDevKit works internally — for anyone extending the engine.
 - [Codex Integration — Architecture & Specification](CODEX.md) — How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Google Antigravity: same engine, same m…
 - [Active agent squads](explanation/active-squads.md) — _Why ContextDevKit turned its declared agent squads into an actively-routed, governed orchestration layer — determini…
-- [The ContextKit parity import](explanation/contextkit-parity.md) — _Why ContextDevKit ported eight generic-engineering features from `nolrm/contextkit` — and how each one stays advisor…
+- [Business-driven development: connecting intent to execution](explanation/business-driven-development.md) — _Why ContextDevKit anchors engineering work in an explicit business case rather than a queue of tickets — and how the…
+- [Eight generic-engineering features: posture, safety, and reach](explanation/contextkit-parity.md) — _Why ContextDevKit added eight generic-engineering capabilities — real-time
 - [The deliberation council](explanation/deliberation-council.md) — _Why ContextDevKit convenes a relevant, cheaply-briefed panel of experts before a high-stakes choice — automatically,…
+- [Governance and enforcement: why the harness, not the prompt](explanation/governance-and-enforcement.md) — _Why ContextDevKit enforces its rules through Claude Code hooks and CI gates rather than trusting the AI to follow in…
 - [Model-tier routing study — expensive models think, cheap models execute](explanation/model-tier-routing-study.md) — the kit, wired together, give ~80% of the value with zero new engine code:
 - [Swarm feasibility study — a coordinated agent swarm on the autonomy substrate](explanation/swarm-feasibility-study.md) — Can ContextDevKit host a **strong agent swarm** — one coordinator pulling several
+- [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why a development platform that runs AI agents needs to track three distinct resource dimensions — and how they rela…
+- [Why ContextDevKit: the engineering case](explanation/value-and-impact.md) — _The rationale behind treating AI-assisted development as engineering — who this is
 - [Workflow governance: enforcing the journey, not suggesting it](explanation/workflow-governance.md) — _Why ContextDevKit makes the `/workflow` lifecycle an engine-enforced gate instead of a checklist the AI is trusted t…
+- [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
+- [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
+- [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [Token-Economy & Agility Plan](token-economy-plan.md) — In this kit, **tokens are spent when the AI (Claude) reads files and reasons over
+- [Universal Wave-Based Workflow Engine](workflow-engine/README.md) — One wave-based execution model for every workflow size — from a one-wave Basic
 
 ## 🗂️ Planning & meta
 
+- [Changelog](CHANGELOG.md) — All notable changes to ContextDevKit are documented here.
 - [Architecture & Roadmap](ROADMAP.md) — An architect's view of where ContextDevKit is, what it learned from the production
 
 ## ❓ Unclassified
 _Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
 
-- [Universal Wave-Based Workflow Engine](workflow-engine/README.md) — One wave-based execution model for every workflow size — from a one-wave Basic
+- [Architecture: <Subsystem or feature name>](architecture/_TEMPLATE.md) — Goal: describe components, boundaries, data flow, and the decisions that
