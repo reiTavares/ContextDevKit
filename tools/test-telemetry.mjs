@@ -121,6 +121,7 @@ export function recordRun(runPayload) {
       failCount: summary.failCount,      // OBSERVED
       firstFailMs: summary.firstFailMs,  // OBSERVED (null when all passed)
       timeToGreenMs: summary.timeToGreenMs, // OBSERVED (null when red)
+      selection: summary.selection,      // OBSERVED (impact-run narrowing; null otherwise)
       // Per-suite slim entries — id/tier/ms/exitCode only (no log content).
       suites: (runPayload.suites ?? []).map((s) => ({
         id: s.id,
@@ -153,12 +154,13 @@ function analyzeFalseNegatives(entries) {
   if (!fastEntries.length || !fullEntries.length) {
     return { status: 'skipped', misses: 0, message: 'Need both ci:fast and ci:full history samples (SKIPPED — not yet available).' };
   }
-  // Full correlation requires selection-reason data from TEA-004 (selector not
-  // yet built). Report the slot as active but unlinked until then.
+  // TEA-004 exists + impact runs record `selection` (task 301). True FN detection
+  // still needs same-ref fast/full pairing (git-ref linking) — honest-SKIPPED.
+  const withSelection = fastEntries.filter((e) => e.selection).length;
   return {
     status: 'skipped',
     misses: 0,
-    message: `${fastEntries.length} fast run(s) + ${fullEntries.length} full run(s) in history. Cross-run diff correlation requires TEA-004 selector output (SKIPPED — pending TEA-004).`,
+    message: `${fastEntries.length} fast run(s) (${withSelection} with selection data) + ${fullEntries.length} full run(s). Cross-ref FN correlation needs same-ref fast/full pairing (SKIPPED — requires git-ref linking, future work).`,
   };
 }
 
@@ -204,6 +206,7 @@ function printReport(history, lastRun) {
     if (s.timeToGreenMs !== null) {
       console.log(`  time-to-green        : ${fmtMs(s.timeToGreenMs)} ${tag('OBSERVED')}`);
     }
+    if (s.selection) console.log(`  selection     : ${n(s.selection.selected)}/${n(s.selection.total)} (${s.selection.total ? Math.round((s.selection.selected / s.selection.total) * 100) : 100}% of full) ${tag('OBSERVED — impact narrowing')}`);
   }
 
   // ── Section 2: per-suite p50/p95 ─────────────────────────────────────────

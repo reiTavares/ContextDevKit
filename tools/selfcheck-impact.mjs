@@ -118,6 +118,22 @@ function noEmptyGuard() {
   empties === 0 ? ok(`no changed input collapses to empty (${probes.length} probes over real SUITES)`) : null;
 }
 
+/**
+ * Regression lock for the WF0025 split (ADR-0113): editing a `runtime/execution/*`
+ * source file MUST select the fast `selfcheck-request` shard and MUST NOT select
+ * the `selfcheck` monolith — and must not escalate to full. A mistyped `touches[]`
+ * (e.g. dropping the shard's execution prefix) would route to FULL: still green,
+ * but the speed win silently regresses. This positive assertion catches that.
+ */
+function splitRegressionLock() {
+  const changed = ['templates/contextkit/runtime/execution/active-context-resolver.mjs'];
+  const report = explainSelection({ changed, suites: SUITES, projectMapPresent: true });
+  const ids = new Set(report.selected.map((s) => s.id));
+  report.full === false ? ok('execution edit → not a full run (split active)') : bad('execution edit escalated to full (shard touches broken?)');
+  ids.has('selfcheck-request') ? ok('execution edit → selects selfcheck-request shard') : bad('execution edit did NOT select selfcheck-request (shard touches broken?)');
+  !ids.has('selfcheck') ? ok('execution edit → does NOT select the selfcheck monolith') : bad('execution edit still drags in the selfcheck monolith (touches not narrowed?)');
+}
+
 /** A non-array / undefined input must degrade safely (empty array, not throw). */
 function defensiveInputs() {
   try {
@@ -135,6 +151,7 @@ function main() {
   console.log('\n🌀 ContextDevKit test:impact selector self-test\n');
   unitTable();
   noEmptyGuard();
+  splitRegressionLock();
   defensiveInputs();
   console.log(failures === 0 ? '\n✅ selector self-test passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

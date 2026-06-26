@@ -31,6 +31,7 @@
  */
 import { WORKFLOW_ENGINE_SUITES } from './test-suites-workflow.mjs';
 import { BDM_SUITES } from './test-suites-bdm.mjs';
+import { INFRA_SUITES } from './test-suites-infra.mjs';
 
 export const TIERS = Object.freeze([
   'smoke',
@@ -54,8 +55,10 @@ const it = (name) => `tools/integration-test-${name}.mjs`;
  */
 export const SUITES = Object.freeze([
   // selfcheck (static, in-process wiring) — 1
+  // `touches` EXCLUDES the broad `runtime/` seed (ADR-0113) so `runtime/execution/*`
+  // selects the fast `selfcheck-request` shard, not this 8-min monolith.
   { id: 'selfcheck', file: 'tools/selfcheck.mjs', tier: 'selfcheck',
-    touches: ['tools/selfcheck', 'templates/contextkit/runtime/', 'install.mjs'] },
+    touches: ['tools/selfcheck', 'install.mjs'] },
   { id: 'session-autonomy', file: 'tools/selfcheck-session-autonomy-all.mjs', tier: 'smoke',
     touches: ['templates/contextkit/tools/scripts/economics/session-autonomy/', 'templates/contextkit/tools/scripts/economics/calibration/'] },
 
@@ -276,13 +279,9 @@ export const SUITES = Object.freeze([
 
   ...WORKFLOW_ENGINE_SUITES,
 
-  // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
-  { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
-    touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },
-
-  // Infra self-test (TEA-004) — guards the impact selector; also a fast smoke suite.
-  { id: 'selfcheck-impact', file: 'tools/selfcheck-impact.mjs', tier: 'smoke',
-    touches: ['tools/test-impact.mjs', 'tools/test-suites.mjs', 'tools/selfcheck-impact.mjs'] },
+  // Test-infra self-tests (suite-list guard, impact selector, request shard) —
+  // own module to keep this registry under the 308-line budget (ADR-0113).
+  ...INFRA_SUITES,
 ]);
 
 /**
