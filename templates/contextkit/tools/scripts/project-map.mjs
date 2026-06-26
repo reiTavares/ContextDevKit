@@ -21,6 +21,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { emitEconomy } from './economy/telemetry-emit.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { localVsFleet } from './registry/ids.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
@@ -152,6 +153,15 @@ function findSymbolCmd(query) {
     console.log(`no symbol matching "${query}"`);
     return 0;
   }
+  // ADR-0117: a --find hit returns a 1-line answer instead of a whole-file read or
+  // grep sweep — record the avoided cost as an observed economy saving (capped).
+  try {
+    emitEconomy(ROOT, 'project-map', {
+      category: 'lever', action: 'applied', measurement: 'observed',
+      savedTokens: Math.min(2000, matches.length * 600),
+      sessionId: process.env.CLAUDE_CODE_SESSION_ID || null, note: 'find',
+    }, { now: Date.now() });
+  } catch { /* best-effort */ }
   for (const { symbol, files } of matches) console.log(`${symbol} → ${files.join(', ')}`);
   return 0;
 }

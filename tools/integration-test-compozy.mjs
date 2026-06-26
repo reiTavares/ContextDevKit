@@ -34,12 +34,12 @@ function testWorkflowMacro() {
   const wfRoot = join(proj, 'contextkit/memory/workflows');
   const demoDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'demo' || f.endsWith('-demo')) || 'demo');
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');
-  cli('new', 'demo', '--kind', 'feature').status === 0 &&
+  cli('new', 'demo', '--kind', 'feature', '--business', 'BIZ-0001').status === 0 &&
     existsSync(join(demoDir(), 'index.md')) &&
     existsSync(join(demoDir(), 'prd.md')) &&
     existsSync(join(demoDir(), 'spec.md'))
     ? ok('/workflow new creates a spec-pack folder (ADR-0057)') : bad('spec-pack missing');
-  cli('new', 'demo').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
+  cli('new', 'demo', '--business', 'BIZ-0001').status === 1 ? ok('/workflow refuses duplicate slug') : bad('duplicate accepted');
   writeFileSync(join(demoDir(), 'prd.md'), `# PRD/PDR - demo\n\n## Problem\nFixed problem\n\n## Goals\nFixed goals\n`);
   writeFileSync(join(demoDir(), 'spec.md'), `# SPEC - demo\n\n## Proposed design\nNew design\n\n## Test plan\nRun tests\n`);
   writeFileSync(join(demoDir(), 'tasks.md'), `# Tasks - demo\n\n| Task | Lane | Purpose |\n| --- | --- | --- |\n| 148 | testing | workflow gate test |\n`);
@@ -92,7 +92,7 @@ function testWorkflowDefensiveness() {
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
   const wfRoot = join(proj, 'contextkit/memory/workflows');
   const nogitDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'nogit' || f.endsWith('-nogit')) || 'nogit');
-  cli('new', 'nogit');
+  cli('new', 'nogit', '--business', 'BIZ-0001');
   const report = cli('report', 'nogit');
   const reportPath = join(nogitDir(), 'reports', `${new Date().toISOString().slice(0, 10)}.md`);
   const body = report.status === 0 && existsSync(reportPath) ? readFileSync(reportPath, 'utf-8') : '';

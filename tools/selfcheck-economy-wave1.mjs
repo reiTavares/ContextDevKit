@@ -33,6 +33,8 @@ const CARDS = [
   ['#259 boot-delta-gate (wired)', 'boot-delta-gate.mjs', 'econCheckBootDeltaGate'],
   ['#260 resume-pack', 'resume-pack.mjs', 'econCheckResumePack'],
   ['#264 economy-governance', 'economy-governance.mjs', 'econCheckGovernance'],
+  ['#OP1-W2 redact', 'redact.mjs', 'econCheckRedact'],
+  ['#OP1-W1 telemetry-emit', 'telemetry-emit.mjs', 'econCheckTelemetryEmit'],
 ];
 
 let failures = 0;

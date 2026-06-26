@@ -8,12 +8,13 @@
  * shows everything, `--json` for machine-readable output.
  *
  * Usage:
- *   node contextkit/tools/scripts/runs.mjs                # last 20, all kinds
- *   node contextkit/tools/scripts/runs.mjs --kind task    # tasks only
+ *   node contextkit/tools/scripts/runs.mjs                          # last 20, all kinds
+ *   node contextkit/tools/scripts/runs.mjs --kind task              # tasks only
  *   node contextkit/tools/scripts/runs.mjs --kind pipeline-run
- *   node contextkit/tools/scripts/runs.mjs --all          # no limit
- *   node contextkit/tools/scripts/runs.mjs --json         # JSON for tooling
- *   node contextkit/tools/scripts/runs.mjs --events <id>  # one item's transition log (ADR-0043)
+ *   node contextkit/tools/scripts/runs.mjs --all                    # no limit
+ *   node contextkit/tools/scripts/runs.mjs --json                   # JSON for tooling
+ *   node contextkit/tools/scripts/runs.mjs --events <id>            # one item's transition log (ADR-0043)
+ *   node contextkit/tools/scripts/runs.mjs --events <id> --follow   # tail the log, daemon-free (COMP-003)
  */
 import { listStates, readState } from '../../runtime/state/state-io.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
@@ -21,6 +22,8 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 const ROOT = process.cwd();
 const PIPE = pathsFor(ROOT).pipeline;
 const DEFAULT_LIMIT = 20;
+/** Poll interval for `--follow` mode — mirrors watch.mjs (COMP-003). */
+const FOLLOW_INTERVAL_MS = 500;
 const STATUS_BADGE = { backlog: '📋', working: '🔵', testing: '🟡', done: '✅', running: '🔄', 'blocked-on-checkpoint': '⏸', failed: '❌' };
 
 /** Returns the value after `--name`, or undefined when absent. */
@@ -81,23 +84,97 @@ function renderPipelineRuns(runs) {
   return out.join('\n');
 }
 
+/**
+ * Formats one transition event for stdout — pure, no I/O.
+ *
+ * @param {{ ts: number, actor: string, from: string, to: string, note?: string, inverse?: string }} event
+ * @returns {string}
+ */
+export function formatEvent(event) {
+  const when = new Date(event.ts).toISOString().replace('T', ' ').slice(0, 16);
+  return `  ${when}  ${String(event.actor).padEnd(5)}  ${event.from || '∅'} → ${event.to}` +
+    (event.note ? `  · ${event.note}` : '') +
+    `  (undo → ${event.inverse || '∅'})`;
+}
+
+/**
+ * Returns the slice of events that are new since `lastIndex` (exclusive).
+ * Pure — no I/O, no timers. The unit-testable core of follow mode (COMP-003).
+ *
+ * @param {Array<object>} events - full events array from the state
+ * @param {number} lastIndex - number of events already printed
+ * @returns {Array<object>} new events to print
+ */
+export function newEventsSince(events, lastIndex) {
+  if (!Array.isArray(events) || lastIndex >= events.length) return [];
+  return events.slice(lastIndex);
+}
+
 /** ADR-0043 — prints one item's append-only transition log, newest last. */
 function showEvents(id) {
   const state = readState(PIPE, id);
-  if (!state || (state.events || []).length === 0) {
+  if (!state) {
+    process.stderr.write(`  Unknown id "${id}" — no state file found.\n`);
+    process.exit(1);
+  }
+  if ((state.events || []).length === 0) {
     console.log(`  No transition events for "${id}" yet (events exist from F2 moves onward).`);
     return;
   }
   console.log(`\n🧾 ${id} — ${state.events.length} transition(s), actor-attributed, each with its inverse:\n`);
-  for (const e of state.events) {
-    const when = new Date(e.ts).toISOString().replace('T', ' ').slice(0, 16);
-    console.log(`  ${when}  ${String(e.actor).padEnd(5)}  ${e.from || '∅'} → ${e.to}` + (e.note ? `  · ${e.note}` : '') + `  (undo → ${e.inverse || '∅'})`);
+  for (const e of state.events) console.log(formatEvent(e));
+}
+
+/**
+ * Tails the transition log for `id`, polling every FOLLOW_INTERVAL_MS.
+ * Prints existing events once, then only new ones. Exits cleanly on SIGINT.
+ * Mirrors watch.mjs follower pattern (COMP-003, ADR-0043).
+ *
+ * @param {string} id
+ */
+function followEvents(id) {
+  // Fail-fast: verify the id resolves before entering the poll loop.
+  const initial = readState(PIPE, id);
+  if (!initial) {
+    process.stderr.write(`  Unknown id "${id}" — no state file found.\n`);
+    process.exit(1);
   }
+
+  let printedCount = 0;
+
+  const tick = () => {
+    try {
+      const state = readState(PIPE, id);
+      const events = (state && state.events) ? state.events : [];
+      const fresh = newEventsSince(events, printedCount);
+      if (printedCount === 0 && events.length > 0) {
+        console.log(`\n🧾 ${id} — following transition log (Ctrl-C to stop)\n`);
+      }
+      for (const e of fresh) console.log(formatEvent(e));
+      printedCount = events.length;
+    } catch (err) {
+      process.stderr.write(`runs --follow: ${err.message}\n`);
+    }
+  };
+
+  tick();
+  const handle = setInterval(tick, FOLLOW_INTERVAL_MS);
+
+  const stop = () => {
+    clearInterval(handle);
+    process.stdout.write('\n# follow stopped\n');
+    process.exit(0);
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
 }
 
 function main() {
   const eventsId = arg('events');
-  if (eventsId) return showEvents(eventsId);
+  if (eventsId) {
+    if (flag('follow')) return followEvents(eventsId);
+    return showEvents(eventsId);
+  }
   const kindFilter = arg('kind');
   if (kindFilter && !['task', 'pipeline-run'].includes(kindFilter)) {
     console.error(`Invalid --kind "${kindFilter}". Use "task" or "pipeline-run".`);

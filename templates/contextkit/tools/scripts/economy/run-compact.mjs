@@ -252,7 +252,9 @@ async function main() {
     cmdArgs.splice(kindIdx, 2);
   }
 
-  const { id, exitCode, summary, logPath } = await runCompact(cmdArgs, { kind });
+  // ADR-0117: pass root so the line-144 logSavingSync actually records (a missing
+  // root silently no-ops — the real reason run-compact stayed dormant when invoked).
+  const { id, exitCode, summary, logPath } = await runCompact(cmdArgs, { kind, root: process.cwd() });
 
   console.log(`\n--- run-compact summary (${id}) ---`);
   console.log(`cmd:      ${summary.cmd}`);

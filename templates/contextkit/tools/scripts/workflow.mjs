@@ -87,7 +87,9 @@ function run() {
       const [slug] = positional();
       const profile = arg('profile');
       if (!profile) {
-        const workflow = createWorkflow(ROOT, slug, arg('kind', 'feature'));
+        // ADR-0116: feature/architecture workflows must declare an owner work-context.
+        const owner = arg('operation') || arg('business') || null;
+        const workflow = createWorkflow(ROOT, slug, arg('kind', 'feature'), owner);
         console.log(`Workflow "${workflow.slug}" created. Next phase: intake.`);
         return;
       }

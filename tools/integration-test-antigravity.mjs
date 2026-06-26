@@ -174,7 +174,7 @@ try {
     : bad(`agy gate verdict wrong: ${agyGate.stdout.slice(0, 200)}`);
 
   // ── workflow spec-pack gates and phase-aware guard integration test ──
-  const w1 = ctx('workflow', 'new', 'testwf');
+  const w1 = ctx('workflow', 'new', 'testwf', '--business', 'BIZ-0001');
   // ADR-0071: workflows are numbered (NNNN-slug); resolve the folder by slug suffix.
   const wfRootA = join(proj, 'contextkit', 'memory', 'workflows');
   const wfDir = join(wfRootA, readdirSync(wfRootA).find((f) => f === 'testwf' || f.endsWith('-testwf')) || 'testwf');

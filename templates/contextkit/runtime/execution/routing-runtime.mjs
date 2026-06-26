@@ -23,6 +23,8 @@ import { decisionRecord, appendDecision, readDecisions } from '../../tools/scrip
 import {
   ECONOMY_EVENT_SCHEMA, createEconomyEvent, reconcileDecisionExecution,
 } from './economy-lifecycle.mjs';
+import { dirname, join } from 'node:path';
+import { recordEconomyEvent, appendEconomyEventSync } from '../../tools/scripts/economy/economy-events.mjs';
 
 /** Decision-record schema (spec §6.5). */
 export const ROUTING_DECISION_SCHEMA = 'routing-decision/1';
@@ -246,6 +248,17 @@ export function routePrompt(input = {}) {
     const existing = readDecisions(logFile);
     if (existing.some((entry) => entry && entry.decisionId === decisionId)) duplicate = true;
     else logged = appendDecision(logFile, record);
+    // ADR-0117: bridge the routing lifecycle into the unified economy-events ledger
+    // (the decision record carried economyEvent but it was never persisted there).
+    try {
+      const routingEvt = recordEconomyEvent({
+        eventId: `${decisionId}:routing`, lever: 'routing', lifecycle: economyEvent.status,
+        evaluated: economyEvent.evaluated, recommended: economyEvent.recommended,
+        applied: economyEvent.applied, skipped: economyEvent.skipped, failed: economyEvent.failed,
+        reasonCodes: economyEvent.reasonCodes, requestId: taskId, decisionId, sessionId,
+      }, { now: at ? Date.parse(at) : null });
+      appendEconomyEventSync(routingEvt, join(dirname(logFile), 'economy-events.jsonl'));
+    } catch { /* best-effort, fail-open */ }
   }
 
   return {

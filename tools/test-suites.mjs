@@ -75,6 +75,7 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/token', 'templates/contextkit/runtime/economy/'] },
   { id: 'eacp', file: it('eacp'), tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/economics/'] },
+  { id: 'competitive-followups', file: it('competitive-followups'), tier: 'integration:core', touches: ['templates/contextkit/tools/scripts/claims-gate', 'templates/contextkit/tools/scripts/runs'] },
   { id: 'tooling-pipeline', file: it('tooling-pipeline'), tier: 'integration:workflow',
     touches: ['templates/contextkit/tools/scripts/pipeline', 'templates/contextkit/commands/pipeline'] },
   { id: 'pipeline-substrate', file: it('pipeline-substrate'), tier: 'integration:workflow',
@@ -224,8 +225,8 @@ export const SUITES = Object.freeze([
 
   // WF0020 Economy Runtime — Wave 1 (ECON-01..07/11), advisory + unregistered;
   // aggregates the eight cards' econCheck* exports into one in-process suite.
-  { id: 'economy-wave1', file: 'tools/selfcheck-economy-wave1.mjs', tier: 'selfcheck',
-    touches: ['templates/contextkit/tools/scripts/economy/'] },
+  { id: 'economy-wave1', file: 'tools/selfcheck-economy-wave1.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/'] },
+  { id: 'economy-completeness', file: 'tools/selfcheck-economy-completeness.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/registry.mjs'] },
 
   // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10), gate-coupled advisory signals,
   // UNREGISTERED; aggregates lean-loop/loop-breaker/patch-economy econCheck* exports.

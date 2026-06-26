@@ -93,6 +93,7 @@ function renderIndex(workflow) {
     `slug: ${workflow.slug}`,
     `kind: ${workflow.kind}`,
     `number: ${workflow.number || ''}`,
+    ...(workflow.owner ? [`owner: ${workflow.owner}`] : []),
     `started: ${workflow.started}`,
     `branch: ${workflow.branch || ''}`,
     `currentPhase: ${workflow.currentPhase}`,
@@ -117,7 +118,7 @@ function write(root, slug, relativePath, text) {
   writeFileAtomicSync(fullPath, text);
 }
 
-function seedFiles(root, slug, kind, number = '') {
+function seedFiles(root, slug, kind, number = '', owner = null) {
   write(root, slug, 'prd.md', `# PRD/PDR - ${slug}
 
 ## Problem
@@ -176,19 +177,23 @@ the PRD/PDR, SPEC, or DevPipeline cards.
 ## Open risks
 `);
   write(root, slug, 'reports/.gitkeep', '');
-  const workflow = { slug, kind, number, started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
+  const workflow = { slug, kind, number, owner: owner || '', started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
   writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
 }
 
-export function createWorkflow(root, slug, kind = 'feature') {
+export function createWorkflow(root, slug, kind = 'feature', owner = null) {
   if (!SLUG_RE.test(slug || '')) throw new Error(`slug must match ${SLUG_RE} (got "${slug || ''}")`);
   if (!VALID_KINDS.has(kind)) throw new Error(`kind must be one of: ${[...VALID_KINDS].join(', ')}`);
+  // ADR-0116: feature/architecture work must declare an owner work-context (Operation/Business).
+  if ((kind === 'feature' || kind === 'architecture') && !/^(BIZ|OP)-\d{4}$/.test(owner || '')) {
+    throw new Error(`workflow "${slug}" (${kind}) needs an owner — pass --operation OP-#### or --business BIZ-#### (create it first). [ADR-0116]`);
+  }
   const dir = workflowsDir(root);
   mkdirSync(dir, { recursive: true });
   if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
   const number = nextNumber(dir);
   mkdirSync(resolve(dir, `${number}-${slug}`), { recursive: true });
-  seedFiles(root, slug, kind, number);
+  seedFiles(root, slug, kind, number, owner);
   return readWorkflow(root, slug);
 }
 
