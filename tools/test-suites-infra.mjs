@@ -40,4 +40,7 @@ export const INFRA_SUITES = Object.freeze([
   // pool (permutation, in-order results, concurrency cap, soft-cancel); fast smoke.
   { id: 'selfcheck-run-pool', file: 'tools/selfcheck-run-pool.mjs', tier: 'smoke',
     touches: ['tools/selfcheck-run-pool.mjs', 'tools/run-suites-pool.mjs', 'tools/run-suites.mjs'] },
+  // MCP-006 suites moved to test-suites-mcp.mjs (MCP_SUITES) after the WF0014
+  // suite split; the monolithic selfcheck-mcp-006.mjs / integration-test-mcp-006.mjs
+  // were divided into focused sub-suites registered there.
 ]);

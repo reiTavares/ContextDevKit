@@ -50,7 +50,8 @@ const bad = (msg) => {
 function discoverSuiteFiles() {
   const names = readdirSync(TOOLS_DIR);
   const wanted = names.filter(
-    (name) => name === 'selfcheck.mjs' || (name.startsWith('integration-test') && name.endsWith('.mjs')),
+    (name) => name === 'selfcheck.mjs'
+      || (name.startsWith('integration-test') && name.endsWith('.mjs') && !name.endsWith('-helpers.mjs')),
   );
   return wanted.map((name) => `tools/${name}`).sort();
 }
@@ -126,6 +127,19 @@ function main() {
     'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
     // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
     'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
+    // WF0014 MCP integration-layer selfcheck siblings — standalone selfcheck
+    // entrypoints (NOT integration-test*, so excluded from discovery), registered
+    // in test-suites-mcp.mjs (MCP_SUITES) and dispatched directly. Each ticket's
+    // selfcheck was split into focused sub-suites (constitution §1); *-helpers are
+    // imported, not run. selfcheck-mcp-002.mjs aggregates its 4 sub-files.
+    'tools/selfcheck-mcp.mjs',
+    'tools/selfcheck-mcp-002.mjs',
+    'tools/selfcheck-mcp-004-deny.mjs', 'tools/selfcheck-mcp-004-pass.mjs',
+    'tools/selfcheck-mcp-004-pure.mjs', 'tools/selfcheck-mcp-004-report.mjs',
+    'tools/selfcheck-mcp-006-e2e.mjs', 'tools/selfcheck-mcp-006-handlers.mjs',
+    'tools/selfcheck-mcp-006-imports.mjs',
+    'tools/selfcheck-mcp-007-engine.mjs', 'tools/selfcheck-mcp-007-shape.mjs',
+    'tools/selfcheck-mcp-012.mjs', 'tools/selfcheck-mcp-012b.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

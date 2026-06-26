@@ -1,0 +1,25 @@
+{
+  "id": "product-design",
+  "displayName": "Product & Design",
+  "description": "Profile for product/design-focused sessions. Playwright enables visual regression and design review automation. GitHub gives read access to issues and PR discussions for design feedback loops.",
+  "servers": [
+    {
+      "id": "contextdevkit",
+      "mode": "read-only",
+      "referencedSecrets": [],
+      "allowedTools": []
+    },
+    {
+      "id": "github",
+      "mode": "read-only",
+      "referencedSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedTools": ["list_issues", "get_issue", "list_pull_requests", "get_pull_request", "search_code"]
+    },
+    {
+      "id": "playwright",
+      "mode": "write",
+      "referencedSecrets": [],
+      "allowedTools": ["browser_navigate", "browser_screenshot", "browser_wait_for", "browser_close"]
+    }
+  ]
+}

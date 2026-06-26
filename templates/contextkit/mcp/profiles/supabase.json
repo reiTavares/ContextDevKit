@@ -1,0 +1,19 @@
+{
+  "id": "supabase",
+  "displayName": "Supabase Full-Stack",
+  "description": "Profile for Supabase-backed projects. Minimal surface: context memory + GitHub read for issue tracking. Supabase-specific tooling is handled via the Supabase CLI, not MCP, until a verified supabase-mcp lands in the curated registry.",
+  "servers": [
+    {
+      "id": "contextdevkit",
+      "mode": "read-only",
+      "referencedSecrets": [],
+      "allowedTools": []
+    },
+    {
+      "id": "github",
+      "mode": "read-only",
+      "referencedSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedTools": ["list_repos", "get_repo", "list_issues", "get_issue", "list_pull_requests", "get_pull_request", "get_file_contents"]
+    }
+  ]
+}

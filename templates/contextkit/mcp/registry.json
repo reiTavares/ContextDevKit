@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "contextdevkit",
+      "displayName": "ContextDevKit MCP",
+      "publisher": "reiTavares",
+      "source": "npm:contextdevkit-mcp",
+      "transport": "stdio",
+      "risk": "R0",
+      "capabilities": {
+        "tools": ["session-log", "context-read", "glossary-read", "adr-read"],
+        "resources": ["memory://contextkit"],
+        "prompts": []
+      },
+      "requiredSecrets": [],
+      "allowedHosts": ["*"],
+      "defaultMode": "read-only",
+      "versionPolicy": "pinned",
+      "pin": {
+        "npm": "1.0.0"
+      },
+      "approval": "auto",
+      "provenance": {
+        "publisher": "reiTavares",
+        "url": "https://github.com/reiTavares/ContextDevKit",
+        "version": "1.0.0",
+        "hash": null,
+        "license": "MIT",
+        "verifiedAt": null,
+        "transport": "stdio",
+        "requestedPermissions": ["read:memory", "read:glossary", "read:decisions"]
+      }
+    },
+    {
+      "id": "github",
+      "displayName": "GitHub MCP",
+      "publisher": "github",
+      "source": "npm:@modelcontextprotocol/server-github",
+      "transport": "stdio",
+      "risk": "R2",
+      "capabilities": {
+        "tools": [
+          "list_repos",
+          "get_repo",
+          "search_repos",
+          "list_issues",
+          "get_issue",
+          "create_issue",
+          "list_pull_requests",
+          "get_pull_request",
+          "create_pull_request",
+          "list_commits",
+          "get_file_contents",
+          "push_files",
+          "search_code"
+        ],
+        "resources": ["github://repo"],
+        "prompts": []
+      },
+      "requiredSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedHosts": ["api.github.com"],
+      "defaultMode": "read-only",
+      "versionPolicy": "pinned",
+      "pin": {
+        "npm": "2.0.0"
+      },
+      "approval": "auto",
+      "provenance": {
+        "publisher": "github",
+        "url": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+        "version": "2.0.0",
+        "hash": null,
+        "license": "MIT",
+        "verifiedAt": null,
+        "transport": "stdio",
+        "requestedPermissions": ["read:repo", "read:issues", "read:pull_requests", "write:issues", "write:pull_requests", "write:repo_contents"]
+      }
+    },
+    {
+      "id": "playwright",
+      "displayName": "Playwright MCP",
+      "publisher": "microsoft",
+      "source": "npm:@playwright/mcp",
+      "transport": "stdio",
+      "risk": "R3",
+      "capabilities": {
+        "tools": [
+          "browser_navigate",
+          "browser_click",
+          "browser_type",
+          "browser_screenshot",
+          "browser_evaluate",
+          "browser_wait_for",
+          "browser_close"
+        ],
+        "resources": [],
+        "prompts": []
+      },
+      "requiredSecrets": [],
+      "allowedHosts": ["*"],
+      "defaultMode": "write",
+      "versionPolicy": "pinned",
+      "pin": {
+        "npm": "0.0.29"
+      },
+      "approval": "human",
+      "provenance": {
+        "publisher": "microsoft",
+        "url": "https://github.com/microsoft/playwright-mcp",
+        "version": "0.0.29",
+        "hash": null,
+        "license": "Apache-2.0",
+        "verifiedAt": null,
+        "transport": "stdio",
+        "requestedPermissions": ["browser:navigate", "browser:interact", "network:all"]
+      }
+    }
+  ]
+}
