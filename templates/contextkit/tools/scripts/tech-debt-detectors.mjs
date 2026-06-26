@@ -11,14 +11,23 @@
 
 const CODE_RE = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|rb|php|swift|c|cpp|cs)$/;
 
-/** File length vs the constitution's line budget (configurable). */
+/**
+ * File length vs the line-budget bands (configurable).
+ *
+ * ADR-0122 (WF-0057): line count is an ADVISORY investigation signal, not a
+ * hard blocker. It NEVER reaches severity 5 — file size alone cannot block CI,
+ * completion, or merge. The Architecture & Technical Debt Governance Gate
+ * (`arch-debt/`) evaluates real debt across 12 dimensions; this band only
+ * requests a structural review. The full enforcement-mode reform replaces this
+ * detector's role with `arch-debt/signal-collector.mjs`.
+ */
 export function detectLineBudget(relPath, content, { yellow = 240, red = 308 } = {}) {
   const total = content.split('\n').length;
   if (total > red) {
-    return [{ kind: 'line-budget', severity: 5, path: relPath, line: total, message: `${total} lines — RED ZONE (> ${red}). Split by responsibility.` }];
+    return [{ kind: 'line-budget', severity: 2, path: relPath, line: total, message: `${total} lines — elevated (> ${red}). File size requests structural review; it does not determine a split.` }];
   }
   if (total >= yellow) {
-    return [{ kind: 'line-budget', severity: 3, path: relPath, line: total, message: `${total} lines — yellow zone (>= ${yellow}). Plan a split or document cohesion at the top.` }];
+    return [{ kind: 'line-budget', severity: 1, path: relPath, line: total, message: `${total} lines — above the yellow band (>= ${yellow}). Investigation signal only; document cohesion if intentional.` }];
   }
   return [];
 }
