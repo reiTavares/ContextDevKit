@@ -229,8 +229,7 @@ export const SUITES = Object.freeze([
   { id: 'economy-completeness', file: 'tools/selfcheck-economy-completeness.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/registry.mjs'] },
   { id: 'economy-instrumentation', file: 'tools/selfcheck-economy-instrumentation.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/economy/'] },
 
-  // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10), gate-coupled advisory signals,
-  // UNREGISTERED; aggregates lean-loop/loop-breaker/patch-economy econCheck* exports.
+  // WF0020 Economy Runtime — Wave 2 (ECON-08/09/10): lean-loop/loop-breaker/patch-economy econCheck*.
   { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/economy/'] },
 
