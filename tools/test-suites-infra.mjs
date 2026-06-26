@@ -50,4 +50,8 @@ export const INFRA_SUITES = Object.freeze([
   // Fixture-driven: lint blocks/passes, claims fail/pass, reindex idempotency, validate-doc advisory.
   { id: 'integration-test-docs', file: 'tools/integration-test-docs.mjs', tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/docs-public-lint.mjs', 'templates/contextkit/tools/scripts/readme-claims.mjs', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'docs/'] },
+
+  // MCP-006 suites moved to test-suites-mcp.mjs (MCP_SUITES) after the WF0014
+  // suite split; the monolithic selfcheck-mcp-006.mjs / integration-test-mcp-006.mjs
+  // were divided into focused sub-suites registered there.
 ]);
