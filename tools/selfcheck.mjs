@@ -25,10 +25,11 @@ import { runRoutingChecks } from './selfcheck-routing.mjs';
 import { runConfigPathChecks } from './selfcheck-config-paths.mjs';
 import { runAllRequestOrchestrationChecks } from './selfcheck-request-all.mjs';
 import { runHostHookChecks } from './selfcheck-host-hooks.mjs';
+import { runMcp002Checks } from './selfcheck-mcp-002.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
-const MIN_CHECKS = 1480;
+const MIN_CHECKS = 1550;
 let failures = 0;
 let passes = 0;
 const VERBOSE = process.argv.includes('--verbose');
@@ -173,6 +174,7 @@ async function main() {
   await runRoutingChecks({ ok, bad }, { KIT });
   await runConfigPathChecks({ ok, bad }, { KIT });
   await runAllRequestOrchestrationChecks({ ok, bad }, { KIT });
+  await runMcp002Checks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 

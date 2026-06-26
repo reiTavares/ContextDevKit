@@ -13,6 +13,7 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { checkPhaseGaps } from './workflow-gate.mjs';
 import { nextNumber, resolveFolderName } from './workflow-number.mjs';
+import { parseFrontmatter } from './workflow-frontmatter.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
@@ -53,17 +54,6 @@ function phaseMap(phases) {
   return Object.fromEntries(phases.map((phase) => [phase, { status: 'pending', ref: '' }]));
 }
 
-function parseFrontmatter(text) {
-  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!match) return null;
-  const frontmatter = {};
-  for (const line of match[1].split(/\r?\n/)) {
-    const colon = line.indexOf(':');
-    if (colon > 0) frontmatter[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
-  }
-  return { frontmatter, body: match[2] ?? '' };
-}
-
 function parseWorkflowText(text, phases = PHASES, format = 'pack') {
   const parsed = parseFrontmatter(text);
   if (!parsed) return null;
@@ -79,6 +69,10 @@ function parseWorkflowText(text, phases = PHASES, format = 'pack') {
     slug: parsed.frontmatter.slug,
     kind: parsed.frontmatter.kind || '',
     number: parsed.frontmatter.number || '',
+    // ADR-0116 round-trip (card #357): owner must survive read→advance→render, else
+    // an advanced workflow loses its BIZ/OP owner and the done-sweep can't file it
+    // under its context. Empty string keeps renderIndex's `owner ?` guard honest.
+    owner: parsed.frontmatter.owner || '',
     started: parsed.frontmatter.started || '',
     branch: parsed.frontmatter.branch || '',
     currentPhase: parsed.frontmatter.currentPhase || '',

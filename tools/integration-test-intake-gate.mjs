@@ -23,6 +23,7 @@ const SELFTESTS = [
   'templates/contextkit/tools/scripts/registry/fleet.selftest.mjs',
   'templates/contextkit/tools/scripts/intake-collision-gate.selftest.mjs',
   'templates/contextkit/tools/scripts/workflow-done-sweep.selftest.mjs',
+  'templates/contextkit/tools/scripts/workflow-conclusion-sweep.selftest.mjs',
 ];
 
 console.log('\n🔢 WF-0042 — fleet-aware intake collision gate & done/ lifecycle\n');

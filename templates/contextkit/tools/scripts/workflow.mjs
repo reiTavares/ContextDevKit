@@ -8,6 +8,7 @@ import { dirname } from 'node:path';
 import { statSync } from 'node:fs';
 import { advanceWorkflow, checkWorkflow, createWorkflow, listWorkflows, readWorkflow } from './workflow-pack.mjs';
 import { writeReport } from './workflow-report.mjs';
+import { localVsFleet } from './registry/ids.mjs';
 import { createWaveWorkflow } from './workflow/create.mjs';
 import { refreshIndex, refreshTasks } from './workflow/render.mjs';
 import { explainFile, requiredFiles } from './workflow/files.mjs';
@@ -89,8 +90,13 @@ function run() {
       if (!profile) {
         // ADR-0116: feature/architecture workflows must declare an owner work-context.
         const owner = arg('operation') || arg('business') || null;
+        // ADR-0119 intake gate (advisory): the allocator is already fleet-aware, so
+        // the id is collision-safe by construction; surface it only when a parallel
+        // worktree held a higher WF id (local-only would have collided). Quiet otherwise.
+        const wfDiverges = localVsFleet(ROOT).find((row) => row.kind === 'WF')?.diverges;
         const workflow = createWorkflow(ROOT, slug, arg('kind', 'feature'), owner);
         console.log(`Workflow "${workflow.slug}" created. Next phase: intake.`);
+        if (wfDiverges) console.log('🔢 intake gate: WF number fleet-reconciled — a parallel worktree held a higher id, so a local-only allocation would have collided.');
         return;
       }
       const planPath = arg('plan');
@@ -201,6 +207,12 @@ function run() {
       console.log(workflow.currentPhase === 'done'
         ? `Workflow "${workflow.slug}" complete.`
         : `Workflow "${workflow.slug}" advanced. Next phase: ${workflow.currentPhase}.`);
+      // ADR-0119 — on completion, NUDGE (don't move): filing happens at end-of-session
+      // via the done-sweep Stop hook, so a concluded workflow's path stays stable for
+      // the rest of THIS command/session (moving it here breaks in-flight path use).
+      if (workflow.currentPhase === 'done') {
+        console.log('🧹 done-sweep will file this workflow into its done/ archive at session end (or run: workflow-done-sweep.mjs --write).');
+      }
       return;
     }
     if (cmd === 'check') {

@@ -56,6 +56,7 @@ export function composeCodexHooks(existing, level) {
     add('PreToolUse', 'Edit|Write|Bash|mcp__.*', 'execution-gate.mjs');
     add('PostToolUse', 'Edit|Write|Bash|mcp__.*', 'indirect-write-reconcile.mjs');
     add('Stop', null, 'completion-gate.mjs');
+    add('Stop', null, 'done-sweep.mjs'); // ADR-0119 — file concluded workflows into done/ at session end
     add('SubagentStart', null, 'subagent-gate.mjs');
     add('SubagentStop', null, 'subagent-gate.mjs');
     add('PreCompact', null, 'compaction-continuity.mjs');

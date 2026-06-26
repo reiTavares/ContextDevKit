@@ -184,6 +184,8 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/intake-collision-gate.mjs',
       'templates/contextkit/tools/scripts/workflow-done-sweep.mjs',
       'templates/contextkit/tools/scripts/project-map.mjs',
+      'templates/contextkit/tools/scripts/workflow.mjs',
+      'templates/contextkit/tools/scripts/workflow-pack.mjs',
     ],
   },
 ]);
