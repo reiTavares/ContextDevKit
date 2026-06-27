@@ -7,9 +7,12 @@
 ## 🧭 Mandatory Execution Protocol
 
 > The engine computes which capabilities your task needs and asks for deterministic
-> **receipts** — script output, not your claims — before key transitions. In
-> `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
-> it. A denied action always names the exact corrective command. [→ ADR-0072]
+> **receipts** — script output, not your claims — before key transitions. The gate
+> ships **`guarded` by default with a graceful fallback** (ADR-0125): it enforces
+> (blocks) when it can evaluate safely and **degrades to advisory — warn, never
+> block — whenever it cannot** (no contract/signals, fresh install). Set
+> `enforcement.mode='advisory'` to opt out, or `'strict'` to tighten. A denied
+> action always names the exact corrective command. [→ ADR-0072, ADR-0125]
 
 0. **Session start — orient before acting.** This project runs the Business-driven
    methodology; **{{ROOT_BUSINESS|BIZ-0001}}** is the Root Business that governs

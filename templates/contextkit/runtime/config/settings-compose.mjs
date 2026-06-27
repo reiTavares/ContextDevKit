@@ -57,9 +57,11 @@ export function composeSettings(existing, level) {
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
     add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs'); // ADR-0035 — soft nudge, never blocks
-    // Capability Enforcement (PKG-03, ADR-0072) — ADVISORY by default (enforcement.mode
-    // defaults to advisory → warn-only). Every hook is fail-open. Raise to guarded/strict
-    // via `enforcement.mode` in config; these hooks read the mode at runtime.
+    // Capability Enforcement (PKG-03, ADR-0072; ADR-0125) — GUARDED-with-fallback by
+    // DEFAULT (enforcement.mode defaults to 'guarded'): the intake ceremony ships ACTIVE.
+    // Safe because the gate degrades to advisory (warn, exit 0) whenever it cannot
+    // evaluate — a fresh install is never false-blocked. Every hook is fail-open. Set
+    // enforcement.mode='advisory' to opt OUT, or 'strict' to tighten.
     add('UserPromptSubmit', null, 'execution-contract-hook.mjs'); // CDK-031 — records the contract
     add('PreToolUse', 'Read|Edit|Write|MultiEdit|Grep|Glob|Bash', 'execution-gate.mjs'); // CDK-032/033/035 — warns
     add('PostToolUse', 'Edit|Write|MultiEdit|Bash', 'indirect-write-reconcile.mjs'); // CDK-034 — reconciles

@@ -31,8 +31,12 @@ const VALID_MODES = new Set(['advisory', 'guarded', 'strict']);
  * Resolves the enforcement mode from a config object.
  *
  * Reads config?.enforcement?.mode. Unknown or missing values fall back to
- * 'advisory' - the least disruptive default that never silently tightens.
- * Logs nothing; callers can inspect the return value for unexpected fallback.
+ * 'guarded' — the BUSINESS RULE of this template (ADR-0125): the intake
+ * ceremony ships ACTIVE for every install. This is safe because the gate
+ * itself degrades to advisory (warn, exit 0) whenever it cannot evaluate
+ * safely (no contract, no signals, registry-fail, unregistered task, any
+ * throw) — see gate-enforcement-decision.mjs — so a fresh install is never
+ * false-blocked. A project may explicitly set 'advisory' to opt OUT.
  *
  * @param {object|null|undefined} config project config
  * @returns {'advisory'|'guarded'|'strict'}
@@ -40,7 +44,7 @@ const VALID_MODES = new Set(['advisory', 'guarded', 'strict']);
 export function resolveEnforcementMode(config) {
   const mode = config?.enforcement?.mode;
   if (typeof mode === 'string' && VALID_MODES.has(mode)) return mode;
-  return 'advisory';
+  return 'guarded';
 }
 
 // ---------------------------------------------------------------------------
