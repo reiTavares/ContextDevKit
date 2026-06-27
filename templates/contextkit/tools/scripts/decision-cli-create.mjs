@@ -122,12 +122,26 @@ export function handleCreate({ flags, apply, root }) {
   const templateKind = templateKindMap[kind] ?? 'business';
 
   const fields = {
-    ADR_ID: adrId,
+    // Template uses {{ID}} — canonical token for the ADR id.
+    ID: adrId,
+    ADR_ID: adrId,          // kept for forward-compat / old template variants
     TITLE: title,
+    STATUS: 'proposed',
     DECISION_KIND: kind,
+    DECISION_SCOPE: String(flags['decision-scope'] || flags.decisionScope || 'platform'),
     CONTEXT_TYPE: contextType,
     PRIMARY_CONTEXT_TYPE: contextType === 'legacy' ? '' : contextType,
     PRIMARY_CONTEXT_ID: primaryContextId,
+    // approvalSource block — intentionally blank until accepted; placeholders
+    // keep the template renderable at `create` time (no unresolved tokens).
+    APPROVAL_ID: primaryContextId || adrId,
+    APPROVAL_REVISION: '0',
+    DECISION_HASH: 'TBD',
+    APPROVED_AT: 'TBD',
+    VALUE_INTENT_PRIMARY: String(flags['value-intent'] || flags.valueIntent || 'EFFICIENCY'),
+    PRODUCT_ID: String(flags['product-id'] || flags.productId || ''),
+    PRODUCT_AREA: String(flags['product-area'] || flags.productArea || ''),
+    PRODUCT_CAPABILITY: String(flags['product-capability'] || flags.productCapability || ''),
     DATE: today,
     CREATED_AT: today,
     ACCEPTED_AT: today,

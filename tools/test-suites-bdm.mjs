@@ -150,6 +150,41 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    id: 'w3-decision-cli',
+    file: 'templates/contextkit/tools/scripts/decision.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/decision.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-create.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-lifecycle.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-registry.mjs',
+    ],
+  },
+  {
+    id: 'w3-work-verbs',
+    file: 'templates/contextkit/tools/scripts/work-verbs.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/work.mjs',
+      'templates/contextkit/tools/scripts/work-intake.mjs',
+      'templates/contextkit/tools/scripts/work-link.mjs',
+      'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
+      'templates/contextkit/tools/scripts/work-reconcile.mjs',
+      'templates/contextkit/tools/scripts/work-validate.mjs',
+    ],
+  },
+  {
+    id: 'w3-work-verbs-part2',
+    file: 'templates/contextkit/tools/scripts/work-verbs-part2.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/work.mjs',
+      'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
+      'templates/contextkit/tools/scripts/work-reconcile.mjs',
+      'templates/contextkit/tools/scripts/work-validate.mjs',
+    ],
+  },
+  {
     id: 'b4-adr-tooling',
     file: 'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
     tier: 'selfcheck',

@@ -24,18 +24,11 @@ import { runOperationCreate } from './work-operation.mjs';
 import { renderTasksFile } from './work-render.mjs';
 import { parseFrontmatter, listTasks } from './pipeline-tasks.mjs';
 import { handleBusinessTransition, handleBusinessStatus } from './work-business-dispatch.mjs';
-
-/** Full command surface (spec §"Interfaces / contracts"); some land later. */
-const FUTURE_COMMANDS = Object.freeze([
-  'intake',
-  'link',
-  'unlink',
-  'promote',
-  'reconcile',
-  'start',
-  'close',
-  'validate',
-]);
+import { handleIntake } from './work-intake.mjs';
+import { handleLink, handleUnlink } from './work-link.mjs';
+import { handleStart, handleClose, handlePromote } from './work-lifecycle-cmd.mjs';
+import { handleReconcile } from './work-reconcile.mjs';
+import { handleValidate } from './work-validate.mjs';
 
 /**
  * Selects the DevPipeline cards that belong to one Operation. A card is matched
@@ -118,13 +111,27 @@ export function dispatch(parsed, env = {}) {
       return handleBusinessTransition({ command: parsed.command, flags: parsed.flags, apply, root });
     case 'status':
       return handleBusinessStatus({ flags: parsed.flags, root });
+    case 'intake':
+      return handleIntake({ positionals: parsed.positionals, flags: parsed.flags, apply, root });
+    case 'link':
+      return handleLink({ flags: parsed.flags, apply, root });
+    case 'unlink':
+      return handleUnlink({ flags: parsed.flags, apply, root });
+    case 'promote':
+      return handlePromote({ flags: parsed.flags, apply, root });
+    case 'reconcile':
+      return handleReconcile({ flags: parsed.flags, apply, root });
+    case 'start':
+      return handleStart({ flags: parsed.flags, apply, root });
+    case 'close':
+      return handleClose({ flags: parsed.flags, apply, root });
+    case 'validate':
+      return handleValidate({ flags: parsed.flags, apply, root });
     default:
-      if (FUTURE_COMMANDS.includes(parsed.command)) {
-        throw new Error(`work: command "${parsed.command}" is part of WF-0036 but not yet wired in this wave`);
-      }
       throw new Error(
         `work: unknown command "${parsed.command || ''}". ` +
-        `Try: operation | render | approve | revise | reject | status`,
+        `Try: operation | render | approve | revise | reject | status | ` +
+        `intake | link | unlink | promote | reconcile | start | close | validate`,
       );
   }
 }
