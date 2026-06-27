@@ -54,6 +54,8 @@ export const MCP_SUITES = Object.freeze([
   // every runtime/mcp + mcp-server + scripts/mcp-* source present, /mcp surface).
   { id: 'mcp-wiring', file: 'tools/selfcheck-mcp.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/mcp/', 'templates/contextkit/runtime/mcp/', 'templates/contextkit/mcp-server/', 'templates/contextkit/tools/scripts/mcp', 'templates/claude/commands/mcp/'] },
+  { id: 'mcp-install-propagation', file: 'tools/integration-test-mcp-install-propagation.mjs', tier: 'integration:ecosystem',
+    touches: ['tools/install/engine.mjs', 'templates/contextkit/mcp/', 'templates/contextkit/mcp-server/'] },
   // Per-ticket static selfchecks (split into focused sub-suites; *-helpers are
   // imported, not run). MCP-002's selfcheck-mcp-002.mjs aggregates its 4 sub-files.
   { id: 'mcp-002-selfcheck', file: 'tools/selfcheck-mcp-002.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/mcp/registry.mjs', 'templates/contextkit/mcp/'] },

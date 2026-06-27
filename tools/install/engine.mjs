@@ -54,7 +54,9 @@ const MEMORY_SEEDS = [
 async function copyEngine(target, tplDir, report) {
   await copyTree(join(tplDir, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
   await copyTree(join(tplDir, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
-  report.push('✓ engine installed (contextkit/runtime, contextkit/tools)');
+  await copyTree(join(tplDir, 'contextkit', 'mcp'), join(target, 'contextkit', 'mcp'));
+  await copyTree(join(tplDir, 'contextkit', 'mcp-server'), join(target, 'contextkit', 'mcp-server'));
+  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/mcp, contextkit/mcp-server)');
 }
 
 /**
