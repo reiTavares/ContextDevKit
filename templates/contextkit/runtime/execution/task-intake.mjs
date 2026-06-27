@@ -118,11 +118,21 @@ export function intake(request, env = {}) {
  * @param {string} [root] - project root; used to locate the registry cache.
  * @returns {object[]|null}
  */
+export function resolveDecisionRegistryPath(root) {
+  // Canonical cached projection path (immutable rule 4 — never hardcode it).
+  const canonical = pathsFor(root).decisionRegistry;
+  // §22/§33 read-shim (OP-0005 Wave 4): a future layout may co-locate the cache
+  // under `decisions/`. Prefer that location when it exists, else fall back to the
+  // memory-root cache. Read-only reconcile — the writer still owns the canonical
+  // location, so this never moves generated state (updater-safe).
+  const nested = canonical.replace(/decision-registry\.json$/, 'decisions/decision-registry.json');
+  return existsSync(nested) ? nested : canonical;
+}
+
 function loadDecisionRegistry(root) {
   try {
     if (!root) return null;
-    // Canonical cached projection path (immutable rule 4 — never hardcode it).
-    const registryPath = pathsFor(root).decisionRegistry;
+    const registryPath = resolveDecisionRegistryPath(root);
     if (!existsSync(registryPath)) return null;
     const parsed = JSON.parse(readFileSync(registryPath, 'utf-8').replace(/^﻿/, ''));
     // searchDecisions(registry, need) reads `registry.decisions`; pass the object through.

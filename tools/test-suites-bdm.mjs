@@ -128,6 +128,15 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    id: 'registry-shim-bdm',
+    file: 'templates/contextkit/runtime/execution/task-intake-registry-shim.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/runtime/execution/task-intake.mjs',
+      'templates/contextkit/runtime/config/paths.mjs',
+    ],
+  },
+  {
     id: 'b4-adr-tooling',
     file: 'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
     tier: 'selfcheck',
