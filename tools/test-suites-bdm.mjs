@@ -241,6 +241,16 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    // ADR-0126 — installer auto-adopts the methodology: seeds the work-context
+    // roots WITH templates + scaffolds the Root Business BIZ-0001 (idempotent, fail-open).
+    id: 'methodology-seed',
+    file: 'tools/integration-test-methodology-seed.mjs',
+    tier: 'integration:installer',
+    touches: [
+      'install.mjs', 'tools/install/seed-methodology.mjs', 'tools/install/engine.mjs',
+    ],
+  },
+  {
     // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
     id: 'intake-gate',
     file: 'tools/integration-test-intake-gate.mjs',

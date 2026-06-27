@@ -38,6 +38,7 @@ import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { renumberByStarted } from './templates/contextkit/tools/scripts/workflow-number.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
+import { maybeSeedMethodology } from './tools/install/seed-methodology.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
 const TPL = resolve(KIT_ROOT, 'templates');
@@ -188,6 +189,15 @@ async function main() {
     if (renamed.length) report.push(`✓ numbered ${renamed.length} workflow(s) by start date (ADR-0071)`);
   } catch { /* never block install on a numbering hiccup */ }
 
+  // 2c. Adopt the Business-driven methodology (BIZ-0001): create the work-context
+  // roots WITH templates + scaffold the Root Business so the methodology is active
+  // AND adopted, not merely available. Idempotent + fail-open; runs on fresh +
+  // --update; never clobbers a BIZ-0001 the developer filled. [ADR-0125/0126]
+  // INVARIANT: this MUST stay below the preflight-deferral return above (a deferred
+  // --update must not mutate user memory); the seeder also self-guards on ctx.preflight.
+  const methodology = await maybeSeedMethodology(target, ctx);
+  if (methodology?.note) report.push(methodology.note);
+
   // 3. Antigravity host — second native host [ADR-0036].
   await installAntigravityHost(target, TPL, ctx, report);
 
@@ -253,6 +263,14 @@ async function main() {
     console.log('   YOU personalized is kept (conflicts: see ⚠️ lines above). Derived artifacts (project-map)');
     console.log('   may be regenerated transactionally when safe.');
     console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
+    if (methodology?.status === 'seeded') {
+      console.log('\n🧭 Business-driven methodology is ACTIVE and now ADOPTED:');
+      console.log('   The intake gate runs guarded every session and the classifier auto-runs on each request.');
+      console.log(`   ${methodology.note.replace(/^✓ /, '')}`);
+      console.log('   ONE next step — fill your business case (placeholders only so far):');
+      console.log('     node ctx.mjs work intake "<your objective>"   # classify (read-only)');
+      console.log('     then edit contextkit/memory/business/BIZ-0001-*/business-case.md');
+    }
     // Honest version-delta notice: only shown when a real version change occurred.
     // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).
     if (priorVersion && priorVersion !== version) {
@@ -262,6 +280,12 @@ async function main() {
     return;
   }
   console.log(`\n✅ ContextDevKit installed at Level ${level} into ${target}`);
+  if (methodology?.status === 'seeded' || methodology?.status === 'already_adopted') {
+    console.log('\n🧭 Business-driven methodology is ACTIVE (guarded intake gate + auto-classifier each session).');
+    console.log(`   ${methodology.note.replace(/^✓ /, '')}`);
+    console.log('   Adopt it in one step: node ctx.mjs work intake "<your objective>"');
+    console.log('   then fill contextkit/memory/business/BIZ-0001-*/business-case.md (placeholders → real).');
+  }
   console.log('\nNext steps:');
   console.log('  1. Open the project in Claude Code (it reads .claude/ + CLAUDE.md).');
   console.log('  2. Approve the hooks on first run (one-time per hook).');
