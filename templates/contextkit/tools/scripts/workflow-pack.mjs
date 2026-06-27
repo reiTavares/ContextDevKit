@@ -13,8 +13,10 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
 import { checkPhaseGaps } from './workflow-gate.mjs';
 import { resolveFolderName } from './workflow-number.mjs';
-import { nextWorkflowNumber } from './registry/ids.mjs';
 import { parseFrontmatter } from './workflow-frontmatter.mjs';
+import { resolveWorkflow } from './registry/workflow.mjs';
+import { nextWorkflowNumber, workflowRoots } from './registry/ids.mjs';
+import { seedFileContents } from './workflow-pack-seeds.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
@@ -24,7 +26,26 @@ const VALID_KINDS = new Set(['feature', 'architecture', 'bug', 'chore', 'spike']
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 
 function workflowsDir(root) { return resolve(pathsFor(root).memory, 'workflows'); }
-export function packDir(root, slug) { return resolve(workflowsDir(root), resolveFolderName(workflowsDir(root), slug)); }
+
+/**
+ * Absolute pack dir for an id-or-slug, resolved across EVERY root (BIZ-0001 /
+ * WF-0036 A4): top-level `workflows/` plus each owned `business|operations/<id>/
+ * workflows/`. Without this an owner-nested workflow (ownership rule 3) is
+ * invisible to `readWorkflow`/`status`/`advance`. Order: (1) a direct central
+ * match — also the not-yet-created path `createWorkflow` probes, so create stays
+ * central; (2) else the cross-root `resolveWorkflow` row's memory-relative
+ * `.path`, rebased absolute; (3) else the central path (unknown slug → "missing").
+ * @param {string} root project root.
+ * @param {string} slug workflow id or slug.
+ * @returns {string} absolute pack directory (may not exist yet).
+ */
+export function packDir(root, slug) {
+  const central = resolve(workflowsDir(root), resolveFolderName(workflowsDir(root), slug));
+  if (existsSync(central)) return central;
+  const hit = resolveWorkflow(slug, root);
+  if (hit && hit.path) return resolve(pathsFor(root).memory, hit.path);
+  return central;
+}
 function indexFile(root, slug) { return resolve(packDir(root, slug), 'index.md'); }
 function legacyFile(root, slug) { return resolve(workflowsDir(root), `${slug}.md`); }
 function stamp() { return new Date().toISOString(); }
@@ -114,63 +135,7 @@ function write(root, slug, relativePath, text) {
 }
 
 function seedFiles(root, slug, kind, number = '', owner = null) {
-  write(root, slug, 'prd.md', `# PRD/PDR - ${slug}
-
-## Problem
-
-## Goals
-
-## Users / Jobs
-
-## Non-goals
-
-## Success metrics
-
-## Open questions
-`);
-  write(root, slug, 'spec.md', `# SPEC - ${slug}
-
-## Executive summary
-
-## Current architecture read
-
-## Proposed design
-
-## Interfaces / contracts
-
-## Data flow
-
-## Impact analysis
-
-## Test plan
-
-## Development sequence
-`);
-  write(root, slug, 'decisions.md', `# Decisions - ${slug}
-
-Link ADRs here. Do not duplicate ADR contents.
-
-| ADR | Status | Why it matters |
-| --- | --- | --- |
-`);
-  write(root, slug, 'tasks.md', `# Tasks - ${slug}
-
-Link DevPipeline cards here. Do not duplicate task bodies.
-
-| Task | Lane | Purpose |
-| --- | --- | --- |
-`);
-  write(root, slug, 'memory.md', `# Workflow Memory - ${slug}
-
-Keep only durable handoffs and learnings that are not already in git, ADRs,
-the PRD/PDR, SPEC, or DevPipeline cards.
-
-## Current state
-
-## Decisions / handoffs
-
-## Open risks
-`);
+  for (const seed of seedFileContents(slug)) write(root, slug, seed.filename, seed.content);
   write(root, slug, 'reports/.gitkeep', '');
   const workflow = { slug, kind, number, owner: owner || '', started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
   writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
@@ -199,15 +164,19 @@ function malformed(path) { return { malformed: true, path }; }
 function isMalformed(entry) { return Boolean(entry && entry.malformed); }
 
 /**
- * Reads a spec-pack index. Returns null only when the index is genuinely
- * absent; an existing-but-unparseable index yields a `malformed` marker so
- * corruption is never masked as absence (constitution §8).
+ * Reads a spec-pack from an ABSOLUTE `index.md` path. null when genuinely absent;
+ * an existing-but-unparseable index yields a `malformed` marker (constitution §8).
+ * Path-based so it serves both the slug resolver and the cross-root walk.
  */
-function readPack(root, slug) {
-  const path = indexFile(root, slug);
+function readPackAt(path) {
   if (!existsSync(path)) return null;
   const workflow = parseWorkflowText(readFileSync(path, 'utf-8'), PHASES, 'pack');
   return workflow ? { ...workflow, path } : malformed(path);
+}
+
+/** Reads a spec-pack index for an id-or-slug (resolved across all roots). */
+function readPack(root, slug) {
+  return readPackAt(indexFile(root, slug));
 }
 
 /** Reads a legacy breadcrumb. Same malformed-vs-missing contract as readPack. */
@@ -234,12 +203,18 @@ export function readWorkflow(root, slug) {
  */
 export function listWorkflows(root) {
   mkdirSync(workflowsDir(root), { recursive: true });
-  const entries = readdirSync(workflowsDir(root), { withFileTypes: true });
-  const packs = entries
-    .filter((entry) => entry.isDirectory() && entry.name !== '_TEMPLATE')
-    .map((entry) => readPack(root, entry.name))
+  // Pack dirs from every ACTIVE workflow root (top-level + owned contexts),
+  // reusing `workflowRoots` so nested owned workflows are not blind spots
+  // (BIZ-0001 / WF-0036 A4). Read by absolute index path (no slug round-trip).
+  // `done/` archives are excluded to keep the prior active-only listing.
+  const packs = workflowRoots(root)
+    .filter((dir) => !dir.endsWith('/done') && existsSync(dir))
+    .flatMap((dir) => readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name !== '_TEMPLATE')
+      .map((entry) => readPackAt(resolve(dir, entry.name, 'index.md'))))
     .filter((entry) => entry !== null);
-  const legacy = entries
+  // Legacy `.md` breadcrumbs only ever live in the central top-level root.
+  const legacy = readdirSync(workflowsDir(root), { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== '.gitkeep')
     .map((entry) => readLegacy(root, entry.name.replace(/\.md$/, '')))
     .filter((entry) => entry !== null);

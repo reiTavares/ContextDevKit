@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
 import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import { validatePlan } from '../templates/contextkit/tools/scripts/workflow/validate.mjs';
-import { readWorkflow } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
+import { readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
 
 const rep = reporter();
 const NOW = '2026-06-17T00:00:00.000Z';
@@ -137,6 +137,23 @@ try {
   !existsSync(join(root, 'contextkit', 'memory', 'workflows', `${owned.number}-owned-change`))
     ? rep.ok('owned workflow did NOT land in the central legacy root')
     : rep.bad('owned workflow leaked into central memory/workflows/');
+
+  // --- Cross-root RESOLVER (WF-0036 A4 gap close) ------------------------
+  // The owner-nested pack above must be reachable by `readWorkflow`/`status`
+  // (single-slug) AND appear in `listWorkflows` — previously both were blind to
+  // anything outside the top-level `workflows/` dir.
+  const nested = readWorkflow(root, 'owned-change');
+  nested && nested.slug === 'owned-change' && nested.currentPhase === 'intake'
+    ? rep.ok('readWorkflow resolves an owner-NESTED workflow (cross-root)')
+    : rep.bad(`readWorkflow blind to nested workflow (got ${JSON.stringify(nested && nested.slug)})`);
+  const nestedByPath = (nested && nested.path || '').split('\\').join('/');
+  nestedByPath.includes(`operations/${opSlug}/workflows/`)
+    ? rep.ok('readWorkflow returns the nested pack path (not a central path)')
+    : rep.bad(`readWorkflow returned a non-nested path: ${nested && nested.path}`);
+  const listed = listWorkflows(root).filter((wf) => !wf.malformed).map((wf) => wf.slug);
+  listed.includes('owned-change') && listed.includes('basic-fix')
+    ? rep.ok('listWorkflows includes BOTH a nested and a central workflow')
+    : rep.bad(`listWorkflows missing nested/central slug (got ${JSON.stringify(listed)})`);
 
   // --- Absent owner folder throws (fail-fast, never silent central fallback)
   let missingOwnerThrew = false;
