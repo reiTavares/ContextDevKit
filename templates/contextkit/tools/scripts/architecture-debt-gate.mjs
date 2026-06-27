@@ -33,6 +33,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
+import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { resolveArchDebtConfig } from '../../runtime/config/resolve-arch-debt-config.mjs';
 import { scanProject } from './project-map-core.mjs';
 import { computeInsights } from './project-map-insights.mjs';
 import { walk } from './tech-debt-scan.mjs';
@@ -238,7 +240,13 @@ export async function runGate(opts = {}) {
  */
 async function main() {
   const args = process.argv.slice(2);
-  const result = await runGate({ root: process.cwd() });
+  // The SINGLE config authority: resolve the gate slices from contextkit/config.json
+  // (migrating the deprecated l5.lineBudget alias onto the advisory lineSignals).
+  const resolved = resolveArchDebtConfig(loadConfigSync(process.cwd()));
+  if (resolved.deprecationNotice) {
+    process.stderr.write(`[arch-debt] ${resolved.deprecationNotice}\n`);
+  }
+  const result = await runGate({ root: process.cwd(), config: resolved });
   process.stdout.write(result.report);
   if (args.includes('--json')) {
     process.stdout.write(JSON.stringify({ outcome: result.outcome, blockingRuleIds: result.store.blockingRuleIds }, null, 2) + '\n');

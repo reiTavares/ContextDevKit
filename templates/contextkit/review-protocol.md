@@ -36,10 +36,16 @@ Mapping rules of thumb:
   leaving it grows fast. Downgrade to `CANDIDATE` only when the affected
   surface is genuinely small and isolated.
 - A **Tier 2** (hygiene) finding starts at `CANDIDATE` and rises to `HARD`
-  only when the over-apply clause has been considered and rejected, or to
-  `BLOCKER` when the scanner already emits severity 5 (e.g. `> 308` lines —
-  the project's line-budget RED zone, configurable in `contextkit/config.json
-  → l5.lineBudget`).
+  only when the over-apply clause has been considered and rejected. **Line
+  count is the exception: it is always advisory** — a `> 308` reading is a
+  louder *investigation prompt*, not a `BLOCKER`. Size alone never raises
+  severity and never fails a build; the finding earns its severity from the
+  real defect the investigation uncovers (a leaked layer, a second state
+  authority, a crossed boundary), or it stays advisory. The line-budget RED
+  zone is configurable in `contextkit/config.json → l5.lineBudget`; the
+  binding debt verdict belongs to the Architecture & Technical Debt
+  Governance Gate (`contextkit/tools/scripts/arch-debt/`, ADR-0122), not to
+  this rubric's line band.
 - For **security findings**, dispatch the security-team — see *Adjacent
   concerns* in `best-practices.md`. The severity vocabulary here applies
   inside the rubric's lane only.
@@ -97,6 +103,21 @@ How `/analyze-code-ia-practices` should behave once the scanner has run.
    "this file is 320 lines" when the real story is "the domain imports the
    persistence client."
 
+   **Structural recommendations carry their evidence (ADR-0122 §32).** Size
+   alone is never sufficient grounds.
+
+   - A **SPLIT** recommendation must cite the *independent responsibility*
+     being extracted, the *new contract* the extracted unit will expose, and
+     *why bouncing won't increase* (the call graph gets simpler, not just
+     longer). No abstraction created solely to satisfy a line limit.
+   - A **MERGE / SIMPLIFY** recommendation must cite the *single coherent
+     journey* the fragments belong to and show the *boundaries it crosses
+     stay protected* after merging (no second concern smuggled in, no leaked
+     internal). No responsibilities mixed just to avoid multiple files.
+
+   A recommendation that cannot produce this evidence **stays advisory** —
+   report it as an observation, do not assert it as a required fix.
+
 5. **Honor each rule's "Don't over-apply" clause.** If the clause covers
    the case, say so and move on. Manufactured findings cost more trust
    than they save.
@@ -138,7 +159,7 @@ Example findings:
 ```
 src/api/orders.ts:142 — TIER1/S1 — HARD — controller imports DB client directly — extract an OrderRepo port; inject from edge
 src/state/cart.ts:88  — TIER1/S4 — HARD — cart total cached in 3 components, drifting — derive from one source (one query hook)
-src/ui/Dashboard.tsx  — TIER2/H1 — BLOCKER — 412 lines (> 308) — extract `useDashboardData` hook + promote `renderHeader` to component
+src/ui/Dashboard.tsx  — TIER2/H1 — CANDIDATE — 412 lines (> 308, advisory) flags a god component: data-fetch + render mixed — extract `useDashboardData` hook + promote `renderHeader` to component
 src/lib/helpers.ts:8  — TIER2/H5 — NIT — `arr` carries meaning here — rename to `pendingInvoices`
 ```
 
@@ -160,7 +181,7 @@ signal; the agent owns everything that needs judgment. The split is honest
 
 | Detector               | Rule informed     | Sev    | Notes                                        |
 | ---------------------- | ----------------- | :----: | -------------------------------------------- |
-| `detectLineBudget`     | H1                | 3 / 5  | Yellow ≥ 240, RED > 308 (configurable).      |
+| `detectLineBudget`     | H1                | adv.   | Yellow ≥ 240, RED > 308 (configurable) — advisory investigation signal, never a build blocker. |
 | `detectSrpAnd`         | H2                | 2      | JS/TS `And`/`Or`/`E`; Python `_and_`/`_or_`. |
 | `detectReactStateLoop` | H3 (React/JSX)    | 3      | `> 2 useState + ≥ 1 useEffect`; no-op elsewhere. |
 | `detectTodoMarkers`    | H4 / H6 (debt)    | 1      | `TODO`/`FIXME`/`HACK`/`XXX` in comments.     |
@@ -173,8 +194,12 @@ the kit stack-agnostic in practice, not just in principle.
 auto-loaded. A broken custom detector is skipped, never blocks the scan
 (constitution, rule 2 — "hooks never break real work").
 
-**`--ci` gate** fails the build on any severity-5 finding. This is the
-hard line the project will not regress past.
+**`--ci` gate** fails the build on a severity-5 finding from a *non-advisory*
+detector. **Line budget is advisory and never gates the build** — a `> 308`
+reading raises an investigation prompt, not a `BLOCKER`. The binding
+build-blocking debt verdict is owned by the Architecture & Technical Debt
+Governance Gate (`contextkit/tools/scripts/arch-debt/`, ADR-0122), which
+weighs real debt across its twelve dimensions rather than counting lines.
 
 **Plug-in slot is the right place for stack-specific detectors** (e.g. a
 project that wants to detect its specific ORM's misuse, or a particular

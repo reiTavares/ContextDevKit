@@ -49,6 +49,17 @@
     "criticalPaths": [],
     "coverageTarget": { "lines": 80, "branches": 70 }
   },
+  "architectureDebtGate": {
+    "enabled": true,
+    "mode": "active",
+    "baseline": { "strategy": "ratchet", "blockUnchangedLegacyDebt": false },
+    "ruleModes": {},
+    "lineSignals": { "enabled": true, "blocking": false, "yellow": 240, "elevated": 308 },
+    "floors": { "security": "BLOCKING", "reliability": "BLOCKING", "testability": "BLOCKING" },
+    "intentionalDebt": { "requireOwner": true, "requireBusinessJustification": true, "requireRepaymentTrigger": true, "requireAcceptanceAuthority": true },
+    "scope": { "changedFilesOnly": true, "affectedModules": true },
+    "unknownEvidence": "REVIEW_REQUIRED"
+  },
   "l5": {
     "highRiskPaths": [],
     "lineBudget": { "yellow": 240, "red": 308 },

@@ -17,6 +17,7 @@ import { ORCHESTRATION_DEFAULTS } from './defaults-orchestration.mjs';
 import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
 import { LEDGER_DEFAULTS } from './defaults-ledger.mjs';
+import { ARCH_DEBT_GATE_DEFAULTS } from './defaults-arch-debt.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -259,7 +260,13 @@ export const DEFAULT_CONFIG = Object.freeze({
      *  agent-packages/** is included by default — swapping a forged agent's primary
      *  model is high blast radius (ADR-0012 + Fase 5). Remove if you don't ship agents. */
     highRiskPaths: ['agent-packages/**'],
-    /** Line-budget thresholds used by the tech-debt scanner. */
+    /**
+     * DEPRECATED (ADR-0122, WF-0057): line-budget thresholds. SUPERSEDED by
+     * `architectureDebtGate.lineSignals` — line count is now an ADVISORY
+     * investigation signal, never a CI blocker. Kept as a back-compat ALIAS only:
+     * the gate's config-resolution migrates these numbers onto `lineSignals`
+     * (yellow→yellow, red→elevated) and emits a one-time deprecation notice.
+     * Not a second config authority; do not add new readers. */
     lineBudget: { yellow: 240, red: 308 },
     /** Files whose exported symbols form the public contract (drift gate). Empty = off. */
     contractGlobs: [],
@@ -279,4 +286,12 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
   eacp: EACP_DEFAULTS,                // advisory-first; see defaults-eacp.mjs (disable restores legacy)
   economy: ECONOMY_CONFIG_DEFAULTS,   // ADR-0103 go-live; see defaults-economy.mjs (per-module toggles)
+
+  /**
+   * Architecture & Technical-Debt Governance Gate (WF-0057, ADR-0122) — the SOLE
+   * config authority for the gate. `mode:'active'` + `lineSignals.blocking:false`
+   * are hard invariants. The legacy `l5.lineBudget` is a deprecated alias the
+   * migration preserves as advisory-only. See defaults-arch-debt.mjs.
+   */
+  architectureDebtGate: ARCH_DEBT_GATE_DEFAULTS,
 });

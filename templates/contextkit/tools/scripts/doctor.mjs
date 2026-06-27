@@ -17,6 +17,7 @@ import { resolve } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { composeCodexHooks } from '../../runtime/config/codex-hooks-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
+import { resolveArchDebtConfig } from '../../runtime/config/resolve-arch-debt-config.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
@@ -135,6 +136,20 @@ function checkRemote() {
     url ? pass(`git remote: ${url}`) : note('no git remote', 'run /git setup-remote (GitHub/GitLab/other)');
   } catch {
     note('no git remote configured', 'run /git setup-remote to connect GitHub/GitLab/other + CLI');
+  }
+}
+
+/**
+ * Architecture & Technical-Debt Governance Gate health (WF-0057, ADR-0122).
+ * Advisory only — reports the resolved gate mode, confirms line-budget is now an
+ * ADVISORY signal (never a CI blocker), and nudges to migrate a deprecated
+ * `l5.lineBudget` onto `architectureDebtGate.lineSignals`.
+ */
+function checkArchDebtGate() {
+  const resolved = resolveArchDebtConfig(loadConfigSync(ROOT));
+  pass(`arch-debt gate: mode ${resolved.mode}, line-budget ADVISORY (yellow ${resolved.lineBands.yellow} / elevated ${resolved.lineBands.elevated}) — never blocks`);
+  if (resolved.deprecationNotice) {
+    note('config still uses the deprecated l5.lineBudget alias', 'move thresholds to architectureDebtGate.lineSignals.{yellow, elevated} and drop l5.lineBudget (ADR-0122)');
   }
 }
 
@@ -277,6 +292,7 @@ checkInstallMode();
 checkRoadmap();
 checkModuleClaudeMd();
 checkRemote();
+checkArchDebtGate();
 checkZod(level);
 checkAntigravityHost();
 checkCodexHost(level);
