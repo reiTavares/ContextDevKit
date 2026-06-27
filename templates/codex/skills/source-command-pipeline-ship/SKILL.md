@@ -138,6 +138,20 @@ the gates. Never skip the review and test stages to "save time".
 
 ## Token economy (ADR-0103)
 
-Default to **delegate-to-worker**: dispatch the mechanical work to a worker via
-the §A output envelope and merge the structured result — do NOT re-prose a
-subagent report. Controller-scoped only; honor `economy.leanLoop.enabled`.
+Default to **delegate-to-worker** for mechanical work, but keep the controller
+responsible for scope, gates, and final synthesis.
+
+Before each subagent dispatch:
+
+1. Resolve the bounded dispatch profile:
+   `node contextkit/tools/scripts/economy/subagent-profile.mjs`, and attach its
+   JSON to the agent packet together with the `--for-subagent` context pack.
+2. Build a controller-scoped lean-loop hint:
+   `node contextkit/tools/scripts/economy/lean-loop-cli.mjs --controller ship --touch <comma-separated-touch-set>`.
+   Use it to decide whether delegation is cheaper than direct execution; if it
+   says direct work is cheaper, do not dispatch just to satisfy a pattern.
+3. Require the §A output envelope and merge the structured result. Do not
+   re-prose a subagent report.
+
+Honor `economy.leanLoop.enabled`. If any economy lever lacks data, record it as
+`skipped` with the reason in the run summary.

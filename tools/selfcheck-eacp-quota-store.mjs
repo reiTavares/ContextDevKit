@@ -16,7 +16,7 @@
  *
  * Zero runtime dependencies — node:* only.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -32,9 +32,10 @@ export async function runEacpQuotaStoreChecks({ ok, bad }, { KIT }) {
   const econ = 'templates/contextkit/tools/scripts/economics';
   const quotaPath   = resolve(KIT, `${econ}/quota-snapshots.mjs`);
   const storePath   = resolve(KIT, `${econ}/quota-store.mjs`);
+  const cliPath     = resolve(KIT, `${econ}/quota-snapshot.mjs`);
   const adapterPath = resolve(KIT, `${econ}/adapters/claude-code.mjs`);
 
-  let quotaLib, storeLib, adapterLib;
+  let quotaLib, storeLib, cliLib, adapterLib;
   try {
     quotaLib   = await import(pathToFileURL(quotaPath).href);
     ok('quota-snapshots.mjs imports cleanly (quota-store suite)');
@@ -44,12 +45,17 @@ export async function runEacpQuotaStoreChecks({ ok, bad }, { KIT }) {
     ok('quota-store.mjs imports cleanly');
   } catch (err) { bad(`quota-store.mjs import failed: ${err?.message ?? err}`); return; }
   try {
+    cliLib = await import(pathToFileURL(cliPath).href);
+    ok('quota-snapshot.mjs imports cleanly');
+  } catch (err) { bad(`quota-snapshot.mjs import failed: ${err?.message ?? err}`); return; }
+  try {
     adapterLib = await import(pathToFileURL(adapterPath).href);
     ok('claude-code adapter imports cleanly (quota-store suite)');
   } catch (err) { bad(`claude-code adapter import failed: ${err?.message ?? err}`); return; }
 
   const { buildSnapshot } = quotaLib;
   const { appendSnapshot, readSnapshots } = storeLib;
+  const { parseArgs, runQuotaSnapshot } = cliLib;
   const { ADAPTER, declares } = adapterLib;
 
   // ── Idempotent retry ──────────────────────────────────────────────────────
@@ -100,6 +106,28 @@ export async function runEacpQuotaStoreChecks({ ok, bad }, { KIT }) {
   } catch (err) {
     bad(`quota-store: linkage round-trip threw: ${err?.message ?? err}`);
     if (tmpDir2) { try { rmSync(tmpDir2, { recursive: true, force: true }); } catch { /* best-effort */ } }
+  }
+
+  // ── CLI dry-run/write/idempotency ─────────────────────────────────────────
+  let tmpDirCli;
+  try {
+    tmpDirCli = mkdtempSync(join(tmpdir(), 'eacp-cli-'));
+    const cliFile = join(tmpDirCli, 'quota.jsonl');
+    const argv = ['--host', 'codex', '--remaining-pct', '42', '--capture-method', 'manual', '--source', 'selfcheck', '--file', cliFile];
+    const dry = runQuotaSnapshot(parseArgs(argv), { root: KIT, now: 1750000000000 });
+    dry.status === 'dry-run' && dry.applied === false && !existsSync(cliFile)
+      ? ok('quota-snapshot CLI: dry-run builds receipt without writing')
+      : bad(`quota-snapshot CLI: dry-run wrong: ${JSON.stringify({ status: dry.status, applied: dry.applied, exists: existsSync(cliFile) })}`);
+    const written = runQuotaSnapshot(parseArgs([...argv, '--write']), { root: KIT, now: 1750000000000 });
+    const retry = runQuotaSnapshot(parseArgs([...argv, '--write']), { root: KIT, now: 1750000000000 });
+    const records = readSnapshots(cliFile);
+    written.applied === true && retry.idempotentNoop === true && records.length === 1
+      ? ok('quota-snapshot CLI: --write appends once and retry is idempotent')
+      : bad(`quota-snapshot CLI: write/idempotency wrong: ${JSON.stringify({ written, retry, count: records.length }).slice(0, 400)}`);
+    rmSync(tmpDirCli, { recursive: true, force: true });
+  } catch (err) {
+    bad(`quota-snapshot CLI: dry-run/write test threw: ${err?.message ?? err}`);
+    if (tmpDirCli) { try { rmSync(tmpDirCli, { recursive: true, force: true }); } catch { /* best-effort */ } }
   }
 
   // ── claude-code host must NOT use 'api' capture (no quota endpoint) ───────

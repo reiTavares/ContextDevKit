@@ -39,6 +39,21 @@ You just entered **dev-start** mode with the objective:
    `run-compact`. It never regenerates Project Map, runs free-form text, changes
    git state or moves a card. Use `--json` for `cdk-dev-start-bootstrap/1`.
 
+   **Economy canaries to apply from that plan**:
+   - If the bootstrap or Project Map reports an exact symbol/path match, run Task
+     Compiler in read/compile-only mode:
+     `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <exact-symbol> --objective "$ARGUMENTS"`.
+     If the match is partial/ambiguous/missing, report `task-compiler skipped:
+     no exact Project Map match`.
+   - If the bootstrap reports a previous checkpoint/run id, render the resume
+     pack before re-reading old context:
+     `node contextkit/tools/scripts/economy/resume-pack.mjs <runId>`. If no
+     checkpoint exists, report `resume-pack skipped: no checkpoint`.
+   - If RequestOrchestrator suggests subagent work, resolve the bounded profile:
+     `node contextkit/tools/scripts/economy/subagent-profile.mjs`, then attach
+     that profile to each subagent packet. This is advisory and must not increase
+     dispatch count.
+
 3. **Read the current state first** — run:
    ```
    node contextkit/tools/scripts/context-pack.mjs --profile dev-start
@@ -67,8 +82,9 @@ You just entered **dev-start** mode with the objective:
    While you work, the task heartbeat is renewed on every edit. At completion,
    check off its acceptance criteria so the Stop hook can auto-conclude it.
 
-   **Model routing is active** [ADR-0094] — the boot banner shows the mode
-   (`shadow` by default). Apply the posture *Haiku operates · Sonnet executes ·
+   **Model routing is canary/active when configured** [ADR-0094] — the boot
+   banner shows the actual mode (`canary` by default in templates; dogfood may
+   use `active`). Apply the posture *Haiku operates · Sonnet executes ·
    Opus decides* without being re-prompted: run ≤3 simple deterministic commands
    **directly** (runner-first — never spawn an agent for one trivial command);
    **batch** mechanical investigation (grep/glob/tests/lint/log triage) to a

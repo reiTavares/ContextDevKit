@@ -111,6 +111,20 @@ Only after review: for each non-active workstream, `git worktree remove <path>`
 
 ## Token economy (ADR-0103)
 
-Default to **delegate-to-worker**: dispatch the mechanical work to a worker via
-the §A output envelope and merge the structured result — do NOT re-prose a
-subagent report. Controller-scoped only; honor `economy.leanLoop.enabled`.
+Default to **delegate-to-worker** because swarm is already a controller, but keep
+every workstream packet bounded and auditable.
+
+Before each workstream dispatch:
+
+1. Resolve the bounded dispatch profile:
+   `node contextkit/tools/scripts/economy/subagent-profile.mjs`, and attach its
+   JSON to the workstream charter.
+2. Build a controller-scoped lean-loop hint:
+   `node contextkit/tools/scripts/economy/lean-loop-cli.mjs --controller swarm --touch <comma-separated-touch-set>`.
+   Use it to cap fan-out when direct controller work is cheaper than another
+   agent handoff.
+3. Require the §A output envelope and merge the structured result. Do not
+   re-prose a subagent report.
+
+Honor `economy.leanLoop.enabled`. If any economy lever lacks data, record it as
+`skipped` with the reason in the run report.

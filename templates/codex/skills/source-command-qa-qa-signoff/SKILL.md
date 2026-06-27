@@ -41,3 +41,12 @@ node contextkit/tools/scripts/economy/run-compact.mjs <your test command>
 
 The full log is written to `runs/<id>/` (gitignored); the exit code is the only
 pass/fail source. Skip only if `economy.compaction.enabled` is false in config.
+
+If the host exposes quota/usage data during the run, write a metadata-only quota
+snapshot so `/token-report` has real data:
+
+```
+node contextkit/tools/scripts/economics/quota-snapshot.mjs --write --source qa-signoff --capture-method manual <quota flags>
+```
+
+If quota data is not visible, report `quota-snapshot skipped: no host quota data`.

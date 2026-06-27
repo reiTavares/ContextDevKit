@@ -35,6 +35,31 @@ _Describe {{PROJECT_NAME}} in 2-3 sentences._
      decision (language, framework, datastore) deserves an ADR: run
      `node cdx.mjs new-adr <title>`. -->
 
+## Economy Operating Rules
+
+Economy mode is the default posture for non-trivial work. Prefer deterministic
+receipts and bounded packets; when a lever lacks its prerequisite, report
+`skipped: <reason>` instead of treating it as applied.
+
+- Before broad search, run `node cdx.mjs project-map --find <symbol-or-path>`.
+  Use Task Compiler only on exact Project Map matches:
+  `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <symbol> --objective "<objective>"`.
+- During `/dev-start` or `node cdx.mjs dev-start`, render
+  `node contextkit/tools/scripts/economy/resume-pack.mjs <runId>` when a prior
+  checkpoint/run id exists.
+- Before dispatching subagents, resolve
+  `node contextkit/tools/scripts/economy/subagent-profile.mjs` and pass the
+  bounded profile/packet to the orchestrator or agent package.
+- In `/ship` and `/swarm`, use controller-scoped lean-loop planning:
+  `node contextkit/tools/scripts/economy/lean-loop-cli.mjs --controller ship|swarm --touch <paths>`.
+- Run noisy builds/tests through `node contextkit/tools/scripts/economy/run-compact.mjs`
+  when available, then verify applied/skipped levers with `node cdx.mjs token-report --json`.
+- When host quota data is visible, record it with
+  `node contextkit/tools/scripts/economics/quota-snapshot.mjs --write`; missing
+  quota data is `skipped`, never a pass.
+- Never auto-select Fable, paid benchmarks, or model upgrades without explicit
+  user instruction or accepted project config.
+
 ## Complete Session Workflow (Codex)
 
 ### 1. Boot the session

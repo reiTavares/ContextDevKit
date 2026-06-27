@@ -40,7 +40,7 @@ async function main() {
   check(std.active === true && std.config.applyToStandardSessions === true, '1. standard session → routing active, no swarm needed');
 
   // 2. activation does not depend on swarm config at all
-  check(routingBannerLine(std)?.includes('shadow'), '2. boot banner surfaces routing without swarm');
+  check(routingBannerLine(std)?.includes('canary'), '2. boot banner surfaces routing without swarm');
 
   // 3-4. search ops → haiku
   check(route({ kind: 'grep' }, { batch: true }).executor === 'haiku', '3. grep → Haiku');

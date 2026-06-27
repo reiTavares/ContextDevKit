@@ -27,3 +27,15 @@ or estimated tokens, autonomy multiplier, cost evidence, confidence, and
 integrity status. When no receipt exists, say that usage evidence is unavailable
 and recommend finalizing the current session first. Never present an estimate as
 provider-billed usage.
+
+Also inspect economy surfaces that do not require scraping Codex transcripts:
+
+```bash
+node contextkit/tools/scripts/token-report.mjs --json
+node contextkit/tools/scripts/economics/quota-snapshot.mjs --write --source token-report --capture-method manual <quota flags>
+```
+
+Use the JSON report for routing telemetry/economics, economy lifecycle events,
+and quota summaries when they exist. If quota data is not visible from the host,
+report `quota-snapshot skipped: no host quota data`; do not invent quota
+numbers.

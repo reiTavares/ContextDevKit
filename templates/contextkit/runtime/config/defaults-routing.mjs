@@ -10,7 +10,7 @@
  * layer, not a model scheduler (ADR-0094 §Decision).
  *   - `enabled`: master switch. Off → no ledger flag, banner, or telemetry.
  *   - `mode`: `shadow` (recommend only) | `canary` (auto-apply `canaryPct`%)
- *     | `active` (apply where guard estimates net benefit). Default: `shadow`.
+ *     | `active` (apply where guard estimates net benefit). Default: `canary`.
  *     Promotion shadow→canary→active requires telemetry — never automatic.
  *   - `applyToStandardSessions`: active posture outside `/swarm`.
  *   - `canaryPct`: 0–100, only in `canary` mode.
@@ -27,7 +27,7 @@
 /** @type {Readonly<object>} */
 export const ROUTING_DEFAULTS = Object.freeze({
   enabled: true,
-  mode: 'shadow',
+  mode: 'canary',
   applyToStandardSessions: true,
   canaryPct: 10,
   mechanicalExecutor: 'haiku',

@@ -123,7 +123,7 @@ export async function runRoutingChecks({ ok, bad }, { KIT }) {
   (await estimateRouteCostUsd(single, {})).status === 'skipped' ? ok('estimateRouteCostUsd skips without buckets') : bad('estimate did not skip');
 
   // -- Config resolver: precedence + activation -----------------------------
-  DEFAULT_ROUTING.mode === 'shadow' ? ok('default mode is shadow (honest rollout)') : bad('default mode is not shadow');
+  DEFAULT_ROUTING.mode === 'canary' ? ok('default mode is canary (measured rollout)') : bad('default mode is not canary');
   DEFAULT_ROUTING.allowAutomaticFable === false ? ok('default allowAutomaticFable=false') : bad('fable auto-selection default not false');
   const prec = resolveRoutingConfig({ project: { mode: 'canary' }, session: { mode: 'active' }, level: 7 });
   prec.mode === 'active' ? ok('precedence: session > project') : bad('precedence wrong');
@@ -135,7 +135,7 @@ export async function runRoutingChecks({ ok, bad }, { KIT }) {
   routingBannerLine(resolveRoutingConfig({ level: 2 })) === null ? ok('banner line null when inert') : bad('banner line shown when inert');
 
   // defaults.mjs carries the routing block, single-sourced
-  defaults.DEFAULT_CONFIG.routing?.mode === 'shadow' ? ok('defaults.mjs ships routing block') : bad('defaults.mjs missing routing block');
+  defaults.DEFAULT_CONFIG.routing?.mode === 'canary' ? ok('defaults.mjs ships routing block') : bad('defaults.mjs missing routing block');
 
   // -- Telemetry ------------------------------------------------------------
   const rec = decisionRecord(single, { sessionId: 's1', taskId: 't1' });

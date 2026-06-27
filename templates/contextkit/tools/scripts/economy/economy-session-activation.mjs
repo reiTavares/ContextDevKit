@@ -45,11 +45,13 @@ export const ECONOMY_ACTIVATION_SCHEMA_VERSION = 'cdk-economy-activation/1';
  * @type {readonly string[]}
  */
 const GUIDANCE_LINES = Object.freeze([
-  'Locate code with `node contextkit/tools/scripts/project-map.mjs --find <symbol>` (1-line answer) — do NOT grep the tree or read whole files.',
-  'Run tests/builds via `run-compact` so only NEW failures enter context, not full logs.',
-  'For a scoped sub-task, compile a work-packet (tc-packet) — pass the agent the symbol slice, not the package.',
-  'Dispatch sub-agents with the `subagent` context profile (≤120 lines).',
-  'Route mechanical work to the cheapest tier; escalate on repeated failure.',
+  'Locate code with project-map --find before broad search; only exact hits may feed the Task Compiler canary.',
+  'For exact Project Map hits, run task-compiler.mjs --symbol <symbol> --objective "<objective>"; otherwise report skipped.',
+  'When a prior checkpoint/run id exists, render resume-pack.mjs before re-reading old context.',
+  'Before subagent dispatch, run subagent-profile.mjs and pass only the bounded packet/profile.',
+  'Run tests/builds via run-compact so only new failures enter context, not full logs.',
+  'In ship/swarm, use lean-loop-cli.mjs controller hints and merge structured worker results.',
+  'When host quota data is visible, write quota-snapshot.mjs --write; missing data is skipped, not pass.',
 ]);
 
 // ---------------------------------------------------------------------------
