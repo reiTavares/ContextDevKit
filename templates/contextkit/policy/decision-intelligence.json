@@ -1,30 +1,33 @@
 {
-  "_note": "B2 Decision Intelligence policy — ALL materiality weights, band thresholds, and routine ceiling in one data block (BIZ-0001 / WF-0037 / B2-T1, governed by ADR-0102). Editing any weight or threshold is an ADR act (constitution §9). Modules that use this: runtime/execution/materiality-score.mjs, runtime/execution/decision-need-classifier.mjs.",
+  "_note": "B2 Decision Intelligence policy — §28 materiality weights, band thresholds, token detectors, and routine ceiling (BIZ-0001 / WF-0037 / ADR-0125). Editing any weight or threshold is an ADR act (constitution §9). Modules: runtime/execution/materiality-score.mjs, runtime/execution/decision-need-classifier.mjs.",
   "schemaVersion": 1,
 
   "materialityWeights": {
-    "_note": "Additive integer weights. One signal per key. See design doc §2.1.",
-    "tierArchitectural":        5,
-    "tierFeature":              2,
-    "tierTrivial":              0,
-    "regulatedDomain":          4,
-    "materialKind":             3,
-    "routineKind":             -4,
-    "emergencyKind":            1,
-    "scopePlatform":            3,
-    "scopeBusiness":            2,
-    "scopeOperationWorkflow":   1,
-    "crossContext":             3,
-    "irreversible":             3,
-    "reviewableData":           3,
-    "lowConfidence":            1
+    "_note": "Additive integer weights per §28 TABLE 4. One signal per key.",
+    "publicContractChange":  5,
+    "breakingChange":        5,
+    "crossCuttingArch":      5,
+    "dataMigration":         5,
+    "authChange":            5,
+    "invariantChange":       5,
+    "materialCompliance":    5,
+    "newBoundary":           4,
+    "newPersistence":        4,
+    "structuralVendor":      4,
+    "complexRollout":        4,
+    "expensiveReversal":     4,
+    "multiTeam":             3,
+    "reusableStandard":      3,
+    "importantPerf":         3,
+    "localReversible":       0,
+    "coveredByAcceptedAdr": -10
   },
 
   "materialityBands": {
-    "_note": "Inclusive bounds. required: score >= required; recommended: recommended <= score <= (required-1); none: score <= none. Design doc §2.2.",
-    "required":    6,
-    "recommended": 3,
-    "none":        2
+    "_note": "§28 TABLE 4 bands. required: score >= 8; recommended: 4 <= score < 8; none: score < 4.",
+    "required":    8,
+    "recommended": 4,
+    "none":        0
   },
 
   "routineCeilingDefault": 3,
@@ -40,19 +43,89 @@
     "LIFECYCLE"
   ],
 
-  "irreversibleTokens": [
-    "migrate", "migration", "breaking", "rewrite", "replace", "deprecate",
-    "rename public", "schema", "data model", "protocol", "encryption",
-    "delete data", "drop column", "irreversible", "one-way"
+  "publicContractTokens": [
+    "public api", "public contract", "exported interface", "external api",
+    "breaking api", "api version", "public surface", "client-facing"
   ],
 
-  "reviewableDataTokens": [
-    "price", "pricing", "model list", "threshold", "quota",
-    "budget", "policy", "retention", "naming"
+  "breakingTokens": [
+    "breaking change", "breaking-change", "semver major", "incompatible change",
+    "backward incompatible", "non-backward-compatible"
   ],
 
-  "crossContextTokens": [
-    "across modules", "across the repo", "kit-wide", "fleet"
+  "crossCuttingArchTokens": [
+    "cross-cutting", "cross cutting", "kit-wide", "platform-wide",
+    "across modules", "across the repo", "fleet", "foundation",
+    "architectural change", "cross-module"
+  ],
+
+  "dataMigrationTokens": [
+    "data migration", "schema migration", "migrate data", "database migration",
+    "db migration", "migrate the database", "schema change", "drop column",
+    "alter table", "data model change", "migrate schema"
+  ],
+
+  "authTokens": [
+    "authentication", "authorization", "auth", "oauth", "jwt", "permissions",
+    "access control", "rbac", "roles and permissions", "security policy",
+    "credential", "login", "sso"
+  ],
+
+  "invariantTokens": [
+    "invariant", "constraint", "integrity rule", "business rule", "domain rule",
+    "protocol change", "contract change", "interface contract"
+  ],
+
+  "materialComplianceTokens": [
+    "compliance", "lgpd", "gdpr", "hipaa", "pci", "regulatory", "fintech",
+    "audit trail", "data protection", "legal requirement"
+  ],
+
+  "newBoundaryTokens": [
+    "new module", "new service", "new package", "module boundary",
+    "service boundary", "new component", "new subsystem", "new plugin",
+    "new layer"
+  ],
+
+  "persistenceTokens": [
+    "new database", "new storage", "persistence layer", "data store",
+    "database engine", "storage strategy", "new orm", "cache layer",
+    "persistence strategy"
+  ],
+
+  "vendorTokens": [
+    "new dependency", "third-party", "vendor", "external library",
+    "new library", "npm package", "sdk integration", "third party",
+    "external service"
+  ],
+
+  "rolloutTokens": [
+    "feature flag", "rollout", "canary", "phased release", "gradual rollout",
+    "rollback plan", "deployment strategy", "release strategy"
+  ],
+
+  "reversalTokens": [
+    "irreversible", "one-way", "cannot revert", "no rollback", "permanent change",
+    "data deletion", "delete data", "drop table", "expensive reversal",
+    "difficult to revert", "hard to undo", "rewrite", "replace"
+  ],
+
+  "multiTeamTokens": [
+    "multiple teams", "multi-team", "across teams", "cross-team", "cross-product",
+    "multiple products", "team coordination", "shared service", "platform team",
+    "inter-team"
+  ],
+
+  "reusableStandardTokens": [
+    "new standard", "reusable pattern", "shared pattern", "common library",
+    "design pattern", "coding standard", "best practice", "template",
+    "reusable component", "shared library"
+  ],
+
+  "perfTokens": [
+    "performance", "latency", "throughput", "scalability", "performance trade-off",
+    "performance impact", "optimization", "memory usage", "cpu usage",
+    "benchmark", "perf regression"
   ],
 
   "emergencyEnvelope": {
@@ -64,11 +137,5 @@
 
   "lifecycleTokens": [
     "supersede", "deprecate", "transfer ownership", "replace adr"
-  ],
-
-  "platformTokens": ["platform", "across modules", "kit-wide"],
-
-  "decisionScopeMap": {
-    "_note": "Used internally; the canonical enum is in decision-enums.mjs."
-  }
+  ]
 }

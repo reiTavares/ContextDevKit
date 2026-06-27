@@ -1,6 +1,7 @@
 /**
  * work-classifier.mjs — deterministic, explainable methodology classifiers for
  * the Business-driven methodology (BIZ-0001 / WF-0036 Wave A2, ADR-0102).
+ * §17 nature + §18 execution-mode extracted to work-classify-nature.mjs (OP-0005 / ADR-0125).
  *
  * Six pure classifiers over `policy/work-classification.json`:
  *   nature (business|operation) · businessKind · operationKind ·
@@ -22,6 +23,7 @@ import { pathsFor } from '../config/paths.mjs';
 import { VALUE_INTENTS, EXECUTION_MODES } from '../work/enums.mjs';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { scoreTable, pickWinner, pickSecondary } from './work-classify-signals.mjs';
+import { classifyNature, classifyExecutionMode } from './work-classify-nature.mjs';
 
 /**
  * Embedded fallback — byte-equivalent to `policy/work-classification.json` so
@@ -32,19 +34,29 @@ export const DEFAULT_WORK_CLASSIFICATION = Object.freeze({
   version: 1,
   nature: {
     default: 'operation',
-    margin: 1,
+    businessFloor: 8,
+    businessMargin: 3,
+    operationFloor: 6,
+    confidenceFloor: 0.70,
     business: { signals: [
-      { s: 'strategy', w: 3 }, { s: 'strategic', w: 3 }, { s: 'initiative', w: 3 },
-      { s: 'program', w: 3 }, { s: 'roadmap', w: 2 }, { s: 'portfolio', w: 2 },
-      { s: 'capability', w: 2 }, { s: 'platform', w: 2 }, { s: 'north star', w: 3 },
-      { s: 'business case', w: 3 }, { s: 'quarter', w: 1 }, { s: 'okr', w: 2 }, { s: 'goal', w: 1 },
-      { s: 'compliance', w: 3 }, { s: 'governance', w: 2 }, { s: 'methodology', w: 2 },
+      { s: 'new product', w: 6 }, { s: 'new market', w: 6 }, { s: 'new segment', w: 6 },
+      { s: 'new audience', w: 6 }, { s: 'pivot', w: 6 }, { s: 'business-model change', w: 6 },
+      { s: 'durable strategic capability', w: 4 },
+      { s: 'independent kpi', w: 3 }, { s: 'mission outcome', w: 3 },
+      { s: 'multiple workflows', w: 3 }, { s: 'cross-product', w: 3 }, { s: 'cross-team', w: 3 },
+      { s: 'independent sponsor', w: 2 }, { s: 'budget', w: 2 }, { s: 'multi-month', w: 2 },
+      { s: 'multi-year', w: 2 }, { s: 'portfolio', w: 2 }, { s: 'roadmap decision', w: 2 },
+      { s: 'separate outcome review', w: 2 },
     ] },
     operation: { signals: [
-      { s: 'fix ', w: 3 }, { s: 'bug', w: 3 }, { s: 'add ', w: 2 }, { s: 'implement', w: 2 },
-      { s: 'update ', w: 2 }, { s: 'refactor', w: 2 }, { s: 'ticket', w: 2 }, { s: 'task', w: 1 },
-      { s: 'endpoint', w: 1 }, { s: 'rename', w: 2 }, { s: 'migrate', w: 1 },
-      { s: 'incident', w: 3 }, { s: 'hotfix', w: 3 }, { s: 'batch', w: 1 },
+      { s: 'bug', w: 6 }, { s: 'incident', w: 6 }, { s: 'error', w: 6 }, { s: 'outage', w: 6 },
+      { s: 'hotfix', w: 6 }, { s: 'production recovery', w: 6 },
+      { s: 'chore', w: 4 }, { s: 'maintenance', w: 4 }, { s: 'dependency', w: 4 },
+      { s: 'support', w: 4 }, { s: 'localized refactor', w: 4 }, { s: 'localized performance', w: 4 },
+      { s: 'restore', w: 3 }, { s: 'fix', w: 3 }, { s: 'recover', w: 3 }, { s: 'repair', w: 3 },
+      { s: 'operational urgency', w: 3 }, { s: 'severity', w: 3 },
+      { s: 'existing bounded capability', w: 2 }, { s: 'batch of corrections', w: 2 },
+      { s: 'existing business explains value', w: 2 },
     ] },
   },
   businessKind: { default: 'capability', kinds: {
@@ -77,15 +89,35 @@ export const DEFAULT_WORK_CLASSIFICATION = Object.freeze({
     COST_EFFICIENCY: [ { s: 'cost', w: 3 }, { s: 'token', w: 2 }, { s: 'quota', w: 2 }, { s: 'budget', w: 2 }, { s: 'cache', w: 1 } ],
     RELIABILITY: [ { s: 'idempotent', w: 2 }, { s: 'deterministic', w: 2 }, { s: 'rebuild', w: 2 }, { s: 'stable', w: 1 }, { s: 'registry', w: 1 }, { s: 'regression', w: 2 }, { s: 'rollback', w: 2 }, { s: 'updater', w: 2 }, { s: 'guard', w: 2 }, { s: 'worktree', w: 1 }, { s: 'across the repo', w: 2 } ],
   } },
-  executionMode: { default: 'direct', precedence: ['workflow', 'batch', 'direct'], modes: {
-    workflow: [ { s: 'multi-step', w: 3 }, { s: 'several phases', w: 3 }, { s: 'wave', w: 2 }, { s: 'milestones', w: 2 }, { s: 'across modules', w: 2 }, { s: 'program', w: 2 }, { s: 'epic', w: 2 } ],
-    batch: [ { s: 'all ', w: 1 }, { s: 'every ', w: 2 }, { s: 'bulk', w: 3 }, { s: 'across the', w: 2 }, { s: 'each ', w: 1 }, { s: 'sweep', w: 2 }, { s: 'rename all', w: 3 }, { s: 'a few', w: 2 }, { s: 'warnings', w: 1 } ],
-    direct: [ { s: 'fix ', w: 1 }, { s: 'one ', w: 1 }, { s: 'single', w: 2 }, { s: 'quick', w: 1 } ],
-  } },
+  executionMode: {
+    default: 'direct',
+    bands: { direct: [0, 3], batch: [4, 7], workflowFloor: 8 },
+    points: {
+      cohesiveReversible: 0, upTo3TasksOneComponent: 1, fourTo12RelatedTasks: 3,
+      multipleModules: 2, multipleSessionsLikely: 2, dependenciesBetweenGroups: 2,
+      multipleAgents: 2, highRiskBlastRadius: 3, publicContractCompatImpact: 3,
+      architectureChange: 4, adrRequired: 4, dataMigration: 4, rolloutRollback: 4, multipleTeams: 4,
+    },
+    hardWorkflowTriggers: [
+      'adr-required', 'data-migration', 'rollout-rollback', 'cross-cutting-architecture',
+      'multiple-waves', 'critical-compliance', 'multiple-teams', 'breakable-public-contract',
+      'complex-multi-agent-coordination', 'business-nature',
+    ],
+    modes: {
+      workflow: [ { s: 'multi-step', w: 3 }, { s: 'several phases', w: 3 }, { s: 'wave', w: 2 }, { s: 'milestones', w: 2 }, { s: 'across modules', w: 2 }, { s: 'program', w: 2 }, { s: 'epic', w: 2 } ],
+      batch: [ { s: 'all ', w: 1 }, { s: 'every ', w: 2 }, { s: 'bulk', w: 3 }, { s: 'across the', w: 2 }, { s: 'each ', w: 1 }, { s: 'sweep', w: 2 }, { s: 'rename all', w: 3 }, { s: 'a few', w: 2 }, { s: 'warnings', w: 1 } ],
+      direct: [ { s: 'fix ', w: 1 }, { s: 'one ', w: 1 }, { s: 'single', w: 2 }, { s: 'quick', w: 1 } ],
+    },
+    precedence: ['workflow', 'batch', 'direct'],
+  },
   businessMatch: {
-    weights: { valueIntent: 3, kind: 2, token: 1 },
-    thresholds: { suggested: 0.45, confirmed: 0.75 },
-    winnerMargin: 0.1,
+    thresholds: { suggested: 75, confirm: 55 },
+    nearTieMargin: 10,
+    points: {
+      explicitIdMatch: 100, sameProduct: 35, sameAreaCapability: 20,
+      compatibleValueIntents: 15, sameRoadmapItem: 10, relatedOutcomeKpi: 10,
+      tokenOverlap: 10, activeBusiness: 5, incompatibleProduct: -30, closedRejected: -100,
+    },
     kindAffinity: {
       fix: ['capability', 'product'], change: ['capability', 'product'],
       maintenance: ['capability'], investigation: ['capability', 'compliance'],
@@ -148,43 +180,6 @@ function classifyArgmax(text, table, fallback, label, precedence = []) {
 }
 
 /**
- * Resolves the Business-vs-Operation nature with the §4.5 margin rule: a near-tie
- * (`|business − operation| < margin`) refuses LOW to `operation` with low
- * confidence — promoting to a Business is a heavier, human-approved act.
- *
- * @param {string} text - lowercased objective.
- * @param {object} natureCfg - the policy `nature` section.
- * @returns {{ value: string, lowConfidence: boolean, reason: string, evidence: object }}
- */
-function classifyNature(text, natureCfg) {
-  const business = scoreTable(text, { business: natureCfg.business?.signals })[0];
-  const operation = scoreTable(text, { operation: natureCfg.operation?.signals })[0];
-  const scores = { business: business.score, operation: operation.score };
-  const margin = Number.isFinite(natureCfg.margin) ? natureCfg.margin : 1;
-  const def = natureCfg.default || 'operation';
-
-  const diff = business.score - operation.score;
-  let value;
-  let lowConfidence = false;
-  let note;
-  if (Math.abs(diff) < margin) {
-    value = def;
-    lowConfidence = true;
-    note = `near-tie within margin ${margin} → refuse-low to default '${def}'`;
-  } else {
-    value = diff > 0 ? 'business' : 'operation';
-    note = `business ${business.score} vs operation ${operation.score}`;
-  }
-  const matched = value === 'business' ? business.matched : operation.matched;
-  return {
-    value,
-    lowConfidence,
-    reason: `nature=${value} (${note}; signals: ${matched.map((s) => `'${s}'`).join(', ') || 'none'})`,
-    evidence: { winner: value, scores, matched, tieBreak: lowConfidence ? 'margin' : null },
-  };
-}
-
-/**
  * Classifies the value-intent: a primary argmax plus secondary intents within
  * `secondaryMargin` (design §4.6). Validates the result against the imported
  * `VALUE_INTENTS` enum (never forks it).
@@ -225,60 +220,62 @@ function classifyValueIntent(text, intentCfg) {
  * @returns {object} the `signals.work` classification result.
  */
 export function classifyWork(objective, policy = DEFAULT_WORK_CLASSIFICATION) {
-  const text = String(objective || '').toLowerCase();
-  const reasons = [];
+  try {
+    const text = String(objective || '').toLowerCase();
+    const reasons = [];
 
-  const nature = classifyNature(text, policy.nature || {});
-  reasons.push(nature.reason);
+    const nature = classifyNature(text, policy.nature || {});
+    reasons.push(nature.reason);
 
-  const isBusiness = nature.value === 'business';
-  const kindCfg = isBusiness ? policy.businessKind : policy.operationKind;
-  const kindRes = classifyArgmax(text, kindCfg?.kinds || {}, kindCfg?.default ?? null, 'kind');
-  const kind = OPERATION_KIND_CANONICAL[kindRes.value] || kindRes.value;
-  reasons.push(kindRes.reason);
+    const isBusiness = nature.value === 'business';
+    const kindCfg = isBusiness ? policy.businessKind : policy.operationKind;
+    const kindRes = classifyArgmax(text, kindCfg?.kinds || {}, kindCfg?.default ?? null, 'kind');
+    const kind = OPERATION_KIND_CANONICAL[kindRes.value] || kindRes.value;
+    reasons.push(kindRes.reason);
 
-  const intent = classifyValueIntent(text, policy.valueIntent || {});
-  reasons.push(...intent.reasons);
+    const intent = classifyValueIntent(text, policy.valueIntent || {});
+    reasons.push(...intent.reasons);
 
-  const lever = classifyArgmax(text, policy.growthLever?.levers || {}, policy.growthLever?.default ?? null, 'growthLever');
-  reasons.push(lever.reason);
+    const lever = classifyArgmax(text, policy.growthLever?.levers || {}, policy.growthLever?.default ?? null, 'growthLever');
+    reasons.push(lever.reason);
 
-  const exec = classifyArgmax(
-    text,
-    policy.executionMode?.modes || {},
-    policy.executionMode?.default || 'direct',
-    'executionMode',
-    policy.executionMode?.precedence || EXECUTION_MODES,
-  );
-  let executionMode = EXECUTION_MODES.includes(exec.value) ? exec.value : 'direct';
-  // Structural rule (design §12): a Business is an inherently multi-wave entity
-  // (growth.md frames every Business as a program of Workflows), so its execution
-  // mode floors at `workflow` unless an explicit signal already raised it there.
-  if (isBusiness && executionMode !== 'workflow') {
-    reasons.push(`executionMode=workflow (business nature floors to workflow; was ${executionMode})`);
-    exec.evidence.tieBreak = 'businessFloor';
-    exec.evidence.winner = 'workflow';
-    executionMode = 'workflow';
-  } else {
+    const exec = classifyExecutionMode(text, policy.executionMode || {}, isBusiness);
+    const executionMode = EXECUTION_MODES.includes(exec.value) ? exec.value : 'direct';
     reasons.push(exec.reason);
+
+    // Confidence: 'ask' | 'low' | 'high' — propagated from classifyNature.
+    const confidence = nature.confidence;
+
+    return {
+      nature: nature.value,
+      kind,
+      valueIntents: { primary: intent.primary, secondary: intent.secondary },
+      growthLever: lever.value,
+      executionMode,
+      confidence,
+      needsClarification: nature.needsClarification,
+      clarifyQuestion: nature.clarifyQuestion,
+      reasons,
+      evidence: {
+        nature: nature.evidence,
+        kind: kindRes.evidence,
+        valueIntent: intent.evidence,
+        growthLever: lever.evidence,
+        executionMode: exec.evidence,
+      },
+    };
+  } catch {
+    return {
+      nature: 'operation',
+      kind: null,
+      valueIntents: { primary: 'IMPROVE', secondary: [] },
+      growthLever: null,
+      executionMode: 'direct',
+      confidence: 'low',
+      needsClarification: false,
+      clarifyQuestion: null,
+      reasons: ['classifyWork error — fail-open defaults'],
+      evidence: {},
+    };
   }
-
-  const confidence = nature.lowConfidence ? 'low' : 'high';
-
-  return {
-    nature: nature.value,
-    kind,
-    valueIntents: { primary: intent.primary, secondary: intent.secondary },
-    growthLever: lever.value,
-    executionMode,
-    confidence,
-    reasons,
-    evidence: {
-      nature: nature.evidence,
-      kind: kindRes.evidence,
-      valueIntent: intent.evidence,
-      growthLever: lever.evidence,
-      executionMode: exec.evidence,
-    },
-  };
 }

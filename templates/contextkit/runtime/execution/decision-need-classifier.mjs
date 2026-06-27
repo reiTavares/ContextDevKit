@@ -197,9 +197,16 @@ export function classifyDecisionNeed(params) {
     reasons.push(`materialityScore=${matScore} (band: ${matResult.band}); active signals: ${activeSignals}`);
 
     // HR-4 / HR-5: force material, refuse routine path
-    const forceMaterial = needSignals.regulatedDomain || needSignals.irreversible;
+    const domain = signals?.domain ?? 'general';
+    const isRegulatedDomain = Array.isArray(policy.regulatedDomains)
+      && policy.regulatedDomains.includes(domain);
+    const isIrreversible = needSignals.expensiveReversal || needSignals.dataMigration;
+    const forceMaterial = isRegulatedDomain || isIrreversible;
     if (forceMaterial) {
-      const why = [needSignals.regulatedDomain && 'HR-4 regulated domain', needSignals.irreversible && 'HR-5 irreversible token'].filter(Boolean).join(', ');
+      const why = [
+        isRegulatedDomain && `HR-4 regulated domain (${domain})`,
+        isIrreversible    && 'HR-5 irreversible/migration token',
+      ].filter(Boolean).join(', ');
       reasons.push(`${why}: need verdict floored at required; routine path refused (RC4)`);
     }
 
@@ -214,8 +221,8 @@ export function classifyDecisionNeed(params) {
     }
 
     // §2.4 verdict resolution order
-    const bandRequired = policy.materialityBands?.required ?? 6;
-    const bandRecommended = policy.materialityBands?.recommended ?? 3;
+    const bandRequired = policy.materialityBands?.required ?? 8;
+    const bandRecommended = policy.materialityBands?.recommended ?? 4;
     let needVerdict;
     let coverageMode;
     if (routineCovered) {
@@ -231,10 +238,12 @@ export function classifyDecisionNeed(params) {
       coverageMode = 'NEEDS_DECISION';
       reasons.push(`verdict: recommended (score ${matScore} in recommended band)`);
     } else {
-      // HR-6: never drop below recommended when materialKind is true
-      needVerdict = needSignals.materialKind ? 'recommended' : 'none';
+      // HR-6: never drop below recommended when decisionKind is a material kind
+      const isMaterialKind = Array.isArray(policy.materialKinds)
+        && policy.materialKinds.includes(decisionKind);
+      needVerdict = isMaterialKind ? 'recommended' : 'none';
       coverageMode = 'NEEDS_DECISION';
-      reasons.push(`verdict: ${needVerdict} (score ${matScore} in none band${needSignals.materialKind ? '; HR-6 floor at recommended' : ''})`);
+      reasons.push(`verdict: ${needVerdict} (score ${matScore} in none band${isMaterialKind ? '; HR-6 floor at recommended' : ''})`);
     }
 
     // HR-7 + proposal-pending advisory

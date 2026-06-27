@@ -1,14 +1,14 @@
 /**
  * decision-search-score.mjs — B2-T2: pure scoring primitives for ADR candidate
- * matching (BIZ-0001 / WF-0037, Wave B2).
+ * matching (BIZ-0001 / WF-0037, Wave B2 / §29 TABLE 5).
  *
- * Owns: eligibility gate (§4.1), per-candidate score arithmetic (§4.2), and the
+ * Owns: eligibility gate (§4.1), per-candidate score arithmetic (§29), and the
  * tie-break comparator (§4.3). All functions are pure — no I/O, no state, no
  * Math.random. Imported by `decision-search-match.mjs` (the public entry point).
  *
  * The MATCH_POLICY constant block is the SINGLE source of truth for every weight
  * and threshold in B2-T2. Any change to a number requires a new ADR (design §8 /
- * constitution §9). Source of values: B2-design-decision-table.md §4.2/§4.3/§9 OQ-6.
+ * constitution §9). Source of values: §29 TABLE 5 (ADR-0125).
  *
  * Zero runtime dependencies. Reuses A2 `tokenize` for Jaccard — no second tokenizer.
  */
@@ -16,25 +16,30 @@
 import { tokenize } from '../../runtime/execution/work-classify-signals.mjs';
 
 // ---------------------------------------------------------------------------
-// Named policy block (ADR-gated). Values from design doc §4.2/§4.3.
+// Named policy block (ADR-gated). Values from design doc §29 TABLE 5.
 // ---------------------------------------------------------------------------
 export const MATCH_POLICY = Object.freeze({
-  // Component weights (§4.2)
-  tripleExact: 50,
-  triplePartial: 25,
-  kindOnly: 10,
-  governsOverlap: 20,
-  valueIntentPrimary: 8,
-  valueIntentSecondary: 4,
-  tagOverlapPerTag: 4,
-  tagOverlapMax: 8,
-  titleTokenJaccardMax: 6,
-  legacyPenalty: -4,
-  // Band thresholds (§4.3)
-  strongThreshold: 55,
-  possibleThreshold: 40,
-  // Output cap (§8)
-  candidateCap: 3,
+  // Component weights (§29 TABLE 5)
+  explicitAdr:            100, // +100 explicit ADR ref (handled in HR-1 upstream)
+  samePrimaryContext:      35, // +35 same primary context (exact type AND id)
+  sameProduct:             20, // +20 same product (same business context)
+  sameAreaCapability:      20, // +20 same area/capability (same context type, not exact)
+  sameDecisionKind:        15, // +15 same decision kind
+  sameContractInvariant:   20, // +20 same contract/invariant (kind + scope aligned)
+  sameComponent:           10, // +10 same component (governs overlap for workflow/op ctx)
+  acceptedAndCurrent:       5, // +5 accepted & current (no supersededBy)
+  termOverlap:             10, // +10 relevant term overlap (Jaccard-weighted, max 10)
+  incompatibleScope:      -25, // −25 incompatible scope (scope AND kind differ)
+  incompatibleContext:    -20, // −20 incompatible context (different context type)
+  supersededPenalty:     -100, // −100 superseded/rejected/deprecated (safety net)
+  // Band thresholds (§29)
+  governingThreshold:      80, // score >= 80 → 'governing' → LINK
+  confirmThreshold:        60, // 60..79 → 'confirm' (candidates surfaced, no auto-link)
+  // Backward-compat aliases (selftests use these names)
+  strongThreshold:         80, // alias for governingThreshold
+  possibleThreshold:       60, // alias for confirmThreshold
+  // Output cap
+  candidateCap:             3,
 });
 
 // ---------------------------------------------------------------------------
@@ -109,14 +114,16 @@ export function deriveWorkTags(work, need) {
 }
 
 // ---------------------------------------------------------------------------
-// §4.2 Per-candidate score arithmetic
+// §29 Per-candidate score arithmetic (TABLE 5)
 // ---------------------------------------------------------------------------
 
 /**
- * Computes the match score for one eligible candidate against the work need.
+ * Computes the §29 TABLE 5 match score for one eligible candidate.
  * Returns `{ score: number, breakdown: object }`.
  *
- * All arithmetic is integer/Math.floor; clamped to [0, 100]. Deterministic.
+ * Dimensions fire independently (not mutually exclusive); score is the sum of
+ * all that fire, clamped to [0, 100]. Superseded rows incur a −100 penalty as a
+ * safety net (they should never reach here after isEligible, but belt-and-braces).
  *
  * @param {object} work - signals.work `{ kind, growthLever, valueIntents, ... }`.
  * @param {string} objective - raw NL objective text.
@@ -132,75 +139,93 @@ export function scoreMatch(work, objective, candidate, need) {
   const candidateCtx = candidate.primaryContext || null;
   const breakdown = {};
 
-  // Triple band (mutually exclusive — highest applicable fires first).
   const kindMatch = workKind != null && candidate.decisionKind === workKind;
   const scopeMatch = workScope != null && candidate.decisionScope === workScope;
   const ctxExact = primaryContextEqual(workCtx, candidateCtx);
   const ctxTypeMatch = primaryContextTypeEqual(workCtx, candidateCtx);
 
-  let triplePoints = 0;
-  if (kindMatch && scopeMatch && ctxExact) {
-    triplePoints = MATCH_POLICY.tripleExact;
-    breakdown.tripleExact = triplePoints;
-  } else if (kindMatch && ctxTypeMatch) {
-    triplePoints = MATCH_POLICY.triplePartial;
-    breakdown.triplePartial = triplePoints;
-  } else if (kindMatch) {
-    triplePoints = MATCH_POLICY.kindOnly;
-    breakdown.kindOnly = triplePoints;
+  // −100 safety-net: superseded/rejected/deprecated should never win.
+  if (
+    candidate.status === 'superseded' || candidate.supersededBy != null
+    || candidate.status === 'rejected' || candidate.status === 'deprecated'
+  ) {
+    breakdown.supersededPenalty = MATCH_POLICY.supersededPenalty;
+    return { score: 0, breakdown };
   }
 
-  // governsOverlap (§4.2): work's target entity id ∈ candidate governs.*.
-  let governsPoints = 0;
+  // +35 samePrimaryContext: exact type AND id.
+  if (ctxExact) {
+    breakdown.samePrimaryContext = MATCH_POLICY.samePrimaryContext;
+  }
+
+  // +20 sameProduct: same business context (type=business, same id or governs.business contains it).
   const gov = candidate.governs;
   const targetId = workCtx && workCtx.id;
-  if (gov && targetId) {
-    const allGoverned = [
-      ...(Array.isArray(gov.workflows) ? gov.workflows : []),
-      ...(Array.isArray(gov.operations) ? gov.operations : []),
-      ...(Array.isArray(gov.business) ? gov.business : []),
+  if (
+    workCtx && workCtx.type === 'business'
+    && candidateCtx && candidateCtx.type === 'business'
+    && !ctxExact
+    && targetId
+    && Array.isArray(gov && gov.business)
+    && gov.business.includes(targetId)
+  ) {
+    breakdown.sameProduct = MATCH_POLICY.sameProduct;
+  }
+
+  // +20 sameAreaCapability: same context type but NOT exact (partial, different id).
+  if (ctxTypeMatch && !ctxExact) {
+    breakdown.sameAreaCapability = MATCH_POLICY.sameAreaCapability;
+  }
+
+  // +15 sameDecisionKind: matching decision kind.
+  if (kindMatch) {
+    breakdown.sameDecisionKind = MATCH_POLICY.sameDecisionKind;
+  }
+
+  // +20 sameContractInvariant: same scope AND same kind (exact kind+scope alignment).
+  if (kindMatch && scopeMatch) {
+    breakdown.sameContractInvariant = MATCH_POLICY.sameContractInvariant;
+  }
+
+  // +10 sameComponent: work context is workflow/operation and candidate governs it.
+  if (
+    workCtx && (workCtx.type === 'workflow' || workCtx.type === 'operation')
+    && targetId && gov
+  ) {
+    const governed = [
+      ...(Array.isArray(gov.workflows)   ? gov.workflows   : []),
+      ...(Array.isArray(gov.operations)  ? gov.operations  : []),
     ];
-    if (allGoverned.includes(targetId)) {
-      governsPoints = MATCH_POLICY.governsOverlap;
-      breakdown.governsOverlap = governsPoints;
+    if (governed.includes(targetId)) {
+      breakdown.sameComponent = MATCH_POLICY.sameComponent;
     }
   }
 
-  // valueIntentOverlap (§4.2): primary match → 8, secondary → 4.
-  let intentPoints = 0;
-  const workPrimary = work && work.valueIntents && work.valueIntents.primary;
-  const workSecondary = work && work.valueIntents && Array.isArray(work.valueIntents.secondary)
-    ? work.valueIntents.secondary : [];
-  const candIntents = Array.isArray(candidate.valueIntents) ? candidate.valueIntents : [];
-  if (workPrimary && candIntents.includes(workPrimary)) {
-    intentPoints = MATCH_POLICY.valueIntentPrimary;
-    breakdown.valueIntentPrimary = intentPoints;
-  } else if (workSecondary.some((si) => candIntents.includes(si))) {
-    intentPoints = MATCH_POLICY.valueIntentSecondary;
-    breakdown.valueIntentSecondary = intentPoints;
+  // +5 acceptedAndCurrent: accepted status with no supersededBy.
+  if (candidate.status === 'accepted' && candidate.supersededBy == null) {
+    breakdown.acceptedAndCurrent = MATCH_POLICY.acceptedAndCurrent;
   }
 
-  // tagOverlap (§4.2): min(8, 4 × |sharedTags|).
-  const workTags = deriveWorkTags(work, need);
-  const candTags = new Set((Array.isArray(candidate.tags) ? candidate.tags : []).map((t) => String(t).toLowerCase()));
-  const sharedCount = [...workTags].filter((t) => candTags.has(t)).length;
-  const tagPoints = Math.min(MATCH_POLICY.tagOverlapMax, MATCH_POLICY.tagOverlapPerTag * sharedCount);
-  if (tagPoints > 0) breakdown.tagOverlap = tagPoints;
-
-  // titleTokenJaccard (§4.2): floor(6 × Jaccard) via A2 tokenize.
-  const objTokens = tokenize(objective);
+  // +10 (max) termOverlap: Jaccard on title vs objective tokens.
+  const objTokens  = tokenize(objective);
   const titleTokens = tokenize(candidate.title || candidate.id || '');
-  const union = new Set([...objTokens, ...titleTokens]);
-  const intersect = [...objTokens].filter((t) => titleTokens.has(t)).length;
-  const jaccard = union.size > 0 ? intersect / union.size : 0;
-  const titlePoints = Math.floor(MATCH_POLICY.titleTokenJaccardMax * jaccard);
-  if (titlePoints > 0) breakdown.titleTokenJaccard = titlePoints;
+  const union     = new Set([...objTokens, ...titleTokens]);
+  const intersect  = [...objTokens].filter((t) => titleTokens.has(t)).length;
+  const jaccard    = union.size > 0 ? intersect / union.size : 0;
+  const termPoints = Math.min(MATCH_POLICY.termOverlap, Math.floor(MATCH_POLICY.termOverlap * jaccard));
+  if (termPoints > 0) breakdown.termOverlap = termPoints;
 
-  // legacyPenalty (§4.2): −4 when format === 'legacy'.
-  const legacyPenalty = candidate.format === 'legacy' ? MATCH_POLICY.legacyPenalty : 0;
-  if (legacyPenalty !== 0) breakdown.legacyPenalty = legacyPenalty;
+  // −25 incompatibleScope: scope AND kind both differ (genuinely incompatible).
+  if (workScope != null && !scopeMatch && !kindMatch) {
+    breakdown.incompatibleScope = MATCH_POLICY.incompatibleScope;
+  }
 
-  const rawScore = triplePoints + governsPoints + intentPoints + tagPoints + titlePoints + legacyPenalty;
+  // −20 incompatibleContext: different context type.
+  if (workCtx && candidateCtx && workCtx.type !== candidateCtx.type) {
+    breakdown.incompatibleContext = MATCH_POLICY.incompatibleContext;
+  }
+
+  const rawScore = Object.values(breakdown).reduce((s, v) => s + v, 0);
   return { score: Math.max(0, Math.min(100, rawScore)), breakdown };
 }
 

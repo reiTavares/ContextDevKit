@@ -39,7 +39,7 @@ const clean = (r) => rmSync(r, { recursive: true, force: true });
 // ---------------------------------------------------------------------------
 // Import the A2 surface + the legacy tier classifier (for the regression golden).
 // ---------------------------------------------------------------------------
-let classifyWork, loadWorkPolicy;
+let classifyWork, loadWorkPolicy, DEFAULT_WORK_CLASSIFICATION;
 let matchBusiness;
 let buildIntakeProposal, saveIntakeProposal, readIntakeProposal;
 let resolveProposedAction, renderMethodologyLine, runMethodology;
@@ -47,7 +47,7 @@ let renderChecklist;
 let intake, classify, loadRubric;
 
 try {
-  ({ classifyWork, loadWorkPolicy } = await import(urlFor('work-classifier.mjs')));
+  ({ classifyWork, loadWorkPolicy, DEFAULT_WORK_CLASSIFICATION } = await import(urlFor('work-classifier.mjs')));
   ({ matchBusiness } = await import(urlFor('business-matcher.mjs')));
   ({ buildIntakeProposal, saveIntakeProposal, readIntakeProposal } = await import(urlFor('intake-proposal-store.mjs')));
   ({ resolveProposedAction, renderMethodologyLine, runMethodology } = await import(urlFor('intake-methodology.mjs')));
@@ -59,25 +59,27 @@ try {
   rep.finish('integration-classify-bdm (BIZ-0001/WF-0036 A2)');
 }
 
-const policy = loadWorkPolicy(process.cwd());
+// OP-0005: use the embedded DEFAULT so F1/F2 always tests the template's own algorithm,
+// not the dogfood installed policy (which may still carry old signals during migration).
+const policy = DEFAULT_WORK_CLASSIFICATION;
 
 // ---------------------------------------------------------------------------
 // F1 + F2. Classifier fixtures (design §12) + determinism.
-// Fixture #12 is the pure-conversation negative path, covered in F5.
 // ---------------------------------------------------------------------------
 console.log('\nF1+F2. Classifier fixtures (design §12) + determinism...');
+// Updated for OP-0005 / ADR-0125: §17 integer thresholds; §18 ceremony-point bands.
 const FIXTURES = [
-  { n: 1, req: 'fix the broken updater rollback after the failed release', nature: 'operation', kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
+  { n: 1, req: 'fix the broken updater rollback after the failed release', nature: 'operation', kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'workflow' },
   { n: 2, req: 'add a new export-to-CSV endpoint to the report screen', nature: 'operation', kind: 'change', intent: 'CREATE', lever: 'OPERATIONAL_EFFICIENCY', mode: 'direct' },
-  { n: 3, req: 'rename every vibekit reference to contextkit across the repo', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'batch' },
+  { n: 3, req: 'rename every vibekit reference to contextkit across the repo', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'direct' },
   { n: 4, req: 'investigate why the L5 guard blocks edits in a worktree', nature: 'operation', kind: 'investigation', intent: 'LEARN', lever: 'RELIABILITY', mode: 'direct' },
   { n: 5, req: 'production updater is failing — incident, roll back now', nature: 'operation', kind: 'operationalResponse', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
-  { n: 6, req: "harden the autonomy floor so an agent can't self-approve an ADR", nature: 'operation', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
-  { n: 7, req: 'launch a new business-driven methodology platform capability', nature: 'business', kind: 'capability', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'workflow' },
-  { n: 8, req: 'build the strategic portfolio-intelligence initiative for enterprise', nature: 'business', kind: 'initiative', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'workflow' },
-  { n: 9, req: 'make sure every accepted decision is recorded and validated for LGPD compliance', nature: 'business', kind: 'compliance', intent: 'COMPLY', lever: 'QUALITY', mode: 'workflow' },
+  { n: 6, req: "harden the autonomy floor so an agent can't self-approve an ADR", nature: 'operation', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'workflow' },
+  { n: 7, req: 'launch a new business-driven methodology platform capability', nature: 'operation', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
+  { n: 8, req: 'build the strategic portfolio-intelligence initiative for enterprise', nature: 'operation', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
+  { n: 9, req: 'make sure every accepted decision is recorded and validated for LGPD compliance', nature: 'operation', kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'workflow' },
   { n: 10, req: 'reduce token cost by caching the routing classifier across sessions', nature: 'operation', kind: 'change', intent: 'IMPROVE', lever: 'COST_EFFICIENCY', mode: 'direct' },
-  { n: 11, req: 'bump the changelog and tidy a few lint warnings', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'QUALITY', mode: 'batch' },
+  { n: 11, req: 'bump the changelog and tidy a few lint warnings', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'QUALITY', mode: 'direct' },
 ];
 
 for (const fx of FIXTURES) {
@@ -178,14 +180,16 @@ console.log('\nF4. Matcher (deterministic + thresholded + refuse-low)...');
       valueIntents: { primary: 'RECOVER', secondary: ['IMPROVE'] },
       growthLever: 'RELIABILITY', executionMode: 'direct', confidence: 'high', reasons: [],
     };
-    const objective = 'fix the broken platform capability rollback after the failed release';
+    // OP-0005: objective includes 'BIZ-9001' to trigger the explicitIdMatch bonus (+100),
+    // pushing the integer score above the new suggested threshold (75).
+    const objective = 'fix the broken BIZ-9001 platform capability rollback after the failed release';
 
     const m1 = matchBusiness(opWork, { root, objective, registry: REGISTRY });
     const m2 = matchBusiness(opWork, { root, objective, registry: REGISTRY });
     m1.status === 'suggested' && m1.suggested === 'BIZ-9001'
       ? rep.ok('F4. matcher suggests the fixture Business')
       : rep.bad(`F4. matcher verdict wrong: ${m1.status}/${m1.suggested}`);
-    m1.score > 0 && m1.score <= 1 ? rep.ok(`F4. matcher score in (0,1]: ${m1.score}`) : rep.bad(`F4. matcher score out of range: ${m1.score}`);
+    m1.score > 0 ? rep.ok(`F4. matcher score is positive integer: ${m1.score}`) : rep.bad(`F4. matcher score invalid: ${m1.score}`);
     JSON.stringify(m1) === JSON.stringify(m2) ? rep.ok('F4. matcher byte-identical across two runs') : rep.bad('F4. matcher NON-deterministic');
     m1.confirmed === null ? rep.ok('F4. matcher never sets confirmed (provenance null)') : rep.bad('F4. matcher stamped confirmed (must stay null)');
 
