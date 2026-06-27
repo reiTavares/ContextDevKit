@@ -26,6 +26,7 @@
 import { z } from 'zod';
 import { MAX_LEVEL, MIN_LEVEL } from './levels.mjs';
 import { EconomySchema } from './schema-economy.mjs';
+import { ArchitectureDebtGateSchema } from './schema-arch-debt.mjs';
 import {
   AdvisorSchema,
   AutoFormatSchema,
@@ -169,6 +170,7 @@ export const ConfigSchema = z
     boot: BootSchema,
     eacp: EacpSchema,
     economy: EconomySchema,
+    architectureDebtGate: ArchitectureDebtGateSchema,
     forward: ForwardSection,
   })
   .passthrough()

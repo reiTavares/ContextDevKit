@@ -52,8 +52,11 @@ route to them when the unknown is design or scope.
   engineer call this overcomplicated?"* If yes, simplify before showing it.
 
 **Fits the kit.** This is constitution §9 ("build what is asked; defer the
-rest") and §1 (line budget) as an *in-the-moment* habit. The trap is **timing**:
-the over-engineered version isn't "wrong" — it adds complexity *before it's
+rest") and §1 (complexity & cohesion) as an *in-the-moment* habit. The line
+budget there is an **advisory signal, not a hard rule** — never add an
+abstraction, helper, or file just to satisfy a number, and never preserve
+mixed responsibilities just to avoid one. The trap is **timing**: the
+over-engineered version isn't "wrong" — it adds complexity *before it's
 needed*. Add it later, when the requirement is real.
 
 ## 3. Surgical changes

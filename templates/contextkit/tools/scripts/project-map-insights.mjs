@@ -8,6 +8,8 @@
  * `manifest.json` stays churn-free (ADR-0039/0046). [project-map]
  */
 
+import { structuralSignals } from './project-map-signals.mjs';
+
 /** Build `path → [dep paths]` from the model (only edges to mapped modules). */
 function adjacency(modules) {
   const known = new Set(modules.map((m) => m.path));
@@ -56,8 +58,12 @@ function findCycles(adj) {
  * Structural insights: dependency cycles, orphan modules (no in/out edges), and
  * oversized modules (hit the file cap → split candidates). Deterministic.
  *
+ * Also attaches the W1.1 per-module GRAPH_DERIVED structural signals
+ * (fanIn/fanOut/instability/blastRadius) under `structural` so the arch/debt gate
+ * reads them from the public contract — a strict superset, existing keys unchanged.
+ *
  * @param {Array<{path:string, deps?:string[], capped?:boolean}>} modules
- * @returns {{cycles:string[][], orphans:string[], oversized:string[]}}
+ * @returns {{cycles:string[][], orphans:string[], oversized:string[], structural:ReturnType<typeof structuralSignals>}}
  */
 export function computeInsights(modules) {
   const adj = adjacency(modules);
@@ -68,7 +74,7 @@ export function computeInsights(modules) {
     .map((m) => m.path)
     .sort();
   const oversized = modules.filter((m) => m.capped).map((m) => m.path).sort();
-  return { cycles: findCycles(adj), orphans, oversized };
+  return { cycles: findCycles(adj), orphans, oversized, structural: structuralSignals(modules) };
 }
 
 /** Flatten a manifest/model module list into a `path → Set(deps)` map. */

@@ -149,11 +149,13 @@ try {
     ? ok('worktree-new passes the base-branch arg literally (no shell injection)')
     : bad('worktree-new shell injection NOT neutralized (a shell split the arg)');
 
-  // tech-debt --ci gate: a clean project has no RED-zone finding → exits 0.
+  // tech-debt --ci is DEMOTED to REPORT-ONLY (WF-0057 W6, ADR-0122): the
+  // governance gate owns CI blocking now, so this legacy path always exits 0 and
+  // prints an advisory line (never an enforcing CI-gate verdict).
   const debtCi = script('tech-debt-scan.mjs', '--ci');
-  debtCi.status === 0 && /CI gate/.test(debtCi.stdout || '')
-    ? ok('tech-debt --ci gate passes on a clean project')
-    : bad(`tech-debt --ci gate failed: ${debtCi.stdout || debtCi.stderr}`);
+  debtCi.status === 0 && /tech-debt \(advisory\)/.test(debtCi.stdout || '')
+    ? ok('tech-debt --ci is advisory/report-only (governance gate owns CI blocking)')
+    : bad(`tech-debt --ci report-only check failed: ${debtCi.stdout || debtCi.stderr}`);
 
   // Pluggable detectors: a drop-in contextkit/detectors/*.mjs is loaded and its findings appear.
   mkdirSync(join(proj, 'contextkit', 'detectors'), { recursive: true });

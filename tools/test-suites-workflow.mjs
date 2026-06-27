@@ -38,4 +38,17 @@ export const WORKFLOW_ENGINE_SUITES = Object.freeze([
     tier: 'integration:installer',
     touches: ['install.mjs', 'tools/install/engine.mjs', `${WORKFLOW_DIR}/`],
   },
+  {
+    // WF-0057 (BIZ-0001 ownership rule 3) — owned-workflow placement gate. A
+    // sibling selfcheck (dispatched directly, allowlisted in selfcheck-suites.mjs):
+    // asserts no owner-bound workflow sits in the central legacy root.
+    id: 'workflow-ownership-placement',
+    file: 'tools/selfcheck-workflow-ownership.mjs',
+    tier: 'selfcheck',
+    touches: [
+      `${WORKFLOW_DIR}/create`,
+      'templates/contextkit/tools/scripts/workflow.mjs',
+      'templates/contextkit/tools/scripts/registry/workflow.mjs',
+    ],
+  },
 ]);

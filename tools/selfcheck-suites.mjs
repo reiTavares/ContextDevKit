@@ -109,6 +109,20 @@ function main() {
     'tools/selfcheck-economy-wave2.mjs',
     // WF0033 project-map auto-baseline (PMB-02/03); siblings, dispatched directly.
     'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
+    // WF-0057 W1.1 (ADR-0122) — project-map structural signals; sibling, dispatched directly.
+    'tools/selfcheck-projmap-signals.mjs',
+    // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
+    // 6 per-analyzer selftests); sibling, dispatched directly.
+    'tools/selfcheck-arch-debt.mjs',
+    // WF-0057 W5.2 (ADR-0122) — gate config block + legacy line-budget migration;
+    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
+    'tools/selfcheck-arch-debt-config.mjs',
+    // WF-0057 W6.1 (ADR-0122) — MASTER acceptance suite: §35 headline invariants +
+    // engine-level §34 GAP rows; sibling selfcheck, dispatched directly.
+    'tools/selfcheck-arch-debt-acceptance.mjs',
+    // WF-0057 (BIZ-0001 ownership rule 3) — owned-workflow placement gate; sibling
+    // selfcheck, dispatched directly (not an integration-test* entrypoint).
+    'tools/selfcheck-workflow-ownership.mjs',
     // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
     'tools/selfcheck-bdm.mjs',
     // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.

@@ -55,13 +55,22 @@ Act as a **Staff/Principal Software Engineer**, not a code generator. Think
 files, and hidden tech debt. Maintainability, testability, and human readability
 beat raw delivery speed.
 
-### 1. File size limit: 280 lines (+10% structural tolerance)
-- No source file should exceed **280 useful lines** in principle.
-- **+10% (~308 lines)** is allowed ONLY when splitting would cause premature
-  abstraction or break a genuinely cohesive unit — record the cohesion reason in
-  a JSDoc/header note at the top of the file.
-- **Never refactor "just to split."** 280 is a *smell* that triggers analysis,
-  not a guillotine. Yellow zone: 240+. Hard block: > 308.
+### 1. File size: an advisory signal, never a blocker [→ ADR-0122]
+- **Line count is an advisory investigation signal, not a verdict.** Elevated
+  size (yellow ≥240, elevated >308) triggers a structural REVIEW — it **cannot
+  independently block CI, completion, or merge.** 280 is a *smell that starts
+  analysis, never a guillotine* — it never blocks on its own.
+- **Real debt is judged by the Architecture & Technical Debt Governance Gate**
+  (`arch-debt/`, ADR-0122) across 12 dimensions: architecture conformance,
+  modularity, complexity, testability, reliability, security, observability,
+  performance, operations, dependencies, contracts, and cognitive coherence.
+  A big file that scores clean there is fine; a small file that scores badly is
+  debt.
+- **Split only when a real responsibility/architecture boundary exists;
+  merge/simplify when a journey is artificially fragmented** — fragmentation is
+  ALSO debt. Never split just to satisfy a number; never preserve mixed
+  responsibilities just to avoid multiple files. Every extraction must justify
+  its cost.
 
 ### 2. Single Responsibility & layering
 - Each function/module does **one** thing. If the name needs "And"/"Or"

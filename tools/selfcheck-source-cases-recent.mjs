@@ -9,7 +9,10 @@
 export const SOURCE_INVARIANT_CASES_RECENT = [
     // (ADR-0030 cases graduated to the stable `selfcheck-source-cases.mjs` for the line budget.)
     // ADR-0031 — single quality gate; protected release path.
-    ['package.json defines the unified ci gate (ADR-0031)', 'package.json', /"ci":\s*"npm test &&[^"]*tech-debt-scan\.mjs --ci/],
+    // WF-0057 W6 (ADR-0122): the sole CI verdict is now the Architecture &
+    // Technical-Debt Governance Gate engine (decisions.md Fork-1 — one CI path),
+    // which replaced the demoted line-budget `tech-debt-scan.mjs --ci` block.
+    ['package.json defines the unified ci gate (ADR-0031/ADR-0122)', 'package.json', /"ci":\s*"npm test &&[^"]*architecture-debt-gate\.mjs --ci/],
     ['package.json prepublishOnly delegates to the ci gate', 'package.json', /"prepublishOnly":\s*"npm run ci"/],
     ['package.json defines preflight-release (ADR-0031)', 'package.json', /"preflight-release":\s*"npm run ci &&[^"]*preflight-version\.mjs/],
     ['ci.yml delegates to npm run ci (ADR-0031)', '.github/workflows/ci.yml', /run:\s*npm run ci/],

@@ -100,6 +100,10 @@ function run() {
         return;
       }
       const planPath = arg('plan');
+      // ADR-0116 — feature/architecture workflows declare an owner work-context;
+      // honor it on the profile/wave branch too so an owned wave-workflow nests
+      // under its parent (BIZ-0001 ownership rule 3), never lands in central.
+      const owner = arg('operation') || arg('business') || null;
       const result = createWaveWorkflow(ROOT, slug, {
         profile,
         pattern: arg('pattern') || undefined,
@@ -107,6 +111,7 @@ function run() {
         plan: planPath ? readJsonSafe(planPath) : null,
         now: new Date().toISOString(),
         branch: currentBranch(),
+        owner,
       });
       console.log(`Wave workflow "${result.slug}" (${result.number}) created — profile ${result.profile}, pattern ${result.pattern}.`);
       console.log(`  ${result.files.length} file(s) at ${result.dir}`);

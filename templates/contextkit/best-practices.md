@@ -148,20 +148,31 @@ target is *duplicated* and *drifting* state, not all state.
 Real and worth fixing — but local, cheap, and lower-leverage than Tier 1.
 This is where the deterministic scanner does most of its work.
 
-## H1 — Complexity & cohesion (line count is a trip-wire, not a verdict)
+## H1 — Complexity & cohesion (line count is an advisory signal, not a verdict)
 
 **Principle.** A unit is too big when it carries more than one reason to
 change or exceeds what a reader can hold in their head. The constitution
 sets a **280 useful lines** budget (tolerance ~308) — treat that line count
-as a trip-wire that *starts* the conversation, not as the verdict.
+as an **advisory investigation signal** that *starts* the conversation, not
+as the verdict. **File size is not technical debt.** A small file is not
+automatically well-designed; a large file is not automatically a monolith.
+The number only *triggers* a look at architecture, contracts, state,
+dependencies, failures, and tests — it never decides on its own. Real debt
+is adjudicated by the **Architecture & Technical Debt Governance Gate**
+(`contextkit/tools/scripts/arch-debt/`, ADR-0122), which evaluates findings
+across its twelve dimensions; the line bands below are never a CI blocker.
 
-**Smells.** Scanner trip-wire: yellow at **240+**, RED (`BLOCKER`) at
-**> 308**. The real smells the agent has to spot beyond the line count: deep
+**Smells.** Scanner advisory bands: yellow at **240+**, RED-advisory at
+**> 308** — a *louder investigation prompt*, not a hard block. The real
+smells the agent has to spot beyond the line count: deep
 nesting; a function doing two jobs; a name needing a conjunction
 (`validateAndSave`, `fetchAndTransform`, or the Portuguese
 `validarESalvar`, `buscarETransformar`); grab-bag modules (`utils.ts`,
 `manager.ts`, `helpers.ts` that accrete unrelated functions); long parameter
-lists; bodies that mix abstraction levels.
+lists; bodies that mix abstraction levels. **The inverse is a smell too:**
+one coherent journey shredded across many tiny files — wrappers, pass-through
+helpers, and indirection that only add bouncing — is *artificial
+fragmentation*, and fragmentation is debt as surely as a god file is.
 
 **Fix — refactor by responsibility, in order of preference:**
 
@@ -181,8 +192,37 @@ flat, cohesive, no branching. Document the cohesion in a header comment and
 move on. Conversely, a 90-line function with three responsibilities and five
 levels of nesting is rotten *under* the limit. Judge complexity, not length.
 An orchestrator that composes single-purpose units is doing one job
-(coordinating) — don't shatter cohesive logic to chase a number.
-**280 starts analysis; it is not a guillotine.**
+(coordinating) — don't shatter cohesive logic to chase a number. **Never
+create an abstraction, helper, wrapper, or file solely to satisfy a numeric
+limit, and never preserve mixed responsibilities just to avoid multiple
+files.** Split only when a real responsibility or architecture boundary
+exists, and *every extraction must justify its cost*; merge or simplify when
+one journey is artificially fragmented, and *every merge must prove the
+boundaries it crosses stay protected*. **280 starts analysis; it is not a
+guillotine.**
+
+### Self-review before proposing a split, a merge, or "this file is too big"
+
+Line count opened the question; these answer it. Run them on the unit before
+recommending any structural change (they mirror ADR-0122 §28):
+
+- **Responsibility** — what is this unit's *one* primary responsibility? How
+  many independent reasons-to-change does it actually have?
+- **Boundaries** — which architecture/domain boundaries does it cross? Is
+  there a second authority for any state it owns?
+- **Coupling** — does the abstraction I'm about to add *reduce* coupling, or
+  only add a layer of bouncing? How many files must change for one behaviour
+  change today — and after my proposal?
+- **Operability** — can the result be tested, observed, operated, and rolled
+  back at least as easily as the original?
+- **Risk** — does the change carry any security, data-integrity, reliability,
+  or compatibility risk?
+- **Debt direction** — does this change *increase*, *preserve*, *reduce*, or
+  *pay down* debt? A change that only moves lines around does none of those.
+
+If the honest answers don't point to a real boundary (for a split) or a
+genuinely coherent journey with its boundaries intact (for a merge), the
+right move is to leave it and note the observation — not to refactor.
 
 ## H2 — Single Responsibility
 

@@ -29,7 +29,16 @@ function isIgnored(rel) {
   return IRRELEVANT.some((p) => norm === p || norm.startsWith(p));
 }
 
-function walk(dir, acc) {
+/**
+ * Walk the project's source files (skipping config.ledger.irrelevant paths),
+ * returning their repo-relative forward-slash paths. Exported so the WF-0057
+ * architecture-debt gate REUSES this one walk as its StructuralSignalCollector
+ * input source rather than duplicating the tree traversal (decisions.md Fork-1).
+ * @param {string} dir  absolute directory to walk (typically ROOT).
+ * @param {string[]} acc  accumulator (pass `[]`).
+ * @returns {string[]} repo-relative source file paths.
+ */
+export function walk(dir, acc) {
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -74,7 +83,7 @@ async function loadCustomDetectors() {
   return fns;
 }
 
-function scan(quick, detectors) {
+export function scan(quick, detectors) {
   const files = walk(ROOT, []);
   const findings = [];
   for (const rel of files) {
@@ -128,15 +137,20 @@ async function main() {
   const detectors = [...ALL_DETECTORS, ...(await loadCustomDetectors())];
   const report = scan(args.includes('--quick'), detectors);
   if (args.includes('--ci')) {
-    // CI gate: fail the build on any RED-zone (severity 5) finding so the kit —
-    // or any project — can't regress past its own hard line-budget limit.
+    // DEMOTED (WF-0057 W6, ADR-0122): the SOLE CI verdict path is now the
+    // Architecture & Technical-Debt Governance Gate (`architecture-debt-gate.mjs
+    // --ci`), per decisions.md Fork-1 — "one CI verdict path". This legacy `--ci`
+    // is kept REPORT-ONLY (never `process.exit(1)`) so two CI gates can never
+    // coexist as enforcers; line count alone never blocks (ADR-0122). The atomic
+    // demotion is safe because the engine's deterministic BLOCKING floors are
+    // armed and ACTIVE first (§13 protection-gap sequencing — no gap).
     const red = report.findings.filter((f) => f.severity >= 5);
     if (red.length > 0) {
-      console.error(`✗ tech-debt CI gate: ${red.length} RED-zone finding(s) (must be 0):`);
-      for (const f of red) console.error(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
-      process.exit(1);
+      console.log(`ℹ tech-debt (advisory): ${red.length} RED-zone finding(s) — the governance gate owns CI blocking now (ADR-0122):`);
+      for (const f of red) console.log(`   ${'●'.repeat(f.severity)} ${f.path}${f.line ? ':' + f.line : ''} — ${f.message}`);
+    } else {
+      console.log(`ℹ tech-debt (advisory): no RED-zone findings across ${report.fileCount} files. CI blocking is owned by architecture-debt-gate.mjs --ci.`);
     }
-    console.log(`✓ tech-debt CI gate: no RED-zone findings across ${report.fileCount} files.`);
     return;
   }
   if (args.includes('--json')) {
@@ -158,7 +172,11 @@ async function main() {
   if (report.findings.length > 15) console.log(`   … and ${report.findings.length - 15} more (use --write for the full board).`);
 }
 
-main().catch((err) => {
-  console.error('tech-debt-scan failed:', err?.message ?? err);
-  process.exit(1);
-});
+// Run only when invoked directly as the CLI entry — importing this module (e.g.
+// the WF-0057 gate reusing `walk`/`scan`) must NOT trigger the scan + exit.
+if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
+  main().catch((err) => {
+    console.error('tech-debt-scan failed:', err?.message ?? err);
+    process.exit(1);
+  });
+}

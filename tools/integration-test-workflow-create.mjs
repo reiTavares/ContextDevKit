@@ -10,7 +10,7 @@
  * Packs are built in a throwaway temp root; cleaned up at the end. The clock is
  * injected (`now`) so the run is deterministic.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
@@ -123,6 +123,31 @@ try {
   let badProfileThrew = false;
   try { createWaveWorkflow(root, 'nope', { profile: 'does-not-exist', now: NOW }); } catch { badProfileThrew = true; }
   badProfileThrew ? rep.ok('unknown profile throws') : rep.bad('unknown profile did not throw');
+
+  // --- Owned placement (WF-0057, BIZ-0001 rule 3) ------------------------
+  // An owned workflow must nest under its parent context with `WF-` naming, NOT
+  // land in the central legacy root with `NNNN-` naming.
+  const opSlug = 'OP-0009-sample-operation';
+  mkdirSync(join(root, 'contextkit', 'memory', 'operations', opSlug), { recursive: true });
+  const owned = createWaveWorkflow(root, 'owned-change', { profile: 'basic', now: NOW, owner: 'OP-0009' });
+  const ownedRel = owned.dir.split('\\').join('/');
+  ownedRel.includes(`operations/${opSlug}/workflows/`) && /\/WF-\d{4}-owned-change$/.test(ownedRel)
+    ? rep.ok(`owned workflow nests under operations/${opSlug}/workflows/WF-…-owned-change`)
+    : rep.bad(`owned workflow misplaced: ${owned.dir}`);
+  !existsSync(join(root, 'contextkit', 'memory', 'workflows', `${owned.number}-owned-change`))
+    ? rep.ok('owned workflow did NOT land in the central legacy root')
+    : rep.bad('owned workflow leaked into central memory/workflows/');
+
+  // --- Absent owner folder throws (fail-fast, never silent central fallback)
+  let missingOwnerThrew = false;
+  try {
+    createWaveWorkflow(root, 'orphan-change', { profile: 'basic', now: NOW, owner: 'OP-9999' });
+  } catch {
+    missingOwnerThrew = true;
+  }
+  missingOwnerThrew
+    ? rep.ok('owner with no context folder throws (no silent fallback to central)')
+    : rep.bad('missing-owner-folder creation did not throw');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
