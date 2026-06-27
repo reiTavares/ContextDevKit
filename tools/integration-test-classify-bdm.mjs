@@ -56,7 +56,7 @@ try {
   ({ classify, loadRubric } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/complexity-rubric.mjs')).href));
 } catch (err) {
   rep.bad(`Module import failed: ${err?.message ?? err}`);
-  rep.finish('integration-classify-bdm (BIZ-0001/WF-0036 A2)');
+  rep.finish('integration-classify-bdm (BIZ-0001/WF-0036 A2)'); // early exit on import failure
 }
 
 // OP-0005: use the embedded DEFAULT so F1/F2 always tests the template's own algorithm,

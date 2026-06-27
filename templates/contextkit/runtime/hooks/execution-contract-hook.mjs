@@ -205,8 +205,10 @@ async function main() {
   if (!promptText) return; // no extractable prompt -- silent
 
   // Admin commands and pure-conversation prompts never need a contract.
+  // Short imperative task prompts (looksLikeNewTask) override the conversation skip
+  // so "fix the login bug" still runs intake (OP-0005 / ADR-0125 Wave 2).
   if (isAdminCommand(promptText)) return;
-  if (isPureConversation(promptText)) return;
+  if (isPureConversation(promptText) && !looksLikeNewTask(promptText)) return;
 
   // Resolve session id via the standard host-adapter chain.
   const sessionId = resolveHookSessionId(payload, HOST, ROOT);
@@ -244,6 +246,13 @@ async function main() {
 
   // Print the short advisory checklist to stdout (legacy output — unchanged).
   process.stdout.write(renderChecklist(contract, taskId, isNew, routing));
+
+  // OP-0005 / ADR-0125 Wave 2 — surface the §17 ASK clarification when the
+  // classifier could not confidently distinguish Business from Operation. Advisory
+  // only: never changes the exit code; the hook remains fail-open regardless.
+  if (signals.work?.needsClarification && signals.work?.clarifyQuestion) {
+    process.stdout.write(`\n‹CONTEXTKIT-CLARIFY› ${signals.work.clarifyQuestion}\n`);
+  }
 
   // WF0038 / ADR-0107 — request-level orchestration. Gated by config + level;
   // wrapped fail-open so it can never break the legacy contract path (rule 2).

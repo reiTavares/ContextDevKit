@@ -43,6 +43,16 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    id: 'clarify-bdm',
+    file: 'tools/integration-test-clarify-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      `${EXEC}/work-classify-nature.mjs`, `${EXEC}/work-classifier.mjs`,
+      `${EXEC}/request-orchestrator.mjs`,
+      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
+    ],
+  },
+  {
     id: 'decision-bdm',
     file: 'tools/integration-test-decision-bdm.mjs',
     tier: 'integration:workflow',

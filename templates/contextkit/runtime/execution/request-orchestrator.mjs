@@ -199,6 +199,12 @@ export function orchestrate(payload, env = {}) {
     envelope.routing.reasonCodes.push(...delib.reasons);
     envelope.deliberation = { required: delib.required, reasons: delib.reasons };
 
+    // OP-0005 / ADR-0125 Wave 2 — propagate the §17 ASK clarification signal into
+    // the envelope so downstream consumers can surface it (advisory; never blocks).
+    if (p.signals?.work?.needsClarification) {
+      envelope.clarification = { needed: true, question: p.signals.work.clarifyQuestion ?? null };
+    }
+
     // A7-A8 shadow enrichment (ADR-0112) — governed context, auto-deliberation,
     // the over-orchestration guard verdict, and a (non-dispatching) dispatch plan.
     // Best-effort: enrichment never breaks the base envelope (rule 2).
