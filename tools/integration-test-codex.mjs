@@ -28,8 +28,8 @@ try {
   existsSync(join(proj, '.agents', 'skills', 'source-command-state', 'SKILL.md'))
     ? ok('Codex source-command skills installed under .agents/skills')
     : bad('Codex source-command skill missing');
-  readdirSync(join(proj, '.agents', 'skills')).filter((name) => name.startsWith('source-command-')).length === 81
-    ? ok('Codex installs all 81 canonical command projections (zero silent skips)')
+  readdirSync(join(proj, '.agents', 'skills')).filter((name) => name.startsWith('source-command-')).length === 82
+    ? ok('Codex installs all 82 canonical command projections (zero silent skips)')
     : bad('Codex command projection count does not match Claude');
 
   const reviewer = readFileSync(join(proj, '.codex', 'agents', 'code-reviewer.toml'), 'utf-8');
