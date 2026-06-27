@@ -128,6 +128,9 @@ function main() {
     'tools/selfcheck-workflow-ownership.mjs',
     // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
     'tools/selfcheck-bdm.mjs',
+    // ADR-0126 follow-up — native /work command + host-neutral seeded READMEs;
+    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
+    'tools/selfcheck-work-command.mjs',
     // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.
     'tools/selfcheck-session-autonomy-all.mjs',
     // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.

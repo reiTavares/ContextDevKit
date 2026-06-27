@@ -251,6 +251,16 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    // ADR-0126 follow-up — native /work command + host-neutral seeded READMEs so
+    // Claude stops reaching for ctx.mjs (the Antigravity runner) to start an operation.
+    id: 'work-command',
+    file: 'tools/selfcheck-work-command.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/claude/commands/pipeline/work.md', 'tools/install/seed-methodology.mjs',
+    ],
+  },
+  {
     // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
     id: 'intake-gate',
     file: 'tools/integration-test-intake-gate.mjs',

@@ -59,7 +59,7 @@ function rootReadme(kind, idPrefix) {
   const jsonName = kind === 'Business' ? 'business.json' : 'operation.json';
   const tail = kind === 'Business'
     ? '# then fill business-case.md / growth.md / investment-decision.md in BIZ-0001'
-    : '# create an operation context:\nnode ctx.mjs work operation "<title>" --apply';
+    : '# create an operation context:\nnode contextkit/tools/scripts/work.mjs operation "<title>" --apply';
   return [
     `# ${kind} work contexts (Business-driven methodology — BIZ-0001)`,
     '',
@@ -71,10 +71,11 @@ function rootReadme(kind, idPrefix) {
     '',
     '```',
     '# classify what you are about to do (read-only):',
-    'node ctx.mjs work intake "<your objective>"',
+    'node contextkit/tools/scripts/work.mjs intake "<your objective>"',
     tail,
     '```',
     '',
+    '_In Claude Code use the `/work` slash command; `ctx`/`cdx` are the Antigravity/Codex runners._',
     '_Seeded by the installer; safe to edit — `--update` never overwrites your content._',
     '',
   ].join('\n');

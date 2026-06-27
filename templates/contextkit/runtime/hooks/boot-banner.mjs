@@ -82,7 +82,9 @@ export function renderBootBanner(boot) {
     out.push('');
     out.push(`The capability enforcement gate is in **${mode}** mode — business tasks and`);
     out.push('ceremony prompts require a completed intake before any writes are allowed.');
-    out.push(`Run **\`${commandRef('dev-start')}\`** to open a workflow and satisfy the intake gate.`);
+    out.push(`Run **\`${commandRef('work', 'intake "<objective>"')}\`** to classify the request and satisfy the gate`);
+    out.push('(host-neutral CLI: `node contextkit/tools/scripts/work.mjs intake` — never `ctx`/`cdx`).');
+    out.push(`For non-trivial work, then open the context + workflow with \`${commandRef('work', 'operation')}\` / \`${commandRef('dev-start')}\`.`);
     out.push('');
   }
 

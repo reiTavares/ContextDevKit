@@ -49,6 +49,8 @@ The navigator reuses `readWorkflow()` / `listWorkflows()` from
 imports boot-context-readers for the bounded bundle. If the readers are absent
 (e.g. a minimal install), the bundle is skipped gracefully.
 
-## Alias
+## Other hosts
 
-Available as `node ctx.mjs assist <slug>` or `node cdx.mjs assist <slug>`.
+From **Claude Code** use this slash command (host-neutral CLI:
+`node contextkit/tools/scripts/workflow-assist.mjs <slug>`) — **never `ctx`/`cdx`**.
+Antigravity/Codex users have `node ctx.mjs assist <slug>` / `node cdx.mjs assist <slug>`.
