@@ -60,9 +60,12 @@ const contract = {
 
 // E1. resolveEnforcementMode: various config states.
 {
-  resolveEnforcementMode(null) === 'advisory' ? rep.ok('E1. mode: null -> advisory') : rep.bad('E1. mode: null not advisory');
-  resolveEnforcementMode({}) === 'advisory' ? rep.ok('E1. mode: empty -> advisory') : rep.bad('E1. mode: empty not advisory');
-  resolveEnforcementMode({ enforcement: { mode: 'junk' } }) === 'advisory' ? rep.ok('E1. mode: unknown -> advisory') : rep.bad('E1. mode: unknown not advisory');
+  // ADR-0125 business rule: default is GUARDED-with-fallback (active for every install);
+  // an explicit 'advisory' opts out. The gate's degrade logic keeps fresh installs safe.
+  resolveEnforcementMode(null) === 'guarded' ? rep.ok('E1. mode: null -> guarded (default)') : rep.bad('E1. mode: null not guarded');
+  resolveEnforcementMode({}) === 'guarded' ? rep.ok('E1. mode: empty -> guarded (default)') : rep.bad('E1. mode: empty not guarded');
+  resolveEnforcementMode({ enforcement: { mode: 'junk' } }) === 'guarded' ? rep.ok('E1. mode: unknown -> guarded (default)') : rep.bad('E1. mode: unknown not guarded');
+  resolveEnforcementMode({ enforcement: { mode: 'advisory' } }) === 'advisory' ? rep.ok('E1. mode: explicit advisory opt-out honored') : rep.bad('E1. mode: advisory opt-out not honored');
   resolveEnforcementMode({ enforcement: { mode: 'guarded' } }) === 'guarded' ? rep.ok('E1. mode: guarded honored') : rep.bad('E1. mode: guarded not honored');
   resolveEnforcementMode({ enforcement: { mode: 'strict' } }) === 'strict' ? rep.ok('E1. mode: strict honored') : rep.bad('E1. mode: strict not honored');
 }

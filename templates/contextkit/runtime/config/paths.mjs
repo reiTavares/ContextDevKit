@@ -73,7 +73,12 @@ export const WORK_CONTEXT_REGISTRY = `${MEMORY_DIR}/work-context-registry.json`;
 /** Generated index resolving WF-#### + legacy NNNN-slug workflows. Built later. */
 export const WORKFLOW_REGISTRY = `${MEMORY_DIR}/workflow-registry.json`;
 
-/** Generated index of decisions across new + legacy roots. Built later. */
+/**
+ * Generated index of decisions across new + legacy roots. Canonical location is
+ * the memory root. NOTE (§22/§33): the design implies a `decisions/`-nested
+ * alias; `resolveDecisionRegistryPath` (task-intake.mjs) reads the nested copy
+ * when present and falls back here, so the cache can migrate without a move.
+ */
 export const DECISION_REGISTRY = `${MEMORY_DIR}/decision-registry.json`;
 
 /** Domain glossary — UI/business term ↔ code identifier. */

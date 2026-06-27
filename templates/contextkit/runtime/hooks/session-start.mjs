@@ -43,6 +43,7 @@ import {
   writeLedger,
 } from './ledger.mjs';
 import { getLevel, loadConfigSync } from '../config/load.mjs';
+import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 import { resolveRoutingConfig, routingBannerLine } from '../../tools/scripts/routing/routing-config.mjs';
 import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
@@ -57,6 +58,25 @@ import { emitEconomy } from '../../tools/scripts/economy/telemetry-emit.mjs';
 const ROOT = process.cwd();
 const HOST = hookHost();
 const isCodex = HOST === 'codex';
+
+/**
+ * Resolves the intake readiness signal for the boot banner (OP-0005 / ADR-0125 Wave 5).
+ *
+ * Best-effort: returns null on any error so the boot is never blocked (rule 2).
+ * The readiness signal exposes the enforcement mode so the agent knows whether the
+ * ceremony gate is live (guarded/strict) or advisory at session start.
+ *
+ * @param {object|null|undefined} config project config
+ * @returns {{ mode: string }|null}
+ */
+function resolveIntakeReadiness(config) {
+  try {
+    const mode = resolveEnforcementMode(config);
+    return { mode };
+  } catch {
+    return null;
+  }
+}
 
 async function readStdin() {
   return new Promise((res) => {
@@ -183,6 +203,9 @@ async function main() {
     // Economy stack auto-activation (ADR-0103): emits the deterministic-tools
     // guidance every session by default. Best-effort; never blocks boot (rule 2).
     economyActivation: (() => { try { return economyActivationSection(loadConfigSync(ROOT)); } catch { return null; } })(),
+    // OP-0005 / ADR-0125 Wave 5: intake readiness — exposes the effective enforcement
+    // mode so the agent knows whether the ceremony gate is live at session start.
+    intakeReadiness: resolveIntakeReadiness(loadConfigSync(ROOT)),
   };
   const banner = renderBootBanner(applyBootDeltaGate(boot, { root: ROOT, config: loadConfigSync(ROOT) }));
 

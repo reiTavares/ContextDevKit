@@ -184,11 +184,14 @@ export async function runEnforcementChecks(rep, { KIT }) {
     typeof fn === 'function' ? ok(`export: ${name} present`) : bad(`export: ${name} missing`);
   }
 
-  // --- resolveEnforcementMode ---
-  resolveEnforcementMode(null) === 'advisory' ? ok('mode: null config -> advisory') : bad('mode: null config not advisory');
-  resolveEnforcementMode({}) === 'advisory' ? ok('mode: empty config -> advisory') : bad('mode: empty config not advisory');
-  resolveEnforcementMode({ enforcement: { mode: 'unknown' } }) === 'advisory'
-    ? ok('mode: unknown value -> advisory') : bad('mode: unknown value not advisory');
+  // --- resolveEnforcementMode (ADR-0125 business rule: default is GUARDED with
+  // graceful gate-level fallback; an explicit 'advisory' opts OUT). ---
+  resolveEnforcementMode(null) === 'guarded' ? ok('mode: null config -> guarded (default)') : bad('mode: null config not guarded');
+  resolveEnforcementMode({}) === 'guarded' ? ok('mode: empty config -> guarded (default)') : bad('mode: empty config not guarded');
+  resolveEnforcementMode({ enforcement: { mode: 'unknown' } }) === 'guarded'
+    ? ok('mode: unknown value -> guarded (default)') : bad('mode: unknown value not guarded');
+  resolveEnforcementMode({ enforcement: { mode: 'advisory' } }) === 'advisory'
+    ? ok('mode: explicit advisory opt-out honored') : bad('mode: advisory opt-out not honored');
   resolveEnforcementMode({ enforcement: { mode: 'guarded' } }) === 'guarded'
     ? ok('mode: guarded honored') : bad('mode: guarded not honored');
   resolveEnforcementMode({ enforcement: { mode: 'strict' } }) === 'strict'

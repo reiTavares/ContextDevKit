@@ -26,9 +26,10 @@ import { emitAdvisory, emitBlockDecision, hookHost, normalizeToolPayload, resolv
 import { readLedger, writeLedger } from './ledger.mjs';
 import { listWorkflows, currentBranch, PHASES } from '../../tools/scripts/workflow-pack.mjs';
 import { pathsFor } from '../config/paths.mjs';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, appendFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { buildEconomyAdvisory } from '../../tools/scripts/economy/gate-advisory.mjs';
+import { resolveGateAction } from './gate-enforcement-decision.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -111,13 +112,7 @@ function isProjectMapFresh(root) {
   }
 }
 
-/**
- * Formats a human-readable advisory warning from evaluateAction output.
- *
- * @param {{ reasonCodes: string[], remediation: string[], detail: object }} result
- * @param {string} toolName
- * @returns {string}
- */
+/** Formats a human-readable advisory warning from evaluateAction output. */
 function buildAdvisoryText(result, toolName) {
   const lines = [
     `[execution-gate] Advisory: ${toolName} intercepted (no blocking in advisory mode).`,
@@ -133,13 +128,7 @@ function buildAdvisoryText(result, toolName) {
   return lines.join('\n') + '\n';
 }
 
-/**
- * Formats a deny-mode block reason.
- *
- * @param {{ reasonCodes: string[], remediation: string[], detail: object }} result
- * @param {string} toolName
- * @returns {string}
- */
+/** Formats a deny-mode block reason. */
 function buildBlockText(result, toolName) {
   const lines = [
     `Execution gate denied: ${toolName}`,
@@ -156,13 +145,19 @@ function buildBlockText(result, toolName) {
 }
 
 /**
- * Returns true when the tool call is a broad exploration (for CDK-035 counter).
- * Mirrors `isBroadSearch` in evaluate-action.mjs — kept local so the gate wrapper
- * can count BEFORE calling evaluateAction.
- *
- * @param {string|null} toolName
- * @param {Record<string, any>} input
- * @returns {boolean}
+ * Best-effort telemetry append for gate block/degrade events (OP-0005 / ADR-0125 Wave 5).
+ * Never throws — telemetry failure must never affect the gate decision (rule 2).
+ */
+function appendGateTelemetry(root, record) {
+  try {
+    const telemetryPath = join(pathsFor(root).memory, 'routing-decisions.jsonl');
+    appendFileSync(telemetryPath, JSON.stringify(record) + '\n', 'utf8');
+  } catch { /* telemetry is advisory — never block real work */ }
+}
+
+/**
+ * Returns true when the tool call is a broad exploration (CDK-035 counter).
+ * Mirrors `isBroadSearch` in evaluate-action.mjs — local so gate counts before evaluateAction.
  */
 function isBroadExploration(toolName, input) {
   if (!toolName) return false;
@@ -173,15 +168,8 @@ function isBroadExploration(toolName, input) {
 }
 
 /**
- * Reads the current broadSearchCount from the session ledger, increments it,
- * and persists the updated ledger. Returns the NEW count.
- *
- * Resets the counter to 0 when the project-map is fresh (a recent /project-map
- * receipt signals the agent has refreshed context — budget is renewed).
- *
- * @param {string} sessionId
- * @param {boolean} projectMapFresh
- * @returns {Promise<number>}
+ * Reads broadSearchCount from the session ledger, increments it, and persists.
+ * Resets to 0 when the project-map is fresh (budget renewed). Returns the new count.
  */
 async function incrementBroadSearchCount(sessionId, projectMapFresh) {
   try {
@@ -276,16 +264,41 @@ async function main() {
     return;
   }
 
-  if (mode === 'advisory' || result.decision !== 'deny') {
-    // Advisory mode and non-deny paths: warn to stderr, never block.
-    // This is the immutable advisory guarantee: exit 0 always.
-    advisoryTexts.push(buildAdvisoryText(result, toolName));
-    emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
+  // OP-0005 / ADR-0125 Wave 5: mandatory-with-graceful-fallback enforcement.
+  // resolveGateAction evaluates all five conditions (mode, contract, decision,
+  // ceremony capability, signals.work confidence) and returns block or warn.
+  // Any error in resolveGateAction degrades to warn via the outer try/catch (rule 2).
+  const signalsWork = contract?.signals?.work ?? null;
+  const gateCtx = {
+    mode,
+    contract,
+    decision: result.decision,
+    missedCapabilities: result.detail?.missing ?? [],
+    signalsWork,
+    registryLoadFailed: false,
+    taskRegistered: !!taskId,
+  };
+  const gateVerdict = resolveGateAction(gateCtx);
+
+  if (gateVerdict.action === 'block') {
+    // All five conditions met — emit a hard block decision.
+    appendGateTelemetry(ROOT, {
+      ts: Date.now(), event: 'gate:block', tool: toolName, taskId,
+      reasonCode: gateVerdict.reasonCode, reason: gateVerdict.reason,
+      missing: result.detail?.missing ?? [],
+    });
+    emitBlockDecision([...advisoryTexts, buildBlockText(result, toolName)].filter(Boolean).join('\n'), HOST);
     return;
   }
 
-  // mode is guarded/strict and decision is deny → emit block decision.
-  emitBlockDecision([...advisoryTexts, buildBlockText(result, toolName)].filter(Boolean).join('\n'), HOST);
+  // warn / degrade path — advisory guarantee: exit 0, never block.
+  appendGateTelemetry(ROOT, {
+    ts: Date.now(), event: 'gate:degrade', tool: toolName, taskId,
+    reasonCode: gateVerdict.reasonCode, reason: gateVerdict.reason,
+    missing: result.detail?.missing ?? [],
+  });
+  advisoryTexts.push(buildAdvisoryText(result, toolName));
+  emitAdvisory(advisoryTexts.join('\n'), HOST, 'PreToolUse');
 }
 
 main().catch(() => process.exit(0));

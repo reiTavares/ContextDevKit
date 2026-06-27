@@ -117,8 +117,12 @@ try {
       : rep.bad(`SG1. L4: expected inert, got out=${out.slice(0, 120)} files=${spawnRecordFiles().length}`);
   }
 
-  // Restore L5.
-  writeFileSync(cfgPath, JSON.stringify({ level: 5 }), 'utf-8');
+  // Restore L5. Advisory mode is explicit here so SG3 (which tests warn-only,
+  // non-blocking behaviour on out-of-scope writes) is not affected by the guarded
+  // default introduced in ADR-0125. SG2/SG4/SG5/SG6 are mode-agnostic (spawn
+  // recording, in-scope, no task, and malformed input each resolve before
+  // enforcement mode is consulted).
+  writeFileSync(cfgPath, JSON.stringify({ level: 5, enforcement: { mode: 'advisory' } }), 'utf-8');
 
   // SG2. SPAWN records a spawn file, silent.
   console.log('\nSG2. SPAWN records a spawn file...');

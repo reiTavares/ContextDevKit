@@ -1,16 +1,18 @@
 /**
  * business-matcher.mjs — deterministic Business matcher for a classified
- * Operation (BIZ-0001 / WF-0036 Wave A2, ADR-0102; design §8).
+ * Operation (BIZ-0001 / WF-0036 Wave A2, ADR-0102; design §8). Updated by
+ * OP-0005 / ADR-0125 to use additive integer scoring (TABLE 3).
  *
  * Given a classified Operation (`signals.work`) and a project root, it scores
  * every Business in the A1 work-context registry and returns the linkage shape
  * the schema-plan defines: `{ suggested, confirmed, score, status, candidates }`
  * plus a flat `reasons[]` and a structured `evidence` mirror (design §5).
  *
- * Deterministic + explainable, NO embeddings: score is a weighted blend of
- *   value-intent match · operation→business kind affinity · token Jaccard,
- * normalized to 0..1, with a stable `id.localeCompare` tie-break. Same input →
- * same output, always — no `Math.random`, no time, no LLM.
+ * Deterministic + explainable, NO embeddings: additive integer score over
+ *   explicit-id match · kind affinity · value-intent match · token overlap ·
+ *   active-status bonus · incompatible/closed penalties.
+ * Thresholds: >= 75 → suggested; 55–74 → confirm; <55 → unlinked.
+ * Same input → same output, always — no `Math.random`, no time, no LLM.
  *
  * Refuse-low / provenance-null (constitution §8): the matcher only ever sets
  * `suggested`; `confirmed` starts null and is stamped ONLY by the human approval
@@ -29,11 +31,15 @@ import { buildWorkContextRegistry } from '../../tools/scripts/registry/work-cont
 import { loadWorkPolicy } from './work-classifier.mjs';
 import { tokenize } from './work-classify-signals.mjs';
 
-/** Embedded fallback for the matcher policy (mirrors design §8.2; rule 2). */
+/** Embedded fallback for the matcher policy (TABLE 3, OP-0005 / ADR-0125; rule 2). */
 const DEFAULT_MATCH = Object.freeze({
-  weights: { valueIntent: 3, kind: 2, token: 1 },
-  thresholds: { suggested: 0.45, confirmed: 0.75 },
-  winnerMargin: 0.1,
+  thresholds: { suggested: 75, confirm: 55 },
+  nearTieMargin: 10,
+  points: {
+    explicitIdMatch: 100, sameProduct: 35, sameAreaCapability: 20,
+    compatibleValueIntents: 15, sameRoadmapItem: 10, relatedOutcomeKpi: 10,
+    tokenOverlap: 10, activeBusiness: 5, incompatibleProduct: -30, closedRejected: -100,
+  },
   kindAffinity: {
     fix: ['capability', 'product'], change: ['capability', 'product'],
     maintenance: ['capability'], investigation: ['capability', 'compliance'],
@@ -44,7 +50,7 @@ const DEFAULT_MATCH = Object.freeze({
 /** Resolves the `businessMatch` policy section with a defensive fallback. */
 function matchPolicy(policy) {
   const section = policy && typeof policy.businessMatch === 'object' ? policy.businessMatch : null;
-  return section && section.weights && section.thresholds ? section : DEFAULT_MATCH;
+  return section && section.thresholds && section.points ? section : DEFAULT_MATCH;
 }
 
 /**
@@ -78,9 +84,7 @@ function readBusiness(memoryDir, row) {
 }
 
 /**
- * Deterministic value-intent component (design §8.2): 1 when the Operation's
- * primary intent is in the Business intent set (primary ∪ secondary), else 0.5
- * when any Operation secondary overlaps, else 0.
+ * Deterministic value-intent component: 1 for primary match, 0.5 for secondary overlap.
  */
 function intentMatch(work, business) {
   const intents = new Set([business.primary, ...business.secondary].filter(Boolean));
@@ -91,9 +95,7 @@ function intentMatch(work, business) {
 }
 
 /**
- * Kind-affinity component (design §8.2): 1 when the Business kind is in the
- * Operation-kind's affinity list, else 0. The classifier emits camelCase
- * Operation kinds; affinity keys are lowercase, so the lookup lowercases first.
+ * Kind-affinity component: 1 when the Business kind is in the Operation-kind's affinity list.
  */
 function kindAffinity(work, business, affinity) {
   const opKind = String(work?.kind || '').toLowerCase();
@@ -101,7 +103,7 @@ function kindAffinity(work, business, affinity) {
   return business.kind && preferred.includes(business.kind) ? 1 : 0;
 }
 
-/** Token-overlap component (design §8.2): Jaccard of objective vs title+slug. */
+/** Token-overlap component: Jaccard of objective vs title+slug. */
 function tokenOverlap(objective, business) {
   const left = tokenize(objective);
   const right = tokenize(`${business.title} ${business.slug}`);
@@ -113,24 +115,58 @@ function tokenOverlap(objective, business) {
 }
 
 /**
- * Scores one Business candidate into a normalized 0..1 score with its components.
+ * Scores one Business candidate using additive integer scoring (TABLE 3, OP-0005).
  *
  * @param {object} work - the classified Operation.
- * @param {string} objective - the Operation's free-text objective (for tokens).
+ * @param {string} objective - the Operation's free-text objective.
  * @param {object} business - a `readBusiness` row.
  * @param {object} cfg - the resolved `businessMatch` policy.
- * @returns {{ id, score, parts: {intent, kind, token} }}
+ * @param {object} registryRow - the registry row (for status).
+ * @returns {{ id, title, score: number, parts: object }}
  */
-function scoreCandidate(work, objective, business, cfg) {
-  const weights = cfg.weights;
-  const parts = {
-    intent: intentMatch(work, business),
-    kind: kindAffinity(work, business, cfg.kindAffinity),
-    token: tokenOverlap(objective, business),
-  };
-  const max = weights.valueIntent + weights.kind + weights.token;
-  const raw = weights.valueIntent * parts.intent + weights.kind * parts.kind + weights.token * parts.token;
-  const score = max > 0 ? Math.round((raw / max) * 1000) / 1000 : 0;
+function scoreCandidate(work, objective, business, cfg, registryRow) {
+  const pts = cfg.points || DEFAULT_MATCH.points;
+  let score = 0;
+  const parts = {};
+
+  // Explicit Business ID match in the objective text.
+  if (objective.toLowerCase().includes(business.id.toLowerCase())) {
+    score += pts.explicitIdMatch; parts.explicitIdMatch = pts.explicitIdMatch;
+  }
+
+  // Registry row status: active bonus or closed/rejected penalty.
+  const rowStatus = String(registryRow?.status || '').toLowerCase();
+  if (rowStatus === 'approved' || rowStatus === 'active') {
+    score += pts.activeBusiness; parts.activeBusiness = pts.activeBusiness;
+  } else if (rowStatus === 'rejected' || rowStatus === 'closed' || rowStatus === 'archived') {
+    score += pts.closedRejected; parts.closedRejected = pts.closedRejected;
+  }
+
+  // Kind affinity: sameProduct vs sameAreaCapability.
+  const opKind = String(work?.kind || '').toLowerCase();
+  const affinity = cfg.kindAffinity || DEFAULT_MATCH.kindAffinity;
+  const preferredKinds = Array.isArray(affinity?.[opKind]) ? affinity[opKind] : [];
+  if (business.kind === 'product' && (opKind === 'change' || opKind === 'fix') && preferredKinds.includes('product')) {
+    score += pts.sameProduct; parts.sameProduct = pts.sameProduct;
+  } else if (business.kind && preferredKinds.includes(business.kind)) {
+    score += pts.sameAreaCapability; parts.sameAreaCapability = pts.sameAreaCapability;
+  } else if (business.kind === 'product' && (opKind === 'investigation' || opKind === 'compliance')) {
+    score += pts.incompatibleProduct; parts.incompatibleProduct = pts.incompatibleProduct;
+  }
+
+  // Compatible value intents: full (primary match) or half (secondary overlap).
+  const intentScore = intentMatch(work, business);
+  if (intentScore > 0) {
+    const intentPts = Math.round(intentScore * pts.compatibleValueIntents);
+    score += intentPts; parts.compatibleValueIntents = intentPts;
+  }
+
+  // Token overlap: Jaccard >= 0.15 earns the tokenOverlap bonus.
+  const jaccardScore = tokenOverlap(objective, business);
+  if (jaccardScore >= 0.15) {
+    score += pts.tokenOverlap; parts.tokenOverlap = pts.tokenOverlap;
+  }
+
   return { id: business.id, title: business.title, score, parts };
 }
 
@@ -170,22 +206,23 @@ export function matchBusiness(work, options = {}) {
     if (businesses.length === 0) return unlinked('no Business candidates in the work-context registry');
 
     const candidates = businesses
-      .map((row) => scoreCandidate(work, objective, readBusiness(memoryDir, row), cfg))
+      .map((row) => scoreCandidate(work, objective, readBusiness(memoryDir, row), cfg, row))
       .sort((a, b) => b.score - a.score || String(a.id).localeCompare(String(b.id)));
 
     const top = candidates[0];
     const runnerUp = candidates[1];
-    const { suggested: suggestedT, confirmed: confirmedT } = cfg.thresholds;
-    const clearWinner = !runnerUp || top.score - runnerUp.score >= (cfg.winnerMargin ?? 0.1);
+    const { suggested: suggestedT } = cfg.thresholds;
+    const nearTieMargin = cfg.nearTieMargin ?? 10;
+    const clearWinner = !runnerUp || top.score - runnerUp.score >= nearTieMargin;
 
     if (top.score < suggestedT) {
       return unlinked(`below suggested threshold (${top.score} < ${suggestedT}) — refuse-to-null`, candidates);
     }
 
-    const tier = top.score >= confirmedT ? 'high-confidence' : 'low-confidence';
-    const marginNote = clearWinner ? 'clear winner' : `near-tie with ${runnerUp.id} (margin < ${cfg.winnerMargin})`;
+    const tier = top.score >= (cfg.thresholds.confirm ?? 55) ? 'high-confidence' : 'low-confidence';
+    const marginNote = clearWinner ? 'clear winner' : `near-tie with ${runnerUp?.id} (margin < ${nearTieMargin})`;
     const reasons = [
-      `suggested=${top.id} (score ${top.score}; intent ${top.parts.intent}, kind ${top.parts.kind}, token ${top.parts.token}; ${tier}; ${marginNote})`,
+      `suggested=${top.id} (score ${top.score}; ${tier}; ${marginNote})`,
       'confirmed=null (provenance default — human approval ceremony in A3 stamps it, never the matcher)',
     ];
     return {

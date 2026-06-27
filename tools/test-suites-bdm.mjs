@@ -43,6 +43,16 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    id: 'clarify-bdm',
+    file: 'tools/integration-test-clarify-bdm.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      `${EXEC}/work-classify-nature.mjs`, `${EXEC}/work-classifier.mjs`,
+      `${EXEC}/request-orchestrator.mjs`,
+      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
+    ],
+  },
+  {
     id: 'decision-bdm',
     file: 'tools/integration-test-decision-bdm.mjs',
     tier: 'integration:workflow',
@@ -115,6 +125,63 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/economics/investment-forecast-core.mjs',
       'templates/contextkit/tools/scripts/operation-recurrence.mjs',
       'templates/contextkit/tools/scripts/operation-recurrence-core.mjs',
+    ],
+  },
+  {
+    id: 'registry-shim-bdm',
+    file: 'templates/contextkit/runtime/execution/task-intake-registry-shim.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/runtime/execution/task-intake.mjs',
+      'templates/contextkit/runtime/config/paths.mjs',
+    ],
+  },
+  {
+    id: 'w5-gate-enforcement',
+    file: 'templates/contextkit/runtime/hooks/gate-enforcement-decision.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/runtime/hooks/gate-enforcement-decision.mjs',
+      'templates/contextkit/runtime/hooks/execution-gate.mjs',
+      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
+      'templates/contextkit/runtime/execution/execution-contract.mjs',
+      'templates/contextkit/runtime/hooks/session-start.mjs',
+      'templates/contextkit/runtime/hooks/boot-banner.mjs',
+    ],
+  },
+  {
+    id: 'w3-decision-cli',
+    file: 'templates/contextkit/tools/scripts/decision.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/decision.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-create.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-lifecycle.mjs',
+      'templates/contextkit/tools/scripts/decision-cli-registry.mjs',
+    ],
+  },
+  {
+    id: 'w3-work-verbs',
+    file: 'templates/contextkit/tools/scripts/work-verbs.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/work.mjs',
+      'templates/contextkit/tools/scripts/work-intake.mjs',
+      'templates/contextkit/tools/scripts/work-link.mjs',
+      'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
+      'templates/contextkit/tools/scripts/work-reconcile.mjs',
+      'templates/contextkit/tools/scripts/work-validate.mjs',
+    ],
+  },
+  {
+    id: 'w3-work-verbs-part2',
+    file: 'templates/contextkit/tools/scripts/work-verbs-part2.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/tools/scripts/work.mjs',
+      'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
+      'templates/contextkit/tools/scripts/work-reconcile.mjs',
+      'templates/contextkit/tools/scripts/work-validate.mjs',
     ],
   },
   {

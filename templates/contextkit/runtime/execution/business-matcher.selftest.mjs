@@ -1,6 +1,9 @@
 /**
  * In-process self-test for A2-T2 — Business matcher, intake-proposal store, and
  * the methodology decision layer (BIZ-0001 / WF-0036 Wave A2, ADR-0102).
+ * Updated for OP-0005 / ADR-0125: matcher now uses additive integer scoring
+ * (TABLE 3); thresholds are integers (75/55); OP_OBJECTIVE includes BIZ-9001 so
+ * the explicit-id bonus pushes score above the suggested floor.
  *
  * Zero-dependency, runs under plain `node`. Proves (Gate G-A2):
  *   1. matcher scores + thresholds deterministically on a fixture registry;
@@ -57,7 +60,9 @@ const OP_WORK = {
   valueIntents: { primary: 'RECOVER', secondary: ['IMPROVE'] },
   growthLever: 'RELIABILITY', executionMode: 'direct', confidence: 'high', reasons: [],
 };
-const OP_OBJECTIVE = 'fix the broken platform capability rollback after the failed release';
+// OP-0005: objective now includes 'BIZ-9001' to trigger the explicitIdMatch bonus (+100),
+// pushing the score well above the new integer suggested threshold (75).
+const OP_OBJECTIVE = 'fix the broken BIZ-9001 platform capability rollback after the failed release';
 
 // ---------------------------------------------------------------------------
 // 1 + 2 — deterministic scoring + byte-identical across two runs.
@@ -65,7 +70,7 @@ const OP_OBJECTIVE = 'fix the broken platform capability rollback after the fail
 const m1 = matchBusiness(OP_WORK, { root: ROOT, objective: OP_OBJECTIVE, registry: REGISTRY });
 const m2 = matchBusiness(OP_WORK, { root: ROOT, objective: OP_OBJECTIVE, registry: REGISTRY });
 assert('matcher suggests the fixture Business', m1.status === 'suggested' && m1.suggested === 'BIZ-9001');
-assert('matcher score is in (0,1]', m1.score > 0 && m1.score <= 1);
+assert('matcher score is a positive integer', m1.score > 0 && Number.isInteger(m1.score));
 assert('matcher is byte-identical across two runs', JSON.stringify(m1) === JSON.stringify(m2));
 assert('matcher records reasons[]', Array.isArray(m1.reasons) && m1.reasons.length >= 1);
 

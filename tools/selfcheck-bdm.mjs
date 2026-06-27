@@ -215,7 +215,7 @@ if (existsSync(POLICY_FILE)) {
 // ---------------------------------------------------------------------------
 console.log('\n[A2] line budget — no methodology file over the 308 hard ceiling\n');
 const A2_FILES = [
-  'work-classify-signals.mjs', 'work-classifier.mjs', 'business-matcher.mjs',
+  'work-classify-signals.mjs', 'work-classifier.mjs', 'work-classify-nature.mjs', 'business-matcher.mjs',
   'intake-proposal-store.mjs', 'intake-methodology.mjs',
 ].map((rel) => ({ rel, abs: resolve(EXEC, rel) }));
 for (const { rel, abs } of A2_FILES) {
@@ -231,6 +231,7 @@ console.log('\n[B2] line budget — no decision-intelligence file over the 308 h
 const B2_FILES = [
   { rel: 'execution/decision-need-classifier.mjs', abs: resolve(RUNTIME, 'execution/decision-need-classifier.mjs') },
   { rel: 'execution/materiality-score.mjs', abs: resolve(RUNTIME, 'execution/materiality-score.mjs') },
+  { rel: 'execution/materiality-policy-default.mjs', abs: resolve(RUNTIME, 'execution/materiality-policy-default.mjs') },
   { rel: 'execution/decision-triple.mjs', abs: resolve(RUNTIME, 'execution/decision-triple.mjs') },
   { rel: 'execution/decision-routine-coverage.mjs', abs: resolve(RUNTIME, 'execution/decision-routine-coverage.mjs') },
   { rel: 'scripts/decision-search-match.mjs', abs: resolve(SCRIPTS, 'decision-search-match.mjs') },

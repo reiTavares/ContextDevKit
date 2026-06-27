@@ -101,6 +101,9 @@ export function buildContract(signals, registry = loadRegistry()) {
       level: signals.level,
       needsAdr: signals.needsAdr,
       paths: Array.isArray(signals.paths) ? signals.paths : [],
+      // OP-0005 / ADR-0125 Wave 5: persist work classification so the enforcement
+      // gate can evaluate materiality at PreToolUse time without re-running intake.
+      work: signals.work ?? null,
     },
     requiredBeforeExploration,
     requiredBeforeWrite,
