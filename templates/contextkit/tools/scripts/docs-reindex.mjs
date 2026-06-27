@@ -83,7 +83,11 @@ function listMd(dir) {
   const out = [];
   let entries = [];
   try {
-    entries = readdirSync(dir, { withFileTypes: true });
+    // Deterministic, locale-independent order (code-point) so the generated index
+    // is byte-identical across OSes — readdirSync order is filesystem-dependent
+    // (Windows vs Linux/CI differ), which otherwise breaks docs idempotency.
+    entries = readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   } catch {
     return out;
   }

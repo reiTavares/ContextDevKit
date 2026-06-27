@@ -7,14 +7,15 @@ Organized by [Diátaxis](https://diataxis.fr/) — by what you are trying to do.
 ## 🎓 Tutorials — learning-oriented
 _Lessons that take a newcomer by the hand through a first success._
 
+- [Tutorial: <What the reader will accomplish>](tutorials/_TEMPLATE.md) — Goal: the reader succeeds at something for the FIRST TIME.
 - [Tutorial: From Idea to a Shipped Feature](tutorials/first-shipped-feature.md) — Goal: the reader succeeds at something for the FIRST TIME.
 - [Tutorial: Your First ContextDevKit Session](tutorials/getting-started.md) — Goal: the reader succeeds at something for the FIRST TIME.
-- [Tutorial: <What the reader will accomplish>](tutorials/_TEMPLATE.md) — Goal: the reader succeeds at something for the FIRST TIME.
 
 ## 🔧 How-to — task-oriented
 _Recipes that solve a specific real-world problem for someone who already knows the basics._
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
+- [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
 - [How to audit and test](how-to/audit-and-test.md) — Goal: reader runs a health audit, creates a test plan, scaffolds tests,
 - [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
 - [How to record a decision](how-to/record-a-decision.md) — Goal: reader writes a well-formed Architecture Decision Record before implementing.
@@ -24,7 +25,6 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [How to start a focused session](how-to/start-a-focused-session.md) — Goal: reader starts a scoped session that blocks opportunistic drift.
 - [How to tune autonomy and level](how-to/tune-autonomy-and-level.md) — Goal: reader adjusts how much the AI may do without asking (grade) and which
 - [How to use the pipeline board](how-to/use-the-pipeline-board.md) — Goal: reader creates, moves, and closes pipeline cards.
-- [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
 - [File Catalog Guide](workflow-engine/file-catalog-guide.md) — Every workflow artifact, its purpose, who authors it, its single source of
 - [Migration Guide](workflow-engine/migration-guide.md) — Migrating a legacy workflow onto the wave engine is **opt-in and
 - [Profile Guide](workflow-engine/profile-guide.md) — A profile is the complexity dial. Values below are read directly from
@@ -33,12 +33,12 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 ## 📚 Reference — information-oriented
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
+- [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
+- [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
+- [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
 - [Reference: Agents](reference/agents.md) — The specialized agents available to route work to. Generated from the agent registry.
 - [Reference: Slash commands](reference/commands.md) — Every slash command the platform ships, grouped by domain. Generated from the command registry.
 - [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
-- [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
-- [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
-- [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
 - [CLI Reference](workflow-engine/cli-reference.md) — Every `workflow` command, its flags, one example, and whether it **writes
 
 ## 💡 Explanation — understanding-oriented
@@ -46,9 +46,12 @@ _Background and rationale — the why behind the decisions._
 
 - [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
 - [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
-- [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
 - [Architecture](ARCHITECTURE.md) — How ContextDevKit works internally — for anyone extending the engine.
 - [Codex Integration — Architecture & Specification](CODEX.md) — How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Google Antigravity: same engine, same m…
+- [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
+- [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
+- [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
+- [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
 - [Active agent squads](explanation/active-squads.md) — _Why ContextDevKit turned its declared agent squads into an actively-routed, governed orchestration layer — determini…
 - [Business-driven development: connecting intent to execution](explanation/business-driven-development.md) — _Why ContextDevKit anchors engineering work in an explicit business case rather than a queue of tickets — and how the…
 - [Eight generic-engineering features: posture, safety, and reach](explanation/contextkit-parity.md) — _Why ContextDevKit added eight generic-engineering capabilities — real-time
@@ -59,9 +62,6 @@ _Background and rationale — the why behind the decisions._
 - [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why a development platform that runs AI agents needs to track three distinct resource dimensions — and how they rela…
 - [Why ContextDevKit: the engineering case](explanation/value-and-impact.md) — _The rationale behind treating AI-assisted development as engineering — who this is
 - [Workflow governance: enforcing the journey, not suggesting it](explanation/workflow-governance.md) — _Why ContextDevKit makes the `/workflow` lifecycle an engine-enforced gate instead of a checklist the AI is trusted t…
-- [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
-- [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
-- [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [Token-Economy & Agility Plan](token-economy-plan.md) — In this kit, **tokens are spent when the AI (Claude) reads files and reasons over
 - [Universal Wave-Based Workflow Engine](workflow-engine/README.md) — One wave-based execution model for every workflow size — from a one-wave Basic
 
