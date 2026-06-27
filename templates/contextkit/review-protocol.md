@@ -25,7 +25,7 @@ gate stay aligned. Inventing a parallel scale would drift them apart.
 
 | Label       | Scanner sev | Meaning                                                |
 | ----------- | :---------: | ------------------------------------------------------ |
-| `BLOCKER`   | 5           | Fix before merge. Fails `tech-debt-scan --ci`.         |
+| `BLOCKER`   | 5           | Fix before merge. Blocks `architecture-debt-gate --ci` (a real debt floor — never file size alone). |
 | `HARD`      | 4           | Clear violation, no cohesion excuse. Fix it.           |
 | `CANDIDATE` | 2–3         | Judgment call; may be justified. Explain the tradeoff. |
 | `NIT`       | 1           | Mention once, don't litigate.                          |

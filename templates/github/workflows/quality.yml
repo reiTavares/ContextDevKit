@@ -33,7 +33,11 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: 20
-      - run: node contextkit/tools/scripts/tech-debt-scan.mjs --ci
+      # Architecture & Technical Debt Governance Gate (ADR-0122) — the sole CI
+      # verdict path. Evaluates real debt across 12 dimensions; line count is an
+      # advisory signal only and never blocks. The legacy tech-debt-scan is now
+      # report-only (composed inside the gate as the line-count signal collector).
+      - run: node contextkit/tools/scripts/architecture-debt-gate.mjs --ci
 
   project-map:
     # Fails if the committed structural map is STALE or an architectural-fitness
