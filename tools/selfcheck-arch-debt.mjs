@@ -34,6 +34,8 @@ const CHILDREN = [
   'selfcheck-arch-debt-fitness.mjs',
   // W4 — engine end-to-end integration
   'selfcheck-arch-debt-gate.mjs',
+  // W6 — activation: §13 protection-gap + one-CI-verdict-path invariants
+  'selfcheck-arch-debt-activation.mjs',
 ];
 
 let failed = 0;

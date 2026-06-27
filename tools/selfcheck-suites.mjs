@@ -117,6 +117,9 @@ function main() {
     // WF-0057 W5.2 (ADR-0122) — gate config block + legacy line-budget migration;
     // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
     'tools/selfcheck-arch-debt-config.mjs',
+    // WF-0057 W6.1 (ADR-0122) — MASTER acceptance suite: §35 headline invariants +
+    // engine-level §34 GAP rows; sibling selfcheck, dispatched directly.
+    'tools/selfcheck-arch-debt-acceptance.mjs',
     // WF-0057 (BIZ-0001 ownership rule 3) — owned-workflow placement gate; sibling
     // selfcheck, dispatched directly (not an integration-test* entrypoint).
     'tools/selfcheck-workflow-ownership.mjs',
