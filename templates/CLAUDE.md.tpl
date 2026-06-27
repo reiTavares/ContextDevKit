@@ -11,6 +11,13 @@
 > `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
 > it. A denied action always names the exact corrective command. [→ ADR-0072]
 
+0. **Session start — orient before acting.** This project runs the Business-driven
+   methodology; **{{ROOT_BUSINESS|BIZ-0001}}** is the Root Business that governs
+   intake. Run `/state` at session start, and treat the intake ceremony as a
+   **standing obligation, not a one-off**: on every request classify the **Work
+   Nature** (`business` vs `operation`) and the **Execution Ceremony** (operation →
+   direct / batch / workflow; business → direct-business / decision / workflow)
+   **before** substantive work — honor it even when the gate is only advisory.
 1. **Intake** — on a new request the engine classifies the task (trivial / feature /
    architectural) and records an execution contract. Trivial tasks skip the ceremony.
 2. **Map before broad exploration** — for non-trivial work, consult `/project-map`
