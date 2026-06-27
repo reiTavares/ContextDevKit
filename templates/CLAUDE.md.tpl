@@ -23,6 +23,11 @@
    **before** substantive work — honor it even when the gate is only advisory.
 1. **Intake** — on a new request the engine classifies the task (trivial / feature /
    architectural) and records an execution contract. Trivial tasks skip the ceremony.
+   Run **`/work intake "<objective>"`** to classify it yourself (host-neutral CLI:
+   `node contextkit/tools/scripts/work.mjs intake`). **Never use `ctx`/`cdx`** —
+   those are the Antigravity/Codex runners and may be absent in a Claude install.
+   Then create the context with `/work operation` and **nest any workflow under its
+   owner** (`workflow.mjs new <slug> --owner <OP/BIZ-id>`), never loose/central.
 2. **Map before broad exploration** — for non-trivial work, consult `/project-map`
    before wide `Grep`/`Glob` sweeps.
 3. **Workflow before the first source write** — feature/architectural work needs an
@@ -205,8 +210,9 @@ Layers active depend on the level (see `contextkit/README.md`):
 
 ### Slash commands
 Setup: `/aidevtool-from0` (empty) · `/setupcontextdevkit` (existing). Daily: `/state`
-· `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
-· `/bug-hunt` · `/audit` · `/context-budget`. Multi-session: `/claim` · `/release` · `/worktree-new`.
+· `/work` (methodology entry: intake → operation → workflow) · `/log-session` · `/new-adr`
+· `/close-version` · `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
+· `/context-budget`. Multi-session: `/claim` · `/release` · `/worktree-new`.
 Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
 · `/contract-check` · `/deps-audit` · `/deep-analysis` · `/validate-doc` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
 execution: `/roadmap` · `/pipeline` · `/plan-week` · `/ship` · `/retro`

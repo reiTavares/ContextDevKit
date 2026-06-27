@@ -13,7 +13,7 @@ This playbook directs adversarial verification and regression testing.
 ## 📝 Best Practices
 1. **Three-Layer Plans:** Ensure testing includes Happy Path, Edge Cases, and Failure Scenarios.
 2. **Deterministic Runs:** Avoid flaky tests. Mock out temporal functions and network dependencies.
-3. **QA Verification Commands:**
+3. **QA Verification Commands** (Claude Code — use the slash commands, not `ctx`/`cdx`):
    * Run full suite: `npm test` or `npm run test`
-   * Test scaffolding: `node cdx.mjs scaffold-tests <file>`
-   * QA Signoff check: `node cdx.mjs qa-signoff`
+   * Test scaffolding: `/scaffold-tests <file>`
+   * QA Signoff check: `/qa-signoff`
