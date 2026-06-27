@@ -37,6 +37,11 @@ const MEMORY_SEEDS = [
   'memory/decisions/_templates/adr-business.template.md', 'memory/decisions/_templates/adr-operation.template.md',
   'memory/decisions/_templates/adr-routine-operation-governance.template.md',
   'memory/decisions/_templates/adr-emergency-governance.template.md',
+  // BIZ-0001 Business document templates — seeded so the methodology roots ship
+  // WITH their fill-in templates (the BIZ-0001 scaffold itself is materialized by
+  // seed-methodology.mjs at install/update time).
+  'memory/business/_TEMPLATE-business-case.md', 'memory/business/_TEMPLATE-growth.md',
+  'memory/business/_TEMPLATE-investment-decision.md',
   'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md',
   'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/project-map/rules.example.json', 'memory/sessions/.gitkeep',
   'memory/workflows/.gitkeep', 'memory/workflows/_TEMPLATE/index.md', 'memory/workflows/_TEMPLATE/prd.md',
