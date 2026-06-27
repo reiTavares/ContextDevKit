@@ -122,8 +122,11 @@ try {
       : rep.bad(`CG1. L4: expected silence, got: ${out.slice(0, 200)}`);
   }
 
-  // Restore L5 for remaining cases.
-  writeFileSync(cfgPath, JSON.stringify({ level: 5 }), 'utf-8');
+  // Restore L5 for remaining cases. Advisory mode is explicit here so CG2 (which
+  // tests warn-only, non-blocking behaviour) is not affected by the guarded default
+  // introduced in ADR-0125. CG3-CG6 are mode-agnostic (receipt/no-task/debounce
+  // each silence the hook before enforcement mode is consulted).
+  writeFileSync(cfgPath, JSON.stringify({ level: 5, enforcement: { mode: 'advisory' } }), 'utf-8');
 
   // CG2. L5, active task + contract requiring 'tests', NO receipt -> advisory text.
   console.log('\nCG2. L5 + contract + no receipt -> advisory nudge...');
