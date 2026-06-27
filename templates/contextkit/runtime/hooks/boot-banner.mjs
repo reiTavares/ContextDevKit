@@ -74,6 +74,18 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
+  // OP-0005 / ADR-0125 Wave 5: intake readiness banner — only shown when the
+  // gate is live (guarded or strict). Advisory mode is silent (no banner noise).
+  if (boot.intakeReadiness && boot.intakeReadiness.mode !== 'advisory') {
+    const { mode } = boot.intakeReadiness;
+    out.push(`## 🔒 Intake gate active (${mode} mode)`);
+    out.push('');
+    out.push(`The capability enforcement gate is in **${mode}** mode — business tasks and`);
+    out.push('ceremony prompts require a completed intake before any writes are allowed.');
+    out.push(`Run **\`${commandRef('dev-start')}\`** to open a workflow and satisfy the intake gate.`);
+    out.push('');
+  }
+
   if (boot.behaviorsActive) {
     out.push('## 🧭 Behavioral discipline is ACTIVE');
     out.push('');

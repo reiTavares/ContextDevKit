@@ -235,6 +235,19 @@ async function main() {
   // methodology) via the extracted helper. Advisory output is written to
   // stdout inside runAdvisory(); routing result is returned for the checklist.
   const contract = buildContract(signals);
+
+  // OP-0005 / ADR-0125 Wave 5: when the work is classified as 'business' or needs
+  // clarification, require intake-completed before any write. Additive + fail-open:
+  // the contract proceeds unchanged if this block throws for any reason (rule 2).
+  try {
+    if (signals.work && (signals.work.nature === 'business' || signals.work.needsClarification)) {
+      if (!contract.requiredBeforeWrite.includes('intake-completed')) {
+        contract.requiredBeforeWrite.push('intake-completed');
+        contract.requiredBeforeWrite.sort();
+      }
+    }
+  } catch { /* fail-open: contract proceeds unchanged */ }
+
   const { routing } = runAdvisory({ promptText, signals, sessionId, taskId, root: ROOT, host: HOST, routingLog: ROUTING_LOG });
   if (routing && routing.active) contract.routing = routing.summary;
   saveContract(ROOT, taskId, contract);

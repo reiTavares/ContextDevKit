@@ -137,6 +137,19 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    id: 'w5-gate-enforcement',
+    file: 'templates/contextkit/runtime/hooks/gate-enforcement-decision.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/runtime/hooks/gate-enforcement-decision.mjs',
+      'templates/contextkit/runtime/hooks/execution-gate.mjs',
+      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
+      'templates/contextkit/runtime/execution/execution-contract.mjs',
+      'templates/contextkit/runtime/hooks/session-start.mjs',
+      'templates/contextkit/runtime/hooks/boot-banner.mjs',
+    ],
+  },
+  {
     id: 'b4-adr-tooling',
     file: 'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
     tier: 'selfcheck',
