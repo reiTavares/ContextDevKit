@@ -32,6 +32,29 @@ function isBand(value) {
 }
 
 /**
+ * Normalise the optional conformance baseline (the pre-existing graph evidence to
+ * grandfather, §25) into the shape `evaluateConformance` reads. Defaults to an
+ * EMPTY graph baseline: the current tree is itself the conformant baseline, so any
+ * NEW cycle/boundary/state-authority violation blocks while nothing pre-existing
+ * is silently introduced. A present (non-null object) baseline is what flips
+ * F1/F2/F3 from a fail-closed UNKNOWN into a real evaluation — so the resolver
+ * supplies it ONLY when the floors are configured (null otherwise keeps F1/F2/F3
+ * SKIPPED via `degradeUnconfigured`, never a blocking UNKNOWN on an install that
+ * has not opted in).
+ *
+ * @param {Object} [provided]  optional `architectureDebtGate.conformanceBaseline`.
+ * @returns {{cycles:Array, forbiddenEdges:Array, stateAuthorities:Array}}
+ */
+function normaliseBaseline(provided) {
+  const base = provided && typeof provided === 'object' ? provided : {};
+  return {
+    cycles: Array.isArray(base.cycles) ? base.cycles : [],
+    forbiddenEdges: Array.isArray(base.forbiddenEdges) ? base.forbiddenEdges : [],
+    stateAuthorities: Array.isArray(base.stateAuthorities) ? base.stateAuthorities : [],
+  };
+}
+
+/**
  * Resolve the line-count bands + whether the legacy alias drove them.
  *
  * @param {Object} gate  the `architectureDebtGate` config slice (may be partial).
@@ -103,7 +126,9 @@ export function lineBudgetDeprecationNotice(config) {
  *   enabled:boolean, mode:string, lineBands:{yellow:number, elevated:number},
  *   lineSignalsBlocking:boolean, ruleModes:Object, baseline:Object, floors:Object,
  *   scope:Object, unknownEvidence:string, projectMap:Object|undefined,
- *   deprecationNotice:string|null, legacyMigrated:boolean,
+ *   layerRules:Object|undefined, ownership:Object|undefined,
+ *   writeAuthorities:Array|undefined, conformanceBaseline:Object|null,
+ *   conformanceConfigured:boolean, deprecationNotice:string|null, legacyMigrated:boolean,
  * }}
  */
 export function resolveArchDebtConfig(config = {}) {
@@ -114,6 +139,17 @@ export function resolveArchDebtConfig(config = {}) {
   const l5 = cfg.l5 && typeof cfg.l5 === 'object' ? cfg.l5 : {};
 
   const { bands, fromLegacy } = resolveBands(gate, l5);
+
+  // Architecture-conformance authorities (F1/F2/F3, §9.1). Project-specific: a
+  // project declares its `layerRules` (layers + forbidden import directions, F2),
+  // the canonical `ownership` map (state-key → owner module, F3), and the declared
+  // `writeAuthorities` (F3). When ANY is wired the conformance floors EVALUATE; a
+  // matching non-null `conformanceBaseline` is then supplied so they run the rules
+  // instead of failing closed to UNKNOWN. When NONE is wired they stay SKIPPED.
+  const layerRules = gate.layerRules && typeof gate.layerRules === 'object' ? gate.layerRules : undefined;
+  const ownership = gate.ownership && typeof gate.ownership === 'object' ? gate.ownership : undefined;
+  const writeAuthorities = Array.isArray(gate.writeAuthorities) ? gate.writeAuthorities : undefined;
+  const conformanceConfigured = Boolean(layerRules || ownership || writeAuthorities);
 
   return {
     // Master switch + gear (ACTIVE by contract).
@@ -134,6 +170,15 @@ export function resolveArchDebtConfig(config = {}) {
 
     // The structural scanner honours projectMap roots/excludes when present.
     projectMap: cfg.projectMap,
+
+    // Conformance authorities (F1/F2/F3). `conformanceBaseline` is null when the
+    // floors are unconfigured (→ SKIPPED), an empty-by-default graph baseline when
+    // they are (→ EVALUATE; current tree is the conformant baseline, regression blocks).
+    layerRules,
+    ownership,
+    writeAuthorities,
+    conformanceConfigured,
+    conformanceBaseline: conformanceConfigured ? normaliseBaseline(gate.conformanceBaseline) : null,
 
     // Migration telemetry.
     deprecationNotice: lineBudgetDeprecationNotice(cfg),

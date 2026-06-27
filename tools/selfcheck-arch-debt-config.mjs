@@ -131,6 +131,23 @@ if (!zod) {
     const badMode = validateConfig({ architectureDebtGate: { mode: 'enforce' } });
     !badMode.ok
       ? ok('schema: rejects an unknown gate mode') : bad('schema: accepted an unknown mode');
+
+    // #370 — the conformance authorities (layerRules/ownership/writeAuthorities)
+    // round-trip through the schema; a malformed layerRules (missing forbidden) is refused.
+    const wiredFloors = validateConfig({
+      level: 5,
+      architectureDebtGate: {
+        layerRules: { layers: { core: ['templates'] }, forbidden: [{ from: 'core', to: 'tooling' }] },
+        ownership: { 'kit.config': 'a/load.mjs' },
+        writeAuthorities: [{ state: 'kit.config', module: 'a/load.mjs' }],
+      },
+    });
+    wiredFloors.ok && wiredFloors.config.architectureDebtGate.layerRules
+      && wiredFloors.config.architectureDebtGate.ownership['kit.config'] === 'a/load.mjs'
+      ? ok('schema: accepts + round-trips wired conformance authorities') : bad('schema: dropped/rejected wired floors: ' + (wiredFloors.ok ? 'authorities lost' : JSON.stringify(wiredFloors.error?.issues)));
+    const badLayerRules = validateConfig({ architectureDebtGate: { layerRules: { layers: { core: ['templates'] } } } });
+    !badLayerRules.ok
+      ? ok('schema: rejects layerRules missing forbidden directions') : bad('schema: accepted layerRules without forbidden');
   } catch (err) {
     bad('schema validation crashed: ' + (err && err.message || err));
   }

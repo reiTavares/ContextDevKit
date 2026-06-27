@@ -33,6 +33,27 @@ const ArchDebtLineSignalsSchema = z
   .passthrough()
   .default({});
 
+// F2 (boundary) authorities: layers (name → path prefixes) + forbidden import
+// directions (fromLayer → toLayer). Optional adapters/invertPairs refine the rule.
+const LayerRulesSchema = z
+  .object({
+    layers: z.record(z.string(), z.array(z.string())),
+    forbidden: z.array(z.object({ from: z.string(), to: z.string() }).passthrough()),
+  })
+  .passthrough();
+
+// F3 (state-authority): one declared write-authority per state key.
+const WriteAuthoritySchema = z.object({ state: z.string().min(1), module: z.string().min(1) }).passthrough();
+
+// §25 pre-existing conformance evidence to grandfather (empty = nothing grandfathered).
+const ConformanceBaselineSchema = z
+  .object({
+    cycles: z.array(z.array(z.string())).default([]),
+    forbiddenEdges: z.array(z.object({ from: z.string(), to: z.string() }).passthrough()).default([]),
+    stateAuthorities: z.array(WriteAuthoritySchema).default([]),
+  })
+  .passthrough();
+
 export const ArchitectureDebtGateSchema = z
   .object({
     enabled: z.boolean().default(true),
@@ -73,6 +94,14 @@ export const ArchitectureDebtGateSchema = z
       .passthrough()
       .default({}),
     unknownEvidence: z.string().min(1).default('REVIEW_REQUIRED'),
+
+    // Conformance authorities (F1/F2/F3) — all OPTIONAL. Wiring any of them flips
+    // the conformance floors from SKIPPED to EVALUATE (resolve-arch-debt-config).
+    // Absent ⇒ the floors stay dormant (an install opts in deliberately).
+    layerRules: LayerRulesSchema.optional(),
+    ownership: z.record(z.string(), z.string()).optional(),
+    writeAuthorities: z.array(WriteAuthoritySchema).optional(),
+    conformanceBaseline: ConformanceBaselineSchema.optional(),
   })
   .passthrough()
   .default({});

@@ -246,7 +246,13 @@ async function main() {
   if (resolved.deprecationNotice) {
     process.stderr.write(`[arch-debt] ${resolved.deprecationNotice}\n`);
   }
-  const result = await runGate({ root: process.cwd(), config: resolved });
+  // `conformanceBaseline` is null until the project wires layerRules/ownership —
+  // then F1/F2/F3 EVALUATE against it (empty by default: the current tree is the
+  // conformant baseline, so a regression blocks and nothing pre-existing is faked
+  // as "new"). Null keeps the floors SKIPPED, never a blocking UNKNOWN (§34.28/29).
+  const result = await runGate({
+    root: process.cwd(), config: resolved, baseline: resolved.conformanceBaseline,
+  });
   process.stdout.write(result.report);
   if (args.includes('--json')) {
     process.stdout.write(JSON.stringify({ outcome: result.outcome, blockingRuleIds: result.store.blockingRuleIds }, null, 2) + '\n');

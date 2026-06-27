@@ -46,7 +46,7 @@ export const ECONOMY_ACTIVATION_SCHEMA_VERSION = 'cdk-economy-activation/1';
  */
 const GUIDANCE_LINES = Object.freeze([
   'Locate code with project-map --find before broad search; only exact hits may feed the Task Compiler canary.',
-  'For exact Project Map hits, run task-compiler.mjs --symbol <symbol> --objective "<objective>"; otherwise report skipped.',
+  'For exact Project Map hits, run task-compiler.mjs --symbol <symbol> --objective "<objective>" to compile a work-packet; otherwise report skipped.',
   'When a prior checkpoint/run id exists, render resume-pack.mjs before re-reading old context.',
   'Before subagent dispatch, run subagent-profile.mjs and pass only the bounded packet/profile.',
   'Run tests/builds via run-compact so only new failures enter context, not full logs.',
