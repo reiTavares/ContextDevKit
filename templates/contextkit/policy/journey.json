@@ -103,7 +103,7 @@
     }
   ],
   "enforcement": {
-    "mode": "advisory",
-    "_note": "First cut (ADR-0127): verifier + boot/exec surfacing are advisory-rich. Blocking checkpoints (workflowNestedUnderOwner, adrNumberContiguous, governingAdrAccepted, testsGreen+qaSignoff at completion) are turned on in the second cut, guarded+fallback per ADR-0125."
+    "mode": "guarded",
+    "_note": "Second cut (ADR-0127): journey-gate.mjs (PreToolUse Edit|Write) BLOCKS a positively-FALSE checkpoint it can evaluate safely — workflowNestedUnderOwner=false (loose/central owned workflow) or adrNumberContiguous=false (forked/duplicate ADR series) — and degrades to advisory (warn, exit 0) when it cannot enforce (no entity, unknown evidence, fresh install, error). governingAdrAccepted is surfaced as advisory + enforced for material work by the ADR-0125 materiality gate, not double-blocked here. Set 'advisory' to opt out, 'strict' to tighten."
   }
 }

@@ -283,6 +283,23 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    // ADR-0127 Phase 2 (second cut) — journey BLOCKING gate (guarded+fallback).
+    // Over-block is the headline risk; this suite proves block-only-on-positively-false.
+    id: 'journey-gate',
+    file: 'tools/integration-test-journey-gate.mjs',
+    tier: 'integration:enforcement',
+    touches: [
+      'templates/contextkit/runtime/hooks/journey-gate.mjs',
+      'templates/contextkit/runtime/work/journey-verifier.mjs',
+      'templates/contextkit/runtime/work/journey-evidence-registry.mjs',
+      'templates/contextkit/runtime/hooks/journey-surface.mjs',
+      'templates/contextkit/policy/journey.json',
+      'templates/contextkit/runtime/config/settings-compose.mjs',
+      'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
+      'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
+    ],
+  },
+  {
     // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
     id: 'intake-gate',
     file: 'tools/integration-test-intake-gate.mjs',

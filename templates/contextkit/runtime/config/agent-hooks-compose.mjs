@@ -53,6 +53,7 @@ export function composeAgentHooks(existing, level) {
   if (level >= 4) group.PostToolUse.push(...perWriteTool('auto-format.mjs')); // ADR-0061 — advisory format/lint
   if (level >= 5) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
+    group.PreToolUse.push(...perWriteTool('journey-gate.mjs')); // ADR-0127 — methodology journey enforcement (guarded+fallback)
     group.PreToolUse.push(...perWriteTool('deliberation-nudge.mjs'));
     group.Stop.push(command(`node ${HOOKS_DIR}/done-sweep.mjs --host agy`));
   }
