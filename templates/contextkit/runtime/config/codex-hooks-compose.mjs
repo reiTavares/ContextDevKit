@@ -51,6 +51,7 @@ export function composeCodexHooks(existing, level) {
   if (level >= 4) add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write', 'simulate-gate.mjs');
+    add('PreToolUse', 'Edit|Write', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)
     add('PreToolUse', 'Edit|Write', 'deliberation-nudge.mjs');
     add('UserPromptSubmit', null, 'execution-contract-hook.mjs');
     add('PreToolUse', 'Edit|Write|Bash|mcp__.*', 'execution-gate.mjs');

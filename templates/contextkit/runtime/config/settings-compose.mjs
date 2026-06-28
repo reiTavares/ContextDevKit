@@ -56,6 +56,7 @@ export function composeSettings(existing, level) {
   if (level >= 4) add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)
     add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs'); // ADR-0035 — soft nudge, never blocks
     // Capability Enforcement (PKG-03, ADR-0072; ADR-0125) — GUARDED-with-fallback by
     // DEFAULT (enforcement.mode defaults to 'guarded'): the intake ceremony ships ACTIVE.

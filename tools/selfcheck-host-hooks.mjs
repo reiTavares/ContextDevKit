@@ -57,8 +57,8 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
       : bad(`agy L${lvl} expected [${want}] got [${got}]`);
   }
   const l5 = group(5);
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 3 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
-    ? ok('agy PreToolUse wires guard+gate+nudge once per write tool')
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 4 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
+    ? ok('agy PreToolUse wires guard+simulate+journey+nudge once per write tool')
     : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
   l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
     ? ok('every agy tool hook carries the --host agy flag')
