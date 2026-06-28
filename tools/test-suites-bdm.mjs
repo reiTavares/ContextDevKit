@@ -269,6 +269,17 @@ export const BDM_SUITES = Object.freeze([
     touches: [
       'templates/contextkit/policy/journey.json',
       'templates/contextkit/runtime/work/journey-verifier.mjs',
+      'templates/contextkit/runtime/hooks/journey-surface.mjs',
+    ],
+  },
+  {
+    // ADR-0127 Phase 2 — registry-backed evidence-gatherer (real on-disk verdicts).
+    id: 'journey-evidence',
+    file: 'tools/integration-test-journey-evidence.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      'templates/contextkit/runtime/work/journey-evidence-registry.mjs',
+      'templates/contextkit/runtime/hooks/journey-surface.mjs',
     ],
   },
   {

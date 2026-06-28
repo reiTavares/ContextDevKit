@@ -85,6 +85,9 @@ export function renderBootBanner(boot) {
     out.push(`Run **\`${commandRef('work', 'intake "<objective>"')}\`** to classify the request and satisfy the gate`);
     out.push('(host-neutral CLI: `node contextkit/tools/scripts/work.mjs intake` — never `ctx`/`cdx`).');
     out.push(`For non-trivial work, then open the context + workflow with \`${commandRef('work', 'operation')}\` / \`${commandRef('dev-start')}\`.`);
+    out.push('🗺️ The methodology **journey is mapped + checkpointed** (`policy/journey.json`, ADR-0127): each');
+    out.push('   request prints the exact next stage + command (`‹CONTEXTKIT-JOURNEY›`) — follow it in order,');
+    out.push('   nest workflows under their owner, and never start a new ADR series.');
     out.push('');
   }
 
