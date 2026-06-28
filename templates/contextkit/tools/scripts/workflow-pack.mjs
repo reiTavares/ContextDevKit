@@ -28,6 +28,28 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 function workflowsDir(root) { return resolve(pathsFor(root).memory, 'workflows'); }
 
 /**
+ * Resolves an owner's nested `workflows/` dir (BIZ-0001 ownership rule 3), so an
+ * owned pack-workflow lands under its parent context — never loose/central. Mirrors
+ * `ownerWorkflowsDir` in `workflow/create.mjs` (kept local to avoid a cross-module
+ * cycle; ~6 lines). Returns null when the owner id is malformed or its context
+ * folder does not exist yet (caller then falls back to central). [ADR-0116/0127]
+ *
+ * @param {string} root project root.
+ * @param {string} owner owner id (`BIZ-####` / `OP-####`).
+ * @returns {string|null} absolute `<owner-folder>/workflows` dir, or null.
+ */
+function ownerWorkflowsDir(root, owner) {
+  if (!/^(BIZ|OP)-\d{4}$/.test(owner || '')) return null;
+  const base = resolve(pathsFor(root).memory, owner.startsWith('BIZ') ? 'business' : 'operations');
+  try {
+    for (const entry of readdirSync(base, { withFileTypes: true })) {
+      if (entry.isDirectory() && entry.name.startsWith(`${owner}-`)) return resolve(base, entry.name, 'workflows');
+    }
+  } catch { /* no contexts root yet */ }
+  return null;
+}
+
+/**
  * Absolute pack dir for an id-or-slug, resolved across EVERY root (BIZ-0001 /
  * WF-0036 A4): top-level `workflows/` plus each owned `business|operations/<id>/
  * workflows/`. Without this an owner-nested workflow (ownership rule 3) is
@@ -134,11 +156,21 @@ function write(root, slug, relativePath, text) {
   writeFileAtomicSync(fullPath, text);
 }
 
-function seedFiles(root, slug, kind, number = '', owner = null) {
-  for (const seed of seedFileContents(slug)) write(root, slug, seed.filename, seed.content);
-  write(root, slug, 'reports/.gitkeep', '');
+function seedFiles(root, slug, kind, number = '', owner = null, packDirAbs = null) {
+  // When packDirAbs is supplied (owner-nested create), write directly to it — the
+  // not-yet-on-disk nested dir is invisible to packDir() until resolveWorkflow's
+  // fs-walk sees it, so creation must target the explicit dir. Back-compat: when
+  // null, behave exactly as before (central via packDir).
+  const base = packDirAbs || packDir(root, slug);
+  const writeTo = (rel, text) => {
+    const full = resolve(base, rel);
+    mkdirSync(resolve(full, '..'), { recursive: true });
+    writeFileAtomicSync(full, text);
+  };
+  for (const seed of seedFileContents(slug)) writeTo(seed.filename, seed.content);
+  writeTo('reports/.gitkeep', '');
   const workflow = { slug, kind, number, owner: owner || '', started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
-  writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
+  writeTo('index.md', renderIndex(workflow));
 }
 
 export function createWorkflow(root, slug, kind = 'feature', owner = null) {
@@ -148,14 +180,18 @@ export function createWorkflow(root, slug, kind = 'feature', owner = null) {
   if ((kind === 'feature' || kind === 'architecture') && !/^(BIZ|OP)-\d{4}$/.test(owner || '')) {
     throw new Error(`workflow "${slug}" (${kind}) needs an owner — pass --operation OP-#### or --business BIZ-#### (create it first). [ADR-0116]`);
   }
-  const dir = workflowsDir(root);
+  // ADR-0116/0127 (BIZ-0001 ownership rule 3): an owned workflow NESTS under its
+  // parent context (operations/business/<owner>/workflows/), never loose/central.
+  // Fall back to central only when the owner's context folder does not exist yet.
+  const dir = owner ? (ownerWorkflowsDir(root, owner) || workflowsDir(root)) : workflowsDir(root);
   mkdirSync(dir, { recursive: true });
   if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
   // UNIVERSAL numbering (BIZ-0001 / WF-0036 A4, ADR-0119): global max+1 across every
   // root (legacy + business + operations + done/), NEVER a per-directory count.
   const number = nextWorkflowNumber(root);
-  mkdirSync(resolve(dir, `${number}-${slug}`), { recursive: true });
-  seedFiles(root, slug, kind, number, owner);
+  const packDirAbs = resolve(dir, `${number}-${slug}`);
+  mkdirSync(packDirAbs, { recursive: true });
+  seedFiles(root, slug, kind, number, owner, packDirAbs);
   return readWorkflow(root, slug);
 }
 
