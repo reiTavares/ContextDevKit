@@ -17,6 +17,7 @@
 import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { routePrompt } from '../execution/routing-runtime.mjs';
 import { runMethodology } from '../execution/intake-methodology.mjs';
+import { renderJourneyAdvisory } from './journey-surface.mjs';
 
 // ---------------------------------------------------------------------------
 // Checklist renderer (exported for selfcheck unit testing)
@@ -139,6 +140,15 @@ export function runAdvisory({ promptText, signals, sessionId, taskId, root, host
     if (coverageMsg) process.stdout.write(`${coverageMsg}\n`);
   } catch {
     // coverage advisory is fail-open; silent on any failure
+  }
+
+  // ADR-0127 Phase 2 (first cut) — journey advisory: current stage + exact next
+  // command for the resolved branch. Additive + fail-open, same contract as above.
+  try {
+    const journeyMsg = renderJourneyAdvisory(root, signals);
+    if (journeyMsg) process.stdout.write(journeyMsg);
+  } catch {
+    // journey surfacing is advisory; silent on any failure
   }
 
   return { routing };

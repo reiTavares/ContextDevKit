@@ -95,7 +95,28 @@ async function main() {
     ? ok('verifier: unknown branch → null (defensive)')
     : bad('verifier: unknown branch should return null');
 
-  rep.finish('methodology journey map + verifier (ADR-0127)');
+  // ── 3. the surfacing layer (evidence from signals + advisory render) ────────
+  const { evidenceFromSignals, renderJourneyAdvisory } = await load('templates/contextkit/runtime/hooks/journey-surface.mjs');
+
+  const ev = evidenceFromSignals({ tier: 'trivial', work: { nature: 'operation', decisions: { primary: 'ADR-0001' } } });
+  ev.intakeRecorded === true && ev.governingAdrAccepted === true && ev.atShipPhaseOrTrivial === true
+    ? ok('surface: evidenceFromSignals derives intake/govAdr/trivial from signals')
+    : bad(`surface: evidenceFromSignals wrong: ${JSON.stringify(ev)}`);
+
+  Object.keys(evidenceFromSignals({})).length === 1
+    ? ok('surface: bare signals yield only intakeRecorded (rest unknown → pending)')
+    : bad('surface: bare signals leaked extra evidence');
+
+  const block = renderJourneyAdvisory(KIT, { work: { nature: 'operation', executionMode: 'direct' } });
+  block.includes('‹CONTEXTKIT-JOURNEY branch=operation-direct›') && block.includes('next:') && /work\.mjs|\//.test(block)
+    ? ok('surface: renderJourneyAdvisory emits branch + next command for operation work')
+    : bad(`surface: advisory block malformed: ${JSON.stringify(block)}`);
+
+  renderJourneyAdvisory(KIT, { work: {} }) === ''
+    ? ok('surface: no resolvable branch → empty string (intake banner covers it)')
+    : bad('surface: expected empty string when branch unresolved');
+
+  rep.finish('methodology journey map + verifier + surfacing (ADR-0127)');
 }
 
 main();
