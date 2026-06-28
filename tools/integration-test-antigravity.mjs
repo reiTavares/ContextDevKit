@@ -175,9 +175,21 @@ try {
 
   // ── workflow spec-pack gates and phase-aware guard integration test ──
   const w1 = ctx('workflow', 'new', 'testwf', '--business', 'BIZ-0001');
-  // ADR-0071: workflows are numbered (NNNN-slug); resolve the folder by slug suffix.
-  const wfRootA = join(proj, 'contextkit', 'memory', 'workflows');
-  const wfDir = join(wfRootA, readdirSync(wfRootA).find((f) => f === 'testwf' || f.endsWith('-testwf')) || 'testwf');
+  // ADR-0071/0127: numbered (NNNN-slug) AND an owned workflow nests under its
+  // owner's workflows/ (not central) — resolve testwf anywhere it may live.
+  const memA = join(proj, 'contextkit', 'memory');
+  const wfDirsA = () => {
+    const dirs = [join(memA, 'workflows')];
+    for (const kind of ['business', 'operations']) {
+      try { for (const c of readdirSync(join(memA, kind))) dirs.push(join(memA, kind, c, 'workflows')); } catch { /* none */ }
+    }
+    return dirs;
+  };
+  let wfDir = join(memA, 'workflows', 'testwf');
+  for (const d of wfDirsA()) {
+    let hit; try { hit = readdirSync(d).find((f) => f === 'testwf' || f.endsWith('-testwf')); } catch { /* skip */ }
+    if (hit) { wfDir = join(d, hit); break; }
+  }
   w1.status === 0 && existsSync(join(wfDir, 'index.md'))
     ? ok('can create a new workflow folder pack')
     : bad(`failed to create workflow (status ${w1.status}): ${w1.stdout + w1.stderr}`);

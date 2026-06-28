@@ -30,9 +30,23 @@ function testWorkflowMacro() {
   gitRun(['init', '-b', 'main'], proj);
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WF', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
-  // ADR-0071: workflows are numbered (NNNN-slug); resolve the demo folder by slug suffix.
-  const wfRoot = join(proj, 'contextkit/memory/workflows');
-  const demoDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'demo' || f.endsWith('-demo')) || 'demo');
+  // ADR-0071/0127: workflows are numbered (NNNN-slug) and an OWNED workflow nests
+  // under its owner's workflows/ (not central) — resolve the demo folder anywhere.
+  const mem = join(proj, 'contextkit/memory');
+  const wfDirs = () => {
+    const dirs = [join(mem, 'workflows')];
+    for (const kind of ['business', 'operations']) {
+      try { for (const ctx of readdirSync(join(mem, kind))) dirs.push(join(mem, kind, ctx, 'workflows')); } catch { /* none */ }
+    }
+    return dirs;
+  };
+  const demoDir = () => {
+    for (const d of wfDirs()) {
+      let hit; try { hit = readdirSync(d).find((f) => f === 'demo' || f.endsWith('-demo')); } catch { /* skip */ }
+      if (hit) return join(d, hit);
+    }
+    return join(mem, 'workflows', 'demo');
+  };
   cli('new', 'BAD!!').status === 1 ? ok('/workflow refuses invalid slug (ticket 041)') : bad('bad slug accepted');
   cli('new', 'demo', '--kind', 'feature', '--business', 'BIZ-0001').status === 0 &&
     existsSync(join(demoDir(), 'index.md')) &&
@@ -90,8 +104,19 @@ function testWorkflowDefensiveness() {
   // No `git init` here: the dir is deliberately NOT a repository.
   run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'WFD', '--yes']);
   const cli = (...a) => run([join(proj, 'contextkit', 'tools', 'scripts', 'workflow.mjs'), ...a], { cwd: proj });
-  const wfRoot = join(proj, 'contextkit/memory/workflows');
-  const nogitDir = () => join(wfRoot, readdirSync(wfRoot).find((f) => f === 'nogit' || f.endsWith('-nogit')) || 'nogit');
+  // ADR-0127: owned workflow nests under its owner — resolve nogit anywhere.
+  const mem = join(proj, 'contextkit/memory');
+  const nogitDir = () => {
+    const dirs = [join(mem, 'workflows')];
+    for (const kind of ['business', 'operations']) {
+      try { for (const ctx of readdirSync(join(mem, kind))) dirs.push(join(mem, kind, ctx, 'workflows')); } catch { /* none */ }
+    }
+    for (const d of dirs) {
+      let hit; try { hit = readdirSync(d).find((f) => f === 'nogit' || f.endsWith('-nogit')); } catch { /* skip */ }
+      if (hit) return join(d, hit);
+    }
+    return join(mem, 'workflows', 'nogit');
+  };
   cli('new', 'nogit', '--business', 'BIZ-0001');
   const report = cli('report', 'nogit');
   const reportPath = join(nogitDir(), 'reports', `${new Date().toISOString().slice(0, 10)}.md`);

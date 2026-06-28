@@ -31,7 +31,8 @@ const root = mkdtempSync(resolve(tmpdir(), 'ckit-concl-'));
 try {
   const memory = resolve(root, 'contextkit', 'memory');
   mkdirSync(resolve(memory, 'business', 'BIZ-0001-fixture'), { recursive: true });
-  const activeIndex = resolve(memory, 'workflows', '0001-concl-wf', 'index.md');
+  // ADR-0127: an owned workflow nests under its owner's workflows/ (not central).
+  const activeIndex = resolve(memory, 'business', 'BIZ-0001-fixture', 'workflows', '0001-concl-wf', 'index.md');
   const filedIndex = resolve(memory, 'business', 'BIZ-0001-fixture', 'done', '0001-concl-wf', 'index.md');
 
   process.stdout.write('Block A — create owned workflow\n');

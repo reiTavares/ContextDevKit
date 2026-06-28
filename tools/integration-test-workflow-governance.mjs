@@ -14,10 +14,22 @@ import { renumberByStarted, nextNumber } from '../templates/contextkit/tools/scr
 const rep = reporter();
 const fx = installFixture(rep);
 const wf = (...a) => fx.script('workflow.mjs', ...a);
-const wfRoot = join(fx.proj, 'contextkit', 'memory', 'workflows');
+// Nesting-aware (ADR-0127): owned workflows now live under their owner's
+// `business|operations/<id>/workflows/`, not only central. List every candidate.
+const wfDirsOf = (proj) => {
+  const mem = join(proj, 'contextkit', 'memory');
+  const dirs = [join(mem, 'workflows')];
+  for (const kind of ['business', 'operations']) {
+    try { for (const ctx of readdirSync(join(mem, kind))) dirs.push(join(mem, kind, ctx, 'workflows')); } catch { /* none */ }
+  }
+  return dirs;
+};
+const wfFolders = (proj) => wfDirsOf(proj).flatMap((d) => {
+  try { return readdirSync(d).filter((f) => f !== '_TEMPLATE').map((f) => ({ name: f, dir: d })); } catch { return []; }
+});
 const wfDir = (slug) => {
-  const hit = readdirSync(wfRoot).find((f) => f === slug || f.endsWith(`-${slug}`));
-  return join(wfRoot, hit || slug);
+  const hit = wfFolders(fx.proj).find((e) => e.name === slug || e.name.endsWith(`-${slug}`));
+  return hit ? join(hit.dir, hit.name) : join(fx.proj, 'contextkit', 'memory', 'workflows', slug);
 };
 
 // new -> intake. First advance (intake -> prd) has no leave-gate.
@@ -72,10 +84,10 @@ gx.cleanup();
 
 // --- Numbering NNNN-slug (ADR-0071) ---
 const nx = installFixture(rep);
-const nxDir = join(nx.proj, 'contextkit', 'memory', 'workflows');
 nx.script('workflow.mjs', 'new', 'num-a', '--kind', 'feature', '--operation', 'OP-0001');
 nx.script('workflow.mjs', 'new', 'num-b', '--kind', 'feature', '--operation', 'OP-0001');
-const folders = readdirSync(nxDir).filter((f) => f !== '_TEMPLATE');
+// Owned workflows nest under OP-0001 (ADR-0127) — scan central + owner dirs.
+const folders = wfFolders(nx.proj).map((e) => e.name);
 folders.includes('0001-num-a') ? rep.ok('10. first workflow folder is 0001-num-a') : rep.bad(`10. expected 0001-num-a, got: ${folders.join(', ')}`);
 folders.includes('0002-num-b') ? rep.ok('11. second workflow folder is 0002-num-b') : rep.bad(`11. expected 0002-num-b, got: ${folders.join(', ')}`);
 // resolve by slug AND by number (check at intake has no gate -> exit 0).
@@ -98,7 +110,8 @@ nx.script('workflow.mjs', 'new', 'a-chore', '--kind', 'chore').status === 0
 // old per-directory allocator.
 mkdirSync(join(nx.proj, 'contextkit', 'memory', 'operations', 'OP-0001-seed', 'workflows', '0050-seeded'), { recursive: true });
 nx.script('workflow.mjs', 'new', 'universal-check', '--kind', 'chore');
-const afterSeed = readdirSync(nxDir).filter((x) => x !== '_TEMPLATE');
+// universal-check is a chore (no owner) → stays central; read the central dir.
+const afterSeed = readdirSync(join(nx.proj, 'contextkit', 'memory', 'workflows')).filter((x) => x !== '_TEMPLATE');
 afterSeed.includes('0051-universal-check')
   ? rep.ok('11a. UNIVERSAL: new workflow takes global max+1 (0051) across contexts')
   : rep.bad('11a. expected 0051-universal-check (universal numbering), got: ' + afterSeed.join(', '));
