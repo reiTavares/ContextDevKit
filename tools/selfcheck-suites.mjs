@@ -131,6 +131,8 @@ function main() {
     // ADR-0126 follow-up — native /work command + host-neutral seeded READMEs;
     // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
     'tools/selfcheck-work-command.mjs',
+    // ADR-0127 Phase 2 — journey map + verifier; sibling selfcheck, dispatched directly.
+    'tools/selfcheck-journey.mjs',
     // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.
     'tools/selfcheck-session-autonomy-all.mjs',
     // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
