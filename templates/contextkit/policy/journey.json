@@ -1,0 +1,109 @@
+{
+  "$schema": "./journey.schema.json",
+  "schemaVersion": 1,
+  "id": "biz-0001-canonical-journey",
+  "title": "Business-driven methodology journey (BIZ-0001 / WF-0036-0038 / OP-0005)",
+  "description": "Canonical, checkpointed map the verifier walks to tell the agent the EXACT next step. One journey with branches by work nature + execution ceremony. Stages are ordered; `requires` are machine-checkable preconditions; `command` is host-resolved by the surfacing layer. ADR-0127.",
+  "checkpointStates": ["pending", "satisfied", "blocked", "skipped"],
+  "branches": {
+    "operation-direct": ["intake", "operation-context", "implement", "tests", "log-session"],
+    "operation-workflow": ["intake", "operation-context", "workflow-nested", "governing-adr", "implement", "tests", "qa-signoff", "log-session"],
+    "business-decision": ["intake", "business-context", "governing-adr", "business-approval", "workflow-nested", "implement", "tests", "qa-signoff", "log-session"]
+  },
+  "stages": [
+    {
+      "id": "intake",
+      "title": "Classify the request (intake)",
+      "appliesWhen": "always",
+      "requires": ["intakeRecorded"],
+      "command": { "work": "intake", "args": "\"<objective>\"" },
+      "checkpoint": "intake-classified",
+      "guidance": "Run the intake classifier to resolve Work Nature (business|operation), Tier, and Execution Ceremony before any substantive work."
+    },
+    {
+      "id": "operation-context",
+      "title": "Create the Operation work context",
+      "appliesWhen": "nature == 'operation'",
+      "requires": ["ownerContextExists"],
+      "command": { "work": "operation", "args": "\"<title>\" --intent <INTENT> --apply" },
+      "checkpoint": "operation-created",
+      "guidance": "Materialize the OP-#### context (operation.json + reason.md + tasks.md). Dry-run first, then --apply."
+    },
+    {
+      "id": "business-context",
+      "title": "Create / open the Business work context",
+      "appliesWhen": "nature == 'business'",
+      "requires": ["ownerContextExists"],
+      "command": { "work": "status", "args": "--id BIZ-####" },
+      "checkpoint": "business-opened",
+      "guidance": "A business change runs under a Root/owned Business context (BIZ-####). Open it and read its gate."
+    },
+    {
+      "id": "governing-adr",
+      "title": "Accept the governing ADR (decision coverage)",
+      "appliesWhen": "tier in ['feature','architectural'] || nature == 'business'",
+      "requires": ["governingAdrAccepted", "adrNumberContiguous"],
+      "command": { "slash": "new-adr", "args": "\"<title>\"" },
+      "checkpoint": "decision-covered",
+      "guidance": "Material work needs an ACCEPTED governing ADR, allocated through the fleet-aware id allocator (never a hand-picked number; ADR-0119)."
+    },
+    {
+      "id": "workflow-nested",
+      "title": "Open a workflow NESTED under its owner",
+      "appliesWhen": "ceremony == 'workflow'",
+      "requires": ["workflowExists", "workflowNestedUnderOwner"],
+      "command": { "tool": "workflow.mjs", "args": "new <slug> --operation <OP-id>|--business <BIZ-id>" },
+      "checkpoint": "workflow-nested",
+      "guidance": "The workflow MUST live under its parent's workflows/ dir (BIZ-0001 rule 3) — never loose/central. The verifier blocks a central placement (second cut)."
+    },
+    {
+      "id": "business-approval",
+      "title": "Human approval of the Business",
+      "appliesWhen": "nature == 'business'",
+      "requires": ["businessApprovedByHuman"],
+      "command": { "work": "approve", "args": "--id BIZ-#### --actor human --apply" },
+      "checkpoint": "business-approved",
+      "guidance": "An AI can never self-approve a Business — approval requires --actor human and a valid decision hash."
+    },
+    {
+      "id": "implement",
+      "title": "Implement at the permitted phase",
+      "appliesWhen": "always",
+      "requires": ["atShipPhaseOrTrivial"],
+      "command": null,
+      "checkpoint": "implementation-started",
+      "guidance": "Source writes are permitted once the workflow reaches the ship phase (or for trivial work). Earlier phases produce planning docs only."
+    },
+    {
+      "id": "tests",
+      "title": "Tests green",
+      "appliesWhen": "always",
+      "requires": ["testsGreen"],
+      "command": { "shell": "npm test" },
+      "checkpoint": "tests-green",
+      "guidance": "The suite passes on a real run — prose ('tests passed') is not a receipt."
+    },
+    {
+      "id": "qa-signoff",
+      "title": "QA sign-off",
+      "appliesWhen": "tier in ['feature','architectural'] || nature == 'business'",
+      "requires": ["qaSignoff"],
+      "command": { "slash": "qa-signoff" },
+      "checkpoint": "qa-signed-off",
+      "guidance": "A PASS verdict from the QA gate, not a self-assertion."
+    },
+    {
+      "id": "log-session",
+      "title": "Register the session",
+      "appliesWhen": "always",
+      "requires": ["sessionLogged"],
+      "command": { "slash": "log-session" },
+      "checkpoint": "session-logged",
+      "guidance": "Close the loop: register the session so the journey + CHANGELOG stay truthful."
+    }
+  ],
+  "enforcement": {
+    "mode": "advisory",
+    "_note": "First cut (ADR-0127): verifier + boot/exec surfacing are advisory-rich. Blocking checkpoints (workflowNestedUnderOwner, adrNumberContiguous, governingAdrAccepted, testsGreen+qaSignoff at completion) are turned on in the second cut, guarded+fallback per ADR-0125."
+  }
+}

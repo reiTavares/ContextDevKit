@@ -261,6 +261,17 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
+    // ADR-0127 Phase 2 (first cut) — journey map + pure verifier (branch select,
+    // stage verdicts, graceful degradation on unknown checkpoints).
+    id: 'journey',
+    file: 'tools/selfcheck-journey.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/policy/journey.json',
+      'templates/contextkit/runtime/work/journey-verifier.mjs',
+    ],
+  },
+  {
     // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
     id: 'intake-gate',
     file: 'tools/integration-test-intake-gate.mjs',
