@@ -11,6 +11,22 @@
  * @module journey-surface
  */
 import { loadJourney, selectBranch, verifyJourney } from '../work/journey-verifier.mjs';
+import { gatherRegistryEvidence } from '../work/journey-evidence-registry.mjs';
+
+/**
+ * Resolves the work-context id the journey applies to, from classifier signals.
+ * Prefers an explicit entity id, then a matched Business. Null when none resolves.
+ *
+ * @param {object} signals - intake signals.
+ * @returns {string|null}
+ */
+function resolveEntityId(signals = {}) {
+  const work = signals.work || {};
+  if (typeof work.id === 'string' && /^(BIZ|OP)-\d{4}$/.test(work.id)) return work.id;
+  const match = signals.businessMatch || work.businessMatch;
+  if (match && typeof match.suggested === 'string' && /^(BIZ|OP)-\d{4}$/.test(match.suggested)) return match.suggested;
+  return null;
+}
 
 /**
  * Maps classifier signals to the checkpoint→verdict map the verifier consumes.
@@ -69,7 +85,10 @@ export function renderJourneyAdvisory(root, signals = {}) {
     if (!branch) return '';
     const journey = loadJourney(root);
     if (!journey) return '';
-    const result = verifyJourney(journey, branch, evidenceFromSignals(signals));
+    // Registry evidence (real on-disk verdicts) overrides the signal-derived guess.
+    const entityId = resolveEntityId(signals);
+    const evidence = { ...evidenceFromSignals(signals), ...gatherRegistryEvidence(root, entityId) };
+    const result = verifyJourney(journey, branch, evidence);
     if (!result) return '';
 
     const path = result.stages.map((s) => `${glyph(s.state)}${s.id}`).join(' ');
