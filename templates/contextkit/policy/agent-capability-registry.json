@@ -55,6 +55,32 @@
       "modelTier": "implementation"
     },
     {
+      "agent": "domain-modeler",
+      "squad": "devteam",
+      "capabilities": ["domain-modeling", "bounded-contexts", "ubiquitous-language", "aggregate-design", "state-authority", "transactional-boundaries"],
+      "intents": ["architecture-review", "material-decision"],
+      "pathPatterns": ["src/domain/", "src/core/", "domain/", "src/lib/", "lib/"],
+      "riskTriggers": ["medium", "high", "critical"],
+      "antiTriggers": ["copy-edit", "formatting-only", "status-update", "index-regen", "simple-crud"],
+      "playbooks": ["squad-devteam"],
+      "contextRequirements": ["affected-symbols", "related-files", "relevant-adrs", "public-contracts", "acceptance-criteria"],
+      "preferredRole": "scout",
+      "modelTier": "reasoning"
+    },
+    {
+      "agent": "implementation-engineer",
+      "squad": "devteam",
+      "capabilities": ["senior-implementation", "smallest-safe-diff", "packet-execution", "dependency-direction", "tests-with-code"],
+      "intents": ["implementation", "implementation-review"],
+      "pathPatterns": ["src/", "lib/", "app/", "server/", "packages/"],
+      "riskTriggers": ["low", "medium", "high", "critical"],
+      "antiTriggers": ["copy-edit", "formatting-only", "status-update", "index-regen"],
+      "playbooks": ["squad-devteam"],
+      "contextRequirements": ["affected-symbols", "related-files", "relevant-adrs", "public-contracts", "acceptance-criteria"],
+      "preferredRole": "lead",
+      "modelTier": "implementation"
+    },
+    {
       "agent": "security",
       "squad": "security-team",
       "capabilities": ["authentication", "authorization", "secrets", "crypto", "trust-boundaries", "supply-chain"],

@@ -17,6 +17,11 @@ import { buildSignals } from './signals.mjs';
 import { scoreCodeMutationIntent } from './code-intent.mjs';
 import { scoreDomainApplicability } from './domain-applicability.mjs';
 import { resolveImplementationProfile } from './profile.mjs';
+// Devteam leaf modules (WF-0064). Direction note: envelope-block is the §15
+// COMPOSITION layer, so it may read the devteam skill table; the devteam leaf
+// modules import nothing from domain-engineering (no cycle).
+import { loadDevteamPolicyTable } from '../devteam/policy-load.mjs';
+import { resolveRequiredSkills } from '../devteam/required-skills.mjs';
 
 /** Block schema version — bump on any breaking shape change (§15). */
 export const IMPLEMENTATION_BLOCK_VERSION = '1.0.0';
@@ -34,6 +39,8 @@ export const IMPLEMENTATION_BLOCK_VERSION = '1.0.0';
  * @param {string|null} [params.tool] write tool name.
  * @param {object} [params.projectMap] optional project map for path awareness.
  * @param {object} [params.policy] pre-loaded bundle (tests inject this).
+ * @param {object} [params.devteamTriggers] pre-loaded skill-triggers table
+ *   (tests inject this; otherwise loaded from `root` — WF-0064).
  * @returns {object} the §15 implementation block.
  */
 export function buildImplementationBlock(params) {
@@ -56,6 +63,11 @@ export function buildImplementationBlock(params) {
   );
 
   const squadRequired = profile.profile !== 'no-code';
+  // WF-0064: skills resolve from the §11 trigger truth-table (devteam policy).
+  // A missing table degrades to the conservative baseline with a reason code.
+  const triggers = p.devteamTriggers ?? loadDevteamPolicyTable(p.root, 'skillTriggers').table;
+  const skills = resolveRequiredSkills(cmis, das, profile, skillContext(signals, das), triggers);
+
   return {
     schemaVersion: IMPLEMENTATION_BLOCK_VERSION,
     shadow: true,
@@ -65,11 +77,35 @@ export function buildImplementationBlock(params) {
     profile: profile.profile,
     squadRequired,
     requiredAgents: profile.minimumSquad,
-    requiredSkills: squadRequired ? ['senior-implementation-discipline'] : [],
+    requiredSkills: skills.skills,
+    // additive honesty flag: skill resolution fell back to the baseline (the
+    // block-level `degraded` stays false — classification itself succeeded).
+    skillsDegraded: skills.degraded,
     requiredArtifacts: profile.artifacts,
     simulateImpactRequired: profile.simulateImpactRequired,
-    reasonCodes: dedupe([...cmis.reasonCodes, ...das.reasonCodes, ...profile.reasonCodes]),
+    reasonCodes: dedupe([...cmis.reasonCodes, ...das.reasonCodes, ...profile.reasonCodes, ...skills.reasonCodes]),
     degraded: false,
+  };
+}
+
+/**
+ * Shapes the declared skill-trigger context from the normalized signals: only
+ * evidence the envelope actually carries — absent flags stay false, a trigger
+ * never fires on inference (§11).
+ *
+ * @param {object} signals from buildSignals().
+ * @param {object} das DAS result (its DAS_FLOOR_* codes mark a hard trigger).
+ * @returns {object} ctx for resolveRequiredSkills().
+ */
+function skillContext(signals, das) {
+  return {
+    risk: signals.risk,
+    blastRadius: signals.blastRadius,
+    complexity: signals.complexity,
+    flags: {
+      writeAttempt: signals.writeAttempt === true,
+      domainHardTrigger: (das.reasonCodes ?? []).some((code) => typeof code === 'string' && code.startsWith('DAS_FLOOR_')),
+    },
   };
 }
 
@@ -85,6 +121,7 @@ function degradedBlock(missing) {
     squadRequired: false,
     requiredAgents: [],
     requiredSkills: [],
+    skillsDegraded: true,
     requiredArtifacts: [],
     simulateImpactRequired: false,
     reasonCodes: ['ENVELOPE_DEGRADED'],

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "skills-registry",
+  "title": "Devteam trigger-driven skills — ADR-0128 §11 (WF-0064)",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "The six skills auto-apply by deterministic signal (CMIS/DAS band, profile, declared flags) — never by the user remembering a slash command. Selection is not proof: actual application is recorded via the §18 skill-application receipt. Shadow-only at WF-0064; enforcement power arrives with WF-0067 under ADR-0129 ceilings. The fail-open baseline is BASELINE_SKILLS in runtime/devteam/required-skills.mjs (deliberately hardcoded — it must survive a missing table).",
+  "skills": {
+    "senior-implementation": {
+      "title": "Senior implementation discipline",
+      "owningSquad": "devteam",
+      "applicableAgents": ["implementation-engineer", "claude"],
+      "artifacts": ["implementation-packet"],
+      "summary": "Smallest safe diff for the approved use case: respect the packet, preserve dependency direction and invariants, tests with the code, evidence with the diff.",
+      "body": "skills/senior-implementation/SKILL.md"
+    },
+    "domain-modeling": {
+      "title": "Domain modeling",
+      "owningSquad": "devteam",
+      "applicableAgents": ["domain-modeler", "architect"],
+      "artifacts": ["domain-map"],
+      "summary": "Turn intent and rules into an explicit model: bounded contexts, ubiquitous language, entities/value objects, aggregates only when invariants exist, state authority, transactional boundaries.",
+      "body": "skills/domain-modeling/SKILL.md"
+    },
+    "modular-design": {
+      "title": "Modular design",
+      "owningSquad": "devteam",
+      "applicableAgents": ["architect", "implementation-engineer"],
+      "artifacts": ["contract-notes"],
+      "summary": "Deliberate module boundaries and public surfaces for multi-module work: dependency direction, coupling and cycles, intentional contracts — without domain-model ceremony.",
+      "body": "skills/modular-design/SKILL.md"
+    },
+    "ddd-architecture-review": {
+      "title": "DDD architecture review",
+      "owningSquad": "devteam",
+      "applicableAgents": ["architect", "code-reviewer"],
+      "artifacts": ["contract-notes"],
+      "summary": "Review domain-driven work for layer honesty: domain importing infrastructure, second state authority, contract change without a Decision, transaction crossing aggregates.",
+      "body": "skills/ddd-architecture-review/SKILL.md"
+    },
+    "domain-test-strategy": {
+      "title": "Domain test strategy",
+      "owningSquad": "devteam",
+      "applicableAgents": ["test-engineer", "qa-orchestrator"],
+      "artifacts": ["test-plan"],
+      "summary": "Test invariants, value objects, state transitions, valid/invalid commands, events, idempotency and cross-context contracts — behavior, not implementation details.",
+      "body": "skills/domain-test-strategy/SKILL.md"
+    },
+    "implementation-review": {
+      "title": "Implementation review",
+      "owningSquad": "devteam",
+      "applicableAgents": ["code-reviewer"],
+      "artifacts": ["review-notes"],
+      "summary": "Packet-vs-diff review for non-trivial code: every changed line traces to the request, contracts honored, no abstraction or fragmentation without benefit.",
+      "body": "skills/implementation-review/SKILL.md"
+    }
+  }
+}

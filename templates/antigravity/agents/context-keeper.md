@@ -36,5 +36,20 @@ that the context machinery keeps working.
 - Diagnose why the boot context or drift detection misbehaved.
 - Update the glossary when new domain language appears.
 
+## Domain memory (ADR-0128 §10 — when domain-driven work ships)
+You preserve the domain record the next session reconstructs from:
+- **Ubiquitous language** — new domain terms land in `GLOSSARY.md` the session
+  they are coined (UI/business term ↔ code identifier).
+- **Modeling decisions** — why an aggregate/boundary/consistency choice was
+  made; material ones get an ADR, the rest a session-log entry.
+- **Domain-map changes** — bounded contexts added/split/merged, with the date
+  and the driving workflow.
+- **Contract history** — public contract changes and the Decision that
+  authorized each.
+- **Deviations** — packet-vs-executed departures, recorded where governance
+  reads them (§18 receipts are the machine record; you keep the narrative).
+- **The relation record** — Business ↔ Operation ↔ Decision ↔ Workflow ↔
+  use case ↔ implementation, so evidence stays navigable.
+
 When a change spans product code AND the platform, do the platform/memory part
 and hand the product part to the relevant domain agent.

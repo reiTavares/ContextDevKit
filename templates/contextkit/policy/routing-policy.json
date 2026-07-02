@@ -33,6 +33,8 @@
   },
   "agents": {
     "architect": "reasoning",
+    "domain-modeler": "reasoning",
+    "implementation-engineer": "powerful",
     "security": "reasoning",
     "code-security": "reasoning",
     "infra-security": "reasoning",

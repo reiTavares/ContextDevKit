@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "reason-codes",
+  "title": "Stable devteam reason-code catalog — ADR-0128 §11/§12/§18, plan §28",
+  "note": "Stable identifiers for every devteam resolver decision. Part of the public contract: consumers (lifecycle WF-0065, enforcement WF-0067, telemetry) may key on them. Codes are append-only; renaming/removing one is a material change requiring a Decision.",
+  "codes": {
+    "SKILL_SENIOR_IMPLEMENTATION_CMIS": "senior-implementation selected: CMIS >= 50 (code work always gets the discipline).",
+    "SKILL_SENIOR_IMPLEMENTATION_WRITE_ATTEMPT": "senior-implementation selected: real write attempt (Class A deterministic trigger).",
+    "SKILL_DOMAIN_MODELING_DAS": "domain-modeling selected: DAS >= 45 (domain-driven floor).",
+    "SKILL_DOMAIN_MODELING_HARD_TRIGGER": "domain-modeling selected: a domain hard trigger fired.",
+    "SKILL_MODULAR_DESIGN_DAS_BAND": "modular-design selected: DAS in the modular band (25-44).",
+    "SKILL_MODULAR_DESIGN_CROSS_MODULE": "modular-design selected: the change crosses more than one module.",
+    "SKILL_DDD_REVIEW_PROFILE": "ddd-architecture-review selected: domain-driven or distributed-domain profile.",
+    "SKILL_DDD_REVIEW_STATE_AUTHORITY": "ddd-architecture-review selected: a state-authority change is declared.",
+    "SKILL_DDD_REVIEW_PUBLIC_CONTRACT": "ddd-architecture-review selected: a public contract is touched.",
+    "SKILL_DDD_REVIEW_BLAST_RADIUS": "ddd-architecture-review selected: cross-cutting blast radius.",
+    "SKILL_DOMAIN_TEST_STRATEGY_DAS": "domain-test-strategy selected: DAS >= 25.",
+    "SKILL_DOMAIN_TEST_STRATEGY_BEHAVIOR": "domain-test-strategy selected: behavioral acceptance criteria declared.",
+    "SKILL_DOMAIN_TEST_STRATEGY_STATE_TRANSITION": "domain-test-strategy selected: state-transition behavior declared.",
+    "SKILL_DOMAIN_TEST_STRATEGY_CONTRACT": "domain-test-strategy selected: a contract change is declared.",
+    "SKILL_IMPLEMENTATION_REVIEW_COMPLEXITY": "implementation-review selected: CMIS >= 50 and non-trivial complexity.",
+    "SKILL_IMPLEMENTATION_REVIEW_MANDATORY": "implementation-review mandatory: high/critical risk, public contract, or domain-driven+ profile on code work.",
+    "SKILLS_NO_CODE": "No code intent (no-code profile) — empty skill set, zero ceremony.",
+    "SKILLS_FALLBACK_BASELINE": "Devteam policy degraded — conservative baseline skill set applied and recorded, never a false pass.",
+    "AGENTS_FROM_PROFILE": "Required agents taken verbatim from the resolved implementation profile's minimum squad.",
+    "AGENTS_EMPTY_NO_CODE": "No code intent (no-code profile) — no squad required.",
+    "PLAYBOOK_STEP_PROFILE_GATED": "Playbook step applies only at domain-driven+ profiles and was gated by the resolved profile.",
+    "RECEIPT_RECORDED": "Skill application recorded with version/sections/content hash (selection vs activation evidence, §18).",
+    "RECEIPT_WRITE_FAILED": "Skill-application receipt could not be persisted; failure recorded, never a false pass.",
+    "DEVTEAM_POLICY_DEGRADED": "A devteam policy table is absent/unparseable; resolver degraded with a receipt."
+  }
+}

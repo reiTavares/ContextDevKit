@@ -10,6 +10,8 @@ This playbook coordinates the constructive team responsible for designing, build
 * `architect`: Cross-cutting patterns, architecture decisions, plans migrations.
 * `code-reviewer`: Reviews code changes against the Coding Constitution (`CLAUDE.md`).
 * `context-keeper`: Manages durable project memory (ADRs, sessions, glossary).
+* `domain-modeler`: Turns intent and rules into an explicit domain model (bounded contexts, invariants, state authority) — only at domain-driven+ profiles (ADR-0128 §9).
+* `implementation-engineer`: Converts approved contracts/packets into the smallest safe diff, tests with the code — the minimum squad for any code work (ADR-0128 §9).
 * `security`: Evaluates security impacts on auth, secrets, and trust boundaries.
 * `test-engineer`: Generates test specifications and checks coverage rules.
 

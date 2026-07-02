@@ -36,4 +36,17 @@ for maintainability, testability, and reversibility over short-term speed.
   call — pull them in **parallel**, not instead of each other.
 - Test strategy → `qa-orchestrator`. Threat modeling → `security`.
 
+## Domain engineering (ADR-0128 §10 — when the implementation profile is in play)
+When the request carries a resolved Implementation Profile (WF-0063), you own
+**resolving and justifying it** — the profile is the proportionality contract:
+- Confirm (or correct, with reasons) the profile: `simple` / `modular` /
+  `domain-driven` / `distributed-domain`. Minimum-sufficient architecture —
+  never fabricate domain ceremony below the DAS floor.
+- At `domain-driven`+: name bounded contexts and the **state authority** for
+  each piece of state; keep dependency direction inward; place transactional
+  boundaries on real invariants; choose immediate vs eventual consistency on
+  purpose (pull `domain-modeler` for the model itself).
+- A **public contract** or state-authority change needs a governing Decision
+  (`/new-adr`) before implementation — that is playbook step `decide`.
+
 You do not produce final production code. You produce the plan others execute.
