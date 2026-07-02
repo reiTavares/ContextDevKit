@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "policy-manifest",
+  "title": "Devteam Agents & Skills policy manifest — ADR-0128 §9-§12, §18 (WF-0064)",
+  "updated": "2026-07-01",
+  "note": "Index of the devteam policy tables. Single source for skill registration, trigger truth-table and the playbook journey — the runtime NEVER embeds these (ADR-0129 §4). policyVersion is the calibration unit's third axis (rule × host × policyVersion).",
+  "tables": [
+    { "id": "skills-registry", "file": "skills-registry.json", "concern": "The six trigger-driven skills — identity, owners, artifacts (§11)" },
+    { "id": "skill-triggers", "file": "skill-triggers.json", "concern": "Deterministic CMIS/DAS/profile trigger truth-table (§11)" },
+    { "id": "playbook", "file": "playbook.json", "concern": "Devteam 8-step implementation journey (§12)" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Stable devteam reason-code catalog (§28)" }
+  ],
+  "changeClasses": {
+    "observationalAdjustment": "shadow/non-blocking trigger tweak; calibration receipt; no ADR when enforcement power is unchanged.",
+    "automaticPromotion": "rule evolves up to its maximumAutomaticLevel on evidence; no further human action per transition.",
+    "changeOfMaximumAuthority": "raising maximumAutomaticLevel / accepted evidence types / fail mode — requires a governed Decision.",
+    "materialEnforcementChange": "new mandatory skill / new block case / reduced fail-open — requires a Decision and resets rule confidence."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "policy-manifest",
+  "title": "Domain Engineering policy manifest — ADR-0128 / ADR-0129 §4",
+  "updated": "2026-06-28",
+  "note": "Index of the domain-engineering policy tables. policyVersion is the calibration unit's third axis (rule × host × policyVersion). A material weight/threshold/hard-trigger change bumps this version and resets predictive rule confidence (ADR-0129 §4, §7).",
+  "tables": [
+    { "id": "code-intent-weights", "file": "code-intent-weights.json", "concern": "CMIS signal weights + bands (§5)" },
+    { "id": "domain-applicability-weights", "file": "domain-applicability-weights.json", "concern": "DAS signal weights + bands (§7)" },
+    { "id": "profile-thresholds", "file": "profile-thresholds.json", "concern": "Implementation Profile resolution (§8)" },
+    { "id": "path-rules", "file": "path-rules.json", "concern": "Code-path classification (§6)" },
+    { "id": "hard-triggers", "file": "hard-triggers.json", "concern": "Deterministic hard triggers (§5/§7)" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Stable reason-code catalog (§28)" },
+    { "id": "rule-classes", "file": "rule-classes.json", "concern": "Class A/B tagging + ceilings (ADR-0129 §1)" }
+  ],
+  "changeClasses": {
+    "observationalAdjustment": "shadow/non-blocking weight tweak; calibration receipt; no ADR when enforcement power is unchanged.",
+    "automaticPromotion": "rule evolves up to its maximumAutomaticLevel on evidence; no further human action per transition.",
+    "changeOfMaximumAuthority": "raising maximumAutomaticLevel / accepted evidence types / fail mode — requires a governed Decision.",
+    "materialEnforcementChange": "new hard trigger / new block case / reduced fail-open / new obligation — requires a Decision and resets rule confidence."
+  }
+}

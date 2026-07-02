@@ -61,6 +61,25 @@ Group findings as **🔴 Blocker / 🟡 Should-fix / 🟢 Nit**. For each: file:
 the rule it breaks, and the minimal fix. End with a one-line verdict:
 "Ready to merge" or "Changes required: N blockers".
 
+## Domain engineering checks (ADR-0128 §10 — when the profile is domain-driven+ or the diff touches contracts/state)
+Add these to the priority list; each is a finding with file:line, not a vibe:
+- **Domain importing infrastructure** — DB/ORM client, transport or generated
+  persistence types inside the domain (S1).
+- **Cross-context deep imports** — reaching into another context's internals
+  instead of its public contract (S2).
+- **Second state authority** — the same state owned in two places (S4).
+- **Business rule in the wrong layer** — logic in a controller/route/component.
+- **Persistence leaking into the domain** — row shapes/query fragments as the
+  model.
+- **Contract change without a Decision** — a public export/shape changed with
+  no governing ADR. Blocker.
+- **Transaction crossing aggregates** — breaks the invariant the aggregate
+  protects.
+- **Technical-only events** — CRUD echoes with no domain meaning.
+- **Packet-vs-diff divergence** — changed lines that trace to nothing.
+- **Abstraction or fragmentation without benefit** — debt in either direction
+  (H1).
+
 ## Anti-patterns you refuse on sight
 | Symptom | Why | Fix |
 | --- | --- | --- |

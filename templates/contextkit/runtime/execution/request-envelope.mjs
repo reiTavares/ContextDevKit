@@ -18,6 +18,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomicSync, readJsonSafe } from '../hooks/safe-io.mjs';
 import { pathsFor } from '../config/paths.mjs';
+import { buildImplementationBlock } from '../domain-engineering/envelope-block.mjs';
 
 /** Envelope schema version — bump on any breaking shape change (§5). */
 export const ENVELOPE_SCHEMA_VERSION = '1.0.0';
@@ -78,7 +79,10 @@ function summarize(text) {
  * @param {string[]} [params.explicitOverrides] natural-language overrides (§8)
  * @param {string} [params.dispatchPlanId]
  * @param {string} [params.receivedAt] ISO timestamp (injectable for tests)
- * @returns {object} intent envelope (§5)
+ * @param {string} [params.root] project root — builds the §15 implementation block
+ * @param {object} [params.intakeSignals] intake signals for the implementation block
+ * @param {object} [params.implementation] pre-built implementation block (overrides inline build)
+ * @returns {object} intent envelope (§5) including the shadow §15 implementation block (ADR-0128)
  */
 export function buildEnvelope(params) {
   const p = params && typeof params === 'object' ? params : {};
@@ -137,7 +141,32 @@ export function buildEnvelope(params) {
     },
     playbooks: Array.isArray(p.playbooks) ? p.playbooks : [],
     dispatchPlanId: p.dispatchPlanId ?? null,
+    // §15 shadow implementation block (ADR-0128). Additive: zero blocking power.
+    implementation: resolveImplementationBlock(p, cls),
   };
+}
+
+/**
+ * Resolves the §15 implementation block: a caller-supplied block wins; otherwise
+ * it is built inline from the request + intake signals (defensive — a missing
+ * root/policy degrades to a recorded receipt, never throws). Shadow-only.
+ *
+ * @param {object} p buildEnvelope params.
+ * @param {object} cls the classification block.
+ * @returns {object} the §15 implementation block.
+ */
+function resolveImplementationBlock(p, cls) {
+  if (p.implementation && typeof p.implementation === 'object') return p.implementation;
+  try {
+    return buildImplementationBlock({
+      root: p.root,
+      requestText: p.requestText,
+      intakeSignals: p.intakeSignals,
+      classification: cls,
+    });
+  } catch {
+    return { schemaVersion: '1.0.0', shadow: true, profile: 'no-code', degraded: true, reasonCodes: ['ENVELOPE_DEGRADED'] };
+  }
 }
 
 /**

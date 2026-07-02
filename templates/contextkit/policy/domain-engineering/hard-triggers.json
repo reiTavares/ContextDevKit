@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "hard-triggers",
+  "title": "Deterministic hard triggers — ADR-0128 plan §5/§7, ADR-0129 Class A",
+  "note": "Hard triggers are deterministic overrides applied after weighted scoring. The CMIS write-attempt trigger is Class A (authoritative, host-observed). DAS floor triggers raise the resolved profile floor only when the token is confirmed in context.",
+  "codeMutationIntent": {
+    "ruleClass": "A",
+    "writeAttempt": {
+      "score": 100,
+      "verdict": "CODE_CREATION_OR_STRUCTURAL_CHANGE",
+      "reasonCode": "CMIS_HARD_TRIGGER_WRITE_ATTEMPT",
+      "tools": ["Write", "Edit", "ApplyPatch", "NotebookEdit", "MultiEdit"],
+      "note": "A real write attempt on a code path sets CMIS=100 in PreToolUse — the fallback that closes textual false negatives. Wired by WF-0067 (enforcement); WF-0063 only declares it."
+    }
+  },
+  "domainApplicabilityFloors": {
+    "ruleClass": "B",
+    "domainDriven": {
+      "floorProfile": "domain-driven",
+      "tokens": ["bounded context", "aggregate", "invariant", "domain event", "business rule", "consistency boundary", "state machine", "ubiquitous language"],
+      "reasonCode": "DAS_FLOOR_DOMAIN_DRIVEN",
+      "requiresContextConfirmation": true
+    },
+    "distributedDomain": {
+      "floorProfile": "distributed-domain",
+      "tokens": ["cross-service contract", "eventual consistency", "saga", "outbox", "versioned event"],
+      "reasonCode": "DAS_FLOOR_DISTRIBUTED_DOMAIN",
+      "requiresContextConfirmation": true
+    }
+  }
+}

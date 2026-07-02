@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "playbook",
+  "title": "Devteam implementation journey — ADR-0128 §12 (WF-0064)",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "playbookId": "devteam-implementation-journey",
+  "note": "The 8-step journey every governed code change follows: Classify -> Model -> Decide -> Compile -> Implement -> Verify -> Review -> Receipt. Model runs only when the resolved profile requires it; Decide declares that implementation must not proceed while a material Decision is missing (declared here, enforced by WF-0067); Receipt compares planned vs executed. Shadow-only at WF-0064.",
+  "steps": [
+    {
+      "id": "classify",
+      "order": 1,
+      "title": "Classify",
+      "owner": "engine",
+      "requiredWhen": "always",
+      "summary": "Resolve CMIS/DAS/profile from the Request Intent Envelope (WF-0063). Business, Work Nature and Ceremony are inherited, never recalculated."
+    },
+    {
+      "id": "model",
+      "order": 2,
+      "title": "Model",
+      "owner": "domain-modeler",
+      "requiredWhen": "profile",
+      "profileIn": ["domain-driven", "distributed-domain"],
+      "summary": "Make the domain model explicit (bounded contexts, invariants, state authority). Never runs for simple/modular work (proportionality)."
+    },
+    {
+      "id": "decide",
+      "order": 3,
+      "title": "Decide",
+      "owner": "architect",
+      "requiredWhen": "conditional",
+      "condition": "materialDecisionMissing",
+      "summary": "A material change (contract, state authority, dependency adoption) needs a governing accepted Decision before implementation. Declared gate; blocking arrives with WF-0067."
+    },
+    {
+      "id": "compile",
+      "order": 4,
+      "title": "Compile",
+      "owner": "engine",
+      "requiredWhen": "always",
+      "summary": "Compile the bounded implementation packet (scope, contracts, files, checks) the implementer must respect."
+    },
+    {
+      "id": "implement",
+      "order": 5,
+      "title": "Implement",
+      "owner": "implementation-engineer",
+      "requiredWhen": "always",
+      "summary": "Smallest safe diff for the packet; tests written with the code; deviations recorded."
+    },
+    {
+      "id": "verify",
+      "order": 6,
+      "title": "Verify",
+      "owner": "test-engineer",
+      "requiredWhen": "always",
+      "summary": "Run the declared checks; behavior-level evidence, receipts not assertions."
+    },
+    {
+      "id": "review",
+      "order": 7,
+      "title": "Review",
+      "owner": "code-reviewer",
+      "requiredWhen": "conditional",
+      "condition": "implementationReviewSelected",
+      "summary": "Packet-vs-diff review when the implementation-review skill fired (non-trivial, high-risk, public contract or domain-driven+)."
+    },
+    {
+      "id": "receipt",
+      "order": 8,
+      "title": "Receipt",
+      "owner": "engine",
+      "requiredWhen": "always",
+      "summary": "Record planned-vs-executed: agents/skills selected vs actually applied (§18), deviations, evidence tier."
+    }
+  ]
+}

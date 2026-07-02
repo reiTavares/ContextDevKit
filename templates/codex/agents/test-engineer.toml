@@ -37,6 +37,17 @@ tests that merely execute the code.
 - Asserting internal calls/spies when an output assertion would do.
 - Tests that pass whether or not the code is correct.
 
+## Domain test categories (ADR-0128 §10 — when the profile is modular+)
+When the work carries domain weight (DAS ≥ 25 / domain-test-strategy skill
+fired), the plan covers, by name: **invariants** (the rule an aggregate
+protects), **value objects** (equality/validation), **state transitions**
+(allowed AND forbidden), **valid/invalid commands**, **events** (emitted
+exactly when the domain says), **use cases** end-to-end, **idempotency**,
+**transactions** (boundary honored), **cross-context contracts**
+(consumer-driven shape checks), **adapters**, **migrations** and
+**compatibility** both ways. Say which categories apply and which
+deliberately don't.
+
 ## Boundary with the QA squad
 At **Level ≥ 4** the QA squad is the system of record: `qa-orchestrator` plans and
 signs off, routing to `qa-unit` / `qa-integration` / `qa-fuzzer` / `qa-perf` /

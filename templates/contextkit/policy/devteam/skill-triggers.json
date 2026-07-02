@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "skill-triggers",
+  "title": "Skill trigger truth-table — ADR-0128 §11 (WF-0064)",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "Deterministic trigger rows per skill. A row matches when ALL of its declared conditions hold (AND); a skill is selected when ANY of its rows matches (OR). Recognized conditions: cmisMin/cmisMax, dasMin/dasMax, profileIn[], flagsAll[] (declared boolean flags), riskIn[], blastRadiusIn[], complexityNotIn[]. Domain skills carry dasMin/profileIn floors so simple work NEVER gets domain ceremony (proportionality invariant). Recorded deviation from the §11 prose: all non-write-attempt flag/DAS rows carry an explicit cmisMin=50 code-work floor (conservative tightening — implementation skills only fire on confirmed code intent).",
+  "flagsCatalog": {
+    "writeAttempt": "a real write tool call is in flight (Class A deterministic).",
+    "domainHardTrigger": "a domain-applicability hard trigger fired (DAS_FLOOR_* reason code).",
+    "crossModule": "the change touches more than one module (project-map / packet evidence).",
+    "stateAuthorityChange": "the change moves or duplicates a state authority.",
+    "publicContract": "the change touches a public/exported contract.",
+    "behavioralAcceptance": "the task declares behavioral acceptance criteria.",
+    "stateTransition": "the change implements state-transition behavior.",
+    "contractChange": "the change alters a cross-context or persisted contract."
+  },
+  "skills": {
+    "senior-implementation": {
+      "triggers": [
+        { "reasonCode": "SKILL_SENIOR_IMPLEMENTATION_CMIS", "cmisMin": 50 },
+        { "reasonCode": "SKILL_SENIOR_IMPLEMENTATION_WRITE_ATTEMPT", "flagsAll": ["writeAttempt"] }
+      ]
+    },
+    "domain-modeling": {
+      "triggers": [
+        { "reasonCode": "SKILL_DOMAIN_MODELING_DAS", "dasMin": 45 },
+        { "reasonCode": "SKILL_DOMAIN_MODELING_HARD_TRIGGER", "flagsAll": ["domainHardTrigger"] }
+      ]
+    },
+    "modular-design": {
+      "triggers": [
+        { "reasonCode": "SKILL_MODULAR_DESIGN_DAS_BAND", "dasMin": 25, "dasMax": 44 },
+        { "reasonCode": "SKILL_MODULAR_DESIGN_CROSS_MODULE", "cmisMin": 50, "flagsAll": ["crossModule"] }
+      ]
+    },
+    "ddd-architecture-review": {
+      "triggers": [
+        { "reasonCode": "SKILL_DDD_REVIEW_PROFILE", "profileIn": ["domain-driven", "distributed-domain"] },
+        { "reasonCode": "SKILL_DDD_REVIEW_STATE_AUTHORITY", "cmisMin": 50, "flagsAll": ["stateAuthorityChange"] },
+        { "reasonCode": "SKILL_DDD_REVIEW_PUBLIC_CONTRACT", "cmisMin": 50, "flagsAll": ["publicContract"] },
+        { "reasonCode": "SKILL_DDD_REVIEW_BLAST_RADIUS", "cmisMin": 50, "blastRadiusIn": ["cross-cutting"] }
+      ]
+    },
+    "domain-test-strategy": {
+      "triggers": [
+        { "reasonCode": "SKILL_DOMAIN_TEST_STRATEGY_DAS", "cmisMin": 50, "dasMin": 25 },
+        { "reasonCode": "SKILL_DOMAIN_TEST_STRATEGY_BEHAVIOR", "cmisMin": 50, "flagsAll": ["behavioralAcceptance"] },
+        { "reasonCode": "SKILL_DOMAIN_TEST_STRATEGY_STATE_TRANSITION", "cmisMin": 50, "flagsAll": ["stateTransition"] },
+        { "reasonCode": "SKILL_DOMAIN_TEST_STRATEGY_CONTRACT", "cmisMin": 50, "flagsAll": ["contractChange"] }
+      ]
+    },
+    "implementation-review": {
+      "triggers": [
+        { "reasonCode": "SKILL_IMPLEMENTATION_REVIEW_COMPLEXITY", "cmisMin": 50, "complexityNotIn": ["trivial"] },
+        { "reasonCode": "SKILL_IMPLEMENTATION_REVIEW_MANDATORY", "cmisMin": 50, "riskIn": ["high", "critical"] },
+        { "reasonCode": "SKILL_IMPLEMENTATION_REVIEW_MANDATORY", "cmisMin": 50, "flagsAll": ["publicContract"] },
+        { "reasonCode": "SKILL_IMPLEMENTATION_REVIEW_MANDATORY", "cmisMin": 50, "profileIn": ["domain-driven", "distributed-domain"] }
+      ]
+    }
+  }
+}
