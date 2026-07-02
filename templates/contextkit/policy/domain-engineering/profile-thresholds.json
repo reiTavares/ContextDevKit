@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "profile-thresholds",
+  "title": "Implementation Profile resolution — ADR-0128 plan §8",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "Profile is derived from CMIS verdict (is this code?), DAS profile floor (how much domain?), plus inherited risk + blastRadius + materiality + ceremony. NO_CODE short-circuits to no-code. Each profile declares its minimum squad lead and proportional artifacts; simple never generates a domain model.",
+  "profiles": {
+    "no-code": {
+      "rank": 0,
+      "appliesWhen": "cmisVerdict === 'NO_CODE'",
+      "minimumSquad": [],
+      "artifacts": [],
+      "simulateImpactRequired": false
+    },
+    "simple": {
+      "rank": 1,
+      "minimumSquad": ["implementation-engineer"],
+      "artifacts": ["implementation-packet"],
+      "simulateImpactRequired": false
+    },
+    "modular": {
+      "rank": 2,
+      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer"],
+      "artifacts": ["implementation-packet", "contract-notes"],
+      "simulateImpactRequired": false
+    },
+    "domain-driven": {
+      "rank": 3,
+      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer", "architect"],
+      "artifacts": ["implementation-packet", "domain-map", "contract-notes"],
+      "simulateImpactRequired": true
+    },
+    "distributed-domain": {
+      "rank": 4,
+      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer", "architect", "security"],
+      "artifacts": ["implementation-packet", "domain-map", "context-map", "contract-notes"],
+      "simulateImpactRequired": true
+    }
+  },
+  "escalation": {
+    "note": "Inherited signals can RAISE but never LOWER the DAS-derived profile rank. They never fabricate domain ceremony for NO_CODE / simple work below the domain floor.",
+    "riskHighRaisesTo": "modular",
+    "riskCriticalRaisesTo": "domain-driven",
+    "blastRadiusCrossCuttingRaisesTo": "domain-driven",
+    "materialityHighRaisesTo": "domain-driven",
+    "materialityHighThreshold": 0.7
+  }
+}

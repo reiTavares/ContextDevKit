@@ -26,6 +26,7 @@ import { runConfigPathChecks } from './selfcheck-config-paths.mjs';
 import { runAllRequestOrchestrationChecks } from './selfcheck-request-all.mjs';
 import { runHostHookChecks } from './selfcheck-host-hooks.mjs';
 import { runMcp002Checks } from './selfcheck-mcp-002.mjs';
+import { runDomainEngineeringChecks } from './selfcheck-domain-engineering.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -175,6 +176,7 @@ async function main() {
   await runConfigPathChecks({ ok, bad }, { KIT });
   await runAllRequestOrchestrationChecks({ ok, bad }, { KIT });
   await runMcp002Checks({ ok, bad }, { KIT });
+  await runDomainEngineeringChecks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "code-intent-weights",
+  "title": "Code Mutation Intent Score (CMIS) signal weights — ADR-0128 plan §5",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "Weights are deterministic and table-driven. Positive/negative signals are summed and clamped to [0,100]. A real write attempt is an authoritative Class-A hard trigger that overrides this score to 100 (see hard-triggers.json).",
+  "positiveSignals": {
+    "explicitMutationVerb": {
+      "weight": 35,
+      "tokens": ["implement", "create ", "build ", "add ", "write ", "fix ", "refactor", "migrate", "rename", "delete ", "remove ", "rewrite", "scaffold", "wire ", "patch "]
+    },
+    "activeMutationTask": {
+      "weight": 25,
+      "tokens": ["feature task", "bug task", "refactor task", "migration task", "increment", "chore task"]
+    },
+    "shipOrWorkingPhase": {
+      "weight": 20,
+      "tokens": ["ship phase", "working phase", "implementation phase", "/ship", "/dev-start"]
+    },
+    "sourcePathOrExtension": {
+      "weight": 20,
+      "tokens": [".mjs", ".js", ".ts", ".tsx", ".jsx", ".py", ".go", ".rs", ".java", ".rb", ".php", "src/", "lib/", "runtime/"]
+    },
+    "executableAcceptance": {
+      "weight": 15,
+      "tokens": ["acceptance test", "passes ci", "npm run ci", "npm test", "make it green", "test passes"]
+    },
+    "namedSymbolOrEndpoint": {
+      "weight": 10,
+      "tokens": ["function ", "endpoint", "module ", "class ", "method ", "route ", "schema ", "handler"]
+    },
+    "needsTestOrBuild": {
+      "weight": 10,
+      "tokens": ["needs test", "add a test", "build ", "compile", "lint"]
+    },
+    "activeImplementationPacket": {
+      "weight": 10,
+      "tokens": ["implementation packet", "work-packet", "task-compiler"]
+    }
+  },
+  "negativeSignals": {
+    "explicitReadOnly": {
+      "weight": -100,
+      "tokens": ["read-only", "do not edit", "don't change", "without modifying", "no code changes", "just look", "just read"]
+    },
+    "conversationOrExplanation": {
+      "weight": -70,
+      "tokens": ["what is", "what are", "how does", "why does", "explain", "tell me", "describe "]
+    },
+    "researchOrComparison": {
+      "weight": -60,
+      "tokens": ["research", "investigate", "compare ", "evaluate options", "which approach", "should we use", "feasibility", "spike"]
+    },
+    "reviewOnly": {
+      "weight": -50,
+      "tokens": ["review only", "just review", "code review", "audit ", "assess ", "critique"]
+    },
+    "docsOnly": {
+      "weight": -45,
+      "tokens": ["document ", "readme", "changelog", "docs", "write up", "doc comment"]
+    },
+    "formattingOrGenerated": {
+      "weight": -35,
+      "tokens": ["reformat", "prettier", "regenerate index", "generated file", "lockfile"]
+    },
+    "statusOrPlanning": {
+      "weight": -30,
+      "tokens": ["status", "plan ", "planning", "roadmap", "what's next", "summarize state"]
+    }
+  },
+  "bands": [
+    { "max": 29, "verdict": "NO_CODE" },
+    { "max": 49, "verdict": "UNCERTAIN" },
+    { "max": 69, "verdict": "CODE_MODIFICATION" },
+    { "max": 100, "verdict": "CODE_CREATION_OR_STRUCTURAL_CHANGE" }
+  ],
+  "thresholds": { "askMin": 30, "codeMin": 50, "structuralMin": 70 }
+}

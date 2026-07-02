@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "domain-applicability-weights",
+  "title": "Domain Applicability Score (DAS) signal weights — ADR-0128 plan §7",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "Deterministic, table-driven. Positive + reducer signals summed and clamped to [0,100]. Hard triggers raise the profile floor (see hard-triggers.json); DDD ceremony is never applied to simple work.",
+  "positiveSignals": {
+    "explicitInvariant": { "weight": 25, "tokens": ["invariant", "business rule", "must always", "must never", "consistency rule"] },
+    "lifecycleStates": { "weight": 20, "tokens": ["state machine", "lifecycle", "status transition", "workflow state", "state transition"] },
+    "multipleCapabilities": { "weight": 20, "tokens": ["multiple capabilities", "several contexts", "cross-context", "bounded context"] },
+    "transactionalBoundary": { "weight": 15, "tokens": ["transaction", "consistency boundary", "atomic", "rollback", "two-phase"] },
+    "publicContract": { "weight": 15, "tokens": ["public api", "public contract", "schema", "event contract", "endpoint contract"] },
+    "crossContextIntegration": { "weight": 15, "tokens": ["integration", "cross-service", "inter-module", "external system"] },
+    "centralDurableCapability": { "weight": 15, "tokens": ["core capability", "central capability", "durable capability", "platform capability"] },
+    "multipleActors": { "weight": 10, "tokens": ["multiple actors", "several roles", "different users", "actor"] },
+    "recurringVocabulary": { "weight": 10, "tokens": ["ubiquitous language", "domain vocabulary", "domain term", "glossary"] },
+    "domainEvent": { "weight": 10, "tokens": ["domain event", "async event", "published event", "event-driven"] }
+  },
+  "reducerSignals": {
+    "simpleCrud": { "weight": -30, "tokens": ["simple crud", "basic crud", "list and create", "getter", "setter"] },
+    "isolatedScript": { "weight": -25, "tokens": ["one-off script", "isolated script", "throwaway", "standalone script"] },
+    "visualOnly": { "weight": -20, "tokens": ["visual only", "styling", "css", "layout tweak", "ui polish"] },
+    "configOrDocs": { "weight": -20, "tokens": ["config change", "configuration", "documentation", "readme"] },
+    "mechanicalFix": { "weight": -15, "tokens": ["typo", "rename variable", "mechanical fix", "formatting"] },
+    "technicalAdapter": { "weight": -10, "tokens": ["adapter", "wrapper", "shim", "glue code"] }
+  },
+  "bands": [
+    { "max": 24, "profile": "simple" },
+    { "max": 44, "profile": "modular" },
+    { "max": 69, "profile": "domain-driven" },
+    { "max": 100, "profile": "distributed-domain" }
+  ],
+  "thresholds": { "modularMin": 25, "domainDrivenMin": 45, "distributedMin": 70 }
+}

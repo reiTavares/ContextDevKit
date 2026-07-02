@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "rule-classes",
+  "title": "Rule classification — Class A deterministic vs Class B predictive (ADR-0129 §1)",
+  "note": "Every rule the classifier feeds is tagged. Class A = deterministic invariant (MAY reach strict by policy pre-authorization). Class B = predictive/semantic (born shadow, automatic ceiling guarded, NEVER auto-strict). WF-0063 ships every rule in shadow with zero blocking power.",
+  "rules": {
+    "CMIS_WRITE_ATTEMPT": {
+      "class": "A",
+      "kind": "deterministic-invariant",
+      "currentLevel": "shadow",
+      "maximumAutomaticLevel": "strict",
+      "strictPreAuthorized": false,
+      "scope": "code-mutation-intent",
+      "describes": "A real write attempt on a code path is authoritative code intent."
+    },
+    "CMIS_INFERRED_INTENT": {
+      "class": "B",
+      "kind": "predictive",
+      "currentLevel": "shadow",
+      "maximumAutomaticLevel": "guarded",
+      "scope": "code-mutation-intent",
+      "describes": "CMIS inferred from prompt/state signals."
+    },
+    "DAS_DOMAIN_APPLICABILITY": {
+      "class": "B",
+      "kind": "predictive",
+      "currentLevel": "shadow",
+      "maximumAutomaticLevel": "guarded",
+      "scope": "domain-applicability",
+      "describes": "Domain applicability inferred from prompt/context signals."
+    },
+    "PROFILE_SELECTION": {
+      "class": "B",
+      "kind": "predictive",
+      "currentLevel": "shadow",
+      "maximumAutomaticLevel": "guarded",
+      "scope": "implementation-profile",
+      "describes": "Implementation Profile and squad selection."
+    },
+    "PATH_CLASSIFICATION": {
+      "class": "A",
+      "kind": "deterministic-invariant",
+      "currentLevel": "shadow",
+      "maximumAutomaticLevel": "strict",
+      "strictPreAuthorized": false,
+      "scope": "code-path",
+      "describes": "Deterministic path classification (extension + directory + Project Map)."
+    }
+  },
+  "invariantRules": {
+    "note": "Class A deterministic invariants consumed downstream by enforcement (WF-0067). Declared here so their class is single-sourced; WF-0063 does not enforce them.",
+    "OWNER_PRESENT": { "class": "A", "describes": "A real code write has an active owner." },
+    "PACKET_PRESENT": { "class": "A", "describes": "A mandatory Implementation Packet exists." },
+    "CONTRACT_PRESERVED": { "class": "A", "describes": "Public contract preserved or covered by a Decision." },
+    "FORBIDDEN_IMPORT_ABSENT": { "class": "A", "describes": "Domain does not import infrastructure." },
+    "PATH_IN_TOUCH_SET": { "class": "A", "describes": "Critical path stays inside the declared touch-set." },
+    "EVIDENCE_PRESENT": { "class": "A", "describes": "Mandatory deterministic evidence exists." }
+  }
+}
