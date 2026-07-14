@@ -17,8 +17,8 @@ import { planHash, readPlan } from './plan.mjs';
 import { initState, readState, setTaskStatus, setWaveStatus, writeState } from './state.mjs';
 import { computeSchedule } from './scheduler.mjs';
 import { detectCollisions, validateResultPaths } from './ownership.mjs';
-import { approveGate, evaluateGate, readGateResult } from './gates.mjs';
-import { recordAgentResult } from './results.mjs';
+import { approveGate, evaluateGate, readGateResult, deriveGateFacts, isHumanTask } from './gates.mjs';
+import { recordAgentResult, readAgentResult } from './results.mjs';
 import { refreshContinuation } from './continuation.mjs';
 import { auditWorkflow } from './audit.mjs';
 import { migrateApply, migrateDryRun, migrationPlan } from './migrate.mjs';
@@ -77,14 +77,33 @@ export function recordResult(root, slug, file, now) {
   return { resultPath, violations, taskId: result.taskId };
 }
 
-/** Build the machine-gate evaluation ctx for one gate from current state. */
-function gateContext(plan, state, gate) {
+/**
+ * Build the machine-gate evaluation ctx for one gate. Reads the wave's recorded
+ * agent-results from disk (the only I/O here) and delegates the fact derivation
+ * to the PURE `deriveGateFacts` in gates.mjs (ADR-0128 evidence ruling: facts
+ * are proven by real recorded results, never asserted). Human-mode tasks are
+ * excluded from the agent-completion facts — a human task's completion is its
+ * gate approval, surfaced via `humanApprovalRecorded`.
+ * @param {string} packDir workflow pack root (to read recorded agent-results)
+ * @param {object} plan the workflow plan
+ * @param {object} state the workflow state
+ * @param {object} gate the gate being evaluated
+ * @param {{ humanApprovalRecorded?: boolean }} [extra] facts the caller already resolved
+ * @returns {Record<string, unknown>} evaluation facts
+ */
+function gateContext(packDir, plan, state, gate, extra = {}) {
   const wave = (plan.waves || []).find((candidate) => candidate.id === gate.waveId);
-  const taskStatuses = {};
-  for (const task of (wave && wave.tasks) || []) {
-    taskStatuses[task.id] = state?.taskStates?.[task.id]?.status || 'pending';
+  const tasks = (wave && wave.tasks) || [];
+  const agentResults = {};
+  for (const task of tasks.filter((candidate) => !isHumanTask(candidate))) {
+    agentResults[task.id] = readAgentResult(packDir, task.id);
   }
-  return { taskStatuses, revision: state?.revision ?? 0 };
+  const facts = deriveGateFacts({ tasks, taskStates: state?.taskStates ?? {}, agentResults });
+  return {
+    ...facts,
+    humanApprovalRecorded: extra.humanApprovalRecorded === true,
+    revision: state?.revision ?? 0,
+  };
 }
 
 /**
@@ -96,8 +115,9 @@ export function checkGate(root, slug, gateId) {
   const { packDir, plan, state } = loadPack(root, slug);
   const gate = (plan.gates || []).find((candidate) => candidate.id === gateId);
   if (!gate) throw new Error(`Gate "${gateId}" not found in plan.`);
-  const verdict = evaluateGate(gate, gateContext(plan, state, gate));
   const recorded = readGateResult(packDir, gateId, { expectedRevision: state?.revision ?? 0 });
+  const humanApprovalRecorded = !!(recorded && recorded.status === 'approved');
+  const verdict = evaluateGate(gate, gateContext(packDir, plan, state, gate, { humanApprovalRecorded }));
   if (recorded && recorded.status === 'approved') {
     return { ...verdict, status: 'approved', humanApproval: recorded.humanApproval };
   }
@@ -120,9 +140,12 @@ export function closeWave(root, slug, waveId, { apply, now }) {
   const { statePath, plan, state } = loadPack(root, slug);
   const wave = (plan.waves || []).find((candidate) => candidate.id === waveId);
   if (!wave) throw new Error(`Wave "${waveId}" not found in plan.`);
-  const tasks = wave.tasks || [];
-  const allTasksDone = tasks.length === 0 ||
-    tasks.every((task) => (state?.taskStates?.[task.id]?.status) === 'done');
+  // Human-mode tasks complete via their gate approval, not an agent-result, so
+  // they are excluded from the agent-completion check; the wave's human gate
+  // (checked below) is what proves the human task closed.
+  const agentTasks = (wave.tasks || []).filter((task) => !isHumanTask(task));
+  const allTasksDone = agentTasks.length === 0 ||
+    agentTasks.every((task) => (state?.taskStates?.[task.id]?.status) === 'done');
   const gate = wave.gate ? checkGate(root, slug, wave.gate) : null;
   const gatePassed = !gate || gate.status === 'passed' || gate.status === 'approved';
   const blocked = [];

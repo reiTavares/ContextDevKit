@@ -18,6 +18,8 @@ import {
   evaluateGate,
   approveGate,
   readGateResult,
+  deriveGateFacts,
+  isHumanTask,
 } from '../templates/contextkit/tools/scripts/workflow/gates.mjs';
 import {
   validateAgentResult,
@@ -94,6 +96,85 @@ const emptyMachine = evaluateGate({ id: 'G-X', type: 'machine', requirements: []
 emptyMachine.status === 'failed'
   ? rep.ok('machine gate with zero requirements does not pass')
   : rep.bad(`empty machine gate should fail, got ${emptyMachine.status}`);
+
+// ── Wave-program vocabulary (BIZ-0003 / ADR-0128 plans) ────────────────────
+// These requirement names are declared by every ADR-0128 wave plan; the engine
+// must evaluate them from ctx facts, not fall through to an unpopulated flag.
+const bizGate = {
+  id: 'G-DM0',
+  type: 'machine',
+  requirements: ['acceptance-evidence-present', 'all-wave-tasks-done', 'no-unresolved-critical-risk'],
+};
+const bizPassCtx = {
+  taskStatuses: { 'DM0-T1': 'done' },
+  acceptanceEvidencePresent: true,
+  noUnresolvedCriticalRisk: true,
+  revision: 6,
+};
+const bizPass = evaluateGate(bizGate, bizPassCtx);
+bizPass.status === 'passed' && bizPass.requirements.every((entry) => entry.met && !entry.evidence.startsWith('requirementFlags.'))
+  ? rep.ok('wave-program vocabulary passes from ctx facts (not requirementFlags fallthrough)')
+  : rep.bad(`wave-program gate should pass with fact evidence, got ${bizPass.status} / ${JSON.stringify(bizPass.requirements.map((r) => r.evidence))}`);
+evaluateGate(bizGate, { ...bizPassCtx, acceptanceEvidencePresent: false }).status === 'failed'
+  ? rep.ok('missing acceptance evidence fails the wave-program gate (fails closed)')
+  : rep.bad('wave-program gate should fail without acceptance evidence');
+evaluateGate(bizGate, { taskStatuses: { 'DM0-T1': 'pending' }, acceptanceEvidencePresent: true, noUnresolvedCriticalRisk: true }).status === 'failed'
+  ? rep.ok('a pending task fails all-wave-tasks-done')
+  : rep.bad('all-wave-tasks-done should fail with a pending task');
+evaluateGate(bizGate, {}).status === 'failed'
+  ? rep.ok('wave-program gate with empty ctx fails closed (no silent pass)')
+  : rep.bad('wave-program gate should fail on empty ctx');
+
+// ── deriveGateFacts: pure evidence derivation from recorded agent-results ──
+const doneResult = { taskId: 'DM0-T1', acceptanceMet: ['schemas versioned'], risks: [] };
+const factsPass = deriveGateFacts({
+  tasks: [{ id: 'DM0-T1', execution: { mode: 'agent' } }],
+  taskStates: { 'DM0-T1': { status: 'done' } },
+  agentResults: { 'DM0-T1': doneResult },
+});
+factsPass.acceptanceEvidencePresent === true && factsPass.noUnresolvedCriticalRisk === true && factsPass.taskStatuses['DM0-T1'] === 'done'
+  ? rep.ok('deriveGateFacts proves acceptance + no-critical-risk from a recorded result')
+  : rep.bad(`deriveGateFacts pass-path wrong: ${JSON.stringify(factsPass)}`);
+const factsNoResult = deriveGateFacts({
+  tasks: [{ id: 'DM0-T1', execution: { mode: 'agent' } }],
+  taskStates: { 'DM0-T1': { status: 'done' } },
+  agentResults: { 'DM0-T1': null },
+});
+factsNoResult.acceptanceEvidencePresent === false
+  ? rep.ok('deriveGateFacts: a done status WITHOUT a recorded result is not acceptance evidence (evidence, not assertion)')
+  : rep.bad('deriveGateFacts should not infer acceptance from status alone');
+const factsCriticalRisk = deriveGateFacts({
+  tasks: [{ id: 'DM0-T1', execution: { mode: 'agent' } }],
+  taskStates: { 'DM0-T1': { status: 'done' } },
+  agentResults: { 'DM0-T1': { taskId: 'DM0-T1', acceptanceMet: ['x'], risks: [{ severity: 'critical', resolved: false }] } },
+});
+factsCriticalRisk.noUnresolvedCriticalRisk === false
+  ? rep.ok('deriveGateFacts: an unresolved critical risk blocks no-unresolved-critical-risk')
+  : rep.bad('deriveGateFacts should flag an unresolved critical risk');
+const factsResolvedRisk = deriveGateFacts({
+  tasks: [{ id: 'DM0-T1', execution: { mode: 'agent' } }],
+  taskStates: { 'DM0-T1': { status: 'done' } },
+  agentResults: { 'DM0-T1': { taskId: 'DM0-T1', acceptanceMet: ['x'], risks: [{ severity: 'critical', resolved: true }] } },
+});
+factsResolvedRisk.noUnresolvedCriticalRisk === true
+  ? rep.ok('deriveGateFacts: a RESOLVED critical risk does not block')
+  : rep.bad('deriveGateFacts should not block on a resolved risk');
+
+// ── Human-mode tasks are excluded from the agent-completion facts ──────────
+isHumanTask({ execution: { mode: 'human' } }) && !isHumanTask({ execution: { mode: 'agent' } })
+  ? rep.ok('isHumanTask distinguishes human-mode from agent-mode tasks')
+  : rep.bad('isHumanTask wrong');
+const factsWithHumanTask = deriveGateFacts({
+  tasks: [
+    { id: 'DM4-T1', execution: { mode: 'agent' } },
+    { id: 'DM4-T2', execution: { mode: 'human' } },
+  ],
+  taskStates: { 'DM4-T1': { status: 'done' } }, // DM4-T2 (human) has no agent status
+  agentResults: { 'DM4-T1': { taskId: 'DM4-T1', acceptanceMet: ['packaged'], risks: [] } },
+});
+!('DM4-T2' in factsWithHumanTask.taskStatuses) && factsWithHumanTask.taskStatuses['DM4-T1'] === 'done' && factsWithHumanTask.acceptanceEvidencePresent === true
+  ? rep.ok('deriveGateFacts excludes the human task from agent-completion facts (its completion is the gate approval)')
+  : rep.bad(`deriveGateFacts should exclude the human task: ${JSON.stringify(factsWithHumanTask)}`);
 
 // ── CRITICAL: human gate stays pending from ctx, even a "complete" ctx ──────
 const humanGate = { id: 'G-W3', type: 'human', requirements: ['human-merge-authorization'] };
