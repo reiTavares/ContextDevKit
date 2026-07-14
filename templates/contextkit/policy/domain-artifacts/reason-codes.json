@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "reason-codes",
+  "title": "Stable domain-artifacts reason-code catalog — ADR-0128 §13/§21/§22, plan §28",
+  "note": "Stable identifiers for every domain-artifacts resolver decision. Part of the public contract: consumers (lifecycle WF-0065, enforcement WF-0067, telemetry) may key on them. Codes are append-only; renaming/removing one is a material change requiring a Decision.",
+  "codes": {
+    "ARTIFACT_SCHEMA_VALID": "Artifact document satisfies its declared schema (all required fields present, correctly typed).",
+    "ARTIFACT_SCHEMA_INVALID": "Artifact document is missing a required field or has a wrongly-typed field.",
+    "ARTIFACT_UNKNOWN_KIND": "Requested artifact kind is not in the artifact-schemas table.",
+    "ARTIFACT_REQUIRED_FOR_PROFILE": "The resolved profile requires this artifact kind (requiredForProfiles).",
+    "ARTIFACT_NEVER_FOR_PROFILE": "Proportionality guard: the resolved profile must never generate this artifact kind (neverForProfiles).",
+    "ARTIFACT_NOT_REQUIRED": "The resolved profile neither requires nor forbids this artifact kind.",
+    "PACKET_COMPILED": "Implementation Packet compiled successfully from owner + classification + sources.",
+    "PACKET_MISSING_SOURCE": "Packet compilation refused: a declared source (business/operation/workflow/decision/use-case) is absent.",
+    "RECEIPT_BUILT": "Implementation Receipt built comparing the packet against the actual result.",
+    "RECEIPT_DEVIATION_DETECTED": "Receipt found at least one planned-vs-actual deviation (files, agents, or skills).",
+    "RECEIPT_CONTRACT_CHANGED": "Receipt detected a change to a contract the packet declared as contractsToPreserve.",
+    "RECIPE_RESOLVED": "Task Compiler recipe resolved deterministically for the given profile.",
+    "RECIPE_UNKNOWN_PROFILE": "Recipe lookup failed: the profile has no declared recipe; resolution degraded, never a false pass.",
+    "SCAFFOLD_RELEASED": "Scaffold released: its required contract artifact exists and validates.",
+    "SCAFFOLD_REFUSED_NO_CONTRACT": "Scaffold refused: the required contract artifact is absent (constitution §8 default-to-refuse).",
+    "SCAFFOLD_REFUSED_INVALID_CONTRACT": "Scaffold refused: the required contract artifact exists but fails its own schema validation.",
+    "SCAFFOLD_UNKNOWN_KIND": "Scaffold refused: the requested scaffold kind is not in the scaffold-contracts table.",
+    "SCAFFOLD_PLACEHOLDER_EMITTED": "Scaffold emitted a typed placeholder field — never an invented business rule.",
+    "ARTIFACTS_POLICY_DEGRADED": "A domain-artifacts policy table is absent/unparseable; resolver degraded with a receipt, never a false pass."
+  }
+}

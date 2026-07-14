@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "policy-manifest",
+  "title": "Domain Artifacts & Task Compiler policy manifest — ADR-0128 §13/§21/§22 (WF-0066)",
+  "updated": "2026-07-02",
+  "note": "Index of the domain-artifacts policy tables. Single source for the five artifact contracts, the Task Compiler recipe declarations and the governed scaffold contracts — the runtime NEVER embeds these (ADR-0129 §4). policyVersion is the calibration unit's third axis (rule × host × policyVersion).",
+  "tables": [
+    { "id": "artifact-schemas", "file": "artifact-schemas.json", "concern": "The five artifact contracts + proportionality by profile (§13)" },
+    { "id": "recipe-contracts", "file": "recipe-contracts.json", "concern": "domain-implementation + four profile recipes over tc-recipe-runner (§21)" },
+    { "id": "scaffold-contracts", "file": "scaffold-contracts.json", "concern": "Governed scaffolds — typed placeholders, contract-gated release (§22)" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Stable domain-artifacts reason-code catalog (§28)" }
+  ],
+  "changeClasses": {
+    "observationalAdjustment": "shadow/non-blocking field or step tweak; calibration receipt; no ADR when enforcement power is unchanged.",
+    "automaticPromotion": "rule evolves up to its maximumAutomaticLevel on evidence; no further human action per transition.",
+    "changeOfMaximumAuthority": "raising maximumAutomaticLevel / accepted evidence types / fail mode — requires a governed Decision.",
+    "materialEnforcementChange": "new mandatory artifact / new block case / reduced fail-open — requires a Decision and resets rule confidence."
+  }
+}

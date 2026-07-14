@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "artifact-schemas",
+  "title": "Domain Artifacts — the five deterministic artifacts (ADR-0128 §13, WF-0066)",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "guarded",
+  "note": "Single source for the five artifact contracts. requiredForProfiles / neverForProfiles encode proportionality (§31) directly in data: simple NEVER generates domain-map or aggregate. The runtime validator (domain-artifacts/schema-validate.mjs) reads this table; it never hardcodes a field list. Shadow-only at WF-0066 — validators run, but do not gate a write.",
+  "artifacts": {
+    "domain-map": {
+      "title": "Domain Map",
+      "file": "domain-map.json",
+      "requiredForProfiles": ["domain-driven", "distributed-domain"],
+      "neverForProfiles": ["no-code", "simple", "modular"],
+      "requiredFields": [
+        { "name": "owner", "type": "string" },
+        { "name": "contexts", "type": "array", "itemFields": [
+          { "name": "name", "type": "string" },
+          { "name": "responsibilities", "type": "array" },
+          { "name": "ownedStates", "type": "array" },
+          { "name": "publicContracts", "type": "array" },
+          { "name": "allowedDependencies", "type": "array" },
+          { "name": "forbiddenDependencies", "type": "array" }
+        ] },
+        { "name": "crossContextRelations", "type": "array" }
+      ]
+    },
+    "aggregate": {
+      "title": "Aggregate",
+      "file": "aggregate.json",
+      "requiredForProfiles": [],
+      "neverForProfiles": ["no-code", "simple"],
+      "note": "Never for simple CRUD — only when a real aggregate boundary exists (declared by the caller, not inferred here).",
+      "requiredFields": [
+        { "name": "owner", "type": "string" },
+        { "name": "root", "type": "string" },
+        { "name": "entities", "type": "array" },
+        { "name": "valueObjects", "type": "array" },
+        { "name": "invariants", "type": "array" },
+        { "name": "commands", "type": "array" },
+        { "name": "events", "type": "array" },
+        { "name": "repositoryPort", "type": "string", "optional": true },
+        { "name": "consistency", "type": "string" }
+      ]
+    },
+    "use-case": {
+      "title": "Use Case",
+      "file": "use-case.json",
+      "requiredForProfiles": ["modular", "domain-driven", "distributed-domain"],
+      "neverForProfiles": ["no-code", "simple"],
+      "requiredFields": [
+        { "name": "owner", "type": "string" },
+        { "name": "actor", "type": "string" },
+        { "name": "input", "type": "object" },
+        { "name": "preconditions", "type": "array" },
+        { "name": "invariants", "type": "array" },
+        { "name": "output", "type": "object" },
+        { "name": "errors", "type": "array" },
+        { "name": "transaction", "type": "string" },
+        { "name": "effects", "type": "array" },
+        { "name": "acceptance", "type": "array" }
+      ]
+    },
+    "implementation-packet": {
+      "title": "Implementation Packet",
+      "file": "implementation-packet.json",
+      "requiredForProfiles": ["simple", "modular", "domain-driven", "distributed-domain"],
+      "neverForProfiles": ["no-code"],
+      "note": "Required for every code create/modify profile (ADR-0128 evidence ruling) — the one artifact with no proportional exclusion below no-code.",
+      "requiredFields": [
+        { "name": "owner", "type": "string" },
+        { "name": "classification", "type": "object", "itemFields": [
+          { "name": "cmis", "type": "number" },
+          { "name": "das", "type": "number" },
+          { "name": "profile", "type": "string" }
+        ] },
+        { "name": "sources", "type": "object" },
+        { "name": "requiredAgents", "type": "array" },
+        { "name": "requiredSkills", "type": "array" },
+        { "name": "allowedPaths", "type": "array" },
+        { "name": "forbiddenPaths", "type": "array" },
+        { "name": "contractsToPreserve", "type": "array" },
+        { "name": "invariants", "type": "array" },
+        { "name": "steps", "type": "array" },
+        { "name": "requiredTests", "type": "array" },
+        { "name": "requiredEvidence", "type": "array" }
+      ]
+    },
+    "implementation-receipt": {
+      "title": "Implementation Receipt",
+      "file": "implementation-receipt.json",
+      "requiredForProfiles": ["simple", "modular", "domain-driven", "distributed-domain"],
+      "neverForProfiles": ["no-code"],
+      "note": "Compares packet vs actual (ADR-0128 evidence ruling). One receipt per completed packet; round-trips packetId.",
+      "requiredFields": [
+        { "name": "packetId", "type": "string" },
+        { "name": "owner", "type": "string" },
+        { "name": "agentsPlanned", "type": "array" },
+        { "name": "agentsActual", "type": "array" },
+        { "name": "skillsPlanned", "type": "array" },
+        { "name": "skillsActual", "type": "array" },
+        { "name": "filesPlanned", "type": "array" },
+        { "name": "filesTouched", "type": "array" },
+        { "name": "filesNew", "type": "array" },
+        { "name": "contractsChanged", "type": "array" },
+        { "name": "deviations", "type": "array" },
+        { "name": "testsRun", "type": "array" },
+        { "name": "gatesRun", "type": "array" },
+        { "name": "result", "type": "string" }
+      ]
+    }
+  }
+}
