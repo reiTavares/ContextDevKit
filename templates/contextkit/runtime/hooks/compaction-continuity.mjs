@@ -39,6 +39,9 @@ import { readLedger } from './ledger.mjs';
 import { emitAdvisory, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { pathsFor } from '../config/paths.mjs';
 import { summarizeObligations } from '../execution/compaction-continuity-core.mjs';
+import { summarizeSpawnEvidence } from '../domain-engineering/spawn-record.mjs';
+import { buildDomainJourney, renderDomainJourneyLine } from '../domain-engineering/journey.mjs';
+import { loadEnvelope } from '../execution/request-envelope.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -113,6 +116,15 @@ async function handlePreCompact(sessionId) {
     summary: buildRecordSummary(contract),
   };
 
+  // ADR-0128 §14/§17 (WF-0065) — preserve the domain journey across compaction so
+  // a long session does not lose the contract: the active profile (from the
+  // ledger's readiness block) + the planned-vs-completed spawn evidence. Additive
+  // + fail-open; absent when the capability never wrote a readiness block.
+  try {
+    const domainJourney = resolveDomainJourney(ledger, taskId);
+    if (domainJourney) record.domainJourney = domainJourney;
+  } catch { /* domain journey is additive — never break continuity (rule 2) */ }
+
   const stateDir = join(pathsFor(ROOT).pipeline, 'state', String(taskId));
   mkdirSync(stateDir, { recursive: true });
   writeFileAtomicSync(continuityPathFor(ROOT, taskId), JSON.stringify(record, null, 2));
@@ -178,6 +190,10 @@ async function handleSessionStart(sessionId, payload) {
     }`,
     `  Context snapshot: "${record.summary}"`,
   ];
+  // ADR-0128 §14/§17 (WF-0065) — re-surface the preserved domain journey so the
+  // resumed session regains the contract. Additive; only when a journey was saved.
+  const journeyLine = renderDomainJourneyLine(record.domainJourney);
+  if (journeyLine) lines.push(journeyLine);
   emitAdvisory(lines.join('\n') + '\n', HOST, 'SessionStart');
 }
 
@@ -197,6 +213,26 @@ function buildRecordSummary(contract) {
   const completionCount = (contract.requiredBeforeCompletion ?? []).length;
   const tier = contract.signals?.tier ?? 'unknown';
   return `${tier} task; ${writeCount} write gates, ${completionCount} completion gates pending`;
+}
+
+/**
+ * I/O wrapper: resolves the §14/§17 domain-journey inputs (the task envelope's
+ * §15 block + the spawn evidence) and delegates the shaping to the PURE
+ * `buildDomainJourney` in journey.mjs. Planned agents are per-TASK (they live on
+ * the envelope's §15 block), not on the session-level readiness state.
+ *
+ * @param {object} ledger session ledger (carries `domainEngineering`)
+ * @param {string} taskId active task id
+ * @returns {object|null} metadata-only journey block (no file content — §9)
+ */
+function resolveDomainJourney(ledger, taskId) {
+  const readiness = ledger && typeof ledger.domainEngineering === 'object' ? ledger.domainEngineering : null;
+  if (!readiness) return null;
+  const envelope = loadEnvelope(ROOT, taskId);
+  const implementation = envelope && typeof envelope.implementation === 'object' ? envelope.implementation : null;
+  const planned = implementation && Array.isArray(implementation.requiredAgents) ? implementation.requiredAgents : [];
+  const spawnEvidence = summarizeSpawnEvidence(ROOT, taskId, planned);
+  return buildDomainJourney({ readiness, implementation, spawnEvidence });
 }
 
 // ---------------------------------------------------------------------------

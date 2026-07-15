@@ -91,6 +91,14 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
+  // ADR-0128 §14 (WF-0065) — Domain Engineering readiness. Pre-rendered by
+  // session-start.mjs (keeps this pure module free of domain-engineering imports);
+  // '' when the capability is disabled, so a non-adopting project stays silent.
+  if (boot.domainEngineeringBanner) {
+    out.push(boot.domainEngineeringBanner);
+    out.push('');
+  }
+
   if (boot.behaviorsActive) {
     out.push('## 🧭 Behavioral discipline is ACTIVE');
     out.push('');

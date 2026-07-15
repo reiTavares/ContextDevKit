@@ -45,6 +45,8 @@ import { orchestrate } from '../execution/request-orchestrator.mjs';
 import { saveEnvelope } from '../execution/request-envelope.mjs';
 import { renderDirective } from '../execution/request-directive.mjs';
 import { recordOrchestration } from '../execution/request-telemetry.mjs';
+import { extendExecutionContract } from '../domain-engineering/directive.mjs';
+import { resolveConfig } from '../domain-engineering/config.mjs';
 import { getBranch } from './boot-signals.mjs';
 import { runAdvisory, renderChecklist } from './execution-contract-advisory.mjs';
 // Re-export for backward compatibility: consumers (enforcement gate + integration
@@ -281,6 +283,19 @@ async function main() {
       recordOrchestration(ROOT, envelope); // §23 — one telemetry record per request
       const directive = renderDirective(envelope);
       if (directive) process.stdout.write('\n' + directive);
+
+      // ADR-0128 §15 (WF-0065) — extend the Execution Contract with the mandatory
+      // implementation directive, derived from the envelope's §15 block (already
+      // built by envelope-block.mjs — never recomputed here). Config-gated
+      // default-OFF; a no-code / degraded block yields '' (silent). Isolated
+      // fail-open so it can never break the orchestration path (rule 2).
+      try {
+        const deConfig = resolveConfig(cfg?.domainEngineering);
+        if (deConfig.enabled === true && deConfig.classifyEveryRequest === true) {
+          const implDirective = extendExecutionContract(envelope);
+          if (implDirective) process.stdout.write('\n' + implDirective);
+        }
+      } catch { /* §15 directive is additive — never break the hook (fail-open) */ }
     }
   } catch { /* orchestration is additive — never break the hook (fail-open) */ }
 }

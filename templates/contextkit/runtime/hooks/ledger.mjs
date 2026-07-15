@@ -127,6 +127,7 @@ export function freshLedger(sessionId) {
     simulations: [],
     squads: [],
     routing: null,
+    domainEngineering: null,
   };
 }
 
@@ -155,6 +156,7 @@ function normalizeLedger(obj, sessionId) {
     simulations: Array.isArray(obj.simulations) ? obj.simulations : [],
     squads: Array.isArray(obj.squads) ? obj.squads : [],
     routing: obj.routing && typeof obj.routing === 'object' ? obj.routing : null,
+    domainEngineering: obj.domainEngineering && typeof obj.domainEngineering === 'object' ? obj.domainEngineering : null,
   };
 }
 

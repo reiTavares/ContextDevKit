@@ -50,6 +50,7 @@ import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 import { renderBootBanner } from './boot-banner.mjs';
 import { readSquadContext } from './squad-context.mjs';
+import { checkDomainEngineeringReadiness, renderReadinessBanner } from '../domain-engineering/readiness.mjs';
 import { applyBootDeltaGate } from '../../tools/scripts/economy/boot-delta-gate.mjs';
 import { economyActivationSection } from '../../tools/scripts/economy/economy-session-activation.mjs';
 import { logSavingSync } from '../../tools/scripts/economy/economy-savings.mjs';
@@ -144,6 +145,18 @@ async function main() {
   const ledger = freshLedger(sessionId);
   if (squadContext) ledger.squads = squadContext.squads;
   if (routingState) ledger.routing = routingState;
+  // ADR-0128 §14 (WF-0065) — Domain Engineering readiness probe. Best-effort,
+  // never blocks boot (rule 2). Default-OFF (config §26): a disabled capability
+  // resolves to enabled:false, attaches nothing to the ledger and renders no
+  // banner, so a non-adopting project boots byte-identical to today.
+  let domainEngineeringBanner = '';
+  try {
+    const deState = checkDomainEngineeringReadiness(ROOT);
+    if (deState && deState.enabled === true) {
+      ledger.domainEngineering = deState;
+      domainEngineeringBanner = renderReadinessBanner(deState);
+    }
+  } catch { /* readiness surface is best-effort (rule 2) */ }
   await writeLedger(sessionId, ledger);
 
   const drift = level >= 2 ? await analyzePriorLedgers(sessionId) : [];
@@ -163,7 +176,7 @@ async function main() {
   // Task 112 — an unseen grade-≥3 consent receipt replays once at the next boot.
   const pendingDigest = consumePendingDigest(ROOT);
 
-  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest) return;
+  if (!needsSetup && !sessions && !changelog && !latest && drift.length === 0 && !secDue && !predDue && !engineSignal && !value && !bugs && !mapStale && !pendingDigest && !domainEngineeringBanner) return;
 
   // ADR-0044 D2: prefer the compact count-by-type + recent-entries digest; fall
   // back to the raw-truncated section on any parse miss (ADR-0027 contract).
@@ -181,6 +194,7 @@ async function main() {
     projectName: await projectName(ROOT),
     autonomyBadge: autonomyBadge(ROOT),
     routingLine,
+    domainEngineeringBanner,
     needsSetup,
     greenfield: needsSetup ? isGreenfield(ROOT) : false,
     practicesActive: loadConfigSync(ROOT)?.practices?.active === true,

@@ -33,6 +33,8 @@ import { readJsonSafe, writeFileAtomicSync } from './safe-io.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
 import { pathsFor } from '../config/paths.mjs';
 import { emitAdvisory, emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
+import { recordSpawnStop } from '../domain-engineering/spawn-record.mjs';
+import { resolveConfig } from '../domain-engineering/config.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -280,6 +282,18 @@ async function main() {
     return;
   }
   handleCompletion(taskId, ledger, resolveEnforcementMode(config));
+
+  // ADR-0128 §17 (WF-0065) — stamp completion on the subagent's spawn record so
+  // the planned-vs-dispatched-vs-completed evidence is real: an agent merely
+  // named (planned) or merely dispatched never counts — only a recorded
+  // completion does. Config-gated default-OFF; additive + fail-open so the
+  // scope-check above is never affected (rule 2).
+  try {
+    if (resolveConfig(config?.domainEngineering).enabled === true) {
+      const agent = typeof payload?.agent_type === 'string' ? payload.agent_type : undefined;
+      recordSpawnStop(ROOT, { taskId, agent });
+    }
+  } catch { /* §17 stamp is additive — never break the gate (fail-open) */ }
 }
 
 main().catch(() => process.exit(0));

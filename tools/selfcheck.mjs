@@ -29,6 +29,7 @@ import { runMcp002Checks } from './selfcheck-mcp-002.mjs';
 import { runDomainEngineeringChecks } from './selfcheck-domain-engineering.mjs';
 import { runDevteamChecks } from './selfcheck-devteam.mjs';
 import { runDomainArtifactsChecks } from './selfcheck-domain-artifacts.mjs';
+import { runDomainLifecycleChecks } from './selfcheck-domain-lifecycle.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -181,6 +182,7 @@ async function main() {
   await runDomainEngineeringChecks({ ok, bad }, { KIT });
   await runDevteamChecks({ ok, bad }, { KIT });
   await runDomainArtifactsChecks({ ok, bad }, { KIT });
+  await runDomainLifecycleChecks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 

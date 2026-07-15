@@ -29,3 +29,16 @@ export {
 export {
   resolveConfig, modeForLevel, DEFAULT_DOMAIN_ENGINEERING_CONFIG,
 } from './config.mjs';
+// Native Lifecycle Orchestration (ADR-0128 §14/§15/§17, WF-0065): the host
+// lifecycle surface — readiness probe + banner (§14), the mandatory
+// implementation directive (§15) and the subagent spawn-record bridge (§17).
+export {
+  checkDomainEngineeringReadiness, buildReadinessState, renderReadinessBanner,
+  READINESS_SCHEMA_VERSION,
+} from './readiness.mjs';
+export { extendExecutionContract, DIRECTIVE_VERSION } from './directive.mjs';
+export {
+  recordSpawn, recordSpawnStop, readSpawnRecords, compareSpawn, summarizeSpawnEvidence,
+  dispatchedAgents, completedAgents, SPAWN_RECORD_SCHEMA_VERSION,
+} from './spawn-record.mjs';
+export { buildDomainJourney, renderDomainJourneyLine } from './journey.mjs';
