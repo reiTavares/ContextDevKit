@@ -20,168 +20,880 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fleet-aware intake collision gate + done/ workflow lifecycle (WF-0042, ADR-0119)
+_Nothing unreleased._
 
-- Intake numbering (BIZ / OP / WF / ADR) is now reconciled across **every sibling
-  git worktree** on the machine, not just the local copy — two parallel sessions
-  can no longer allocate the same number and collide on merge. New
-  `registry/fleet.mjs` (`listWorktrees`, `fleetMemoryRoots`) feeds the allocators
-  in `registry/ids.mjs`; new `nextAdrNumber` + `localVsFleet` exports.
-- Numbering is also **done-recursive**: the allocator counts `done/` archives, so a
-  filed-away workflow's number is never reused.
-- `intake-collision-gate.mjs` — advisory (never-blocking, exit-0, zero-token) gate
-  that prints the fleet-reconciled next number per kind and warns on divergence.
-- `workflow-done-sweep.mjs` — files concluded workflows into `<owner>/done/`
-  (owned) or `memory/workflows/done/` (unowned); dry-run by default, `--write`
-  atomic, idempotent.
-- `project-map.mjs --memory` (alias `--find dogfood`) — deterministic dogfood
-  memory index + fleet-safe next ids.
-- Tests: `integration-test-intake-gate.mjs` (tier `integration:workflow`) +
-  four co-located selftests.
-- **Wired in (not deferred):** the gate surfaces fleet reconciliation at
-  `workflow new` (quiet unless a parallel worktree would have collided); the
-  done-sweep runs automatically at session end via a new `done-sweep` **Stop hook**
-  (composed for Claude + Codex), filing concluded workflows without yanking a
-  workflow's path mid-command.
-- Fixed: `workflow advance` no longer strips the `owner:` frontmatter — owner now
-  survives read→advance→render so owned workflows file under their context (#357).
-- `workflow-pack.mjs` frontmatter parsing extracted to `workflow-frontmatter.mjs`
-  (responsibility split to stay under the 308-line budget).
-
-### Test isolation harness; parallelism declined as measured-slower (WF0025/TEA-008, ADR-0114)
-
-- `run-suites.mjs` gains `--shuffle` + `--repeat N` — the suite-isolation proof
-  that TEA-001 specified but never shipped. Proven: 363 suite-runs (121 × 3
-  shuffled passes), 0 failures — order-independent.
-- A spike measured bounded concurrency (`--jobs N`, new) and found it **slower**,
-  not faster (serial 178s vs jobs=4 242s vs jobs=8 367s) — the suites are
-  I/O-bound (concurrent installs thrash the disk). Parallelism is therefore
-  **declined as a default**; `--jobs` ships default-off, labeled EXPERIMENTAL with
-  a stderr warning, as a re-measurement instrument only. CI sharding deferred
-  (trigger: `ci:full` p50 > 8 min sustained). New `tools/run-suites-pool.mjs`
-  (shuffle + bounded pool + `executeProbe`) + `tools/selfcheck-run-pool.mjs`
-  self-test. Default serial `npm test` path is byte-identical.
-
-### Test fast-path: `selfcheck-request` shard + selection telemetry (WF0025, ADR-0113)
-
-- The request-orchestration self-checks (W1–W7) are now a separately-selectable
-  `selfcheck-request` suite (`tools/selfcheck-request.mjs`) so editing
-  `runtime/execution/*` runs them in seconds via `test:impact` instead of dragging
-  in the 8-min `selfcheck` monolith. `selfcheck.mjs` still runs the same block
-  inline on a full pass — the floor is unchanged and `ci:full` stays the gate.
-- The `selfcheck` suite's `touches[]` dropped the over-broad
-  `templates/contextkit/runtime/` seed; runtime subdirs map to their own suites or
-  escalate via the unmapped-source ⇒ full rule (no false-negative). A selector
-  self-test locks the split (an `execution/*` edit must select the shard, not the
-  monolith). Suite registry moved its test-infra self-tests into
-  `tools/test-suites-infra.mjs` to stay under the 308-line budget.
-- `--impact` runs now record their narrowing (selected/total) into
-  `runs/history.jsonl`; `node tools/test-telemetry.mjs` surfaces it and the
-  false-negative watch message reflects the now-present TEA-004 selector (task 301).
-
-### Automatic economy pipeline at `/dev-start` (WF0037)
-
-- A deterministic, zero-dependency bootstrap now fingerprints the objective,
-  probes resumable state, checks Project Map freshness and focused matches before
-  broad context, reuses the L7 RequestOrchestrator, and emits bounded
-  context/run-compact guidance. Free-form objectives remain data only through
-  the `--objective -- ...` contract.
-- New append-only lifecycle events and correlated execution acknowledgements
-  distinguish evaluated, eligible, recommended, directed, attempted, applied,
-  skipped, and failed. Policy intent never becomes `applied` without a valid
-  matching acknowledgement; repeated bootstrap events are idempotent and raw
-  objectives are not persisted.
-- Runner-first now requires explicit deterministic command facts, routing
-  economics retains structured `reasonCodes`, Fable remains disabled by default,
-  and `/token-report` renders lifecycle/observed-savings evidence even with no
-  transcript usage.
-- Codex and Antigravity outputs were rebuilt so recently merged L7 orchestration,
-  Session Autonomy Receipt, Task Compiler, QA, pipeline, and log-session source
-  changes are projected consistently.
-
-### Codex host parity closure (ADR-0056 follow-up, card 351)
-
-Codex now projects the full Claude command/agent surface instead of carrying
-silent host gaps. The Codex build emits 80 generated `source-command-*` skills
-(0 skipped) and 35 generated TOML subagents, with selfcheck enforcing
-byte-for-byte generated content parity against an in-memory rebuild.
-
-#### Changed
-- **Command parity is explicit.** `/claude-md`, `/token-report`, and `/fable`
-  now have Codex-specific functional projections instead of being omitted. The
-  converter also rewrites `claude-md.mjs` instructions to pass `--host codex`
-  wherever a generated Codex skill references the guide scaffolder.
-- **Agent model intent is preserved.** Claude frontmatter model tiers now project
-  through the Codex host model policy into generated `.codex/agents/*.toml`
-  `model` overrides, while inherited dispatcher agents stay unset.
-- **Capability Enforcement reaches Codex L5.** Codex hook composition now wires
-  execution contracts, execution gates, indirect-write reconciliation,
-  completion evidence, subagent lifecycle checks, and compaction continuity using
-  Codex-native hook events and JSON advisory payloads.
-- **Codex write tracking understands `apply_patch`.** The host adapter extracts
-  file paths from Codex `apply_patch` payloads so shared edit ledgers, gates, and
-  reconciliation reason over the real affected files.
-
-### Universal wave-based workflow engine (ADR-0101, WF0035)
-
-One wave-based execution model for every formal workflow size — a basic workflow
-is a single wave; a program is an arbitrary DAG of waves, tasks, gates, and runs.
-Complexity is progressive via `profile` (`pipeline-only`/`basic`/`standard`/
-`advanced`/`program`) + wave `pattern` + add-ons; there is no separate "program
-engine". Opt-in — the legacy `new`/`advance`/`check`/`status`/`report` CLI is
-behaviour-unchanged. Built across WAVE 0–3 (5-agent swarms); full CI green
-(103 suites, tech-debt 0 RED). Refines ADR-0057 + ADR-0071.
-
-#### Added
-- **Single source of truth** — `workflow-plan.json` (topology) +
-  `workflow-state.json` (machine-owned: monotonic revision, plan-hash guard,
-  atomic writes). Task/status/continuation Markdown become generated projections
-  in idempotent managed blocks, ending hand-maintained, contradictory status
-  across files.
-- **Deterministic engine** (`templates/contextkit/tools/scripts/workflow/`) — pure
-  DAG (cycle/topo/ready/blocked/critical-path), scheduler (capacity ceilings, run
-  batches, execution-mode filtering, priority order), ownership (glob collision +
-  result-path validation), first-class gates (machine gates evaluate from facts;
-  **human gates never auto-pass** — explicit named approver only), structured
-  agent/wave/gate results, and one compact `CONTINUATION-PROMPT.md`.
-- **Four versioned registries** — profiles, 9 wave-patterns, an 18-artifact
-  file-catalog, 9 add-ons — answering deterministically why a file exists, whether
-  it is required, and what it must not duplicate.
-- **Non-destructive migration** — `audit` reports legacy contradictions without
-  resolving them; `migrate --dry-run` performs zero writes; `--apply` is
-  force-gated, idempotent, and preserves human prose outside managed blocks. The
-  Origem CRM WF0016 ships as a read-only fixture proving detection without loss.
-- **CLI** — `new --profile`, `refresh`, `next-run`, `ownership-check`,
-  `record-agent-result`, `check-gate`, `approve-gate`, `close-wave`, `audit`,
-  `migrate-plan`, `migrate`, `explain-file`, `required-files`. Engine distributed
-  via `copyEngine()`; 15 suites under `integration:workflow`; guides in
-  `docs/workflow-engine/`. Zero new hot-path dependencies (ADR-0001).
+## [3.6.0] - 2026-07-17
 
 ### Added
+- **WF-0068 — Multi-host, Installer & Rollout (BIZ-0003, ADR-0128
+  §25/§26/§28/§29/§30/§31 + ADR-0129 — the FINAL workflow; program-integration +
+  rollout authority; default-OFF preserved, guarded/strict flip human-gated).**
+  Makes the Domain Engineering capability portable, installable and
+  provably-activated — reuse-over-rebuild, no second installer/gate/registry.
+  **Installer distribution** (the known gap): `copyEngine` distributes
+  `policy/domain-engineering|devteam|domain-artifacts/` always-overwrite (the
+  classifier's schema-coupled single source), `seedSubstrate` distributes
+  `contextkit/skills/` via 3-way `syncTree`, and `uninstall --purge` removes both
+  (reversible). **Host projections**: the two WF-0067 gate hooks
+  (`domain-code-gate.mjs` PreToolUse + `domain-conformance.mjs` PostToolUse) wired
+  at L≥4 into `settings-compose.mjs` + the Codex + Antigravity composers (block
+  verb translated per host — genuine equivalence, not a declared limitation) and
+  removed from the `selfcheck-gates.mjs` unregistered allowlist. **Fitness
+  promotion**: the 8 Class-A domain rules promoted OBSERVE_ONLY→BLOCKING+ACTIVE
+  together (armed-blocking invariant green; inert fleet-wide because
+  `evaluateDomainFitness({}) === []` — no declared domain map ⇒ zero findings).
+  **`/domain` diagnostic** (`domain-inspect.mjs`, observation-only; reuses
+  `buildImplementationBlock`; `/implementation` dropped — §9 no distinct consumer).
+  **§28 telemetry proof**: `precisionRecall` over `buildConfusionMatrix`, authority
+  re-derived from the immutable provenance-tier table (self-report Tier D never
+  promotes) — distinguishes actual activation from selection. **Staged-activation
+  contract**: ships `enabled:false` + `rolloutStage:null` (inert); the
+  shadow→advisory→guarded→strict ceiling is the human-gated fleet flip. Docs EN
+  (`docs/how-to/use-domain-engineering.md`) + pt-BR (`instrucoes.md`). New
+  `integration-test-domain-distribution.mjs` (16 checks: install/marker/
+  block-proof-OFF/live-wire-ON/CLI/update/purge) + cross-host parity + §28 checks.
+  Independent review (code-reviewer + devops + eval-designer) — no blockers.
+  **BIZ-0003 program code-complete** (all 6 workflows done); G-MH4 approved.
+- **WF-0067 — Enforcement & Architectural Fitness (BIZ-0003, ADR-0128
+  §16/§19/§20/§23/§24/§29 + ADR-0129 — default-OFF, guarded flip human-gated).**
+  Turns the shadow Domain Engineering capability into real deterministic
+  enforcement by EXTENDING the existing gates — no second gate. Zero-dep PURE
+  evaluators under `templates/contextkit/runtime/domain-engineering/` (exported
+  from `index.mjs`): `code-gate.mjs` (`evaluateCodeGate` — the §16 two-axis
+  verdict applicability×enforcement {ALLOW/WARN/ASK/BLOCK/DEGRADED};
+  `resolveDomainMode` default-OFF level→mode ladder; `authoritativeCmis` — a real
+  source write forces CMIS=100, §5, closing textual false negatives; `capMode` —
+  the §29 staged-rollout ceiling that may only lower authority), `conformance.mjs`
+  (`reconcileWrite` — §19 risk-banded drift: record / require-packet-update /
+  block-next-write), `completion.mjs` (`evaluateDomainCompletion` — §20 obligations
+  derived from the resolved profile only; no-code ⇒ zero obligations ⇒ allow),
+  `project-map-compare.mjs` (`compareDomainToProjectMap` — §23 declared-vs-real
+  delta). The eight DDD/architecture fitness functions + six advisory signals
+  (§24) register into the EXISTING arch-debt catalogue via `makeFinding`
+  (`arch-debt/domain-fitness{,-catalogue}.mjs`; `INITIAL_FITNESS_CATALOGUE` 9→23;
+  `gate-context.mjs` adds `domainConformance`) — every rule ships `OBSERVE_ONLY`
+  at launch so the gate stays PASS_WITH_OBSERVATION and native hosts stay green.
+  Two DORMANT hooks (`domain-code-gate.mjs` PreToolUse + `domain-conformance.mjs`
+  PostToolUse — built, correct, unwired, on the `selfcheck-gates.mjs` allowlist)
+  plus the live `completion-gate.mjs` augmented with `augmentWithDomainCompletion`
+  (config-gated default-OFF, fail-open). `tools/selfcheck-domain-enforcement.mjs`
+  (46 checks: block-proof, authoritative fallback, fail-open degraded receipt,
+  fitness blocking-vs-advisory, completion planned-vs-actual, the staged cap, and
+  the false-block/false-pass negative matrix) wired into `selfcheck.mjs`. Class A
+  deterministic-by-policy vs Class B predictive (ceiling guarded, never
+  auto-strict); every layer default-OFF and fail-open with
+  `allow-with-degraded-receipt`. Guarded/strict fleet activation + installer
+  distribution are WF-0068.
+- **WF-0065 — Native Lifecycle Orchestration (BIZ-0003, ADR-0128 §14/§15/§17 —
+  advisory-by-default, shadow/config-gated).** Makes the Domain Engineering
+  capability automatic across the host lifecycle by EXTENDING the existing hooks
+  — no net-new classifier/registry/gate. A zero-dep runtime under
+  `templates/contextkit/runtime/domain-engineering/`: `readiness.mjs`
+  (`checkDomainEngineeringReadiness` — the §14 SessionStart probe that reads
+  installed state and shapes a `domainEngineering` ledger block + short banner,
+  ready/packet-missing/degraded/disabled, never dispatching an agent),
+  `directive.mjs` (`extendExecutionContract` — the §15 mandatory
+  `‹CONTEXTKIT-IMPLEMENTATION›` directive derived from the envelope's existing
+  §15 block, never recomputing CMIS/DAS/profile), `spawn-record.mjs` (the §17
+  planned-vs-dispatched-vs-completed evidence bridge over the EXISTING subagent
+  substrate — an agent named in a prompt never counts, only a real spawn +
+  recorded completion), and a pure `journey.mjs` for PreCompact domain-journey
+  continuity. Wired into `session-start.mjs`, `boot-banner.mjs`, `ledger.mjs`,
+  `execution-contract-hook.mjs`, `subagent-gate.mjs` and
+  `compaction-continuity.mjs` — every wiring point config-gated **default-OFF**,
+  additive and fail-open, so a non-adopting project (and every native host)
+  boots byte-identical. `tools/selfcheck-domain-lifecycle.mjs` (27 checks) wired
+  into `selfcheck.mjs`. Enforcement/guarded blocks are WF-0067; installer
+  distribution + strict activation are WF-0068.
+- **WF-0066 — Domain Artifacts & Task Compiler (BIZ-0003, ADR-0128 §13/§21/§22 —
+  shadow-only).** The five deterministic domain artifacts (domain-map,
+  aggregate, use-case, implementation-packet, implementation-receipt) as a
+  policy table under `templates/contextkit/policy/domain-artifacts/`
+  (`artifact-schemas.json`), each declaring `requiredForProfiles`/
+  `neverForProfiles` so proportionality is data, not an if-chain: simple never
+  gets a domain-map or aggregate; every code-mutation profile requires an
+  implementation-packet. A zero-dep runtime under
+  `templates/contextkit/runtime/domain-artifacts/`: `compileImplementationPacket`
+  (composes the WF-0063 classification block verbatim), `buildImplementationReceipt`
+  (planned-vs-actual diff — agent/skill/forbidden-path/contract deviations),
+  `validateArtifact` + `checkProportionality`, and the Task Compiler
+  `domain-implementation` recipe plus its four profile recipes
+  (`recipe-contracts.json`) declared as DATA over the EXISTING
+  `economy/tc-recipe-runner.mjs` DAG shapes — verified against the real
+  `validateRecipe()` to prove reuse over forking a second compiler. Eleven
+  governed scaffolds (`scaffold-contracts.json`) release only when their
+  required contract artifact exists and validates, emitting typed
+  `TODO:<field>` placeholders only — never an invented business rule.
+  `tools/selfcheck-domain-artifacts.mjs` (46 checks) wired into `selfcheck.mjs`.
+  Zero blocking power, zero hot-path wiring; installer distribution of the new
+  policy tree deferred to WF-0068 (fail-open baseline until then).
+- **WF-0064 — Devteam Agents & Skills (BIZ-0003, ADR-0128 §9-§12/§18 — shadow-only).**
+  The devteam composition layer on top of WF-0063's classification. New policy
+  tables under `templates/contextkit/policy/devteam/` (skills-registry,
+  skill-triggers — the §11 truth-table as data, playbook — the 8-step §12 journey
+  Classify→Model→Decide→Compile→Implement→Verify→Review→Receipt, reason-codes,
+  manifest) and a zero-dep runtime under `templates/contextkit/runtime/devteam/`:
+  `resolveRequiredAgents` (reuses the profile's minimumSquad verbatim — single
+  authority), `resolveRequiredSkills` (deterministic CMIS/DAS/profile triggers;
+  degraded table → recorded baseline, never a false pass), playbook accessors
+  (`model` step profile-gated to domain-driven+ — simple work never gets domain
+  ceremony), and the §18 skill-application receipt (`recordSkillApplication` —
+  selection vs actual application evidence). The §15 envelope block's
+  `requiredSkills` is now resolved from the trigger table (additive
+  `skillsDegraded` flag; no module cycle). Six trigger-driven skill bodies under
+  `templates/contextkit/skills/`. Two NEW devteam agents — **domain-modeler**
+  (explicit model, aggregates only when invariants exist) and
+  **implementation-engineer** (smallest safe diff, packet-first, tests with the
+  code) — with §9 refusal lists, registry/routing entries and regenerated
+  codex/antigravity projections; additive §10 domain-engineering upgrades to
+  architect / code-reviewer / test-engineer / context-keeper.
+  `tools/selfcheck-devteam.mjs` wired into `selfcheck.mjs`. Skills auto-apply by
+  score — never by remembered slash command. Zero blocking power (dispatch =
+  WF-0065, enforcement = WF-0067); installer distribution of the new policy/skills
+  trees deferred to WF-0068 (fail-open baseline until then).
+- **BIZ-0003 — Domain Engineering & Deterministic Implementation (proposed → approved).**
+  Full Business package scaffolded under `contextkit/memory/business/BIZ-0003-…/`
+  from the source plan, methodology to the letter: `business.json`, business-case /
+  investment-decision / growth, 14 `architecture/*` docs (every plan section
+  mapped), and 6 nested workflows **WF-0063..0068** (5 waves / 44 tasks each, last
+  wave a human gate) governed by the new **ADR-0128**. Core ruling: *mandatory squad
+  activation for code, proportional fan-out* (CMIS + DAS → Implementation Profile →
+  minimum correct agents). Registries reconciled (work-context / workflow /
+  decision). On explicit human authorization the Business was **approved**
+  (`confirmed`) and **ADR-0128 accepted** (`covered`); **no workflow started**
+  (`workflows.authorized=[]`), no production code. Planning artifacts only —
+  gitignored `memory/`, no tracked changes.
 
-- **Economic & Autonomy Control Plane (EACP) — WF0018, Waves 8–10** (ADR-0077..0081,
-  ADR-0100). Advisory-first, local-first, zero hot-path dependencies. `/token-report`
-  now surfaces (all gated behind the new `eacp.*` config flags; set `eacp.enabled:false`
-  to restore the legacy report):
-  - **Cost** — estimated/API-equivalent (clearly *not billed*) cost, FX conversion that
-    preserves the original USD, unknown models reported as `unknown` (never `$0`), and
-    gross cache value labelled as *provider* value (never represented as kit savings).
-  - **Privacy** — metadata-only by default: per-install salted path hashing, a
-    safe/redact/hash/forbidden field-classification policy (new fields default forbidden),
-    transcript-content guard, retention purge with preview/cascade/report, and per-repo
-    consent + k-anonymity on cross-repo reporting.
-  - **Budgets** — advisory budget guards across 13 scopes / 6 modes that ride the existing
-    autonomy resolver (no new gate); blocking is fan-out-only and never blocks edits;
-    fail-open; bypass is audited.
-  - **Autonomy & quota** — QA-green Autonomy Multiplier (independent-evaluator gated;
-    reports `claim: null` until a real benchmark) and append-only quota snapshots.
-  - **Benchmark** — A-vs-C pilot harness (mock-only; honest `claim: null`) plus a
-    deterministic statistics module (median/p95/CIs/matched-pair/effect-size/
-    Holm-Bonferroni) and pre-registration. Real powered results are evidence-gated.
-  - **Routing economics** — host-honest model-routing economics (records recommend vs
-    applied; never claims a model switch the host can't perform) and a Fable-5 price audit.
-  - **ADR-0100** — diagnostic content-mode gate (structurally isolated, audited; accepted,
-    implementation deferred).
+### Fixed
+- **Wave-gate evaluation now recognizes the full plan vocabulary + derives its
+  facts from recorded evidence (ADR-0130).** The ADR-0101 wave engine's
+  `evaluateMachineRequirement` (`workflow/gates.mjs`) only mapped six
+  requirement names; every ADR-0128/BIZ-0003 wave plan declares a different set
+  (`all-wave-tasks-done`, `acceptance-evidence-present`,
+  `no-unresolved-critical-risk`, `human-approval-recorded`), which fell through
+  to an unpopulated `requirementFlags` and could never pass — so a wave with
+  every task recorded `done` still reported its gate `failed` and
+  `close-wave --apply` refused forever (observed on WF-0063/0064/0066, all with
+  empty `waveStates`). The engine now recognizes that vocabulary and derives
+  `acceptance-evidence-present` / `no-unresolved-critical-risk` from the wave's
+  **recorded agent-results** via a new pure, exported
+  `deriveGateFacts({ tasks, taskStates, agentResults })` — a `done` status
+  without a real result carrying `acceptanceMet[]` is NOT acceptance evidence
+  (ADR-0128 evidence ruling). Human-mode tasks are excluded from the
+  agent-completion facts (their completion is the explicit gate approval, via
+  the exported `isHumanTask`). The human-gate safety property is untouched: a
+  human gate never auto-passes from ctx; only `approveGate` with a named
+  approver approves it, and unknown requirements still fail closed. 14 new
+  checks in `tools/integration-test-workflow-gates.mjs`. WF-0064 and WF-0066
+  waves were closed and their human gates (G-DA4, G-DM4) approved under this
+  fix.
+
+## [3.5.1] - 2026-06-28
+
+### Added
+- **Journey blocking gate (ADR-0127, Phase 2 — second cut).** A new PreToolUse
+  (Edit|Write) hook (`runtime/hooks/journey-gate.mjs`) turns journey enforcement to
+  **guarded + graceful fallback** (the ADR-0125 model, mirrors `simulate-gate`). It
+  BLOCKS only a positively-FALSE checkpoint it can evaluate safely — a loose/central
+  owned workflow (`workflowNestedUnderOwner=false`) or a forked/duplicate ADR series
+  (`adrNumberContiguous=false`) — naming the exact corrective command. It DEGRADES to
+  silent/advisory (exit 0, never blocks) on no active entity, unknown evidence, fresh
+  install, non-guarded mode, or any error (fail-open). Honors exempt paths + a
+  `BYPASS:` escape hatch. `policy/journey.json` `enforcement.mode` → `guarded`.
+
+### Notes
+- Over-block is the headline risk: `governingAdrAccepted`/`ownerContextExists` are
+  deliberately **excluded** from the block set (they read false merely from being early
+  → would false-block); they stay advisory and, for material work, are enforced by the
+  existing ADR-0125 materiality gate. A 10-case over-block suite
+  (`integration-test-journey-gate`) proves zero false-blocks.
+
+## [3.5.0] - 2026-06-28
+
+### Added
+- **Methodology journey-map (ADR-0127, Phase 2 — first cut).** A canonical,
+  checkpointed `policy/journey.json` (branches by work nature + ceremony) + a pure
+  verifier (`runtime/work/journey-verifier.mjs`) that reports the current stage and the
+  exact next command. Each request now prints a `‹CONTEXTKIT-JOURNEY›` advisory (current
+  stage + next command), and the boot banner points at the checkpointed journey.
+- **Registry-backed journey evidence** (`runtime/work/journey-evidence-registry.mjs`):
+  real on-disk verdicts (ownerContextExists, workflow nesting, governing-ADR acceptance,
+  no forked ADR series). Unknown checkpoints stay `pending` — never a false ✓.
+
+### Fixed
+- **Owned workflows now nest under their owner.** `createWorkflow` (the ADR-0057 pack
+  path) placed owned workflows centrally instead of under
+  `business|operations/<owner>/workflows/` (BIZ-0001 ownership rule 3). Now fixed;
+  unowned workflows stay central.
+
+### Notes
+- Journey enforcement is **advisory** in this release; the blocking-checkpoint layer
+  (guarded+fallback) is a deliberate follow-up (over-block risk).
+
+## [3.4.2] - 2026-06-27
+
+### Added
+- **Native `/work` command (ADR-0126 Phase 1).** A first-class Claude Code entry
+  point for the Business-driven methodology (intake → operation → nested workflow),
+  driving the **host-neutral** `node contextkit/tools/scripts/work.mjs` — so Claude
+  stops reaching for `ctx.mjs`/`cdx.mjs` (the Antigravity/Codex runners, which may
+  not exist in a Claude-only install).
+
+### Changed
+- **Boot orientation now names the correct CLI.** The intake-gate boot banner
+  recommends `/work intake "<objective>"` (was: only `/dev-start`) and shows the
+  host-neutral path; `CLAUDE.md` gains an explicit `/work intake` step + a
+  nest-workflow-under-owner reminder and lists `/work`.
+- **Removed wrong-host runner leaks for Claude** in `workflow-assist` and the QA
+  squad playbook (`node cdx.mjs …` → slash commands). Antigravity/Codex skill
+  projections regenerated for command↔skill parity.
+
+## [3.4.1] - 2026-06-27
+
+### Added
+- **Business-driven methodology auto-adoption on install/update (ADR-0126).** The
+  installer now seeds the `memory/business/` + `memory/operations/` work-context
+  roots WITH templates and scaffolds the Root Business **BIZ-0001** (status `draft`,
+  placeholders only — never invents domain content), so the methodology is ACTIVE
+  *and adopted* on a fresh install/`--update`, not merely available. Both summaries
+  announce it loudly with the one adoption step (`work intake`). Idempotent +
+  fail-open, with preflight-deferral parity and registry no-churn; opt-out via
+  `config.methodology.autoSeed:false`. The three `memory/business/_TEMPLATE-*.md`
+  documents are now seeded (`MEMORY_SEEDS`). New module
+  `tools/install/seed-methodology.mjs` + regression suite `methodology-seed`.
+
+## [3.4.0] - 2026-06-27
+
+### Fixed
+- Clean-clone CI portability (release-gating): `selfcheck-arch-debt-calibration` #370.2
+  tolerates the valid unwired-floors state; `docs-reindex.mjs` skips gitignored meta files
+  (CHANGELOG) and sorts directory entries by code-point for deterministic cross-OS idempotency.
+
+### Added
+- **BIZ-0001 design conformance — verbatim classifiers + two deterministic CLIs (OP-0005, ADR-0125 Accepted).**
+  Intake/decision scoring tables now match the design specs verbatim: business-vs-operation
+  §17 (+6/+4/+3/+2 weights; ≥8 & ≥op+3 → Business, ≥6 → Operation, near-tie → ask one
+  clarifying question), execution-ceremony §18 (point bands 0-3 direct / 4-7 batch / 8+
+  workflow + hard triggers), business-matching §19 (additive +100/+35/… ; 75/55 thresholds),
+  decision-materiality §28 (+5/+4/+3/-10; bands 8/4) and ADR-search §29 (80/60). Two
+  deterministic public CLIs shipped — `decision.mjs` (need/search/classify/create/link/
+  accept/supersede/registry/render/validate/migrate-legacy) and the completed `work.mjs`
+  (intake/link/unlink/promote/reconcile/start/close/validate), all `--json/--check/
+  --dry-run/--apply`, atomic + idempotent. Intake emits a `‹CONTEXTKIT-CLARIFY›` question
+  on near-ties; a decision-registry read-shim prefers `decisions/` then memory root;
+  CLAUDE.md makes the intake ceremony a session-start obligation.
+- **Enforcement ships guarded-by-default with graceful fallback (ADR-0125 — BREAKING).**
+  `enforcement.mode` now defaults to `guarded` (was `advisory`): the intake ceremony is
+  active for every install. Safe by construction — the gate degrades to advisory (warn,
+  exit 0) whenever it cannot evaluate safely (no contract/signals, fresh install,
+  registry-fail, unregistered task, any throw), so a fresh install is never false-blocked.
+  Set `enforcement.mode='advisory'` to opt out, or `'strict'` to tighten. SessionStart
+  surfaces intake readiness; gate block/degrade telemetry to `routing-decisions.jsonl`.
+- **OP-0006 / WF-0060 economy canary prompt activation + quota writer.**
+  Routing source defaults now start in `canary`; AGENTS/CLAUDE templates and
+  dogfood prompts instruct agents to use economy mode by default, apply Task
+  Compiler only on exact Project Map matches, render resume-pack on checkpoint,
+  attach subagent-profile packets, use controller-scoped lean-loop in `/ship`
+  and `/swarm`, and record quota observations only through the new explicit
+  `economics/quota-snapshot.mjs --write` command. Codex and Antigravity
+  projections were regenerated; quota stays `skipped` when host data is absent.
+- **Architecture & Technical Debt Governance Gate (OP-0003, WF-0057, ADR-0122 Accepted).**
+  Replaces the line-count-as-verdict tech-debt gate with a multi-dimensional gate
+  (`architecture-debt-gate.mjs` + `arch-debt/`: finding contract, signal-collector,
+  conformance F1–F3 floors, classifier, fragmentation symmetry, security/reliability/
+  testability floors, policy-engine, baseline-ratchet, debt-registry+lifecycle,
+  intentional-debt, fitness-registry). Project Map gains structural signals (fan-in/out,
+  instability, blast-radius, co-change). Line count is now an **advisory** signal that
+  never blocks CI/merge; the gate is the **sole CI verdict path** (mode active). Config
+  `architectureDebtGate` + l5.lineBudget migration + doctor; constitution §1 amended
+  across all sources with host parity. 35 §34 acceptance tests, §13 activation proofs,
+  18-case calibration. Merged to main; dogfood active.
+- **ARCH-DEBT floor calibration — F2/F3 lit (OP-0003, WF-0057, ADR-0122, card #370).**
+  `resolveArchDebtConfig` now passes the conformance authorities (`layerRules` /
+  `ownership` / `writeAuthorities`) through and supplies an empty-by-default
+  `conformanceBaseline` when any is wired (null otherwise → floors stay SKIPPED, no
+  protection gap); the gate composition root passes that baseline into `runGate`.
+  F2 (boundary) + F3 (state-authority) now **EVALUATE** on the real tree instead of
+  SKIP, block a genuine new violation, and pass clean. Schema models the four new
+  keys; template seed ships a documented inert `_floorConfigExample`. New
+  `selfcheck-arch-debt-calibration.mjs` (15 checks) + schema assertions. Semantic
+  dimensions (cognitive-coherence, change-amplification) stay **OBSERVE_ONLY** — §33
+  promotion declined for lack of graded-input evidence (constitution §8).
+- **Economy canary guidance fingerprint (OP-0006/WF-0060).** Restored the
+  `work-packet` token in the canary activation guidance so the
+  `economyActivationSection` fingerprint passes (it was reworded to "bounded packet").
+- **Workflow ownership enforcement (BIZ-0001 rule 3).** `createWaveWorkflow` now nests
+  owned workflows under `operations/<OP>|business/<BIZ>/workflows/WF-<n>-<slug>` (throws
+  if the owner folder is absent); `workflow.mjs new --profile` honors `--operation`;
+  new `selfcheck-workflow-ownership.mjs` CI guard.
+- **Ownership-based ADR filing (OP-0003, ADR-0123 Accepted).** New `decisions-file.mjs`
+  files loose top-level ADRs by owner — Business/Operation attribution → their folder,
+  ownerless → `legacy/` — dry-run by default (`--write` applies), with a path-reference
+  audit and an idempotent, atomic move. Wired dry-run-safe / fail-open into the installer
+  `--update` path (`tools/install/decisions-migrate.mjs`). Amends ADR-0102's
+  "not migrated implicitly" layout policy. Dogfood migration filed 112 ADRs → `legacy/`
+  and `0122` → `operations/`.
+- **Antigravity Host Hook Parity (OP-0002, ADR-0121 Accepted, card 001).**
+  Added `done-sweep.mjs` Stop hook to Antigravity's settings composer (`agent-hooks-compose.mjs`) when `level >= 5` to resolve the host parity gap.
+- **WF0014 — MCP Integration Layer: governed MCP manager + read-only ContextDevKit MCP server (ADR-0073 Accepted, cards 186-197, merged to `main`).**
+  ContextDevKit becomes the *governed layer* for MCP servers, never a bundle: a single
+  curated registry under `templates/contextkit/mcp/` is the source of truth; zero-dep
+  pure renderers emit native MCP config per host (Claude/Codex/Cursor/Antigravity);
+  a policy engine enforces **R0–R5 risk**, read-only-by-default, least-privilege tool
+  allowlists, secrets-by-reference, version pinning and provenance; `/mcp`
+  (discover/add/profile/doctor/audit/sync/disable/receipt) is wired for claude +
+  antigravity; and the kit exposes its own state as a **read-only stdio MCP server**
+  (10 tools / 6 resources / 5 prompts). GitHub (read-only) and Playwright (guarded)
+  least-privilege profiles ship as the first two. Receipts (MCP-010) degrade to
+  `skipped` and governed write tools (MCP-011) to `deny+explain` until the
+  capability-enforcement substrate (CDK-021/022) lands — never a false pass. The
+  server stays off the Levels 1–3 boot/hot path (immutable rule 1). Every ticket ships
+  behaviour + static-wiring suites (split into focused ≤270-line sub-suites).
+- **Economy resource telemetry + auto-activation (OP-0001, ADR-0117 Accepted, extends ADR-0103).**
+  A single shared telemetry seam (`economy/telemetry-emit.mjs` + `economy/registry.mjs`)
+  routes every economy resource to the observed-savings ledger (the 4 levers only) or the
+  lifecycle-events ledger, with a strict honesty fence (observed vs estimated never summed).
+  The three dormant levers now light up: **project-map `--find` records an observed saving
+  on a hit**; **run-compact records its saving** (fixed a CLI bug — the runner never passed
+  `root`, so `logSavingSync` silently no-opped) **and emits an `evaluated` event at boot
+  without spawning** (rule 2); **routing persists its lifecycle event** to the unified events
+  ledger (the decision record carried it but it was never written there). A hardened
+  multi-pattern secret redactor (`economy/redact.mjs`, 12 token classes) and a completeness
+  meta-test (`selfcheck-economy-completeness.mjs`, registered in CI) guarantee no measurable
+  lever ships dark and track the remaining advisory/lifecycle resources.
+- **OP-0001 / WF-0039 — the three deferred economy work-packages shipped; completeness gate HARD 20/20.**
+  All 13 remaining resources are now instrumented at honest points: 6 at genuinely-wired
+  application sites (CLI mains + the `loop-breaker` PreToolUse hook + idempotent `context-profiles`
+  in dev-start), and 7 dormant Phase-1/2 modules given **runnable CLI surfaces that emit on
+  invocation, with no auto-hook** — new `economy/task-compiler.mjs` (read/compile-only ladder,
+  `execute:false` so it never crosses the Task Compiler kill-criterion), new
+  `economy/subagent-profile.mjs`, an `agent-contract` drift-audit CLI, and new
+  `economy/lean-loop-cli.mjs` (the dormant modules keep their deferred-by-design guards). The
+  completeness gate is now HARD for **all 20** resources, with a behavioral selfcheck
+  (`selfcheck-economy-instrumentation.mjs`) proving every emit-site by ledger delta. **W7**:
+  `run-compact` persists summary-only by default (full raw `output.log` behind `--capture-full`),
+  routes every persisted byte through the 12-class redactor, `runs/` gitignored, torn-line
+  safety proven. **W8** (`economy/kill-criterion.mjs`): per-lever kill-criterion meter,
+  per-session audit line (`net` observed-only, `fable_auto:false`), and a separate `estimated`
+  lane in `token-report` never folded into the observed headline.
+- **WF-0041 — competitive follow-ups: claims gate + run-journal tail (ADR-0118, merged to `main`).**
+  Retired the WF-0040 research spike (folder + COMP cards #225–#229) and migrated its two
+  still-live recommendations under operation OP-0002: `claims-gate.mjs` (#354) — a fails-closed
+  evidence-tier gate that refuses any public economic/autonomy/competitor claim lacking evidence
+  IDs + a snapshot date (refuse-by-default, reuses the `claim:null` discipline) — and
+  `runs.mjs --events <id> --follow` (#355) — a daemon-free tail of the append-only transition
+  journal (ADR-0043), 500 ms poll with a clean SIGINT exit. Adds claims-gate + runs-follow
+  selftests and a dedicated `integration-test-competitive-followups` suite. Zero hot-path deps.
+- **Memory-reading reinforcement: `contextkit/memory/` is gitignored-by-design, never "ignorable".**
+  Added a prominent callout to the boot context (`CLAUDE.md` template) and a line atop the
+  boot-banner Process rules: memory/ is kept out of the PUBLIC repo on purpose (it syncs to the
+  private mirror, never to a public push) but is the authoritative project record and must ALWAYS
+  be read/searched. Fixes a recurring agent failure where "gitignored" was misread as "unimportant".
+- **ADR-0078 & ADR-0079 accepted (status), kept PRIVATE.** Both are `Accepted`; they were briefly
+  force-tracked onto `main` then **untracked** (`git rm --cached`) — ContextDevKit's own dev memory
+  (`contextkit/`) stays out of the public repo and lives in the private mirror only. Public tracks 0
+  `contextkit/` files.
+- **Workflow creation requires an owner work-context (ADR-0116 Accepted, OP-0001).**
+  `createWorkflow` / `workflow.mjs new` now refuse a `feature`/`architecture` workflow
+  without an owner (`--operation OP-####` or `--business BIZ-####`), naming the
+  corrective command and stamping `owner:` into the workflow index frontmatter;
+  `bug`/`chore`/`spike` stay owner-optional. Closes the BIZ-0001 gap where an
+  operation-class workflow could be created bare (ownerless) at the top level.
+  Backed by a regression suite in `integration-test-workflow-governance.mjs`.
+- **WF0016 — public/internal documentation projection boundary + business-driven README
+  (merged to `main`, ADR-0075 Accepted).** Public docs (`README.md`, `docs/`, `instrucoes.md`)
+  are now capability-only, enforced by a per-PR docs gate: `docs-public-lint` (banned decision-ids /
+  inspiration names / internal paths, with code-block exemption), `readme-claims` (inventory-claim
+  freshness), and `selfcheck-docs` + `integration-test-docs` (registered in the test suite). The
+  README/instrucoes were restructured around a **business-driven** value proposition with an
+  active-by-default / automatic / manual capability matrix. Added the `docs/architecture/` Diátaxis
+  bucket, per-genre `_TEMPLATE.md`, and authored content: 2 tutorials, 8 how-to guides, 3 explanations
+  (business-driven development, the three economies, governance & enforcement).
+- **Automatic feature-reference generation + coverage gate (ADR-0115 Accepted).** `docs-generate.mjs`
+  regenerates `docs/reference/{commands,agents,hosts}.md` from the canonical registry between markers
+  (idempotent; `--check` is a CI staleness gate); `selfcheck-docs` blocks on a stale reference and
+  reports prose-coverage debt as advisory. Wired into `docs-refresh`.
+- **WF0038 A7–A9 (W5–W7) — automatic orchestration downstream of classification, shadow-first
+  (branch `feat/wf0038-a7-a9`, ADR-0112 Accepted).** Re-homes the dropped A6/ADR-0110 design intent
+  under WF0038. **A7** active governed context resolver (deterministic precedence → confirmed/
+  suggested/ambiguous/unlinked; never hardcodes the root Business) + auto-deliberation (L7 debate-by-
+  default gate, threshold 0.6, distinct synthesizer, recommend-only). **A8** per-tier over-orchestration
+  guard (trivial 0 / feature ≤3 / architectural ≤5 sub-agents; debate floor wins) + explicit dispatch
+  plan gated behind `executeDispatchPlan`+active mode + planned-vs-dispatched reconcile — extends the
+  W1–W4 selector, no rebuild. **A9** child execution envelope (inherits root business/nature/ceremony/
+  context/decisions/acceptance; flat delegation; `assertChildScope` refuses reclassify/autonomy-change/
+  scope-expansion/createWorkflow/acceptADR) + lazy role-pack hydration under a HARD token budget +
+  child→task→wave→business state propagation. 8 new runtime modules, all shadow-only, zero active
+  dispatch; per-wave selfchecks W5 11/11 · W6 12/12 · W7 13/13; `selfcheck.mjs` 2252/2252; tech-debt
+  no-RED across 695 files. **Merged to local `main` `14a42a0`** (not pushed) + **wired live**: A7+A8
+  now enrich the envelope inside `orchestrate()` (run by the `UserPromptSubmit` hook on every plain
+  prompt), shadow/fail-open. Post-merge fixes: A7 never convenes for trivial work (Gate 0) and
+  auto-deliberation **defers to the classifier's `needsDebate`** (raw materiality is unreliable);
+  structural triggers still escalate. End-to-end verified (new Business + new Operation, AI-cannot-
+  self-approve enforced); QA sign-off PASS (118/118 suites, tech-debt 0 RED).
+- **BIZ-0001 Business-Driven Development & Decision Governance — CLOSED as
+  `partially-validated` (merge `2ae77bd`, local main, not pushed).** Final closeout
+  adopted the remaining Session-4 waves — **A5** (investment-forecast + recurrence/
+  outcomes), **B4** (legacy ADR indexing/migration dry-run + anti-redundancy +
+  installer propagation), **B5** (program-governance validator) plus the §3
+  routine-coverage split and 6 internal bug-fixes — while **dropping Wave A6**
+  (duplicate of WF0038/ADR-0107; ADR-0110 stays superseded → ADR-0107). A 5-agent
+  verification swarm confirmed each wave's acceptance; CI **119 suites green,
+  tech-debt no-RED across 679 files**; WF-0036/WF-0037 advanced to `conclusion` via
+  engine mutators; 3 registries (work-context, workflow, decision) rebuild
+  byte-idempotent; ADR-0099 updater-safety + decision-coverage floors intact.
+  Engineering outcomes measured-green; usage/adoption outcomes honestly `unknown`
+  pending telemetry. [ADR-0102]
+- **Automatic economy pipeline at `/dev-start` (WF0037) — merged to local main
+  `7c0b3cf`, not pushed.** Deterministic objective fingerprinting, resume and
+  Project Map probes before broad context, L7 RequestOrchestrator reuse,
+  idempotent lifecycle events, correlated execution acknowledgements, honest
+  routing/Token Report reconciliation, and generated Claude/Codex/Antigravity
+  parity. Final CI: 113 suites, zero tech-debt RED; post-merge safe-update and
+  dogfood smokes passed. Cards #347-350 concluded.
+- **Session Autonomy Receipt (ADR-0108) — merged to local main `0874779`, not pushed.** Per-session
+  auditable autonomy/token/cost receipt: an assembler over the existing economics layer (no new ledger)
+  producing `cdk-autonomy-receipt/1` with a versioned estimator (measured / estimated /
+  insufficient-evidence), token + executor accounting, financial (api/hybrid) with cost-source priority,
+  Ed25519 integrity (node:crypto, hash-only fallback), mode-aware render, flat-ledger store, and an
+  `autonomy-report` CLI. Advisory + fail-open. The WF0018 #242 pilot lives only in a SCOPED
+  calibration-profile registry (claim null) — no global multiplier constant; subscription never invents
+  savings; estimated is never relabeled measured. Hardened by a code-review (0 blockers) + a 3-voice
+  debate (deliberation 2026-06-20-02). CI green: 112 suites + tech-debt no-RED; 96 dedicated checks.
+  OPEN: distributed default `enabled:true` (spec §34) vs opt-in (debate voice C) — confirm before push.
+- **WF0022 Phase 2 authorized by the project owner (ADR-0109).** After five consistent cross-stack
+  A-vs-C measurements (arm-C cheaper at equal QA, CIs excluding 1.0×; formally unpowered, claim null),
+  the owner authorized building Phase 2 (#276–280: deterministic transforms, scaffold, content cache,
+  recipe-runner, ephemeral dispatch). ADR-0089 safety contract is now binding. A `PHASE2-EXECUTION-PROMPT.md`
+  (cards/DAG, reuse list, swarm rules, multi-session coordination) drives execution. claim stays null —
+  this authorizes the build, not a claim elevation.
+- **Per-lever ablation benchmark harness (ADR-0106, WF0022 #275) — branch `feat/per-lever-benchmark`,
+  not merged.** Registry-driven ablation-ladder matched-pair benchmark: `lever-registry` (8 active
+  Phase-1 levers + 5 dormant Phase-2 endpoints), `ablation-plan` (fitToBudget to the $25 cap, never
+  below 3 reps), `ablation-run` (symptom-only single-variable run-specs), `ablation-record` (JSONL +
+  equal-QA matched pairs), `origemcrm-seed` (generic TS bug seeder), `phase2-evidence-spec` (§8
+  firewall: unbuilt levers return `skipped`, never `pass`). All reuse `benchmark-statistics`/
+  `baseline-harness` read-only; all ≤308 lines, zero-dep; selfcheck (40 asserts) wired; full CI green.
+  A scaled powered run on a fresh kit-free origemcrm-test (TS/vitest) gave +12.3% aggregate, CI95%
+  [1.024, 1.273] (excludes 1.0×), equal QA — but INCONCLUSIVE/unpowered, **claim null** (a human elevates).
+- **Task Compiler execution ladder — Phase-1 Wave 1+2 (WF0022 #265/#267/#268/#270/#271/#272).** A
+  read/compile-only deterministic ladder under `economy/`, composition-over-forking (reuses
+  project-map, complexity-rubric, model-policy, the ADR-0083 envelope — nothing rebuilt):
+  `tc-telemetry` (packet-cost/escalation telemetry), `tc-intent` (ambiguity scorer, escalate-by-default),
+  `tc-related` (related-files + symbol projection + closure guard), `tc-route` (pure-fn execution-router),
+  `tc-validate` (result-validator → envelope; prose rejected), `tc-accept` (conjunctive skip-aware
+  accept-gate). Each ships a `runTc*Checks` runner aggregated in `selfcheck-economy-all`; all files
+  ≤308 lines, zero-dep. Built via a governed 5-agent swarm; merged with full CI green (111 suites, 0 RED).
+- **Task Compiler #275 wedge — INCONCLUSIVE verdict on existing data (claim null).** Matched-pair
+  A-vs-C on the existing arm-A/arm-C2 measures (n=8, 1 rep): savings ratio median CI [1.039, 1.678]
+  (excludes 1.0×), +39.8% aggregate, equal QA — but evidence tier `unpowered` ⇒ formal conclusion
+  INCONCLUSIVE, claim stays null. Phase 2 (#276–280) remains blocked pending a powered (≥3-rep) run.
+- **BIZ-0001 Business-driven methodology — Session 3 waves A3·B2·A4·B3 (ADR-0102).** Built as a
+  5-agent swarm with intelligent model routing (Haiku ops · Sonnet exec · Opus design). A3:
+  Business draft→approve→revise→reject lifecycle with a human-only approval ceremony (AI cannot
+  self-approve), Business Gate (accepted-ADR + matching decisionHash) and a Growth validator
+  (causal chain + KPI completeness + no invented baselines). B2: deterministic decision-need
+  classifier + materiality score + existing-ADR search/match (no embeddings), attached additively
+  to intake (`signals.decisionNeed`/`decisionMatch`, fail-open). A4: global cross-root workflow
+  resolver (new + legacy) + collision detection + migration planning (dry-run by default,
+  human-gated ownership transfer). B3: hook split (`execution-contract-advisory.mjs`) + approval
+  mirroring/supersession + decision-coverage gates. New suites a3/b2/a4/b3-bdm.
+
+### Fixed
+- **MCP install propagation hotfix (WF-0061 / card 371).** The installer now
+  copies `contextkit/mcp/` and `contextkit/mcp-server/` into fresh installs and
+  update targets alongside runtime/tools, with a real install/update regression
+  test proving the curated MCP registry, profiles, and read-only MCP server are
+  installed without clobbering project-local MCP state.
+- **done-sweep blind to wave-format workflows (ADR-0119 amendment).** The `done/`
+  lifecycle sweep only recognised legacy `index.md` `conclusion: done`, so wave-engine
+  workflows (completion recorded in `workflow-state.json` `overallStatus: done`) were
+  never filed and business/operations `done/` archives stayed empty. `isConcluded()`
+  now reads both, and the filing owner is recovered from the holder path when the wave
+  index carries no `owner:`. Filed the concluded BIZ-0001 workflows (WF-0036/WF-0037).
+- **BIZ-0001 a4 migration: `collisions is not iterable` on a clean checkout (ADR-0102).**
+  `detectWorkflowCollisions()` returns `{duplicateIds, duplicatePaths}` but `migration-plan.mjs`
+  iterated it as an array. Added `normalizeCollisions()` (object→array, no auto-move) + regression guard.
+- **BIZ-0001 decision-bdm: clean-clone resilience (constitution §8).** The suite's ADR-0102 +
+  live-registry checks now SKIP (not fail) when the gitignored dogfood decision tree is absent.
+- **`defaults.mjs` over the 308-line budget.** Economy Phase-A activation had pushed it to 309
+  (tech-debt RED). Extracted the `ledger` block into `defaults-ledger.mjs` (behavior identical).
+- **`project-map --find` now covers UNEXPORTED symbols + deprioritizes test files (WF0018).**
+  The dense index reused the export-only sampler, so unexported helpers returned 0 candidates and a
+  `_test.go` could be the top hit. `project-map-dense.mjs` now uses a dedicated dense extractor
+  (exported + unexported, all langs) and orders source files before test/spec files (`isTestFile`).
+  compozy index 5228 → 11548 symbols; the symbols that the ceiling re-test flagged now resolve to
+  their source file. selfcheck-projmap-find extended; CI green (lone decision-bdm env fixture aside).
+
+### Added
+- **Token report: "💸 Economy in effect" — OBSERVED per-lever savings (CDK-266).** New
+  `economy/economy-savings.mjs` append-only ledger logs how many tokens each lever actually avoided
+  in the user's own sessions: boot-delta (banner-size reduction every reboot) and run-compact (full
+  output − compact summary) are wired and real; project-map + routing appear honestly as `0 (dormant)`
+  until they actuate. The block is labelled "observed — NOT a causal claim vs no-kit (#243)" and carries
+  NO claim field. Populates on the next session boot.
+- **Token report: benchmark-pilot evidence surface (WF0018 #176/#242).** Reads
+  `contextkit/memory/benchmark-pilot.json` and shows the measured A-vs-C pilot (1.398× / +39.8% token
+  efficiency at equal correctness, n=8) with `claim: null` ALWAYS rendered (even if the file carried a
+  claim) and the ADR-0080 #243 powered-run gate cited — a pilot signal can never read as a powered claim.
+  #176 baseline + #242 pilot data marked obtained; #243/#245 stay gated.
+- **Deterministic economy stack — `--find`, work-packet, auto-activation (WF0018/WF0022 #266, ADR-0103).**
+  Five token-economy levers, ON by default and auto-emitted every session via the SessionStart banner
+  ("💸 Economy mode active"): `project-map --dense` + `--find <symbol>` (complete symbol→file reverse
+  index + 1-line query, a grep replacement); `tc-packet` work-packet compiler (the symbol SLICE
+  `{file,symbols,lines}`, not the package — dry-run, claim/cost null; WF0022 #266 pulled forward);
+  `economy-dispatch` (bundles the `subagent` context profile + `run-compact` + loop-breaker);
+  `economy-session-activation` (emits the deterministic-tools guidance, wired into session-start +
+  boot-banner). Reversible via `economy.autoActivate` / `economy.tools.*` (defaults-economy.mjs).
+  6 selfchecks (63 asserts) via `selfcheck-economy-all.mjs`. Zero-dep, deterministic, all ≤308 lines.
+  Ships in `templates/` → install + `--update` propagate it. Measured A-vs-C floor: +7.1% token
+  efficiency at equal correctness on a 217k-LOC Go repo (claim:null).
+- **Economy CEILING measured — full stack (`--find` + `run-compact` + work-packet) = +39.8% (WF0018).**
+  arm-C2 on the same 8 compozy bugs, 8 Sonnet sub-agents, package given: Σ 0.223453 MTok vs reused
+  arm-A 0.312447 (8/8 green both) → multiplier **1.398×**, beating the prior +7.1% floor by 30.6%.
+  Wins concentrate on retry-heavy tasks (t7 −56.6%, t5 −40.4%). `claim:null` (n=8, 1 rep; caveat:
+  parallel-tree contamination inflated t5/t6/t7 → conservative upper bound). Report under
+  `contextkit/memory/workflows/0018-.../reports/2026-06-19-economy-retest-ceiling.md`.
+- **Economy Dispatch Plan helper — advisory bundle for sub-agent spawning (feat/project-map-dense).**
+  New `templates/contextkit/tools/scripts/economy/economy-dispatch.mjs` bundles the three
+  advisory economy levers (context-profile subagent, run-compact hint, loop-breaker signal)
+  into a single frozen `buildDispatchPlan()` plan object the orchestrator attaches when
+  spawning a sub-task. Gracefully degrades if sibling modules fail to load; disabled via
+  `cfg.economy.enabled=false`. `presentDispatchPlan()` emits a terse advisory string.
+  Selfcheck module (`tools/selfcheck-economy-dispatch.mjs`, 14 asserts) confirmed green.
+  Zero runtime deps, deterministic, pure, ≤308 lines. Advisory only — never blocks.
+- **EACP Autonomy Multiplier — activated from the state substrate (ADR-0105, WF0018 #255).**
+  The multiplier was wired but starved (token-report fed it no tasks → always "skipped").
+  New `economics/autonomy-outcomes.mjs` derives `usefulAutonomy` records from the append-only
+  pipeline state events (`actor:'qa'` deterministic-gate transitions — no parallel ledger, §9);
+  token-report now feeds them. The numerator is MEASURED (advisory; dogfood lit up at 17/17
+  QA-green); the causal ratio still degrades to "skipped" until a kit-free baseline arm-A (#176).
+  `claim:null` throughout. Ships in `templates/` → propagates to existing installs on `--update`.
+- **EACP subscription-mode benchmark — measure tasks-per-window without API spend (ADR-0104, WF0018 #254).**
+  New `economics/benchmark-subscription.mjs`: an A-vs-C Autonomy-Multiplier pilot denominated by an
+  OBSERVABLE usage unit (effective-MTok primary, quota-% corroboration) instead of USD, so
+  subscription-host users (e.g. Claude Code Max) can run it through the CLI with no API key and no
+  metered spend. `claim:null`; single-session runs flagged `pilotSmoke` (arm A not isolated). The
+  USD/API path (#242/#243) is unchanged and remains the authority for the dollar claim.
+- **Economy Runtime activation go-live — advisory, ON by default (ADR-0103, WF0020).**
+  Activates all 9 previously-dormant Economy Runtime modules ON by default (advisory,
+  fail-open) in the dogfood and in every new/updated install: a per-module toggle
+  surface (`ECONOMY_MODULE_KEYS` single source → `FLAG_DEFAULTS`, `EconomySchema`,
+  `defaults-economy.mjs` seed), installer additive distribution + a go-live notice,
+  patch-economy (#263) + loop-breaker (#262) warn-only advisories on the CDK-032 gate
+  (`gate-advisory.mjs`; pure `evaluateAction` untouched), the canonical Output Contract
+  injected into all 12 qa-* agents + run-compact/lean-loop notes in commands, and
+  boot-delta (#259) gating of unchanged informational boot sections (`boot-delta-gate.mjs`;
+  −49.8% on re-boot, Process rules + drift never gated). Disable per-module via
+  `economy.<module>.enabled=false` or wholesale via `economy.enabled=false`; `economy.mode`
+  stays advisory (never blocks). Install/update bug-hunt clean; CI green.
+- **Business-Driven Methodology program — BIZ-0001, Wave A0 (WF-0036 + WF-0037, ADR-0102).**
+  Bootstrap of a business-driven, evidence-governed methodology: one approved Business
+  (TRANSFORMATION / PLATFORM_CAPABILITY) with two nested Workflows — A (Business/Operations/
+  Workflow architecture) and B (Authoritative Decision Governance) — over one shared domain
+  model. Wave A0 (documentation/contracts only) materialized in an isolated worktree:
+  canonical Business package (business-case/growth/investment/business.json), shared entity &
+  identifier contracts, source-of-truth + ownership/origin rules, schema & compatibility plans,
+  cross-workflow dependency DAG, §40 agent-dispatch contract (per-task agent type, allowed/
+  forbidden paths, evidence, expected-result JSON), both workflow packs, and the primary
+  Business ADR-0102 (accepted, YAML front matter v2) under a new `decisions/{business,
+  operations,legacy}/` layout. **Hybrid format ruling**: new dash-prefixed IDs + dirs + YAML
+  for new artifacts; legacy `NNNN-slug` workflows + plain-markdown ADRs preserved, resolvable,
+  never migrated implicitly. Planning/dogfood only — no runtime code yet; pacing capped at
+  4 waves/session; next is Wave A1 (paths + schemas + Operations + registries).
+- **Economy Runtime Wave 1 — output/lifecycle actuation (WF0020, ADR-0082..0086, ECON-01..07/11).**
+  Eight advisory, fail-open, UNREGISTERED libraries under `tools/scripts/economy/` that
+  bound output, tool cost, preparation, and context lifetime by governing artifacts the
+  kit already owns — no new gate, no command-file edits: output contract + worker
+  envelope (override floor + evidence-preservation invariant), findings protocol +
+  deterministic merge, single-source agent output contract, compact command runner
+  (exit-code truth + normalized delta), context-pack `digestUnreleased` parity + profiles,
+  boot delta (lib), `ship-state checkpoint` + bounded resume-pack, and `economy.*`
+  governance with honest before/after measurement. 57 econCheck assertions aggregated
+  into `selfcheck-economy-wave1`.
+- **Economy Runtime Wave 2 — advisory gate signals (WF0020, ADR-0082/0084, ECON-08/09/10).**
+  Three gate-coupled libs that COMPUTE `projectState`-compatible signals for WF0019's CDK-032
+  `evaluateAction` WITHOUT a new gate and WITHOUT touching the live gate (wiring deferred):
+  lean-loop (delegate-to-worker, controller-scoped to `/ship`/`/swarm`, with the worker-envelope
+  contract), loop-breaker (repeat-error / repeat-diff / no-progress detection; escalates only at
+  `strict` + self-clearing), and patch-economy (suggest Edit/patch over Write-rewrite of a large
+  file). All advisory + fail-open + UNREGISTERED. 30 econCheck assertions in
+  `selfcheck-economy-wave2`. **Completes WF0020 (all 11 cards, workflow `done`).**
+- **Activation go-live — advisory enforcement stack + installer policy distribution (ADR-0097, WF0032).**
+  Wires the built-but-dormant PKG-04 advisory hooks into `settings-compose` at L≥5
+  (completion-gate, subagent-gate, compaction-continuity — all warn-only, fail-open;
+  `enforcement.mode` stays advisory). `/state` now surfaces a Fleet/Agents headline at
+  L≥7. New `tools/install/policy-migrate.mjs` additively distributes policy-store keys
+  on `--update` (reusing the config-migration semantics; user values always win;
+  `capability-registry.json` now seeded). `enforcement.mode` is NOT raised to guarded
+  (still gated on dogfood thresholds).
+- **Capability Enforcement PKG-08 — Fleet & Agent platform (CDK-080…083, WF0031, ADR-0072 + ADR-0096).**
+  The FINAL package — the program is now 50/50 complete. Three advisory, read-only,
+  fail-open, UNREGISTERED tools that compose the PKG-04…07 surface (§9): `fleet-compliance`
+  (fleet-wide capability-compliance + scorecard + readiness roll-up across registered
+  repos), `agent-registry` (unified roster+squad+tier+quality index; per-agent cost
+  surfaced honestly as `null` until the usage-event schema can attribute it), and
+  `policy-distribution` (advisory dry-run additive diff of kit-baseline vs target policy
+  stores; installer wiring deferred). New ADR-0096 records the Agent Forge/Fleet product
+  boundary (Forge internal, Fleet local, distribution = propose-review). Covered by
+  `selfcheck-pkg08-fleet.mjs` (23 checks). `npm run ci` green: 72 suites, tech-debt 0 RED.
+  Local-only on `main`, not yet released.
+- **Installer config-section auto-migration on `--update` (ADR-0095, workflow 0030).**
+  `npx contextdevkit --update` now additively merges new default config sections
+  (e.g. the `routing:` block) into an existing project's saved `config.json`,
+  preserving every user override; idempotent, arrays treated as leaves. New pure
+  module `tools/install/config-migrate.mjs` (`migrateConfigSections`) wired into
+  `engine.mjs writeConfig`, plus a version-aware `📦 Updated vX → vY` notice in
+  `install.mjs`. Covered by `integration-test-config-migrate.mjs` (28 assertions,
+  `integration:installer` tier). **Shipped in product release v3.0.0** — consolidated
+  PKG-05..07 + EACP Waves 1–8 + ADR-0094 routing onto `main` (PR #96), published to
+  npm with provenance + GitHub Release.
+- **Capability Enforcement PKG-07 — lineage consumers (CDK-071…077, WF0029, ADR-0072).**
+  Seven read-only advisory consumers of the CDK-070 lineage graph: public ADR
+  projection (`lineage-public`), lineage calibration (`lineage-calibration`),
+  executable business rules (`lineage-rules`), governance policy index
+  (`policy-registry`), canonical evidence taxonomy (`evidence-taxonomy`),
+  engineering scorecard (`engineering-scorecard`), and autonomy-readiness v2
+  (`autonomy-readiness-v2`). Each composes existing signals — no new state, zero
+  writes to any source store, fail-open, UNREGISTERED, every file ≤ 280 lines.
+  PKG-00…07 complete (program 42/50). Local-only.
+- **Automatic model routing for standard sessions (ADR-0094).** Persistent,
+  default-on routing posture — *Haiku operates · Sonnet executes · Opus decides*
+  (Opus implements high/critical-risk code directly; Fable never auto-selected) —
+  active in **every** session, not just `/swarm`, with **no re-prompting**. Composes
+  the ADR-0052 engine (`model-policy.mjs`) + EACP economics; does not fork them. New
+  `tools/scripts/routing/`: `task-classifier.mjs` (deterministic complexity×risk→
+  executor), `routing-decision.mjs` (runner-first over-orchestration guard +
+  total-cost estimate via `cost-engine`), `routing-config.mjs` (precedence
+  session>project>default + activation), `routing-telemetry.mjs` (append-only
+  decision ledger; kit-routing economics only — never the provider's cache savings).
+  New `routing:` config block (`defaults-routing.mjs` + zod `RoutingSchema`) defaults
+  to **`shadow`** mode (recommend + measure only; `canary`/`active` are deliberate,
+  telemetry-gated promotions). SessionStart persists `ledger.routing{active,mode}` and
+  surfaces one short boot-banner line; `/dev-start` + `/log-session` carry the posture
+  (deterministic collection → runner/Haiku). `/token-report` gains an additive
+  `routingTelemetry` surface. Tests: `selfcheck-routing.mjs` (42 checks, floor→1480) +
+  `integration-test-routing.mjs` (20 acceptance scenarios); `npm run ci` green
+  (63 suites + tech-debt 0 RED / 375 files). Disable per session via `routing.enabled=false`.
+- **EACP Wave 7 — #176 benchmark baseline harness + ADR-0080/0081 ratification (WF0018).** Seventh EACP wave; baseline scaffold (claim null, data pending a real run).
+- **EACP Wave 6 — benchmark pilot harness (WF0018, card #242 EACP-13). Sixth EACP wave.**
+  Read/scaffold-first A/B/C benchmark harness model — `economics/benchmark-design.mjs`
+  (arms A/B/C, `PILOT_ARMS` `['A','C']`, controls-held-equal, task strata, phases,
+  targets {1.30/1.50/1.70} — targets, not claims), `benchmark-run.mjs` (deterministic
+  `MOCK_PROVIDER`, no spend; runs degrade to `skipped` without a provider/baseline;
+  append-only JSONL), `benchmark-report.mjs` (independent-QA scoring with
+  evaluator≠operator gate, matched-pair `comparePilot`, advisory `presentBenchmark`).
+  **Honesty-gated**: the #176/CDK-003 baseline is unbuilt, so every real-measurement
+  path returns `skipped`/`unknown` and `claim` is ALWAYS null (ADR-0080 evidence tier).
+  Mock runs are labeled and excluded from claims; zero-dep + deterministic. New
+  `selfcheck-eacp-benchmark.mjs` (7th EACP runner) + integration smoke; `npm run ci`
+  green (60 suites + 0 RED). Awaiting human merge/commit on `main`.
+- **Capability Enforcement PKG-06 — multi-host telemetry, compliance, benchmark & drift (split wave, WF0027, ADR-0072, cards 314–318).**
+  Five advisory, additive, zero-dep, UNREGISTERED deliverables on branch `feat/pkg06-multihost-telemetry` (`7a526ea`, awaiting human merge; `npm run ci` green — 57 suites + tech-debt 0 RED / 330 files):
+  `skill-runner.mjs` (CDK-060, resolve/list Claude native skills), `capability-compliance.mjs` (CDK-061, per-host compliance matrix),
+  `telemetry/normalize.mjs`+`adapters/codex.mjs` (CDK-062, host→adapter dispatch that *consumes* the EACP usage-event — zero writes under `economics/`),
+  `benchmark-task.mjs` (CDK-065, continuous tokens-per-completed-task ledger), `wiring-drift.mjs` (CDK-068, instruction/config/wiring drift guard).
+  The 4 cost cards (CDK-063/064/066/067) are deferred behind the EACP economics merge (consume, don't fork).
+- **Capability Enforcement PKG-06 cost consumers — per-host cost, capability ROI, cache-churn health (WF0027, ADR-0072, cards 314–316).**
+  Three advisory, additive, UNREGISTERED consumers of the EACP `economics/` layer (merged to local main `51f078d`; `npm run ci` green — 60 suites + tech-debt 0 RED / 350 files; zero writes under `economics/`):
+  `host-cost.mjs` (CDK-063, per-host financial cost + gross cache value over multi-host telemetry that claude-only token-report-cost can't see),
+  `capability-roi.mjs`+`-core` (CDK-066, NEW `byCapability` attribution lens joining `attributionSkill`→registry `aliases.claude`, then cost),
+  `cache-churn-health.mjs` (CDK-067, correlates wiring-drift churn with cost-engine gross cache value into a cache-health band).
+  **CDK-064 (context pressure & re-read) dropped** as superseded by EACP Wave 3 report-advisories (constitution §9 — no speculative half). PKG-06 now complete (9/9); program at 34/50.
+- **Capability Enforcement PKG-05 — project-map & adaptive context (WF0026, ADR-0072, cards 307–313).**
+  Seven advisory, additive, zero-dep deliverables (merged to local main 718fc3b; npm run ci green — 52 suites + 0 RED):
+  - **#307 CDK-050** — configurable project-map `roots`/`excludes` with a two-tier
+    (deep vs root-anchored) exclude model; `contextkit` is now root-anchored, fixing
+    the dogfood self-map so `templates/contextkit` (the source) is mapped.
+  - **#308 CDK-051** — read-only project-map coverage report (`/project-map --coverage`).
+  - **#309 CDK-052** — deterministic, metadata-only executable context manifest tool
+    (`context-manifest.mjs`); boot-hook injection deferred to a user-gated activation.
+  - **#310 CDK-053** — playbooks scoped by workflow phase / squad (`playbook list --phase/--squad`).
+  - **#311 CDK-054** — zero-dep BM25 lexical retrieval ranking (`memory-score.mjs`);
+    `memory-retrieve` swap deferred.
+  - **#312 CDK-055** — rule fossilization ledger for deprecated/superseded rules.
+  - **#313 CDK-056** — multi-host selective context-load parity check (claude/codex/agy; 0 real gaps).
+- **EACP Wave 1 — economic measurement core (WF0018, ADR-0078/0081).** First
+  implemented slice of the Economic & Autonomy Control Plane: a zero-hot-path-dep
+  `templates/contextkit/tools/scripts/economics/` module cluster.
+  - **#230 EACP-01** — canonical `UsageEvent` (`usage-event.mjs` +
+    `usage-buckets.mjs`): schema versioning, bucket-close invariant
+    (`total = freshInput + output + cacheRead + cacheWrite + reasoning`),
+    fail-fast `normalizeEvent`, and `toDelta` delta/cumulative normalization that
+    structurally prevents summing cumulative totals as deltas. Five confidence-rated
+    attribution lenses (`attribution-lenses.mjs`: inclusive/byAgent/byModel/byPhase/
+    exclusiveBySkill) and a Claude Code usage adapter (`adapters/claude-code.mjs`)
+    that declares its capabilities and fakes no missing data.
+  - **#231 EACP-02** — privacy & retention foundation (`privacy.mjs` +
+    `retention.mjs`): local-first, metadata-only defaults, opt-out / external-send
+    consent gates (default off), deterministic path redaction, fail-closed
+    retention/purge, provenance stamping, and a `skipped`-not-passed marker.
+  - **#232 EACP-03** — sanitized synthetic fixtures + golden outputs reproducing a
+    cache-heavy session SHAPE and proving the cumulative-summing trap is neutralized
+    (naive 74,125 → normalized 19,545). Fixtures prove pipeline correctness only,
+    not baseline reality (panel QA#11).
+  - Coverage: new `tools/selfcheck-eacp.mjs` (33 assertions, wired into
+    `selfcheck.mjs`) + 3 end-to-end assertions in `integration-test-token-economy.mjs`.
+    Advisory/measurement-only; no command behavior changed; ADRs remain Proposed
+    (ratified by EACP-17). Token report v2, cost engine, pressure, budgets,
+    benchmark are later waves.
+- **EACP Wave 2 — pricing registry & cost semantics (WF0018, ADR-0079).** Second
+  slice of the Economic & Autonomy Control Plane: offline, reproducible cost on top
+  of the Wave 1 measurement spine. Zero-hot-path-dep; ≤308 lines/file; npm run ci
+  green (52 suites + 0 RED). Advisory/measurement-only; ADR-0079 remains Proposed.
+  - **#233 EACP-04** — versioned pricing registry (`economics/pricing/`):
+    offline JSON snapshot with full provenance (source, fetchedAt/verifiedAt,
+    effectiveDate, confidence, deprecation, context window) and **TTL-aware cache
+    prices (cache-read + cache-write by 5m/1h)** — the forge capability-matrix
+    (illustrative, input/output only) is *not* the cost source. Loader API
+    (`pricing-registry.mjs`): `loadRegistry` (null when absent, throws when
+    malformed-present), `priceFor`/`resolveModelId` (alias-tolerant),
+    `isPriceUsable` (gates `inferred`/`unknown` out of dollar figures),
+    `detectDrift`, `registrySummary`, private-override merge, thin CLI. Fable-5
+    ($10/$50) ships `confidence: inferred` → renders `unknown`, never a price.
+  - **#234 EACP-05** — cost engine (`cost-engine.mjs`): `actualCost` (cache-write
+    at its real TTL multiplier, cache-read ≈0.1×), `noCacheCost`, `grossCacheValue`
+    (labeled *provider feature, NOT kit contribution*), `routingSavings`
+    (quality-gated), `costPerQaGreenTask`, and `projectTierCost` — which finally
+    **wires the previously-unused `model-policy.priceForTier`** (matrix-derived →
+    honestly `inferred`). **E2 open decision pinned to variant (b)** — no-cache =
+    `(fresh+cacheRead+cacheWrite)×input + output×output` — frozen in
+    `fixtures/cost-golden.json` (the only variant that yields a positive gross
+    cache value). Missing/inferred price → `usd:null` + `confidence:unknown`,
+    never `$0`; subscription hosts never lead with USD.
+  - **#235 EACP-06** — Token Report v2 (`token-report-cost.mjs` + additive
+    `token-report.mjs`): `--json` now carries `schemaVersion: eacp-token-report/2`
+    and a `financial` block (per-model + total actual cost, gross cache value,
+    confidence tier, unpriced-model disclosure) — strictly additive, every legacy
+    key preserved. Registry absent → `skipped`, never fabricated cost.
+  - Coverage: new `tools/selfcheck-eacp-cost.mjs` (21 assertions, wired into
+    `selfcheck.mjs`; MIN_CHECKS floor raised) + 3 registry→cost→Report-v2
+    end-to-end assertions in `integration-test-token-economy.mjs`.
+
+- **EACP Wave 3 — session pressure & context-health advisories (WF0018,
+  ADR-0077/0081).** Third slice (v1-wedge §D): the two cheapest, highest-salience
+  advisories on top of the Wave 1 measurement spine. Advisory-only, additive,
+  zero-hot-path-dep; ≤308 lines/file; `npm run ci` green (52 suites + 0 RED).
+  ADR-0077/0081 remain Proposed.
+  - **#236 EACP-07** — session-pressure score + split (`economics/session-pressure.mjs`):
+    `deriveSignals` (turns, mean tokens/turn, cache-write ratio, total — observed
+    cache-read/turn kept unscored) → `pressureScore` weighted over present signals
+    only → band `healthy|elevated|hot|critical` with `splitRecommended` +
+    actionable recommendations + triggers. Thresholds are **ADR-0077 policy data**
+    (frozen table). Neither totalTokens nor turns present → `skipped`, never a
+    false `healthy` band.
+  - **#237 EACP-08** — repeated-read + map effectiveness (`economics/map-effectiveness.mjs`):
+    `readFacts` over normalized tool-call **metadata** (never message content) →
+    observed repeated-read counts, broad-searches-before-map, files-opened-after-map,
+    project-map ROI framing. **Paths redacted** (`[8hex]/basename`, ADR-0081);
+    deterministic ordering; empty events → `skipped`, never fabricated facts.
+  - Surfaced via Token Report v2 (`economics/report-advisories.mjs` seam +
+    additive `pressure` / `mapEffectiveness` keys on `token-report --json` and
+    two table lines) — `schemaVersion` stays `eacp-token-report/2`, every legacy
+    key preserved.
+  - Coverage: new `tools/selfcheck-eacp-pressure.mjs` (36 assertions, wired into
+    `selfcheck.mjs`; MIN_CHECKS 1225→1265) + Wave 3 end-to-end advisory assertions
+    in `integration-test-token-economy.mjs`.
+
+- **EACP Wave 4 — budgets/cost-guards & model-routing economics (WF0018,
+  ADR-0045/0052/0077).** Fourth slice (§E + §F): the economic controls that ride
+  the *existing* governance seams — no new enforcement path. Advisory-only,
+  additive, zero-hot-path-dep; ≤308 lines/file; `npm run ci` green (57 suites +
+  0 RED / 345 files). ADRs remain Proposed (ratification is #246).
+  - **#238 EACP-09** — budgets & cost guards (`economics/budgets.mjs` engine +
+    `economics/budgets-report.mjs` surface): `evaluateBudget` over 13 scopes
+    (call…provider) maps spend→limit into the mode ladder
+    `observe→warn→ask→downgrade→split→block`, then escalates to `split` under
+    Wave-3 `hot`/`critical` pressure and clamps to the budget's `ceilingMode`.
+    Its only enforcement coupling is the plain `budgetExhausted` boolean the
+    **existing** autonomy resolver already consumes at grade 4 (ADR-0044 D3) —
+    it imports nothing from `resolve-autonomy.mjs` and is **not** a new gate.
+    `recommendCheaperModel` never drops below `policy.floorTier` on a critical
+    task; `applyBypass` records human-bypass provenance and **refuses** a bypass
+    without `by`/`reason`; every evaluation carries an `auditRecord` (timestamp
+    caller-supplied — deterministic). Missing budget / spend / over-limit-with-no-
+    hardCap all degrade to `skipped`, never a false "within budget".
+  - **#239 EACP-10** — model-routing economics + Fable audit
+    (`economics/routing-economics.mjs`): `routingFactors`/`selectStrategy` weigh
+    task/complexity/risk/privacy/budget/tool-calling into one of seven strategies
+    (fixed/fallback/cost-/latency-optimized/quality-evaluated/local-first/
+    privacy-constrained); `routingROI` counts savings **only at equivalent
+    quality** (null + `unknown` confidence when QA signals are absent — never a
+    fabricated number); `fableAudit` documents Fable-5 ($10/$50 MTok, premium,
+    manual-only, `accidentalRisk` flag for any auto-route). `tierEconomics`
+    finally wires the previously-unused `model-policy.priceForTier` (through
+    `cost-engine.projectTierCost`), degrading to `skipped` when the forge matrix
+    is absent.
+  - Surfaced via Token Report v2 (additive `budgetGuard` / `routing` keys on
+    `token-report --json` + two table lines) — `schemaVersion` stays
+    `eacp-token-report/2`, every legacy key preserved; the report stays
+    grade-blind (display only, never calls the resolver).
+- **EACP Wave 5 — quota snapshots & the Autonomy Multiplier (WF0018,
+  ADR-0080/0081).** Fifth slice (§G autonomy intelligence): the
+  outcome-based measurement of how much *useful* autonomy the kit buys per unit
+  of (mostly unobservable) host quota. Advisory-only, additive, zero-hot-path-dep;
+  ≤308 lines/file; `npm run ci` green (57 suites + 0 RED / 349 files). ADRs remain
+  Proposed (ratification is #246).
+  - **#240 EACP-11** — append-only quota snapshots
+    (`economics/quota-snapshots.mjs`): `buildSnapshot` records host · plan ·
+    window type/start · reset · remaining/used % · capture method · confidence.
+    Most hosts expose no quota API, so capture is manual → confidence `inferred`,
+    and a missing percentage degrades to `null` + `unknown` — **never a fabricated
+    number** (constitution §8). Persisted as JSONL under the existing state
+    substrate (`contextkit/memory/quota-snapshots.jsonl`) via `appendSnapshot`
+    (the lone mutator; refuses to persist a `skipped` marker); `readSnapshots` is
+    defensive, `quotaSummary`/`latestPerHost` collapse to the latest per host.
+    Local-first, metadata-only, no PII.
+  - **#241 EACP-12** — Autonomy Multiplier
+    (`economics/autonomy-multiplier.mjs`): `(QA-green tasks per quota unit with
+    the kit) ÷ (baseline)`. When quota is unobservable, explicit substitutes
+    (`api-usd` / `effective-mtok` / `hour` / `host-snapshot`), one primary fixed
+    per host. The numerator is **Goodhart-guarded**: `usefulAutonomy` counts a
+    task only when acceptance is met + tests run + QA green + no critical bypass +
+    no immediate rollback + no material-error reopen + (any human intervention
+    logged) — never raw actions/turns/files; `usefulReasons`/`countUseful` keep
+    the exclusions transparent. Targets `1.30×` pilot / `1.50×` product / `1.70×`
+    potential surface as **targets, never claims** — `claim` is hardcoded `null`
+    until the #242 benchmark proves it; confidence is `derived` on quota,
+    `inferred` on a substitute, and the whole ratio degrades to `skipped` without
+    a baseline (never a false multiplier).
+  - Surfaced via Token Report v2 (additive `quota` / `autonomy` keys on
+    `token-report --json` + two table lines) — `schemaVersion` stays
+    `eacp-token-report/2`; both honestly degrade to `skipped` in the live report
+    (transcripts carry no quota or QA-green signal). Test wiring: new
+    `selfcheck-eacp-autonomy.mjs` + the EACP selfcheck runners refactored behind a
+    single `selfcheck-eacp-all.mjs` aggregator (kept `selfcheck.mjs` under the
+    line budget) + Wave-5 assertions in `integration-test-token-economy.mjs`.
+  - Coverage: new `tools/selfcheck-eacp-budget.mjs` + `tools/selfcheck-eacp-routing.mjs`
+    (43 assertions, wired into `selfcheck.mjs`; MIN_CHECKS 1265→1308) + Wave 4
+    budget→resolver-path and quality-gated-ROI assertions in
+    `integration-test-token-economy.mjs`.
+
+- **Stack-aware QA scaffolding** — new `scaffold-tests.mjs` command maps
+  Node/JavaScript, Python, Go, Rust, and PHP projects into happy/edge/failure
+  QA cases and can create starter harness tests with explicit `--write`.
+  `/test-plan`, `/scaffold-tests`, and `qa-orchestrator` now start from this
+  deterministic stack map before specialist delegation.
+
+- **Active Squad Posture Gates** — Added `squads` metadata to session ledgers to track active postures and squads. Optimized compliance path audit checks by checking specific session files instead of walking all sessions, preventing directory re-read performance bottlenecks and union-leakage security bugs. Added integration tests covering compliance posture gating.
+
+- **Active squad posture activation** - `squad.mjs activate <intent-or-path>`
+  now records detected postures in the active session ledger, and the L5 guard
+  audits only the target path it is checking. This prevents unrelated modified
+  gated files from leaking into a guarded edit decision.
+
+- **Automatic docs refresh** - `docs-refresh.mjs` regenerates the Diataxis
+  docs index during pre-commit, and client `--update` refreshes
+  `contextkit/README.md` through the manifest-safe update path.
+
+- **Planning packs for four initiatives (no code; session 75)** — four workflow
+  spec-packs + umbrella ADRs (Proposed) + roadmap milestones + 39 DevPipeline cards,
+  all deferred behind the Capability Enforcement program: MCP Integration Layer
+  (wf 0013 / ADR-0073 / P6 / cards 186–197), Cursor as 4th native host
+  (wf 0014 / ADR-0074 / P7 / cards 198–206), docs public/internal projection
+  restructure (wf 0015 / ADR-0075 / P8 / cards 207–214), and OpenCode as 5th native
+  host (wf 0016 / ADR-0076 / P9 / cards 215–224). Three deliberations recorded
+  (2026-06-14-01/02/03). `deliberations.active` made explicit in `config.json`.
 
 ## [3.1.2] - 2026-06-17
 
