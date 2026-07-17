@@ -105,6 +105,28 @@ carimba `implemented: YYYY-MM-DD`.
 | **ops-team** | devops | CI/CD, deploys |
 | **agent-forge** *(L6+)* | forge-orchestrator + 7 specialists | Pipeline pra Agent Packages portáveis |
 
+## Engenharia de Domínio (BIZ-0003, ADR-0128)
+
+Capacidade determinística que dispara em trabalho de código real: classifica a
+intenção de mutação (CMIS), a aplicabilidade de domínio (DAS), exige o
+`implementation-engineer` em código e checa conformidade com o mapa de domínio.
+**Vem DESLIGADA por padrão** e é *fail-open* (qualquer erro sai 0 — um gate quebrado
+nunca bloqueia seu trabalho).
+
+- **Só quer ver o que o classificador decide?** `/domain "<objetivo>"` — só observação,
+  não muda nada, não precisa ligar nada.
+- **Ligar:** em `contextkit/config.json` → `domainEngineering.enabled: true`. O
+  `enforcement.rolloutStage` é um TETO que só *abaixa* a escada nível→modo (nunca sobe):
+  avance `shadow → advisory → guarded → strict` conforme a calibração for limpa.
+- **Escada por nível:** L1–L3 inerte (só classifica) · L4 advisory · L5–L6 guarded ·
+  L7 strict. A virada para guarded/strict na frota é decisão **humana**.
+- **Rollback:** volte `rolloutStage` para `"shadow"` ou `enabled: false` — sem reparo de
+  estado; a capacidade é reversível e absent-safe.
+- As 8 regras de fitness Classe A ficam armadas mas emitem **zero** findings até um
+  projeto declarar um mapa de domínio — então o gate arch-debt continua verde.
+
+Guia completo (EN): `docs/how-to/use-domain-engineering.md`.
+
 ## Provider adapters *(novo)*
 
 Dois surfaces plugáveis sob `runtime/providers/`:

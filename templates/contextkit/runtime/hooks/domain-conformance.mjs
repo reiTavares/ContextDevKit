@@ -6,13 +6,12 @@
  * declared touch-set via the PURE `reconcileWrite`, then records the deviation and
  * — in guarded/strict — arms a next-write block for a high-risk drift.
  *
- * DORMANT BY DESIGN (WF-0067): built + unit-tested + correct, but NOT wired into
- * settings-compose. WF-0068 wires it during the activation rollout. When it fires
- * it is inert unless `domainEngineering.enabled` (default false). PostToolUse
- * cannot retroactively block the write that already happened — the low/medium
- * verdicts RECORD a deviation (advisory) and a high verdict WARNS + records intent
- * to block the NEXT write (the actual next-write block is the PreToolUse gate's
- * job once WF-0068 wires both).
+ * WIRED (WF-0068): registered as a PostToolUse hook at L≥4 in settings-compose +
+ * the Codex/Antigravity composers. It stays inert unless `domainEngineering.enabled`
+ * (default false). PostToolUse cannot retroactively block the write that already
+ * happened — the low/medium verdicts RECORD a deviation (advisory) and a high
+ * verdict WARNS + records intent to block the NEXT write (the actual next-write
+ * block is the PreToolUse `domain-code-gate.mjs`, now wired alongside it).
  *
  * Fail-open (immutable rule 2): every error exits 0 silently. Inert below Level 4.
  *

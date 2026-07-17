@@ -264,6 +264,12 @@ export const SUITES = Object.freeze([
   { id: 'update-failure', file: it('update-failure'), tier: 'integration:installer',
     touches: ['install.mjs', 'tools/install/update-snapshot.mjs', 'tools/install/update-preflight.mjs'] },
 
+  // WF-0068 (BIZ-0003, ADR-0128 §25/§26/§30) — Domain Engineering distribution:
+  // fresh install lands policy/domain-* + contextkit/skills + the two gate hooks;
+  // default-OFF block-proof; /domain CLI; --update non-destructive; --purge reversible.
+  { id: 'domain-distribution', file: it('domain-distribution'), tier: 'integration:installer',
+    touches: ['tools/install/engine.mjs', 'tools/install/uninstall.mjs', 'templates/contextkit/runtime/config/settings-compose.mjs', 'templates/contextkit/tools/scripts/domain-inspect.mjs'] },
+
   { id: 'projmap-signals', file: 'tools/selfcheck-projmap-signals.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/project-map-signals', 'templates/contextkit/tools/scripts/project-map-insights'] }, // WF-0057 W1.1 (ADR-0122) structural signals
   { id: 'arch-debt', file: 'tools/selfcheck-arch-debt.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/arch-debt/'] }, // WF-0057 W2 (ADR-0122) arch-debt analyzer pipeline aggregator (finding/collector/conformance/classifier/fragmentation/floors)
   { id: 'arch-debt-config', file: 'tools/selfcheck-arch-debt-config.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/config/defaults-arch-debt.mjs', 'templates/contextkit/runtime/config/resolve-arch-debt-config.mjs', 'templates/contextkit/runtime/config/schema-sections.mjs'] }, // WF-0057 W5.2 (ADR-0122) gate config block + legacy line-budget migration

@@ -20,7 +20,7 @@ export {
   getRule, isClassA, maximumAutomaticLevel, validateRuleClasses, listRulesByClass, CLASS_B_CEILING,
 } from './rule-classes.mjs';
 export {
-  buildLabel, promotionAuthorizedLabels, provenanceCounts, buildConfusionMatrix,
+  buildLabel, promotionAuthorizedLabels, provenanceCounts, buildConfusionMatrix, precisionRecall,
   PROVENANCE_TIERS, EVIDENCE_TIERS,
 } from './ground-truth.mjs';
 export {

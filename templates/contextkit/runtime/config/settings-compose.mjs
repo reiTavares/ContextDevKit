@@ -53,7 +53,17 @@ export function composeSettings(existing, level) {
     add('Stop', null, 'check-registration.mjs');
   }
   if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
-  if (level >= 4) add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+  if (level >= 4) {
+    add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25/§26). Registered
+    // at L≥4 so the level→mode ladder has its advisory floor (L4 advisory / L5-6
+    // guarded / L7 strict, via resolveDomainMode). Default-OFF: each hook exits early
+    // unless `domainEngineering.enabled` (false by default) — inert on every existing
+    // install — and fail-open (exit 0 on any error, never breaks a write). The
+    // guarded/strict fleet flip stays human-gated (rolloutStage ceiling).
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'domain-code-gate.mjs'); // §16 code gate + authoritative CMIS=100
+    add('PostToolUse', 'Edit|Write|MultiEdit', 'domain-conformance.mjs'); // §19 conformance reconciler (record + advisory)
+  }
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
     add('PreToolUse', 'Edit|Write|MultiEdit', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)

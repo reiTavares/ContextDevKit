@@ -50,7 +50,14 @@ export function composeAgentHooks(existing, level) {
     group.Stop = [command(`node ${SESSION_MANAGER} end`)];
   }
   if (level >= 3) group.PreToolUse = perWriteTool('concurrency-guard.mjs');
-  if (level >= 4) group.PostToolUse.push(...perWriteTool('auto-format.mjs')); // ADR-0061 — advisory format/lint
+  if (level >= 4) {
+    group.PostToolUse.push(...perWriteTool('auto-format.mjs')); // ADR-0061 — advisory format/lint
+    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25) — agy twin of the
+    // Claude/Codex wiring. Default-OFF + fail-open + inert below L4; agy block verb
+    // (`deny`) translated by host-adapter. Per-write-tool matchers (agy exact-match).
+    group.PreToolUse.push(...perWriteTool('domain-code-gate.mjs')); // §16 code gate
+    group.PostToolUse.push(...perWriteTool('domain-conformance.mjs')); // §19 conformance reconciler
+  }
   if (level >= 5) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
     group.PreToolUse.push(...perWriteTool('journey-gate.mjs')); // ADR-0127 — methodology journey enforcement (guarded+fallback)

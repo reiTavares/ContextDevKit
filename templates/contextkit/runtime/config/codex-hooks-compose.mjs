@@ -48,7 +48,14 @@ export function composeCodexHooks(existing, level) {
     add('Stop', null, 'check-registration.mjs');
   }
   if (level >= 3) add('PreToolUse', 'Edit|Write', 'concurrency-guard.mjs');
-  if (level >= 4) add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+  if (level >= 4) {
+    add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25) — Codex twin of
+    // the Claude wiring. Default-OFF + fail-open + inert below L4; block verb
+    // translated per-host by host-adapter (codex uses the Claude `block` shape).
+    add('PreToolUse', 'Edit|Write', 'domain-code-gate.mjs'); // §16 code gate
+    add('PostToolUse', 'Edit|Write', 'domain-conformance.mjs'); // §19 conformance reconciler
+  }
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write', 'simulate-gate.mjs');
     add('PreToolUse', 'Edit|Write', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)

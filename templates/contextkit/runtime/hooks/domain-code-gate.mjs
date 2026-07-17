@@ -8,11 +8,12 @@
  * requirements' presence — then maps the two-axis verdict onto the host block/warn
  * surface.
  *
- * DORMANT BY DESIGN (WF-0067): this hook is built, unit-tested and correct, but is
- * NOT wired into settings-compose. WF-0068 (the activation-rollout owner) wires it
- * and drives the shadow→advisory→guarded→strict ladder. Until then it never fires.
- * When it DOES fire it is inert unless `domainEngineering.enabled` (default false):
- * a disabled or shadow mode records nothing and exits 0.
+ * WIRED (WF-0068): registered as a PreToolUse hook at L≥4 in settings-compose +
+ * the Codex/Antigravity composers (the activation-rollout owner drives the
+ * shadow→advisory→guarded→strict ladder via `enforcement.rolloutStage`). It stays
+ * inert unless `domainEngineering.enabled` (default false): a disabled or shadow
+ * mode records nothing and exits 0 — so it never fires on an existing install until
+ * a project opts in.
  *
  * Fail-open (immutable rule 2): every error exits 0 silently — a broken gate
  * MUST NEVER block real work. Inert below Level 4.
