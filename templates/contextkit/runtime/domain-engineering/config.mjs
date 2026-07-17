@@ -27,6 +27,12 @@ export const DEFAULT_DOMAIN_ENGINEERING_CONFIG = Object.freeze({
     level5: 'guarded',
     level6: 'guarded',
     level7: 'strict',
+    // Staged-rollout CEILING (§29, WF-0067). null ⇒ no cap (the level→mode ladder
+    // applies). When set to 'shadow'|'advisory'|'guarded'|'strict' it may only
+    // LOWER the ladder-derived mode, never raise it — so the capability can be
+    // enabled yet held at an earlier stage while the fleet calibrates. WF-0068
+    // (the activation-rollout owner) advances this shadow→advisory→guarded→strict.
+    rolloutStage: null,
     failMode: 'allow-with-degraded-receipt',
   },
   squad: {

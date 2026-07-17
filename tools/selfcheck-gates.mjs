@@ -64,8 +64,14 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
   //   completion-gate.mjs       — CDK-040 completion evidence gate (Stop).
   //   subagent-gate.mjs         — CDK-041 subagent governance (Task PreToolUse + SubagentStop).
   //   compaction-continuity.mjs — CDK-042 contract continuity (PreCompact + SessionStart).
+  // WF-0067 Domain Engineering enforcement hooks — shipped DORMANT + default-OFF
+  // (inert unless domainEngineering.enabled), fail-open exit-0; WF-0068 owns the
+  // shadow→advisory→guarded→strict activation-rollout wiring. ADR-0128 §16/§19.
+  //   domain-code-gate.mjs      — §16 PreToolUse code gate + authoritative CMIS=100.
+  //   domain-conformance.mjs    — §19 PostToolUse conformance reconciler.
   const UNREGISTERED_ALLOWED = new Set([
     'completion-gate.mjs', 'subagent-gate.mjs', 'compaction-continuity.mjs',
+    'domain-code-gate.mjs', 'domain-conformance.mjs',
   ]);
   const unregistered = present.filter((f) => {
     if (UNREGISTERED_ALLOWED.has(f)) return false;

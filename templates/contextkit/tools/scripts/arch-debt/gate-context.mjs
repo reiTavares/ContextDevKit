@@ -139,5 +139,13 @@ export function buildGateContext(input = {}) {
     lineSignals,
     cognitiveCoherence: cfg.cognitiveCoherence || [], // model-graded; none wired at W4.
     changeAmplification,
+    // Domain Engineering conformance (ADR-0128 §23/§24, WF-0067): the declared-vs-real
+    // delta the domain fitness functions read. Absent by default (no declared domain
+    // map) ⇒ empty ⇒ zero domain findings — the natural default-OFF. A project (or
+    // WF-0068) injects a pre-computed conformance (from compareDomainToProjectMap) via
+    // `config.domainConformance`; the gate passes it through honestly, never faked.
+    domainConformance: cfg.domainConformance && typeof cfg.domainConformance === 'object'
+      ? cfg.domainConformance
+      : {},
   };
 }

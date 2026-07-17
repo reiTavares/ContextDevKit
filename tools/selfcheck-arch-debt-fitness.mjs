@@ -169,7 +169,21 @@ cha && cha.rolloutState === 'OBSERVE_ONLY' ? ok('change-amplification is OBSERVE
 const line = byId.get('signal.line-count');
 line && line.rolloutState === 'ADVISORY' && line.enforcement === 'ADVISORY'
   ? ok('line-count is ADVISORY (ADR-0122 demotion)') : bad('line-count not ADVISORY');
-defaultReg.functions.length === 9 ? ok('catalogue holds all 9 fitness functions') : bad('expected 9, got ' + defaultReg.functions.length);
+// 9 W2 floor/signal rules + 14 Domain Engineering rules (WF-0067, ADR-0128 §24):
+// 8 deterministic (Class A) + 6 advisory (Class B), all OBSERVE_ONLY at launch.
+defaultReg.functions.length === 23 ? ok('catalogue holds all 23 fitness functions (9 core + 14 domain)') : bad('expected 23, got ' + defaultReg.functions.length);
+
+console.log('\nDomain Engineering fitness (WF-0067, ADR-0128 §24) — present + OBSERVE_ONLY at launch');
+const domainIds = ['DOMAIN_INFRASTRUCTURE_INDEPENDENCE', 'BOUNDED_CONTEXT_BOUNDARY', 'STATE_AUTHORITY_UNIQUENESS', 'PUBLIC_CONTRACT_PRESERVATION', 'AGGREGATE_CONSISTENCY_BOUNDARY', 'CROSS_CONTEXT_ACCESS', 'DOMAIN_EVENT_CONTRACT', 'IMPLEMENTATION_PACKET_CONFORMANCE'];
+domainIds.every((id) => byId.has(id)) ? ok('all 8 blocking domain fitness rules are registered') : bad('a blocking domain fitness rule is missing: ' + domainIds.filter((id) => !byId.has(id)).join(', '));
+// Default-OFF: every domain rule ships OBSERVE_ONLY so it observes without swaying the verdict (WF-0068 promotes the blocking set).
+const domainFns = defaultReg.functions.filter((fn) => domainIds.includes(fn.id) || ['POSSIBLE_ANEMIC_MODEL', 'POSSIBLY_LARGE_AGGREGATE', 'EXCESS_DOMAIN_SERVICES', 'VALUE_OBJECT_FRAGMENTATION', 'QUESTIONABLE_REPOSITORY_USE', 'OVER_COMPLEX_STRUCTURE'].includes(fn.id));
+domainFns.length === 14 && domainFns.every((fn) => fn.rolloutState === 'OBSERVE_ONLY')
+  ? ok('all 14 domain fitness rules are OBSERVE_ONLY at launch (default-OFF)') : bad('a domain fitness rule is not OBSERVE_ONLY (found ' + domainFns.length + ')');
+// The domain rules run over an empty context (no declared map) without any finding.
+const domainEmptyRun = runFitness(defaultReg, {});
+domainEmptyRun.findings.filter((f) => domainIds.includes(f.fitnessId)).length === 0
+  ? ok('domain fitness rules emit zero findings on an empty context (no declared domain map ⇒ inert)') : bad('a domain rule fired on an empty context');
 
 console.log('\ncatalogue functions wire to the W2 analyzers (no findings on empty context)');
 const emptyRun = runFitness(defaultReg, {});

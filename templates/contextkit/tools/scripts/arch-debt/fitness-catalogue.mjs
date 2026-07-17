@@ -25,6 +25,11 @@ import {
   securityFloor, reliabilityFloor, testabilityFloor,
 } from './floors.mjs';
 import { FitnessType, RolloutState } from './fitness-registry.mjs';
+// Domain Engineering fitness (ADR-0128 §24, WF-0067): the eight DDD/architecture
+// rules + six advisory signals. Every one ships OBSERVE_ONLY at launch (default-OFF)
+// so they observe without swaying the verdict until WF-0068 promotes the blocking
+// set — the same dormant posture as the model-graded OBSERVE_ONLY signals below.
+import { DOMAIN_FITNESS_CATALOGUE } from './domain-fitness-catalogue.mjs';
 
 /**
  * F1 — no NEW forbidden dependency cycle (§9.1). GRAPH_DERIVED, BLOCKING.
@@ -161,4 +166,7 @@ export const INITIAL_FITNESS_CATALOGUE = [
   f1NewCycle, f2Boundary, f3StateAuthority,
   securityFloorFn, reliabilityFloorFn, testabilityFloorFn,
   lineCountAdvisory, cognitiveCoherence, changeAmplification,
+  // Domain Engineering (WF-0067) — appended OBSERVE_ONLY (default-OFF); WF-0068
+  // promotes the eight blocking rules once activation rollout begins.
+  ...DOMAIN_FITNESS_CATALOGUE,
 ];

@@ -42,3 +42,18 @@ export {
   dispatchedAgents, completedAgents, SPAWN_RECORD_SCHEMA_VERSION,
 } from './spawn-record.mjs';
 export { buildDomainJourney, renderDomainJourneyLine } from './journey.mjs';
+// Enforcement & Architectural Fitness (ADR-0128 §16/§19/§20/§23, ADR-0129,
+// WF-0067): the write-time gates — PreToolUse code gate (§16 + authoritative
+// CMIS=100 §5), PostToolUse conformance reconciler (§19), Completion Gate
+// done-rule (§20) and the Project Map declared-vs-real comparator (§23). All
+// PURE + default-OFF; the hooks that consume them exit 0 when disabled.
+export {
+  evaluateCodeGate, resolveDomainMode, authoritativeCmis, CODE_GATE_VERSION,
+} from './code-gate.mjs';
+export { reconcileWrite, CONFORMANCE_VERSION } from './conformance.mjs';
+export {
+  evaluateDomainCompletion, obligationsForProfile, COMPLETION_VERSION,
+} from './completion.mjs';
+export {
+  compareDomainToProjectMap, PROJECT_MAP_COMPARE_VERSION,
+} from './project-map-compare.mjs';

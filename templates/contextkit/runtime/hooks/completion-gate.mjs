@@ -29,6 +29,9 @@ import { evaluateCompletion } from '../execution/evaluate-completion.mjs';
 import { readLedger, writeLedger } from './ledger.mjs';
 import { emitAdvisory, emitBlockDecision, hookHost, resolveHookSessionId } from './host-adapter.mjs';
 import { currentBranch } from '../../tools/scripts/workflow-pack.mjs';
+import { resolveConfig } from '../domain-engineering/config.mjs';
+import { resolveDomainMode } from '../domain-engineering/code-gate.mjs';
+import { summarizeSpawnEvidence } from '../domain-engineering/spawn-record.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -140,6 +143,52 @@ function augmentWithOrchestration(result, root, taskId, mode) {
   } catch { /* fail-open — orchestration completion check never breaks the gate */ }
 }
 
+/**
+ * Augments a completion result with the ADR-0128 §20 Domain Engineering
+ * completion obligation (WF-0067). Config-gated default-OFF: does nothing unless
+ * `domainEngineering.enabled`. When enabled + the resolved profile actually
+ * declares required agents, it checks the WF-0065 spawn evidence
+ * (planned-vs-completed — a name in a prompt never counts) and, on a shortfall,
+ * adds a reason code + remediation. Escalates `decision` to 'deny' ONLY in a
+ * guarded/strict DOMAIN mode (the outer emit still respects the capability mode,
+ * so advisory never blocks). Mirrors `augmentWithOrchestration`. Fail-open —
+ * never throws.
+ *
+ * @param {object} result evaluateCompletion result (mutated in place)
+ * @param {string} root project root
+ * @param {string} taskId task id
+ * @param {object} config the full loaded config (carries `domainEngineering`)
+ * @returns {void}
+ */
+function augmentWithDomainCompletion(result, root, taskId, config) {
+  try {
+    const deConfig = resolveConfig(config?.domainEngineering);
+    if (deConfig.enabled !== true) return; // default-OFF: inert.
+    const domainMode = resolveDomainMode(getLevel(root), deConfig);
+    if (domainMode === 'shadow') return;
+
+    const envelope = loadEnvelope(root, taskId);
+    const block = envelope?.implementation;
+    if (!block || block.profile === 'no-code') return; // no-code ⇒ zero obligations.
+    if (block.squadRequired !== true || !Array.isArray(block.requiredAgents) || block.requiredAgents.length === 0) return;
+
+    const evidence = summarizeSpawnEvidence(root, taskId, block.requiredAgents);
+    if (evidence.satisfied === true) return; // every planned agent recorded completion.
+
+    result.reasonCodes.push('domain-completion: required-agents-incomplete');
+    if (Array.isArray(result.detail?.missing)) result.detail.missing.push('required-agents');
+    if (Array.isArray(result.remediation)) {
+      const outstanding = [...(evidence.plannedNotDispatched || []), ...(evidence.dispatchedNotCompleted || [])];
+      result.remediation.push(
+        `Dispatch + complete the profile-required agent(s): ${(outstanding.length ? outstanding : block.requiredAgents).join(', ')} (a name in a prompt does not count — ADR-0128 evidence ruling).`,
+      );
+    }
+    // Block only in a guarded/strict DOMAIN mode; the outer emit still gates on the
+    // capability enforcement mode, so an advisory install never blocks completion.
+    if (domainMode === 'guarded' || domainMode === 'strict') result.decision = 'deny';
+  } catch { /* fail-open — domain completion check never breaks the gate */ }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -187,6 +236,11 @@ async function main() {
   // WF0038 / ADR-0107 §13/§21 — planned-vs-actual orchestration check. A material
   // request may not complete with a required-but-unexecuted debate / specialist.
   augmentWithOrchestration(result, ROOT, taskId, mode);
+
+  // ADR-0128 §20 (WF-0067) — Domain Engineering completion obligation. Config-gated
+  // default-OFF; checks the profile-required agent spawn evidence (WF-0065). Isolated
+  // fail-open so it can never break the live completion gate (immutable rule 2).
+  augmentWithDomainCompletion(result, ROOT, taskId, config);
 
   // Silence rule: nothing to say - return immediately.
   if (result.reasonCodes.length === 0) return;

@@ -30,6 +30,7 @@ import { runDomainEngineeringChecks } from './selfcheck-domain-engineering.mjs';
 import { runDevteamChecks } from './selfcheck-devteam.mjs';
 import { runDomainArtifactsChecks } from './selfcheck-domain-artifacts.mjs';
 import { runDomainLifecycleChecks } from './selfcheck-domain-lifecycle.mjs';
+import { runDomainEnforcementChecks } from './selfcheck-domain-enforcement.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -183,6 +184,7 @@ async function main() {
   await runDevteamChecks({ ok, bad }, { KIT });
   await runDomainArtifactsChecks({ ok, bad }, { KIT });
   await runDomainLifecycleChecks({ ok, bad }, { KIT });
+  await runDomainEnforcementChecks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 
