@@ -61,7 +61,19 @@ async function copyEngine(target, tplDir, report) {
   await copyTree(join(tplDir, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
   await copyTree(join(tplDir, 'contextkit', 'mcp'), join(target, 'contextkit', 'mcp'));
   await copyTree(join(tplDir, 'contextkit', 'mcp-server'), join(target, 'contextkit', 'mcp-server'));
-  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/mcp, contextkit/mcp-server)');
+  // Domain Engineering contract tables (WF-0068, ADR-0128 §26): the deterministic
+  // classifier's SINGLE SOURCE (`runtime/domain-engineering/policy-load.mjs`),
+  // schema-coupled to the runtime that reads them — distributed always-overwrite in
+  // lockstep with the engine, exactly like runtime/ code. Per-project calibration
+  // lives in `config.json → domainEngineering.*` (thresholds + enforcement), NEVER
+  // by editing these tables, so overwriting them never loses user tuning. These
+  // subtrees were the known WF-0068 distribution gap. The flat policy registries the
+  // user EXTENDS (routing/squads/capability) stay seeded write-if-missing + additive
+  // (MEMORY_SEEDS + policy-migrate); these deterministic tables are kit code.
+  for (const sub of ['domain-engineering', 'devteam', 'domain-artifacts']) {
+    await copyTree(join(tplDir, 'contextkit', 'policy', sub), join(target, 'contextkit', 'policy', sub));
+  }
+  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts)');
 }
 
 /**
@@ -94,6 +106,12 @@ async function seedSubstrate(target, tplDir, ctx, report) {
   // personalized playbook survives --update, while kit renames/edits still land [ADR-0054].
   const wf = await syncTree(join(tplDir, 'contextkit', 'workflows'), target, 'contextkit/workflows', ctx.sync);
   report.push(`✓ workflow guides + playbooks installed (contextkit/workflows)${wf.kept ? ` — kept ${wf.kept} personalized` : ''}`);
+  // Trigger-driven skills (WF-0064/WF-0068, ADR-0128 §11): SKILL.md instruction
+  // content the devteam policy references by relative body path (skills/<name>/SKILL.md).
+  // Personalizable like agents/commands — 3-way sync so a tuned skill survives --update
+  // while kit edits still land. This tree was part of the WF-0068 distribution gap.
+  const sk = await syncTree(join(tplDir, 'contextkit', 'skills'), target, 'contextkit/skills', ctx.sync);
+  report.push(`✓ devteam skills installed (contextkit/skills)${sk.kept ? ` — kept ${sk.kept} personalized` : ''}`);
   const detCount = await copyTreeIfMissing(join(tplDir, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
   if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
   // Curated-stack starters: always overwrite — pure templates, copied OUT by /aidevtool-from0.

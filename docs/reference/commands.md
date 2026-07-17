@@ -4,7 +4,7 @@ Every slash command the platform ships, grouped by domain. Generated from the co
 
 <!-- BEGIN AUTO-GENERATED: commands (docs-generate.mjs, ADR-0115) — edits inside are overwritten -->
 
-_82 slash commands across 8 domains._
+_83 slash commands across 8 domains._
 
 ### audit
 
@@ -56,6 +56,7 @@ _82 slash commands across 8 domains._
 | `/distill-apply` | L5 — apply a reviewed .distillation-proposal.md to CLAUDE.md and record an ADR for the cycle. |
 | `/distill-sessions` | L5 — analyze recent sessions and propose refinements to CLAUDE.md (writes a proposal, applies nothing). |
 | `/docs-reindex` | Apply/maintain the Diátaxis docs spine — ensure the four buckets and regenerate docs/README.md. Idempotent, never moves or loses files. |
+| `/domain` | Domain Engineering diagnostic — shows what the classifier decides for an objective (CMIS/DAS/profile/skills/mode). Observation-only; never mutates or blocks. |
 | `/fable` | Manual premium tier (ADR-0052) — run ONE task on Claude Fable 5, the deliberately expensive/limited model. Explicit-only; never automatic. |
 | `/fleet` | Fleet mode — one control plane over many ContextDevKit repos (portfolio stats, cross-repo audit, CLAUDE.md rule-drift). |
 | `/landing-page` | Landing-page architect + conversion squad — interview-first, anti-cookie-cutter, deterministic scaffold (lp-scaffold/lp-build), LGPD by default. (ADR-0023 + ADR-0050) |

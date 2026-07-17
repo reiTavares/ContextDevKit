@@ -24,6 +24,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [How to run a workflow](how-to/run-a-workflow.md) — Goal: reader drives a large feature from intake through conclusion using the
 - [How to start a focused session](how-to/start-a-focused-session.md) — Goal: reader starts a scoped session that blocks opportunistic drift.
 - [How to tune autonomy and level](how-to/tune-autonomy-and-level.md) — Goal: reader adjusts how much the AI may do without asking (grade) and which
+- [How to enable and calibrate Domain Engineering](how-to/use-domain-engineering.md) — Goal: a maintainer turns on the Domain Engineering capability and advances it
 - [How to use the pipeline board](how-to/use-the-pipeline-board.md) — Goal: reader creates, moves, and closes pipeline cards.
 - [File Catalog Guide](workflow-engine/file-catalog-guide.md) — Every workflow artifact, its purpose, who authors it, its single source of
 - [Migration Guide](workflow-engine/migration-guide.md) — Migrating a legacy workflow onto the wave engine is **opt-in and

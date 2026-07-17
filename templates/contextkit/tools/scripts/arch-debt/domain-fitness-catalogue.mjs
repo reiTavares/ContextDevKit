@@ -5,12 +5,15 @@
  * `FitnessFunctionRunner` validates + runs. Mirrors the W2 `fitness-catalogue.mjs`
  * split (data here, engine there) so both stay under the §1 line budget.
  *
- * Rollout posture (default-OFF, ADR-0128 packaging ruling): EVERY declaration ships
- * `rolloutState: OBSERVE_ONLY` at launch — it runs and observes but its findings are
- * stamped `influencing: false`, so they NEVER sway the gate verdict until WF-0068
- * (or a project) promotes the blocking rules to ACTIVE. Combined with the empty
- * default `domainConformance` (an absent declared map ⇒ zero findings), the domain
- * rules are doubly inert on a fresh install — native hosts stay green.
+ * Rollout posture (ADR-0128 §26): at WF-0067 launch EVERY declaration shipped
+ * `rolloutState: OBSERVE_ONLY`. **WF-0068 (the activation-rollout owner) PROMOTED the
+ * eight Class-A rules to `enforcement: BLOCKING` + `rolloutState: ACTIVE` together**;
+ * the six Class-B signals stay OBSERVE_ONLY. This is SAFE fleet-wide, NOT because the
+ * rules are inert, but because they read ONLY the §23 declared-vs-real domain map and
+ * `evaluateDomainFitness({}) === []`: with no declared `domainConformance` the armed
+ * rules emit ZERO findings, so the arch-debt gate stays PASS_WITH_OBSERVATION on every
+ * existing/greenfield install — native hosts stay green. The rules only bite a project
+ * that BOTH declares a domain map AND violates it.
  *
  * Authority (ADR-0129): the eight Class-A rules declare `enforcement: BLOCKING`
  * with a deterministic-tier evidence class (satisfying the registry's Fork-2
@@ -60,22 +63,25 @@ function toDeclaration(rule) {
     owner: rule.dimension === Dimension.DATA_CONTRACTS ? 'architect' : 'domain-modeler',
     evidenceSource: rule.evidence,
     // `severity` records the INTENDED criticality (BLOCKER for the 8 Class-A rules,
-    // INFO for the 6 Class-B signals) so a human report shows which domain findings
-    // are the serious ones — but at LAUNCH every rule's registry AUTHORITY is
-    // OBSERVE_ONLY (default-OFF): the descriptor `enforcement` is the current
-    // authority, not the intended one. WF-0068 promotes the 8 blocking rules to
-    // `enforcement: BLOCKING` + `rolloutState: ACTIVE` together. Keeping them
-    // OBSERVE_ONLY here means they never enter the arch-debt "armed blocking floor"
-    // set, so the protection-gap invariant (every BLOCKING rule is ACTIVE) is
-    // untouched. The analyzer's FINDINGS still carry the true BLOCKING/deterministic
-    // class (domain-fitness.mjs) — that is the blocking-vs-advisory truth EF3 tests.
+    // INFO for the 6 Class-B signals). WF-0068 (ADR-0128 §26; the activation-rollout
+    // owner) PROMOTES the 8 Class-A rules to their true authority — `enforcement:
+    // BLOCKING` + `rolloutState: ACTIVE` **together** — so they enter the arch-debt
+    // "armed blocking floor" set. Both flip in lockstep, keeping the activation
+    // invariant "every BLOCKING rule is ACTIVE" green (all 8 carry a deterministic-
+    // tier evidence class, which `makeFinding`/`registerFitness` require for BLOCKING).
+    // The 6 Class-B signals stay SEMANTIC OBSERVE_ONLY (ceiling guarded, never
+    // auto-strict, ADR-0129). This is SAFE fleet-wide: the rules read ONLY the §23
+    // declared-vs-real domain map, and `evaluateDomainFitness({}) === []` — with no
+    // declared domain map the armed rules emit ZERO findings, so the arch-debt gate
+    // stays PASS_WITH_OBSERVATION on every existing/greenfield install. They only bite
+    // a project that BOTH declares a domain map AND violates it.
     severity: rule.blocking ? 'BLOCKER' : 'INFO',
-    enforcement: Enforcement.OBSERVE_ONLY,
+    enforcement: rule.blocking ? Enforcement.BLOCKING : Enforcement.OBSERVE_ONLY,
     dimension: rule.dimension,
-    relatedDecisions: ['ADR-0128', 'ADR-0129', 'WF-0067'],
+    relatedDecisions: ['ADR-0128', 'ADR-0129', 'WF-0067', 'WF-0068'],
     failureMessage: rule.message,
     remediation: REMEDIATION[rule.ruleId] || 'Review against the declared domain map.',
-    rolloutState: RolloutState.OBSERVE_ONLY,
+    rolloutState: rule.blocking ? RolloutState.ACTIVE : RolloutState.OBSERVE_ONLY,
     type: FitnessType.STATIC,
     evaluate: (ctx) => domainFindingsFor(rule.ruleId, ctx && ctx.domainConformance),
   };

@@ -124,6 +124,40 @@ export async function runDomainEngineeringChecks({ ok, bad }, { KIT }) {
     ? ok('profile/project are telemetry dimensions, not in the key') : bad('calibration unit leaked profile/project into the key');
   sample.shadow === true ? ok('telemetry sample is shadow') : bad('telemetry sample not shadow');
 
+  // -- §28 telemetry proof: precision/recall over a confusion matrix -----------
+  // buildConfusionMatrix counts ONLY promotion-authorized labels (self-report Tier D
+  // excluded) — so these metrics measure ACTUAL activation, not selection.
+  const groundTruthLabels = [
+    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: true, actualPositive: true }),
+    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: true, actualPositive: false }),
+    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: false, actualPositive: true }),
+    // A self-reported label that (if counted) would inflate the metrics — must be excluded.
+    de.buildLabel({ ruleId: 'PRED', provenance: 'selfReported', predictedPositive: true, actualPositive: true }),
+  ];
+  const cm = de.buildConfusionMatrix('PRED', groundTruthLabels, {}, () => false); // Class-B ⇒ matrix built
+  const pr = de.precisionRecall(cm.matrix);
+  cm.matrix.truePositive === 1 && cm.matrix.falsePositive === 1 && cm.matrix.falseNegative === 1
+    ? ok('§28: confusion matrix excludes self-reported labels (activation, not selection)') : bad(`§28 matrix miscounts (self-report leaked?): ${JSON.stringify(cm.matrix)}`);
+  Math.abs(pr.precision - 0.5) < 1e-9 && Math.abs(pr.recall - 0.5) < 1e-9 && Math.abs(pr.f1 - 0.5) < 1e-9
+    ? ok('§28: precision/recall/F1 derived from the matrix (0.5/0.5/0.5 for TP1/FP1/FN1)') : bad(`§28 precision/recall/F1 wrong: ${JSON.stringify(pr)}`);
+  // Negative case: a TAMPERED self-reported label (promotes:true it should not carry)
+  // must STILL be excluded — authority is re-derived from the tier table, not the field.
+  const tampered = [
+    ...groundTruthLabels,
+    { ruleId: 'PRED', provenance: 'selfReported', promotes: true, tier: 'D', predictedPositive: true, actualPositive: true },
+  ];
+  const cmTampered = de.buildConfusionMatrix('PRED', tampered, {}, () => false);
+  cmTampered.matrix.truePositive === 1
+    ? ok('§28: a tampered promotes:true on a self-reported label is STILL excluded (tier table is authority-of-record)') : bad(`§28 tampered self-report leaked into the matrix: ${JSON.stringify(cmTampered.matrix)}`);
+  // Measured-but-zero (tp=0, fp>0, fn>0): precision=recall=0 (non-null) ⇒ F1=0, not null.
+  const measuredZero = de.precisionRecall({ truePositive: 0, falsePositive: 1, falseNegative: 1, trueNegative: 0 });
+  measuredZero.precision === 0 && measuredZero.recall === 0 && measuredZero.f1 === 0
+    ? ok('§28: measured-but-zero (P=R=0) ⇒ F1=0, not null (definitive, not "no data")') : bad(`§28 measured-zero should be F1=0: ${JSON.stringify(measuredZero)}`);
+  // No data at all ⇒ every metric null (no fabricated 1.0), and support counts every cell.
+  const empty = de.precisionRecall({ truePositive: 0, falsePositive: 0, falseNegative: 0, trueNegative: 0 });
+  empty.precision === null && empty.recall === null && empty.f1 === null && empty.support === 0
+    ? ok('§28: empty matrix ⇒ precision/recall/F1 all null, support 0 (no data ⇒ no claim)') : bad(`§28 empty matrix wrong: ${JSON.stringify(empty)}`);
+
   // -- Config (default-off + level ladder) -----------------------------------
   de.DEFAULT_DOMAIN_ENGINEERING_CONFIG.enabled === false ? ok('config default-off') : bad('config not default-off');
   const cfg = de.resolveConfig({ enabled: true, codeIntent: { codeMin: 55 } });
@@ -146,4 +180,33 @@ export async function runDomainEngineeringChecks({ ok, bad }, { KIT }) {
   const catalog = de.loadPolicyTable(TPL, 'reasonCodes').table?.codes || {};
   const emitted = [...creation.reasonCodes, ...dd.reasonCodes, ...escalated.reasonCodes, ...degraded.reasonCodes, 'CMIS_HARD_TRIGGER_WRITE_ATTEMPT'];
   emitted.every((code) => code in catalog) ? ok('every emitted reason code exists in the catalog') : bad(`unknown reason code emitted: ${emitted.filter((c) => !(c in catalog))}`);
+
+  // -- /domain diagnostic contract (WF-0068 §27): observation-only, reuses §15 -
+  let inspect;
+  try {
+    inspect = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/domain-inspect.mjs')).href);
+    typeof inspect.inspectObjective === 'function' && typeof inspect.renderView === 'function'
+      ? ok('/domain exports inspectObjective + renderView') : bad('/domain diagnostic missing exports');
+    const view = await inspect.inspectObjective('implement the aggregate in a bounded context', TPL);
+    view && typeof view.mode === 'string' && view.block && typeof view.block.profile === 'string'
+      ? ok('/domain reuses buildImplementationBlock (view carries mode + §15 block)') : bad('/domain view shape wrong');
+    /observation only|nothing was changed/i.test(inspect.renderView(view))
+      ? ok('/domain render is observation-only (states nothing was changed)') : bad('/domain render missing the observation-only marker');
+  } catch (err) {
+    bad(`/domain diagnostic failed to load: ${err?.message ?? err}`);
+  }
+
+  // -- Cross-squad composition (§25): proportional, never a duplicate specialist.
+  // Composition (minimumSquad → requiredAgents) is REUSE — the RequestOrchestrator
+  // owns the wider dedup (request-agent-select duplicate weight + over-orchestration
+  // guard, each self-tested). Here we prove the domain block itself never emits a
+  // duplicated specialist for one responsibility.
+  const codeBlock = de.buildImplementationBlock({
+    root: TPL, requestText: 'refactor the checkout aggregate invariants', writeAttempt: true,
+    classification: { primaryType: 'implementation', risk: 'high', blastRadius: 'module' },
+    intakeSignals: { tier: 'feature', paths: ['src/checkout/aggregate.mjs'] },
+  });
+  const agents = Array.isArray(codeBlock.requiredAgents) ? codeBlock.requiredAgents : [];
+  new Set(agents).size === agents.length
+    ? ok('cross-squad composition emits no duplicate specialist (proportional, deduped §25)') : bad(`duplicate specialist in requiredAgents: ${agents.join(', ')}`);
 }

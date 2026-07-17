@@ -54,12 +54,18 @@ export function buildLabel(params) {
  * Returns the promotion-authorized labels — those whose tier may grant authority.
  * Self-report (Tier D) is excluded by contract (ADR-0129 §2): it NEVER promotes.
  *
+ * Authority is re-derived from the immutable {@link PROVENANCE_TIERS} table keyed
+ * by `label.provenance`, NOT read from the stored `label.promotes` field — a
+ * deserialized or hand-built label could carry a tampered `promotes:true` on a
+ * self-reported provenance, and §2's premise is that the classifier can never grant
+ * itself authority. The tier table is the authority-of-record.
+ *
  * @param {object[]} labels label records from buildLabel().
  * @returns {object[]}
  */
 export function promotionAuthorizedLabels(labels) {
   if (!Array.isArray(labels)) return [];
-  return labels.filter((label) => label && label.promotes === true);
+  return labels.filter((label) => label && PROVENANCE_TIERS[label.provenance]?.promotes === true);
 }
 
 /**
@@ -101,4 +107,35 @@ export function buildConfusionMatrix(ruleId, labels, ruleClassesTable, isClassA)
     else matrix.falseNegative += 1;
   }
   return { ruleId, matrix, labels: provenanceCounts(labels.filter((label) => label.ruleId === ruleId)) };
+}
+
+/**
+ * Derives precision / recall / F1 from a confusion matrix (ADR-0128 §28 telemetry
+ * proof). Because {@link buildConfusionMatrix} counts ONLY promotion-authorized
+ * labels (Tier A human / Tier B behavior-observed / Tier C deterministic-post-hoc;
+ * self-report Tier D is excluded), these metrics measure ACTUAL activation grounded
+ * in external evidence — NOT mere selection ("an agent was named"). That exclusion is
+ * exactly what distinguishes activation from selection (§28). Precision/recall with
+ * no data degrade to null (no claim, never a fabricated 1.0); F1 is null only when a
+ * component is null, and 0 when both are measured-but-zero. Pure; zero dependencies.
+ *
+ * @param {{ truePositive:number, falsePositive:number, trueNegative:number, falseNegative:number }} matrix
+ * @returns {{ precision: number|null, recall: number|null, f1: number|null, support: number }}
+ */
+export function precisionRecall(matrix) {
+  const m = matrix && typeof matrix === 'object' ? matrix : {};
+  const tp = Number(m.truePositive) || 0;
+  const fp = Number(m.falsePositive) || 0;
+  const fn = Number(m.falseNegative) || 0;
+  const tn = Number(m.trueNegative) || 0;
+  const precision = tp + fp > 0 ? tp / (tp + fp) : null;
+  const recall = tp + fn > 0 ? tp / (tp + fn) : null;
+  // F1 is null ONLY when there is no data to measure (precision or recall null).
+  // When both are measured but zero (tp=0 with fp+fn>0), F1 is 0 — a definitive
+  // "measured and bad", not "unknown" (sklearn convention; keeps F1 consistent with
+  // the non-null precision/recall of the same inputs).
+  const f1 = precision === null || recall === null
+    ? null
+    : (precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0);
+  return { precision, recall, f1, support: tp + fp + fn + tn };
 }

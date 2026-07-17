@@ -66,9 +66,15 @@ export async function uninstall(target, purge) {
       report.push(`✓ removed git hook ${h}`);
     }
   }
-  // 3. With --purge, delete the engine + commands/agents (KEEP memory).
+  // 3. With --purge, delete the engine + commands/agents (KEEP memory). The domain
+  //    policy subtrees + skills are always-overwrite kit code (WF-0068), distributed
+  //    in lockstep with the engine — purge them for a reversible uninstall. The flat
+  //    policy registries (routing/squads/capability) are user-editable stores and are
+  //    intentionally NOT purged.
   if (purge) {
-    for (const rel of ['contextkit/runtime', 'contextkit/tools', '.claude/commands', '.claude/agents', ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR]) {
+    for (const rel of ['contextkit/runtime', 'contextkit/tools',
+      'contextkit/policy/domain-engineering', 'contextkit/policy/devteam', 'contextkit/policy/domain-artifacts',
+      'contextkit/skills', '.claude/commands', '.claude/agents', ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR]) {
       const p = join(target, rel);
       if (existsSync(p)) {
         await rm(p, { recursive: true, force: true });

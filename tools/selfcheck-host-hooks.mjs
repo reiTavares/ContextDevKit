@@ -57,8 +57,9 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
       : bad(`agy L${lvl} expected [${want}] got [${got}]`);
   }
   const l5 = group(5);
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 4 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
-    ? ok('agy PreToolUse wires guard+simulate+journey+nudge once per write tool')
+  // L5 PreToolUse = guard (L3) + domain-code-gate (L4) + simulate + journey + nudge (L5) = 5 per write tool.
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
+    ? ok('agy PreToolUse wires guard+domain-code-gate+simulate+journey+nudge once per write tool')
     : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
   l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
     ? ok('every agy tool hook carries the --host agy flag')
@@ -142,10 +143,60 @@ function checkCodexHooksCompose({ ok, bad }, composer) {
     : bad('stripCodexHooks left kit-only residue');
 }
 
+/**
+ * Cross-host parity for the WF-0068 Domain Engineering gate hooks (ADR-0128
+ * §25/§31): each of the three native hosts must wire BOTH gate hooks at L≥4 with
+ * equivalent behaviour, or declare an explicit limitation. Equivalence here is
+ * genuine — the block verb is translated per host by the host-adapter
+ * (claude/codex `block`, agy `deny`), so no limitation is declared. Both hooks are
+ * default-OFF + fail-open, so wiring them across hosts can never false-block.
+ */
+function checkDomainHookParity({ ok, bad }, { settings, agy, codex }) {
+  console.log('Checking Domain Engineering gate-hook cross-host parity (WF-0068, ADR-0128 §25)...');
+  const CODE_GATE = 'domain-code-gate.mjs';
+  const CONFORMANCE = 'domain-conformance.mjs';
+  // Flatten every hook command an event maps to (both matcher-alternation and
+  // per-tool composer shapes), for a given composed hooks object.
+  const commandsFor = (hooksObj, evt) =>
+    [].concat(hooksObj?.[evt] || []).flatMap((g) => (g.hooks || []).map((h) => String(h.command || '')));
+
+  const hosts = {
+    claude: (lvl) => settings.composeSettings(null, lvl).hooks,
+    codex: (lvl) => codex.composeCodexHooks(null, lvl).hooks,
+    agy: (lvl) => agy.composeAgentHooks(null, lvl)[agy.KIT_HOOK_GROUP],
+  };
+
+  for (const [host, hooksAt] of Object.entries(hosts)) {
+    // Present at L4 (the advisory floor of the level→mode ladder).
+    const pre4 = commandsFor(hooksAt(4), 'PreToolUse').some((c) => c.includes(CODE_GATE));
+    const post4 = commandsFor(hooksAt(4), 'PostToolUse').some((c) => c.includes(CONFORMANCE));
+    pre4 && post4
+      ? ok(`${host}: both domain gate hooks wired at L4 (code-gate PreToolUse + conformance PostToolUse)`)
+      : bad(`${host}: domain gate hook missing at L4 (code-gate=${pre4}, conformance=${post4})`);
+    // Absent below the L4 floor (inert — matches the resolveDomainMode ladder).
+    const pre3 = commandsFor(hooksAt(3), 'PreToolUse').some((c) => c.includes(CODE_GATE));
+    !pre3
+      ? ok(`${host}: domain code-gate is absent below L4 (respects the advisory floor)`)
+      : bad(`${host}: domain code-gate wired below L4 — breaks the level policy`);
+  }
+}
+
 export function runHostHookChecks(report, { mods }) {
   if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(report, mods['config/settings-compose.mjs'].composeSettings);
   if (mods['config/agent-hooks-compose.mjs']?.composeAgentHooks && mods['hooks/host-adapter.mjs']) {
     checkAgentHooksCompose(report, mods['config/agent-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
   }
   if (mods['config/codex-hooks-compose.mjs']?.composeCodexHooks) checkCodexHooksCompose(report, mods['config/codex-hooks-compose.mjs']);
+  // WF-0068 cross-host parity — needs all three composers loaded.
+  if (
+    mods['config/settings-compose.mjs']?.composeSettings &&
+    mods['config/agent-hooks-compose.mjs']?.composeAgentHooks &&
+    mods['config/codex-hooks-compose.mjs']?.composeCodexHooks
+  ) {
+    checkDomainHookParity(report, {
+      settings: mods['config/settings-compose.mjs'],
+      agy: mods['config/agent-hooks-compose.mjs'],
+      codex: mods['config/codex-hooks-compose.mjs'],
+    });
+  }
 }
