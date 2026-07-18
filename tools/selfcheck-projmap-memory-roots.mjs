@@ -2,10 +2,14 @@
 /**
  * Self-check — project-map governance-memory roots (WF-0070 / ADR-0132, Finding #6).
  *
+ * HERMETIC: builds its own temp memory fixture rather than reading the ambient
+ * dogfood `contextkit/memory/` — that tree is gitignored, so in a worktree / fresh
+ * clone / CI its subdirs are absent and an ambient-dependent assertion would
+ * spuriously fail (the rebase-into-worktree bug this rewrite fixes).
+ *
  * Asserts the ADR-named config surface (a roots ADDITION, not a walker change):
- *   (1) resolveRoots({}, repo) includes all three contextkit/memory/{decisions,
- *       sessions,workflows} roots (they exist in this dogfood repo), additively
- *       with '.' preserved.
+ *   (1) resolveRoots({}, fixture) includes all three contextkit/memory/{decisions,
+ *       sessions,workflows} roots additively, with '.' preserved.
  *   (2) `contextkit` stays a root-relative exclude — isExcluded('contextkit',
  *       'contextkit') === true (a '.' scan still skips ./contextkit/ machinery).
  *   (3) Existence-guard + fail-open: against a bare temp dir with NO memory subtree,
@@ -16,7 +20,7 @@
  * Standalone: node tools/selfcheck-projmap-memory-roots.mjs  (exit 0 = pass).
  * Zero runtime deps — node:* only.
  */
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -42,26 +46,44 @@ try {
 
 const MEMORY = ['contextkit/memory/decisions', 'contextkit/memory/sessions', 'contextkit/memory/workflows'];
 
-// (1) real-repo roots include the three memory roots additively, '.' preserved.
-try {
-  const { roots } = resolveRoots({}, KIT);
-  const missing = MEMORY.filter((r) => !roots.includes(r));
-  missing.length === 0
-    ? ok('resolveRoots includes all three contextkit/memory roots (repo has them)')
-    : bad(`resolveRoots missing memory root(s): ${missing.join(', ')}`);
-  roots.includes('.') ? ok("'.' base root preserved alongside memory roots") : bad("'.' base root was dropped");
-} catch (err) {
-  bad(`resolveRoots(repo) threw: ${err.message}`);
+/** Temp project root with the three memory subdirs materialized (caller removes it). */
+function buildFixture() {
+  const root = mkdtempSync(resolve(tmpdir(), 'ck-projmap-fix-'));
+  for (const rel of MEMORY) mkdirSync(resolve(root, rel), { recursive: true });
+  return root;
 }
 
-// (2) contextkit stays a root-relative exclude.
+// (1) fixture roots include the three memory roots additively, '.' preserved.
+const fixture = buildFixture();
 try {
-  const { isExcluded } = resolveRoots({}, KIT);
+  const { roots } = resolveRoots({}, fixture);
+  const missing = MEMORY.filter((r) => !roots.includes(r));
+  missing.length === 0
+    ? ok('resolveRoots includes all three contextkit/memory roots (fixture)')
+    : bad(`resolveRoots missing memory root(s): ${missing.join(', ')}`);
+  roots.includes('.') ? ok("'.' base root preserved alongside memory roots") : bad("'.' base root was dropped");
+
+  // (2) contextkit stays a root-relative exclude.
+  const { isExcluded } = resolveRoots({}, fixture);
   isExcluded('contextkit', 'contextkit') === true
     ? ok('contextkit is still root-excluded (./contextkit/ machinery skipped on a . scan)')
     : bad('contextkit is no longer excluded — machinery would be scanned');
+
+  // (4) determinism.
+  JSON.stringify(resolveRoots({}, fixture).roots) === JSON.stringify(resolveRoots({}, fixture).roots)
+    ? ok('resolveRoots is deterministic across calls')
+    : bad('resolveRoots roots differ across calls');
+
+  // (5) memoryRoots honesty — every returned path is a declared const member, and
+  // the fully-populated fixture returns all three.
+  const existing = memoryRoots(fixture);
+  existing.every((r) => MEMORY_SCAN_ROOTS.includes(r)) && existing.length === MEMORY.length
+    ? ok('memoryRoots returns exactly the declared MEMORY_SCAN_ROOTS members that exist')
+    : bad(`memoryRoots wrong: ${JSON.stringify(existing)}`);
 } catch (err) {
-  bad(`isExcluded check threw: ${err.message}`);
+  bad(`fixture checks threw: ${err.message}`);
+} finally {
+  rmSync(fixture, { recursive: true, force: true });
 }
 
 // (3) existence-guard + fail-open on a bare dir.
@@ -78,25 +100,6 @@ try {
   }
 } catch (err) {
   bad(`fail-open check threw (must never throw): ${err.message}`);
-}
-
-// (4) determinism.
-try {
-  JSON.stringify(resolveRoots({}, KIT).roots) === JSON.stringify(resolveRoots({}, KIT).roots)
-    ? ok('resolveRoots is deterministic across calls')
-    : bad('resolveRoots roots differ across calls');
-} catch (err) {
-  bad(`determinism check threw: ${err.message}`);
-}
-
-// (5) memoryRoots honesty — a subset of the declared const.
-try {
-  const existing = memoryRoots(KIT);
-  existing.every((r) => MEMORY_SCAN_ROOTS.includes(r))
-    ? ok('memoryRoots returns only declared MEMORY_SCAN_ROOTS members')
-    : bad('memoryRoots returned an undeclared path');
-} catch (err) {
-  bad(`memoryRoots check threw: ${err.message}`);
 }
 
 console.log(failures === 0 ? '\n✅ project-map memory roots self-check passed.\n' : `\n❌ ${failures} check(s) failed.\n`);

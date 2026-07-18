@@ -200,7 +200,9 @@ function atomicWrite(path, text) {
 }
 
 // CLI — dry-run (stdout) by default; --write persists under _contextkit/.
-if (import.meta.url === `file://${process.argv[1]}` || import.meta.url.endsWith(process.argv[1]?.replaceAll('\\', '/').split('/').pop() || '')) {
+// Guard on argv[1] being present FIRST: `endsWith('')` is always true, so without
+// it an `import` under `node -e` (empty argv[1]) would run the CLI as a side-effect.
+if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || import.meta.url.endsWith(process.argv[1].replaceAll('\\', '/').split('/').pop()))) {
   const root = process.cwd();
   if (process.argv.includes('--write')) {
     const { md, json } = writeDigest(root);
