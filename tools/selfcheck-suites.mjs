@@ -153,6 +153,11 @@ function main() {
     'templates/contextkit/tools/scripts/decision.selftest.mjs',
     'templates/contextkit/tools/scripts/work-verbs.selftest.mjs',
     'templates/contextkit/tools/scripts/work-verbs-part2.selftest.mjs',
+    // OP-0004 / WF-0059 W1+W2 — Stage-0 inventory (parity oracle) + tasks.json
+    // schema/validators (source-of-truth guardrail) selftests under templates/,
+    // registered via test-suites-wf0059.mjs, dispatched directly (not tools/ entrypoints).
+    'templates/contextkit/tools/scripts/pipeline-inventory.selftest.mjs',
+    'templates/contextkit/tools/scripts/tasks-validate.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
