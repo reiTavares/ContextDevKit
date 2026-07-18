@@ -16,6 +16,8 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
 - [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
+- [Anatomy of a Business, Operation & Workflow](how-to/anatomy-of-business-operation-workflow.md) — Goal: understand ContextDevKit's governance memory in one read — what a
+- [Anatomia de um Business, Operation e Workflow](how-to/anatomy-of-business-operation-workflow.pt-br.md) — Objetivo: entender a memória de governança do ContextDevKit numa leitura só — o
 - [How to audit and test](how-to/audit-and-test.md) — Goal: reader runs a health audit, creates a test plan, scaffolds tests,
 - [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
 - [How to record a decision](how-to/record-a-decision.md) — Goal: reader writes a well-formed Architecture Decision Record before implementing.

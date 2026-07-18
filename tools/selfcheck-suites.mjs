@@ -195,6 +195,10 @@ function main() {
     'tools/selfcheck-mcp-006-imports.mjs',
     'tools/selfcheck-mcp-007-engine.mjs', 'tools/selfcheck-mcp-007-shape.mjs',
     'tools/selfcheck-mcp-012.mjs', 'tools/selfcheck-mcp-012b.mjs',
+    // WF-0070 (OP-0008, ADR-0132) — governance digest + project-map memory roots
+    // selfcheck siblings; standalone entrypoints (NOT integration-test*), registered
+    // in test-suites.mjs and dispatched directly.
+    'tools/selfcheck-governance-digest.mjs', 'tools/selfcheck-projmap-memory-roots.mjs',
   ]);
   const dangling = allSuites()
     .map((suite) => suite.file)

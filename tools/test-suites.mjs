@@ -34,6 +34,7 @@ import { INFRA_SUITES } from './test-suites-infra.mjs';
 import { MCP_SUITES } from './test-suites-mcp.mjs';
 import { WF0059_SUITES } from './test-suites-wf0059.mjs';
 import { WF0069_SUITES } from './test-suites-wf0069.mjs';
+import { WF0070_SUITES } from './test-suites-wf0070.mjs';
 
 export const TIERS = Object.freeze([
   'smoke',
@@ -300,6 +301,9 @@ export const SUITES = Object.freeze([
   // WF-0069 (OP-0008) language-aware intent + the two direct fixes (#2, #8) —
   // own module, same budget discipline (see test-suites-wf0069.mjs).
   ...WF0069_SUITES,
+  // WF-0070 (OP-0008, ADR-0132) memory-accessibility suites — own module for the
+  // line budget (see test-suites-wf0070.mjs).
+  ...WF0070_SUITES,
 ]);
 
 /**

@@ -47,10 +47,23 @@ const update = (proj) => run([join(KIT, 'install.mjs'), '--target', proj, '--upd
       ? rep.ok('info/exclude has the managed dogfood block')
       : rep.bad('info/exclude block missing');
     const visible = (git(['status', '--porcelain'], proj).stdout || '').split('\n').filter(Boolean);
-    const leaked = visible.filter((l) => /contextkit\/|\.claude\/|CLAUDE\.md|\.agents\/|INSTRUCTIONS\.md|ctx\.mjs|\.codex\/|AGENTS\.md|cdx\.mjs|\.github\//.test(l));
-    leaked.length === 0
-      ? rep.ok(`no kit artifact visible to git (untracked lines: ${visible.length})`)
-      : rep.bad(`kit artifacts leak into git status: ${leaked.join(' | ')}`);
+    // ADR-0132: install MACHINERY (engine/tooling/policy/state) + host front-ends stay
+    // excluded, but `contextkit/memory/**` is now trackable by default (a teammate's
+    // clone must carry the project's durable record). So `contextkit/memory/` visible is
+    // CORRECT, not a leak — the leak filter checks machinery only.
+    const machineryLeaked = visible.filter((l) => /contextkit\/(runtime|tools|policy|pipeline|skills|squads|detectors|mcp|scripts|starters|workflows)\/|contextkit\/config\.json|\.claude\/|CLAUDE\.md|\.agents\/|INSTRUCTIONS\.md|ctx\.mjs|\.codex\/|AGENTS\.md|cdx\.mjs|\.github\//.test(l));
+    machineryLeaked.length === 0
+      ? rep.ok(`no kit machinery visible to git (untracked lines: ${visible.length})`)
+      : rep.bad(`kit machinery leaks into git status: ${machineryLeaked.join(' | ')}`);
+    // ADR-0132 acceptance receipts: memory is versionable, disposable state is not.
+    const memNotIgnored = git(['check-ignore', 'contextkit/memory/decisions/0000-record-architecture-decisions.md'], proj);
+    memNotIgnored.status !== 0
+      ? rep.ok('ADR-0132: contextkit/memory/decisions/*.md is NOT ignored (trackable)')
+      : rep.bad('ADR-0132: contextkit/memory/decisions/*.md is ignored — memory must be trackable');
+    const stateIgnored = git(['check-ignore', 'contextkit/pipeline/state/board.json'], proj);
+    stateIgnored.status === 0
+      ? rep.ok('ADR-0132: contextkit/pipeline/state/* IS ignored (disposable)')
+      : rep.bad('ADR-0132: contextkit/pipeline/state/* should stay ignored');
 
     const manifestPath = join(proj, 'contextkit', '.install-manifest.json');
     const manifest = existsSync(manifestPath) ? readJson(manifestPath) : { files: {} };

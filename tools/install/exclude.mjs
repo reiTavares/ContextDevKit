@@ -1,9 +1,11 @@
 /**
- * Dogfood-by-default VCS posture [ADR-0054 part A].
+ * Dogfood-by-default VCS posture [ADR-0054 part A; narrowed by ADR-0132].
  *
  * Writes a managed BEGIN/END block to `<common-git-dir>/info/exclude` covering
- * everything the installer generates, so a fresh install produces ZERO tracked
- * files and `--update` produces zero commits in the target project's history.
+ * the install-generated MACHINERY, so a fresh install keeps the kit's engine,
+ * tooling and disposable state out of the user's git while **user memory**
+ * (`contextkit/memory/**` — the durable biz/op/workflow/session/ADR record) is
+ * left trackable by default so a teammate's clone carries the project's memory.
  *
  * Why `info/exclude` and not `.gitignore`: it is per-clone and never committed,
  * so the kit's posture doesn't leak into the user's tracked files — and it only
@@ -11,6 +13,18 @@
  * project that already commits the kit sees no behavior change at all (we only
  * print the opt-in untrack guidance — the installer never touches the index,
  * rule 8). `--tracked` skips the block entirely.
+ *
+ * ADR-0132 memory boundary (load-bearing): git cannot re-include a path whose
+ * parent is excluded, so we CANNOT exclude `/contextkit/` wholesale and then
+ * negate `!contextkit/memory/`. Instead the block enumerates the machinery
+ * subpaths and simply omits `contextkit/memory/`, leaving memory trackable.
+ *
+ * ADR-0132 dogfood/self-host GUARD (F-D BLOCKER — highest blast radius): in the
+ * ContextDevKit repo itself, memory is PRIVATE (private-mirror). Narrowing here
+ * must NEVER un-ignore this repo's `contextkit/memory/**`, or a human
+ * `git add -A && git push` would leak it publicly. So when the install target is
+ * self-hosting, we re-exclude `/contextkit/` wholesale (the pre-ADR-0132 posture)
+ * — mechanized via `detectSelfHost`, proven by a blocker-level test.
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -22,9 +36,16 @@ import { resolveGitDir, resolveCommonDir } from './git-paths.mjs';
 const BLOCK_BEGIN = '# >>> ContextDevKit install (managed block, local-only) [ADR-0054] >>>';
 const BLOCK_END = '# <<< ContextDevKit install <<<';
 
-/** Everything the installer generates — kept in sync with the install steps. */
-const EXCLUDED_PATHS = [
-  '/contextkit/',
+/**
+ * Host front-ends + scaffolded artifacts the installer generates OUTSIDE
+ * `contextkit/`. Always excluded (they are regenerable kit output, never the
+ * user's durable record). Kept in sync with the install steps.
+ */
+const SHARED_EXCLUDED_PATHS = [
+  // Generated governance digest projection (ADR-0132 §2) — regenerable from the
+  // registries, so never committed (and in the dogfood repo it derives from the
+  // PRIVATE memory record). Excluded in BOTH the default and self-host postures.
+  '/_contextkit/',
   '/.claude/',
   '/CLAUDE.md',
   '/CLAUDE.contextdevkit.md',
@@ -52,11 +73,83 @@ const EXCLUDED_PATHS = [
 ];
 
 /**
+ * `contextkit/` MACHINERY — kit-owned engine, tooling, policy tables, playbooks,
+ * root docs and disposable runtime state. Enumerated (never the wholesale
+ * `/contextkit/`) so that the SIBLING `contextkit/memory/` is NOT excluded and
+ * stays trackable (ADR-0132). Keep in sync with the engine install steps; adding
+ * a new top-level kit dir under `contextkit/` means adding it here.
+ *
+ * `contextkit/memory/` is deliberately absent. Its regenerable indices
+ * (SESSIONS.md, WORKSPACE.md, project-map/, findings JSONs) are kept out of the
+ * COMMITTED `.gitignore` instead (git.mjs GITIGNORE_BLOCK), so the durable record
+ * is versioned while the derived indices are not.
+ */
+const CONTEXTKIT_MACHINERY_PATHS = [
+  '/contextkit/runtime/',
+  '/contextkit/tools/',
+  '/contextkit/policy/',
+  '/contextkit/detectors/',
+  '/contextkit/mcp/',
+  '/contextkit/mcp-server/',
+  '/contextkit/skills/',
+  '/contextkit/squads/',
+  '/contextkit/starters/',
+  '/contextkit/scripts/',
+  '/contextkit/workflows/',
+  '/contextkit/pipeline/',
+  '/contextkit/config.json',
+  '/contextkit/README.md',
+  '/contextkit/best-practices.md',
+  '/contextkit/behaviors.md',
+  '/contextkit/behaviors-examples.md',
+  '/contextkit/review-protocol.md',
+  '/contextkit/instrucoes.md',
+  '/contextkit/CLAUDE.child.md.tpl',
+  '/contextkit/.cache/',
+  '/contextkit/.updates/',
+  // Kit-generated bookkeeping — stamped/seeded by the installer, never user data.
+  // `.engine-version` changes every release, so leaving it trackable would churn a
+  // version bump into every downstream project's history (ADR-0132 review blocker).
+  '/contextkit/.engine-version',
+  '/contextkit/.install-manifest.json',
+  '/contextkit/.env.example',
+];
+
+/**
+ * Default (non-dogfood) exclude set — machinery only; `contextkit/memory/` stays
+ * trackable (ADR-0132). MUST NOT contain the wholesale `/contextkit/`.
+ */
+export const EXCLUDED_PATHS = [...SHARED_EXCLUDED_PATHS, ...CONTEXTKIT_MACHINERY_PATHS];
+
+/**
+ * Self-host exclude set — the pre-ADR-0132 posture: `/contextkit/` wholesale, so
+ * this repo's PRIVATE `contextkit/memory/**` stays ignored and can never leak via
+ * a public push (the F-D BLOCKER guard).
+ */
+export const SELF_HOST_EXCLUDED_PATHS = [...SHARED_EXCLUDED_PATHS, '/contextkit/'];
+
+/**
+ * Chooses the exclude set for the target: the self-host guard keeps `/contextkit/`
+ * wholesale (memory ignored) in the ContextDevKit repo; every other project gets
+ * the narrowed machinery-only set (memory trackable).
+ * @param {boolean} selfHost whether the install target is self-hosting.
+ * @returns {string[]} the ordered exclude paths.
+ */
+export function excludePathsFor(selfHost) {
+  return selfHost === true ? SELF_HOST_EXCLUDED_PATHS : EXCLUDED_PATHS;
+}
+
+/**
  * Writes (or refreshes) the managed exclude block. Idempotent: an existing
  * block is replaced in place, never duplicated. No `.git` ⇒ silent skip.
+ *
+ * @param {string} target project root.
+ * @param {{ selfHost?: boolean }} [opts] `selfHost` re-excludes `/contextkit/`
+ *   wholesale so the dogfood repo's private memory stays ignored (ADR-0132 F-D).
+ *   Defaults to the narrowed, memory-trackable posture.
  * @returns {Promise<boolean>} whether the block was written
  */
-export async function applyDogfoodExclude(target) {
+export async function applyDogfoodExclude(target, opts = {}) {
   const gitDir = await resolveGitDir(join(target, '.git'), target);
   if (!gitDir) return false;
   const excludePath = join(await resolveCommonDir(gitDir), 'info', 'exclude');
@@ -66,7 +159,8 @@ export async function applyDogfoodExclude(target) {
   } catch {
     return false;
   }
-  const block = [BLOCK_BEGIN, ...EXCLUDED_PATHS, BLOCK_END].join('\n');
+  const paths = excludePathsFor(opts.selfHost === true);
+  const block = [BLOCK_BEGIN, ...paths, BLOCK_END].join('\n');
   const beginAt = current.indexOf(BLOCK_BEGIN);
   const endAt = current.indexOf(BLOCK_END);
   let next;

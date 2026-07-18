@@ -80,6 +80,17 @@
       "branches": 70
     }
   },
+  "domainEngineering": {
+    "enabled": true,
+    "classifyEveryRequest": true,
+    "sessionStartReadiness": true,
+    "requireDevteamForCode": true,
+    "requireImplementationPacket": true,
+    "persistImplementationReceipt": true,
+    "enforcement": {
+      "rolloutStage": "advisory"
+    }
+  },
   "architectureDebtGate": {
     "enabled": true,
     "mode": "active",
