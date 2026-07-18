@@ -4,10 +4,11 @@
  */
 import { writeFile, chmod, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { ensureDir, read, copyTreeIfMissing } from './fs.mjs';
 import { resolveGitDir } from './git-paths.mjs';
 import { applyDogfoodExclude, detectTrackedKitPaths } from './exclude.mjs';
+import { detectSelfHost } from './update-preflight.mjs';
 
 // `resolveGitDir` is re-exported so existing importers (and the self-check that
 // asserts it) keep resolving it from `git.mjs` — the public surface is unchanged.
@@ -164,9 +165,16 @@ export async function detectExistingHooksManager(target) {
   return { detected: false };
 }
 
+// COMMITTED ignore lines (the shared, visible decision — ADR-0132). Machinery
+// front-end state + disposable runtime state + the REGENERABLE memory indices
+// (SESSIONS.md/WORKSPACE.md/DELIBERATIONS.md, rebuilt from the durable record) are
+// ignored, while `contextkit/memory/**` durable entries stay trackable (the
+// narrowed info/exclude no longer dir-prunes contextkit/, so no `!` negation is
+// needed — that negation would re-trip the parent-exclusion trap; ADR-0132 MEDIUM).
 const GITIGNORE_BLOCK = [
   '',
   '# ContextDevKit — local runtime state (do not commit)',
+  '_contextkit/',
   '.claude/.sessions/',
   '.claude/.workspace/',
   '.codex/.sessions/',
@@ -178,18 +186,49 @@ const GITIGNORE_BLOCK = [
   'contextkit/memory/tech-debt-findings.json',
   'contextkit/memory/deps-findings.json',
   'contextkit/memory/deep-analysis-findings.json',
+  // Regenerable memory INDICES + registries stay ignored — they are rebuilt from
+  // the durable record on demand (SESSIONS/WORKSPACE/DELIBERATIONS.md by the
+  // reindexers; the *-registry.json by `work reconcile`; project-map/ by the
+  // scanner) and only cause merge churn if committed (ADR-0132).
+  'contextkit/memory/SESSIONS.md',
+  'contextkit/memory/WORKSPACE.md',
+  'contextkit/memory/DELIBERATIONS.md',
+  'contextkit/memory/work-context-registry.json',
+  'contextkit/memory/workflow-registry.json',
+  'contextkit/memory/decision-registry.json',
+  'contextkit/memory/project-map/',
   'contextkit/.cache/',
   'contextkit/.updates/',
 ].join('\n');
+
+/**
+ * Lines added AFTER the block first shipped. An existing install already has the
+ * block; the additive upgrade path appends any of these it is missing, in place,
+ * so a re-run migrates old `.gitignore`s idempotently (rule 8: never rewrites the
+ * index — only the ignore file). Order-preserving; each guarded by presence.
+ */
+const GITIGNORE_LATE_LINES = [
+  'contextkit/.updates/',            // [ADR-0054] .updates stash
+  '_contextkit/',                    // [ADR-0132] generated governance digest projection
+  'contextkit/memory/SESSIONS.md',   // [ADR-0132] regenerable indices
+  'contextkit/memory/WORKSPACE.md',
+  'contextkit/memory/DELIBERATIONS.md',
+  'contextkit/memory/work-context-registry.json', // [ADR-0132] regenerable registries
+  'contextkit/memory/workflow-registry.json',
+  'contextkit/memory/decision-registry.json',
+  'contextkit/memory/project-map/',
+];
 
 export async function patchGitignore(target) {
   const p = join(target, '.gitignore');
   let current = '';
   if (existsSync(p)) current = await read(p);
   if (current.includes('ContextDevKit — local runtime state')) {
-    // Upgrade path: older installs have the block without the .updates line [ADR-0054].
-    if (current.includes('contextkit/.updates/')) return false;
-    await writeFile(p, current.replace('contextkit/.cache/', 'contextkit/.cache/\ncontextkit/.updates/'), 'utf-8');
+    // Upgrade path: append any late-added lines the existing block is missing.
+    const missing = GITIGNORE_LATE_LINES.filter((line) => !current.includes(line));
+    if (missing.length === 0) return false;
+    const suffix = (current.endsWith('\n') ? '' : '\n') + missing.join('\n') + '\n';
+    await writeFile(p, current + suffix, 'utf-8');
     return true;
   }
   await writeFile(p, current + (current.endsWith('\n') || current === '' ? '' : '\n') + GITIGNORE_BLOCK + '\n', 'utf-8');
@@ -220,12 +259,25 @@ export async function patchGitattributes(target, tplDir) {
 export async function installVcsIntegration(target, tplDir, level, args, report) {
   // Dogfood by default [ADR-0054]: install artifacts stay out of the user's git
   // history. Safe unconditionally — info/exclude only affects UNTRACKED paths.
-  if (!args.tracked && (await applyDogfoodExclude(target))) {
-    report.push('✓ install artifacts excluded from git (local-only; pass --tracked to commit them)');
-    const tracked = detectTrackedKitPaths(target);
-    if (tracked.length > 0) {
-      report.push(`ℹ️  ${tracked.length} kit file(s) are ALREADY tracked — the exclude can't hide those.`);
-      report.push('   To stop committing them (optional): git rm -r --cached contextkit .claude .agents .codex CLAUDE.md AGENTS.md ctx.mjs cdx.mjs');
+  //
+  // ADR-0132 memory boundary + F-D dogfood GUARD: the default (non-dogfood) posture
+  // narrows the block to MACHINERY so `contextkit/memory/**` stays trackable. But in
+  // the ContextDevKit repo ITSELF (self-hosting) memory is private-mirror — narrowing
+  // would let a human `git add -A && git push` leak it. `detectSelfHost` re-excludes
+  // `/contextkit/` wholesale there. kitRoot = the parent of the templates dir.
+  if (!args.tracked) {
+    const selfHost = detectSelfHost(target, dirname(tplDir));
+    if (await applyDogfoodExclude(target, { selfHost })) {
+      report.push(
+        selfHost
+          ? '✓ install artifacts excluded from git (self-host: memory kept local-only too)'
+          : '✓ install machinery excluded from git; contextkit/memory/ stays trackable (pass --tracked to commit everything)',
+      );
+      const tracked = detectTrackedKitPaths(target);
+      if (tracked.length > 0) {
+        report.push(`ℹ️  ${tracked.length} kit file(s) are ALREADY tracked — the exclude can't hide those.`);
+        report.push('   To stop committing them (optional): git rm -r --cached contextkit .claude .agents .codex CLAUDE.md AGENTS.md ctx.mjs cdx.mjs');
+      }
     }
   }
   if (await patchGitignore(target)) report.push('✓ .gitignore patched');

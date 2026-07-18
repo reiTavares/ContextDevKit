@@ -64,6 +64,46 @@ export function defaultExcludes() {
   };
 }
 
+/**
+ * Governance-memory scan roots (ADR-0132 / WF-0070, Finding #6). The three durable
+ * memory subtrees a query should reach — surfaced explicitly WHILE `contextkit`
+ * stays root-excluded (so `./contextkit/` machinery is still skipped from a `.`
+ * scan). Root-relative, forward-slashed.
+ *
+ * NOTE (honest limitation): the general project-map walker (`scanProject` in
+ * project-map-core.mjs) consumes only `resolveRoots().isExcluded` today, not the
+ * `roots` array — so listing these here does NOT make the source-code scanner
+ * descend into memory (that would pollute the code map, and is an out-of-scope
+ * walker change per ADR-0132). They are the ADR-named config surface + a clean
+ * seam; the ACTIVE query path over memory is the governance digest
+ * (`governance-digest.mjs`), which reads the registries directly.
+ * @type {readonly string[]}
+ */
+export const MEMORY_SCAN_ROOTS = Object.freeze([
+  'contextkit/memory/decisions',
+  'contextkit/memory/sessions',
+  'contextkit/memory/workflows',
+]);
+
+/**
+ * The memory scan roots that actually EXIST under `root` (existence-guarded,
+ * fail-open: a project with no committed memory yields []; an unreadable path is
+ * silently skipped, never throws).
+ * @param {string} root - absolute project root.
+ * @returns {string[]} the existing memory roots (subset of MEMORY_SCAN_ROOTS).
+ */
+export function memoryRoots(root) {
+  const out = [];
+  for (const rel of MEMORY_SCAN_ROOTS) {
+    try {
+      if (statSync(resolve(root, rel)).isDirectory()) out.push(rel);
+    } catch {
+      /* absent/unreadable — skip (fail-open) */
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Config-merging (CDK-050 core deliverable)
 // ---------------------------------------------------------------------------
@@ -136,6 +176,14 @@ export function resolveRoots(config, root) {
     }
   } catch {
     /* malformed config — keep defaults */
+  }
+
+  // Governance memory roots (ADR-0132 / WF-0070): append the memory subtrees that
+  // exist, additively + deduped, WITHOUT dropping '.' or config-supplied roots.
+  // `contextkit` stays in rootRelative excludes below, so a '.' scan still skips
+  // ./contextkit/ machinery — these roots name the durable memory the digest reads.
+  for (const rel of memoryRoots(root)) {
+    if (!roots.includes(rel)) roots.push(rel);
   }
 
   const excludes = { deep, rootRelative };
