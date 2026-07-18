@@ -27,7 +27,7 @@
  * — mechanized via `detectSelfHost`, proven by a blocker-level test.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { read, ensureDir } from './fs.mjs';
@@ -140,6 +140,27 @@ export function excludePathsFor(selfHost) {
 }
 
 /**
+ * Second, PATH-INDEPENDENT self-host signal (ADR-0132 F-D defense-in-depth): the
+ * target's own `package.json` name is the kit itself. Unlike `detectSelfHost`'s
+ * path fingerprint (`install.mjs` + `templates/contextkit/`, which a mid-refactor
+ * branch, a sparse/partial checkout, or a future path relocation can silently
+ * defeat), `package.json` is a TRACKED file present in every clone/worktree/branch
+ * of the kit. Fails SAFE: an unreadable/renamed manifest returns false and the
+ * caller falls back to `detectSelfHost`; a false positive only over-excludes
+ * memory (an ergonomic cost), never a leak. BOM-stripped before parse (rule 4).
+ * @param {string} target project root.
+ * @returns {boolean} true when the target is the ContextDevKit repo itself.
+ */
+export function isKitOwnRepo(target) {
+  try {
+    const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf-8').replace(/^﻿/, ''));
+    return !!pkg && pkg.name === 'contextdevkit';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Writes (or refreshes) the managed exclude block. Idempotent: an existing
  * block is replaced in place, never duplicated. No `.git` ⇒ silent skip.
  *
@@ -159,7 +180,12 @@ export async function applyDogfoodExclude(target, opts = {}) {
   } catch {
     return false;
   }
-  const paths = excludePathsFor(opts.selfHost === true);
+  // Self-host if EITHER signal fires: the caller's path fingerprint (detectSelfHost)
+  // OR the path-independent package.json name (isKitOwnRepo). Belt-and-suspenders
+  // for the F-D BLOCKER — the highest-blast-radius path in the repo. Fails safe:
+  // either signal → memory stays wholesale-excluded (no public leak).
+  const selfHost = opts.selfHost === true || isKitOwnRepo(target);
+  const paths = excludePathsFor(selfHost);
   const block = [BLOCK_BEGIN, ...paths, BLOCK_END].join('\n');
   const beginAt = current.indexOf(BLOCK_BEGIN);
   const endAt = current.indexOf(BLOCK_END);

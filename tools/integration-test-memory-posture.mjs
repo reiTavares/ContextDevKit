@@ -28,6 +28,7 @@ import {
   excludePathsFor,
   EXCLUDED_PATHS,
   SELF_HOST_EXCLUDED_PATHS,
+  isKitOwnRepo,
 } from './install/exclude.mjs';
 import { detectSelfHost } from './install/update-preflight.mjs';
 
@@ -142,6 +143,35 @@ function checkDetectSelfHost() {
   }
 }
 
+// ── F. isKitOwnRepo belt (path-independent 2nd self-host signal, ADR-0139 C1) ─
+async function checkKitOwnRepoBelt() {
+  // package.json name === 'contextdevkit' → self-host, regardless of path fingerprint.
+  const kit = tmpGitRepo();
+  const plain = tmpGitRepo();
+  try {
+    writeFileSync(join(kit, 'package.json'), JSON.stringify({ name: 'contextdevkit', version: '0.0.0' }), 'utf-8');
+    writeFileSync(join(plain, 'package.json'), JSON.stringify({ name: 'some-user-app', version: '1.0.0' }), 'utf-8');
+    isKitOwnRepo(kit) === true
+      ? ok('isKitOwnRepo: package.json name "contextdevkit" → true (path-independent signal)')
+      : bad('isKitOwnRepo missed the kit manifest');
+    isKitOwnRepo(plain) === false
+      ? ok('isKitOwnRepo: a user app manifest → false')
+      : bad('isKitOwnRepo false-positived on a user app');
+    isKitOwnRepo(mkdtempSync(join(tmpdir(), 'ck-nomanifest-'))) === false
+      ? ok('isKitOwnRepo: no/unreadable manifest → false (fails safe)')
+      : bad('isKitOwnRepo did not fail safe on a missing manifest');
+    // The BELT: even when the caller passes selfHost:false, a kit manifest keeps
+    // memory wholesale-excluded (the defense-in-depth against a path-fingerprint miss).
+    await applyDogfoodExclude(kit, { selfHost: false });
+    isIgnored(kit, 'contextkit/memory/decisions/ADR-x.md')
+      ? ok('BELT receipt: kit manifest keeps memory IGNORED even when caller says selfHost:false')
+      : bad('BELT FAIL: kit manifest did not force wholesale exclude — leak surface open');
+  } finally {
+    rmSync(kit, { recursive: true, force: true });
+    rmSync(plain, { recursive: true, force: true });
+  }
+}
+
 // ── D. byte-idempotency of the managed block ─────────────────────────────────
 async function checkIdempotency() {
   const proj = tmpGitRepo();
@@ -165,6 +195,7 @@ try {
   await checkNonSelfHost();
   await checkSelfHostGuard();
   checkDetectSelfHost();
+  await checkKitOwnRepoBelt();
   await checkIdempotency();
 } catch (err) {
   bad(`unexpected failure: ${err && err.stack ? err.stack : err}`);
