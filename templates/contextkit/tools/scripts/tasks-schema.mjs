@@ -103,3 +103,22 @@ export function eventsContiguous(events, initial = INITIAL_STATE) {
   }
   return true;
 }
+
+/**
+ * Pure predicate for a structured `blocker` (SPEC §D4): a closed `category`, a
+ * non-empty `explanation`, and a deterministic `releaseCondition.kind`. Single-
+ * sourced here so the validator (`tasks-validate.mjs`) and the transition engine
+ * (`tasks-transition.mjs`) agree on what "blocked" requires.
+ *
+ * @param {object|null|undefined} blocker
+ * @returns {boolean}
+ */
+export function isValidBlocker(blocker) {
+  return Boolean(
+    blocker && typeof blocker === 'object'
+    && BLOCKER_CATEGORIES.includes(blocker.category)
+    && typeof blocker.explanation === 'string' && blocker.explanation.trim() !== ''
+    && blocker.releaseCondition && typeof blocker.releaseCondition === 'object'
+    && RELEASE_CONDITION_KINDS.includes(blocker.releaseCondition.kind),
+  );
+}

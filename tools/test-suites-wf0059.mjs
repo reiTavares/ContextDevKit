@@ -14,6 +14,10 @@
  *  - `wf0059-w2-tasks-schema` — W2 tasks.json schema + validators (the
  *    source-of-truth guardrail): 5-state table, O4/O2 ownership, single-journal
  *    fence, fold==status fence, done/blocked deterministic predicates.
+ *  - `wf0059-w3-transition` — W3 transition engine: legal table + actor rules +
+ *    atomic status↔event pairing (journal-first) + crash-injection recovery.
+ *  - `wf0059-w6-compat` — W6 compatibility adapters: old workflow:-string / old-id
+ *    → owner FK; ambiguous (dup 001) refuses; deprecation notice.
  *
  * @type {ReadonlyArray<{id:string,file:string,tier:string,touches:string[]}>}
  */
@@ -37,6 +41,42 @@ export const WF0059_SUITES = Object.freeze([
     touches: [
       `${SCRIPTS}/tasks-schema.mjs`,
       `${SCRIPTS}/tasks-validate.mjs`,
+    ],
+  },
+  {
+    id: 'wf0059-w3-transition',
+    file: `${SCRIPTS}/tasks-transition.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-transition.mjs`,
+      `${SCRIPTS}/tasks-schema.mjs`,
+    ],
+  },
+  {
+    id: 'wf0059-w4-derive',
+    file: `${SCRIPTS}/tasks-derive.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-derive.mjs`,
+      `${SCRIPTS}/tasks-schema.mjs`,
+    ],
+  },
+  {
+    id: 'wf0059-w5-cas',
+    file: `${SCRIPTS}/tasks-cas.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-cas.mjs`,
+      'templates/contextkit/runtime/hooks/safe-io.mjs',
+    ],
+  },
+  {
+    id: 'wf0059-w6-compat',
+    file: `${SCRIPTS}/tasks-compat.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-compat.mjs`,
+      `${SCRIPTS}/tasks-schema.mjs`,
     ],
   },
 ]);
