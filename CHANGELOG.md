@@ -20,7 +20,40 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Nothing unreleased._
+### Added
+
+- **Language-aware intent classification (WF-0069, OP-0008, ADR-0131 + ADR-0133).**
+  The active per-prompt intake classifier is now language-aware: a new zero-dep,
+  no-LLM module `runtime/execution/intent-language.mjs` detects the prompt language
+  offline (Unicode script ranges + frozen pt/en stopword tables) and runs embedded
+  pt+en intent tables. Questions/read-only prompts in any language stay ceremony-free
+  (no-code prior); a mutation verb (create/fix/refactor / criar/corrigir/refatorar…)
+  overrides the bias and keeps full ceremony. For a language outside {pt, en} or low
+  confidence, the `UserPromptSubmit` hook emits a next-turn `‹CONTEXTKIT-LANG›`
+  directive so the model normalizes intent through English semantics — translation
+  lives in the model, never the hook (immutable rule 1). Deterministic + fail-open.
+- **Always-on write authority + no-code completion escape (ADR-0131 F-A/F-B,
+  ADR-0133).** The completion gate honors a "no-code ⇒ zero obligations" escape on the
+  active path, but a real `Edit`/`Write` for the same task revokes it (evidence beats
+  prior). `track-edits` now stamps each modification with its `taskId` so the receipt
+  and the execution contract share one binding across the turn. Never inverts on the
+  domain axis (a regulated domain keeps full ceremony). BIZ-0003 domain classification
+  runs advisory/shadow with telemetry — never blocking (ADR-0133 reconciles ADR-0131).
+
+### Fixed
+
+- **ADR allocator under-counted `ADR-####-*.md` filenames (OP-0008 Finding #2).**
+  `maxAdrInDir` matched only `NNNN-*` / `NNNN.md`; it now also counts the canonical
+  `ADR-####` format (`registry/ids.mjs`), so `nextAdrNumber()` no longer collides with
+  existing ADRs. Regression-guarded.
+- **Spec-pack `createWorkflow` dropped the owner (OP-0008 Finding #8).** Owned
+  workflow dirs are now named `WF-####-slug` (matching the wave engine), so the
+  registry's `NEW_RE` matches and `resolveWorkflow` preserves the owner instead of
+  hardcoding `owner: null` (`workflow-pack.mjs`). Regression-guarded.
+- **Dead conversation/documentation/research branches (OP-0008 Finding #7).**
+  `request-classify.mjs` branched on the always-present minted per-prompt `taskId`,
+  shunting every request to `primaryType: workflow`; it now requires a real external
+  workflow reference, so the lower-precedence branches are reachable again.
 
 ## [3.6.0] - 2026-07-17
 

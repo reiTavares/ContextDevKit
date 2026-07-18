@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs';
 import { classifyWork, loadWorkPolicy } from './work-classifier.mjs';
 import { classifyDecisionNeed } from './decision-need-classifier.mjs';
+import { classifyIntentLangAware } from './intent-language.mjs';
 import { pathsFor } from '../config/paths.mjs';
 
 // Attempt to import B2-T2's searchDecisions at module init — degrade silently
@@ -106,6 +107,18 @@ export function intake(request, env = {}) {
     }
   } catch {
     // B2 enrichment is advisory — never break the existing intake contract.
+  }
+
+  // ADDITIVE (WF-0069, OP-0008, ADR-0131): language-aware intent signal. Attaches
+  // `signals.intent = { language, intent, mutationVerb, readOnly, confidence,
+  // routeToAI }` under a NEW namespace — all prior keys untouched. Zero-dep, no LLM
+  // (immutable rule 1). Wrapped fail-open: any error omits the key without touching
+  // the tier/domain/work flow (rule 2). Detection + pt/en fast-path only; translation
+  // of other languages is delegated to the model via the hook directive (never here).
+  try {
+    signals.intent = classifyIntentLangAware(objective);
+  } catch {
+    // intent enrichment is advisory — never break the existing intake contract.
   }
 
   return { signals, reasons };

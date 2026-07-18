@@ -135,6 +135,10 @@ function main() {
     'tools/selfcheck-journey.mjs',
     // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.
     'tools/selfcheck-session-autonomy-all.mjs',
+    // WF-0069 (OP-0008, ADR-0131/0133) — language-aware intent + the two direct
+    // fixes (#2 allocator, #8 WF- prefix); siblings, dispatched directly.
+    'tools/selfcheck-wf0069-lang-intent.mjs', 'tools/selfcheck-wf0069-adr-allocator.mjs',
+    'tools/selfcheck-wf0069-wf-prefix.mjs',
     // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
     'tools/selfcheck-tc-cache.mjs',
     // WF0022 TC-12 deterministic transforms (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.

@@ -269,6 +269,24 @@ async function main() {
     process.stdout.write(`\n‹CONTEXTKIT-CLARIFY› ${signals.work.clarifyQuestion}\n`);
   }
 
+  // WF-0069 / ADR-0131 Layer 2 — language directive (NEXT-TURN, not in-band). When
+  // the deterministic detector saw a language outside {pt,en} or low confidence, the
+  // hook emits a text-only directive telling the model to normalize the user's intent
+  // through English semantics before any ceremony fires. Translation lives in the
+  // model, never the hook (immutable rule 1). UserPromptSubmit is single-shot
+  // pre-model — Layer-1 already degraded THIS contract to the safe no-code default;
+  // this guides the model's NEXT turn. Advisory-only; never changes the exit code.
+  try {
+    if (signals.intent?.routeToAI === true) {
+      const lang = signals.intent.language?.lang ?? 'unknown';
+      process.stdout.write(
+        `\n‹CONTEXTKIT-LANG› Detected non-pt/en or low-confidence language ('${lang}'). ` +
+        'Normalize the user\'s intent through English semantics: decide create/edit/delete (code) vs question/read-only (no-code) BEFORE any ceremony. ' +
+        'If it is a question, answer directly with no contract; if it is real code work, proceed with full ceremony.\n',
+      );
+    }
+  } catch { /* directive is additive — never break the hook (fail-open) */ }
+
   // WF0038 / ADR-0107 — request-level orchestration. Gated by config + level;
   // wrapped fail-open so it can never break the legacy contract path (rule 2).
   try {

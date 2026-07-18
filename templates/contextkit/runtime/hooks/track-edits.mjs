@@ -113,6 +113,13 @@ async function main() {
   const ledger = await readLedger(sessionId);
   const tool = normalized.toolName ?? 'unknown';
   const now = Date.now();
+  // WF-0069 / ADR-0131 F-B: stamp each modification with the ACTIVE taskId (minted by
+  // execution-contract-hook and persisted as ledger.activeTask). This binds the write
+  // receipt to the SAME task as the execution contract across the turn, so the
+  // completion gate's F-A authority consults the right task's writes. Null when no
+  // contract task is active (e.g. a bare edit before any prompt-driven task) — the
+  // gate simply finds no task-matched write and leaves the no-code prior intact.
+  const taskId = typeof ledger.activeTask === 'string' ? ledger.activeTask : null;
   for (const p of paths) {
     let mtime = null;
     try {
@@ -120,7 +127,7 @@ async function main() {
     } catch {
       /* file may not exist yet */
     }
-    ledger.modifications.push({ path: p, tool, at: now, mtime });
+    ledger.modifications.push({ path: p, tool, at: now, mtime, taskId });
   }
   await writeLedger(sessionId, ledger);
 

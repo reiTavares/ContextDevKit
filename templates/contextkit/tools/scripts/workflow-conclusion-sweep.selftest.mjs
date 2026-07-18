@@ -11,7 +11,7 @@
  *    with its owner intact.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,11 +32,22 @@ try {
   const memory = resolve(root, 'contextkit', 'memory');
   mkdirSync(resolve(memory, 'business', 'BIZ-0001-fixture'), { recursive: true });
   // ADR-0127: an owned workflow nests under its owner's workflows/ (not central).
-  const activeIndex = resolve(memory, 'business', 'BIZ-0001-fixture', 'workflows', '0001-concl-wf', 'index.md');
-  const filedIndex = resolve(memory, 'business', 'BIZ-0001-fixture', 'done', '0001-concl-wf', 'index.md');
+  const activeWfDir = resolve(memory, 'business', 'BIZ-0001-fixture', 'workflows');
+  const doneWfDir = resolve(memory, 'business', 'BIZ-0001-fixture', 'done');
 
   process.stdout.write('Block A — create owned workflow\n');
   assert('A1: create exits 0', run(root, CLI, ['new', 'concl-wf', '--kind', 'feature', '--business', 'BIZ-0001']).status === 0);
+  // WF-0069 (OP-0008 Finding #8): a NESTED owned workflow dir carries the canonical
+  // `WF-` prefix. Derive the real folder from disk (never hardcode the name) so the
+  // test tracks the canonical format instead of re-encoding the old (buggy) name.
+  const folderName = (dir) => {
+    const hit = readdirSync(dir, { withFileTypes: true }).find((e) => e.isDirectory() && e.name.endsWith('-concl-wf'));
+    return hit ? hit.name : 'concl-wf';
+  };
+  const activeFolder = folderName(activeWfDir);
+  assert('A1b: nested owned dir is WF-prefixed (canonical format)', /^WF-\d{4}-concl-wf$/.test(activeFolder));
+  const activeIndex = resolve(activeWfDir, activeFolder, 'index.md');
+  const filedIndex = resolve(doneWfDir, activeFolder, 'index.md');
   assert('A2: owner written at create', /owner:\s*BIZ-0001/.test(readFileSync(activeIndex, 'utf-8')));
 
   process.stdout.write('\nBlock B — advance to completion (no synchronous move)\n');

@@ -163,16 +163,16 @@ export function nextWorkflowNumber(root = process.cwd()) {
 }
 
 /**
- * Highest ADR number among `NNNN-*.md` / `NNNN.md` files in one decisions dir, or
- * 0. ADRs are files (not dirs), and may live under `decisions/` or its
- * `business/`, `operations/`, `legacy/` subtrees.
+ * Highest ADR number among `ADR-NNNN-*.md` (canonical), `NNNN-*.md` / `NNNN.md`
+ * (legacy) files in one decisions dir, or 0. ADRs are files (not dirs), and may
+ * live under `decisions/` or its `business/`, `operations/`, `legacy/` subtrees.
  */
 function maxAdrInDir(dir) {
   if (!existsSync(dir)) return 0;
   let max = 0;
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
-    const match = entry.name.match(/^(\d{4})[-.]/);
+    const match = entry.name.match(/^(?:ADR-)?(\d{4})[-.]/);
     if (match) max = Math.max(max, parseInt(match[1], 10));
   }
   return max;

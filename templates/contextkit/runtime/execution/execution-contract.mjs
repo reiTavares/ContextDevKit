@@ -104,6 +104,10 @@ export function buildContract(signals, registry = loadRegistry()) {
       // OP-0005 / ADR-0125 Wave 5: persist work classification so the enforcement
       // gate can evaluate materiality at PreToolUse time without re-running intake.
       work: signals.work ?? null,
+      // WF-0069 / ADR-0131: persist the language-aware intent verdict so the
+      // completion gate can honor the no-code escape + apply the F-A write authority
+      // without re-running intake. Null when the (fail-open) enrichment was absent.
+      intent: signals.intent ?? null,
     },
     requiredBeforeExploration,
     requiredBeforeWrite,

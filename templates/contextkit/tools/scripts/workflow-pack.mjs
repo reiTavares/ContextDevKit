@@ -183,13 +183,23 @@ export function createWorkflow(root, slug, kind = 'feature', owner = null) {
   // ADR-0116/0127 (BIZ-0001 ownership rule 3): an owned workflow NESTS under its
   // parent context (operations/business/<owner>/workflows/), never loose/central.
   // Fall back to central only when the owner's context folder does not exist yet.
-  const dir = owner ? (ownerWorkflowsDir(root, owner) || workflowsDir(root)) : workflowsDir(root);
+  const ownerDir = owner ? ownerWorkflowsDir(root, owner) : null;
+  const dir = ownerDir || workflowsDir(root);
   mkdirSync(dir, { recursive: true });
   if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
   // UNIVERSAL numbering (BIZ-0001 / WF-0036 A4, ADR-0119): global max+1 across every
   // root (legacy + business + operations + done/), NEVER a per-directory count.
   const number = nextWorkflowNumber(root);
-  const packDirAbs = resolve(dir, `${number}-${slug}`);
+  // WF-0069 fix (OP-0008 Finding #8): a pack that actually NESTS under an owner
+  // context gets the `WF-` prefix (mirrors `workflow/create.mjs`), so the registry's
+  // NEW_RE matches it and `ownerFromDir` recovers the owner into `resolveWorkflow` —
+  // an unprefixed nested dir falls to LEGACY_RE, which hardcodes owner:null (the bug).
+  // A CENTRAL pack (no owner, or the owner-context folder does not exist yet so we
+  // fell back to central) keeps the legacy `NNNN-slug` name: it registers unowned in
+  // central regardless of prefix, and the bare name preserves number-based resolution
+  // (`resolveFolderName` / NUM_RE). Prefix tracks PHYSICAL nesting, not the arg alone.
+  const nested = Boolean(ownerDir);
+  const packDirAbs = resolve(dir, nested ? `WF-${number}-${slug}` : `${number}-${slug}`);
   mkdirSync(packDirAbs, { recursive: true });
   seedFiles(root, slug, kind, number, owner, packDirAbs);
   return readWorkflow(root, slug);

@@ -162,9 +162,17 @@ function pickContext(signals, ctx) {
     secondary.add('implementation');
     return finalize('decision', secondary, reasons);
   }
-  // 5. Workflow — an active workflow task is referenced.
-  if (ctx?.workflowId || ctx?.taskId) {
-    reasons.push(`primary=workflow (active workflow=${ctx?.workflowId ?? '?'} task=${ctx?.taskId ?? '?'})`);
+  // 5. Workflow — a REAL external workflow reference (OP-0008 Finding #7, ADR-0131).
+  //    The hook mints a per-prompt taskId (execution-contract-hook.mjs) that is ALWAYS
+  //    present, so branching on `ctx.taskId` shunted EVERY request to `workflow` and
+  //    left the conversation/documentation/research branches below as dead code. Require
+  //    a genuine workflow id (or an external, non-minted task ref); a minted per-prompt
+  //    id matches /^task-/ and must NOT trigger this branch.
+  const mintedTask = typeof ctx?.taskId === 'string' && /^task-/.test(ctx.taskId);
+  const realWorkflowRef = ctx?.workflowId
+    || (typeof ctx?.taskId === 'string' && !mintedTask ? ctx.taskId : null);
+  if (realWorkflowRef) {
+    reasons.push(`primary=workflow (real workflow ref=${realWorkflowRef})`);
     secondary.add('implementation');
     return finalize('workflow', secondary, reasons);
   }
@@ -173,20 +181,36 @@ function pickContext(signals, ctx) {
     reasons.push('primary=maintenance (work.kind=maintenance)');
     return finalize('maintenance', secondary, reasons);
   }
+  // WF-0069 / ADR-0131 — language-aware NO-CODE PRIOR. A no-code intent (question /
+  // read-only, no mutation verb) biases the low-precedence fallthrough to
+  // conversation/documentation/research instead of implementation, and makes those
+  // branches reachable regardless of tier (Finding #1: the `tier==='trivial'` gate was
+  // dead because defaultTier is 'feature'). A mutation verb already forced intent=code
+  // upstream (intent-language.mjs), so it never reaches here as no-code. Never inverts
+  // on the domain axis — a regulated/material context returned above (business/decision).
+  const langIntent = signals?.intent;
+  const noCodePrior = langIntent && langIntent.intent === 'no-code' && langIntent.mutationVerb !== true;
+
   // 7. Research / documentation / conversation — token-assisted, lowest precedence.
   if (RESEARCH_TOKENS.some((k) => text.includes(k))) {
     reasons.push('primary=research (research-intent tokens)');
     return finalize('research', secondary, reasons);
   }
-  if (DOC_TOKENS.some((k) => text.includes(k)) && tier === 'trivial') {
-    reasons.push('primary=documentation (doc tokens, trivial tier)');
+  if (DOC_TOKENS.some((k) => text.includes(k)) && (tier === 'trivial' || noCodePrior)) {
+    reasons.push(`primary=documentation (doc tokens${noCodePrior ? ', no-code prior' : ', trivial tier'})`);
     return finalize('documentation', secondary, reasons);
   }
-  if (tier === 'trivial' && CONVERSATION_TOKENS.some((k) => text.includes(k)) && text.split(/\s+/).length < 12) {
-    reasons.push('primary=conversation (question/short, trivial tier)');
+  if ((tier === 'trivial' || noCodePrior) && CONVERSATION_TOKENS.some((k) => text.includes(k)) && text.split(/\s+/).length < 12) {
+    reasons.push(`primary=conversation (question/short${noCodePrior ? ', no-code prior' : ', trivial tier'})`);
     return finalize('conversation', secondary, reasons);
   }
-  // 8. Default — implementation.
+  // 8. Default — WF-0069 inversion: a no-code prior defaults to CONVERSATION (inverting
+  //    today's implementation fallthrough); only a genuine code signal falls through to
+  //    implementation.
+  if (noCodePrior) {
+    reasons.push(`primary=conversation (no-code prior: ${langIntent.reasons?.[0] ?? 'ambiguity→no-code'})`);
+    return finalize('conversation', secondary, reasons);
+  }
   reasons.push(`primary=implementation (default; tier='${tier}')`);
   return finalize('implementation', secondary, reasons);
 }

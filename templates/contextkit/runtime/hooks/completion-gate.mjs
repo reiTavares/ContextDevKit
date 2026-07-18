@@ -20,6 +20,8 @@
  *
  * Zero runtime deps - node:* + sibling runtime modules only.
  */
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getLevel, loadConfig } from '../config/load.mjs';
 import { loadContract } from '../execution/execution-contract.mjs';
 import { loadEnvelope } from '../execution/request-envelope.mjs';
@@ -189,6 +191,90 @@ function augmentWithDomainCompletion(result, root, taskId, config) {
   } catch { /* fail-open — domain completion check never breaks the gate */ }
 }
 
+/**
+ * WF-0069 / ADR-0131 §Binding + ADR-0133 knob 2 — language-aware no-code escape
+ * with an ALWAYS-ON write authority (F-A), decoupled from any domain gate mode.
+ *
+ * A no-code classification is a PRIOR, not a verdict. When the contract carries a
+ * no-code intent (question / read-only, no mutation verb) AND no real write occurred
+ * for THIS task, the completion gate honors the "no-code ⇒ zero obligations" escape
+ * — a plain question must not demand test-plan/tests/qa-signoff. But a real
+ * Edit/Write/MultiEdit for the task is EVIDENCE that revokes the prior (F-A): the
+ * obligations stand. The write receipt is read from `ledger.modifications`, each
+ * stamped with its `taskId` by track-edits (F-B) so the gate consults the SAME
+ * task's writes as the contract (one binding across the turn).
+ *
+ * Guards (ADR-0131): the invert is on the tier/ceremony axis ONLY — a regulated
+ * domain (lgpd/fintech/healthcare) keeps its obligations (never inverted on the
+ * domain axis). Fail-open — any error leaves the result untouched (rule 2).
+ *
+ * @param {object} result evaluateCompletion result (mutated in place)
+ * @param {object} contract loaded execution contract
+ * @param {object} ledger session ledger (carries modifications[] with taskId)
+ * @param {string} taskId active task id
+ * @returns {{ applied: boolean, wrote: boolean }} telemetry outcome
+ */
+export function augmentWithLangAwareNoCode(result, contract, ledger, taskId) {
+  const intent = contract?.signals?.intent;
+  try {
+    if (!intent || intent.intent !== 'no-code' || intent.mutationVerb === true) {
+      return { applied: false, wrote: false };
+    }
+    // Never invert on the domain axis — a regulated domain keeps full ceremony.
+    const domain = contract?.signals?.domain;
+    if (domain && domain !== 'general') return { applied: false, wrote: false };
+
+    // F-A: a real write for THIS task (F-B taskId binding) revokes the no-code prior.
+    const mods = Array.isArray(ledger?.modifications) ? ledger.modifications : [];
+    const wroteForTask = mods.some(
+      (m) => m && m.taskId === taskId && ['Edit', 'Write', 'MultiEdit'].includes(m.tool),
+    );
+    if (wroteForTask) {
+      // Evidence beats prior — obligations stand (the write must be governed).
+      return { applied: false, wrote: true };
+    }
+
+    // No write → honor the no-code escape: zero completion obligations, silence.
+    result.reasonCodes.length = 0;
+    result.remediation.length = 0;
+    if (result.detail) result.detail.missing = [];
+    result.decision = 'allow';
+    return { applied: true, wrote: false };
+  } catch {
+    return { applied: false, wrote: false }; // fail-open — never break the gate
+  }
+}
+
+/**
+ * WF-0069 / ADR-0133 knob 1 — advisory/shadow telemetry. Records the language-aware
+ * classifier verdict against whether a write later occurred, so the no-code inversion
+ * can be observed before any tightening (ADR-0131: "ship advisory-first with
+ * telemetry"). Never blocks, never throws — a best-effort JSONL append.
+ *
+ * @param {string} root project root
+ * @param {string} taskId active task id
+ * @param {object|null} intent contract.signals.intent
+ * @param {{ applied: boolean, wrote: boolean }} outcome from augmentWithLangAwareNoCode
+ * @returns {void}
+ */
+function recordLangTelemetry(root, taskId, intent, outcome) {
+  try {
+    if (!intent) return;
+    const line = JSON.stringify({
+      ts: Date.now(),
+      taskId,
+      lang: intent.language?.lang ?? null,
+      confidence: intent.confidence ?? null,
+      verdict: intent.intent ?? null,
+      mutationVerb: intent.mutationVerb === true,
+      routeToAI: intent.routeToAI === true,
+      wroteForTask: outcome.wrote === true,
+      noCodeEscapeApplied: outcome.applied === true,
+    });
+    appendFileSync(join(root, 'contextkit', 'memory', 'lang-classifier-telemetry.jsonl'), line + '\n');
+  } catch { /* telemetry is advisory — never break the gate */ }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -241,6 +327,16 @@ async function main() {
   // default-OFF; checks the profile-required agent spawn evidence (WF-0065). Isolated
   // fail-open so it can never break the live completion gate (immutable rule 2).
   augmentWithDomainCompletion(result, ROOT, taskId, config);
+
+  // WF-0069 / ADR-0131 F-A + ADR-0133 knob 2 — language-aware no-code escape with an
+  // always-on write authority. Runs LAST so it can clear the obligations the prior
+  // augmentations added WHEN the task is genuinely no-code AND no write occurred for
+  // the task; a real Edit/Write for the task (F-B taskId binding) revokes the prior,
+  // so obligations stand. Never inverts on the domain axis. Fail-open.
+  const langOutcome = augmentWithLangAwareNoCode(result, contract, ledger, taskId);
+  // ADR-0133 knob 1 — advisory/shadow telemetry: classifier verdict vs whether a
+  // write later occurred (the signal ADR-0131 requires before any tightening).
+  recordLangTelemetry(ROOT, taskId, contract?.signals?.intent, langOutcome);
 
   // Silence rule: nothing to say - return immediately.
   if (result.reasonCodes.length === 0) return;
