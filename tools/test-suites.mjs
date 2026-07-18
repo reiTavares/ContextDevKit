@@ -32,6 +32,7 @@ import { WORKFLOW_ENGINE_SUITES } from './test-suites-workflow.mjs';
 import { BDM_SUITES } from './test-suites-bdm.mjs';
 import { INFRA_SUITES } from './test-suites-infra.mjs';
 import { MCP_SUITES } from './test-suites-mcp.mjs';
+import { WF0059_SUITES } from './test-suites-wf0059.mjs';
 import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 
 export const TIERS = Object.freeze([
@@ -290,6 +291,8 @@ export const SUITES = Object.freeze([
   ...BDM_SUITES,
 
   ...WORKFLOW_ENGINE_SUITES,
+  // OP-0004 / WF-0059 task-ownership reform — own module (see test-suites-wf0059.mjs).
+  ...WF0059_SUITES,
   ...MCP_SUITES,      // MCP ticket integration-tests (see test-suites-mcp.mjs).
   // Test-infra self-tests (suite-list guard, impact selector, request shard) —
   // own module to keep this registry under the 308-line budget (ADR-0113).
