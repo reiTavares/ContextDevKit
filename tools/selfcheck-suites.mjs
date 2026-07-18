@@ -164,6 +164,8 @@ function main() {
     'templates/contextkit/tools/scripts/tasks-derive.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-cas.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-compat.selftest.mjs',
+    'templates/contextkit/tools/scripts/tasks-migrate.selftest.mjs',
+    'templates/contextkit/tools/scripts/tasks-cutover.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',

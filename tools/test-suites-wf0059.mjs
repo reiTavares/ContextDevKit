@@ -79,4 +79,35 @@ export const WF0059_SUITES = Object.freeze([
       `${SCRIPTS}/tasks-schema.mjs`,
     ],
   },
+  {
+    id: 'wf0059-w7-migrate',
+    file: `${SCRIPTS}/tasks-migrate.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-migrate.mjs`,
+      `${SCRIPTS}/pipeline-inventory.mjs`,
+    ],
+  },
+  {
+    id: 'wf0059-w8-cutover',
+    file: `${SCRIPTS}/tasks-cutover.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-cutover.mjs`,
+      `${SCRIPTS}/tasks-derive.mjs`,
+      `${SCRIPTS}/pipeline-inventory.mjs`,
+    ],
+  },
+  {
+    id: 'wf0059-w9-e2e',
+    file: 'tools/integration-test-wf0059-e2e.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      `${SCRIPTS}/pipeline-inventory.mjs`, `${SCRIPTS}/tasks-schema.mjs`,
+      `${SCRIPTS}/tasks-validate.mjs`, `${SCRIPTS}/tasks-transition.mjs`,
+      `${SCRIPTS}/tasks-derive.mjs`, `${SCRIPTS}/tasks-cas.mjs`,
+      `${SCRIPTS}/tasks-compat.mjs`, `${SCRIPTS}/tasks-migrate.mjs`,
+      `${SCRIPTS}/tasks-cutover.mjs`,
+    ],
+  },
 ]);
