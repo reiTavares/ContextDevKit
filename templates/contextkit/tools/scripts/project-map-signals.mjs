@@ -100,6 +100,22 @@ export function structuralSignals(modules) {
 }
 
 /**
+ * Transitive reverse-consumer set of a single module: every module that
+ * (directly or transitively) imports the target module path. GRAPH_DERIVED,
+ * pure, deterministic (sorted) — reuses the same adjacency/traversal
+ * structuralSignals builds its blastRadius count from, just returning the
+ * SET instead of a count.
+ *
+ * @param {Array<{path:string, deps?:string[]}>} modules the project-map model modules
+ * @param {string} targetPath the module whose consumers to collect
+ * @returns {{consumers:string[], evidenceClass:string}}
+ */
+export function reverseConsumers(modules, targetPath) {
+  const rev = importers(adjacency(modules));
+  return { consumers: transitiveImporters(targetPath, rev), evidenceClass: GRAPH_EVIDENCE_CLASS };
+}
+
+/**
  * Default minimum number of commits required before co-change is trustworthy.
  * Below this the history is "shallow" and the signal degrades rather than emit a
  * misleadingly-confident pairing from one or two commits.
