@@ -111,6 +111,21 @@ function main() {
     'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
     // WF-0057 W1.1 (ADR-0122) — project-map structural signals; sibling, dispatched directly.
     'tools/selfcheck-projmap-signals.mjs',
+    // WF-0071 (BIZ-0004) GC1-T1 -- blast-radius consumer lookup; sibling
+    // selfcheck, dispatched directly (not an integration-test* entrypoint).
+    'tools/selfcheck-blast-radius.mjs',
+    // WF-0071 (BIZ-0004) GC1-T2 -- graph extraction + committed projection writer;
+    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
+    'tools/selfcheck-graph-extract.mjs',
+    // WF-0071 (BIZ-0004) GC2-T1 -- two-phase cross-file resolver + phantom
+    // guard + dedup; sibling selfcheck, dispatched directly.
+    'tools/selfcheck-resolve.mjs',
+    // WF-0071 (BIZ-0004) GC3-T1 -- determinism / degradation / incremental-merge
+    // + multi-language golden validation; sibling selfcheck, dispatched directly.
+    'tools/selfcheck-gc3-validation.mjs',
+    // WF-0071 (BIZ-0004) GC4-T1 -- capability gate default-off + hot-path
+    // purity proof (no graph module on the hot path); sibling, dispatched directly.
+    'tools/selfcheck-gc4-packaging.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',
