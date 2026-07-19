@@ -82,6 +82,33 @@ function mapIsStale(root, manifest) {
 }
 
 /**
+ * One-line structural-graph health from the committed projection
+ * (`<projectMap>/graph/graph.json`). Read DIRECTLY via fs — never imports a graph
+ * module — so this hot-path hook stays dependency-pure (ADR-0134 hot-path proof).
+ * Silent (null) when the projection is absent or unreadable. Makes the graph a
+ * used, surfaced signal every session, not just available memory.
+ *
+ * @param {string} projectMapDir - the committed project-map dir
+ * @returns {string|null}
+ */
+function graphHealthLine(projectMapDir) {
+  try {
+    const graphPath = resolve(projectMapDir, 'graph', 'graph.json');
+    if (!existsSync(graphPath)) return null;
+    const raw = readFileSync(graphPath, 'utf-8');
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    const g = JSON.parse(text);
+    if (!Array.isArray(g.nodes) || !Array.isArray(g.edges)) return null;
+    const calls = g.edges.filter((e) => e.relation === 'calls').length;
+    const cites = g.edges.filter((e) => e.relation === 'cites').length;
+    const layers = Array.isArray(g.layers) && g.layers.length ? g.layers.join('/') : 'structural';
+    return `\u{1F578}\uFE0F  Structural graph: ${g.nodes.length} nodes, ${g.edges.length} edges (${calls} calls, ${cites} cites) \u00b7 layers ${layers} \u00b7 query with /project-map --graph or the graph MCP tool.`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * project-map boot signal — violations + cycles (from `manifest.{violations,
  * insights}`) plus a staleness nudge. Returns a block or null. Named
  * `projectMapStale` for back-compat; now reports health too. [ADR-0046]
@@ -107,6 +134,8 @@ export function projectMapStale(root) {
     if (violations.length) lines.push(`⛔ **${violations.length} architecture-rule violation(s)** — ${violations.slice(0, 2).map((v) => `\`${v.from}\`→\`${v.to}\``).join(', ')}. Run \`/project-map --check\`.`);
     if (cycles.length) lines.push(`🔄 **${cycles.length} dependency cycle(s)** in the module graph — see the project map's Architecture health.`);
     if (mapIsStale(root, manifest)) lines.push('🗺️  Project map is **stale** — source changed since it was generated. Run `/project-map` to refresh (`--check` to diff).');
+    const graphLine = graphHealthLine(dir);
+    if (graphLine) lines.push(graphLine);
     return lines.length ? lines.join('\n') : null;
   } catch {
     return null;
