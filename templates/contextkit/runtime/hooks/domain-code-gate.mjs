@@ -31,6 +31,7 @@ import { evaluateCodeGate, resolveDomainMode } from '../domain-engineering/code-
 import { buildImplementationBlock } from '../domain-engineering/envelope-block.mjs';
 import { classifyPath } from '../domain-engineering/path-classify.mjs';
 import { loadPolicyTable } from '../domain-engineering/policy-load.mjs';
+import { readSpawnRecords, dispatchedAgents } from '../domain-engineering/spawn-record.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -75,6 +76,41 @@ function simulateImpactPresent(ledger, path) {
   }
 }
 
+/**
+ * ADR-0142 (WF-0075) — the pre-write DISPATCH evidence. Reuses the existing spawn-record
+ * substrate (no new evidence module): every agent named in `block.requiredAgents` must
+ * have a real spawn record under <pipeline>/state/<taskId>/subagents/. Returns `true`
+ * (satisfied) when there are no required agents, when the read degrades, or when every
+ * required agent is dispatched — fail-open so an unreadable substrate never false-blocks.
+ * @param {string} root project root.
+ * @param {string|null} taskId governing task id.
+ * @param {object} block the §15 implementation block.
+ * @returns {boolean} true when the profile-required squad is dispatched (or the check is inert).
+ */
+function requiredAgentsDispatchedFor(root, taskId, block) {
+  try {
+    const required = block && Array.isArray(block.requiredAgents) ? block.requiredAgents : [];
+    if (required.length === 0 || !taskId) return true; // nothing to require → inert.
+    const dispatched = new Set(dispatchedAgents(readSpawnRecords(root, taskId)));
+    return required.every((agent) => dispatched.has(agent));
+  } catch {
+    return true; // fail-open: an unreadable substrate never false-blocks.
+  }
+}
+
+/**
+ * True when THIS PreToolUse fires inside a dispatched subagent's call (the Claude Code
+ * `agent_id` hook field, present only in a subagent context). The anti-deadlock seam
+ * (ADR-0142): a dispatched leaf-worker IS the fulfilment of the dispatch requirement,
+ * never subject to it — only the main/orchestrator write is gated. Defensive `typeof`
+ * so a malformed payload never throws.
+ * @param {object} payload the raw hook payload.
+ * @returns {boolean}
+ */
+function isDispatchedSubagentCall(payload) {
+  return typeof payload?.agent_id === 'string' && payload.agent_id.length > 0;
+}
+
 async function main() {
   if (getLevel(ROOT) < 4) return; // Inert below Level 4 (advisory floor).
 
@@ -112,6 +148,12 @@ async function main() {
   const ledger = await readLedger(sessionId);
   const taskId = ledger?.activeTask ?? null;
 
+  // ADR-0142 subagent-exemption seam: a dispatched leaf-worker's write is the FULFILMENT
+  // of the dispatch requirement, never subject to it (anti-deadlock) → treat as dispatched.
+  const requiredAgentsDispatched = isDispatchedSubagentCall(payload)
+    ? true
+    : requiredAgentsDispatchedFor(ROOT, taskId, block);
+
   const verdict = evaluateCodeGate({
     block,
     pathClass,
@@ -123,6 +165,7 @@ async function main() {
     simulateImpactPresent: simulateImpactPresent(ledger, targetPath),
     ownerPresent: !!taskId,
     degradedInput: !!(block && block.degraded),
+    requiredAgentsDispatched,
   });
 
   if (verdict.enforcement === 'BLOCK') {

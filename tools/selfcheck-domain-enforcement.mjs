@@ -47,6 +47,7 @@ export async function runDomainEnforcementChecks({ ok, bad }, { KIT }) {
   checkProjectMapCompare(compare, { ok, bad });
   checkFitnessBlockingVsAdvisory(compare, fitness, { ok, bad });
   checkNegativeMatrix(codeGate, fitness, compare, { ok, bad });
+  checkDispatchRequirement(codeGate, { ok, bad });
   checkHooksExitZero(KIT, { ok, bad });
   await checkPackaging(codeGate, KIT, { ok, bad });
 }
@@ -259,6 +260,66 @@ function checkNegativeMatrix({ evaluateCodeGate }, { evaluateDomainFitness }, { 
   const uncertain = evaluateCodeGate({ block: { profile: 'simple' }, pathClass: 'unknown', mode: 'strict', writeAttempt: true, packetPresent: false, ownerPresent: false });
   uncertain.applicability === 'UNKNOWN' && uncertain.enforcement === 'ASK'
     ? ok('negative: uncertain classification ⇒ ASK (one question), never an auto-BLOCK (ADR-0129 §5)') : bad(`uncertain should ASK, got ${JSON.stringify(uncertain)}`);
+}
+
+/**
+ * ADR-0142 (WF-0075) — the pre-write DISPATCH requirement. Proves the two-tier contract:
+ * teeth only in domain-driven/distributed-domain; default-true never false-blocks; the
+ * simple/modular scope-fix regression; and completion still owns the COMPLETED axis.
+ */
+function checkDispatchRequirement({ evaluateCodeGate }, { ok, bad }) {
+  // A minimal APPLICABLE domain-driven block where only the dispatch axis can be missing.
+  const dd = {
+    block: { profile: 'domain-driven', squadRequired: true, requiredAgents: ['implementation-engineer', 'code-reviewer'] },
+    pathClass: 'source-code', mode: 'strict', riskBand: 'high', writeAttempt: true,
+    packetPresent: true, ownerPresent: true, simulateImpactPresent: true,
+  };
+
+  // (a) domain-driven + not-dispatched ⇒ BLOCK naming the outstanding agents.
+  const notDispatched = evaluateCodeGate({ ...dd, requiredAgentsDispatched: false });
+  notDispatched.enforcement === 'BLOCK'
+    && notDispatched.missing.includes('required-agents')
+    && notDispatched.reasonCodes.includes('CODE_GATE_AGENTS_NOT_DISPATCHED')
+    && notDispatched.corrective.some((c) => c.includes('implementation-engineer'))
+    ? ok('dispatch: domain-driven + not-dispatched ⇒ BLOCK, names the required agents (ADR-0142)')
+    : bad(`dispatch not-dispatched failed: ${JSON.stringify(notDispatched)}`);
+
+  // (b) dispatched ⇒ the requirement clears (ALLOW; required-agents not missing).
+  const dispatched = evaluateCodeGate({ ...dd, requiredAgentsDispatched: true });
+  dispatched.enforcement === 'ALLOW' && !dispatched.missing.includes('required-agents')
+    ? ok('dispatch: domain-driven + dispatched ⇒ ALLOW (requirement satisfied)')
+    : bad(`dispatch dispatched failed: ${JSON.stringify(dispatched)}`);
+
+  // (c) default-true: omitting the flag is byte-identical to the pre-WF-0075 verdict.
+  const omitted = evaluateCodeGate({ ...dd });
+  omitted.enforcement === 'ALLOW' && !omitted.missing.includes('required-agents')
+    ? ok('dispatch: omitted flag defaults true ⇒ no false block (fail-open default)')
+    : bad(`dispatch default-true failed: ${JSON.stringify(omitted)}`);
+
+  // (d) the scope-fix regression: simple/modular carry squadRequired:true from envelope-block,
+  //     but the teeth must NOT apply — only domain-driven/distributed-domain.
+  for (const profile of ['simple', 'modular']) {
+    const scoped = evaluateCodeGate({
+      block: { profile, squadRequired: true, requiredAgents: ['implementation-engineer'] },
+      pathClass: 'source-code', mode: 'strict', riskBand: 'high', writeAttempt: true,
+      packetPresent: true, ownerPresent: true, simulateImpactPresent: true,
+      requiredAgentsDispatched: false,
+    });
+    !scoped.missing.includes('required-agents')
+      ? ok(`dispatch: profile '${profile}' + squadRequired:true ⇒ dispatch teeth INERT (scope-fix regression)`)
+      : bad(`dispatch scope-fix failed for '${profile}': ${JSON.stringify(scoped)}`);
+  }
+
+  // (e) distributed-domain is in scope (the other domain-shaped profile).
+  const dist = evaluateCodeGate({
+    block: { profile: 'distributed-domain', squadRequired: true, requiredAgents: ['architect'] },
+    pathClass: 'source-code', mode: 'strict', riskBand: 'high', writeAttempt: true,
+    packetPresent: true, ownerPresent: true, simulateImpactPresent: true,
+    requiredAgentsDispatched: false,
+  });
+  dist.missing.includes('required-agents')
+    ? ok('dispatch: distributed-domain is in scope (dispatch teeth apply)')
+    : bad(`dispatch distributed-domain scope failed: ${JSON.stringify(dist)}`);
 }
 
 /** Immutable rule 2 — the new + augmented hooks exit 0 on malformed + inert stdin. */

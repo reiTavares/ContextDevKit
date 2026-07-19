@@ -109,6 +109,7 @@ export function evaluateCodeGate(input = {}) {
     block, pathClass, hardExcluded = false, mode = 'shadow', riskBand = 'low',
     writeAttempt = false, packetPresent = false, simulateImpactPresent = false,
     ownerPresent = false, degradedInput = false,
+    requiredAgentsDispatched = true,
   } = input && typeof input === 'object' ? input : {};
 
   // Degraded input → fail-open receipt (never a false pass, never a block).
@@ -129,7 +130,7 @@ export function evaluateCodeGate(input = {}) {
   }
 
   // APPLICABLE code target — check the deterministic Class-A requirements (§16).
-  const check = checkRequirements({ block, packetPresent, simulateImpactPresent, ownerPresent });
+  const check = checkRequirements({ block, packetPresent, simulateImpactPresent, ownerPresent, requiredAgentsDispatched });
   if (check.missing.length === 0) {
     return verdict('APPLICABLE', 'ALLOW', ['CODE_GATE_SATISFIED'], [], [], false);
   }
@@ -175,7 +176,7 @@ function resolveApplicability({ block, pathClass, hardExcluded, cmis }) {
  * corrective command"). The Implementation Packet is mandatory for any non-no-code
  * profile; the simulate-impact receipt only when the profile declared it.
  */
-function checkRequirements({ block, packetPresent, simulateImpactPresent, ownerPresent }) {
+function checkRequirements({ block, packetPresent, simulateImpactPresent, ownerPresent, requiredAgentsDispatched = true }) {
   const missing = [];
   const corrective = [];
   const reasonCodes = [];
@@ -194,7 +195,32 @@ function checkRequirements({ block, packetPresent, simulateImpactPresent, ownerP
     reasonCodes.push('CODE_GATE_SIMULATE_IMPACT_ABSENT');
     corrective.push('Run /simulate-impact to produce the required blast-radius receipt (the profile requires it).');
   }
+  // ADR-0142 (WF-0075) — the pre-write DISPATCH requirement. Teeth apply ONLY when the
+  // profile is domain-driven/distributed-domain (requiredAgentsProfile) — NOT on every
+  // squadRequired block, since envelope-block sets squadRequired true for simple/modular
+  // too. Completion still owns the COMPLETED requirement (requiring completed pre-write
+  // is circular). Default-true so an absent flag never false-blocks (fail-open).
+  if (requiredAgentsProfile(block) && requiredAgentsDispatched !== true) {
+    missing.push('required-agents');
+    reasonCodes.push('CODE_GATE_AGENTS_NOT_DISPATCHED');
+    const agents = block && Array.isArray(block.requiredAgents) && block.requiredAgents.length
+      ? block.requiredAgents.join(', ')
+      : 'the profile-required specialist(s)';
+    corrective.push(`Dispatch ${agents} before writing domain code (a name in a prompt does not count — only a real spawn).`);
+  }
   return { missing, corrective, reasonCodes };
+}
+
+/**
+ * The profile-tier scope predicate for the pre-write dispatch requirement (ADR-0142).
+ * The dispatch teeth apply ONLY to a genuinely domain-shaped profile — never to
+ * simple/modular/no-code, which also carry `squadRequired: true` from envelope-block.
+ * @param {object} block the §15 implementation block.
+ * @returns {boolean} true when the block demands a dispatched squad before a code write.
+ */
+function requiredAgentsProfile(block) {
+  if (!block || block.squadRequired !== true) return false;
+  return block.profile === 'domain-driven' || block.profile === 'distributed-domain';
 }
 
 /**
