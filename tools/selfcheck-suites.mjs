@@ -142,6 +142,12 @@ function main() {
     // zero-egress allowlist boundary + refuse-by-default semantic gate; siblings.
     'tools/selfcheck-graph-graded.mjs',
     'tools/selfcheck-graph-egress.mjs',
+    // WF-0074 (BIZ-0004) RO2 -- staged activation ladder (off/shadow/advisory/
+    // guarded/strict; default-off; guarded/strict human-gated); sibling.
+    'tools/selfcheck-graph-activation.mjs',
+    // WF-0074 (BIZ-0004) RO3 -- hot-path purity proof: no graph builder module
+    // and no third-party dep is reachable from any hot-path hook / config-load.
+    'tools/selfcheck-hotpath-purity.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',
