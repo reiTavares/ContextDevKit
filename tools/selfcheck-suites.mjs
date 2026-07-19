@@ -126,6 +126,14 @@ function main() {
     // WF-0071 (BIZ-0004) GC4-T1 -- capability gate default-off + hot-path
     // purity proof (no graph module on the hot path); sibling, dispatched directly.
     'tools/selfcheck-gc4-packaging.mjs',
+    // WF-0072 (BIZ-0004) IF1 -- graph query core (reverse callers/consumers,
+    // bounded hub-avoiding reachability, god-nodes, shortest-path); sibling.
+    'tools/selfcheck-graph-query.mjs',
+    // WF-0072 (BIZ-0004) IF2 -- consumer adapters (impact/contract/packet) +
+    // read-only MCP graph tool dispatch; degrade-to-UNKNOWN each; sibling.
+    'tools/selfcheck-graph-consumers.mjs',
+    // WF-0072 (BIZ-0004) IF2 -- /graph CLI dispatch surface; sibling.
+    'tools/selfcheck-graph-cli.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',
