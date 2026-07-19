@@ -65,6 +65,25 @@ export async function runGraphIndexChecks() {
   } catch { threw = true; }
   record('builder error -> fail-open (failed, never throws)', !threw && r6 && r6.status === 'failed', threw ? 'THREW' : (r6 && r6.status));
 
+  // Rollout telemetry backoff (WF-0074 default-on safety): N consecutive failures
+  // auto-disable the index; a success resets. Injected rollout store (no disk I/O).
+  {
+    let store = { consecutiveFailures: 0, lastReason: null };
+    const rollout = { read: () => store, write: (t, st) => { store = st; } };
+    const failing = { isEnabled: enabled, hasSource: () => true, builderExists: () => true, runGraph: () => { throw new Error('boom'); }, rollout };
+    let last;
+    for (let i = 0; i < m.MAX_FAILURES; i++) last = await m.maybeGenerateGraph('/t', failing);
+    record('consecutive failures increment the counter to MAX_FAILURES', store.consecutiveFailures === m.MAX_FAILURES && last.status === 'failed', 'failures=' + store.consecutiveFailures);
+    const off = await m.maybeGenerateGraph('/t', failing);
+    record('after MAX_FAILURES -> auto_disabled (fail-open backoff, builder not retried)', off.status === 'auto_disabled', off.status);
+  }
+  {
+    let store = { consecutiveFailures: 2, lastReason: 'x' };
+    const rollout = { read: () => store, write: (t, st) => { store = st; } };
+    const good = await m.maybeGenerateGraph('/t', { isEnabled: enabled, hasSource: () => true, builderExists: () => true, runGraph: () => {}, rollout });
+    record('a successful build resets the failure counter to 0', good.status === 'generated' && store.consecutiveFailures === 0, 'status=' + good.status + ' counter=' + store.consecutiveFailures);
+  }
+
   return results;
 }
 

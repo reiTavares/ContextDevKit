@@ -20,6 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { buildDenseIndex } from '../project-map-dense.mjs';
+import { packetNeighborhood } from '../graph-consumers.mjs';
 
 // ---------------------------------------------------------------------------
 // Schema version
@@ -193,6 +194,22 @@ export function compilePacket(
 
   const capturedAt = opts?.now ?? null;
 
+  // WF-0072 (BOUNDS): bound the packet by real graph reachability when the graph
+  // is present. Additive + degrade-safe — absent graph => graphNeighborhood null,
+  // packet is exactly as before (never fabricated, constitution section 8).
+  let graphNeighborhood = null;
+  try {
+    const nb = packetNeighborhood(resolve(root), `sym:${resolvedFile}#${symbol}`);
+    if (nb && nb.available) {
+      graphNeighborhood = Object.freeze({
+        nodes: Object.freeze(nb.nodes.slice(0, 40)),
+        excludedHubs: Object.freeze(nb.excludedHubs),
+        size: nb.size,
+        evidenceClass: nb.evidenceClass,
+      });
+    }
+  } catch { /* graph optional; packet stands without it */ }
+
   return Object.freeze({
     schemaVersion:      WORK_PACKET_SCHEMA_VERSION,
     objective:          objective || '',
@@ -216,6 +233,7 @@ export function compilePacket(
     capturedAt,
     claim:              null,
     cost:               null,
+    graphNeighborhood,
   });
 }
 

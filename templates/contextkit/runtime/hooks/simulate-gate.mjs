@@ -35,7 +35,36 @@ async function readStdin() {
   });
 }
 
-function buildBlockReason(targetPath, matchedEntry) {
+/**
+ * Graph blast-radius for a target path, read DIRECTLY from the committed
+ * projection via fs (never imports a graph module -> this hot-path hook stays
+ * dependency-pure, ADR-0134). Returns a one-line summary, or null when the graph
+ * is absent/unreadable (degrade-safe; never fabricates). Makes the L5 block
+ * message name the real consumers that break (the SHARPENS verb).
+ */
+function graphBlastRadiusLine(root, targetPath) {
+  try {
+    const gp = resolve(pathsFor(root).projectMap, 'graph', 'graph.json');
+    const raw = readFileSync(gp, 'utf-8');
+    const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    const g = JSON.parse(text);
+    if (!Array.isArray(g.edges)) return null;
+    const filePrefix = 'file:' + targetPath;
+    const symPrefix = 'sym:' + targetPath + '#';
+    const inbound = new Set();
+    for (const e of g.edges) {
+      if (e.relation !== 'calls' && e.relation !== 'imports' && e.relation !== 'references') continue;
+      if (e.target === filePrefix || (typeof e.target === 'string' && e.target.indexOf(symPrefix) === 0)) inbound.add(e.source);
+    }
+    if (inbound.size === 0) return null;
+    const sample = [...inbound].sort().slice(0, 4).join(', ');
+    return 'Graph blast radius: ' + inbound.size + ' consumer(s) depend on this \u2014 e.g. ' + sample + (inbound.size > 4 ? ', \u2026' : '') + '.';
+  } catch {
+    return null;
+  }
+}
+
+function buildBlockReason(targetPath, matchedEntry, graphLine) {
   return [
     '🛑 L5 gate — high-risk path detected.',
     '',
@@ -51,6 +80,8 @@ function buildBlockReason(targetPath, matchedEntry) {
     '     covered paths.',
     '  2. If this edit is genuinely trivial (typo / comment), record an explicit',
     '     bypass via markSimulation (objective "BYPASS: <reason>") then retry.',
+    '',
+    ...(graphLine ? ['', graphLine] : []),
     '',
     'Why the gate exists: high-risk paths (schema, shared contracts, auth surface,',
     'core services) have outsized blast radius. The gate converts "architecture',
@@ -147,7 +178,8 @@ async function main() {
   // The gate is autonomy-grade-blind by design (ADR-0041/0042): no consent
   // setting may weaken L5 enforcement — only a covering /simulate-impact does.
   // Host-correct decision key: Claude Code "block", agy "deny" (ADR-0049).
-  emitBlockDecision(buildBlockReason(targetPath, matched), HOST);
+  const graphLine = graphBlastRadiusLine(ROOT, targetPath);
+  emitBlockDecision(buildBlockReason(targetPath, matched, graphLine), HOST);
 }
 
 main().catch((err) => {
