@@ -48,6 +48,7 @@ export async function runDomainEnforcementChecks({ ok, bad }, { KIT }) {
   checkFitnessBlockingVsAdvisory(compare, fitness, { ok, bad });
   checkNegativeMatrix(codeGate, fitness, compare, { ok, bad });
   checkDispatchRequirement(codeGate, { ok, bad });
+  await checkSubagentExemptionSeam(KIT, { ok, bad });
   checkHooksExitZero(KIT, { ok, bad });
   await checkPackaging(codeGate, KIT, { ok, bad });
 }
@@ -320,6 +321,72 @@ function checkDispatchRequirement({ evaluateCodeGate }, { ok, bad }) {
   dist.missing.includes('required-agents')
     ? ok('dispatch: distributed-domain is in scope (dispatch teeth apply)')
     : bad(`dispatch distributed-domain scope failed: ${JSON.stringify(dist)}`);
+}
+
+/**
+ * ADR-0142 (WF-0075) — DIRECT test of the subagent-exemption seam, the ADR's own
+ * "highest-risk correctness point" (a bug here = total deadlock OR trivial bypass).
+ * Exercises the two exported hook helpers + the anti-deadlock composition. Immutable
+ * rule 3: the seam ships WITH its test.
+ */
+async function checkSubagentExemptionSeam(KIT, { ok, bad }) {
+  let hook;
+  try {
+    hook = await import(pathToFileURL(resolve(KIT, HOOKS, 'domain-code-gate.mjs')).href);
+  } catch (err) {
+    bad(`subagent-seam: hook import failed: ${err?.message ?? err}`);
+    return;
+  }
+  const { isDispatchedSubagentCall, requiredAgentsDispatchedFor } = hook;
+  if (typeof isDispatchedSubagentCall !== 'function' || typeof requiredAgentsDispatchedFor !== 'function') {
+    bad('subagent-seam: helpers not exported (isDispatchedSubagentCall / requiredAgentsDispatchedFor)');
+    return;
+  }
+
+  // isDispatchedSubagentCall — the exemption predicate, exhaustively + no-throw on malformed.
+  isDispatchedSubagentCall({ agent_id: 'sub-1' }) === true
+    ? ok('seam: agent_id present (non-empty string) ⇒ dispatched-subagent call (exempt)')
+    : bad('seam: a real subagent call was not recognized');
+  isDispatchedSubagentCall({}) === false
+    ? ok('seam: no agent_id ⇒ main/orchestrator call (GATED — not exempt)')
+    : bad('seam: a main-agent call was wrongly treated as a subagent (BYPASS risk)');
+  let noThrow = true;
+  for (const mal of [{ agent_id: 123 }, { agent_id: '' }, { agent_id: null }, null, undefined, 'x', 42]) {
+    try {
+      if (isDispatchedSubagentCall(mal) !== false) { noThrow = false; bad(`seam: malformed payload ${JSON.stringify(mal)} was treated as a subagent`); }
+    } catch (err) { noThrow = false; bad(`seam: isDispatchedSubagentCall threw on ${JSON.stringify(mal)}: ${err?.message}`); }
+  }
+  if (noThrow) ok('seam: malformed/non-string agent_id ⇒ false, never throws (defensive typeof)');
+
+  // The ANTI-DEADLOCK composition (mirrors the hook: subagent ⇒ true; else compute).
+  const ddBlock = { profile: 'domain-driven', squadRequired: true, requiredAgents: ['implementation-engineer'] };
+  const seam = (payload, root, taskId, block) =>
+    (isDispatchedSubagentCall(payload) ? true : requiredAgentsDispatchedFor(root, taskId, block));
+  // A dispatched subagent writing its OWN authorized work → exempt (true) even with ZERO dispatch evidence.
+  seam({ agent_id: 'sub-9' }, KIT, 'task-none', ddBlock) === true
+    ? ok('seam: anti-deadlock — a dispatched subagent write is EXEMPT even with zero dispatch evidence')
+    : bad('seam: anti-deadlock FAILED — a dispatched subagent would be blocked (total deadlock)');
+  // The main agent on the same evidence-less task → NOT exempt (the gate can still fire).
+  seam({}, KIT, 'task-none', ddBlock) === false
+    ? ok('seam: the main agent is NOT exempt on an evidence-less domain task (no bypass)')
+    : bad('seam: the main agent was exempted — the exemption is a BYPASS');
+
+  // requiredAgentsDispatchedFor — inert + honest-not-dispatched + malformed-no-throw + fail-open.
+  requiredAgentsDispatchedFor(KIT, null, ddBlock) === true
+    ? ok('seam: requiredAgentsDispatchedFor — no taskId ⇒ inert (true)')
+    : bad('seam: no-taskId was not inert');
+  requiredAgentsDispatchedFor(KIT, 'task-x', { requiredAgents: [] }) === true
+    ? ok('seam: requiredAgentsDispatchedFor — empty requiredAgents ⇒ inert (true)')
+    : bad('seam: empty-required was not inert');
+  requiredAgentsDispatchedFor(KIT, 'task-absent-substrate', { requiredAgents: ['implementation-engineer'] }) === false
+    ? ok('seam: absent substrate + required agents ⇒ not-dispatched (false) — the feature, not a false block')
+    : bad('seam: absent-substrate honest behavior wrong');
+  let feo = true;
+  for (const b of [null, {}, { requiredAgents: 'oops' }, { requiredAgents: null }]) {
+    try { if (requiredAgentsDispatchedFor(KIT, 'task-x', b) !== true) { feo = false; bad(`seam: malformed block ${JSON.stringify(b)} did not degrade to true`); } }
+    catch (err) { feo = false; bad(`seam: requiredAgentsDispatchedFor threw on ${JSON.stringify(b)}: ${err?.message}`); }
+  }
+  if (feo) ok('seam: malformed block ⇒ true (fail-open), never throws');
 }
 
 /** Immutable rule 2 — the new + augmented hooks exit 0 on malformed + inert stdin. */

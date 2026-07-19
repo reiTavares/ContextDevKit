@@ -87,7 +87,7 @@ function simulateImpactPresent(ledger, path) {
  * @param {object} block the §15 implementation block.
  * @returns {boolean} true when the profile-required squad is dispatched (or the check is inert).
  */
-function requiredAgentsDispatchedFor(root, taskId, block) {
+export function requiredAgentsDispatchedFor(root, taskId, block) {
   try {
     const required = block && Array.isArray(block.requiredAgents) ? block.requiredAgents : [];
     if (required.length === 0 || !taskId) return true; // nothing to require → inert.
@@ -107,7 +107,7 @@ function requiredAgentsDispatchedFor(root, taskId, block) {
  * @param {object} payload the raw hook payload.
  * @returns {boolean}
  */
-function isDispatchedSubagentCall(payload) {
+export function isDispatchedSubagentCall(payload) {
   return typeof payload?.agent_id === 'string' && payload.agent_id.length > 0;
 }
 
