@@ -27,6 +27,7 @@ import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { contractReverseConsumers } from './graph-consumers.mjs';
 
 const ROOT = process.cwd();
 const BASELINE = pathsFor(ROOT).contractBaseline;
@@ -174,7 +175,21 @@ async function main() {
     console.log('✅ No contract drift — no exported symbols removed/renamed.');
   } else {
     console.error(`🛑 Contract drift — ${removals.length} removed/renamed export(s):`);
-    for (const r of removals) console.error(`   - ${r}`);
+    for (const r of removals) {
+      // WF-0072 wiring: enrich each breaking removal with its real graph reverse-consumers
+      // (who breaks). Additive + degrade-safe: absent graph => output is exactly as before.
+      const parts = r.split(" → ");
+      let suffix = '';
+      if (parts.length === 2) {
+        const rc = contractReverseConsumers(ROOT, 'sym:' + parts[0].trim() + '#' + parts[1].trim());
+        if (rc && rc.available) {
+          suffix = rc.consumers.length
+            ? '  breaks ' + rc.consumers.length + ' consumer(s): ' + rc.consumers.slice(0, 5).join(', ') + (rc.consumers.length > 5 ? ', ...' : '')
+            : '  (no graph consumers)';
+        }
+      }
+      console.error('   - ' + r + suffix);
+    }
     console.error('\nIf intentional, bump the version (BREAKING CHANGE) and refresh the baseline with --save.');
   }
   process.exit(removals.length > 0 ? 1 : 0);

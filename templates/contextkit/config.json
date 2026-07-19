@@ -242,5 +242,13 @@
     "measurement": {
       "enabled": true
     }
+  },
+  "projectMap": {
+    "graph": {
+      "enabled": true,
+      "mode": "advisory",
+      "humanFlip": false,
+      "autoIndex": true
+    }
   }
 }

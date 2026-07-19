@@ -23,20 +23,26 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [3.7.0] - 2026-07-19
 
 ### Added
-- **BIZ-0004 — Structural Knowledge Graph & Code Intelligence (EXPERIMENTAL, default-off).**
+- **BIZ-0004 — Structural Knowledge Graph & Code Intelligence (EXPERIMENTAL, default-ON).**
   A symbol-level code knowledge graph delivered as four workflows (WF-0071 core parsing/
   resolver + committed projection; WF-0072 query surface + consumer adapters + `/graph` CLI +
   read-only MCP dispatch; WF-0073 rationale `cites`-to-real-ADRs + injection sanitization +
   graded arch-debt signals + zero-egress allowlist; WF-0074 staged activation ladder + hot-path
   purity proof). A devteam+QA council review added 5 fixes (composition root so the projection
   carries resolved `calls`+`cites`; egress hard-deny derived from `PLATFORM_DIR`; BLOCKING gated
-  on an AST-tier marker per ADR-0137; DRY; partial-graph degrade coverage). `tools/install/
-  graph-index.mjs` regenerates the committed projection on every `--update`/install —
-  **default-off, fail-open**. Honest maturity: library modules + read surface + index-on-update
-  ship and are green (233 suites), but the production consumers (simulate-impact/contract-check/
-  task-compiler) are not yet wired to the adapters and the Tier-1 AST extractor is an unwritten
-  seam — hence EXPERIMENTAL. Governed by ADR-0134/0135/0136/0137/0138. WASM grammars remain a
-  target-project opt-in (never embedded), preserving the zero-dep hot path.
+  on an AST-tier marker per ADR-0137; DRY; partial-graph degrade coverage). **The graph ships
+  ENABLED by default** (`projectMap.graph.enabled: true` in the install template): every
+  `--update`/install regenerates the committed projection (`tools/install/graph-index.mjs`,
+  fail-open), the projection is surfaced at session boot, and `/contract-check` now reports the
+  real graph reverse-consumers of a removed export. **Honest maturity — this is why it's marked
+  EXPERIMENTAL:** the graph is regex-tier (the Tier-1 `web-tree-sitter` AST extractor is a
+  wired-but-unimplemented seam, so `calls` edges are inferred, not AST-resolved), and
+  simulate-impact / task-compiler still consume their pre-graph signals (contract-check is the
+  first consumer wired to the graph; the rest are follow-on). Guarded/strict blocking stays
+  human-gated. All green: 233 suites, arch-debt PASS_WITH_OBSERVATION, hot-path purity proven
+  (0 graph modules / 0 third-party deps reachable from any hot-path hook). Governed by
+  ADR-0134/0135/0136/0137/0138. WASM grammars remain a target-project opt-in (never embedded),
+  preserving the zero-dep hot path.
 - **WF-0070 — Memory accessibility & governance digest (OP-0008, ADR-0132).** Installed projects
   version their governance memory by default; a governance digest projection makes the decision
   corpus reachable.
