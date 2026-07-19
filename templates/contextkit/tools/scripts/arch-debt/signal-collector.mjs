@@ -224,3 +224,50 @@ export function collectStructuralSignals(input = {}) {
   }
   return findings;
 }
+
+/** Repo-relative owner path of a graph node id (`file:`/`sym:`/`mod:` prefix), else the id. */
+function graphOwnerPath(id) {
+  if (typeof id !== 'string') return 'graph';
+  if (id.startsWith('file:')) return id.slice(5);
+  if (id.startsWith('sym:')) return id.slice(4).split('#')[0];
+  if (id.startsWith('mod:')) return id.slice(4);
+  return id;
+}
+
+/**
+ * Maps the graph-derived graded-signal result (from `graph-graded-signals`
+ * `collectGradedSignals`) into arch-debt Findings, folded in as OBSERVE_ONLY
+ * (WF-0073/ADR-0137 shadow rollout). Surfaced on the board so the graph is
+ * USED by the enforcement surface, but `influencingFindings` excludes
+ * OBSERVE_ONLY, so a graph signal can NEVER sway the CI verdict while the graph
+ * is regex-tier (shared-CI safety; graduate to blocking only on AST-tier
+ * evidence). Pure: takes the already-computed result as input, no I/O. Absent/
+ * unavailable graph -> []. A finding whose shape the gate rejects is skipped,
+ * never thrown (fail-open).
+ *
+ * @param {{available?:boolean, findings?:Array<object>}} gradedResult
+ * @returns {Object[]} OBSERVE_ONLY findings (possibly empty). Never BLOCKING here.
+ */
+export function gradedGraphSignals(gradedResult) {
+  if (!gradedResult || gradedResult.available !== true || !Array.isArray(gradedResult.findings)) return [];
+  const out = [];
+  for (const f of gradedResult.findings) {
+    try {
+      const subjects = Array.isArray(f.subjects) && f.subjects.length ? f.subjects : ["graph"];
+      out.push(makeFinding({
+        id: `graph.graded:${f.ruleId}:${subjects[0]}`,
+        ruleId: f.ruleId || 'graph.graded',
+        dimension: f.dimension,
+        debtClass: DebtClass.ARCHITECTURAL,
+        status: FindingStatus.OBSERVATION,
+        confidence: 0.5,
+        evidence: { class: EvidenceClass.GRAPH_DERIVED, source: 'graph.graded-signals', ref: f.metric || f.ruleId },
+        enforcement: Enforcement.OBSERVE_ONLY,
+        recommendedAction: RecommendedAction.OBSERVE,
+        message: typeof f.message === 'string' ? f.message : '',
+        path: graphOwnerPath(subjects[0]) || 'graph',
+      }));
+    } catch { /* skip a finding the gate would reject; never throw (fail-open) */ }
+  }
+  return out;
+}

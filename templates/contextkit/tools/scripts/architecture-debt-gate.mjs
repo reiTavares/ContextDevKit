@@ -45,6 +45,8 @@ import { evaluatePolicy } from './arch-debt/policy-engine.mjs';
 import { readStore, writeStore, upsertFindings, toBoard, emptyStore } from './arch-debt/debt-registry.mjs';
 import { ciShouldBlock, isApproval } from './arch-debt/finding.mjs';
 import { renderReport } from './arch-debt/debt-report-renderer.mjs';
+import { gradedGraphSignals } from './arch-debt/signal-collector.mjs';
+import { collectGradedSignals } from './graph-graded-signals.mjs';
 
 /**
  * Count the lines of a source file, fail-soft to 0 on any read error so a single
@@ -189,8 +191,13 @@ export async function runGate(opts = {}) {
   });
   const registry = await buildDefaultRegistry();
   const run = runFitness(registry, context);
-  const allFindings = run.findings;
-  const verdictFindings = influencingFindings(run); // OBSERVE_ONLY never sways the verdict.
+  // WF-0073 (ENFORCES, ADR-0137 shadow): fold graph graded signals into the BOARD
+  // set only, as OBSERVE_ONLY. influencingFindings() excludes OBSERVE_ONLY, so these
+  // can never sway the verdict/CI while the graph is regex-tier. Fail-open.
+  let graphGraded = [];
+  try { graphGraded = gradedGraphSignals(collectGradedSignals(root)); } catch { graphGraded = []; }
+  const allFindings = [...run.findings, ...graphGraded];
+  const verdictFindings = influencingFindings(run); // OBSERVE_ONLY (incl. graph graded) never sways the verdict.
 
   // 3. Baseline ratchet — scope to the changed set (unchanged legacy never blocks).
   const classified = classifyAgainstBaseline(verdictFindings, Array.isArray(baseline) ? baseline : (baseline && baseline.findings) || []);
