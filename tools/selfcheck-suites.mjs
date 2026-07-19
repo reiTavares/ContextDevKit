@@ -134,6 +134,14 @@ function main() {
     'tools/selfcheck-graph-consumers.mjs',
     // WF-0072 (BIZ-0004) IF2 -- /graph CLI dispatch surface; sibling.
     'tools/selfcheck-graph-cli.mjs',
+    // WF-0073 (BIZ-0004) SR1 -- rationale/cites nodes (LINKS verb) + the
+    // free-text injection sanitization pipeline; siblings.
+    'tools/selfcheck-rationale-nodes.mjs',
+    'tools/selfcheck-graph-sanitize.mjs',
+    // WF-0073 (BIZ-0004) SR2 -- graded arch-debt signals (ENFORCES) + the
+    // zero-egress allowlist boundary + refuse-by-default semantic gate; siblings.
+    'tools/selfcheck-graph-graded.mjs',
+    'tools/selfcheck-graph-egress.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',
