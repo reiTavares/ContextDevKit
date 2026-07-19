@@ -25,6 +25,11 @@
  * consumers deciding whether to act, so it must stay dependency-free).
  */
 
+import { isGraphEnabled } from './graph-config.mjs';
+
+// Re-export the single-source enablement gate (defined once in graph-config).
+export { isGraphEnabled };
+
 /** The ordered activation ladder. */
 export const MODES = Object.freeze(['off', 'shadow', 'advisory', 'guarded', 'strict']);
 /** Modes that can block work — only reachable with an explicit human flip. */
@@ -33,16 +38,6 @@ const BLOCKING_MODES = new Set(['guarded', 'strict']);
 const MIN_LEVEL = 4;
 /** Minimum level for a blocking mode. */
 const MIN_BLOCKING_LEVEL = 7;
-
-/**
- * Reads `projectMap.graph.enabled` with refusal-by-default: only an explicit
- * boolean `true` enables. Anything else (absent, false, truthy-non-true) is off.
- * @param {object} config
- * @returns {boolean}
- */
-export function isGraphEnabled(config) {
-  return Boolean(config && config.projectMap && config.projectMap.graph && config.projectMap.graph.enabled === true);
-}
 
 /**
  * Resolves the effective activation mode. Never throws; unknown inputs clamp to

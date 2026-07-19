@@ -35,7 +35,11 @@ import {
 export function impactReport(root, targetId) {
   const projection = loadProjection(root);
   if (!projection.available) return projection;
-  const callers = reverseCallers(projection, targetId).callers;
+  // RO4 review fix: reverseCallers can degrade (calls layer not built) -> propagate
+  // the UNKNOWN instead of crashing / fabricating an empty impact.
+  const callersResult = reverseCallers(projection, targetId);
+  if (!callersResult.available) return callersResult;
+  const callers = callersResult.callers;
   const consumers = reverseConsumers(projection, targetId).consumers;
   const blast = new Set([...callers, ...consumers]);
   return { available: true, callers, consumers, blastRadius: blast.size, evidenceClass: 'GRAPH_DERIVED' };

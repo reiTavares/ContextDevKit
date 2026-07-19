@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 /**
- * Committed graph projection - writer + signature + incremental merge
- * (GC1-T2 writer/signature, GC3-T1 merge; WF-0071/BIZ-0004).
+ * Committed graph projection - writer + signature + composition + incremental merge
+ * (GC1-T2 writer/signature, GC3-T1 merge; WF-0071/BIZ-0004; RO4-review composition).
  *
  * Sorts the extracted node/edge set into the deterministic shape the store
  * contract (gc0-report.md section 3) requires, computes the churn-stable
- * `graphSignature`, and (only with `--apply`) atomically writes
- * `<projectMap>/graph/graph.json`. Dry-run by default (constitution section 8).
+ * `graphSignature`, stamps the `layers` actually present, and (only with
+ * `--apply`) atomically writes `<projectMap>/graph/graph.json`. Dry-run by
+ * default (constitution section 8).
+ *
+ * `buildFullProjection` is the COMPOSITION ROOT (RO4 architect review): it
+ * composes the resolver output (structural + imports + resolved `calls`) with
+ * the deterministic rationale layer (`adr:` nodes + `cites` edges) so the
+ * committed artifact is COMPLETE. Before this, `--apply` wrote extract-only
+ * output, so `reverseCallers` returned `[]` (a false negative dressed as an
+ * answer). The `layers` stamp lets a consumer degrade to UNKNOWN when a layer
+ * was not built, instead of fabricating an empty result.
  *
  * `mergeProjection` is the incremental-merge core: re-extracting a subset of
  * changed source files REPLACES exactly those files' contribution and prunes a
@@ -14,13 +23,15 @@
  * node owned by an UNCHANGED source (Graphify's never-shrink safety, ported).
  *
  * No clock in the body: the only randomness source is the seeded `mulberry32`.
- * Zero non-`node:` imports beyond the two sibling scripts (constitution rule 1).
+ * Zero non-`node:` imports beyond the sibling scripts (constitution rule 1).
  */
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { extractSymbols } from './graph-extract.mjs';
+import { resolveGraph } from './project-map-resolve.mjs';
+import { buildRationaleLayer } from './rationale-nodes.mjs';
 
 /**
  * Deterministic seeded PRNG (mulberry32) - floats in `[0, 1)`. Defined for the
@@ -59,9 +70,27 @@ function ownerFileOf(id) {
 }
 
 /**
+ * Derives the deterministic, sorted `layers` list from the relations present in
+ * the edge set - an honest manifest of what the projection actually contains, so
+ * a consumer can degrade to UNKNOWN (never fabricate) when a layer is missing.
+ * @param {Array<{relation:string}>} edges
+ * @returns {string[]}
+ */
+function layersOf(edges) {
+  const relations = new Set(edges.map((e) => e.relation));
+  const layers = [];
+  if (relations.has('contains') || relations.has('imports')) layers.push('structural');
+  if (relations.has('calls')) layers.push('calls');
+  if (relations.has('inherits') || relations.has('implements') || relations.has('extends')) layers.push('inheritance');
+  if (relations.has('cites')) layers.push('rationale');
+  return layers.sort();
+}
+
+/**
  * Content-addressed signature of the graph SHAPE - sorted node ids + sorted
  * edge tuples - sliced to 12 hex. EXCLUDES `sourceLocation`/`confidenceScore`
- * (GC0 section 3): a line move or confidence tweak must not churn the shape.
+ * and `layers` (GC0 section 3): a line move or confidence tweak must not churn
+ * the shape.
  * @param {Array<{id:string}>} nodes
  * @param {Array<{source:string, target:string, relation:string}>} edges
  * @returns {string} 12-hex signature
@@ -77,15 +106,47 @@ export function graphSignature(nodes, edges) {
 }
 
 /**
+ * COMPOSITION ROOT (RO4 architect review). Composes the full committed graph:
+ * the resolver output (structural `contains`/`imports` + resolved `calls`, from
+ * `project-map-resolve.resolveGraph`) merged with the deterministic rationale
+ * layer (`adr:` nodes + `cites` edges, from `rationale-nodes.buildRationaleLayer`).
+ * Deduped by node id and edge tuple; the resolver wins a node-id tie. Returns an
+ * unsorted `{nodes, edges, layers}` (feed it to `writeCommittedProjection`).
+ *
+ * This is what `--apply` must write - an extract-only projection is incomplete
+ * and makes `reverseCallers` return a false-negative `[]`.
+ *
+ * @param {string} root project root
+ * @returns {{nodes:Array<object>, edges:Array<object>, layers:string[]}}
+ */
+export function buildFullProjection(root) {
+  const resolved = resolveGraph(root);
+  let rationale = { nodes: [], edges: [] };
+  try { rationale = buildRationaleLayer(root); } catch { /* rationale is best-effort; absence != failure */ }
+
+  const nodeById = new Map();
+  for (const node of resolved.nodes) nodeById.set(node.id, node);
+  for (const node of rationale.nodes) if (!nodeById.has(node.id)) nodeById.set(node.id, node);
+
+  const edgeByKey = new Map();
+  for (const edge of resolved.edges) edgeByKey.set(edgeSortKey(edge), edge);
+  for (const edge of rationale.edges) if (!edgeByKey.has(edgeSortKey(edge))) edgeByKey.set(edgeSortKey(edge), edge);
+
+  const edges = [...edgeByKey.values()];
+  return { nodes: [...nodeById.values()], edges, layers: layersOf(edges) };
+}
+
+/**
  * Builds the sorted, signed committed projection and - only when `apply:true` -
  * atomically writes it (tmp + rename) to `<projectMap>/graph/graph.json`.
  * Dry-run by default: always RETURNS the projection, disk untouched unless
- * `apply` is set (constitution section 8).
+ * `apply` is set (constitution section 8). Preserves `graph.layers` (the honest
+ * manifest of built layers) or derives it from the edges when absent.
  *
  * @param {string} root project root
- * @param {{nodes:Array<object>, edges:Array<object>}} graph raw extraction output
+ * @param {{nodes:Array<object>, edges:Array<object>, layers?:string[]}} graph raw build output
  * @param {{apply?: boolean}} [options]
- * @returns {{schemaVersion:1, graphSignature:string, nodes:Array<object>, edges:Array<object>}}
+ * @returns {{schemaVersion:1, graphSignature:string, layers:string[], nodes:Array<object>, edges:Array<object>}}
  */
 export function writeCommittedProjection(root, graph, { apply = false } = {}) {
   const nodes = [...graph.nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -94,7 +155,8 @@ export function writeCommittedProjection(root, graph, { apply = false } = {}) {
     const kb = edgeSortKey(b);
     return ka < kb ? -1 : ka > kb ? 1 : 0;
   });
-  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), nodes, edges };
+  const layers = Array.isArray(graph.layers) ? [...graph.layers].sort() : layersOf(edges);
+  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), layers, nodes, edges };
 
   if (apply) {
     const graphDir = join(pathsFor(root).projectMap, 'graph');
@@ -172,10 +234,11 @@ export function mergeProjection(previous, incoming, { changedSources = [], delet
 if (basename(process.argv[1] ?? '') === 'project-map-graph.mjs') {
   const root = process.cwd();
   const apply = process.argv.slice(2).includes('--apply');
-  const graph = extractSymbols(root);
+  const extractOnly = process.argv.slice(2).includes('--extract-only');
+  const graph = extractOnly ? extractSymbols(root) : buildFullProjection(root);
   const projection = writeCommittedProjection(root, graph, { apply });
   if (apply) {
-    console.log(`wrote graph.json - ${projection.nodes.length} nodes, ${projection.edges.length} edges, signature ${projection.graphSignature}`);
+    console.log(`wrote graph.json - ${projection.nodes.length} nodes, ${projection.edges.length} edges, layers [${projection.layers.join(', ')}], signature ${projection.graphSignature}`);
   } else {
     process.stdout.write(JSON.stringify(projection, null, 2) + '\n');
   }

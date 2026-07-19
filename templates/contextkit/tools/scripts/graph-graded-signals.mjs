@@ -37,8 +37,8 @@ const CYCLE_RELATIONS = new Set(['imports', 'imports_from', 're_exports', 'calls
  * @param {boolean} allExtracted every supporting edge is EXTRACTED
  * @returns {'ADVISORY'|'BLOCKING'}
  */
-function enforcementFor(evidenceClass, allExtracted) {
-  return DETERMINISTIC_TIER.has(evidenceClass) && allExtracted ? 'BLOCKING' : 'ADVISORY';
+function enforcementFor(evidenceClass, allAst) {
+  return DETERMINISTIC_TIER.has(evidenceClass) && allAst ? 'BLOCKING' : 'ADVISORY';
 }
 
 /** Builds a directed adjacency of only cycle-relevant edges, keeping the edge objects. */
@@ -136,7 +136,12 @@ export function collectGradedSignals(root, opts = {}) {
     // A cycle is only as strong as its weakest edge's evidence.
     const evidenceClass = allExtracted && cycle.edges.every((e) => DETERMINISTIC_TIER.has(e.evidenceClass))
       ? 'GRAPH_DERIVED' : 'HEURISTIC';
-    findings.push(finding('graph.cycle', 'MODULARITY', enforcementFor(evidenceClass, allExtracted),
+    // ADR-0137: BLOCKING is reserved for confident, AST-RESOLVED (Tier-1) edges.
+    // A Tier-0 manifest/regex import edge is EXTRACTED+GRAPH_DERIVED but NOT AST-
+    // resolved, so it stays ADVISORY. No edge carries tier:'ast' until the WASM
+    // extractor lands (deferred seam), so every signal is ADVISORY today.
+    const allAst = cycle.edges.every((e) => e.tier === 'ast');
+    findings.push(finding('graph.cycle', 'MODULARITY', enforcementFor(evidenceClass, allAst),
       evidenceClass, cycle.nodes, `import/call cycle length ${cycle.nodes.length}`));
   }
 

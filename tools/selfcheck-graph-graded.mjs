@@ -48,9 +48,9 @@ export async function runGradedSignalsChecks() {
   // 1. Resolved (Tier-1) cycle -> BLOCKING.
   const nodes3 = [{ id: 'file:a' }, { id: 'file:b' }, { id: 'file:c' }];
   const resolvedCycle = [
-    importEdge('file:a', 'file:b', 'EXTRACTED', 'GRAPH_DERIVED'),
-    importEdge('file:b', 'file:c', 'EXTRACTED', 'GRAPH_DERIVED'),
-    importEdge('file:c', 'file:a', 'EXTRACTED', 'GRAPH_DERIVED'),
+    { ...importEdge('file:a', 'file:b', 'EXTRACTED', 'GRAPH_DERIVED'), tier: 'ast' },
+    { ...importEdge('file:b', 'file:c', 'EXTRACTED', 'GRAPH_DERIVED'), tier: 'ast' },
+    { ...importEdge('file:c', 'file:a', 'EXTRACTED', 'GRAPH_DERIVED'), tier: 'ast' },
   ];
   let root = fixtureRoot(nodes3, resolvedCycle);
   try {
@@ -63,6 +63,20 @@ export async function runGradedSignalsChecks() {
   } finally { rmSync(root, { recursive: true, force: true }); }
 
   // 2. INFERRED/HEURISTIC cycle -> ADVISORY only (the core ADR-0137 invariant).
+  // Tier-0: EXTRACTED + GRAPH_DERIVED manifest imports but NO tier:'ast' -> must be ADVISORY
+  // (the ADR-0137 fix: a regex/manifest cycle can never reach BLOCKING).
+  const tier0Cycle = [
+    importEdge('file:a', 'file:b', 'EXTRACTED', 'GRAPH_DERIVED'),
+    importEdge('file:b', 'file:a', 'EXTRACTED', 'GRAPH_DERIVED'),
+  ];
+  root = fixtureRoot([{ id: 'file:a' }, { id: 'file:b' }], tier0Cycle);
+  try {
+    const r = m.collectGradedSignals(root);
+    const cyc = r.available && r.findings.find((f) => f.ruleId === 'graph.cycle');
+    record('Tier-0 EXTRACTED/GRAPH_DERIVED cycle (no tier:ast) -> ADVISORY, never BLOCKING', !!cyc && cyc.enforcement === 'ADVISORY',
+      cyc ? cyc.enforcement : 'no cycle finding');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+
   const inferredCycle = [
     importEdge('file:a', 'file:b', 'INFERRED', 'HEURISTIC'),
     importEdge('file:b', 'file:a', 'INFERRED', 'HEURISTIC'),

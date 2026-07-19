@@ -8,8 +8,9 @@
  * AND that EVERY query degrades to `{available:false}` on an absent projection —
  * never a fabricated caller/consumer/path/pass.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -92,6 +93,29 @@ export async function runGraphQueryChecks() {
   ].every((r) => r.available === false && typeof r.reason === 'string');
   record('EVERY query degrades to {available:false} on absent projection (no fabrication)', degradeAll,
     degradeAll ? 'all 5 degrade' : 'a query fabricated a result');
+
+  // QA-review gap: loadProjection's PARTIAL branches (missing nodes/edges arrays;
+  // unparsable JSON) had no fixture. Prove each degrades to {available:false} with a
+  // distinct reason -- never a fabricated empty graph read as 'valid but empty'.
+  const writeGraph = (body) => {
+    const root = mkdtempSync(join(tmpdir(), 'graph-query-partial-'));
+    const dir = join(root, 'contextkit', 'memory', 'project-map', 'graph');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'graph.json'), body, 'utf-8');
+    return root;
+  };
+  const missingRoot = writeGraph(JSON.stringify({ schemaVersion: 1, graphSignature: 'x' }));
+  try {
+    const r = q.loadProjection(missingRoot);
+    record('partial graph (missing nodes/edges arrays) -> {available:false}, not a fabricated empty read',
+      r.available === false && /missing nodes\/edges/.test(r.reason), JSON.stringify(r.reason));
+  } finally { rmSync(missingRoot, { recursive: true, force: true }); }
+  const badRoot = writeGraph('{ this is not valid json ]');
+  try {
+    const r = q.loadProjection(badRoot);
+    record('malformed graph (unparsable JSON) -> {available:false}, distinct reason, never throws',
+      r.available === false && /unparsable/.test(r.reason), JSON.stringify(r.reason));
+  } finally { rmSync(badRoot, { recursive: true, force: true }); }
 
   const violations = findImportSpecifiers(readFileSync(queryPath, 'utf-8'))
     .filter((s) => s.indexOf('node:') !== 0 && s.charAt(0) !== '.');

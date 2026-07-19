@@ -36,7 +36,7 @@ export function loadProjection(root) {
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
       return { available: false, reason: 'projection missing nodes/edges arrays', evidenceClass: GRAPH_EVIDENCE };
     }
-    return { available: true, nodes: parsed.nodes, edges: parsed.edges, signature: parsed.graphSignature || '' };
+    return { available: true, nodes: parsed.nodes, edges: parsed.edges, layers: Array.isArray(parsed.layers) ? parsed.layers : [], signature: parsed.graphSignature || '' };
   } catch (err) {
     return { available: false, reason: `projection unparsable: ${err?.message ?? err}`, evidenceClass: GRAPH_EVIDENCE };
   }
@@ -64,6 +64,12 @@ function adjacency(edges) {
  */
 export function reverseCallers(projection, symbolId) {
   if (!projection.available) return projection;
+  // RO4 review fix: an extract-only projection has no `calls` layer; returning []
+  // would be a false negative ('nobody calls X') dressed as an answer. Degrade to
+  // UNKNOWN instead (constitution section 8: skipped != a fabricated pass).
+  if (Array.isArray(projection.layers) && projection.layers.length > 0 && !projection.layers.includes('calls')) {
+    return { available: false, reason: 'calls layer not built in this projection', evidenceClass: GRAPH_EVIDENCE };
+  }
   const callers = projection.edges
     .filter((e) => e.relation === 'calls' && e.target === symbolId)
     .map((e) => e.source);
