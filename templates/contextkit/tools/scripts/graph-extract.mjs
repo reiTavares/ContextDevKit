@@ -37,11 +37,13 @@ const GRAPH_DERIVED = 'GRAPH_DERIVED';
  * @returns {Promise<unknown|null>}
  */
 export async function loadTreeSitter() {
-  try {
-    return await import('web-tree-sitter');
-  } catch {
-    return null;
-  }
+  // graph-extract is the regex Tier-0 path and does NOT run AST — it has no
+  // grammar wiring, so it offers no parser. The real Tier-1 loader is
+  // graph-ast.mjs::loadTreeSitter(root, lang) (WF-0080, ADR-0147), which loads a
+  // grammar and returns a usable parser. Returning null keeps this tier honest:
+  // a bare module namespace is not a parser (returning it broke the degrade
+  // contract once web-tree-sitter became an installed optionalDependency).
+  return null;
 }
 
 /** Node id for a module (GC0 §1: `mod:<repo-path>`). */

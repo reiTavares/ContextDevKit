@@ -145,6 +145,8 @@ function main() {
     // WF-0074 (BIZ-0004) RO2 -- staged activation ladder (off/shadow/advisory/
     // guarded/strict; default-off; guarded/strict human-gated); sibling.
     'tools/selfcheck-graph-activation.mjs',
+    // WF-0080 (BIZ-0004, ADR-0147) — Tier-1 WASM AST extractor; sibling.
+    'tools/selfcheck-graph-ast.mjs',
     // WF-0074 (BIZ-0004) RO3 -- hot-path purity proof: no graph builder module
     // and no third-party dep is reachable from any hot-path hook / config-load.
     'tools/selfcheck-hotpath-purity.mjs',

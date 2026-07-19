@@ -75,5 +75,9 @@
   "license": "MIT",
   "devDependencies": {
     "zod": "^4.4.3"
+  },
+  "optionalDependencies": {
+    "tree-sitter-wasms": "^0.1.12",
+    "web-tree-sitter": "^0.25.10"
   }
 }
