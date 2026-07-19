@@ -148,6 +148,8 @@ function main() {
     // WF-0074 (BIZ-0004) RO3 -- hot-path purity proof: no graph builder module
     // and no third-party dep is reachable from any hot-path hook / config-load.
     'tools/selfcheck-hotpath-purity.mjs',
+    // WF-0074 (BIZ-0004) index-on-update installer machinery (default-off, fail-open).
+    'tools/selfcheck-graph-index.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',

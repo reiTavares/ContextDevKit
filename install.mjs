@@ -38,6 +38,7 @@ import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { renumberByStarted } from './templates/contextkit/tools/scripts/workflow-number.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
+import { maybeGenerateGraph } from './tools/install/graph-index.mjs';
 import { maybeSeedMethodology } from './tools/install/seed-methodology.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -249,6 +250,11 @@ async function main() {
     // carries the signal). Post-update + fail-open: non-critical, never blocks/aborts.
     const baseline = await maybeGenerateBaseline(target, { preflight: ctx.preflight });
     if (baseline?.note) console.log(`  ${baseline.note}`);
+
+    // WF-0074 (BIZ-0004, ADR-0134): keep the symbol graph wired to every update.
+    // Default-OFF (projectMap.graph.enabled) => a silent no-op; fail-open, never blocks.
+    const graphIndex = await maybeGenerateGraph(target, { preflight: ctx.preflight });
+    if (graphIndex?.note && graphIndex.status !== 'disabled') console.log(`  ${graphIndex.note}`);
 
     // Honest status [ADR-0099 P0-07/P0-10]: a non-TTY run that deferred real merges
     // preserved both sides but is NOT a clean success — say so.
