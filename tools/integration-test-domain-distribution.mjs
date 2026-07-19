@@ -61,12 +61,15 @@ try {
     ? ok('settings.json wires domain-conformance.mjs (PostToolUse) at L5')
     : bad('settings.json does NOT wire domain-conformance.mjs');
 
-  // ── 2. default posture (ADR-0139) — advisory-ON: WARNS but NEVER blocks ──────
+  // ── 2. default posture (ADR-0140) — guarded: WARNS on low-risk, never blocks it ─
   // The distributed template now ships domainEngineering enabled at rolloutStage
-  // 'advisory' (ADR-0139), so a fresh install EVALUATES the gate instead of being
-  // inert. On an applicable source write with no owner/packet it must emit a
-  // non-empty advisory yet NEVER block: exit 0, and stdout must NOT be a block/deny
-  // decision (an advisory rides bare stdout; a block would be JSON {decision}).
+  // 'guarded' (ADR-0140, advancing ADR-0139's advisory rung), so a fresh install
+  // EVALUATES the gate instead of being inert. A bare source write with no request
+  // text resolves to the `simple` profile (low risk); under guarded a low-risk write
+  // must emit a non-empty advisory yet NEVER block: exit 0, and stdout must NOT be a
+  // block/deny decision (an advisory rides bare stdout; a block would be JSON
+  // {decision}). Guarded blocks only medium/high-risk profiles (modular/domain-driven)
+  // lacking owner+packet — proven by the unit-level code-gate tests, not here.
   // A PLAIN source path (.mjs, no /domain/, /contracts/ or test/ substring) resolves
   // to `source-code` (APPLICABLE) — the escalation arm below needs an applicable target.
   const writePayload = JSON.stringify({ tool_name: 'Write', tool_input: { file_path: join(fx.proj, 'src', 'order.mjs') } });
@@ -74,8 +77,8 @@ try {
   let gateBlocked = false;
   try { gateBlocked = ['block', 'deny'].includes(JSON.parse(gate.stdout || '{}').decision); } catch { /* bare advisory text → not a block */ }
   gate.status === 0 && !gateBlocked && (gate.stdout || '').trim() !== ''
-    ? ok('domain-code-gate default is advisory-ON (ADR-0139): warns on an applicable write, exit 0, never blocks')
-    : bad(`domain-code-gate default should be advisory (warns, never blocks): status=${gate.status} blocked=${gateBlocked} out=${(gate.stdout || '').slice(0, 120)}`);
+    ? ok('domain-code-gate default is guarded (ADR-0140): warns on a low-risk applicable write, exit 0, never blocks it')
+    : bad(`domain-code-gate default (guarded) should warn on a low-risk write, never block: status=${gate.status} blocked=${gateBlocked} out=${(gate.stdout || '').slice(0, 120)}`);
 
   // ── 2b. live-wire(ON) — enabling makes the gate ACTUALLY fire (not permanently dead) ─
   // The OFF test alone cannot tell "correctly inert" from "wired dead". Enable the
@@ -89,7 +92,7 @@ try {
   gateOn.status === 0 && (gateOn.stdout || '').trim() !== ''
     ? ok('domain-code-gate live-wire: enabling produces output (installed hook fires end-to-end, not dead)')
     : bad(`domain-code-gate stayed silent when enabled (wired dead?): status=${gateOn.status} out=${(gateOn.stdout || '').slice(0, 120)}`);
-  writeFileSync(cfgPath, JSON.stringify(baseCfg, null, 2) + '\n', 'utf-8'); // restore the installed default (advisory-ON, ADR-0139) for the rest of the test
+  writeFileSync(cfgPath, JSON.stringify(baseCfg, null, 2) + '\n', 'utf-8'); // restore the installed default (guarded, ADR-0140) for the rest of the test
 
   // ── 3. CLI — the /domain diagnostic runs against the install ──────────────
   const diag = run([ck('tools', 'scripts', 'domain-inspect.mjs'), 'add a field to the checkout aggregate', '--json'], { cwd: fx.proj });

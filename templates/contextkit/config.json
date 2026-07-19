@@ -88,7 +88,7 @@
     "requireImplementationPacket": true,
     "persistImplementationReceipt": true,
     "enforcement": {
-      "rolloutStage": "advisory"
+      "rolloutStage": "guarded"
     }
   },
   "architectureDebtGate": {
