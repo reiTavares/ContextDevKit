@@ -30,6 +30,7 @@ import { existsSync, readdirSync, appendFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { buildEconomyAdvisory } from '../../tools/scripts/economy/gate-advisory.mjs';
 import { resolveGateAction } from './gate-enforcement-decision.mjs';
+import { noCodePriorHolds, currentCallRevokes } from '../execution/no-code-prior.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -280,7 +281,18 @@ async function main() {
   };
   const gateVerdict = resolveGateAction(gateCtx);
 
-  if (gateVerdict.action === 'block') {
+  // WF-0081 (ADR-0148 §1): intent-aware pre-write downgrade. A no-code prior that
+  // still holds (no-code intent verdict, general domain, no source write yet for this
+  // task) must not let the pre-write path escalate to a hard block — UNLESS the current
+  // call is itself a revoking SOURCE write (F-A: a real source Edit/Write restores the
+  // ceremony). Fail-open: noCodePriorHolds returns false on any missing/uncertain
+  // signal, so this only ever DOWNGRADES a would-be block, never adds one.
+  const ledgerMods = Array.isArray(ledger?.modifications) ? ledger.modifications : [];
+  const noCodeDowngrade = gateVerdict.action === 'block'
+    && noCodePriorHolds(contract, ledgerMods, taskId)
+    && !currentCallRevokes(toolName, filePaths);
+
+  if (gateVerdict.action === 'block' && !noCodeDowngrade) {
     // All five conditions met — emit a hard block decision.
     appendGateTelemetry(ROOT, {
       ts: Date.now(), event: 'gate:block', tool: toolName, taskId,
@@ -289,6 +301,15 @@ async function main() {
     });
     emitBlockDecision([...advisoryTexts, buildBlockText(result, toolName)].filter(Boolean).join('\n'), HOST);
     return;
+  }
+  if (noCodeDowngrade) {
+    // Intent-aware downgrade: record the no-code prior suppression, then fall through
+    // to the advisory path (exit 0, never block).
+    appendGateTelemetry(ROOT, {
+      ts: Date.now(), event: 'gate:no-code-downgrade', tool: toolName, taskId,
+      reasonCode: 'NO_CODE_PRIOR', reason: 'no-code intent prior holds; pre-write block downgraded to advisory',
+      missing: result.detail?.missing ?? [],
+    });
   }
 
   // warn / degrade path — advisory guarantee: exit 0, never block.
