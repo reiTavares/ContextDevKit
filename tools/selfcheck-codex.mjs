@@ -218,8 +218,8 @@ async function checkCodexParity(rep, KIT) {
   const architect = await readFile(resolve(KIT, 'templates/codex/agents/architect.toml'), 'utf-8');
   const qaUnit = await readFile(resolve(KIT, 'templates/codex/agents/qa-unit.toml'), 'utf-8');
   const qaOrchestrator = await readFile(resolve(KIT, 'templates/codex/agents/qa-orchestrator.toml'), 'utf-8');
-  /model = "gpt-5\.5"/.test(architect) &&
-  /model = "gpt-5\.4-mini"/.test(qaUnit) &&
+  /model = "gpt-5\.6-sol"/.test(architect) &&
+  /model = "gpt-5\.6-luna"/.test(qaUnit) &&
   !/^model = /m.test(qaOrchestrator)
     ? ok('Codex agent models project reasoning/fast tiers and preserve inherit')
     : bad('Codex agent model projection is incomplete');

@@ -11,7 +11,12 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const VALID_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
-const VALID_CODEX_MODELS = new Set(['gpt-5.4-mini', 'gpt-5.4', 'gpt-5.5', 'inherit']);
+const CURRENT_CODEX_MODELS = Object.freeze({
+  fast: 'gpt-5.6-luna',
+  powerful: 'gpt-5.6-terra',
+  reasoning: 'gpt-5.6-sol',
+});
+const VALID_CODEX_MODELS = new Set([...Object.values(CURRENT_CODEX_MODELS), 'inherit']);
 
 /** Reads each agent's `model:` alias from frontmatter → { agentName: alias }. */
 async function frontmatterAliases(agentsDir) {
@@ -61,6 +66,12 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   (policy.hostModels?.claude && policy.hostModels?.codex && Object.values(policy.hostModels.codex).every((model) => VALID_CODEX_MODELS.has(model)))
     ? ok('hostModels maps Codex tiers to supported GPT model overrides')
     : bad('hostModels.codex is missing or contains an unsupported Codex model');
+  policy._codexModelReference === 'https://developers.openai.com/codex/models'
+    ? ok('policy records the official Codex model reference')
+    : bad('policy is missing the official Codex model reference');
+  Object.entries(CURRENT_CODEX_MODELS).every(([tier, model]) => policy.hostModels?.codex?.[tier] === model)
+    ? ok('Codex tiers map to the current GPT-5.6 Luna/Terra/Sol recommendations')
+    : bad(`Codex tier mapping is stale: ${JSON.stringify(policy.hostModels?.codex ?? {})}`);
 
   // The core invariant: policy ↔ frontmatter agreement, both directions.
   const fmAliases = await frontmatterAliases(resolve(KIT, 'templates/claude/agents'));
@@ -98,9 +109,9 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   capped.tier === 'reasoning' ? ok('escalation caps at reasoning (no tier above opus)') : bad(`escalation cap wrong: ${JSON.stringify(capped)}`);
 
   aliasForTier('powerful', { policy }).model === policy.tiers.powerful.alias ? ok('tier-based dispatch (swarm path) resolves powerful→sonnet') : bad('aliasForTier(powerful) wrong');
-  aliasForTier('powerful', { host: 'codex', policy }).model === policy.hostModels.codex.powerful ? ok('Codex tier-based dispatch resolves powerful→gpt-5.4') : bad('Codex aliasForTier(powerful) wrong');
+  aliasForTier('powerful', { host: 'codex', policy }).model === policy.hostModels.codex.powerful ? ok('Codex tier-based dispatch resolves powerful→gpt-5.6-terra') : bad('Codex aliasForTier(powerful) wrong');
   resolveModel('qa-unit', { task: 'execute', host: 'codex', policy }).model === policy.hostModels.codex.fast ? ok('Codex execute dispatch resolves to the fast GPT model') : bad('Codex execute dispatch did not resolve to fast');
-  resolveModel('architect', { host: 'codex', policy }).model === policy.hostModels.codex.reasoning ? ok('Codex reasoning agents resolve to gpt-5.5') : bad('Codex reasoning mapping wrong');
+  resolveModel('architect', { host: 'codex', policy }).model === policy.hostModels.codex.reasoning ? ok('Codex reasoning agents resolve to gpt-5.6-sol') : bad('Codex reasoning mapping wrong');
   resolveModel('qa-unit', { host: 'agy', policy }).model === null ? ok('agy host returns the documented gap (no invented mapping)') : bad('agy host gap not honored');
 
   let threw = false;

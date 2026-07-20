@@ -1,8 +1,10 @@
 {
   "_note": "Materializes the ADR-0052 cost-tier table for the kit's own agents. The resolver (contextkit/tools/scripts/model-policy.mjs) reads THIS file; tools/selfcheck-model-policy.mjs asserts it agrees, agent-by-agent, with the host-enforced `model:` frontmatter under templates/claude/agents/. Changing an agent's tier means amending ADR-0052 AND this file AND the frontmatter — the selfcheck refuses any drift between the three. Aliases only; concrete model IDs + prices live in the dated capability-matrix.json (supply side).",
   "adr": "ADR-0052",
-  "_hostNote": "hostModels maps the demand tiers to the model override each host can enforce; Codex uses GPT model ids, while Antigravity remains an explicit host gap.",
-  "updated": "2026-06-12",
+  "_hostNote": "hostModels maps the demand tiers to the model override each host can enforce; Codex uses the current GPT-5.6 Sol/Terra/Luna model ids, while Antigravity remains an explicit host gap.",
+  "_codexModelReference": "https://developers.openai.com/codex/models",
+  "_codexModelNote": "Codex recommended models: gpt-5.6-sol for flagship reasoning, gpt-5.6-terra for balanced work, and gpt-5.6-luna for fast/affordable work.",
+  "updated": "2026-07-20",
   "tiers": {
     "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
     "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
@@ -16,9 +18,9 @@
       "inherit": "inherit"
     },
     "codex": {
-      "fast": "gpt-5.4-mini",
-      "powerful": "gpt-5.4",
-      "reasoning": "gpt-5.5",
+      "fast": "gpt-5.6-luna",
+      "powerful": "gpt-5.6-terra",
+      "reasoning": "gpt-5.6-sol",
       "inherit": "inherit"
     }
   },

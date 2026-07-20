@@ -51,15 +51,15 @@ try {
   const architectAgent = readFileSync(join(proj, '.codex', 'agents', 'architect.toml'), 'utf-8');
   const qaUnitAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-unit.toml'), 'utf-8');
   const qaOrchestratorAgent = readFileSync(join(proj, '.codex', 'agents', 'qa-orchestrator.toml'), 'utf-8');
-  /model = "gpt-5\.5"/.test(architectAgent) &&
-  /model = "gpt-5\.4-mini"/.test(qaUnitAgent) &&
+  /model = "gpt-5\.6-sol"/.test(architectAgent) &&
+  /model = "gpt-5\.6-luna"/.test(qaUnitAgent) &&
   !/^model = /m.test(qaOrchestratorAgent)
     ? ok('Codex subagents carry host-resolved models and preserve inherit')
     : bad('Codex subagent model projection is wrong');
 
   const codexModel = run([join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'resolve', '--agent', 'qa-unit', '--task', 'execute', '--host', 'codex'], { cwd: proj });
-  (() => { try { return JSON.parse(codexModel.stdout).model === 'gpt-5.4-mini'; } catch { return false; } })()
-    ? ok('Codex model policy resolves execute work to gpt-5.4-mini')
+  (() => { try { return JSON.parse(codexModel.stdout).model === 'gpt-5.6-luna'; } catch { return false; } })()
+    ? ok('Codex model policy resolves execute work to gpt-5.6-luna')
     : bad(`Codex model policy did not resolve: ${(codexModel.stdout + codexModel.stderr).slice(0, 200)}`);
 
   const hooks = JSON.parse(readFileSync(join(proj, '.codex', 'hooks.json'), 'utf-8'));
