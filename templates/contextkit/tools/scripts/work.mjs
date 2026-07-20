@@ -23,7 +23,11 @@ import { parseArgs, resolvePosture, formatReceipt, makeReceipt } from './work-io
 import { runOperationCreate } from './work-operation.mjs';
 import { renderTasksFile } from './work-render.mjs';
 import { parseFrontmatter, listTasks } from './pipeline-tasks.mjs';
-import { handleBusinessTransition, handleBusinessStatus } from './work-business-dispatch.mjs';
+import {
+  handleBusinessCreate,
+  handleBusinessTransition,
+  handleBusinessStatus,
+} from './work-business-dispatch.mjs';
 import { handleIntake } from './work-intake.mjs';
 import { handleLink, handleUnlink } from './work-link.mjs';
 import { handleStart, handleClose, handlePromote } from './work-lifecycle-cmd.mjs';
@@ -105,6 +109,8 @@ export function dispatch(parsed, env = {}) {
       return runOperationCreate({ ...parsed, apply, root });
     case 'render':
       return handleRender({ flags: parsed.flags, root });
+    case 'business':
+      return handleBusinessCreate({ positionals: parsed.positionals, flags: parsed.flags, apply, root });
     case 'approve':
     case 'revise':
     case 'reject':
@@ -131,7 +137,7 @@ export function dispatch(parsed, env = {}) {
       throw new Error(
         `work: unknown command "${parsed.command || ''}". ` +
         `Try: operation | render | approve | revise | reject | status | ` +
-        `intake | link | unlink | promote | reconcile | start | close | validate`,
+        `business | intake | link | unlink | promote | reconcile | start | close | validate`,
       );
   }
 }

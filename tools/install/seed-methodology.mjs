@@ -33,8 +33,9 @@ import { buildBusinessJson, buildBusinessPrompt } from '../../templates/contextk
 import { validateBusiness } from '../../templates/contextkit/runtime/work/schema-business.mjs';
 import { slugify } from '../../templates/contextkit/tools/scripts/work-io.mjs';
 import { writeWorkContextRegistry } from '../../templates/contextkit/tools/scripts/registry/work-context.mjs';
+import { findLegacyBusinessKinds } from './business-kind-migrate.mjs';
 
-/** @typedef {'seeded'|'already_adopted'|'disabled'|'deferred'|'failed'} MethodologyStatus */
+/** @typedef {'seeded'|'already_adopted'|'migration_required'|'disabled'|'deferred'|'failed'} MethodologyStatus */
 
 /** Preflight statuses (ADR-0099) under which seeding user memory must NOT run. */
 const DEFER_STATUSES = new Set(['DEFERRED_ACTIVE_SESSIONS', 'DEFERRED_SELF_UPDATE']);
@@ -102,7 +103,7 @@ function planRootBusiness(projectName) {
     id: 'BIZ-0001',
     title: projectName,
     slug,
-    kind: 'PLATFORM',
+    kind: 'ENABLER',
     strategicFacet: 'unknown',
     valueIntents: { primary: 'ENABLE', secondary: [] },
     status: 'draft',
@@ -159,6 +160,14 @@ export async function maybeSeedMethodology(target, ctx = {}) {
     // Decision-before-action: only scaffold the Root Business when none exists.
     if (hasBusinessContext(businessRoot)) {
       rebuildRegistryIfNeeded(target, wrote > 0);
+      const legacyRecords = findLegacyBusinessKinds(target);
+      if (legacyRecords.length > 0) {
+        const ids = legacyRecords.map((record) => `${record.id} (${record.kind})`).join(', ');
+        return {
+          status: 'migration_required',
+          note: `methodology: explicit Business.kind migration required for ${ids}; no user record was remapped`,
+        };
+      }
       return { status: 'already_adopted', note: 'methodology: Root Business already present — roots ensured' };
     }
 
