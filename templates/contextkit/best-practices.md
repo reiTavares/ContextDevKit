@@ -151,16 +151,19 @@ This is where the deterministic scanner does most of its work.
 ## H1 — Complexity & cohesion (line count is an advisory signal, not a verdict)
 
 **Principle.** A unit is too big when it carries more than one reason to
-change or exceeds what a reader can hold in their head. The constitution
-sets a **280 useful lines** budget (tolerance ~308) — treat that line count
-as an **advisory investigation signal** that *starts* the conversation, not
-as the verdict. **File size is not technical debt.** A small file is not
-automatically well-designed; a large file is not automatically a monolith.
-The number only *triggers* a look at architecture, contracts, state,
-dependencies, failures, and tests — it never decides on its own. Real debt
-is adjudicated by the **Architecture & Technical Debt Governance Gate**
-(`contextkit/tools/scripts/arch-debt/`, ADR-0122), which evaluates findings
-across its twelve dimensions; the line bands below are never a CI blocker.
+change or exceeds what a reader can hold in their head. A line count (the
+~240/308 bands) is **pure investigation telemetry** — a cheap "look at this
+file" trigger that *starts* the conversation, never the verdict, and never a
+CI blocker (BIZ-0005/ADR-0143). **File size is not technical debt.** A small
+file is not automatically well-designed; a large file is not automatically a
+monolith. The number only *triggers* a look at architecture, contracts,
+state, dependencies, failures, and tests — it never decides on its own. The
+**enforced** quality bar is DDD **Class-A conformance** (dependency direction,
+bounded-context boundaries, cross-context access — blocking on a declared/
+auto-seeded domain map) plus the **reviewer-gate** on every material diff
+(ADR-0143); the wider adjudication is the **Architecture & Technical Debt
+Governance Gate** (`contextkit/tools/scripts/arch-debt/`, ADR-0122) across its
+twelve dimensions. The line bands are never a blocker anywhere.
 
 **Smells.** Scanner advisory bands: yellow at **240+**, RED-advisory at
 **> 308** — a *louder investigation prompt*, not a hard block. The real

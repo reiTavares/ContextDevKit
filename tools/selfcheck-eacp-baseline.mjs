@@ -201,19 +201,13 @@ export async function runEacpBaselineChecks({ ok, bad }, { KIT }) {
     ? ok('report: baselineStatus(absent ledger) → pending true, recorded 0, claim null')
     : bad(`report: baselineStatus absent ledger wrong — ${JSON.stringify(status)}`);
 
-  // ── File-size invariant (each ≤308 non-empty lines) ──────────────────────────
+  // ── File-size telemetry — advisory (ADR-0143: size triggers a look, never blocks) ──
   const [scenLines, harnessLines, reportLines] = await Promise.all([
     lineCount(scenPath), lineCount(harnessPath), lineCount(reportPath),
   ]);
-  scenLines <= 308
-    ? ok(`size: baseline-scenarios.mjs ${scenLines} non-empty lines ≤308`)
-    : bad(`size: baseline-scenarios.mjs has ${scenLines} lines (>308 — RED gate)`);
-  harnessLines <= 308
-    ? ok(`size: baseline-harness.mjs ${harnessLines} non-empty lines ≤308`)
-    : bad(`size: baseline-harness.mjs has ${harnessLines} lines (>308 — RED gate)`);
-  reportLines <= 308
-    ? ok(`size: baseline-report.mjs ${reportLines} non-empty lines ≤308`)
-    : bad(`size: baseline-report.mjs has ${reportLines} lines (>308 — RED gate)`);
+  ok(scenLines <= 308 ? `size: baseline-scenarios.mjs ${scenLines} non-empty lines` : `size: baseline-scenarios.mjs ${scenLines} lines (over 308 — advisory)`);
+  ok(harnessLines <= 308 ? `size: baseline-harness.mjs ${harnessLines} non-empty lines` : `size: baseline-harness.mjs ${harnessLines} lines (over 308 — advisory)`);
+  ok(reportLines <= 308 ? `size: baseline-report.mjs ${reportLines} non-empty lines` : `size: baseline-report.mjs ${reportLines} lines (over 308 — advisory)`);
 
   // ── Determinism invariant (no Date.now/Math.random/new Date) ─────────────────
   for (const [name, filePath] of [['baseline-scenarios.mjs', scenPath], ['baseline-harness.mjs', harnessPath], ['baseline-report.mjs', reportPath]]) {
