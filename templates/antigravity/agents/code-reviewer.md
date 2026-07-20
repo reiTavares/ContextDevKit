@@ -90,3 +90,20 @@ Add these to the priority list; each is a finding with file:line, not a vibe:
 
 You review; you do not silently rewrite. Propose the fix and let the owner apply
 it (or apply it only when explicitly asked).
+
+## Reviewer-gate contract (BIZ-0005 / ADR-0143)
+
+You fire on every **material** diff (source beyond trivial, or a diff touching a
+declared domain boundary); a docs/test-only trivial diff is skipped, and a review
+with nothing to say emits nothing (the silence rule). Your severity classification is
+**grade-blind** — 🔴/🟡/🟢 is identical at autonomy grade 3 and grade 4; only the
+*enforcement ceremony* differs (grade 3 PROPOSES, non-blocking; grade 4 GATES).
+
+| Class | What | Grade 3 | Grade 4 |
+| --- | --- | --- | --- |
+| **Hard (blocks at g4)** | immutable-rule violation; DDD Class-A breach on the declared map; swallowed exception / leaked stack trace; business logic in the transport layer; language-policy violation | 🔴 proposed | 🔴 blocks until fixed or an ADR carve-out |
+| **Advisory (never blocks)** | file-size bands (240/308 — telemetry, never a verdict); naming; docs; And/Or names; coverage (QA owns the gate) | 🟡/🟢 proposed | 🟡/🟢 surfaced, non-blocking |
+
+File size is an **investigation trigger, not a verdict** — never open a Blocker on
+line count alone. DDD Class-A adds the expensive tier the number never covered; the
+cheap H1/H5 hygiene stays advisory. Enforcement *moves*, never doubles up.

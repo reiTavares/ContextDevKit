@@ -153,12 +153,14 @@ try {
 // ---------------------------------------------------------------------------
 
 {
+  // ADR-0143 (BIZ-0005/WF-0076): line size is advisory telemetry, never a RED gate.
+  // Enforcement moved to DDD Class-A + the reviewer-gate; we keep the measurement.
   const { readFileSync } = await import('node:fs');
   const hookText = readFileSync(HOOK_PATH, 'utf-8');
   const nonEmptyLines = hookText.split('\n').filter((l) => l.trim().length > 0).length;
-  nonEmptyLines <= 308
-    ? ok(`size: boot-signals-projmap.mjs has ${nonEmptyLines} non-empty lines ≤ 308`)
-    : bad(`size: boot-signals-projmap.mjs has ${nonEmptyLines} lines (> 308 — RED gate)`);
+  ok(nonEmptyLines <= 308
+    ? `size: boot-signals-projmap.mjs has ${nonEmptyLines} non-empty lines`
+    : `size: boot-signals-projmap.mjs has ${nonEmptyLines} lines (over 308 — advisory, not a blocker)`);
 }
 
 // ---------------------------------------------------------------------------

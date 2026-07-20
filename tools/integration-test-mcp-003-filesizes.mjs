@@ -12,7 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
-import { RENDER_DIR, check } from './integration-test-mcp-003-helpers.mjs';
+import { RENDER_DIR } from './integration-test-mcp-003-helpers.mjs';
 
 const rep = reporter();
 
@@ -30,15 +30,15 @@ console.log('\n[Suite 1] AC#5 — Renderer file sizes\n');
     'render-cursor.mjs',
     'render-antigravity.mjs',
   ];
+  // ADR-0143 (BIZ-0005/WF-0076): file size is advisory telemetry, never a verdict.
+  // Enforcement moved to DDD Class-A + the reviewer-gate; the measurement stays as a
+  // cheap "look at this file" trigger, but never fails the suite.
   for (const filename of rendererFiles) {
     const filePath = join(RENDER_DIR, filename);
     const lineCount = readFileSync(filePath, 'utf-8').split('\n').length;
-    check(rep, lineCount <= 308, `${filename} <= 308 lines (red ceiling)`, `got ${lineCount} lines`);
-    if (lineCount <= 280) {
-      rep.ok(`${filename} within 280-line budget (${lineCount} lines)`);
-    } else {
-      rep.ok(`${filename} in tolerance zone 281-308 (${lineCount} lines)`);
-    }
+    rep.ok(lineCount <= 308
+      ? `${filename} size ${lineCount} lines (advisory telemetry)`
+      : `${filename} size ${lineCount} lines (over 308 — advisory: review responsibility, not a blocker)`);
   }
 }
 

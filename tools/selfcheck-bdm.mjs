@@ -142,14 +142,18 @@ await assertExports(resolve(SCRIPTS, 'registry/workflow.mjs'), 'registry/workflo
 // ---------------------------------------------------------------------------
 // 3. Line-budget — no A1 file breaches the hard 308-line ceiling.
 // ---------------------------------------------------------------------------
-console.log('\n[A1] line budget — no file over the 308 hard ceiling\n');
-const HARD_CEILING = 308;
+// ADR-0143 (BIZ-0005/WF-0076): file size is an ADVISORY investigation signal, NEVER a
+// CI verdict. Enforcement moved to DDD Class-A conformance + the reviewer-gate (proven
+// in selfcheck-madm.mjs). We keep the measurement (the cheap "look at this file" trigger)
+// but never bad() on it — a genuinely unreadable file is still a real failure.
+console.log('\n[A1] line-size telemetry — advisory (ADR-0143: size triggers a look, never blocks)\n');
+const ADVISORY_BAND = 308;
 for (const { rel, abs } of ALL_FILES) {
   let lines = 0;
   try { lines = readFileSync(abs, 'utf-8').split('\n').length; } catch (err) { bad(`${rel}: unreadable — ${err?.message ?? err}`); continue; }
-  lines <= HARD_CEILING
-    ? ok(`${rel}: ${lines} ≤ ${HARD_CEILING}`)
-    : bad(`${rel}: ${lines} lines — over the ${HARD_CEILING} hard ceiling`);
+  ok(lines <= ADVISORY_BAND
+    ? `${rel}: ${lines} lines`
+    : `${rel}: ${lines} lines (over ${ADVISORY_BAND} — advisory: review responsibility, not a blocker)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -213,7 +217,7 @@ if (existsSync(POLICY_FILE)) {
 // ---------------------------------------------------------------------------
 // 7. [A2] line budget — no methodology source file breaches the 308 ceiling.
 // ---------------------------------------------------------------------------
-console.log('\n[A2] line budget — no methodology file over the 308 hard ceiling\n');
+console.log('\n[A2] line-size telemetry — advisory (ADR-0143: size triggers a look, never blocks)\n');
 const A2_FILES = [
   'work-classify-signals.mjs', 'work-classifier.mjs', 'work-classify-nature.mjs', 'business-matcher.mjs',
   'intake-proposal-store.mjs', 'intake-methodology.mjs',
@@ -221,13 +225,13 @@ const A2_FILES = [
 for (const { rel, abs } of A2_FILES) {
   let lines = 0;
   try { lines = readFileSync(abs, 'utf-8').split('\n').length; } catch (err) { bad(`${rel}: unreadable — ${err?.message ?? err}`); continue; }
-  lines <= HARD_CEILING ? ok(`${rel}: ${lines} ≤ ${HARD_CEILING}`) : bad(`${rel}: ${lines} lines — over the ${HARD_CEILING} hard ceiling`);
+  ok(lines <= ADVISORY_BAND ? `${rel}: ${lines} lines` : `${rel}: ${lines} lines (over ${ADVISORY_BAND} — advisory)`);
 }
 
 // ---------------------------------------------------------------------------
 // 8. [B2] line budget — decision-intelligence source files (WF-0037 Wave B2).
 // ---------------------------------------------------------------------------
-console.log('\n[B2] line budget — no decision-intelligence file over the 308 hard ceiling\n');
+console.log('\n[B2] line-size telemetry — advisory (ADR-0143: size triggers a look, never blocks)\n');
 const B2_FILES = [
   { rel: 'execution/decision-need-classifier.mjs', abs: resolve(RUNTIME, 'execution/decision-need-classifier.mjs') },
   { rel: 'execution/materiality-score.mjs', abs: resolve(RUNTIME, 'execution/materiality-score.mjs') },
@@ -240,7 +244,7 @@ const B2_FILES = [
 for (const { rel, abs } of B2_FILES) {
   let lines = 0;
   try { lines = readFileSync(abs, 'utf-8').split('\n').length; } catch (err) { bad(`${rel}: unreadable — ${err?.message ?? err}`); continue; }
-  lines <= HARD_CEILING ? ok(`${rel}: ${lines} ≤ ${HARD_CEILING}`) : bad(`${rel}: ${lines} lines — over the ${HARD_CEILING} hard ceiling`);
+  ok(lines <= ADVISORY_BAND ? `${rel}: ${lines} lines` : `${rel}: ${lines} lines (over ${ADVISORY_BAND} — advisory)`);
 }
 
 // ---------------------------------------------------------------------------
