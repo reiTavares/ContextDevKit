@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "workflowId": "<workflow-id>",
+  "slug": "example-workflow",
+  "profile": "program",
+  "waves": [],
+  "gates": []
+}

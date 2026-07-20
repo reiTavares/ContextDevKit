@@ -94,7 +94,7 @@ function run() {
         // the id is collision-safe by construction; surface it only when a parallel
         // worktree held a higher WF id (local-only would have collided). Quiet otherwise.
         const wfDiverges = localVsFleet(ROOT).find((row) => row.kind === 'WF')?.diverges;
-        const workflow = createWorkflow(ROOT, slug, arg('kind', 'feature'), owner);
+        const workflow = createWorkflow(ROOT, slug, arg('kind', 'feature'), owner, { shape: arg('shape') || null });
         console.log(`Workflow "${workflow.slug}" created. Next phase: intake.`);
         if (wfDiverges) console.log('🔢 intake gate: WF number fleet-reconciled — a parallel worktree held a higher id, so a local-only allocation would have collided.');
         return;
@@ -108,6 +108,7 @@ function run() {
         profile,
         pattern: arg('pattern') || undefined,
         addons: multiArg('addon'),
+        shape: arg('shape') || undefined,
         plan: planPath ? readJsonSafe(planPath) : null,
         now: new Date().toISOString(),
         branch: currentBranch(),

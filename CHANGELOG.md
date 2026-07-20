@@ -20,6 +20,12 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **WF-0083 - Canonical ceremony shapes and neutral methodology templates.** Added the pure five-shape resolver, manifest, proportional skeleton packs, canonical continuation prompts, synthetic exemplar, structure validator, and dogfood leak scrub. The shape-aware path is staged opt-in; target-project installer distribution remains owned by WF-0086.
+
+### Changed
+- Workflow close-wave now persists passed gate receipts into workflow state so the scheduler can unlock dependent waves, with an integration regression test.
+
 ## [3.7.0] - 2026-07-19
 
 ### Added

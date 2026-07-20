@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "workflowId": "{{WORKFLOW_ID}}",
+  "planHash": null,
+  "revision": 0,
+  "overallStatus": "not-started",
+  "waveStates": {},
+  "taskStates": {},
+  "gateResults": {}
+}

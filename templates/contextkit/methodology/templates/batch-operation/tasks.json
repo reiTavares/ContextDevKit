@@ -1,0 +1,9 @@
+{
+  "owner": {
+    "kind": "{{OWNER_KIND}}",
+    "id": "{{OWNER_ID}}"
+  },
+  "executionMode": "batch",
+  "revision": 0,
+  "tasks": []
+}

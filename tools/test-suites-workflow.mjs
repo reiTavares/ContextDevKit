@@ -27,6 +27,18 @@ const MODULE_SUITES = [
 export const WORKFLOW_ENGINE_SUITES = Object.freeze([
   ...MODULE_SUITES,
   {
+    id: 'workflow-close-wave',
+    file: 'tools/integration-test-workflow-close-wave.mjs',
+    tier: 'integration:workflow',
+    touches: [`${WORKFLOW_DIR}/commands`, `${WORKFLOW_DIR}/state`, `${WORKFLOW_DIR}/scheduler`],
+  },
+  {
+    id: 'methodology-shapes',
+    file: 'tools/integration-test-methodology-shapes.mjs',
+    tier: 'integration:workflow',
+    touches: ['templates/contextkit/methodology/', 'templates/contextkit/runtime/execution/work-classifier.mjs'],
+  },
+  {
     id: 'workflow-origem-fixture',
     file: itFile('origem-fixture'),
     tier: 'integration:workflow',

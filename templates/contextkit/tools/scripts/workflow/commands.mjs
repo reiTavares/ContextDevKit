@@ -10,11 +10,18 @@
  * Timestamps are injected by the CLI (`now`); none are generated here.
  */
 import { dirname, join } from 'node:path';
-import { statSync } from 'node:fs';
+import { mkdirSync, statSync } from 'node:fs';
 import { readWorkflow } from '../workflow-pack.mjs';
-import { readJsonSafe } from './io.mjs';
+import { readJsonSafe, writeJsonStable } from './io.mjs';
 import { planHash, readPlan } from './plan.mjs';
-import { initState, readState, setTaskStatus, setWaveStatus, writeState } from './state.mjs';
+import {
+  initState,
+  linkGateResult,
+  readState,
+  setTaskStatus,
+  setWaveStatus,
+  writeState,
+} from './state.mjs';
 import { computeSchedule } from './scheduler.mjs';
 import { detectCollisions, validateResultPaths } from './ownership.mjs';
 import { approveGate, evaluateGate, readGateResult, deriveGateFacts, isHumanTask } from './gates.mjs';
@@ -153,7 +160,21 @@ export function closeWave(root, slug, waveId, { apply, now }) {
   if (!gatePassed) blocked.push(`gate-${gate.status}`);
   let applied = false;
   if (apply && blocked.length === 0) {
-    const nextState = setWaveStatus(state || initState({ workflowId: plan.workflowId, planHash: planHash(plan), now }), waveId, 'done', { now });
+    let nextState = state || initState({ workflowId: plan.workflowId, planHash: planHash(plan), now });
+    let gatePath = null;
+    if (gate) {
+      const gateId = gate.gateId || wave.gate;
+      const gateRef = join('reports', 'gates', `${gateId}.json`).split('\\').join('/');
+      gatePath = join(resolvePackDir(root, slug), gateRef);
+      nextState = linkGateResult(nextState, gateId, { status: gate.status, ref: gateRef }, { now });
+    }
+    nextState = setWaveStatus(nextState, waveId, 'done', { now });
+    if (gate && gatePath) {
+      mkdirSync(dirname(gatePath), { recursive: true });
+      // Closing the wave advances state revision; bind the persisted verdict to
+      // that final revision so a valid approval is not misclassified as stale.
+      writeJsonStable(gatePath, { ...gate, revision: nextState.revision });
+    }
     writeState(statePath, nextState);
     applied = true;
   }

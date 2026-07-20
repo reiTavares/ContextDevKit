@@ -224,4 +224,27 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   !/\bengine-keeper\b/i.test(instructions)
     ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
     : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
+
+  // WF-0083: validate every source skeleton against the single manifest and
+  // scrub the synthetic exemplar. Skeleton placeholders are intentional; the
+  // leak guard runs on rendered output in the integration suite.
+  try {
+    const methodology = resolve(KIT, 'templates/contextkit/methodology');
+    const { loadCeremonyManifest } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/workflow/ceremony-manifest.mjs')).href);
+    const { validateStructure } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/methodology/validate-structure.mjs')).href);
+    const { leakScrub } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/methodology/leak-scrub.mjs')).href);
+    const manifest = loadCeremonyManifest();
+    const structureFailures = Object.entries(manifest.shapes)
+      .map(([shape, row]) => validateStructure(resolve(methodology, row.skeleton), shape))
+      .filter((verdict) => !verdict.ok);
+    structureFailures.length === 0
+      ? ok('WF-0083 methodology skeletons satisfy the manifest structure')
+      : bad('WF-0083 methodology structure failures: ' + JSON.stringify(structureFailures));
+    const exemplar = leakScrub(resolve(methodology, 'exemplars/synthetic-single-case'));
+    exemplar.ok
+      ? ok('WF-0083 synthetic exemplar passes leak scrub')
+      : bad('WF-0083 synthetic exemplar leaked: ' + JSON.stringify(exemplar.violations));
+  } catch (err) {
+    bad('WF-0083 methodology selfcheck failed: ' + (err?.message ?? err));
+  }
 }
