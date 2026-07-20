@@ -1,6 +1,8 @@
 ---
 slug: example-workflow
 kind: feature
+shape: multi-workflow-program
+journeyBranch: business-workflow
 started: YYYY-MM-DDTHH:mm:ss.sssZ
 currentPhase: intake
 intake: pending

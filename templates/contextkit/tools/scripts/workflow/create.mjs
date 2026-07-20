@@ -20,7 +20,8 @@ import { writeFileAtomicSync } from './io.mjs';
 import { writePlan } from './plan.mjs';
 import { resolveProfile, requiredFilesFor } from './profiles.mjs';
 import { resolvePattern, waveSkeleton } from './patterns.mjs';
-import { explainFile } from './files.mjs';
+import { explainFile, requiredFilesForShape } from './files.mjs';
+import { readCanonicalContinuationTemplate, resolveCeremonyManifest } from './ceremony-manifest.mjs';
 import { addonRequirements } from './addons.mjs';
 import { nextWorkflowNumber } from '../registry/ids.mjs';
 import { pathsFor } from '../../../runtime/config/paths.mjs';
@@ -133,7 +134,11 @@ function planFromSkeleton(input) {
     profile: input.profile,
     pattern: input.pattern,
     addons: input.addons,
-    journey: { currentPhase: 'intake' },
+    journey: {
+      currentPhase: 'intake',
+      shape: input.shapeManifest?.shape ?? null,
+      journeyBranch: input.shapeManifest?.journeyBranch ?? null,
+    },
     waves,
     gates: buildGates(input.patternDef, waves),
     artifacts: [],
@@ -141,11 +146,13 @@ function planFromSkeleton(input) {
 }
 
 /** Write one human/seed file inside the pack dir and record its relative path. */
-function writeArtifact(dir, written, artifactId, slug) {
+function writeArtifact(dir, written, artifactId, slug, shapeManifest = null) {
   const artifact = explainFile(artifactId);
   if (artifact.filename.endsWith('/')) return; // a directory artifact (reports/)
   const render = SEEDS[artifactId];
-  const content = render ? render(slug) : renderStub(artifact);
+  const content = artifactId === 'continuation' && shapeManifest?.workflowBearing
+    ? readCanonicalContinuationTemplate()
+    : render ? render(slug) : renderStub(artifact);
   writeFileAtomicSync(resolve(dir, artifact.filename), content);
   written.push(artifact.filename);
 }
@@ -163,7 +170,7 @@ function writeArtifact(dir, written, artifactId, slug) {
  * @param {string} root project root (contains `contextkit/memory/workflows/`)
  * @param {string} slug workflow slug (must match SLUG_RE)
  * @param {{ profile: string, pattern?: (string|null), addons?: string[],
- *   plan?: (object|null), now: string, number?: string, owner?: (string|null) }} options
+ *   shape?: string, plan?: (object|null), now: string, number?: string, owner?: (string|null) }} options
  * @returns {{ dir: string, number: string, slug: string, profile: string,
  *   pattern: (string|null), files: string[] }}
  * @throws {Error} on bad slug, unknown profile/pattern/add-on, a missing owner
@@ -174,6 +181,7 @@ export function createWaveWorkflow(root, slug, options = {}) {
   if (typeof options.now !== 'string' || !options.now) throw new Error('createWaveWorkflow: a string `now` is required (inject the clock)');
   const profileName = options.profile;
   const profile = resolveProfile(profileName); // throws on unknown profile
+  const shapeManifest = options.shape ? resolveCeremonyManifest(options.shape) : null;
   const addons = Array.isArray(options.addons) ? options.addons : [];
   if (addons.length) addonRequirements(addons); // throws on unknown / incompatible
 
@@ -206,15 +214,19 @@ export function createWaveWorkflow(root, slug, options = {}) {
   );
   written.push('index.md');
 
-  for (const artifactId of requiredFilesFor(profileName, { addons })) {
+  const artifactIds = new Set(requiredFilesFor(profileName, { addons }));
+  if (shapeManifest) {
+    for (const artifactId of requiredFilesForShape(shapeManifest.shape)) artifactIds.add(artifactId);
+  }
+  for (const artifactId of artifactIds) {
     if (artifactId === 'index' || artifactId === 'reports') continue; // index written above; reports is a dir
     if (artifactId === 'workflow-plan' || artifactId === 'workflow-state') continue; // plan below; state on execution
-    writeArtifact(packDir, written, artifactId, slug);
+    writeArtifact(packDir, written, artifactId, slug, shapeManifest);
   }
 
   const plan = options.plan
     ? { ...options.plan, slug, workflowId: options.plan.workflowId ?? number, profile: options.plan.profile ?? profileName }
-    : planFromSkeleton({ number, slug, profile: profileName, pattern: patternId, addons, patternDef, skeleton });
+    : planFromSkeleton({ number, slug, profile: profileName, pattern: patternId, addons, patternDef, skeleton, shapeManifest });
   writePlan(resolve(packDir, 'workflow-plan.json'), plan); // normalizes + validates; throws on a refused plan
   written.push('workflow-plan.json');
 

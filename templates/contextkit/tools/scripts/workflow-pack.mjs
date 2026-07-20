@@ -17,6 +17,7 @@ import { parseFrontmatter } from './workflow-frontmatter.mjs';
 import { resolveWorkflow } from './registry/workflow.mjs';
 import { nextWorkflowNumber, workflowRoots } from './registry/ids.mjs';
 import { seedFileContents } from './workflow-pack-seeds.mjs';
+import { readCanonicalContinuationTemplate, resolveCeremonyManifest } from './workflow/ceremony-manifest.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
@@ -156,7 +157,7 @@ function write(root, slug, relativePath, text) {
   writeFileAtomicSync(fullPath, text);
 }
 
-function seedFiles(root, slug, kind, number = '', owner = null, packDirAbs = null) {
+function seedFiles(root, slug, kind, number = '', owner = null, packDirAbs = null, shape = null) {
   // When packDirAbs is supplied (owner-nested create), write directly to it — the
   // not-yet-on-disk nested dir is invisible to packDir() until resolveWorkflow's
   // fs-walk sees it, so creation must target the explicit dir. Back-compat: when
@@ -168,12 +169,16 @@ function seedFiles(root, slug, kind, number = '', owner = null, packDirAbs = nul
     writeFileAtomicSync(full, text);
   };
   for (const seed of seedFileContents(slug)) writeTo(seed.filename, seed.content);
+  if (shape) {
+    const shapeManifest = resolveCeremonyManifest(shape);
+    if (shapeManifest.workflowBearing) writeTo('CONTINUATION-PROMPT.md', readCanonicalContinuationTemplate());
+  }
   writeTo('reports/.gitkeep', '');
   const workflow = { slug, kind, number, owner: owner || '', started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
   writeTo('index.md', renderIndex(workflow));
 }
 
-export function createWorkflow(root, slug, kind = 'feature', owner = null) {
+export function createWorkflow(root, slug, kind = 'feature', owner = null, options = {}) {
   if (!SLUG_RE.test(slug || '')) throw new Error(`slug must match ${SLUG_RE} (got "${slug || ''}")`);
   if (!VALID_KINDS.has(kind)) throw new Error(`kind must be one of: ${[...VALID_KINDS].join(', ')}`);
   // ADR-0116: feature/architecture work must declare an owner work-context (Operation/Business).
@@ -201,7 +206,7 @@ export function createWorkflow(root, slug, kind = 'feature', owner = null) {
   const nested = Boolean(ownerDir);
   const packDirAbs = resolve(dir, nested ? `WF-${number}-${slug}` : `${number}-${slug}`);
   mkdirSync(packDirAbs, { recursive: true });
-  seedFiles(root, slug, kind, number, owner, packDirAbs);
+  seedFiles(root, slug, kind, number, owner, packDirAbs, options.shape || null);
   return readWorkflow(root, slug);
 }
 

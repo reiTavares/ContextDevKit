@@ -13,6 +13,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readJsonSafe } from './io.mjs';
+import { resolveCeremonyManifest } from './ceremony-manifest.mjs';
 
 const REGISTRY_PATH = join(dirname(fileURLToPath(import.meta.url)), 'registry', 'file-catalog.json');
 
@@ -94,4 +95,21 @@ export function requiredFiles(selection) {
     if (byProfile || byAddon) required.add(artifact.id);
   }
   return [...required].sort();
+}
+
+/**
+ * Resolve the manifest-owned artifact ids for one ceremony shape.
+ *
+ * @param {string} shape canonical ceremony shape id
+ * @returns {string[]} sorted artifact ids from the shared file catalog
+ * @throws {Error} when the shape or one of its artifact ids is unknown
+ */
+export function requiredFilesForShape(shape) {
+  const row = resolveCeremonyManifest(shape);
+  const { artifacts } = loadFileCatalog();
+  const unknown = row.requiredFiles.filter((artifactId) => !artifacts[artifactId]);
+  if (unknown.length) {
+    throw new Error('ceremony manifest references unknown file artifacts: ' + unknown.join(', '));
+  }
+  return [...new Set(row.requiredFiles)].sort();
 }

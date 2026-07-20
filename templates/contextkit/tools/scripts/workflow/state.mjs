@@ -209,7 +209,8 @@ export function recordIntegration(state, record, opts = {}) {
  * Link a gate's result report by reference (the narrative lives in the file).
  * @param {object} state current state
  * @param {string} gateId e.g. "G-W1"
- * @param {string} ref relative path to the gate result report
+ * @param {string|{status:string,ref?:string}} ref relative path or scheduler
+ *   verdict object for the gate result report
  * @param {object} [opts] applyStateUpdate context
  * @returns {object} the next state
  */

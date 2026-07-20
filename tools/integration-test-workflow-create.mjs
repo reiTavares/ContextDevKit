@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
 import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import { validatePlan } from '../templates/contextkit/tools/scripts/workflow/validate.mjs';
-import { readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
+import { createWorkflow, readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
 
 const rep = reporter();
 const NOW = '2026-06-17T00:00:00.000Z';
@@ -54,6 +54,26 @@ try {
       ? rep.ok('basic: single-delivery produced 1 wave')
       : rep.bad(`basic: expected 1 wave, got ${basicPlan.waves.length}`);
   }
+
+  // --- Manifest-selected ceremony shape -------------------------------
+  const shaped = createWaveWorkflow(root, 'shaped-feature', {
+    profile: 'standard',
+    shape: 'single-workflow-operation',
+    now: NOW,
+  });
+  const shapedPlan = assertValidPlan(shaped.dir, 'shaped');
+  existsSync(join(shaped.dir, 'CONTINUATION-PROMPT.md'))
+    ? rep.ok('shaped: manifest-selected workflow carries canonical continuation')
+    : rep.bad('shaped: manifest-selected workflow is missing continuation');
+  shapedPlan?.journey?.shape === 'single-workflow-operation' && shapedPlan.journey.journeyBranch === 'operation-workflow'
+    ? rep.ok('shaped: workflow-plan records the manifest shape and journey branch')
+    : rep.bad(`shaped: manifest shape metadata missing from workflow-plan.json`);
+
+  mkdirSync(join(root, 'contextkit', 'memory', 'business', 'BIZ-0001-fixture'), { recursive: true });
+  const legacyShaped = createWorkflow(root, 'legacy-shaped', 'feature', 'BIZ-0001', { shape: 'single-workflow-operation' });
+  existsSync(join(legacyShaped.path.replace(/[\\/]index\.md$/, ''), 'CONTINUATION-PROMPT.md'))
+    ? rep.ok('legacy workflow-pack creation consumes the manifest shape')
+    : rep.bad('legacy workflow-pack creation did not emit continuation');
   // state must NOT be created at creation time
   existsSync(join(basic.dir, 'workflow-state.json'))
     ? rep.bad('basic: workflow-state.json should not exist at creation')
