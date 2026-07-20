@@ -261,13 +261,12 @@ export const DEFAULT_CONFIG = Object.freeze({
      *  model is high blast radius (ADR-0012 + Fase 5). Remove if you don't ship agents. */
     highRiskPaths: ['agent-packages/**'],
     /**
-     * DEPRECATED (ADR-0122, WF-0057): line-budget thresholds. SUPERSEDED by
-     * `architectureDebtGate.lineSignals` — line count is now an ADVISORY
-     * investigation signal, never a CI blocker. Kept as a back-compat ALIAS only:
-     * the gate's config-resolution migrates these numbers onto `lineSignals`
-     * (yellow→yellow, red→elevated) and emits a one-time deprecation notice.
-     * Not a second config authority; do not add new readers. */
-    lineBudget: { yellow: 240, red: 308 },
+     * REMOVED (BIZ-0005/WF-0077, ADR-0144): the deprecated `l5.lineBudget` alias is
+     * no longer shipped in the defaults. Line count is advisory telemetry only; the
+     * enforced bar is DDD Class-A conformance + the reviewer-gate (ADR-0143), never a
+     * line number. The MIGRATION path in `resolve-arch-debt-config.mjs` is retained so
+     * a project that STILL carries `l5.lineBudget` migrates it onto `lineSignals`
+     * (yellow→yellow, red→elevated) — but a fresh install never gets the alias. */
     /** Files whose exported symbols form the public contract (drift gate). Empty = off. */
     contractGlobs: [],
     /** Auto-distill cadence (CLAUDE.md self-refinement loop). */
