@@ -21,6 +21,11 @@ import { makeReceipt, writeFileEnsured } from './work-io.mjs';
 import { transition } from './work-business-lifecycle.mjs';
 import { evaluateBusinessGate, generateAuthorizedWorkflows } from './work-business-gate.mjs';
 
+// Creation is implemented in its own aggregate adapter to keep this module's
+// lifecycle/status responsibility cohesive; the public Business dispatch surface
+// re-exports it for the single `work.mjs` entry point.
+export { handleBusinessCreate } from './work-business-create.mjs';
+
 // ---------------------------------------------------------------------------
 // File I/O helpers
 // ---------------------------------------------------------------------------

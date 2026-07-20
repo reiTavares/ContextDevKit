@@ -11,6 +11,7 @@
  *
  * Zero runtime dependencies. Pure data — no logic, no I/O.
  */
+import { BUSINESS_KINDS } from '../../runtime/work/enums.mjs';
 
 /**
  * Skeleton for `business-case.md`.  Every placeholder is wrapped in `[FILL: …]`
@@ -32,7 +33,7 @@ _[FILL: 2–4 sentences. What changes, for whom, and why now?]_
 
 ## Business kind
 
-\`[FILL: TRANSFORMATION | INITIATIVE | PROGRAMME | FEATURE | ENABLER]\`
+\`[FILL: ${BUSINESS_KINDS.join(' | ')}]\`
 (strategic facet \`[FILL: PLATFORM_CAPABILITY | MARKET | COMPLIANCE | …]\`).
 _[FILL: One sentence justifying the kind choice.]_
 

@@ -25,6 +25,18 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Workflow close-wave now persists passed gate receipts into workflow state so the scheduler can unlock dependent waves, with an integration regression test.
+- **WF-0082 Business create implemented.** ADR-0150 is accepted: executable
+  ceremonies are `decision` and `workflow`, mapped to the WF-0083
+  `business-decision` and `business-workflow` branches; persisted `Business.kind`
+  is the five-value uppercase domain enum, with the classifier's functional axis
+  kept separate. Dry-run, atomic apply, complete manifest-validator dispatch,
+  explicit legacy-kind migration, and QA coverage are shipped in the source tree.
+- **WF-0082 Business create implemented.** ADR-0150 is accepted: executable
+  ceremonies are `decision` and `workflow`, mapped to the WF-0083
+  `business-decision` and `business-workflow` branches; persisted `Business.kind`
+  is the five-value uppercase domain enum, with the classifier's functional axis
+  kept separate. Dry-run, atomic apply, complete manifest-validator dispatch,
+  explicit legacy-kind migration, and QA coverage are shipped in the source tree.
 
 ## [3.7.0] - 2026-07-19
 

@@ -3,15 +3,15 @@
  *
  * Matches the kit's existing defensive validator style (no zod on the hot path).
  * Validates REQUIRED fields, the `BIZ-####` id format, and the closed enums that
- * are authoritatively defined (value intents, lifecycle status). It deliberately
- * does NOT over-validate optional shapes (growth levers, investment, kind,
- * strategicFacet) — those have no closed authoritative list yet and forcing one
+ * are authoritatively defined (value intents, lifecycle status, Business.kind).
+ * It deliberately does NOT over-validate optional shapes (growth levers,
+ * investment, strategicFacet) — those have no closed authoritative list yet and forcing one
  * would reject valid future content. See `architecture/schema-plan.md` and
  * `shared-entity-contracts.md`.
  *
  * The real BIZ-0001 `business.json` MUST validate as `{ ok: true }`.
  */
-import { VALUE_INTENTS, isNonEmptyString } from './enums.mjs';
+import { BUSINESS_KINDS, VALUE_INTENTS, isNonEmptyString } from './enums.mjs';
 
 /** Schema version this validator understands. */
 export const BUSINESS_SCHEMA_VERSION = 1;
@@ -95,6 +95,10 @@ export function validateBusiness(entity) {
 
   for (const field of ['title', 'slug', 'status', 'kind', 'strategicFacet']) {
     if (!isNonEmptyString(entity[field])) errors.push(`${field}: required non-empty string`);
+  }
+
+  if (isNonEmptyString(entity.kind) && !BUSINESS_KINDS.includes(entity.kind)) {
+    errors.push(`kind: "${entity.kind}" is not a known Business kind (${BUSINESS_KINDS.join(' | ')})`);
   }
 
   // status must be a member of the entity's own declared lifecycle when present.

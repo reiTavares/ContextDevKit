@@ -31,6 +31,11 @@ async function loadValidator() {
   return import('file:///' + filePath.replaceAll('\\', '/'));
 }
 
+async function loadBusinessKindMigration() {
+  const filePath = resolve(KIT, 'tools/install/business-kind-migrate.mjs');
+  return import('file:///' + filePath.replaceAll('\\', '/'));
+}
+
 function makeTempDir() {
   const dir = mkdtempSync(join(tmpdir(), 'methseed-it-'));
   mkdirSync(join(dir, 'contextkit'), { recursive: true });
@@ -181,14 +186,50 @@ async function caseF(maybeSeedMethodology) {
   }
 }
 
+// ── G. Legacy PLATFORM kind → explicit, opt-in migration ────────────────────
+async function caseG(maybeSeedMethodology, validateBusiness, migrateLegacyBusinessKind) {
+  const { dir, cleanup } = makeTempDir();
+  try {
+    await maybeSeedMethodology(dir, { name: 'Acme Platform' });
+    const businessPath = join(bizRoot(dir), bizDirs(dir)[0], 'business.json');
+    const legacyBusiness = JSON.parse(readFileSync(businessPath, 'utf8'));
+    legacyBusiness.kind = 'PLATFORM';
+    writeFileSync(businessPath, `${JSON.stringify(legacyBusiness, null, 2)}\n`, 'utf8');
+
+    const seedResult = await maybeSeedMethodology(dir, { name: 'Acme Platform' });
+    seedResult?.status === 'migration_required'
+      ? ok('G: legacy PLATFORM kind requests explicit migration')
+      : bad(`G: expected migration_required; got ${JSON.stringify(seedResult)}`);
+
+    JSON.parse(readFileSync(businessPath, 'utf8')).kind === 'PLATFORM'
+      ? ok('G: installer does not silently remap the legacy kind')
+      : bad('G: installer silently changed the legacy kind');
+
+    const preview = migrateLegacyBusinessKind(dir, { businessId: 'BIZ-0001', targetKind: 'ENABLER' });
+    preview.applied === false && JSON.parse(readFileSync(businessPath, 'utf8')).kind === 'PLATFORM'
+      ? ok('G: explicit migration is dry-run by default')
+      : bad('G: migration dry-run changed the user record');
+
+    const applied = migrateLegacyBusinessKind(dir, { businessId: 'BIZ-0001', targetKind: 'ENABLER', apply: true });
+    const migrated = JSON.parse(readFileSync(businessPath, 'utf8'));
+    applied.applied === true && migrated.kind === 'ENABLER' && validateBusiness(migrated).ok
+      ? ok('G: explicit migration atomically produces a schema-valid canonical kind')
+      : bad(`G: explicit migration invalid — ${JSON.stringify(validateBusiness(migrated).errors ?? [])}`);
+  } finally {
+    cleanup();
+  }
+}
+
 (async () => {
   console.log('\n🌀 Integration test — methodology auto-adoption (BIZ-0001, ADR-0125/0126)\n');
 
   let maybeSeedMethodology;
   let validateBusiness;
+  let migrateLegacyBusinessKind;
   try {
     ({ maybeSeedMethodology } = await loadSeeder());
     ({ validateBusiness } = await loadValidator());
+    ({ migrateLegacyBusinessKind } = await loadBusinessKindMigration());
     ok('tools/install/seed-methodology.mjs imports cleanly');
   } catch (err) {
     bad(`import failed: ${err?.message ?? err}`);
@@ -202,6 +243,7 @@ async function caseF(maybeSeedMethodology) {
   await caseD(maybeSeedMethodology);
   await caseE(maybeSeedMethodology);
   await caseF(maybeSeedMethodology);
+  await caseG(maybeSeedMethodology, validateBusiness, migrateLegacyBusinessKind);
 
   rep.finish('methodology auto-adoption (BIZ-0001, ADR-0125/0126)');
 })();

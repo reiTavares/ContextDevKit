@@ -19,7 +19,7 @@
    intake. Run `/state` at session start, and treat the intake ceremony as a
    **standing obligation, not a one-off**: on every request classify the **Work
    Nature** (`business` vs `operation`) and the **Execution Ceremony** (operation →
-   direct / batch / workflow; business → direct-business / decision / workflow)
+   direct / batch / workflow; business → decision / workflow)
    **before** substantive work — honor it even when the gate is only advisory.
 1. **Intake** — on a new request the engine classifies the task (trivial / feature /
    architectural) and records an execution contract. Trivial tasks skip the ceremony.

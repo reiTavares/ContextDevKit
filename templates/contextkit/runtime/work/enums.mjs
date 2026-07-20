@@ -27,6 +27,29 @@ export const VALUE_INTENTS = Object.freeze([
 ]);
 
 /**
+ * Canonical persisted Business kinds. The classifier's functional scoring axis
+ * is a separate concern and must never be implicitly mapped into this enum.
+ * @type {readonly string[]}
+ */
+export const BUSINESS_KINDS = Object.freeze([
+  'TRANSFORMATION',
+  'INITIATIVE',
+  'PROGRAMME',
+  'FEATURE',
+  'ENABLER',
+]);
+
+/**
+ * Tests whether a value is a canonical persisted Business kind.
+ *
+ * @param {unknown} candidate candidate Business.kind value
+ * @returns {boolean} true when the value belongs to the closed enum
+ */
+export function isBusinessKind(candidate) {
+  return typeof candidate === 'string' && BUSINESS_KINDS.includes(candidate);
+}
+
+/**
  * Canonical relation types between work contexts / decisions
  * (shared-entity-contracts §"Owner / origin / relations"). NOTE: historical
  * artifacts may carry extra verbs (e.g. `refines`); validators therefore treat
