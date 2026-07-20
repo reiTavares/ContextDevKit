@@ -34,6 +34,7 @@ import { currentBranch } from '../../tools/scripts/workflow-pack.mjs';
 import { resolveConfig } from '../domain-engineering/config.mjs';
 import { resolveDomainMode } from '../domain-engineering/code-gate.mjs';
 import { summarizeSpawnEvidence } from '../domain-engineering/spawn-record.mjs';
+import { sessionHasSourceWrite } from '../execution/no-code-prior.mjs';
 
 const ROOT = process.cwd();
 const HOST = hookHost();
@@ -224,13 +225,15 @@ export function augmentWithLangAwareNoCode(result, contract, ledger, taskId) {
     const domain = contract?.signals?.domain;
     if (domain && domain !== 'general') return { applied: false, wrote: false };
 
-    // F-A: a real write for THIS task (F-B taskId binding) revokes the no-code prior.
+    // F-A (WF-0081): a real SOURCE write for THIS task (F-B taskId binding) revokes the
+    // no-code prior. A write to a NON-source path (governance memory, docs, per-workflow
+    // reports, scratch) does NOT revoke — an investigation/maintenance session that only
+    // touched such paths stays exempt. `sessionHasSourceWrite` is the single-sourced
+    // predicate (no-code-prior.mjs); default-to-source keeps the guard against an
+    // over-permissive exemption (risk R1/R2).
     const mods = Array.isArray(ledger?.modifications) ? ledger.modifications : [];
-    const wroteForTask = mods.some(
-      (m) => m && m.taskId === taskId && ['Edit', 'Write', 'MultiEdit'].includes(m.tool),
-    );
-    if (wroteForTask) {
-      // Evidence beats prior — obligations stand (the write must be governed).
+    if (sessionHasSourceWrite(mods, taskId)) {
+      // Evidence beats prior — obligations stand (the source write must be governed).
       return { applied: false, wrote: true };
     }
 

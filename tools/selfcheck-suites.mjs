@@ -209,6 +209,10 @@ function main() {
     'templates/contextkit/tools/scripts/tasks-compat.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-migrate.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-cutover.selftest.mjs',
+    // BIZ-0006 / WF-0081 (ADR-0148 §1) — classifier integrity & investigation
+    // exemption; selftest lives beside its engine module under templates/,
+    // registered via test-suites-wf0081.mjs, dispatched directly.
+    'templates/contextkit/runtime/execution/no-code-prior.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',

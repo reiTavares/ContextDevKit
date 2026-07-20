@@ -35,6 +35,7 @@ import { MCP_SUITES } from './test-suites-mcp.mjs';
 import { WF0059_SUITES } from './test-suites-wf0059.mjs';
 import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 import { WF0070_SUITES } from './test-suites-wf0070.mjs';
+import { WF0081_SUITES } from './test-suites-wf0081.mjs';
 
 export const TIERS = Object.freeze([
   'smoke',
@@ -319,6 +320,9 @@ export const SUITES = Object.freeze([
   // WF-0070 (OP-0008, ADR-0132) memory-accessibility suites — own module for the
   // line budget (see test-suites-wf0070.mjs).
   ...WF0070_SUITES,
+  // WF-0081 (BIZ-0006, ADR-0148) classifier-integrity suite — own module for the
+  // line budget (see test-suites-wf0081.mjs).
+  ...WF0081_SUITES,
 ]);
 
 /**
