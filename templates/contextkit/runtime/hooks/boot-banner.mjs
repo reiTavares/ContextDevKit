@@ -99,6 +99,13 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
+  // BIZ-0005/WF-0077/ADR-0144 — standing session posture (grade contract + cross-squad
+  // activation obligation). '' when it cannot resolve, so a degraded dial stays silent.
+  if (boot.sessionPosture) {
+    out.push(boot.sessionPosture);
+    out.push('');
+  }
+
   if (boot.behaviorsActive) {
     out.push('## 🧭 Behavioral discipline is ACTIVE');
     out.push('');

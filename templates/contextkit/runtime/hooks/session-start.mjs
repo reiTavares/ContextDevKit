@@ -46,7 +46,7 @@ import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { resolveEnforcementMode } from '../execution/enforcement-modes.mjs';
 import { CONTEXT_SNAPSHOT } from '../config/paths.mjs';
 import { resolveRoutingConfig, routingBannerLine } from '../../tools/scripts/routing/routing-config.mjs';
-import { autonomyBadge, consumePendingDigest } from './autonomy-signals.mjs';
+import { autonomyBadge, consumePendingDigest, renderSessionPosture } from './autonomy-signals.mjs';
 import { hookHost, rememberHookSessionId, resolveHookSessionId } from './host-adapter.mjs';
 import { renderBootBanner } from './boot-banner.mjs';
 import { readSquadContext } from './squad-context.mjs';
@@ -220,6 +220,10 @@ async function main() {
     // OP-0005 / ADR-0125 Wave 5: intake readiness — exposes the effective enforcement
     // mode so the agent knows whether the ceremony gate is live at session start.
     intakeReadiness: resolveIntakeReadiness(loadConfigSync(ROOT)),
+    // BIZ-0005 / WF-0077 / ADR-0144: standing session posture — installs the
+    // cross-squad activation obligation + the grade contract (copilot vs autopilot).
+    // Best-effort; never blocks boot (rule 2).
+    sessionPosture: (() => { try { return renderSessionPosture(ROOT); } catch { return ''; } })(),
   };
   const banner = renderBootBanner(applyBootDeltaGate(boot, { root: ROOT, config: loadConfigSync(ROOT) }));
 

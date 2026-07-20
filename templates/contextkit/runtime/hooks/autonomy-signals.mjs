@@ -65,6 +65,48 @@ export function autonomyBadge(root) {
 }
 
 /**
+ * The standing session posture (BIZ-0005/WF-0077, ADR-0144) — a boot-time block that
+ * makes cross-squad activation durable instead of per-session luck. It INSTALLS the
+ * obligation; it does NOT select the council (there is no request text at boot, so any
+ * enumerated agent list would be a guess — selection lives in the per-request envelope).
+ *
+ * Derived from the SAME `effectiveDial` resolver as the badge, so the posture's grade is
+ * byte-identical to the enforced grade (the grade-blind invariant is about the GATE
+ * verdict, not the confirmation ceremony — this block only describes the ceremony).
+ * Fail-open: any error yields '' (never breaks boot — immutable rule 2).
+ *
+ * @param {string} root project root.
+ * @returns {string} the posture block, or '' when it cannot resolve.
+ */
+export function renderSessionPosture(root) {
+  try {
+    const dial = effectiveDial(root);
+    const copilot = dial.grade <= 3;
+    const lines = [
+      '## 🧭 Session posture (grade drives who presses the button, never the quality)',
+      '',
+      `Effective autonomy: **A${dial.grade} · ${dial.mode}** — ${copilot ? 'copilot (confirm the steps that matter)' : 'governed autopilot (supervise, do not confirm each step)'}.`,
+      '',
+      '**Standing obligation, every request this session:** classify the work, resolve the'
+        + ' owning squads across ALL teams (not just devteam — product / design / security /'
+        + ' qa / growth engage when the change provably touches their surface), and ACTIVATE'
+        + ' them. A squad with nothing to say emits nothing (silence is the intelligence).',
+      '',
+      copilot
+        ? '**Grade contract (copilot):** present the one-paragraph plan (what + who + the one'
+          + ' unknown), confirm ONCE on intent, then run to a reviewable diff — never a'
+          + ' per-agent / per-file confirm.'
+        : '**Grade contract (autopilot):** state the plan as a notification, dispatch without a'
+          + ' per-step confirm, and surface at the diff/PR — the human supervises the result,'
+          + ' not the steps.',
+    ];
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/**
  * The Stop-hook consent receipt (grade ≥3 only): files touched without
  * per-edit consent + undo pointers. Also persists the receipt so it replays at
  * the next boot if this emission goes unseen. Returns null when silent.
