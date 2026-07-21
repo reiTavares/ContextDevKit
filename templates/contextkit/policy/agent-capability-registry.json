@@ -137,10 +137,10 @@
       "squad": "product-team",
       "capabilities": ["roadmap", "requirements", "user-stories", "acceptance-criteria", "scope-challenge", "feature-deepening"],
       "intents": ["material-decision", "documentation", "research"],
-      "pathPatterns": [],
+      "pathPatterns": ["roadmap/", "docs/product/", "prd.md", "requirements/", "specs/"],
       "riskTriggers": ["medium", "high"],
       "antiTriggers": ["formatting-only", "index-regen", "telemetry"],
-      "playbooks": [],
+      "playbooks": ["squad-product"],
       "contextRequirements": ["business-objective", "acceptance-criteria", "value-proposition", "relevant-adrs"],
       "preferredRole": "lead",
       "modelTier": "implementation"

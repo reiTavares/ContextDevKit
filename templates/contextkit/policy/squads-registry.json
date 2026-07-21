@@ -1,6 +1,30 @@
 {
   "squads": [
     {
+      "squad": "product-team",
+      "agent": "product-owner",
+      "playbook": "squads/squad-product.md",
+      "paths": [
+        "roadmap/",
+        "docs/product/",
+        "prd.md",
+        "requirements/",
+        "specs/"
+      ],
+      "keywords": [
+        "roadmap",
+        "requirement",
+        "user-story",
+        "acceptance-criteria",
+        "prioritization",
+        "backlog",
+        "product",
+        "feature-scope",
+        "milestone",
+        "stakeholder"
+      ]
+    },
+    {
       "squad": "design-team",
       "agent": "ux-designer",
       "playbook": "squads/squad-frontend.md",

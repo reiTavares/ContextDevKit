@@ -20,7 +20,7 @@ import { pathsFor } from '../config/paths.mjs';
 
 /** Score weights (§10). Tuned so capability+context dominate, cost trims ties. */
 const W = Object.freeze({
-  intent: 5, contextOwnership: 4, pathOwnership: 3, riskMatch: 3,
+  intent: 5, contextOwnership: 4, pathOwnership: 3, riskMatch: 3, graphOwnership: 3,
   playbookMatch: 2, capabilityHit: 2, leadRole: 1, antiTrigger: -100, duplicate: -2, coordCost: -1,
 });
 
@@ -42,6 +42,88 @@ export function loadAgentRegistry(root) {
   }
 }
 
+/**
+ * Derives the squad-stake map from the BIZ-0004 graph's symbol-level blast-radius
+ * (BIZ-0005/WF-0078, ADR-0145). Given the request's seed paths, it seeds those files
+ * in the committed graph, computes the bounded (hub-avoiding) neighborhood, resolves
+ * the reached nodes back to file paths, and marks a squad as having a STAKE when the
+ * blast-radius touches a path/keyword that squad owns in `squads-registry.json`.
+ *
+ * This is the I/O half that runs OUTSIDE the pure scorer; its result is passed as
+ * `ctx.squadStakes` to `selectAgents`. The graph is a weighted SIGNAL, never a router:
+ * a stake only ADDS to a score. Fail-open — a missing graph/registry, or no seed match,
+ * yields `{}` (no stakes → selection degrades to path/context/intent). Never throws.
+ *
+ * @param {string} root project root.
+ * @param {string[]} seedPaths the request's affected file paths.
+ * @param {object} [deps] injectable graph module (tests); defaults to graph-query.
+ * @returns {Promise<Record<string, boolean>>} { squadName: true } for staked squads.
+ */
+export async function deriveSquadStakes(root, seedPaths, deps = null) {
+  try {
+    if (!Array.isArray(seedPaths) || seedPaths.length === 0) return {};
+    const gq = deps ?? await import('../../tools/scripts/graph-query.mjs');
+    const projection = gq.loadProjection(root);
+    if (!projection || projection.available !== true) return {};
+
+    const idToPath = new Map();
+    for (const node of projection.nodes) {
+      const p = node?.sourceFile || node?.path || node?.file;
+      if (typeof node?.id === 'string' && typeof p === 'string' && p) idToPath.set(node.id, norm(p));
+    }
+    const pathToId = new Map([...idToPath].map(([id, p]) => [p, id]));
+
+    const reachedPaths = new Set();
+    for (const seed of seedPaths.map(norm)) {
+      const seedId = pathToId.get(seed) || `file:${seed}`;
+      const hood = gq.boundedReachability(projection, seedId, 40);
+      if (!hood?.available) { reachedPaths.add(seed); continue; }
+      for (const nodeId of hood.nodes) reachedPaths.add(idToPath.get(nodeId) || '');
+      reachedPaths.add(seed);
+    }
+
+    const registry = loadSquadsRegistry(root);
+    const stakes = {};
+    for (const entry of registry) {
+      const owns = squadOwnsAny(entry, reachedPaths);
+      if (owns) stakes[entry.squad] = true;
+    }
+    return stakes;
+  } catch {
+    return {}; // fail-open: no graph signal → existing selection behavior.
+  }
+}
+
+/** Loads squads-registry.json entries (fail-open to []). */
+function loadSquadsRegistry(root) {
+  try {
+    const p = join(pathsFor(root).policy, 'squads-registry.json');
+    if (!existsSync(p)) return [];
+    const parsed = JSON.parse(readFileSync(p, 'utf-8').replace(/^﻿/, ''));
+    return Array.isArray(parsed?.squads) ? parsed.squads : [];
+  } catch {
+    return [];
+  }
+}
+
+/** True when a squad-registry entry's paths OR keywords touch any reached path. */
+function squadOwnsAny(entry, reachedPaths) {
+  const paths = Array.isArray(entry?.paths) ? entry.paths : [];
+  const keywords = Array.isArray(entry?.keywords) ? entry.keywords : [];
+  for (const reached of reachedPaths) {
+    if (!reached) continue;
+    const low = reached.toLowerCase();
+    if (paths.some((pat) => { const s = String(pat).replace(/\/+$/, '').toLowerCase(); return s && low.includes(s); })) return true;
+    if (keywords.some((kw) => { const k = String(kw).toLowerCase(); return k.length >= 4 && low.includes(k); })) return true;
+  }
+  return false;
+}
+
+/** Forward-slash normalise. */
+function norm(value) {
+  return String(value ?? '').replace(/\\/g, '/');
+}
+
 /** True when any registry pathPattern stem is a substring of any affected path. */
 function pathOwns(patterns, paths) {
   if (!Array.isArray(patterns) || !Array.isArray(paths) || !paths.length) return false;
@@ -49,6 +131,25 @@ function pathOwns(patterns, paths) {
     const stem = String(pat).replace(/\*+/g, '').replace(/\/+$/, '');
     return stem && paths.some((f) => String(f).includes(stem));
   });
+}
+
+/**
+ * True when the agent's squad has a proven stake in the change (BIZ-0005/WF-0078,
+ * ADR-0145). `squadStakes` is a derived map { squadName: true } computed OUTSIDE this
+ * pure scorer from the BIZ-0004 graph's symbol-level blast-radius (see
+ * `deriveSquadStakes`) — the graph is a weighted SIGNAL here, never a hard router: a
+ * stake ADDS `W.graphOwnership` to the score, it never forces or vetoes a selection.
+ * Absent stakes (graph unavailable / no proven surface) → false, so selection degrades
+ * to the existing path/context/intent signals (fail-open).
+ *
+ * @param {object} agent registry entry (has `.squad`).
+ * @param {Record<string,boolean>|undefined} squadStakes derived stake map.
+ * @returns {boolean}
+ */
+function graphOwns(agent, squadStakes) {
+  if (!squadStakes || typeof squadStakes !== 'object') return false;
+  const squad = String(agent?.squad ?? '');
+  return squad.length > 0 && squadStakes[squad] === true;
 }
 
 /**
@@ -99,6 +200,7 @@ function scoreAgent(agent, cls, ctx) {
   if (intentMatches(agent, cls)) { score += W.intent; reasons.push(`+intent(${cls.intent})`); }
   if (Array.isArray(agent.riskTriggers) && agent.riskTriggers.includes(cls.risk)) { score += W.riskMatch; reasons.push(`+risk(${cls.risk})`); }
   if (pathOwns(agent.pathPatterns, ctx?.paths)) { score += W.pathOwnership; reasons.push('+path-ownership'); }
+  if (graphOwns(agent, ctx?.squadStakes)) { score += W.graphOwnership; reasons.push('+graph-ownership'); }
   if (ownsContext(agent, cls.primaryType)) { score += W.contextOwnership; reasons.push(`+context(${cls.primaryType})`); }
   if (Array.isArray(agent.capabilities) && agent.capabilities.length) { score += W.capabilityHit; reasons.push('+capabilities'); }
   if (agent.preferredRole === 'lead') { score += W.leadRole; reasons.push('+lead-role'); }

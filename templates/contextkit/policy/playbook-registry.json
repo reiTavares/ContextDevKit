@@ -129,6 +129,20 @@
       "sourcePath": "squads/squad-agent-forge.md"
     },
     {
+      "id": "squad-product",
+      "owningSquad": "product-team",
+      "intents": ["material-decision", "documentation", "research"],
+      "contexts": ["business", "decision", "documentation"],
+      "workflowPhases": ["prd", "spec"],
+      "pathPatterns": ["roadmap/", "docs/product/", "prd.md", "requirements/", "specs/"],
+      "technologies": [],
+      "riskTriggers": ["medium", "high"],
+      "requiredSections": ["👥 Members", "📝 Best Practices"],
+      "incompatibleConditions": [],
+      "version": "1.0.0",
+      "sourcePath": "squads/squad-product.md"
+    },
+    {
       "id": "landing-page",
       "owningSquad": "design-team",
       "intents": ["ux-review", "growth-review", "implementation"],
