@@ -274,6 +274,13 @@ export const SUITES = Object.freeze([
   { id: 'domain-distribution', file: it('domain-distribution'), tier: 'integration:installer',
     touches: ['tools/install/engine.mjs', 'tools/install/uninstall.mjs', 'templates/contextkit/runtime/config/settings-compose.mjs', 'templates/contextkit/tools/scripts/domain-inspect.mjs'] },
 
+  // WF-0079 (BIZ-0005, ADR-0146) — end-to-end program distribution for the four
+  // WF-0075..0078 capabilities: dispatch gate, MADM, autonomy dial, squad selection;
+  // the retired l5.lineBudget alias stays gone; the WF-0069 allocator fix ships;
+  // --update is non-destructive across the whole chain.
+  { id: 'biz0005-chain', file: it('biz0005-chain'), tier: 'integration:installer',
+    touches: ['templates/contextkit/runtime/domain-engineering/code-gate.mjs', 'templates/contextkit/tools/scripts/madm-generate.mjs', 'templates/contextkit/runtime/hooks/autonomy-signals.mjs', 'templates/contextkit/runtime/execution/request-agent-select.mjs'] },
+
   { id: 'projmap-signals', file: 'tools/selfcheck-projmap-signals.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/project-map-signals', 'templates/contextkit/tools/scripts/project-map-insights'] }, // WF-0057 W1.1 (ADR-0122) structural signals
   { id: 'blast-radius', file: 'tools/selfcheck-blast-radius.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/blast-radius', 'templates/contextkit/tools/scripts/project-map-signals'] }, // WF-0071 GC1-T1 (BIZ-0004) blast-radius consumer lookup
   { id: 'graph-extract', file: 'tools/selfcheck-graph-extract.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/graph-extract', 'templates/contextkit/tools/scripts/project-map-graph', 'templates/contextkit/tools/scripts/project-map-dense'] }, // WF-0071 GC1-T2 (BIZ-0004) graph extraction + committed projection writer
