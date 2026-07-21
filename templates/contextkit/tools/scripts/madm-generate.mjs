@@ -178,9 +178,9 @@ function deriveAllowedRelations(edges, nodes, pathIndex) {
     if (!fromPath || !toPath) continue;
     const fromCtx = ctxOf(fromPath, pathIndex);
     const toCtx = ctxOf(toPath, pathIndex);
-    if (fromCtx && toCtx && fromCtx !== toCtx) pairs.add(`${fromCtx} ${toCtx}`);
+    if (fromCtx && toCtx && fromCtx !== toCtx) pairs.add(`${fromCtx} ${toCtx}`);
   }
-  return [...pairs].sort().map((key) => key.split(' '));
+  return [...pairs].sort().map((key) => key.split(' '));
 }
 
 /** Map a graph node id (`file:x` / `mod:x`) to its best-known forward-slash path. */
