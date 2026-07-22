@@ -32,7 +32,7 @@
 import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { extractSymbols } from './graph-extract.mjs';
-import { disposeParser, extractAstFile, grammarForPath, loadTreeSitter } from './graph-ast.mjs';
+import { disposeParser, extractAstFile, grammarForPath, grammarVersionFor, loadTreeSitter } from './graph-ast.mjs';
 
 /** Extension -> interop family for the cross-language phantom guard (GC0 section 2). */
 const FAMILY = {
@@ -144,16 +144,7 @@ function resolveCall(name, file, index, importedNames) {
 }
 
 /**
- * Two-phase resolver. Phase 1 reads each file and scans call/import facts;
- * Phase 2 resolves them cross-file, then the phantom guard demotes any
- * cross-family EXTRACTED call. Returns {nodes, edges} with edges sorted by
- * (source, target, relation); nodes unchanged (no synthetic node is added).
- *
- * @param {string} root project root
- * @returns {{nodes: object[], edges: object[]}}
- */
-/**
- * Two-phase resolver, now AST-first (WF-0080/AT2, ADR-0147). Phase 1 tries the
+ * Two-phase resolver, AST-first (WF-0080/AT2, ADR-0147). Phase 1 tries the
  * Tier-1 AST path per file (same-file function calls + receiver-typed method
  * calls — `this.m()`, `new X().m()`, `const v = new X(); v.m()` — proven from a
  * real parse, tagged `tier:'ast'`), then fills in with the Tier-0 regex scan for
@@ -161,11 +152,14 @@ function resolveCall(name, file, index, importedNames) {
  * AST tier legitimately can't resolve). The AST edge wins on a duplicate
  * source->target (more precise); regex NEVER overwrites an AST-proven edge.
  * Phase 2 resolves cross-file, then the phantom guard demotes any cross-family
- * EXTRACTED call. Returns {nodes, edges} with edges sorted by
- * (source, target, relation); AST-derived class/method nodes are merged in.
+ * EXTRACTED call. Returns {nodes, edges, grammarVersions} with edges sorted by
+ * (source, target, relation); AST-derived class/method nodes are merged in;
+ * `grammarVersions` records the pinned version of each grammar that actually
+ * loaded a parser this pass (risk R3 — a version bump becomes one reviewable
+ * diff instead of silent churn in the committed projection).
  *
  * @param {string} root project root
- * @returns {Promise<{nodes: object[], edges: object[]}>}
+ * @returns {Promise<{nodes: object[], edges: object[], grammarVersions: Record<string,string>}>}
  */
 export async function resolveGraph(root) {
   const base = extractSymbols(root);
@@ -181,6 +175,10 @@ export async function resolveGraph(root) {
     return parserCache.get(grammar);
   };
 
+  // Grammars actually engaged this pass (a parser really loaded), pinned
+  // version recorded so a bump is one reviewable diff, never silent churn
+  // (risk R3). Absence of a language here is honest: it degraded to regex.
+  const grammarVersions = {};
   const astNodes = [];
   const astEdgeKeys = new Set(); // "source target" already proven by AST — regex must not duplicate it.
   const callEdges = [];
@@ -192,6 +190,7 @@ export async function resolveGraph(root) {
     if (grammar) {
       const parser = await parserFor(grammar);
       if (parser) {
+        if (!grammarVersions[grammar]) grammarVersions[grammar] = grammarVersionFor(grammar);
         const ast = extractAstFile(text, parser, file);
         for (const node of ast.nodes) astNodes.push(node);
         for (const edge of ast.edges) {
@@ -238,7 +237,7 @@ export async function resolveGraph(root) {
     (a, b) => (a.source + ' ' + a.target + ' ' + a.relation)
       .localeCompare(b.source + ' ' + b.target + ' ' + b.relation),
   );
-  return { nodes: [...allNodesById.values()], edges };
+  return { nodes: [...allNodesById.values()], edges, grammarVersions };
 }
 
 /** Jaro similarity of two strings (0..1). Pure, deterministic. */
