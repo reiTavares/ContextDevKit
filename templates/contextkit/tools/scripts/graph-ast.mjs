@@ -21,7 +21,8 @@
  * are visited in child order; edges are deduped + returned in discovery order for
  * the writer to sort.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { extname, join } from 'node:path';
 
 /**
@@ -31,11 +32,30 @@ import { extname, join } from 'node:path';
  * language to the regex tier only — `grammarForPath` returns null, the caller
  * never attempts a WASM load for it. JS/TS family first (ADR-0147); a new
  * language is added here, not by inventing a parallel lookup.
+ *
+ * `sha256` (WF-0080/AT4, ADR-0147 risk R2) pins the exact byte content of the
+ * VENDORED `.wasm` this version ships — verified at load, never trusted from
+ * the filename alone. A grammar with no `sha256` entry here (a future language
+ * added to the registry ahead of its vendored blob) is treated as unpinned:
+ * `loadTreeSitter` refuses it exactly like a hash mismatch (degrade to regex),
+ * never a silent "verification skipped" pass.
  */
 export const GRAMMAR_REGISTRY = Object.freeze({
-  javascript: { extensions: ['.js', '.jsx', '.mjs', '.cjs'], version: '0.1.12' },
-  typescript: { extensions: ['.ts'], version: '0.1.12' },
-  tsx: { extensions: ['.tsx'], version: '0.1.12' },
+  javascript: {
+    extensions: ['.js', '.jsx', '.mjs', '.cjs'],
+    version: '0.1.12',
+    sha256: '63812b9e275d26851264734868d27a1656bd44a2ef6eb3e85e6b03728c595ab5',
+  },
+  typescript: {
+    extensions: ['.ts'],
+    version: '0.1.12',
+    sha256: '8515404dceed38e1ed86aa34b09fcf3379fff1b4ff9dd3967bcd6d1eb5ac3d8f',
+  },
+  tsx: {
+    extensions: ['.tsx'],
+    version: '0.1.12',
+    sha256: '6aa3b2c70e76f5d48eafef1093e9c4de383e13f2fdde2f4e9b98a378f6a8f1b6',
+  },
 });
 
 /** Extension -> grammar name, derived from GRAMMAR_REGISTRY (single source). */
@@ -71,9 +91,24 @@ function grammarCandidates(root, grammar) {
 }
 
 /**
+ * SHA-256 hex digest of a file's bytes. Pure I/O helper — no caching, no
+ * caller-visible state; called once per `loadTreeSitter` invocation.
+ * @param {string} path
+ * @returns {string}
+ */
+function sha256File(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+/**
  * Loads a web-tree-sitter parser for `lang`, absent-safe. Returns a ready parser
  * or null (any failure degrades to the regex tier; never throws). The dynamic
  * import is the ONLY reach for the optional dependency (ADR-0147).
+ *
+ * Hash-verified at load (WF-0080/AT4, ADR-0147 risk R2): the candidate `.wasm`'s
+ * SHA-256 MUST match `GRAMMAR_REGISTRY[grammar].sha256` before `Language.load()`
+ * ever touches its bytes. No pinned hash, or a mismatch (a tampered / corrupted /
+ * wrong-version blob), degrades to regex — the blob is NEVER executed unverified.
  *
  * @param {string} root project root
  * @param {string} lang grammar name (e.g. 'javascript') OR a file path
@@ -82,8 +117,11 @@ function grammarCandidates(root, grammar) {
 export async function loadTreeSitter(root, lang) {
   try {
     const grammar = GRAMMAR_BY_EXT[extname(String(lang)).toLowerCase()] || lang;
+    const expectedHash = GRAMMAR_REGISTRY[grammar]?.sha256;
+    if (!expectedHash) return null; // unpinned grammar -> refuse, never "verification skipped"
     const wasm = grammarCandidates(root, grammar).find((p) => existsSync(p));
     if (!wasm) return null;
+    if (sha256File(wasm) !== expectedHash) return null; // hash mismatch -> degrade, never execute
     const TS = await import('web-tree-sitter');
     const Parser = TS.Parser || TS.default?.Parser;
     const Language = TS.Language || TS.default?.Language;

@@ -119,3 +119,43 @@ jobs:
           test -f /tmp/context-greenfield/CLAUDE.md
           test -f /tmp/context-greenfield/contextkit/config.json
           test -f /tmp/context-greenfield/.claude/settings.json
+
+  # ---------------------------------------------------------------------------
+  # Windows AST-tier leg (WF-0080/AT4, ADR-0147 risk R5) — proves the real WASM
+  # parse + \ -> / path normalization on the dev platform, not just Linux CI.
+  # No job above ever runs `npm ci` (the repo is zero-runtime-dep by design, so
+  # every other job exercises the AST tier's DEGRADE arm only). This is the
+  # ONE job that installs the OPTIONAL grammar deps (web-tree-sitter +
+  # tree-sitter-wasms) from the lockfile, so its selfchecks' real-parse arm
+  # actually engages here — a green run elsewhere would never catch a
+  # Windows-only WASM/path regression. `--ignore-scripts` is enforced even
+  # though neither dep ships an install/postinstall script today (verified by
+  # selfcheck-graph-ast.mjs's own provenance check) — the posture holds
+  # regardless of what a future version might add. Gated like the full test
+  # matrix (push to main / workflow_dispatch); a PR's ci:fast stays Linux-only
+  # + dependency-free for speed. Each command is its own step (not a
+  # multi-line block) so a failure is unambiguous under pwsh, the default
+  # Windows runner shell.
+  # ---------------------------------------------------------------------------
+  test-windows-ast:
+    name: test (windows, AST tier)
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+
+      - name: Install optional AST-tier grammar deps
+        run: npm ci --ignore-scripts
+
+      - name: AST extractor selfcheck (real WASM parse + tampered-hash degrade)
+        run: node tools/selfcheck-graph-ast.mjs
+
+      - name: Resolver selfcheck (AT2/AT3 receiver-type + golden fixtures)
+        run: node tools/selfcheck-resolve.mjs
+
+      - name: Hot-path purity stays green with the optional dep present
+        run: node tools/selfcheck-hotpath-purity.mjs
