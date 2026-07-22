@@ -12,8 +12,10 @@
  *     edge; a method call (`x.m()`) and a commented-out/unknown call yield NONE
  *     (no phantom); output is deterministic.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -64,6 +66,56 @@ export async function runGraphAstChecks() {
     record('AST extraction deterministic (twice -> deeply equal)', a === b, a === b ? 'identical' : 'DIVERGED');
     if (typeof m.disposeParser === 'function') m.disposeParser(parser);
   }
+
+  // AT4 (WF-0080, ADR-0147 risk R2) — hash-verified load. Gated on the SAME
+  // signal as the real-parse arm above (`parser !== null`) — a readable wasm
+  // BLOB on disk is not enough; `web-tree-sitter` itself (the JS binding, a
+  // separate optional dep) must also be importable, or `loadTreeSitter` will
+  // correctly return null regardless of hash correctness. Re-reading the
+  // ALREADY-PROVEN-WORKING bytes (rather than re-deriving availability) keeps
+  // this arm honest about what it's actually testing: hash verification, not
+  // dependency presence (that's the arm above's job).
+  const realWasmSrc = parser
+    ? [
+        join(KIT, 'templates', 'contextkit', 'tools', 'vendor', 'tree-sitter', 'tree-sitter-javascript.wasm'),
+        join(KIT, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm'),
+      ].map((p) => { try { return readFileSync(p); } catch { return null; } }).find((b) => b !== null)
+    : null;
+  if (!realWasmSrc) {
+    record('AT4 hash-verification checks SKIPPED (web-tree-sitter/grammar not installed here)', true, 'degrade arm proven above; hash verification needs the optional dep');
+  } else {
+    const tamperRoot = mkdtempSync(join(tmpdir(), 'graph-ast-tamper-'));
+    try {
+      const vendorDir = join(tamperRoot, 'templates', 'contextkit', 'tools', 'vendor', 'tree-sitter');
+      mkdirSync(vendorDir, { recursive: true });
+      const wasmPath = join(vendorDir, 'tree-sitter-javascript.wasm');
+
+      writeFileSync(wasmPath, realWasmSrc);
+      const correctParser = await m.loadTreeSitter(tamperRoot, 'javascript');
+      record('AT4: correct-hash vendored grammar loads a real parser', correctParser !== null, String(correctParser !== null));
+      if (correctParser && typeof m.disposeParser === 'function') m.disposeParser(correctParser);
+
+      writeFileSync(wasmPath, Buffer.concat([realWasmSrc, Buffer.from('TAMPERED')]));
+      const tamperedParser = await m.loadTreeSitter(tamperRoot, 'javascript');
+      record('AT4: tampered-hash vendored grammar -> null (degrade, blob NEVER executed)', tamperedParser === null, String(tamperedParser));
+    } finally {
+      rmSync(tamperRoot, { recursive: true, force: true });
+    }
+  }
+
+  // AT4 acceptance — every registered grammar's pinned SHA-256 matches the
+  // ACTUAL vendored blob shipping in this repo (catches a hash/blob edit that
+  // drifted out of sync, not just the load-time verification path above).
+  const vendorDir = join(KIT, 'templates', 'contextkit', 'tools', 'vendor', 'tree-sitter');
+  const registryMismatches = [];
+  for (const [grammar, { sha256 }] of Object.entries(m.GRAMMAR_REGISTRY || {})) {
+    let bytes;
+    try { bytes = readFileSync(join(vendorDir, `tree-sitter-${grammar}.wasm`)); } catch { registryMismatches.push(`${grammar}: vendored blob missing`); continue; }
+    const actual = createHash('sha256').update(bytes).digest('hex');
+    if (actual !== sha256) registryMismatches.push(`${grammar}: registry=${sha256} actual=${actual}`);
+  }
+  record('AT4: every GRAMMAR_REGISTRY sha256 matches its vendored blob', registryMismatches.length === 0,
+    registryMismatches.length === 0 ? `${Object.keys(m.GRAMMAR_REGISTRY || {}).length} grammar(s) verified` : registryMismatches.join('; '));
 
   // Zero STATIC non-node: imports (web-tree-sitter is a DYNAMIC import -> hot-path safe).
   const source = readFileSync(modPath, 'utf-8');

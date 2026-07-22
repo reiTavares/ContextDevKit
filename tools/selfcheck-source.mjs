@@ -192,6 +192,38 @@ async function checkZeroRuntimeDeps(rep, KIT) {
 }
 
 /**
+ * ADR-0147 — every `optionalDependencies` entry must be EXACT-pinned (no `^`/`~`
+ * range, no `*`/`x` wildcard, no tag), so a version bump is a reviewable diff in
+ * THIS repo, never a silent upstream drift the WASM-grammar SHA-256 pin (risk R2)
+ * would then fight against. Currently the WF-0080 AST-tier grammar deps
+ * (`web-tree-sitter`, `tree-sitter-wasms`) — the kit's first runtime dependency
+ * surface; a future optional dep inherits the same bar automatically.
+ */
+async function checkOptionalDepsPinned(rep, KIT) {
+  const { ok, bad } = rep;
+  console.log('Checking optionalDependencies are exact-pinned (ADR-0147)...');
+  let pkg = {};
+  try {
+    pkg = JSON.parse(await readFile(resolve(KIT, 'package.json'), 'utf-8'));
+  } catch {
+    bad('package.json unreadable — cannot verify optionalDependencies pinning');
+    return;
+  }
+  const optional = pkg.optionalDependencies || {};
+  const exactPin = /^\d+\.\d+\.\d+(-[\w.]+)?$/;
+  const entries = Object.entries(optional);
+  if (entries.length === 0) {
+    ok('no optionalDependencies declared — nothing to pin');
+    return;
+  }
+  for (const [name, range] of entries) {
+    exactPin.test(range)
+      ? ok(`optionalDependencies["${name}"] is exact-pinned (${range})`)
+      : bad(`optionalDependencies["${name}"] = "${range}" is NOT exact-pinned (ADR-0147 requires a bare x.y.z)`);
+  }
+}
+
+/**
  * Every `bin` target must EXIST and be PUBLISHED (covered by `files`). A bin pointing
  * at a gitignored / files-excluded path ships a broken global command — npm only
  * warns ("No bin file found"), so it slips through. Caught the `agy` → root `ctx.mjs`
@@ -300,6 +332,7 @@ export async function runSourceChecks(rep, { KIT }) {
   await checkWorkflowsPinned(rep, KIT);
   await checkDocLinks(rep, KIT);
   await checkZeroRuntimeDeps(rep, KIT);
+  await checkOptionalDepsPinned(rep, KIT);
   await checkBinTargets(rep, KIT);
   await checkAntigravityParity(rep, KIT);
 }
