@@ -111,13 +111,14 @@ export function graphSignature(nodes, edges) {
  * `project-map-resolve.resolveGraph`) merged with the deterministic rationale
  * layer (`adr:` nodes + `cites` edges, from `rationale-nodes.buildRationaleLayer`).
  * Deduped by node id and edge tuple; the resolver wins a node-id tie. Returns an
- * unsorted `{nodes, edges, layers}` (feed it to `writeCommittedProjection`).
+ * unsorted `{nodes, edges, layers, grammarVersions}` (feed it to
+ * `writeCommittedProjection`).
  *
  * This is what `--apply` must write - an extract-only projection is incomplete
  * and makes `reverseCallers` return a false-negative `[]`.
  *
  * @param {string} root project root
- * @returns {Promise<{nodes:Array<object>, edges:Array<object>, layers:string[]}>}
+ * @returns {Promise<{nodes:Array<object>, edges:Array<object>, layers:string[], grammarVersions:Record<string,string>}>}
  */
 export async function buildFullProjection(root) {
   const resolved = await resolveGraph(root);
@@ -133,7 +134,7 @@ export async function buildFullProjection(root) {
   for (const edge of rationale.edges) if (!edgeByKey.has(edgeSortKey(edge))) edgeByKey.set(edgeSortKey(edge), edge);
 
   const edges = [...edgeByKey.values()];
-  return { nodes: [...nodeById.values()], edges, layers: layersOf(edges) };
+  return { nodes: [...nodeById.values()], edges, layers: layersOf(edges), grammarVersions: resolved.grammarVersions || {} };
 }
 
 /**
@@ -141,12 +142,17 @@ export async function buildFullProjection(root) {
  * atomically writes it (tmp + rename) to `<projectMap>/graph/graph.json`.
  * Dry-run by default: always RETURNS the projection, disk untouched unless
  * `apply` is set (constitution section 8). Preserves `graph.layers` (the honest
- * manifest of built layers) or derives it from the edges when absent.
+ * manifest of built layers) or derives it from the edges when absent. Preserves
+ * `graph.grammarVersions` (the AST tier's pinned-per-language versions that
+ * actually loaded this pass, ADR-0147 risk R3) or defaults to `{}` when the
+ * build didn't reach the AST tier (extract-only, or no grammar installed) —
+ * `graphSignature` deliberately excludes it (a grammar bump is a version-record
+ * change, not a shape change).
  *
  * @param {string} root project root
- * @param {{nodes:Array<object>, edges:Array<object>, layers?:string[]}} graph raw build output
+ * @param {{nodes:Array<object>, edges:Array<object>, layers?:string[], grammarVersions?:Record<string,string>}} graph raw build output
  * @param {{apply?: boolean}} [options]
- * @returns {{schemaVersion:1, graphSignature:string, layers:string[], nodes:Array<object>, edges:Array<object>}}
+ * @returns {{schemaVersion:1, graphSignature:string, layers:string[], grammarVersions:Record<string,string>, nodes:Array<object>, edges:Array<object>}}
  */
 export function writeCommittedProjection(root, graph, { apply = false } = {}) {
   const nodes = [...graph.nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -156,7 +162,8 @@ export function writeCommittedProjection(root, graph, { apply = false } = {}) {
     return ka < kb ? -1 : ka > kb ? 1 : 0;
   });
   const layers = Array.isArray(graph.layers) ? [...graph.layers].sort() : layersOf(edges);
-  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), layers, nodes, edges };
+  const grammarVersions = graph.grammarVersions && typeof graph.grammarVersions === 'object' ? graph.grammarVersions : {};
+  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), layers, grammarVersions, nodes, edges };
 
   if (apply) {
     const graphDir = join(pathsFor(root).projectMap, 'graph');

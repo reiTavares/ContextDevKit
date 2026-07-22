@@ -14,6 +14,21 @@
  *      merge near-duplicate semantic (concept) nodes, never across kind.
  *   5. determinism: resolveGraph twice on the same fixture -> deeply equal.
  *   6. zero-dep invariant (node:* + relative siblings only).
+ *
+ * AT3 (WF-0080, ADR-0147) additions — the acceptance-matrix rows AT2 deferred:
+ *   7. golden fixture: the AST tier's edge set is a SUPERSET of the regex
+ *      tier's on the SAME source (a call the regex tier can only mark
+ *      AMBIGUOUS — a class method isn't a regex-tracked top-level declaration
+ *      — resolves EXTRACTED/tier:'ast'), with zero phantom edges (every
+ *      tier:'ast' target is a real graph node).
+ *   8. `grammarVersions` records the pinned version of every grammar engaged;
+ *      `resolveGraph` (now including that field) stays byte-identical across
+ *      two runs on a fixed grammar version.
+ *   9. degrade-to-regex: a fixture root with NO grammar anywhere on its search
+ *      path (regardless of the environment's own install) produces zero
+ *      `tier:'ast'` edges and an empty `grammarVersions` — the ADR-0137
+ *      BLOCKING ladder is unreachable from this output by construction, not
+ *      by luck.
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -69,6 +84,41 @@ function buildAstFixtureRoot(kit) {
     'unknownVar.area();',                    // unproven receiver -> phantom guard, unresolved
   ].join('\n'), 'utf-8');
   return root;
+}
+
+/**
+ * AT3 (WF-0080, ADR-0147) golden-fixture PAIR — the SAME source (a method call
+ * the regex tier can only mark AMBIGUOUS, since a class method is not a
+ * top-level regex-tracked declaration) built into two fixture roots: one with
+ * the grammar wasm vendored (AST tier engages) and one without (regex-only).
+ * Diffing their `resolveGraph` output on identical input is the superset +
+ * precision-gain proof AT2 deferred to AT3. Returns null when the grammar
+ * isn't installed here (the comparison needs a real AST-tier run).
+ */
+function buildSupersetFixturePair(kit) {
+  const wasmSrc = join(kit, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm');
+  let wasmBytes;
+  try { wasmBytes = readFileSync(wasmSrc); } catch { return null; }
+
+  const source = [
+    'export class Shape {',
+    '  area() { return 0; }',
+    '  describe() { return this.area(); }', // regex tier: "describe(...)" isn't a declared top-level fn -> AMBIGUOUS
+    '}',
+    'new Shape().describe();',
+  ].join('\n');
+
+  const withAst = mkdtempSync(join(tmpdir(), 'resolve-superset-ast-'));
+  mkdirSync(join(withAst, 'src'), { recursive: true });
+  mkdirSync(join(withAst, 'node_modules', 'tree-sitter-wasms', 'out'), { recursive: true });
+  writeFileSync(join(withAst, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm'), wasmBytes);
+  writeFileSync(join(withAst, 'src', 'shape.mjs'), source, 'utf-8');
+
+  const regexOnly = mkdtempSync(join(tmpdir(), 'resolve-superset-regex-'));
+  mkdirSync(join(regexOnly, 'src'), { recursive: true });
+  writeFileSync(join(regexOnly, 'src', 'shape.mjs'), source, 'utf-8');
+
+  return { withAst, regexOnly };
 }
 
 function findImportSpecifiers(source) {
@@ -184,9 +234,91 @@ export async function runResolveChecks() {
         methodNodes.length === 2 && classNodes.length === 1
         && methodNodes.every((n) => n.id.startsWith('sym:src/shape.mjs#Shape.')),
         'methods=' + JSON.stringify(methodNodes.map((n) => n.id)) + ' classes=' + JSON.stringify(classNodes.map((n) => n.id)));
+
+      // AT3 acceptance #5 — grammarVersions pins the engaged grammar's version.
+      record('AT3: grammarVersions records the pinned javascript version', g.grammarVersions?.javascript === '0.1.12',
+        'grammarVersions=' + JSON.stringify(g.grammarVersions));
+
+      // AT3 acceptance #5 (determinism) — byte-identical including grammarVersions.
+      const g2 = await resolveGraph(astRoot);
+      record('AT3: resolveGraph (incl. grammarVersions) deterministic across two runs', JSON.stringify(g) === JSON.stringify(g2),
+        JSON.stringify(g) === JSON.stringify(g2) ? 'identical' : 'DIVERGED');
     } finally {
       rmSync(astRoot, { recursive: true, force: true });
     }
+  }
+
+  // AT3 (WF-0080, ADR-0147) acceptance #3/#4 — golden fixture: the AST tier's
+  // edge set on a fixture is a SUPERSET of the regex-only tier's on the SAME
+  // source, with zero phantom edges. Skips gracefully when the grammar isn't
+  // installed here (needs a real with/without-AST comparison).
+  const pair = buildSupersetFixturePair(KIT);
+  if (!pair) {
+    record('AT3 golden-fixture superset checks SKIPPED (grammar not installed here)', true, 'needs the optional dep to compare with/without AST');
+  } else {
+    try {
+      const withAstGraph = await resolveGraph(pair.withAst);
+      const regexOnlyGraph = await resolveGraph(pair.regexOnly);
+      const withAstNodeIds = new Set(withAstGraph.nodes.map((n) => n.id));
+      const withAstCalls = withAstGraph.edges.filter((e) => e.relation === 'calls');
+      const regexOnlyCalls = regexOnlyGraph.edges.filter((e) => e.relation === 'calls');
+
+      // Superset: every EXTRACTED edge the regex tier proves is also present
+      // (same source->target) in the AST-enabled run — AST never loses ground.
+      const extractedKey = (e) => `${e.source} ${e.target}`;
+      const regexExtractedKeys = new Set(regexOnlyCalls.filter((e) => e.resolution === 'EXTRACTED').map(extractedKey));
+      const withAstExtractedKeys = new Set(withAstCalls.filter((e) => e.resolution === 'EXTRACTED').map(extractedKey));
+      const isSuperset = [...regexExtractedKeys].every((k) => withAstExtractedKeys.has(k));
+      record('AT3: AST-tier EXTRACTED edge set is a superset of the regex-only tier\'s (same fixture)', isSuperset,
+        'regex=' + JSON.stringify([...regexExtractedKeys]) + ' withAst=' + JSON.stringify([...withAstExtractedKeys]));
+
+      // Precision gain: describe()'s call to area() is AMBIGUOUS under regex
+      // (not a top-level declared fn) but EXTRACTED/tier:'ast' under AST.
+      const regexDescribeAmbiguous = regexOnlyCalls.some(
+        (e) => e.source === 'file:src/shape.mjs' && e.target === 'unresolved:area' && e.resolution === 'AMBIGUOUS',
+      );
+      const astDescribeExtracted = withAstCalls.some(
+        (e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.area' && e.resolution === 'EXTRACTED' && e.tier === 'ast',
+      );
+      record('AT3: a regex-AMBIGUOUS method call resolves EXTRACTED/tier:ast under AST (precision gain)',
+        regexDescribeAmbiguous && astDescribeExtracted,
+        'regexAmbiguous=' + regexDescribeAmbiguous + ' astExtracted=' + astDescribeExtracted);
+
+      // Zero phantom edges: every tier:'ast' edge's endpoints are real nodes.
+      const astTierEdges = withAstCalls.filter((e) => e.tier === 'ast');
+      const zeroPhantom = astTierEdges.length > 0 && astTierEdges.every((e) => withAstNodeIds.has(e.source) && withAstNodeIds.has(e.target));
+      record('AT3: zero phantom tier:ast edges (every endpoint is a real node)', zeroPhantom,
+        'astTierEdgeCount=' + astTierEdges.length + ' allEndpointsReal=' + zeroPhantom);
+    } finally {
+      rmSync(pair.withAst, { recursive: true, force: true });
+      rmSync(pair.regexOnly, { recursive: true, force: true });
+    }
+  }
+
+  // AT3 (WF-0080, ADR-0147) acceptance #7 — degrade-to-regex: a fixture root
+  // with NO grammar wasm anywhere on its search path produces zero tier:'ast'
+  // edges and an empty grammarVersions, regardless of what's installed in the
+  // real environment (grammarForPath/loadTreeSitter only ever look inside the
+  // given root — see graph-ast.mjs::grammarCandidates — so an isolated root
+  // with no vendored/node_modules wasm is a genuine degrade, not a fluke).
+  const degradeRoot = mkdtempSync(join(tmpdir(), 'resolve-degrade-selfcheck-'));
+  try {
+    mkdirSync(join(degradeRoot, 'src'), { recursive: true });
+    writeFileSync(join(degradeRoot, 'src', 'shape.mjs'), [
+      'export class Shape {',
+      '  area() { return 0; }',
+      '  describe() { return this.area(); }',
+      '}',
+      'new Shape().describe();',
+    ].join('\n'), 'utf-8');
+    const g = await resolveGraph(degradeRoot);
+    const anyAstEdge = g.edges.some((e) => e.tier === 'ast');
+    const grammarVersionsEmpty = g.grammarVersions && Object.keys(g.grammarVersions).length === 0;
+    record('AT3: degrade-to-regex — no grammar on the root\'s search path -> zero tier:ast edges, empty grammarVersions',
+      !anyAstEdge && grammarVersionsEmpty,
+      'anyAstEdge=' + anyAstEdge + ' grammarVersions=' + JSON.stringify(g.grammarVersions));
+  } finally {
+    rmSync(degradeRoot, { recursive: true, force: true });
   }
 
   const violations = [];
