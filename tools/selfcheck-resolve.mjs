@@ -41,6 +41,36 @@ function buildFixtureRoot() {
   return root;
 }
 
+/**
+ * A class-based fixture for the AT2 receiver-type resolution checks. Copies the
+ * real installed grammar wasm from KIT's node_modules into the fixture's own
+ * node_modules at the same relative path `graph-ast.mjs::grammarCandidates`
+ * searches — the same technique proven manually against the real pipeline.
+ * Returns null when the grammar isn't installed here (degrade arm only, no
+ * fixture needed): the caller must skip gracefully, never fail on absence.
+ */
+function buildAstFixtureRoot(kit) {
+  const wasmSrc = join(kit, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm');
+  let wasmBytes;
+  try { wasmBytes = readFileSync(wasmSrc); } catch { return null; }
+
+  const root = mkdtempSync(join(tmpdir(), 'resolve-ast-selfcheck-'));
+  mkdirSync(join(root, 'src'), { recursive: true });
+  mkdirSync(join(root, 'node_modules', 'tree-sitter-wasms', 'out'), { recursive: true });
+  writeFileSync(join(root, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm'), wasmBytes);
+  writeFileSync(join(root, 'src', 'shape.mjs'), [
+    'export class Shape {',
+    '  area() { return 0; }',
+    '  describe() { return this.area(); }', // this.method() -> AT2 EXTRACTED
+    '}',
+    'const s = new Shape();',
+    's.area();',                             // const-binding method -> AT2 EXTRACTED
+    'new Shape().describe();',               // inline new -> AT2 EXTRACTED
+    'unknownVar.area();',                    // unproven receiver -> phantom guard, unresolved
+  ].join('\n'), 'utf-8');
+  return root;
+}
+
 function findImportSpecifiers(source) {
   const specifiers = [];
   for (const rawLine of source.split(String.fromCharCode(10))) {
@@ -73,7 +103,7 @@ export async function runResolveChecks() {
 
   const root = buildFixtureRoot();
   try {
-    const g = resolveGraph(root);
+    const g = await resolveGraph(root);
     const nodeIds = new Set(g.nodes.map((n) => n.id));
     const calls = g.edges.filter((e) => e.relation === 'calls');
 
@@ -111,11 +141,52 @@ export async function runResolveChecks() {
     record('dedupNodes: code symbols untouched, near-duplicate concepts merged', codeUntouched && conceptMerged,
       'codeUntouched=' + codeUntouched + ' conceptSurvivors=' + conceptDedup.nodes.length);
 
-    const a = JSON.stringify(resolveGraph(root));
-    const b = JSON.stringify(resolveGraph(root));
+    const a = JSON.stringify(await resolveGraph(root));
+    const b = JSON.stringify(await resolveGraph(root));
     record('resolveGraph deterministic (twice -> deeply equal)', a === b, a === b ? 'identical' : 'DIVERGED');
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+
+  // AT2 (WF-0080, ADR-0147) — receiver-type resolution through resolveGraph.
+  // Skips gracefully when the grammar isn't installed here (degrade-only env).
+  const astRoot = buildAstFixtureRoot(KIT);
+  if (!astRoot) {
+    record('AT2 receiver-type checks SKIPPED (grammar not installed here)', true, 'degrade arm covered elsewhere; needs the optional dep');
+  } else {
+    try {
+      const g = await resolveGraph(astRoot);
+      const calls = g.edges.filter((e) => e.relation === 'calls');
+      const astCalls = calls.filter((e) => e.tier === 'ast');
+
+      // GC0 source attribution is FILE-level (gc0-report.md section 2: "this
+      // file calls X") — this.area()/s.area()/new Shape().describe() all
+      // dedupe to the SAME file:->target edge, they don't fork by call-site.
+      const areaCall = astCalls.find((e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.area');
+      const describeCall = astCalls.find((e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.describe');
+      record('AT2: this.method() + const-binding (v.method()) dedupe to one file-level EXTRACTED/tier:ast edge', !!areaCall,
+        JSON.stringify(astCalls.map((e) => ({ source: e.source, target: e.target }))));
+
+      record('AT2: inline new (new X().m()) resolves -> EXTRACTED/tier:ast', !!describeCall,
+        'describeCall=' + !!describeCall);
+
+      const allAstProven = astCalls.every((e) => e.resolution === 'EXTRACTED' && e.evidenceClass === 'GRAPH_DERIVED');
+      record('AT2: every tier:ast edge is EXTRACTED/GRAPH_DERIVED (never a guess)', allAstProven,
+        JSON.stringify(astCalls.map((e) => e.resolution)));
+
+      const noPhantomOnUnprovenReceiver = !calls.some((e) => e.tier === 'ast' && e.target.includes('unknownVar'));
+      record('AT2 phantom guard: unproven receiver (unknownVar.area()) never fabricates a tier:ast edge', noPhantomOnUnprovenReceiver,
+        'astTargets=' + JSON.stringify(astCalls.map((e) => e.target)));
+
+      const methodNodes = g.nodes.filter((n) => n.kind === 'method');
+      const classNodes = g.nodes.filter((n) => n.kind === 'class');
+      record('AT2: class/method nodes emitted per the GC0 id scheme (sym:<file>#<Class>.<method>)',
+        methodNodes.length === 2 && classNodes.length === 1
+        && methodNodes.every((n) => n.id.startsWith('sym:src/shape.mjs#Shape.')),
+        'methods=' + JSON.stringify(methodNodes.map((n) => n.id)) + ' classes=' + JSON.stringify(classNodes.map((n) => n.id)));
+    } finally {
+      rmSync(astRoot, { recursive: true, force: true });
+    }
   }
 
   const violations = [];
@@ -140,5 +211,8 @@ if (process.argv[1]?.endsWith('selfcheck-resolve.mjs')) {
   console.log(results.length + ' checks -- ' + (results.length - failCount) + ' pass / ' + failCount + ' fail');
   console.log();
   console.log(failCount > 0 ? 'FAIL' : 'PASS');
-  process.exit(failCount > 0 ? 1 : 0);
+  // WASM-safe exit: process.exit() while Emscripten has pending async trips the
+  // libuv teardown assertion (exit 127 on Windows). Set exitCode + let the loop
+  // drain naturally instead (root cause, verified: forced-exit=127, drain=0).
+  process.exitCode = failCount > 0 ? 1 : 0;
 }

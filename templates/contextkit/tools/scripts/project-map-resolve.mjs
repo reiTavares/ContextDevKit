@@ -32,6 +32,7 @@
 import { readFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { extractSymbols } from './graph-extract.mjs';
+import { disposeParser, extractAstFile, grammarForPath, loadTreeSitter } from './graph-ast.mjs';
 
 /** Extension -> interop family for the cross-language phantom guard (GC0 section 2). */
 const FAMILY = {
@@ -151,22 +152,61 @@ function resolveCall(name, file, index, importedNames) {
  * @param {string} root project root
  * @returns {{nodes: object[], edges: object[]}}
  */
-export function resolveGraph(root) {
+/**
+ * Two-phase resolver, now AST-first (WF-0080/AT2, ADR-0147). Phase 1 tries the
+ * Tier-1 AST path per file (same-file function calls + receiver-typed method
+ * calls — `this.m()`, `new X().m()`, `const v = new X(); v.m()` — proven from a
+ * real parse, tagged `tier:'ast'`), then fills in with the Tier-0 regex scan for
+ * whatever the AST could not prove (a language with no grammar, or a call the
+ * AST tier legitimately can't resolve). The AST edge wins on a duplicate
+ * source->target (more precise); regex NEVER overwrites an AST-proven edge.
+ * Phase 2 resolves cross-file, then the phantom guard demotes any cross-family
+ * EXTRACTED call. Returns {nodes, edges} with edges sorted by
+ * (source, target, relation); AST-derived class/method nodes are merged in.
+ *
+ * @param {string} root project root
+ * @returns {Promise<{nodes: object[], edges: object[]}>}
+ */
+export async function resolveGraph(root) {
   const base = extractSymbols(root);
   const index = indexSymbols(base.nodes);
-  const nodeIds = new Set(base.nodes.map((n) => n.id));
   const nodeById = new Map(base.nodes.map((n) => [n.id, n]));
   const files = base.nodes.filter((n) => n.kind === 'file' && n.sourceFile).map((n) => n.sourceFile);
 
+  // One parser per grammar for the whole resolve pass — loading the WASM
+  // grammar is per-language, not per-file (AT2 perf; AT1 loaded fresh per call).
+  const parserCache = new Map();
+  const parserFor = async (grammar) => {
+    if (!parserCache.has(grammar)) parserCache.set(grammar, await loadTreeSitter(root, grammar));
+    return parserCache.get(grammar);
+  };
+
+  const astNodes = [];
+  const astEdgeKeys = new Set(); // "source target" already proven by AST — regex must not duplicate it.
   const callEdges = [];
   for (const file of files) {
     let text;
     try { text = readFileSync(join(root, file), 'utf-8'); } catch { continue; }
+
+    const grammar = grammarForPath(file);
+    if (grammar) {
+      const parser = await parserFor(grammar);
+      if (parser) {
+        const ast = extractAstFile(text, parser, file);
+        for (const node of ast.nodes) astNodes.push(node);
+        for (const edge of ast.edges) {
+          if (edge.relation === 'calls') astEdgeKeys.add(`${edge.source} ${edge.target}`);
+          callEdges.push(edge);
+        }
+      }
+    }
+
     const { callNames, importedNames } = scanFile(text);
     const source = `file:${file}`;
     for (const name of callNames) {
       const r = resolveCall(name, file, index, importedNames);
       if (r.resolution === 'EXTRACTED') {
+        if (astEdgeKeys.has(`${source} ${r.target}`)) continue; // AST already proved this edge, more precisely.
         const targetNode = nodeById.get(r.target);
         if (targetNode && targetNode.sourceFile && familyOf(targetNode.sourceFile) !== familyOf(file)) {
           callEdges.push(callsEdge(source, `unresolved:${name}`, 'AMBIGUOUS', 'HEURISTIC', 'phantom-guard: cross-family'));
@@ -176,16 +216,29 @@ export function resolveGraph(root) {
       callEdges.push(callsEdge(source, r.target, r.resolution, r.evidenceClass, r.context));
     }
   }
+  for (const parser of parserCache.values()) if (parser) disposeParser(parser);
+
+  // AST class/method nodes are more precise than the regex tier's generic
+  // symbol scan (project-map-dense.mjs's `class\s+(\w+)` regex already emits a
+  // bare kind:'function' node for a class name like "Shape") — an AST-proven
+  // class/method REFINES that id's kind rather than colliding with it; the AST
+  // node always wins on a shared id when it carries a class/method kind.
+  const allNodesById = new Map(nodeById);
+  for (const node of astNodes) {
+    const existing = allNodesById.get(node.id);
+    if (!existing || node.kind === 'class' || node.kind === 'method') allNodesById.set(node.id, node);
+  }
+  const allNodeIds = new Set(allNodesById.keys());
 
   const safeCallEdges = callEdges.filter(
-    (e) => e.resolution !== 'EXTRACTED' || (nodeIds.has(e.source) && nodeIds.has(e.target)),
+    (e) => e.resolution !== 'EXTRACTED' || (allNodeIds.has(e.source) && allNodeIds.has(e.target)),
   );
 
   const edges = [...base.edges, ...safeCallEdges].sort(
     (a, b) => (a.source + ' ' + a.target + ' ' + a.relation)
       .localeCompare(b.source + ' ' + b.target + ' ' + b.relation),
   );
-  return { nodes: base.nodes, edges };
+  return { nodes: [...allNodesById.values()], edges };
 }
 
 /** Jaro similarity of two strings (0..1). Pure, deterministic. */
@@ -288,6 +341,6 @@ export function dedupNodes(nodes, threshold = 0.92) {
 }
 
 if (process.argv[1] && process.argv[1].split(/[\\/]/).pop() === 'project-map-resolve.mjs') {
-  const out = resolveGraph(process.cwd());
+  const out = await resolveGraph(process.cwd());
   process.stdout.write(`${JSON.stringify(out, null, 2)}\n`);
 }

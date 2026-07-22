@@ -117,10 +117,10 @@ export function graphSignature(nodes, edges) {
  * and makes `reverseCallers` return a false-negative `[]`.
  *
  * @param {string} root project root
- * @returns {{nodes:Array<object>, edges:Array<object>, layers:string[]}}
+ * @returns {Promise<{nodes:Array<object>, edges:Array<object>, layers:string[]}>}
  */
-export function buildFullProjection(root) {
-  const resolved = resolveGraph(root);
+export async function buildFullProjection(root) {
+  const resolved = await resolveGraph(root);
   let rationale = { nodes: [], edges: [] };
   try { rationale = buildRationaleLayer(root); } catch { /* rationale is best-effort; absence != failure */ }
 
@@ -235,7 +235,7 @@ if (basename(process.argv[1] ?? '') === 'project-map-graph.mjs') {
   const root = process.cwd();
   const apply = process.argv.slice(2).includes('--apply');
   const extractOnly = process.argv.slice(2).includes('--extract-only');
-  const graph = extractOnly ? extractSymbols(root) : buildFullProjection(root);
+  const graph = extractOnly ? extractSymbols(root) : await buildFullProjection(root);
   const projection = writeCommittedProjection(root, graph, { apply });
   if (apply) {
     console.log(`wrote graph.json - ${projection.nodes.length} nodes, ${projection.edges.length} edges, layers [${projection.layers.join(', ')}], signature ${projection.graphSignature}`);
