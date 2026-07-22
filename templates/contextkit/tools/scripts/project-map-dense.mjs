@@ -14,7 +14,8 @@
  * Pure + best-effort: an unreadable file is skipped, never thrown. [project-map]
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { extname, join, relative, sep } from 'node:path';
+import { extname, join, relative } from 'node:path';
+import { resolveRoots } from './project-map-roots.mjs';
 
 /** Per-file symbol cap — high enough to be effectively complete for real files. */
 const DENSE_CAP_PER_FILE = 400;
@@ -65,13 +66,6 @@ export function isTestFile(path) {
   return typeof path === 'string' && TEST_FILE_RE.test(path);
 }
 
-/** Directories never walked (mirrors project-map-core's exclude set). */
-const EXCLUDE = new Set([
-  'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out', '.next', '.nuxt',
-  'vendor', 'target', '.venv', 'venv', '__pycache__', '.cache', 'coverage',
-  '.idea', '.vscode', 'contextkit', '.claude', '.agents', '.codex',
-]);
-
 /** Extension → language label (mirrors project-map-core's EXT_LANG for extractors). */
 const EXT_LANG = {
   '.js': 'javascript', '.jsx': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript',
@@ -79,18 +73,29 @@ const EXT_LANG = {
   '.py': 'python', '.go': 'go', '.rs': 'rust', '.rb': 'ruby',
 };
 
-/** Recursively collects source-file paths (repo-relative), excluding EXCLUDE dirs. */
-function walk(root, absDir, acc) {
+/**
+ * Recursively collects source-file paths (repo-relative), excluding via the
+ * SAME root-anchored `isExcluded` predicate `project-map-core.mjs` uses
+ * (CDK-050) — a bare-name exclude like `contextkit` only matches the entry
+ * AT the scan root (depth-1), never a same-named directory nested deeper
+ * (e.g. the dogfood source tree `templates/contextkit/`). Passing the flat
+ * EXCLUDE-by-basename set this walker used before silently dropped every
+ * file under `templates/contextkit/` from the dense index — the same
+ * dogfood bug `project-map-roots.mjs` already fixed for the base map's
+ * walker, never propagated here.
+ */
+function walk(root, absDir, acc, isExcluded) {
   let entries;
   try { entries = readdirSync(absDir, { withFileTypes: true }); } catch { return; }
   for (const ent of entries) {
-    if (ent.name.startsWith('.') && ent.isDirectory()) { if (EXCLUDE.has(ent.name)) continue; }
     const full = join(absDir, ent.name);
+    const rel = relative(root, full).replaceAll('\\', '/');
+    if (ent.name.startsWith('.') && ent.name !== '.github') { if (isExcluded(rel, ent.name)) continue; }
     if (ent.isDirectory()) {
-      if (EXCLUDE.has(ent.name)) continue;
-      walk(root, full, acc);
+      if (isExcluded(rel, ent.name)) continue;
+      walk(root, full, acc, isExcluded);
     } else if (EXT_LANG[extname(ent.name).toLowerCase()]) {
-      acc.push(relative(root, full).split(sep).join('/'));
+      acc.push(rel);
     }
   }
 }
@@ -99,16 +104,24 @@ function walk(root, absDir, acc) {
  * Builds the dense symbol index by walking the repo (scanProject keeps only
  * counts, not file paths — so this does its own bounded walk over the same scope).
  * @param {string} root - repo root
+ * @param {object|null} [config] - loaded contextkit config (`config.projectMap.{roots,excludes}`)
  * @returns {{ byModule: Array<{module:string, files:Array<{file:string,symbols:string[]}>}>,
  *   bySymbol: Record<string,string[]>, fileCount: number, symbolCount: number }}
  */
-export function buildDenseIndex(root) {
+export function buildDenseIndex(root, config = null) {
+  const { isExcluded } = resolveRoots(config, root);
   const files = [];
-  try { if (statSync(root).isDirectory()) walk(root, root, files); } catch { /* best-effort */ }
+  try { if (statSync(root).isDirectory()) walk(root, root, files, isExcluded); } catch { /* best-effort */ }
   files.sort();
 
-  const groups = {};
-  const bySymbol = {};
+  // Object.create(null) — a real symbol/module name can collide with an
+  // inherited Object.prototype member (`valueOf`, `constructor`, `toString`,
+  // …). With a plain `{}`, `bySymbol['valueOf'] ||= []` never assigns (the
+  // inherited function is already truthy), so the next `.push` throws. A
+  // dogfood file literally exports a helper named `valueOf` — this is not a
+  // hypothetical.
+  const groups = Object.create(null);
+  const bySymbol = Object.create(null);
   let fileCount = 0, symbolCount = 0;
 
   for (const rel of files) {

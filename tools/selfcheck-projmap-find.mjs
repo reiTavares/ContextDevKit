@@ -198,4 +198,47 @@ export async function runProjmapFindChecks({ ok, bad }, { KIT }) {
   zeroDep.error === null
     ? ok('zero-dep invariant: project-map-dense.mjs imports only node:/* or relative paths')
     : bad(`zero-dep violation in project-map-dense.mjs: ${zeroDep.error}`);
+
+  // 12. Regression — a nested dir sharing a name with a root-relative exclude
+  // (e.g. 'contextkit') must still be walked. A flat by-basename exclude (the
+  // pre-fix behavior) wrongly dropped `templates/contextkit/` from this repo's
+  // own dense index; the fixture reproduces the shape one level down.
+  let nestedTmp;
+  try {
+    nestedTmp = mkdtempSync(join(tmpdir(), 'pmfind-nested-'));
+    mkdirSync(join(nestedTmp, 'templates', 'contextkit', 'src'), { recursive: true });
+    writeFileSync(join(nestedTmp, 'templates', 'contextkit', 'src', 'a.mjs'), 'export function nestedHelper() { return 1; }\n');
+    const nestedBuilt = buildDenseIndex(nestedTmp);
+    const found = findSymbol(nestedBuilt, 'nestedHelper');
+    found.length === 1 && found[0].files.some((f) => f === 'templates/contextkit/src/a.mjs')
+      ? ok('buildDenseIndex: a nested dir named "contextkit" is walked (root-anchored exclude, not by-basename)')
+      : bad(`buildDenseIndex: nested "contextkit" wrongly excluded — ${JSON.stringify(found)}`);
+  } catch (err) {
+    bad(`buildDenseIndex nested-exclude fixture threw: ${err?.message ?? err}`);
+  } finally {
+    if (nestedTmp) { try { rmSync(nestedTmp, { recursive: true, force: true }); } catch { /* best-effort */ } }
+  }
+
+  // 13. Regression — a real symbol name colliding with an inherited
+  // Object.prototype member (e.g. `valueOf`) must not crash buildDenseIndex
+  // or silently vanish. A plain `{}` map treats `bySymbol['valueOf']` as
+  // already-truthy (the inherited function), so `||= []` never assigns and
+  // the next `.push` throws — this repo has a real exported `valueOf` helper.
+  let protoTmp;
+  try {
+    protoTmp = mkdtempSync(join(tmpdir(), 'pmfind-proto-'));
+    mkdirSync(join(protoTmp, 'src'), { recursive: true });
+    writeFileSync(join(protoTmp, 'src', 'a.mjs'), 'export const valueOf = (x) => x;\n');
+    writeFileSync(join(protoTmp, 'src', 'b.mjs'), 'export function toString() { return ""; }\n');
+    const protoBuilt = buildDenseIndex(protoTmp);
+    const valueOfHit = findSymbol(protoBuilt, 'valueOf').find((r) => r.symbol === 'valueOf');
+    const toStringHit = findSymbol(protoBuilt, 'toString').find((r) => r.symbol === 'toString');
+    valueOfHit && valueOfHit.files.includes('src/a.mjs') && toStringHit && toStringHit.files.includes('src/b.mjs')
+      ? ok('buildDenseIndex: symbol names colliding with Object.prototype (valueOf, toString) are indexed, not dropped/crashed')
+      : bad(`buildDenseIndex: prototype-colliding symbol lost — valueOf=${JSON.stringify(valueOfHit)} toString=${JSON.stringify(toStringHit)}`);
+  } catch (err) {
+    bad(`buildDenseIndex prototype-collision fixture threw: ${err?.message ?? err}`);
+  } finally {
+    if (protoTmp) { try { rmSync(protoTmp, { recursive: true, force: true }); } catch { /* best-effort */ } }
+  }
 }
