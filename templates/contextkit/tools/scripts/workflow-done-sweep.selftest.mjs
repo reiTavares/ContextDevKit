@@ -75,7 +75,12 @@ try {
   const doneWave = resolve(waveHolder, 'WF-0099-wave');
   mkdirSync(doneWave, { recursive: true });
   writeFileSync(resolve(doneWave, 'index.md'), '# WF-0099-wave\n\n- **Status:** active\n');
-  writeFileSync(resolve(doneWave, 'workflow-state.json'), JSON.stringify({ journeyPhase: 'conclusion', overallStatus: 'done' }));
+  writeFileSync(resolve(doneWave, 'workflow-state.json'), JSON.stringify({
+    workflowId: '0099',
+    journeyPhase: 'conclusion',
+    overallStatus: 'done',
+    events: [{ type: 'workflow.concluded', seq: 1, workflowId: '0099', status: 'done' }],
+  }));
   // A not-started wave workflow must NOT be swept.
   const activeWave = resolve(waveHolder, 'WF-0100-active');
   mkdirSync(activeWave, { recursive: true });

@@ -181,6 +181,8 @@ function testLink(root) {
 function testStartClose(root) {
   const bizDir = join(root, 'contextkit', 'memory', 'business', 'BIZ-0001-selftest');
   const bizJsonPath = join(bizDir, 'business.json');
+  mkdirSync(join(bizDir, 'reports'), { recursive: true });
+  writeFileSync(join(bizDir, 'reports', 'outcome.md'), '# Outcome\n');
 
   const rs = dispatch(parsed('start', ['--id', 'BIZ-0001']), { root });
   assert('start dispatches', rs.command === 'start');
@@ -193,14 +195,41 @@ function testStartClose(root) {
   const afterStart = JSON.parse(readFileSync(bizJsonPath, 'utf-8'));
   assert('start --apply set status active', afterStart.status === 'active');
 
-  const rc = dispatch(parsed('close', ['--id', 'BIZ-0001']), { root });
+  const missingContract = assertThrows('Business close requires status and outcome', () =>
+    dispatch(parsed('close', ['--id', 'BIZ-0001']), { root }));
+  assert('close missing contract is explicit', /--status|outcome-ref/.test(missingContract?.message || ''));
+
+  const invalidStatus = assertThrows('Business close rejects invalid status', () =>
+    dispatch(parsed('close', [
+      '--id', 'BIZ-0001', '--status', 'done', '--outcome-ref', 'reports/outcome.md', '--actor', 'human',
+    ]), { root }));
+  assert('close invalid status is explicit', /status must be one of/.test(invalidStatus?.message || ''));
+
+  const agentRefusal = assertThrows('Business close refuses an agent actor', () =>
+    dispatch(parsed('close', [
+      '--id', 'BIZ-0001', '--status', 'closed', '--outcome-ref', 'reports/outcome.md',
+    ]), { root }));
+  assert('close actor floor is explicit', agentRefusal?.code === 'CLOSE_ACTOR_REFUSED');
+
+  const rc = dispatch(parsed('close', [
+    '--id', 'BIZ-0001', '--status', 'closed', '--outcome-ref', 'reports/outcome.md', '--actor', 'human',
+  ]), { root });
   assert('close dispatches', rc.command === 'close');
   assert('close dry-run mode', rc.mode === 'dry-run');
 
-  const rcApply = dispatch(parsed('close', ['--id', 'BIZ-0001', '--apply']), { root });
+  const rcApply = dispatch(parsed('close', [
+    '--id', 'BIZ-0001', '--status', 'closed', '--outcome-ref', 'reports/outcome.md', '--actor', 'human', '--apply',
+  ]), { root });
   assert('close --apply applied', rcApply.applied === true);
   const afterClose = JSON.parse(readFileSync(bizJsonPath, 'utf-8'));
   assert('close --apply set status closed', afterClose.status === 'closed');
+  assert('close stores an outcome reference', afterClose.outcomeRef?.endsWith('/reports/outcome.md'));
+  assert('close does not self-stamp approval', afterClose.approval?.actor === null && afterClose.approval?.decisionHash === null);
+
+  const repeat = dispatch(parsed('close', [
+    '--id', 'BIZ-0001', '--status', 'closed', '--outcome-ref', 'reports/outcome.md', '--actor', 'human', '--apply',
+  ]), { root });
+  assert('close retry is idempotent', repeat.applied === false && repeat.detail.idempotentNoop === true);
 }
 
 // ---------------------------------------------------------------------------

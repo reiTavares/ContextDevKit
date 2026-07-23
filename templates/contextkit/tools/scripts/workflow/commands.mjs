@@ -10,7 +10,7 @@
  * Timestamps are injected by the CLI (`now`); none are generated here.
  */
 import { dirname, join } from 'node:path';
-import { mkdirSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, statSync } from 'node:fs';
 import { readWorkflow } from '../workflow-pack.mjs';
 import { readJsonSafe, writeJsonStable } from './io.mjs';
 import { planHash, readPlan } from './plan.mjs';
@@ -29,12 +29,39 @@ import { recordAgentResult, readAgentResult } from './results.mjs';
 import { refreshContinuation } from './continuation.mjs';
 import { auditWorkflow } from './audit.mjs';
 import { migrateApply, migrateDryRun, migrationPlan } from './migrate.mjs';
+import { workflowRoots } from '../registry/ids.mjs';
+import { parseFrontmatter } from '../workflow-frontmatter.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { concludePack, doneMovePack } from './finalization.mjs';
+import { guardPack } from './invariant-guard.mjs';
 
 /** Resolve a workflow pack directory from a slug/number, or throw. */
-function resolvePackDir(root, slug) {
+export function resolvePackDir(root, slug) {
   const workflow = readWorkflow(root, slug);
-  if (!workflow) throw new Error(`Workflow "${slug}" not found.`);
-  return statSync(workflow.path).isDirectory() ? workflow.path : dirname(workflow.path);
+  if (workflow) return statSync(workflow.path).isDirectory() ? workflow.path : dirname(workflow.path);
+  const archived = findArchivedPack(root, slug);
+  if (archived) return archived;
+  throw new Error(`Workflow "${slug}" not found.`);
+}
+
+/** Resolve a concluded pack from the active-only workflow reader's done archives. */
+function findArchivedPack(root, slug) {
+  for (const holder of workflowRoots(root).filter((candidate) => candidate.replace(/\\/g, '/').endsWith('/done'))) {
+    if (!existsSync(holder)) continue;
+    let entries = [];
+    try { entries = readdirSync(holder, { withFileTypes: true }); } catch { continue; }
+    for (const entry of entries.filter((candidate) => candidate.isDirectory())) {
+      const candidate = join(holder, entry.name);
+      const indexPath = join(candidate, 'index.md');
+      if (!existsSync(indexPath)) continue;
+      try {
+        const parsed = parseFrontmatter(readFileSync(indexPath, 'utf8'));
+        const front = parsed?.frontmatter || {};
+        if (front.slug === slug || entry.name === slug || `${front.number}-${front.slug}` === slug) return candidate;
+      } catch { /* malformed archive entry is not a match */ }
+    }
+  }
+  return null;
 }
 
 /**
@@ -46,6 +73,21 @@ export function loadPack(root, slug) {
   const planPath = join(packDir, 'workflow-plan.json');
   const statePath = join(packDir, 'workflow-state.json');
   return { packDir, planPath, statePath, plan: readPlan(planPath), state: readState(statePath) };
+}
+
+/** Conclude one resolved workflow pack through the finalization engine. */
+export function concludeWorkflow(root, slug, options = {}) {
+  return concludePack(root, loadPack(root, slug).packDir, options);
+}
+
+/** Move one resolved concluded workflow pack through the finalization engine. */
+export function doneMoveWorkflow(root, slug, options = {}) {
+  return doneMovePack(root, loadPack(root, slug).packDir, options);
+}
+
+/** Run the I1-I10 rollout guard for one resolved workflow pack. */
+export function guardWorkflow(root, slug, options = {}) {
+  return guardPack(root, loadPack(root, slug), options);
 }
 
 /** All tasks across all waves, flattened. */

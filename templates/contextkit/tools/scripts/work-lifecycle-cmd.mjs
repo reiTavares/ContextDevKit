@@ -19,11 +19,12 @@
  *
  * @module work-lifecycle-cmd
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { makeReceipt, writeFileEnsured } from './work-io.mjs';
 import { transferOwnership } from './work-decision-ownership.mjs';
+import { closeBusiness, CLOSE_STATUSES } from './work-business-lifecycle.mjs';
 
 // ---------------------------------------------------------------------------
 // I/O helpers (shared within module)
@@ -76,6 +77,39 @@ function readJson(filePath) {
  */
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Resolve and validate a Business outcome report reference. References may be
+ * relative to the Business folder or the repository root, but never escape the
+ * repository and must point to an existing regular file.
+ * @param {string} root project root
+ * @param {string} businessJsonPath absolute business.json path
+ * @param {unknown} reference user-supplied report reference
+ * @returns {{absolute:string, relative:string}} validated path pair
+ * @throws {Error} when the reference is missing, outside root, or unreadable
+ */
+function resolveOutcomeReference(root, businessJsonPath, reference) {
+  if (typeof reference !== 'string' || !reference.trim()) {
+    throw new Error('work close: --outcome-ref <path> is required for a Business');
+  }
+  const raw = reference.trim();
+  const businessDir = dirname(businessJsonPath);
+  const candidates = isAbsolute(raw) ? [resolve(raw)] : [resolve(businessDir, raw), resolve(root, raw)];
+  const rootPath = resolve(root);
+  const hit = candidates.find((candidate) => {
+    if (!existsSync(candidate)) return false;
+    const rel = relative(rootPath, candidate);
+    try {
+      return statSync(candidate).isFile() && rel !== '' && !rel.startsWith('..') && !isAbsolute(rel);
+    } catch {
+      return false;
+    }
+  });
+  if (!hit) {
+    throw new Error(`work close: outcome report must exist inside the repository: "${raw}"`);
+  }
+  return { absolute: hit, relative: relative(rootPath, hit).replace(/\\/g, '/') };
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +166,42 @@ export function handleClose({ flags, apply, root }) {
 
   const jsonPath = resolveEntityJsonPath(root, String(entityId));
   const entity = readJson(jsonPath);
+
+  // Business closure is a governed outcome decision. Operations retain the
+  // historical direct terminal verb until their own lifecycle workflow owns it.
+  if (String(entityId).startsWith('BIZ-')) {
+    const status = typeof flags.status === 'string' ? flags.status.trim() : '';
+    if (!CLOSE_STATUSES.includes(status)) {
+      throw new Error(`work close: Business --status must be one of ${CLOSE_STATUSES.join(', ')}`);
+    }
+    const actor = typeof flags.actor === 'string' ? flags.actor : 'agent';
+    const outcomeInput = flags['outcome-ref'] ?? flags.outcomeRef ?? flags.outcome;
+    const outcome = resolveOutcomeReference(root, jsonPath, outcomeInput);
+    const closed = closeBusiness(entity, {
+      status,
+      outcomeRef: outcome.relative,
+      actor,
+      now: flags.now,
+      note: typeof flags.note === 'string' ? flags.note : undefined,
+    });
+    if (apply && closed.changed) {
+      writeFileEnsured(jsonPath, `${JSON.stringify(closed.business, null, 2)}\n`);
+    }
+    return makeReceipt({
+      command: 'close',
+      applied: Boolean(apply && closed.changed),
+      writes: [jsonPath],
+      detail: {
+        id: entityId,
+        fromStatus: closed.receipt.fromStatus,
+        toStatus: closed.receipt.toStatus,
+        outcomeRef: closed.receipt.outcomeRef,
+        actor: closed.receipt.actor,
+        idempotentNoop: closed.receipt.idempotentNoop,
+      },
+    });
+  }
+
   const fromStatus = entity.status || 'draft';
   const updated = { ...entity, status: 'closed', updatedAt: today() };
 

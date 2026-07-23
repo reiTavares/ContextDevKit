@@ -8,30 +8,31 @@
  *   - owned (`owner: BIZ-/OP-####`) → `<owner-dir>/done/<workflow-dir>`
  *   - unowned                       → `memory/workflows/done/<workflow-dir>`
  *
- * A workflow counts as CONCLUDED when EITHER the legacy `index.md` frontmatter has
- * `conclusion: done`, OR the wave-engine `workflow-state.json` reports
- * `overallStatus: done`. (ADR-0119 amendment: the wave format records completion in
- * its state json rather than index frontmatter, so the original frontmatter-only
- * check filed nothing for business/operations workflows — their `done/` archives
- * stayed empty.) For wave workflows, whose index carries no `owner:` frontmatter,
+ * A workflow counts as CONCLUDED from `workflow-state.json` plus one valid
+ * `workflow.concluded` journal event. Legacy packs without state retain their
+ * frontmatter compatibility path. An explicit index/state mismatch is refused;
+ * the sweep never silently chooses one of two truths. For wave workflows, whose
+ * index carries no `owner:` frontmatter,
  * the filing owner is recovered from the context dir the workflow lives under.
  *
  * The number stays counted after the move because the `ids.mjs` allocator recurses
  * into every `done/` archive — so a filed-away id is NEVER reused.
  *
  * Dry-run by DEFAULT (constitution §8 — mutators are dry-run until `--write`);
- * `--write` performs an atomic `rename`. Idempotent: a target that already exists
- * is skipped. Pure `node:*`, zero runtime dependencies; defensive I/O throughout.
+ * `--write` performs an atomic `rename`. A missing source plus an existing target
+ * is idempotent; both source and target existing is a refusal. Pure `node:*`, zero
+ * runtime dependencies; defensive I/O throughout.
  *
  * Usage:
  *   node contextkit/tools/scripts/workflow-done-sweep.mjs            # dry-run plan
  *   node contextkit/tools/scripts/workflow-done-sweep.mjs --write    # apply moves
  *   node contextkit/tools/scripts/workflow-done-sweep.mjs --json     # machine view
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { stripBom } from '../../runtime/work/enums.mjs';
+import { finalizationEvent, moveWorkflowDirectory } from './workflow/finalization.mjs';
 
 const ROOT = process.cwd();
 
@@ -99,29 +100,55 @@ export function resolveOwnerDir(root, owner) {
 }
 
 /**
- * A workflow is "concluded" when EITHER the legacy `index.md` frontmatter carries
- * `conclusion: done`, OR the wave-engine `workflow-state.json` reports
- * `overallStatus: done`. Defensive: an unreadable file contributes nothing, so a
- * malformed workflow is left in place rather than mis-filed.
+ * Inspect the two lifecycle projections without treating index frontmatter as
+ * an authority. State-bearing workflows require a valid finalization event;
+ * legacy packs without state use the historical frontmatter compatibility path.
  *
  * @param {string} dir - absolute workflow directory.
- * @returns {boolean} true when the workflow has reached conclusion.
+ * @returns {{status:'concluded'|'active'|'refused',authority?:string,reason?:string}}
  */
-export function isConcluded(dir) {
+export function inspectConclusion(dir) {
   const indexPath = `${dir}/index.md`;
+  let index = {};
   if (existsSync(indexPath)) {
     try {
-      if (parseFrontmatter(readFileSync(indexPath, 'utf-8')).conclusion === 'done') return true;
-    } catch { /* unreadable index → fall through to the state json */ }
+      index = parseFrontmatter(readFileSync(indexPath, 'utf-8'));
+    } catch {
+      return { status: 'refused', reason: 'index-unreadable' };
+    }
   }
   const statePath = `${dir}/workflow-state.json`;
   if (existsSync(statePath)) {
     try {
       const state = JSON.parse(stripBom(readFileSync(statePath, 'utf-8')));
-      if (state && state.overallStatus === 'done') return true;
-    } catch { /* unreadable state → not concluded */ }
+      if (!state || typeof state !== 'object') return { status: 'refused', reason: 'state-invalid' };
+      if (state.overallStatus === 'done') {
+        let event;
+        try { event = finalizationEvent(state); } catch { return { status: 'refused', reason: 'finalization-journal-invalid' }; }
+        if (!event) return { status: 'refused', reason: 'finalization-event-missing' };
+        if (index.conclusion && index.conclusion !== 'done') {
+          return { status: 'refused', reason: 'index-state-mismatch' };
+        }
+        return { status: 'concluded', authority: 'workflow-state', event };
+      }
+      if (index.conclusion === 'done') return { status: 'refused', reason: 'index-state-mismatch' };
+      return { status: 'active', authority: 'workflow-state' };
+    } catch {
+      return { status: 'refused', reason: 'state-unreadable' };
+    }
   }
-  return false;
+  return index.conclusion === 'done'
+    ? { status: 'concluded', authority: 'legacy-frontmatter' }
+    : { status: 'active', authority: 'legacy-frontmatter' };
+}
+
+/**
+ * Boolean compatibility view of {@link inspectConclusion}.
+ * @param {string} dir absolute workflow directory
+ * @returns {boolean} true only for a positively concluded workflow
+ */
+export function isConcluded(dir) {
+  return inspectConclusion(dir).status === 'concluded';
 }
 
 /**
@@ -133,13 +160,13 @@ export function isConcluded(dir) {
  * @param {string} holder - absolute workflow-holding directory.
  * @returns {string|null}
  */
-function ownerFromHolder(holder) {
+export function ownerFromHolder(holder) {
   const match = holder.replace(/\\/g, '/').match(/\/(?:business|operations)\/((?:BIZ|OP)-\d{4})-[^/]*\/workflows$/);
   return match ? match[1] : null;
 }
 
 /** Owner id from a legacy `index.md` frontmatter `owner:` field, or null. */
-function ownerFromIndex(dir) {
+export function ownerFromIndex(dir) {
   const indexPath = `${dir}/index.md`;
   if (!existsSync(indexPath)) return null;
   try {
@@ -167,7 +194,11 @@ export function planSweep(root = ROOT) {
     const holderOwner = ownerFromHolder(holder);
     for (const name of childDirs(holder)) {
       const dir = `${holder}/${name}`;
-      if (!isConcluded(dir)) continue;
+      const verdict = inspectConclusion(dir);
+      if (verdict.status === 'refused') {
+        throw new Error(`done-sweep refused ${dir}: ${verdict.reason}`);
+      }
+      if (verdict.status !== 'concluded') continue;
       const owner = ownerFromIndex(dir) || holderOwner;
       const ownerDir = owner ? resolveOwnerDir(root, owner) : null;
       const target = ownerDir ? `${ownerDir}/done` : `${memory}/workflows/done`;
@@ -178,8 +209,8 @@ export function planSweep(root = ROOT) {
 }
 
 /**
- * Applies a sweep plan with atomic renames. Skips any move whose target already
- * exists (idempotent). Returns the moves actually performed.
+ * Applies a sweep plan with atomic renames. A source already filed at its target
+ * is an idempotent no-op; a source/target collision is a refusal.
  *
  * @param {{from:string,to:string}[]} plan - the move plan.
  * @returns {{from:string,to:string}[]} the moves that were applied.
@@ -187,10 +218,8 @@ export function planSweep(root = ROOT) {
 export function applySweep(plan) {
   const applied = [];
   for (const move of plan) {
-    if (existsSync(move.to)) continue; // already filed
-    mkdirSync(move.to.slice(0, move.to.lastIndexOf('/')), { recursive: true });
-    renameSync(move.from, move.to);
-    applied.push(move);
+    const receipt = moveWorkflowDirectory(move);
+    if (receipt.status === 'applied') applied.push(move);
   }
   return applied;
 }

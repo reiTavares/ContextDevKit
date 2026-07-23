@@ -56,6 +56,9 @@ const ACTION_TO_TARGET = Object.freeze({
   reject: 'rejected',
 });
 
+/** Business outcome statuses accepted by the explicit `work close` verb. */
+export const CLOSE_STATUSES = Object.freeze(['validated', 'partially-validated', 'closed']);
+
 // ---------------------------------------------------------------------------
 // Guard: AI-cannot-self-approve
 // ---------------------------------------------------------------------------
@@ -82,6 +85,23 @@ function assertHumanActor(ctx) {
   );
   err.code = 'APPROVAL_ACTOR_REFUSED';
   err.refusal = { actor, reason: 'non-human-actor', action: 'approve' };
+  throw err;
+}
+
+/**
+ * Enforce the human floor for a close decision without touching approval data.
+ * @param {object} ctx action context
+ * @throws {Error} when the actor is not the literal human actor
+ */
+function assertHumanCloseActor(ctx) {
+  if (ctx.actor === 'human') return;
+  const actor = typeof ctx.actor === 'string' ? ctx.actor : '(unknown)';
+  const err = new Error(
+    `Business close REFUSED: actor "${actor}" is not "human". ` +
+    'Closing a Business requires a human outcome decision and cannot self-approve.',
+  );
+  err.code = 'CLOSE_ACTOR_REFUSED';
+  err.refusal = { actor, reason: 'non-human-actor', action: 'close' };
   throw err;
 }
 
@@ -223,4 +243,62 @@ export function transition(business, action, ctx = {}) {
   };
 
   return { business: updated, receipt };
+}
+
+/**
+ * Apply the explicit Business close decision. The outcome reference is required
+ * evidence, the status is constrained to the governed close enum, and the
+ * existing approval block is copied but never stamped or recomputed.
+ *
+ * @param {object} business current Business entity
+ * @param {{status:string,outcomeRef:string,actor:string,now?:Date|string|number,note?:string}} ctx close context
+ * @returns {{business:object,receipt:object,changed:boolean}}
+ * @throws {Error} on invalid status, missing outcome evidence, illegal transition,
+ *   or non-human actor
+ */
+export function closeBusiness(business, ctx = {}) {
+  if (!business || typeof business !== 'object') throw new TypeError('Business close: business is required');
+  assertHumanCloseActor(ctx);
+  if (!CLOSE_STATUSES.includes(ctx.status)) {
+    throw new Error(`Business close: status must be one of ${CLOSE_STATUSES.join(', ')}`);
+  }
+  if (typeof ctx.outcomeRef !== 'string' || !ctx.outcomeRef.trim()) {
+    throw new Error('Business close: outcomeRef is required and must point to an outcome report');
+  }
+
+  const fromStatus = typeof business.status === 'string' ? business.status : 'draft';
+  const outcomeRef = ctx.outcomeRef.trim();
+  if (fromStatus === ctx.status && business.outcomeRef === outcomeRef) {
+    return {
+      business: { ...business, approval: business.approval ? { ...business.approval } : business.approval },
+      changed: false,
+      receipt: {
+        action: 'close', fromStatus, toStatus: ctx.status, actor: ctx.actor,
+        at: isoNow(ctx.now), outcomeRef, idempotentNoop: true,
+      },
+    };
+  }
+
+  assertLegalTransition(fromStatus, ctx.status, 'close');
+  const updated = {
+    ...business,
+    status: ctx.status,
+    outcomeRef,
+    revisions: Array.isArray(business.revisions) ? [...business.revisions] : [],
+    approval: business.approval ? { ...business.approval } : business.approval,
+  };
+  appendRevision(updated, 'close', fromStatus, ctx.status, ctx);
+  return {
+    business: updated,
+    changed: true,
+    receipt: {
+      action: 'close',
+      fromStatus,
+      toStatus: ctx.status,
+      actor: ctx.actor,
+      at: isoNow(ctx.now),
+      outcomeRef,
+      idempotentNoop: false,
+    },
+  };
 }

@@ -11,6 +11,7 @@
  * write-if-changed via `io.writeJsonStable`, so re-writing equal state is a
  * no-op (no mtime churn). Zero runtime dependencies — `node:*` only (ADR-0001).
  */
+import { existsSync } from 'node:fs';
 import { readJsonSafe, writeJsonStable } from './io.mjs';
 
 /** Current state schema version. Bump only with a migration + ADR. */
@@ -23,7 +24,7 @@ export const STATE_SCHEMA_VERSION = 1;
 export class StateConflictError extends Error {
   /**
    * @param {string} message human-readable refusal reason
-   * @param {'stale-revision'|'plan-hash-mismatch'} code machine-readable kind
+   * @param {'stale-revision'|'plan-hash-mismatch'|'invalid-state'} code machine-readable kind
    */
   constructor(message, code) {
     super(message);
@@ -142,6 +143,49 @@ export function applyStateUpdate(current, patch, { expectedRevision, planHash, n
  */
 export function writeState(path, state) {
   return writeJsonStable(path, state);
+}
+
+/**
+ * Persist a state only when the on-disk revision still matches the caller's
+ * snapshot. The check is intentionally immediately adjacent to the atomic
+ * write; callers that need cross-process exclusion must hold the workflow lock
+ * supplied by the finalization layer as well.
+ *
+ * @param {string} path path to `workflow-state.json`
+ * @param {object} state next state to persist
+ * @param {number} expectedRevision revision observed before mutation
+ * @param {{ planHash?: string }} [opts] optional plan-hash guard
+ * @returns {{ changed: boolean }} whether a write occurred
+ * @throws {StateConflictError} when the file is absent, stale, or plan-bound differently
+ */
+export function writeStateCas(path, state, { expectedRevision, planHash } = {}) {
+  if (!state || typeof state !== 'object') throw new TypeError('writeStateCas: state is required');
+  const exists = existsSync(path);
+  const current = exists ? readJsonSafe(path, null) : null;
+  if (exists && (!current || typeof current !== 'object')) {
+    throw new StateConflictError(`unreadable workflow state at ${path}`, 'invalid-state');
+  }
+  if (current) {
+    assertWritable(current, { expectedRevision, planHash });
+    if (state.revision !== current.revision + 1) {
+      throw new StateConflictError(
+        `state CAS refused: next revision ${state.revision} is not ${current.revision + 1}`,
+        'stale-revision',
+      );
+    }
+  } else if (expectedRevision !== undefined && expectedRevision !== null && expectedRevision !== 0) {
+    throw new StateConflictError(
+      `state CAS refused: expected revision ${expectedRevision}, but the state file is absent`,
+      'stale-revision',
+    );
+  }
+  if (planHash && state.planHash !== planHash) {
+    throw new StateConflictError(
+      `next state planHash ${state.planHash || '(missing)'} != ${planHash}`,
+      'plan-hash-mismatch',
+    );
+  }
+  return writeState(path, state);
 }
 
 /**

@@ -27,6 +27,21 @@ const MODULE_SUITES = [
 export const WORKFLOW_ENGINE_SUITES = Object.freeze([
   ...MODULE_SUITES,
   {
+    // WF-0084 finalization authority, lifecycle verbs, and I1-I10 adversarial fixtures.
+    id: 'workflow-finalization',
+    file: 'templates/contextkit/tools/scripts/workflow-finalization.selftest.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      `${WORKFLOW_DIR}/commands`,
+      `${WORKFLOW_DIR}/state`,
+      `${WORKFLOW_DIR}/finalization`,
+      `${WORKFLOW_DIR}/invariants`,
+      'templates/contextkit/tools/scripts/workflow-done-sweep.mjs',
+      'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
+      'templates/contextkit/tools/scripts/work-business-lifecycle.mjs',
+    ],
+  },
+  {
     id: 'workflow-close-wave',
     file: 'tools/integration-test-workflow-close-wave.mjs',
     tier: 'integration:workflow',
