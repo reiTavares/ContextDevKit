@@ -21,6 +21,7 @@ this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **BIZ-0006 / WF-0084 — Finalization integrity & lifecycle verbs complete (ADR-0148).** Added the CAS-backed `conclude`, governed Business `close`, unified state-authoritative `done-move`, the I1–I10 drift guard, and a staged-file pre-commit adapter. The human rollout decision promotes shadow-first observation and defers guarded enforcement until global QA follow-ups and real-corpus evidence are green; BIZ-0004 reconciliation remains deferred to WF-0086.
 - **WF-0083 - Canonical ceremony shapes and neutral methodology templates.** Added the pure five-shape resolver, manifest, proportional skeleton packs, canonical continuation prompts, synthetic exemplar, structure validator, and dogfood leak scrub. The shape-aware path is staged opt-in; target-project installer distribution remains owned by WF-0086.
 
 ### Changed
