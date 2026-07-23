@@ -78,6 +78,8 @@ export function createRun(root, plan) {
       heartbeatTs: now,
       deliberationId: null,
       model: ws.model ? String(ws.model) : null,
+      effort: ws.effort ? String(ws.effort) : null,
+      ruleId: ws.ruleId ? String(ws.ruleId) : null,
       tokens: 0,
       history: [{ ts: now, status: 'planned' }],
     })),
@@ -93,7 +95,7 @@ export function createRun(root, plan) {
  * @param {string} root
  * @param {string} runId
  * @param {string} wsId
- * @param {{ status?: string, tokens?: number, model?: string, deliberationId?: string, note?: string }} patch
+ * @param {{ status?: string, tokens?: number, model?: string, effort?: string, ruleId?: string, deliberationId?: string, note?: string }} patch
  */
 export function updateWorkstream(root, runId, wsId, patch = {}) {
   const run = readRun(root, runId);
@@ -109,6 +111,8 @@ export function updateWorkstream(root, runId, wsId, patch = {}) {
   }
   if (typeof patch.tokens === 'number' && patch.tokens >= 0) workstream.tokens = patch.tokens;
   if (patch.model != null) workstream.model = String(patch.model);
+  if (patch.effort != null) workstream.effort = String(patch.effort);
+  if (patch.ruleId != null) workstream.ruleId = String(patch.ruleId);
   if (patch.deliberationId != null) workstream.deliberationId = String(patch.deliberationId);
   workstream.heartbeatTs = Date.now();
   return writeRun(root, run);
@@ -168,6 +172,28 @@ export function byModel(run) {
   return [...buckets.values()].sort((a, b) => b.tokens - a.tokens || b.count - a.count);
 }
 
+/**
+ * Aggregates the observed model + effort dispatch pair. Missing effort is
+ * retained as `unresolved` so incomplete context cannot look like a pass.
+ *
+ * @param {object|null} run swarm manifest.
+ * @returns {Array<{ model: string, effort: string, count: number, tokens: number }>}
+ */
+export function byDispatch(run) {
+  const buckets = new Map();
+  for (const workstream of run?.workstreams ?? []) {
+    const model = workstream.model || 'unknown';
+    const effort = workstream.effort || 'unresolved';
+    const key = `${model}|${effort}`;
+    const bucket = buckets.get(key) || { model, effort, count: 0, tokens: 0 };
+    bucket.count += 1;
+    bucket.tokens += workstream.tokens || 0;
+    buckets.set(key, bucket);
+  }
+  return [...buckets.values()].sort((left, right) =>
+    right.tokens - left.tokens || right.count - left.count || left.model.localeCompare(right.model) || left.effort.localeCompare(right.effort));
+}
+
 /** Human run report — the /swarm review input. */
 export function renderReport(run) {
   if (!run) return 'swarm-state: no such run';
@@ -176,6 +202,10 @@ export function renderReport(run) {
     lines.push(`  [${ws.status}] ${ws.id} → task ${ws.taskId} on ${ws.branch} (${ws.model || 'model:?'}, ${ws.tokens || 0} tok)${ws.deliberationId ? ` quorum:${ws.deliberationId}` : ''}`);
   }
   const tiers = byModel(run);
+  const dispatches = byDispatch(run);
+  if (dispatches.length > 0) {
+    lines.push(`  dispatch: ${dispatches.map((dispatch) => `${dispatch.model}@${dispatch.effort} x${dispatch.count} (${dispatch.tokens} tok)`).join(' | ')}`);
+  }
   if (tiers.length > 0) {
     lines.push(`  models: ${tiers.map((t) => `${t.model} ×${t.count} (${t.tokens} tok)`).join(' · ')}`);
   }

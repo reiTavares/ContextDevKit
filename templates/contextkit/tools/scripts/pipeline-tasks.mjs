@@ -61,6 +61,8 @@ export function listTasks(pipeDir) {
         type: fm.type || 'task',
         priority: fm.priority || 'P2',
         severity: fm.severity || '',
+        risk: fm.risk || fm.riskLevel || '',
+        taskKind: fm.taskKind || fm.task_kind || '',
         wsjf: fm.wsjf || '',
         bugType: fm.bugType || '',
         sla: fm.sla || '',

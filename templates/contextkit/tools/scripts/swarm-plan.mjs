@@ -131,6 +131,9 @@ export function planSwarm({ runId, tasks, repoFiles, config = {}, simulations = 
       touchSet,
       tierHint: task.type === 'chore' ? 'fast' : 'powerful', // ADR-0052 — the orchestrator may override per think/execute rules
       title: task.title,
+      taskKind: task.taskKind || null,
+      complexity: task.complexity || null,
+      risk: task.risk || null,
     });
   }
   return { runId, workstreams, refused, deferred };

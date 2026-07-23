@@ -61,6 +61,22 @@ try {
   (() => { try { return JSON.parse(codexModel.stdout).model === 'gpt-5.6-luna'; } catch { return false; } })()
     ? ok('Codex model policy resolves execute work to gpt-5.6-luna')
     : bad(`Codex model policy did not resolve: ${(codexModel.stdout + codexModel.stderr).slice(0, 200)}`);
+  const codexSearch = run([
+    join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'tier', 'powerful',
+    '--host', 'codex', '--task-kind', 'research', '--complexity', 'S', '--risk', 'low',
+  ], { cwd: proj });
+  (() => {
+    try {
+      const dispatch = JSON.parse(codexSearch.stdout);
+      return dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low' && dispatch.ruleId === 'codex-bounded-exploration-low';
+    } catch { return false; }
+  })()
+    ? ok('Codex policy resolves research subagents to gpt-5.6-luna at low effort')
+    : bad(`Codex effort policy did not resolve research: ${(codexSearch.stdout + codexSearch.stderr).slice(0, 300)}`);
+  const installedSwarmSkill = readFileSync(join(proj, '.agents', 'skills', 'source-command-pipeline-swarm', 'SKILL.md'), 'utf-8');
+  /reasoning_effort/.test(installedSwarmSkill) && /--complexity/.test(installedSwarmSkill) && /ADR-0150/.test(installedSwarmSkill)
+    ? ok('Codex swarm skill carries effort-aware dispatch instructions')
+    : bad('Codex swarm skill is missing effort-aware dispatch instructions');
 
   const hooks = JSON.parse(readFileSync(join(proj, '.codex', 'hooks.json'), 'utf-8'));
   (hooks.PreToolUse ?? hooks.hooks?.PreToolUse)?.some((entry) =>
@@ -155,7 +171,7 @@ try {
   writeFileSync(join(proj, 'AGENTS.md'), '# Custom Codex instructions\n');
   // --allow-active-sessions: a prior track-edits left a ledger in proj; opt out of the
   // 3.1.2 active-session guard (ADR-0099 P0-02) — this tests AGENTS.md handling.
-  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions']);
+  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions', '--allow-self-update']);
   const refreshedAgents = readFileSync(join(proj, 'AGENTS.contextdevkit.md'), 'utf-8');
   update.status === 0 && /Complete Session Workflow \(Codex\)/.test(refreshedAgents)
     ? ok('--update preserves AGENTS.md and writes refreshed AGENTS.contextdevkit.md')

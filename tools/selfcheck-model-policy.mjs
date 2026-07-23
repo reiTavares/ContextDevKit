@@ -96,6 +96,7 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   try { mod = await import(pathToFileURL(modPath).href); ok('model-policy.mjs imports cleanly'); }
   catch (err) { bad(`model-policy.mjs import failed: ${err?.message}`); return; }
   const { resolveModel, aliasForTier } = mod;
+  const { resolveCodexDispatch, normalizeCodexComplexity, normalizeCodexRisk, normalizeCodexTaskKind } = mod;
 
   const exec = resolveModel('devops', { task: 'execute', policy });
   exec.model === policy.tiers.fast.alias ? ok('execute on a non-floor agent resolves to the cheap tier') : bad(`execute did not drop to cheap: ${JSON.stringify(exec)}`);
@@ -112,6 +113,43 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   aliasForTier('powerful', { host: 'codex', policy }).model === policy.hostModels.codex.powerful ? ok('Codex tier-based dispatch resolves powerful→gpt-5.6-terra') : bad('Codex aliasForTier(powerful) wrong');
   resolveModel('qa-unit', { task: 'execute', host: 'codex', policy }).model === policy.hostModels.codex.fast ? ok('Codex execute dispatch resolves to the fast GPT model') : bad('Codex execute dispatch did not resolve to fast');
   resolveModel('architect', { host: 'codex', policy }).model === policy.hostModels.codex.reasoning ? ok('Codex reasoning agents resolve to gpt-5.6-sol') : bad('Codex reasoning mapping wrong');
+  const codexDispatch = policy.codexDispatch;
+  const effortSet = new Set(codexDispatch?.supportedEfforts ?? []);
+  effortSet.size === 4 && ['low', 'medium', 'high', 'max'].every((effort) => effortSet.has(effort))
+    ? ok('Codex effort policy allows low/medium/high/max') : bad('Codex effort allowlist is incomplete');
+  const matrixKeys = (codexDispatch?.matrixRules ?? []).map((rule) => `${rule.complexity}|${rule.risk}`);
+  new Set(matrixKeys).size === matrixKeys.length
+    ? ok(`Codex effort matrix has ${matrixKeys.length} unique normalized selectors`)
+    : bad('Codex effort matrix contains duplicate normalized selectors');
+  const expectedCodexRules = [
+    ['moderate', 'moderate', 'gpt-5.6-luna', 'max', 'codex-moderate-moderate-max'],
+    ['moderate', 'high', 'gpt-5.6-luna', 'max', 'codex-moderate-high-max'],
+    ['high', 'moderate', 'gpt-5.6-terra', 'high', 'codex-high-moderate-high'],
+    ['high', 'very-high', 'gpt-5.6-sol', 'medium', 'codex-high-very-high-medium'],
+    ['very-high', 'low', 'gpt-5.6-sol', 'high', 'codex-very-high-low-high'],
+    ['very-high', 'moderate', 'gpt-5.6-sol', 'high', 'codex-very-high-moderate-high'],
+    ['very-high', 'very-high', 'gpt-5.6-sol', 'max', 'codex-very-high-very-high-max'],
+  ];
+  for (const [complexity, risk, model, effort, ruleId] of expectedCodexRules) {
+    const dispatch = resolveCodexDispatch({ complexity, risk, policy });
+    dispatch.model === model && dispatch.effort === effort && dispatch.ruleId === ruleId
+      ? ok(`Codex dispatch ${complexity}+${risk} -> ${model}@${effort}`)
+      : bad(`Codex dispatch mismatch for ${complexity}+${risk}: ${JSON.stringify(dispatch)}`);
+  }
+  const exploration = resolveCodexDispatch({ taskKind: 'research', tierHint: 'powerful', policy });
+  exploration.model === 'gpt-5.6-luna' && exploration.effort === 'low'
+    ? ok('Codex search/research/exploration task kinds resolve Luna@low') : bad(`Codex exploration rule wrong: ${JSON.stringify(exploration)}`);
+  const simple = aliasForTier('powerful', { host: 'codex', taskKind: 'simple-code', policy });
+  simple.model === 'gpt-5.6-luna' && simple.effort === 'high'
+    ? ok('Codex simple action/code resolves Luna@high') : bad(`Codex simple rule wrong: ${JSON.stringify(simple)}`);
+  const unresolved = aliasForTier('powerful', { host: 'codex', complexity: 'low', risk: 'high', policy });
+  unresolved.effort === null && unresolved.reasons.includes('codex-effort-no-explicit-rule')
+    ? ok('Codex unmatched context refuses an effort override') : bad(`Codex unmatched context guessed an effort: ${JSON.stringify(unresolved)}`);
+  normalizeCodexTaskKind('busca') === 'search' && normalizeCodexComplexity('XL') === 'very-high' && normalizeCodexRisk('critical') === 'very-high'
+    ? ok('Codex routing normalizes bounded card/user aliases') : bad('Codex routing alias normalization is incomplete');
+  const claudeEffort = aliasForTier('powerful', { host: 'claude', taskKind: 'search', policy });
+  claudeEffort.model === 'sonnet' && claudeEffort.effort === null
+    ? ok('Codex effort rules do not alter Claude routing') : bad(`Non-Codex routing was affected: ${JSON.stringify(claudeEffort)}`);
   resolveModel('qa-unit', { host: 'agy', policy }).model === null ? ok('agy host returns the documented gap (no invented mapping)') : bad('agy host gap not honored');
 
   let threw = false;

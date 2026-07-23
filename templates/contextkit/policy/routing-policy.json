@@ -4,7 +4,7 @@
   "_hostNote": "hostModels maps the demand tiers to the model override each host can enforce; Codex uses the current GPT-5.6 Sol/Terra/Luna model ids, while Antigravity remains an explicit host gap.",
   "_codexModelReference": "https://developers.openai.com/codex/models",
   "_codexModelNote": "Codex recommended models: gpt-5.6-sol for flagship reasoning, gpt-5.6-terra for balanced work, and gpt-5.6-luna for fast/affordable work.",
-  "updated": "2026-07-20",
+  "updated": "2026-07-23",
   "tiers": {
     "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
     "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
@@ -23,6 +23,28 @@
       "reasoning": "gpt-5.6-sol",
       "inherit": "inherit"
     }
+  },
+  "codexDispatch": {
+    "supportedEfforts": ["low", "medium", "high", "max"],
+    "canonicalComplexities": ["low", "moderate", "high", "very-high"],
+    "canonicalRisks": ["low", "moderate", "high", "very-high"],
+    "taskKindRules": {
+      "search": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
+      "research": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
+      "exploration": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
+      "simple-action": { "tier": "fast", "effort": "high", "ruleId": "codex-simple-action-high" },
+      "simple-code": { "tier": "fast", "effort": "high", "ruleId": "codex-simple-action-high" }
+    },
+    "matrixRules": [
+      { "complexity": "moderate", "risk": "moderate", "tier": "fast", "effort": "max", "ruleId": "codex-moderate-moderate-max" },
+      { "complexity": "moderate", "risk": "high", "tier": "fast", "effort": "max", "ruleId": "codex-moderate-high-max" },
+      { "complexity": "high", "risk": "moderate", "tier": "powerful", "effort": "high", "ruleId": "codex-high-moderate-high" },
+      { "complexity": "high", "risk": "very-high", "tier": "reasoning", "effort": "medium", "ruleId": "codex-high-very-high-medium" },
+      { "complexity": "very-high", "risk": "low", "tier": "reasoning", "effort": "high", "ruleId": "codex-very-high-low-high" },
+      { "complexity": "very-high", "risk": "moderate", "tier": "reasoning", "effort": "high", "ruleId": "codex-very-high-moderate-high" },
+      { "complexity": "very-high", "risk": "very-high", "tier": "reasoning", "effort": "max", "ruleId": "codex-very-high-very-high-max" }
+    ],
+    "unmatched": "refuse-effort"
   },
   "ladder": ["fast", "powerful", "reasoning"],
   "floorTier": "powerful",

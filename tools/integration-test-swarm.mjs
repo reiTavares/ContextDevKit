@@ -18,7 +18,7 @@ import { checkEligibility } from '../templates/contextkit/runtime/config/autonom
 import { resolveAutonomy } from '../templates/contextkit/runtime/config/resolve-autonomy.mjs';
 import { appendEvent } from '../templates/contextkit/runtime/state/state-io.mjs';
 import { deriveTouchSet, expandWithTestHomes, planSwarm, HARD_MAX_WORKSTREAMS } from '../templates/contextkit/tools/scripts/swarm-plan.mjs';
-import { byModel, createRun, evictStale, listRuns, manifestPath, readRun, renderReport, updateWorkstream, WS_STATUSES } from '../templates/contextkit/tools/scripts/swarm-state.mjs';
+import { byDispatch, byModel, createRun, evictStale, listRuns, manifestPath, readRun, renderReport, updateWorkstream, WS_STATUSES } from '../templates/contextkit/tools/scripts/swarm-state.mjs';
 import { aliasForTier } from '../templates/contextkit/tools/scripts/model-policy.mjs';
 
 const rep = reporter();
@@ -31,7 +31,7 @@ try {
   // ── swarm-plan: pure planner ─────────────────────────────────────────────
   const repoFiles = ['templates/ctx.mjs', 'templates/INSTRUCTIONS.md.tpl', 'src/auth/login.mjs', 'src/auth/token.mjs', 'docs/guide.md'];
   const tasks = [
-    { id: '1', stage: 'backlog', priority: 'P1', type: 'bug', title: 'fix replacement patterns in ctx.mjs output' },
+    { id: '1', stage: 'backlog', priority: 'P1', type: 'bug', title: 'fix replacement patterns in ctx.mjs output', taskKind: 'search', complexity: 'S', risk: 'low' },
     { id: '2', stage: 'backlog', priority: 'P2', type: 'chore', title: 'INSTRUCTIONS.md.tpl stale facts' },
     { id: '3', stage: 'backlog', priority: 'P2', type: 'feature', title: 'something with no path tokens at all' },
     { id: '4', stage: 'backlog', priority: 'P3', type: 'chore', title: 'rotate keys', paths: '[config/.env.prod]' },
@@ -47,6 +47,9 @@ try {
   const accepted = planA.workstreams.map((ws) => ws.taskId);
   accepted.includes('5') && accepted.includes('1') && accepted.includes('2')
     ? ok('planner accepts disjoint candidates ranked by priority') : bad(`unexpected acceptance set: ${accepted.join(',')}`);
+  const routedPlan = planA.workstreams.find((ws) => ws.taskId === '1');
+  routedPlan?.taskKind === 'search' && routedPlan?.complexity === 'S' && routedPlan?.risk === 'low'
+    ? ok('planner carries explicit task kind/complexity/risk routing context') : bad(`planner routing context missing: ${JSON.stringify(routedPlan)}`);
   !accepted.includes('6')
     ? ok('non-backlog tasks are never candidates') : bad('planner picked a task already in working/');
   planA.refused.some((r) => r.taskId === '3' && /no derivable touch-set/.test(r.reason))
@@ -125,20 +128,27 @@ try {
   const tierRun = createRun(root, { runId: 'run-tiers', grade: 3, workstreams: [
     { id: 'ws-a', taskId: '10', branch: 'b/a', worktree: 'w/a', touchSet: ['x'], model: aliasForTier('fast').model },
     { id: 'ws-b', taskId: '11', branch: 'b/b', worktree: 'w/b', touchSet: ['y'], model: aliasForTier('powerful').model },
+    { id: 'ws-c', taskId: '12', branch: 'b/c', worktree: 'w/c', touchSet: ['z'], model: 'gpt-5.6-luna', effort: 'low', ruleId: 'codex-bounded-exploration-low' },
   ] });
   tierRun.workstreams.find((ws) => ws.id === 'ws-a').model === 'haiku' && tierRun.workstreams.find((ws) => ws.id === 'ws-b').model === 'sonnet'
     ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
   aliasForTier('powerful', { host: 'codex' }).model === 'gpt-5.6-terra'
     ? ok('Codex swarm tierHint resolves through model-policy (powerful->gpt-5.6-terra)') : bad('Codex swarm tierHint did not resolve to gpt-5.6-terra');
   updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
-  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model });
+  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model, effort: 'high', ruleId: 'codex-high-moderate-high' });
   const mix = byModel(readRun(root, 'run-tiers'));
   const haiku = mix.find((m) => m.model === 'haiku');
   const opus = mix.find((m) => m.model === 'opus');
   haiku?.count === 1 && haiku?.tokens === 500 && opus?.count === 1 && opus?.tokens === 2000
     ? ok('byModel aggregates count + tokens per tier (escalation re-stamps the alias)') : bad(`byModel wrong: ${JSON.stringify(mix)}`);
+  const dispatchMix = byDispatch(readRun(root, 'run-tiers'));
+  dispatchMix.some((entry) => entry.model === 'gpt-5.6-luna' && entry.effort === 'low' && entry.count === 1)
+    && dispatchMix.some((entry) => entry.model === 'opus' && entry.effort === 'high' && entry.count === 1)
+    ? ok('byDispatch preserves model + effort pairs and rule-backed escalation') : bad(`byDispatch wrong: ${JSON.stringify(dispatchMix)}`);
   /models: /.test(renderReport(readRun(root, 'run-tiers')))
     ? ok('renderReport surfaces the per-model breakdown line') : bad('report missing the models: line');
+  /dispatch: .*gpt-5\.6-luna@low/.test(renderReport(readRun(root, 'run-tiers')))
+    ? ok('renderReport surfaces the model@effort dispatch breakdown') : bad('report missing the dispatch: line');
 
   // ── consent area + event attribution ────────────────────────────────────
   const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });

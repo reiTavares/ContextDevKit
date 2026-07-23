@@ -14,8 +14,8 @@
  * at L>=4/Claude, so its absence degrades to "no price", never an error (rule 8).
  *
  * Library + thin CLI:
- *   model-policy.mjs resolve --agent qa-unit --task execute [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]
- *   model-policy.mjs tier powerful [--budget-exhausted] [--host claude|codex|agy]   # tier-based dispatch (the swarm path)
+ *   model-policy.mjs resolve --agent qa-unit --task execute [--task-kind search] [--complexity M] [--risk high] [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]
+ *   model-policy.mjs tier powerful [--task-kind search] [--complexity M] [--risk high] [--budget-exhausted] [--host claude|codex|agy]   # tier-based dispatch (the swarm path)
  *   model-policy.mjs table [--json]      # the full resolved roster — the audit view
  */
 import { readFileSync } from 'node:fs';
@@ -25,6 +25,125 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_POLICY = resolve(HERE, '..', '..', 'policy', 'routing-policy.json');
 const ROUTER = resolve(HERE, '..', '..', 'squads', 'agent-forge', 'lib', 'router.mjs');
+
+const CODEX_EFFORTS = Object.freeze(['low', 'medium', 'high', 'max']);
+const CODEX_COMPLEXITIES = Object.freeze(['low', 'moderate', 'high', 'very-high']);
+const CODEX_RISKS = Object.freeze(['low', 'moderate', 'high', 'very-high']);
+
+/** Converts human/card vocabulary into a stable selector token. */
+function selectorToken(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-');
+}
+
+/**
+ * Normalizes a Codex task kind. Unknown values return null so the caller can
+ * refuse an effort override instead of guessing a route.
+ *
+ * @param {unknown} value raw task-kind/card/title value.
+ * @returns {'search'|'research'|'exploration'|'simple-action'|'simple-code'|null}
+ */
+export function normalizeCodexTaskKind(value) {
+  const token = selectorToken(value);
+  if (!token) return null;
+  if (token.includes('research')) return 'research';
+  if (token.includes('search') || token.includes('busca')) return 'search';
+  if (token.includes('explor')) return 'exploration';
+  if (token.includes('simple') && token.includes('action')) return 'simple-action';
+  if (token.includes('simple') && (token.includes('code') || token.includes('coding'))) return 'simple-code';
+  if (token === 'action' || token === 'acao') return 'simple-action';
+  if (token === 'code' || token === 'coding' || token === 'codigo') return 'simple-code';
+  return null;
+}
+
+/**
+ * Normalizes complexity aliases used by cards and human requests.
+ *
+ * @param {unknown} value raw complexity selector.
+ * @returns {'low'|'moderate'|'high'|'very-high'|null}
+ */
+export function normalizeCodexComplexity(value) {
+  const token = selectorToken(value);
+  if (!token) return null;
+  if (['s', 'small', 'low', 'trivial', 'simple', 'baixa', 'baixo'].includes(token)) return 'low';
+  if (['m', 'medium', 'moderate', 'feature', 'moderada', 'moderado'].includes(token)) return 'moderate';
+  if (['l', 'large', 'high', 'complex', 'architectural', 'alta', 'alto'].includes(token)) return 'high';
+  if (['xl', 'x-large', 'very-high', 'veryhigh', 'extra-high', 'very-complex', 'muito-alta', 'muito-alto'].includes(token)) return 'very-high';
+  return null;
+}
+
+/**
+ * Normalizes risk aliases used by cards and human requests.
+ *
+ * @param {unknown} value raw risk/severity selector.
+ * @returns {'low'|'moderate'|'high'|'very-high'|null}
+ */
+export function normalizeCodexRisk(value) {
+  const token = selectorToken(value);
+  if (!token) return null;
+  if (['low', 'minor', 'baixa', 'baixo'].includes(token)) return 'low';
+  if (['medium', 'moderate', 'normal', 'moderada', 'moderado', 'media', 'medio'].includes(token)) return 'moderate';
+  if (['high', 'elevated', 'alta', 'alto'].includes(token)) return 'high';
+  if (['very-high', 'veryhigh', 'critical', 'critica', 'critico', 'muito-alta', 'muito-alto'].includes(token)) return 'very-high';
+  return null;
+}
+
+/**
+ * Builds normalized Codex routing context from explicit fields, using title
+ * only as a bounded task-kind hint. It never invents complexity or risk.
+ *
+ * @param {{ taskKind?: unknown, complexity?: unknown, risk?: unknown, title?: unknown }} context raw dispatch context.
+ * @returns {{ taskKind: string|null, complexity: string|null, risk: string|null }} normalized context.
+ */
+export function normalizeCodexContext(context = {}) {
+  return {
+    taskKind: normalizeCodexTaskKind(context.taskKind) ?? normalizeCodexTaskKind(context.title),
+    complexity: normalizeCodexComplexity(context.complexity),
+    risk: normalizeCodexRisk(context.risk),
+  };
+}
+
+/** Returns true when the caller supplied any Codex routing context. */
+function hasCodexContext(options = {}) {
+  return ['taskKind', 'complexity', 'risk', 'title'].some((field) => options[field] != null && String(options[field]).trim() !== '');
+}
+
+/** Validates the Codex policy once at load time when the optional section exists. */
+function validateCodexPolicy(policy) {
+  const codexDispatch = policy.codexDispatch;
+  if (!codexDispatch) return;
+  if (!CODEX_EFFORTS.every((effort) => codexDispatch.supportedEfforts?.includes(effort))) {
+    throw new Error('model-policy: codexDispatch.supportedEfforts must allow low, medium, high, and max');
+  }
+  if (!CODEX_COMPLEXITIES.every((complexity) => codexDispatch.canonicalComplexities?.includes(complexity))) {
+    throw new Error('model-policy: codexDispatch.canonicalComplexities is incomplete');
+  }
+  if (!CODEX_RISKS.every((risk) => codexDispatch.canonicalRisks?.includes(risk))) {
+    throw new Error('model-policy: codexDispatch.canonicalRisks is incomplete');
+  }
+  const matrixKeys = new Set();
+  for (const rule of codexDispatch.matrixRules ?? []) {
+    const key = `${rule.complexity}|${rule.risk}`;
+    if (matrixKeys.has(key)) throw new Error(`model-policy: duplicate Codex matrix rule ${key}`);
+    matrixKeys.add(key);
+    if (!CODEX_COMPLEXITIES.includes(rule.complexity) || !CODEX_RISKS.includes(rule.risk)) {
+      throw new Error(`model-policy: invalid Codex matrix selector ${key}`);
+    }
+    if (!policy.tiers?.[rule.tier] || !CODEX_EFFORTS.includes(rule.effort) || !rule.ruleId) {
+      throw new Error(`model-policy: invalid Codex matrix rule ${rule.ruleId || key}`);
+    }
+  }
+  for (const [taskKind, rule] of Object.entries(codexDispatch.taskKindRules ?? {})) {
+    if (!policy.tiers?.[rule.tier] || !CODEX_EFFORTS.includes(rule.effort) || !rule.ruleId || !taskKind) {
+      throw new Error(`model-policy: invalid Codex task-kind rule ${taskKind}`);
+    }
+  }
+}
 
 /** Reads the routing policy — strips a BOM (rule 4), throws on a missing/corrupt file (fail-fast). */
 export function loadPolicy(path = DEFAULT_POLICY) {
@@ -38,6 +157,7 @@ export function loadPolicy(path = DEFAULT_POLICY) {
   if (!policy.tiers || !policy.hostModels || !Array.isArray(policy.ladder) || !policy.agents) {
     throw new Error('model-policy: routing-policy.json is malformed (need tiers, hostModels, ladder, agents)');
   }
+  validateCodexPolicy(policy);
   return policy;
 }
 
@@ -58,6 +178,65 @@ function modelForTier(policy, tier, host) {
   return policy.hostModels?.[host]?.[tier] ?? policy.tiers?.[tier]?.alias ?? null;
 }
 
+/** Returns the legacy tier/model when Codex effort context cannot be resolved. */
+function refusedCodexDispatch(policy, tierHint, context, reason) {
+  return {
+    model: tierHint ? modelForTier(policy, tierHint, 'codex') : null,
+    tier: tierHint ?? null,
+    effort: null,
+    ruleId: null,
+    context,
+    reasons: [reason],
+  };
+}
+
+/**
+ * Resolves the Codex-only task-kind/matrix contract. The function is pure and
+ * refuses an effort when context is incomplete or has no explicit rule.
+ *
+ * @param {{ taskKind?: unknown, complexity?: unknown, risk?: unknown, title?: unknown, tierHint?: string|null, policy?: object }} options raw context and legacy tier.
+ * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, context: object, reasons: string[] }}
+ */
+export function resolveCodexDispatch(options = {}) {
+  const policy = options.policy ?? loadPolicy();
+  const normalizedContext = normalizeCodexContext(options);
+  const tierHint = policy.tiers?.[options.tierHint] ? options.tierHint : null;
+  const codexDispatch = policy.codexDispatch;
+  if (!codexDispatch) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-policy-missing');
+
+  const taskKindRule = normalizedContext.taskKind ? codexDispatch.taskKindRules?.[normalizedContext.taskKind] : null;
+  if (taskKindRule) {
+    return {
+      model: modelForTier(policy, taskKindRule.tier, 'codex'),
+      tier: taskKindRule.tier,
+      effort: taskKindRule.effort,
+      ruleId: taskKindRule.ruleId,
+      context: normalizedContext,
+      reasons: [`codex-rule(${taskKindRule.ruleId})`],
+    };
+  }
+
+  const suppliedFields = [options.complexity, options.risk].filter((field) => field != null && String(field).trim() !== '');
+  if (suppliedFields.length === 0) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-context-missing');
+  if (!normalizedContext.complexity || !normalizedContext.risk) {
+    return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-context-incomplete-or-invalid');
+  }
+
+  const matches = (codexDispatch.matrixRules ?? []).filter((rule) =>
+    rule.complexity === normalizedContext.complexity && rule.risk === normalizedContext.risk);
+  if (matches.length === 0) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-no-explicit-rule');
+  if (matches.length > 1) throw new Error(`model-policy: duplicate normalized Codex dispatch rule for ${normalizedContext.complexity}|${normalizedContext.risk}`);
+  const matrixRule = matches[0];
+  return {
+    model: modelForTier(policy, matrixRule.tier, 'codex'),
+    tier: matrixRule.tier,
+    effort: matrixRule.effort,
+    ruleId: matrixRule.ruleId,
+    context: normalizedContext,
+    reasons: [`codex-rule(${matrixRule.ruleId})`],
+  };
+}
+
 /**
  * Resolves one dispatch to a concrete model alias. Deterministic — same inputs,
  * same answer; no LLM-judge (ADR-0012 §5). Order is contractual: task class →
@@ -65,18 +244,18 @@ function modelForTier(policy, tier, host) {
  * (ADR-0052 §5 "floor beats de-escalation").
  *
  * @param {string} agent agent archetype name (e.g. "qa-unit")
- * @param {{ task?: 'think'|'execute'|'ambiguous', budgetExhausted?: boolean, qaFailures?: number, host?: string, policy?: object }} opts
- * @returns {{ model: string|null, tier: string|null, reasons: string[], agent: string }}
+ * @param {{ task?: 'think'|'execute'|'ambiguous', taskKind?: string, complexity?: string, risk?: string, title?: string, budgetExhausted?: boolean, qaFailures?: number, host?: string, policy?: object }} opts
+ * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, reasons: string[], agent: string }}
  */
 export function resolveModel(agent, opts = {}) {
   const policy = opts.policy ?? loadPolicy();
   const host = opts.host ?? 'claude';
   const hostGap = hostGapReason(policy, host);
   if (hostGap) {
-    return { model: null, tier: null, reasons: [hostGap], agent };
+    return { model: null, tier: null, effort: null, ruleId: null, reasons: [hostGap], agent };
   }
   if ((policy.inheritAgents ?? []).includes(agent)) {
-    return { model: modelForTier(policy, 'inherit', host), tier: null, reasons: ['dispatcher-inherits-session'], agent };
+    return { model: modelForTier(policy, 'inherit', host), tier: null, effort: null, ruleId: null, reasons: ['dispatcher-inherits-session'], agent };
   }
   const baseTier = policy.agents?.[agent];
   if (!baseTier) {
@@ -104,7 +283,30 @@ export function resolveModel(agent, opts = {}) {
     const floor = policy.floorTier;
     if (ladder.indexOf(tier) < ladder.indexOf(floor)) { tier = floor; reasons.push(`floor(${floor})`); }
   }
-  return { model: modelForTier(policy, tier, host), tier, reasons, agent };
+  const legacy = { model: modelForTier(policy, tier, host), tier, effort: null, ruleId: null, reasons, agent };
+  if (host !== 'codex' || !hasCodexContext(opts)) return legacy;
+
+  const codexDispatch = resolveCodexDispatch({ ...opts, tierHint: tier, policy });
+  let codexTier = codexDispatch.tier;
+  if (opts.budgetExhausted && codexTier) {
+    const downgraded = shift(ladder, codexTier, -1);
+    if (downgraded !== codexTier) {
+      codexTier = downgraded;
+      codexDispatch.reasons.push('budget-downgrade(-1)');
+    }
+  }
+  if ((policy.floorAgents ?? []).includes(agent) && codexTier && ladder.indexOf(codexTier) < ladder.indexOf(policy.floorTier)) {
+    codexTier = policy.floorTier;
+    codexDispatch.reasons.push(`floor(${policy.floorTier})`);
+  }
+  return {
+    model: modelForTier(policy, codexTier, host),
+    tier: codexTier,
+    effort: codexDispatch.effort,
+    ruleId: codexDispatch.ruleId,
+    reasons: [...reasons, ...codexDispatch.reasons],
+    agent,
+  };
 }
 
 /**
@@ -135,22 +337,39 @@ export async function priceForTier(tier, policy) {
  * host gap or an unknown tier (refuse-by-default).
  *
  * @param {string} tier one of the demand tiers (fast|powerful|reasoning)
- * @param {{ budgetExhausted?: boolean, host?: string, policy?: object }} opts
- * @returns {{ model: string|null, tier: string|null, reasons: string[] }}
+ * @param {{ taskKind?: string, complexity?: string, risk?: string, title?: string, budgetExhausted?: boolean, host?: string, policy?: object }} opts
+ * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, reasons: string[] }}
  */
 export function aliasForTier(tier, opts = {}) {
   const policy = opts.policy ?? loadPolicy();
   const host = opts.host ?? 'claude';
   const hostGap = hostGapReason(policy, host);
-  if (hostGap) return { model: null, tier: null, reasons: [hostGap] };
-  if (!policy.tiers?.[tier]) return { model: null, tier: null, reasons: [`unknown-tier(${tier})`] };
+  if (hostGap) return { model: null, tier: null, effort: null, ruleId: null, reasons: [hostGap] };
+  if (!policy.tiers?.[tier]) return { model: null, tier: null, effort: null, ruleId: null, reasons: [`unknown-tier(${tier})`] };
   const reasons = [`tier(${tier})`];
   let resolved = tier;
   if (opts.budgetExhausted) {
     const down = shift(policy.ladder, resolved, -1);
     if (down !== resolved) { resolved = down; reasons.push('budget-downgrade(-1)'); }
   }
-  return { model: modelForTier(policy, resolved, host), tier: resolved, reasons };
+  const legacy = { model: modelForTier(policy, resolved, host), tier: resolved, effort: null, ruleId: null, reasons };
+  if (host !== 'codex' || !hasCodexContext(opts)) return legacy;
+  const codexDispatch = resolveCodexDispatch({ ...opts, tierHint: resolved, policy });
+  let codexTier = codexDispatch.tier;
+  if (opts.budgetExhausted && codexTier) {
+    const downgraded = shift(policy.ladder, codexTier, -1);
+    if (downgraded !== codexTier) {
+      codexTier = downgraded;
+      codexDispatch.reasons.push('budget-downgrade(-1)');
+    }
+  }
+  return {
+    model: modelForTier(policy, codexTier, host),
+    tier: codexTier,
+    effort: codexDispatch.effort,
+    ruleId: codexDispatch.ruleId,
+    reasons: [...reasons, ...codexDispatch.reasons],
+  };
 }
 
 /** Builds the full resolved roster (every agent at its static default) — the audit view. */
@@ -171,9 +390,13 @@ if (isMain) {
   try {
     if (verb === 'resolve') {
       const agent = flag('agent');
-      if (!agent) { console.error('Usage: model-policy.mjs resolve --agent <name> [--task think|execute|ambiguous] [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]'); process.exit(1); }
+      if (!agent) { console.error('Usage: model-policy.mjs resolve --agent <name> [--task think|execute|ambiguous] [--task-kind kind] [--complexity value] [--risk value] [--title text] [--budget-exhausted] [--qa-failures N] [--host claude|codex|agy]'); process.exit(1); }
       const out = resolveModel(agent, {
         task: flag('task') ?? 'ambiguous',
+        taskKind: flag('task-kind'),
+        complexity: flag('complexity'),
+        risk: flag('risk'),
+        title: flag('title'),
         budgetExhausted: has('budget-exhausted'),
         qaFailures: Number(flag('qa-failures')) || 0,
         host: flag('host') ?? 'claude',
@@ -181,8 +404,15 @@ if (isMain) {
       console.log(JSON.stringify(out));
     } else if (verb === 'tier') {
       const tier = argv[1] && !argv[1].startsWith('--') ? argv[1] : flag('tier');
-      if (!tier) { console.error('Usage: model-policy.mjs tier <fast|powerful|reasoning> [--budget-exhausted] [--host claude|codex|agy]'); process.exit(1); }
-      console.log(JSON.stringify(aliasForTier(tier, { budgetExhausted: has('budget-exhausted'), host: flag('host') ?? 'claude' })));
+      if (!tier) { console.error('Usage: model-policy.mjs tier <fast|powerful|reasoning> [--task-kind kind] [--complexity value] [--risk value] [--title text] [--budget-exhausted] [--host claude|codex|agy]'); process.exit(1); }
+      console.log(JSON.stringify(aliasForTier(tier, {
+        taskKind: flag('task-kind'),
+        complexity: flag('complexity'),
+        risk: flag('risk'),
+        title: flag('title'),
+        budgetExhausted: has('budget-exhausted'),
+        host: flag('host') ?? 'claude',
+      })));
     } else if (verb === 'table') {
       const roster = resolveRoster();
       if (has('json')) { console.log(JSON.stringify(roster, null, 2)); }
