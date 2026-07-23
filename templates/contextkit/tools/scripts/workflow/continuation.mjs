@@ -79,7 +79,7 @@ function renderGitState(gitFacts) {
 
 /** Render the workflow-identity section (id/profile/pattern/phase/revision). */
 function renderWorkflowSection(plan, state) {
-  const phase = (plan.journey && plan.journey.currentPhase) || (state && state.journeyPhase) || 'intake';
+  const phase = (state && state.journeyPhase) || (plan.journey && plan.journey.currentPhase) || 'intake';
   const revision = state && typeof state.revision === 'number' ? state.revision : 0;
   return [
     '## Workflow',

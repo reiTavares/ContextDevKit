@@ -12,6 +12,7 @@ import { applyStateUpdate, initState, writeState, writeStateCas, StateConflictEr
 import { planHash } from './workflow/plan.mjs';
 import { checkInvariant, evaluateInvariants } from './workflow/invariants.mjs';
 import { parseFrontmatter } from './workflow-frontmatter.mjs';
+import { renderIndexStatus } from './workflow/render.mjs';
 import { runWorkflowInvariantHook } from '../../runtime/git-hooks/workflow-invariant-hook.mjs';
 
 const NOW = '2026-07-23T12:00:00.000Z';
@@ -53,6 +54,13 @@ try {
   const persisted = JSON.parse(readFileSync(join(archiveDir, 'workflow-state.json'), 'utf8'));
   assert('A2: state has one finalization event', persisted.overallStatus === 'done' && persisted.events.length === 1 && persisted.events[0].type === 'workflow.concluded');
   assert('A3: index conclusion is regenerated from state', readFileSync(join(archiveDir, 'index.md'), 'utf8').includes('conclusion: done'));
+  const stateProjection = renderIndexStatus({
+    profile: 'program',
+    pattern: 'large-program',
+    journey: { currentPhase: 'intake' },
+    waves: [],
+  }, { journeyPhase: 'conclusion', overallStatus: 'done', revision: 22 });
+  assert('A3b: generated status follows the authoritative state phase', stateProjection.includes('**Journey phase:** conclusion') && stateProjection.includes('**Overall:** done'));
   assert('A4: directory is filed under done', existsSync(archiveDir) && !existsSync(created.dir));
 
   const retry = concludeWorkflow(root, 'finalization-fixture', { apply: true, now: '2026-07-23T12:01:00.000Z' });

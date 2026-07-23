@@ -135,7 +135,7 @@ function waveStatusSummary(waves, state) {
  */
 export function renderIndexStatus(plan, state) {
   const normalized = normalizePlan(plan);
-  const phase = (normalized.journey && normalized.journey.currentPhase) || (state && state.journeyPhase) || 'intake';
+  const phase = (state && state.journeyPhase) || (normalized.journey && normalized.journey.currentPhase) || 'intake';
   const revision = state && typeof state.revision === 'number' ? state.revision : 0;
   const overall = (state && state.overallStatus) || 'not-started';
   return [
