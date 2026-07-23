@@ -14,7 +14,7 @@ import { refreshIndex, refreshTasks } from './workflow/render.mjs';
 import { explainFile, requiredFiles } from './workflow/files.mjs';
 import { listProfiles } from './workflow/profiles.mjs';
 import { readJsonSafe } from './workflow/io.mjs';
-import { approveGateCmd, auditCmd, checkGate, closeWave, migrateCmd, migratePlanCmd, nextRun, ownershipCheck, recordResult, refreshContinuationCmd } from './workflow/commands.mjs';
+import { approveGateCmd, auditCmd, checkGate, closeWave, concludeWorkflow, doneMoveWorkflow, guardWorkflow, migrateCmd, migratePlanCmd, nextRun, ownershipCheck, recordResult, refreshContinuationCmd } from './workflow/commands.mjs';
 
 /** Best-effort git facts for the continuation prompt (never throws). */
 function gitFacts() {
@@ -47,6 +47,15 @@ function multiArg(name) {
 function arg(name, fallback = '') {
   const idx = process.argv.indexOf(`--${name}`);
   return idx >= 0 ? process.argv[idx + 1] || fallback : fallback;
+}
+
+/** Parse an optional integer CLI guard without accepting partial numbers. */
+function intArg(name) {
+  const raw = arg(name, '');
+  if (!raw) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`--${name} must be a non-negative integer`);
+  return parsed;
 }
 
 function positional() {
@@ -176,6 +185,42 @@ function run() {
       if (!outcome.applied && apply) process.exit(1);
       return;
     }
+    if (cmd === 'conclude') {
+      const [slug] = positional();
+      const outcome = concludeWorkflow(ROOT, slug, {
+        apply: process.argv.includes('--apply'),
+        expectedRevision: intArg('expected-revision'),
+        expectedJournalSeq: intArg('expected-journal-seq'),
+        planHash: arg('plan-hash') || undefined,
+        actor: arg('actor', 'agent'),
+        now: new Date().toISOString(),
+      });
+      console.log(JSON.stringify(outcome, null, 2));
+      return;
+    }
+    if (cmd === 'done-move') {
+      const [slug] = positional();
+      const outcome = doneMoveWorkflow(ROOT, slug, {
+        apply: process.argv.includes('--apply'),
+        expectedRevision: intArg('expected-revision'),
+        planHash: arg('plan-hash') || undefined,
+        now: new Date().toISOString(),
+      });
+      console.log(JSON.stringify(outcome, null, 2));
+      return;
+    }
+    if (cmd === 'guard') {
+      const [slug] = positional();
+      const outcome = guardWorkflow(ROOT, slug, {
+        mode: arg('mode', 'shadow'),
+        phase: arg('phase', 'in-flight'),
+        apply: process.argv.includes('--apply'),
+        now: new Date().toISOString(),
+      });
+      console.log(JSON.stringify(outcome, null, 2));
+      if (outcome.status === 'blocked') process.exit(1);
+      return;
+    }
     if (cmd === 'audit') {
       const [slug] = positional();
       console.log(JSON.stringify(auditCmd(ROOT, slug), null, 2));
@@ -243,7 +288,7 @@ function run() {
       console.log(`Workflow report written: ${reportPath}`);
       return;
     }
-    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | new <slug> --profile <p> [--pattern p] [--addon a]... [--plan file] | advance <slug> [--ref ref] [--force] | check <slug> | status [slug] [--json] | refresh <slug> | next-run <slug> | ownership-check <slug> | record-agent-result <slug> --file f | check-gate <slug> <gate> | approve-gate <slug> <gate> --approver name [--evidence f] | close-wave <slug> <wave> [--apply] | audit <slug> | migrate-plan <slug> | migrate <slug> [--apply] | explain-file <id> | required-files [--profile p] | report <slug> [--task id] [--force]>');
+    console.error('Usage: workflow.mjs <new <slug> [--kind kind] | new <slug> --profile <p> [--pattern p] [--addon a]... [--plan file] | advance <slug> [--ref ref] [--force] | check <slug> | status [slug] [--json] | refresh <slug> | next-run <slug> | ownership-check <slug> | record-agent-result <slug> --file f | check-gate <slug> <gate> | approve-gate <slug> <gate> --approver name [--evidence f] | close-wave <slug> <wave> [--apply] | conclude <slug> [--apply] [--expected-revision n] [--expected-journal-seq n] [--plan-hash hash] | done-move <slug> [--apply] [--expected-revision n] [--plan-hash hash] | guard <slug> [--mode shadow|advisory|guarded|finalization] [--phase in-flight|finalization] [--apply] | audit <slug> | migrate-plan <slug> | migrate <slug> [--apply] | explain-file <id> | required-files [--profile p] | report <slug> [--task id] [--force]>');
     process.exit(1);
   } catch (err) {
     console.error(`workflow: ${err?.message ?? err}`);

@@ -223,6 +223,8 @@ function main() {
     'templates/contextkit/tools/scripts/decisions-file.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
     'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
+    // BIZ-0006 / WF-0084 — finalization authority + I1-I10 adversarial fixtures.
+    'templates/contextkit/tools/scripts/workflow-finalization.selftest.mjs',
     // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
     'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
     // DOC-007 / WF0016 — docs enforcement gate selfcheck; sibling, dispatched directly.
