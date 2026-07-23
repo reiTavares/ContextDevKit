@@ -246,5 +246,12 @@
       "humanFlip": false,
       "autoIndex": true
     }
+  },
+  "workflowIntegrity": {
+    "invariantGuard": {
+      "enabled": true,
+      "mode": "shadow",
+      "phase": "in-flight"
+    }
   }
 }

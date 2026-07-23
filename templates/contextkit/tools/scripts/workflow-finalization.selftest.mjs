@@ -4,13 +4,15 @@
  * refusal, and one outcome-driven drift fixture for every I1-I10 invariant.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createWaveWorkflow } from './workflow/create.mjs';
 import { concludeWorkflow, doneMoveWorkflow, loadPack } from './workflow/commands.mjs';
 import { applyStateUpdate, initState, writeState, writeStateCas, StateConflictError } from './workflow/state.mjs';
+import { planHash } from './workflow/plan.mjs';
 import { checkInvariant, evaluateInvariants } from './workflow/invariants.mjs';
 import { parseFrontmatter } from './workflow-frontmatter.mjs';
+import { runWorkflowInvariantHook } from '../../runtime/git-hooks/workflow-invariant-hook.mjs';
 
 const NOW = '2026-07-23T12:00:00.000Z';
 const root = mkdtempSync(join(tmpdir(), 'wf0084-finalization-'));
@@ -114,6 +116,42 @@ try {
     state: { overallStatus: 'not-started', events: [{ type: 'workflow.concluded', seq: 1, status: 'done' }] },
   });
   assert('C14: I1 exposes a journal-backed self-heal proposal', selfHeal.selfHealing.some((repair) => repair.action === 'rebuild-state-status'));
+
+  process.stdout.write('\nBlock D — pre-commit rollout adapter\n');
+  const hookFixture = createWaveWorkflow(root, 'hook-fixture', {
+    profile: 'program',
+    plan: fixturePlan('9904', 'hook-fixture'),
+    now: NOW,
+  });
+  const changedWorkflowFile = `${relative(root, hookFixture.dir).replace(/\\/g, '/')}/index.md`;
+  const hookStatePath = join(hookFixture.dir, 'workflow-state.json');
+  writeState(hookStatePath, initState({
+    workflowId: '9904',
+    planHash: planHash(fixturePlan('9904', 'hook-fixture')),
+    now: NOW,
+  }));
+  const shadowHook = runWorkflowInvariantHook(root, {
+    stagedFiles: [changedWorkflowFile],
+    config: { workflowIntegrity: { invariantGuard: { enabled: true, mode: 'shadow' } } },
+    now: NOW,
+  });
+  assert('D1: shadow hook observes without blocking', shadowHook.exitCode === 0 && shadowHook.packs.length === 1);
+  writeFileSync(hookStatePath, JSON.stringify({
+    ...JSON.parse(readFileSync(hookStatePath, 'utf8')),
+    overallStatus: 'done',
+  }));
+  const guardedHook = runWorkflowInvariantHook(root, {
+    stagedFiles: [changedWorkflowFile],
+    config: { workflowIntegrity: { invariantGuard: { enabled: true, mode: 'guarded' } } },
+    now: NOW,
+  });
+  assert('D2: guarded hook blocks a positively-false hot invariant', guardedHook.exitCode === 1 && guardedHook.status === 'blocked');
+  const disabledHook = runWorkflowInvariantHook(root, {
+    stagedFiles: [changedWorkflowFile],
+    config: { workflowIntegrity: { invariantGuard: { enabled: false, mode: 'guarded' } } },
+    now: NOW,
+  });
+  assert('D3: kill path leaves work unblocked', disabledHook.exitCode === 0 && disabledHook.status === 'disabled');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

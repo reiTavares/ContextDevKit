@@ -9,7 +9,7 @@
  * Invoked by `.git/hooks/pre-commit` (a thin wrapper the installer drops).
  * Bypass: `git commit --no-verify`.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
@@ -40,8 +40,22 @@ function stagedTouchesSource() {
   }
 }
 
+/** Run the WF-0084 guard before derived-document writes; unknown hook failures fail open. */
+function runWorkflowInvariantGuard() {
+  const hook = resolve(ROOT, 'contextkit/runtime/git-hooks/workflow-invariant-hook.mjs');
+  if (!existsSync(hook)) return;
+  try {
+    execFileSync(process.execPath, [hook], { cwd: ROOT, stdio: 'inherit', timeout: 10_000 });
+  } catch (error) {
+    if (error?.status === 1) throw error;
+    console.warn('pre-commit: workflow invariant hook unavailable; continuing fail-open.');
+  }
+}
+
 function main() {
   console.log('› pre-commit: regenerating derived docs...');
+
+  runWorkflowInvariantGuard();
 
   if (existsSync(resolve(ROOT, 'docs'))) {
     safeRun('node contextkit/tools/scripts/docs-refresh.mjs');

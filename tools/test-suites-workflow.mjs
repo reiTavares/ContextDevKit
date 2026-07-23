@@ -36,6 +36,8 @@ export const WORKFLOW_ENGINE_SUITES = Object.freeze([
       `${WORKFLOW_DIR}/state`,
       `${WORKFLOW_DIR}/finalization`,
       `${WORKFLOW_DIR}/invariants`,
+      'templates/contextkit/runtime/git-hooks/workflow-invariant-hook.mjs',
+      'templates/contextkit/runtime/git-hooks/pre-commit.mjs',
       'templates/contextkit/tools/scripts/workflow-done-sweep.mjs',
       'templates/contextkit/tools/scripts/work-lifecycle-cmd.mjs',
       'templates/contextkit/tools/scripts/work-business-lifecycle.mjs',

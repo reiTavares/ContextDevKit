@@ -54,6 +54,11 @@ export const DEFAULT_CONFIG = Object.freeze({
    */
   projectMap: { autoRefresh: true, enforce: true, roots: ['.'], excludes: [] },
 
+  /** WF-0084 invariant guard: shadow-first, explicitly promotable, killable. */
+  workflowIntegrity: {
+    invariantGuard: { enabled: true, mode: 'shadow', phase: 'in-flight' },
+  },
+
   /**
    * First-run onboarding state. The installer writes `completed: false` into a
    * fresh project's config so the SessionStart hook fires the `/setupcontextdevkit`
