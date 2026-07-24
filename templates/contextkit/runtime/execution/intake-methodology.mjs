@@ -26,9 +26,52 @@ import { resolveAutonomy, readAutonomyOverride } from '../config/resolve-autonom
 import { loadConfigSync } from '../config/load.mjs';
 import { matchBusiness } from './business-matcher.mjs';
 import { buildIntakeProposal, saveIntakeProposal } from './intake-proposal-store.mjs';
+import { scanCitations, resolveReferenceIntent } from './reference-intent.mjs';
+import { buildWorkContextRegistry } from '../../tools/scripts/registry/work-context.mjs';
+import { buildWorkflowRegistry } from '../../tools/scripts/registry/workflow.mjs';
 
 /** One notch down the consent ladder, used by the low-confidence downgrade. */
 const DOWNGRADE = Object.freeze({ auto: 'suggest', suggest: 'manual', manual: 'manual', debate: 'suggest' });
+
+/**
+ * Reference-intents that mean "work inside an existing context" rather than
+ * create a new one (ADR-0152 / WF-0094). A strong one of these downgrades a
+ * would-be create-new action and re-frames the advisory line.
+ */
+const CONTINUATION_INTENTS = Object.freeze(
+  new Set(['work-within', 'new-child-in-context', 'new-workflow-in-owner']),
+);
+
+/**
+ * Reads the two registries the citation scan resolves against, fail-open
+ * (immutable rule 2). Each read is isolated so one unreadable registry never
+ * blanks the other; any failure degrades to an empty list, so `scanCitations`
+ * simply surfaces fewer / unresolved citations rather than throwing.
+ *
+ * @param {string} root - project root.
+ * @returns {{ workContexts: object[], workflows: object[] }}
+ */
+function readCitationRegistries(root) {
+  const registries = { workContexts: [], workflows: [] };
+  try {
+    const wc = buildWorkContextRegistry(root);
+    if (wc && Array.isArray(wc.contexts)) registries.workContexts = wc.contexts;
+  } catch { /* fail-open — empty work-context list */ }
+  try {
+    const wf = buildWorkflowRegistry(root);
+    if (wf && Array.isArray(wf.workflows)) registries.workflows = wf.workflows;
+  } catch { /* fail-open — empty workflow list */ }
+  return registries;
+}
+
+/** True for a strong (high-confidence) continuation reference-intent. */
+function isStrongContinuation(referenceIntent) {
+  return Boolean(
+    referenceIntent
+    && referenceIntent.confidence === 'high'
+    && CONTINUATION_INTENTS.has(referenceIntent.intent),
+  );
+}
 
 /**
  * Resolves the proposed action mode for a classification at a given grade.
@@ -71,18 +114,47 @@ export function resolveProposedAction(work, config = {}, sessionOverride = null)
 }
 
 /**
+ * Renders the tail phrase describing an existing-context reference (ADR-0152).
+ * A strong continuation re-frames the tail from "new-with-a-parent" into the
+ * resolved intent (e.g. `continuation of WF-0094 → work-within`); an `ask`
+ * surfaces that a citation needs disambiguation. Returns null when there is no
+ * reference-intent to surface (keeping the legacy tail byte-identical).
+ *
+ * @param {object|null} referenceIntent - the resolveReferenceIntent verdict.
+ * @returns {string|null} the tail phrase, or null.
+ */
+function referenceTail(referenceIntent) {
+  if (!referenceIntent) return null;
+  const targetId = referenceIntent.target?.id;
+  if (isStrongContinuation(referenceIntent) && targetId) {
+    return `continuation of ${targetId} → ${referenceIntent.intent} (do not create a new context)`;
+  }
+  if (referenceIntent.intent === 'ask' && targetId) {
+    return `cites ${targetId}? clarify: continue / add-to / new-workflow / new`;
+  }
+  return null;
+}
+
+/**
  * Renders the single ≤1-line advisory the hook appends to its checklist.
  *
  * @param {object} work - the classification.
  * @param {object|null} match - the matcher verdict, or null.
  * @param {object} action - the resolved proposed action.
+ * @param {object|null} [referenceIntent] - the ADR-0152 reference-intent verdict.
  * @returns {string} one advisory line (no trailing newline).
  */
-export function renderMethodologyLine(work, match, action) {
+export function renderMethodologyLine(work, match, action, referenceIntent = null) {
   const intent = work?.valueIntents?.primary ?? '—';
   const conf = work?.confidence === 'low' ? ' (low-confidence)' : '';
+  const refTail = referenceTail(referenceIntent);
   let tail;
-  if (work?.nature === 'business') {
+  if (refTail) {
+    // ADR-0152: a cited existing context takes priority over the matcher's
+    // "suggested parent" framing — that framing is exactly what mis-routed a
+    // continuation prompt into a new operation.
+    tail = refTail;
+  } else if (work?.nature === 'business') {
     tail = 'business → propose (human approval, never auto)';
   } else if (match && match.status === 'suggested') {
     tail = `business ${match.suggested}? suggested (${match.score})`;
@@ -116,13 +188,30 @@ export function runMethodology(params) {
       ? matchBusiness(work, { root, objective })
       : null;
     const action = resolveProposedAction(work, config, sessionOverride);
+
+    // ADR-0152 / WF-0094 — resolve what a citation of an existing context MEANS.
+    // Isolated + fail-open: a failure here degrades to the legacy framing (a null
+    // referenceIntent), never to a broken methodology pass (immutable rule 2).
+    let referenceIntent = null;
+    try {
+      const citations = scanCitations(objective, readCitationRegistries(root));
+      referenceIntent = resolveReferenceIntent(work, citations, { objective });
+      // A strong continuation must never auto-create a redundant context: downgrade
+      // the create-new action to `suggest` (advisory — never blocks; ADR-0125).
+      if (isStrongContinuation(referenceIntent) && action.mode === 'auto') {
+        action.mode = 'suggest';
+        action.downgraded = true;
+        action.reason = `${action.reason}; downgraded — ${referenceIntent.intent} of ${referenceIntent.target?.id}`;
+      }
+    } catch { referenceIntent = null; /* fail-open — legacy framing stands */ }
+
     const proposal = buildIntakeProposal(taskId, work, match, {
       objective,
       action: { nature: action.nature, kind: action.kind, autonomyMode: action.mode, grade: action.grade },
       createdAt: createdAt ?? new Date().toISOString(),
     });
     saveIntakeProposal(root, taskId, proposal); // atomic, fail-open
-    return { match, action, proposal, line: renderMethodologyLine(work, match, action) };
+    return { match, action, referenceIntent, proposal, line: renderMethodologyLine(work, match, action, referenceIntent) };
   } catch {
     return null; // methodology is advisory; never break the prompt
   }
