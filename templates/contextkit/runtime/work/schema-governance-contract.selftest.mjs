@@ -25,6 +25,11 @@ import {
   refreshGovernanceContract,
   GOVERNANCE_CONTRACT_FILENAME,
 } from '../../tools/scripts/emit-governance-contract.mjs';
+import {
+  readGovernanceContract,
+  formatGovernanceContractAdvisory,
+  renderGovernanceContractAdvisory,
+} from '../../tools/scripts/read-governance-contract.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..', '..', '..'); // templates/contextkit/runtime/work → repo root
@@ -155,6 +160,30 @@ process.stdout.write('[d] scope guard (0 runtime/dispatcher/adapter)\n');
   const readerDoc = readFileSync(join(REPO_ROOT, 'docs/reference/governance-contract.md'), 'utf-8');
   assert('reader example ships no executable .mjs adapter (illustration only)', !/```[a-z]*\s*\n[\s\S]*?\bimport\s+\{[\s\S]*?\bfrom\s+['"]\.[\s\S]*?```/.test(readerDoc));
   assert('no GovernedExecutionEnvelope class is defined here', !/class\s+GovernedExecutionEnvelope/.test(emitCode));
+}
+
+// [e] advisory reader — the contract is READ + surfaced (advisory default-on), not shadow
+process.stdout.write('[e] read-only advisory reader\n');
+{
+  const dir = mkdtempSync(join(tmpdir(), 'gc-rd-'));
+  emitGovernanceContract({
+    contextDir: dir, contextRef: { type: 'business', id: 'BIZ-0006' },
+    nature: 'business', executionMode: 'workflow', tier: 'architectural', kind: 'initiative',
+    shape: 'multi-workflow-program', governingDecision: { ref: 'ADR-0148', status: 'accepted' },
+    emittedBy: 'create', now: '2026-07-24T17:00:00.000Z',
+  });
+  const contract = readGovernanceContract(dir);
+  assert('reader reads a valid contract from disk', contract !== null && contract.ceremonyShape === 'multi-workflow-program');
+  const advisory = formatGovernanceContractAdvisory(contract);
+  assert('advisory block names the effective shape', advisory.includes('shape: multi-workflow-program'));
+  assert('advisory block names the governing decision', advisory.includes('ADR-0148 (accepted)'));
+  assert('advisory block declares read-only / never blocks', advisory.includes('never blocks'));
+  assert('reader returns null for an absent contract (skip, not throw)', readGovernanceContract(mkdtempSync(join(tmpdir(), 'gc-empty-'))) === null);
+  assert('formatter on null → empty string (never throws)', formatGovernanceContractAdvisory(null) === '');
+  assert('render on null id → empty string (fail-open)', renderGovernanceContractAdvisory('.', null) === '');
+  // A malformed on-disk contract must be rejected by validate-on-read → reader returns null.
+  writeFileSync(join(dir, GOVERNANCE_CONTRACT_FILENAME), '{"schemaVersion":1,"resolvedAxes":{"executionMode":"decision"}}');
+  assert('reader rejects a malformed on-disk contract (validate-on-read)', readGovernanceContract(dir) === null);
 }
 
 if (failures.length) {
