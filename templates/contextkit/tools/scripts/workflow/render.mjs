@@ -6,8 +6,10 @@
  * byte-for-byte.
  *
  * Projection-only: this module computes NO status — task/wave status is read
- * straight from `state.taskStates[id].status` / `state.waveStates[id].status`,
- * never hand-set (fallback "pending" when state is absent). Output is fully
+ * straight from `state.taskStates[id].status` / `state.waveStates[id].status`;
+ * human-mode tasks use their wave's passed/approved gate as the completion
+ * receipt. Status is never hand-set (fallback "pending" when state is absent).
+ * Output is fully
  * deterministic (waves + tasks in plan order, no timestamps generated here) so
  * re-rendering identical inputs is byte-identical and `writeIfChanged` makes it a
  * no-op — no mtime churn.
@@ -31,14 +33,34 @@ function escapeCell(value) {
 }
 
 /**
- * Status of a single task from state, falling back to "pending".
+ * Returns whether the wave gate proves a human task completed.
+ * Human-mode tasks intentionally have no agent task-state entry; the explicit
+ * gate result is their completion receipt.
  * @param {object|null} state the loaded `workflow-state.json` (or null)
- * @param {string} taskId e.g. "W1-T5"
+ * @param {object} wave workflow wave containing the gate id
+ * @returns {boolean}
+ */
+function humanGateCompleted(state, wave) {
+  const gateId = wave && typeof wave.gate === 'string' ? wave.gate : null;
+  const gateResult = gateId && state && state.gateResults ? state.gateResults[gateId] : null;
+  const status = gateResult && typeof gateResult === 'object' ? gateResult.status : null;
+  return status === 'passed' || status === 'approved';
+}
+
+/**
+ * Status of a single task from state, falling back to "pending". Human-mode
+ * tasks use the wave gate as their explicit completion receipt.
+ * @param {object|null} state the loaded `workflow-state.json` (or null)
+ * @param {object} wave workflow wave containing the task
+ * @param {object} task workflow task
  * @returns {string}
  */
-function taskStatus(state, taskId) {
+function taskStatus(state, wave, task) {
+  const taskId = task && task.id;
   const entry = state && state.taskStates ? state.taskStates[taskId] : undefined;
-  return (entry && typeof entry.status === 'string' && entry.status) || PENDING;
+  if (entry && typeof entry.status === 'string' && entry.status) return entry.status;
+  if (task?.execution?.mode === 'human' && humanGateCompleted(state, wave)) return 'done';
+  return PENDING;
 }
 
 /**
@@ -95,7 +117,7 @@ function renderWaveSection(wave, state) {
     lines.push(
       `| **${escapeCell(task.id)}** | ${escapeCell(task.priority)} | ${escapeCell(task.objective) || '—'}` +
         ` | ${summarizeAcceptance(task.acceptance)} | ${listCell(task.dependsOn)}` +
-        ` | ${ownerCell(task)} | ${taskStatus(state, task.id)} |`,
+        ` | ${ownerCell(task)} | ${taskStatus(state, wave, task)} |`,
     );
   }
   return lines.join('\n');

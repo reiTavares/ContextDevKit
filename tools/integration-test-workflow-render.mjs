@@ -27,7 +27,7 @@ const NOW = '2026-06-17T00:00:00.000Z';
 const START = '<!-- contextdevkit:generated:tasks:start -->';
 const END = '<!-- contextdevkit:generated:tasks:end -->';
 
-/** A small 2-wave plan with a few agent tasks. */
+/** A small 2-wave plan with agent and human tasks. */
 function buildPlan() {
   const ownership = (path) => ({
     allowedPaths: [path], forbiddenPaths: [], readOnlyPaths: [], sharedPaths: [],
@@ -50,11 +50,14 @@ function buildPlan() {
         ],
       },
       {
-        id: 'W2', title: 'Orchestration', description: '', type: 'implementation',
+        id: 'W2', title: 'Orchestration', description: '', type: 'implementation', gate: 'G-W2',
         tasks: [
           { id: 'W2-T1', waveId: 'W2', title: 'DAG', priority: 'P1', objective: 'DAG engine',
             acceptance: ['cycle detection', 'topo order', 'ready waves'], dependsOn: [],
             execution: { mode: 'agent', parallelizable: true, agentSlots: 1 }, ownership: ownership('a/dag.mjs') },
+          { id: 'W2-T2', waveId: 'W2', title: 'Approval', priority: 'P1', objective: 'Human approval',
+            acceptance: ['named human approval'], dependsOn: ['W2-T1'],
+            execution: { mode: 'human', parallelizable: false, agentSlots: 0 }, ownership: ownership('a/approval.md') },
         ],
       },
     ],
@@ -69,7 +72,7 @@ function buildState(planHash) {
     journeyPhase: 'spec',
     waveStates: { W1: { status: 'in-progress' }, W2: { status: 'pending' } },
     taskStates: { 'W1-T1': { status: 'done' }, 'W1-T2': { status: 'in-progress' } },
-    runs: [], gateResults: {}, carryForwards: [], integrationRecords: [],
+    runs: [], gateResults: { 'G-W2': { status: 'approved' } }, carryForwards: [], integrationRecords: [],
     openBlockers: [], events: [], lastUpdate: NOW,
   };
 }
@@ -87,6 +90,9 @@ try {
   /W1-T1.*\| done \|/.test(table) ? rep.ok('W1-T1 status = done (from state)') : rep.bad('W1-T1 status wrong');
   /W1-T2.*\| in-progress \|/.test(table) ? rep.ok('W1-T2 status = in-progress (from state)') : rep.bad('W1-T2 status wrong');
   /W2-T1.*\| pending \|/.test(table) ? rep.ok('W2-T1 status = pending (no state entry)') : rep.bad('W2-T1 should be pending');
+  /W2-T2.*\| done \|/.test(table)
+    ? rep.ok('human task status = done from approved wave gate')
+    : rep.bad('human task should be done after gate approval');
   /W1-T2.*\| W1-T1 \|/.test(table) ? rep.ok('deps cell shows dependency') : rep.bad('deps cell missing W1-T1');
   table.includes('a/plan.mjs') ? rep.ok('owns cell shows allowed path') : rep.bad('owns cell missing path');
   table.includes('2× — normalizes') ? rep.ok('acceptance summarized with count') : rep.bad('acceptance summary wrong');
