@@ -19,6 +19,21 @@ const BUSINESS_SIGNALS = [
   { s: 'independent sponsor', w: 2 }, { s: 'budget', w: 2 }, { s: 'multi-month', w: 2 },
   { s: 'multi-year', w: 2 }, { s: 'portfolio', w: 2 }, { s: 'roadmap decision', w: 2 },
   { s: 'separate outcome review', w: 2 },
+  { s: 'novo produto', w: 6 }, { s: 'novo mercado', w: 6 },
+  { s: 'novo segmento', w: 6 }, { s: 'novo público', w: 6 }, { s: 'novo publico', w: 6 },
+  { s: 'pivô', w: 6 }, { s: 'pivo', w: 6 }, { s: 'pivotar', w: 6 },
+  { s: 'mudança de modelo de negócio', w: 6 }, { s: 'mudanca de modelo de negocio', w: 6 },
+  { s: 'capacidade estratégica durável', w: 4 }, { s: 'capacidade estrategica duravel', w: 4 },
+  { s: 'kpi independente', w: 3 },
+  { s: 'resultado da missão', w: 3 }, { s: 'resultado da missao', w: 3 },
+  { s: 'vários fluxos de trabalho', w: 3 }, { s: 'varios fluxos de trabalho', w: 3 },
+  { s: 'entre produtos', w: 3 }, { s: 'entre equipes', w: 3 },
+  { s: 'patrocinador independente', w: 2 }, { s: 'orçamento', w: 2 }, { s: 'orcamento', w: 2 },
+  { s: 'vários meses', w: 2 }, { s: 'varios meses', w: 2 },
+  { s: 'vários anos', w: 2 }, { s: 'varios anos', w: 2 },
+  { s: 'portfólio', w: 2 },
+  { s: 'decisão de roadmap', w: 2 }, { s: 'decisao de roadmap', w: 2 },
+  { s: 'revisão de resultado separada', w: 2 }, { s: 'revisao de resultado separada', w: 2 },
 ];
 
 // Operation signals: exact substring matches.
@@ -31,6 +46,19 @@ const OPERATION_SIGNALS = [
   { s: 'operational urgency', w: 3 }, { s: 'severity', w: 3 },
   { s: 'existing bounded capability', w: 2 }, { s: 'batch of corrections', w: 2 },
   { s: 'existing business explains value', w: 2 },
+  { s: 'incidente', w: 6 }, { s: 'erro', w: 6 },
+  { s: 'queda', w: 6 }, { s: 'indisponibilidade', w: 6 },
+  { s: 'recuperação de produção', w: 6 }, { s: 'recuperacao de producao', w: 6 },
+  { s: 'tarefa', w: 4 }, { s: 'manutenção', w: 4 }, { s: 'manutencao', w: 4 },
+  { s: 'dependência', w: 4 }, { s: 'dependencia', w: 4 }, { s: 'suporte', w: 4 },
+  { s: 'refatoração localizada', w: 4 }, { s: 'refatoracao localizada', w: 4 },
+  { s: 'desempenho localizado', w: 4 },
+  { s: 'restaurar', w: 3 }, { s: 'corrigir', w: 3 }, { s: 'recuperar', w: 3 },
+  { s: 'reparar', w: 3 }, { s: 'urgência operacional', w: 3 }, { s: 'urgencia operacional', w: 3 },
+  { s: 'severidade', w: 3 },
+  { s: 'capacidade existente limitada', w: 2 },
+  { s: 'lote de correções', w: 2 }, { s: 'lote de correcoes', w: 2 },
+  { s: 'negócio existente explica o valor', w: 2 }, { s: 'negocio existente explica o valor', w: 2 },
 ];
 
 /**

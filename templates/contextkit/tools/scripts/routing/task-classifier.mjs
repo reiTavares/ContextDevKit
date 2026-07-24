@@ -32,6 +32,8 @@ const MECHANICAL_KINDS = Object.freeze([
 const DESTRUCTIVE_HINTS = Object.freeze([
   'rm', 'reset', 'force-push', 'force push', 'migrate', 'migration', 'secret',
   'credential', 'drop ', 'delete', 'prod', 'deploy',
+  'migrar', 'migração', 'migracao', 'segredo', 'credencial', 'deletar', 'apagar',
+  'produção', 'producao', 'implantar', 'implantação', 'implantacao',
 ]);
 
 const isMechanicalKind = (kind) => MECHANICAL_KINDS.includes(String(kind || '').toLowerCase());
@@ -179,19 +181,19 @@ export function classifyTask(signals = {}, cfg = {}) {
 export function signalsFromTitle(title = '', extra = {}) {
   const t = String(title).toLowerCase();
   const has = (...ws) => ws.some((w) => t.includes(w));
-  const kind = has('grep', 'search', 'find', 'glob', 'list') ? 'search'
-    : has('run test', 'tests', 'lint', 'type-check', 'typecheck', 'build') ? 'test'
-    : has('log', 'collect', 'summar') ? 'log-collect'
-    : has('decide', 'architecture', 'adr', 'design') ? 'decision'
+  const kind = has('grep', 'search', 'find', 'glob', 'list', 'buscar', 'pesquisar', 'encontrar', 'listar') ? 'search'
+    : has('run test', 'tests', 'lint', 'type-check', 'typecheck', 'build', 'executar teste', 'testes', 'construir', 'compilar') ? 'test'
+    : has('log', 'collect', 'summar', 'coletar', 'resumir') ? 'log-collect'
+    : has('decide', 'architecture', 'adr', 'design', 'decidir', 'arquitetura', 'projetar') ? 'decision'
     : 'implement';
   return {
     kind,
-    touchesAuth: has('auth', 'login', 'token', 'session', 'rls', 'permission'),
-    touchesSecurity: has('security', 'secret', 'credential', 'crypto'),
-    sensitiveData: has('pii', 'personal data', 'sensitive', 'financ', 'clinical', 'patient'),
-    publicContract: has('public api', 'contract', 'breaking', 'export'),
-    concurrency: has('concurren', 'queue', 'transaction', 'distributed', 'race'),
-    migration: has('migration', 'migrate schema', 'alter table'),
+    touchesAuth: has('auth', 'login', 'token', 'session', 'rls', 'permission', 'autenticação', 'autenticacao', 'autorização', 'autorizacao', 'sessão', 'sessao', 'permissão', 'permissao'),
+    touchesSecurity: has('security', 'secret', 'credential', 'crypto', 'segurança', 'seguranca', 'segredo', 'credencial', 'criptografia'),
+    sensitiveData: has('pii', 'personal data', 'sensitive', 'financ', 'clinical', 'patient', 'dados pessoais', 'sensível', 'sensivel', 'financeiro', 'clínico', 'clinico', 'paciente'),
+    publicContract: has('public api', 'contract', 'breaking', 'export', 'api pública', 'api publica', 'contrato', 'quebra de compatibilidade', 'exportar'),
+    concurrency: has('concurren', 'queue', 'transaction', 'distributed', 'race', 'concorrência', 'concorrencia', 'fila', 'transação', 'transacao', 'distribuído', 'distribuido'),
+    migration: has('migration', 'migrate schema', 'alter table', 'migração', 'migracao', 'migrar esquema', 'alterar tabela'),
     title,
     ...extra,
   };
