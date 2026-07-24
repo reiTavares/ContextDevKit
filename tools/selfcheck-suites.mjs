@@ -180,6 +180,9 @@ function main() {
     // fixes (#2 allocator, #8 WF- prefix); siblings, dispatched directly.
     'tools/selfcheck-wf0069-lang-intent.mjs', 'tools/selfcheck-wf0069-adr-allocator.mjs',
     'tools/selfcheck-wf0069-wf-prefix.mjs',
+    // WF-0095 (OP-0008, reuses ADR-0131) — bilingual classifier signals (pt/en
+    // parity + accent-preserving tokenizer); sibling, dispatched directly.
+    'tools/selfcheck-wf0095-bilingual-signals.mjs',
     // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
     'tools/selfcheck-tc-cache.mjs',
     // WF0022 TC-12 deterministic transforms (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
