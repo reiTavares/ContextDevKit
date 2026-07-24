@@ -141,10 +141,10 @@ if (sessionStartRow) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 4 — Capability Enforcement hooks are 'reasoned-skip' not 'GAP'.
-// Claude + Codex wire these at L5; agy remains an explicit reasoned skip.
+// Section 4 — Capability Enforcement hooks are parity across all three hosts.
+// The Antigravity composer now exposes the same fail-open control points.
 // ---------------------------------------------------------------------------
-console.log('\nSection 4: Capability Enforcement hooks → reasoned-skip');
+console.log('\nSection 4: Capability Enforcement hooks → parity');
 
 const enforcementHooks = [
   'execution-contract-hook.mjs',
@@ -162,20 +162,16 @@ for (const hookName of enforcementHooks) {
     continue;
   }
   assert(
-    `4 ${hookName} verdict is 'reasoned-skip' (not 'GAP')`,
-    row.verdict === 'reasoned-skip',
+    `4 ${hookName} verdict is 'parity'`,
+    row.verdict === 'parity',
   );
   assert(
     `4 ${hookName} is present on Codex`,
     row.codex === true,
   );
   assert(
-    `4 ${hookName} remains an explicit agy limitation`,
-    row.agy === false,
-  );
-  assert(
-    `4 ${hookName} has a reason string`,
-    typeof row.reason === 'string' && row.reason.length > 10,
+    `4 ${hookName} is present on Antigravity`,
+    row.agy === true,
   );
 }
 

@@ -30,8 +30,8 @@ export const STAGE_STATES = Object.freeze(['satisfied', 'pending', 'blocked', 's
  */
 export function loadJourney(root = process.cwd()) {
   const candidates = [
-    join(root, 'contextkit', 'policy', 'journey.json'),
     join(root, 'templates', 'contextkit', 'policy', 'journey.json'),
+    join(root, 'contextkit', 'policy', 'journey.json'),
   ];
   for (const path of candidates) {
     try {
@@ -79,6 +79,40 @@ function evaluateStage(stage, evidence) {
 }
 
 /**
+ * Evaluates the host-neutral Canonical Work Journey projection.
+ *
+ * The projection is metadata owned by journey.json; it does not create a
+ * second branch or persistence authority. Unknown evidence remains pending,
+ * while an explicit non-applicable verdict skips the proportional sequence.
+ *
+ * @param {object} journey - loaded canonical journey definition.
+ * @param {Record<string, boolean|null|undefined>} evidence - checkpoint verdicts.
+ * @returns {{ order: string[], stages: Array<object>, currentStageId: string|null, blocked: Array<object> }|null}
+ */
+export function verifyCanonicalJourney(journey, evidence = {}) {
+  const definition = journey?.canonicalWorkJourney;
+  if (!definition || !Array.isArray(definition.order) || !Array.isArray(definition.stages)) return null;
+
+  const byId = new Map(definition.stages.map((stage) => [stage.id, stage]));
+  const applicable = evidence.canonicalApplicable !== false;
+  const stages = definition.order
+    .map((stageId) => byId.get(stageId))
+    .filter(Boolean)
+    .map((stage) => {
+      if (!applicable) return { id: stage.id, state: 'skipped', unmet: [], unknown: [] };
+      return { ...evaluateStage({ id: stage.id, requires: [stage.checkpoint] }, evidence), checkpoint: stage.checkpoint };
+    });
+
+  const current = stages.find((stage) => stage.state !== 'satisfied' && stage.state !== 'skipped') || null;
+  return {
+    order: [...definition.order],
+    stages,
+    currentStageId: current ? current.id : null,
+    blocked: stages.filter((stage) => stage.state === 'blocked'),
+  };
+}
+
+/**
  * Walks the selected branch and returns the journey position: per-stage verdicts,
  * the current stage (first not-satisfied), the next command, and any hard blocks.
  *
@@ -106,5 +140,6 @@ export function verifyJourney(journey, branchId, evidence = {}) {
     nextCommand: current ? current.command : null,
     nextGuidance: current ? current.guidance : '',
     blocked,
+    canonical: verifyCanonicalJourney(journey, evidence),
   };
 }

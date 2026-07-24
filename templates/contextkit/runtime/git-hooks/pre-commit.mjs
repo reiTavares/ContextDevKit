@@ -42,7 +42,7 @@ function stagedTouchesSource() {
 
 /** Run the WF-0084 guard before derived-document writes; unknown hook failures fail open. */
 function runWorkflowInvariantGuard() {
-  const hook = resolve(ROOT, 'contextkit/runtime/git-hooks/workflow-invariant-hook.mjs');
+  const hook = resolve(P.runtime, 'git-hooks/workflow-invariant-hook.mjs');
   if (!existsSync(hook)) return;
   try {
     execFileSync(process.execPath, [hook], { cwd: ROOT, stdio: 'inherit', timeout: 10_000 });

@@ -12,7 +12,9 @@
  *   2  + PostToolUse (track-edits), Stop (session-manager end — drift check)
  *   3  + PreToolUse  (concurrency-guard)
  *   4  + PostToolUse (auto-format — advisory format/lint, ADR-0061)
- *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
+ *   5  + PreToolUse  (simulate-gate, deliberation-nudge, execution-gate)
+ *        + UserPromptSubmit (execution contract), PostToolUse (indirect writes),
+ *        Stop (completion), SubagentStart/Stop, and compaction continuity
  * (Level 4 also adds personas — assets, not hooks.)
  *
  * agy matchers are exact snake_case tool names; one entry per tool (not an
@@ -62,6 +64,17 @@ export function composeAgentHooks(existing, level) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
     group.PreToolUse.push(...perWriteTool('journey-gate.mjs')); // ADR-0127 — methodology journey enforcement (guarded+fallback)
     group.PreToolUse.push(...perWriteTool('deliberation-nudge.mjs'));
+    // Capability Enforcement parity (ADR-0072/0151). These generic event hooks
+    // deliberately use no tool matcher: Antigravity's tool catalog is host-owned,
+    // while the shared adapters already fail-open on payloads without paths.
+    group.UserPromptSubmit = [command(`node ${HOOKS_DIR}/execution-contract-hook.mjs --host agy`)];
+    group.PreToolUse.push(command(`node ${HOOKS_DIR}/execution-gate.mjs --host agy`));
+    group.PostToolUse.push(command(`node ${HOOKS_DIR}/indirect-write-reconcile.mjs --host agy`));
+    group.Stop.push(command(`node ${HOOKS_DIR}/completion-gate.mjs --host agy`));
+    group.SubagentStart = [command(`node ${HOOKS_DIR}/subagent-gate.mjs --host agy`)];
+    group.SubagentStop = [command(`node ${HOOKS_DIR}/subagent-gate.mjs --host agy`)];
+    group.PreCompact = [command(`node ${HOOKS_DIR}/compaction-continuity.mjs --host agy`)];
+    group.SessionStart.push(command(`node ${HOOKS_DIR}/compaction-continuity.mjs --host agy`));
     group.Stop.push(command(`node ${HOOKS_DIR}/done-sweep.mjs --host agy`));
   }
 

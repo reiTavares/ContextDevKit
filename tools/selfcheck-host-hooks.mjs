@@ -48,7 +48,7 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
     1: ['SessionStart'],
     2: ['PostToolUse', 'SessionStart', 'Stop'],
     3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
   };
   for (const [lvl, want] of Object.entries(expect)) {
     const got = events(Number(lvl));
@@ -57,9 +57,11 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
       : bad(`agy L${lvl} expected [${want}] got [${got}]`);
   }
   const l5 = group(5);
-  // L5 PreToolUse = guard (L3) + domain-code-gate (L4) + simulate + journey + nudge (L5) = 5 per write tool.
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 && l5.PreToolUse.every((e) => adapter.AGY_WRITE_TOOLS.includes(e.matcher))
-    ? ok('agy PreToolUse wires guard+domain-code-gate+simulate+journey+nudge once per write tool')
+  // L5 PreToolUse = five per-write controls plus the generic execution gate.
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 + 1
+    && l5.PreToolUse.filter((entry) => adapter.AGY_WRITE_TOOLS.includes(entry.matcher)).length === adapter.AGY_WRITE_TOOLS.length * 5
+    && l5.PreToolUse.some((entry) => entry.hooks?.[0]?.command.includes('execution-gate.mjs'))
+    ? ok('agy PreToolUse wires per-write controls plus generic execution-gate parity')
     : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
   l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
     ? ok('every agy tool hook carries the --host agy flag')
@@ -67,6 +69,11 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
   l5.SessionStart[0].hooks[0].command.includes('session-manager.mjs start') && l5.Stop[0].hooks[0].command.includes('session-manager.mjs end')
     ? ok('agy SessionStart/Stop reuse session-manager start/end')
     : bad('agy session boundary commands do not target session-manager');
+  const l5Commands = Object.values(l5).flat().flatMap((entry) => (entry.hooks || []).map((hook) => hook.command || ''));
+  ['execution-contract-hook.mjs', 'execution-gate.mjs', 'indirect-write-reconcile.mjs', 'completion-gate.mjs', 'subagent-gate.mjs', 'compaction-continuity.mjs']
+    .every((script) => l5Commands.some((command) => command.includes(script)))
+    ? ok('agy L5 exposes execution, completion, subagent, indirect-write, and continuity controls')
+    : bad('agy L5 is missing a required capability-enforcement control point');
   const userFile = { 'my-gate': { enabled: true, PreToolUse: [] } };
   const composed = composeAgentHooks(composeAgentHooks(userFile, 5), 5);
   composed['my-gate'] && composed[KIT_HOOK_GROUP].PreToolUse.length === l5.PreToolUse.length

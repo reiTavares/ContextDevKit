@@ -30,7 +30,7 @@ The Claude→Codex converter lives at
   from the canonical `templates/claude/` source. These generated assets ship
   with the kit, and `installCodexHost` copies them into the project's
   `.agents/skills/source-command-*` surface on install/update. The current kit
-  build emits all 80 source commands as Codex skills and 35 Codex subagents; no
+  build emits all 80 source commands as Codex skills and 36 Codex subagents; no
   source command is skipped without an explicit, tested projection.
 
 - **Installed-mode (run against a project's `.claude/`) — available but NOT

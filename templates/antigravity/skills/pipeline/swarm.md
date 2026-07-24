@@ -33,7 +33,8 @@ ADR-0044 §3).
    homes, and partitions disjointly. **Honor its refusals verbatim** (no
    derivable touch-set / secret floor / l5 without receipt) — surface them to
    the user with the fix each reason names; never hand-add a refused task.
-3. Show the plan (workstreams + touch-sets + tier hints + refused + deferred).
+3. Show the plan (workstreams + touch-sets + tier hints + task kind,
+   complexity/risk context + refused + deferred).
    ◆ At grade ≤ 3 this is the consent point.
 
 ## `run <runId>`
@@ -50,7 +51,7 @@ ADR-0044 §3).
       output at the top + the task card + "operate ONLY under <worktree path>" +
       implement → self-review → `npm test` in the worktree → Conventional Commit.
    d. Resolve the model — DON'T eyeball it (ADR-0052 Phase 2): run
-      `node contextkit/tools/scripts/model-policy.mjs tier <tierHint> [--budget-exhausted] --host <claude|codex|agy>`
+      `node contextkit/tools/scripts/model-policy.mjs tier <tierHint> --task-kind <taskKind> --complexity <complexity> --risk <risk> --title "<task title>" [--budget-exhausted] --host <claude|codex|agy>`
       using the current host value (`claude`, `codex`, or `agy`), and dispatch
       with the Agent tool's `model` = the returned alias. Omitting `model`
       silently inherits the premium session model — the most expensive path. If
@@ -59,6 +60,12 @@ ADR-0044 §3).
       `dispatched` (record the alias:
       `updateWorkstream(root, runId, wsId, { status: 'dispatched', model })`),
       then `working`.
+      For Codex, the same resolver returns `effort` and `ruleId`. Pass a
+      non-null `effort` to Agent as `reasoning_effort`, and persist
+      `{ model, effort, ruleId }` with `updateWorkstream`. A null effort is an
+      explicit refusal for missing/unmatched context: surface its reason and
+      omit the Agent override. Do not duplicate ADR-0150's model matrix in the
+      skill.
 3. As each returns: run its QA gate (suite output + self-review). PASS → mark
    `qa` then `parked-testing`, `/pipeline move <taskId> testing`, and record the
    token count from the agent's usage into the manifest (`updateWorkstream`).
@@ -66,7 +73,8 @@ ADR-0044 §3).
    `reasoning`/opus); a second failure → `failed`, parked with the QA report in
    the card. Never silently retry. The run report then shows the true per-model
    mix (`swarm-state.mjs report` → `models:` line) so the fan-out cost is
-   auditable, not assumed.
+   auditable, not assumed. The report's `dispatch:` line must retain the
+   model@effort pair, including `unresolved` when the policy refused an effort.
 4. **Pre-park conflict recheck** (mandatory): intersect `git diff --name-only`
    across all workstream branches; any overlap parks the YOUNGER workstream
    (`failed`, note `conflict-with <ws>` — seniority, ADR-0004).

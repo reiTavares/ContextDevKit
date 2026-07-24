@@ -225,6 +225,39 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
     : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
 
+  // WF-0092 / ADR-0151: the Antigravity roster is a checked projection of the
+  // canonical agent registry, not a hand-maintained partial list.
+  try {
+    const registry = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/agent-capability-registry.json'), 'utf-8'));
+    const registeredAgents = registry.agents.map((entry) => entry.agent);
+    const mentionedAgents = new Set([...instructions.matchAll(/`([a-z][a-z0-9-]+)`/g)].map((match) => match[1]));
+    const missingRoster = registeredAgents.filter((agent) => !mentionedAgents.has(agent));
+    missingRoster.length === 0
+      ? ok(`Antigravity boot roster covers all registered agents (${registeredAgents.length})`)
+      : bad(`Antigravity boot roster missing registered agents: ${missingRoster.join(', ')}`);
+
+    const claudeAgents = (await readdir(resolve(KIT, 'templates/claude/agents')))
+      .filter((file) => file.endsWith('.md') && file !== '_TEMPLATE.md')
+      .map((file) => file.replace(/\.md$/, ''));
+    const missingFromClaude = registeredAgents.filter((agent) => !claudeAgents.includes(agent));
+    missingFromClaude.length === 0
+      ? ok(`agent capability registry covers Claude agent source (${registeredAgents.length})`)
+      : bad(`agent capability registry missing Claude source agents: ${missingFromClaude.join(', ')}`);
+  } catch (err) {
+    bad(`agent roster parity check failed: ${err?.message ?? err}`);
+  }
+
+  // WF-0092: all hosts expose the same five stage labels; only runner syntax
+  // differs between the projections.
+  const journeyLabels = ['**Graph**', '**Economy**', '**DDD/governance**', '**Implementation**', '**QA**'];
+  const bootTemplates = ['templates/AGENTS.md.tpl', 'templates/CLAUDE.md.tpl', 'templates/INSTRUCTIONS.md.tpl'];
+  for (const template of bootTemplates) {
+    const text = await readFile(resolve(KIT, template), 'utf-8').catch(() => '');
+    journeyLabels.every((label) => text.includes(label))
+      ? ok(`${template} exposes the five-stage Canonical Work Journey`)
+      : bad(`${template} is missing a Canonical Work Journey stage label`);
+  }
+
   // WF-0083: validate every source skeleton against the single manifest and
   // scrub the synthetic exemplar. Skeleton placeholders are intentional; the
   // leak guard runs on rendered output in the integration suite.

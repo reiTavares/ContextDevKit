@@ -97,9 +97,14 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    keep the agent's tier; **execute**: tests from a given plan, mechanical
    refactor, scaffold, format, summarize → cheap tier; **ambiguous**: agent
    default), then ask the resolver for the concrete alias:
-   `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--qa-failures N] [--budget-exhausted] --host <claude|codex|agy>`
+   `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--task-kind kind] [--complexity value] [--risk value] [--title "objective"] [--qa-failures N] [--budget-exhausted] --host <claude|codex|agy>`
    using the current host value (`claude`, `codex`, or `agy`), then pass its
-   `model` to the Agent tool (`execute` also uses low effort).
+   `model` to the Agent tool. On Codex, when the resolver returns a non-null
+   `effort`, pass it as Agent `reasoning_effort`; `null` means the Codex effort
+   policy refused an override and must remain visible rather than being
+   guessed. The Codex matrix is owned by `model-policy.mjs`/ADR-0150; this
+   skill must not duplicate it. (`execute` keeps the legacy low-effort behavior
+   only where no explicit Codex context rule applies.)
    Omitting `model` silently inherits the premium session model — the costly
    default. The resolver already enforces the floor (security / code-security /
    infra-security / privacy-lgpd never below `powerful`), the one-step escalation

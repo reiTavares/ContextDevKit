@@ -24,6 +24,39 @@
 5. **Receipts, not assertions** — only a script-emitted receipt satisfies a gate; a
    stale, wrong-branch, or bypassed receipt does not.
 
+## Economy Operating Rules
+
+Economy mode is the default posture for non-trivial work. Prefer deterministic
+receipts and bounded packets; when a lever lacks its prerequisite, report
+`skipped: <reason>` instead of treating it as applied.
+
+- Before broad search, run `agy project-map --find <symbol-or-path>` and use Task
+  Compiler only on exact Project Map matches.
+- Before dispatching subagents, resolve
+  `node contextkit/tools/scripts/economy/subagent-profile.mjs` and pass the
+  bounded profile/packet to the orchestrator or agent package.
+- Use the economy lean-loop for `/ship` and `/swarm`, and `run-compact` for noisy
+  builds/tests when available.
+- Verify applied/skipped levers with `agy token-report --json`; missing quota data
+  is `skipped`, never a pass.
+- Never auto-select paid benchmarks, Fable, or model upgrades without explicit
+  user instruction or accepted project config.
+
+## Canonical Work Journey
+
+For non-trivial code work, follow this host-neutral order from
+`contextkit/policy/journey.json`:
+
+1. **Graph** — run `agy project-map` before broad exploration; owner projection: `architect`.
+2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
+3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
+4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.
+5. **QA** — run tests, selected review, QA sign-off, and receipt/session closure; owners: `test-engineer`/`qa-orchestrator`.
+
+Economy may reduce context/output cost, but it cannot reorder stages, satisfy
+evidence, lower agent quality, or bypass tests/QA. Trivial and no-code work stay
+proportional; unknown evidence remains pending/skipped rather than passing.
+
 ## Quick Orientation
 
 You are working on **{{PROJECT_NAME}}**.
@@ -55,14 +88,15 @@ This runs the hook that fetches upstream git status, detects workspace claims, i
 
 ### 2. Adopting a Posture (Squad Sub-agents)
 If your task requires specialized knowledge, check the agent definitions in `.agents/agents/` and adopt that posture. The personas are organized into specialized squads:
-- **devteam**: `architect`, `code-reviewer`, `context-keeper`, `test-engineer`
+- **devteam**: `architect`, `domain-modeler`, `implementation-engineer`, `code-reviewer`, `context-keeper`, `test-engineer`
 - **qa-team**: `qa-orchestrator`, `qa-unit`, `qa-integration`, `qa-fuzzer`, `qa-perf`, `qa-e2e`
-- **design-team**: `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`
+- **design-team**: `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator`
 - **security-team**: `security`, `code-security`, `infra-security`
 - **compliance-team**: `privacy-lgpd`, `governance-officer`
 - **ops-team**: `devops`
 - **agent-forge** (L6+): `forge-orchestrator`, `model-router`, `prompt-engineer`, `tool-designer`, `eval-designer`, `packager`, `rag-designer`, `agent-architect`
-- **independent**: `growth`, `retention`, `product-owner`
+- **growth-team**: `growth`, `retention`
+- **product-team**: `product-owner`
 
 ### 3. Executing a Task (DevPipeline & Playbooks)
 - Run the `pipeline` skill to list outstanding backlog cards.

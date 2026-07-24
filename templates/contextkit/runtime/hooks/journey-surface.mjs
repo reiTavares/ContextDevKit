@@ -93,6 +93,11 @@ export function renderJourneyAdvisory(root, signals = {}) {
 
     const path = result.stages.map((s) => `${glyph(s.state)}${s.id}`).join(' ');
     const lines = [`‹CONTEXTKIT-JOURNEY branch=${branch}›`, `  path: ${path}`];
+    if (result.canonical?.stages?.length) {
+      const canonicalPath = result.canonical.stages.map((stage) => `${glyph(stage.state)}${stage.id}`).join(' ');
+      lines.push(`  canonical: ${canonicalPath}`);
+      if (result.canonical.currentStageId) lines.push(`  canonical next: ${result.canonical.currentStageId}`);
+    }
     if (result.currentStageId) {
       const cmd = commandText(result.nextCommand);
       lines.push(`  next: ${result.currentStageId}${cmd ? ` → ${cmd}` : ''}`);

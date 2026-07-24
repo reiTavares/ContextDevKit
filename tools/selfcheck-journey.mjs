@@ -53,7 +53,7 @@ async function main() {
     : bad('enforcement block missing');
 
   // ── 2. the pure verifier ───────────────────────────────────────────────────
-  const { selectBranch, verifyJourney } = await load('templates/contextkit/runtime/work/journey-verifier.mjs');
+  const { selectBranch, verifyJourney, verifyCanonicalJourney } = await load('templates/contextkit/runtime/work/journey-verifier.mjs');
 
   selectBranch({ nature: 'business' }) === 'business-decision'
     && selectBranch({ nature: 'operation', executionMode: 'workflow' }) === 'operation-workflow'
@@ -65,6 +65,7 @@ async function main() {
   // All-satisfied evidence → current stage advances to the end (null next).
   const allTrue = {};
   for (const s of journey.stages) for (const c of s.requires) allTrue[c] = true;
+  for (const s of journey.canonicalWorkJourney?.stages || []) allTrue[s.checkpoint] = true;
   const done = verifyJourney(journey, 'operation-direct', allTrue);
   done && done.currentStageId === null && done.blocked.length === 0
     ? ok('verifier: all-satisfied evidence → no current stage, no blocks')
@@ -95,6 +96,23 @@ async function main() {
     ? ok('verifier: unknown branch → null (defensive)')
     : bad('verifier: unknown branch should return null');
 
+  // Canonical Work Journey is an ordered projection, not a second state machine.
+  const canonical = verifyCanonicalJourney(journey, {});
+  JSON.stringify(canonical?.order) === JSON.stringify(['graph', 'economy', 'ddd-governance', 'implementation', 'qa'])
+    && canonical.currentStageId === 'graph'
+    ? ok('canonical journey exposes the five stages in order and starts at graph')
+    : bad(`canonical journey order/current stage is wrong: ${JSON.stringify(canonical)}`);
+
+  const canonicalFalse = verifyCanonicalJourney(journey, { canonicalApplicable: true, graphReady: true, economyResolved: false });
+  canonicalFalse?.blocked.some((stage) => stage.id === 'economy')
+    ? ok('canonical journey blocks a positively false economy checkpoint')
+    : bad('canonical journey did not block a false economy checkpoint');
+
+  const canonicalSkipped = verifyCanonicalJourney(journey, { canonicalApplicable: false });
+  canonicalSkipped?.stages.every((stage) => stage.state === 'skipped')
+    ? ok('canonical journey skips explicitly non-applicable work')
+    : bad('canonical journey mishandled non-applicable work');
+
   // ── 3. the surfacing layer (evidence from signals + advisory render) ────────
   const { evidenceFromSignals, renderJourneyAdvisory } = await load('templates/contextkit/runtime/hooks/journey-surface.mjs');
 
@@ -108,7 +126,7 @@ async function main() {
     : bad('surface: bare signals leaked extra evidence');
 
   const block = renderJourneyAdvisory(KIT, { work: { nature: 'operation', executionMode: 'direct' } });
-  block.includes('‹CONTEXTKIT-JOURNEY branch=operation-direct›') && block.includes('next:') && /work\.mjs|\//.test(block)
+  block.includes('‹CONTEXTKIT-JOURNEY branch=operation-direct›') && block.includes('canonical:') && block.includes('next:') && /work\.mjs|\//.test(block)
     ? ok('surface: renderJourneyAdvisory emits branch + next command for operation work')
     : bad(`surface: advisory block malformed: ${JSON.stringify(block)}`);
 

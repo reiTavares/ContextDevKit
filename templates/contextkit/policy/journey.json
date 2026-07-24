@@ -10,6 +10,59 @@
     "operation-workflow": ["intake", "operation-context", "workflow-nested", "governing-adr", "implement", "tests", "qa-signoff", "log-session"],
     "business-decision": ["intake", "business-context", "governing-adr", "business-approval", "workflow-nested", "implement", "tests", "qa-signoff", "log-session"]
   },
+  "canonicalWorkJourney": {
+    "schemaVersion": 1,
+    "appliesWhen": "tier in ['feature','architectural']",
+    "order": ["graph", "economy", "ddd-governance", "implementation", "qa"],
+    "stages": [
+      {
+        "id": "graph",
+        "title": "Build the graph context",
+        "owners": ["architect"],
+        "receipts": ["project-map"],
+        "checkpoint": "graphReady",
+        "guidance": "Consult the project map or graph receipt before broad exploration; missing graph evidence is skipped, never a false pass."
+      },
+      {
+        "id": "economy",
+        "title": "Resolve the economy posture",
+        "owners": ["model-router"],
+        "receipts": ["subagent-profile", "context-pack"],
+        "checkpoint": "economyResolved",
+        "guidance": "Resolve bounded context, routing, and compaction guidance; unavailable quota or telemetry is explicitly skipped."
+      },
+      {
+        "id": "ddd-governance",
+        "title": "Resolve DDD and governance",
+        "owners": ["domain-modeler", "architect", "governance-officer"],
+        "receipts": ["domain-map", "decision-covered"],
+        "checkpoint": "dddGovernanceReady",
+        "guidance": "Apply the resolved implementation profile and accepted Decision/ADR when material; simple work stays proportional."
+      },
+      {
+        "id": "implementation",
+        "title": "Implement the approved packet",
+        "owners": ["implementation-engineer"],
+        "receipts": ["implementation-packet"],
+        "checkpoint": "implementationAuthorized",
+        "guidance": "Write only at the permitted workflow phase with the required implementation role and tests with the code."
+      },
+      {
+        "id": "qa",
+        "title": "Verify and sign off",
+        "owners": ["test-engineer", "qa-orchestrator"],
+        "receipts": ["test-run", "qa-signoff"],
+        "checkpoint": "qaReady",
+        "guidance": "Run tests, selected review, QA sign-off, and receipt/session closure; economy cannot lower these obligations."
+      }
+    ],
+    "invariants": [
+      "economyCannotReorder",
+      "economyCannotSatisfyQuality",
+      "unknownEvidenceIsPending",
+      "trivialAndNoCodeRemainProportional"
+    ]
+  },
   "stages": [
     {
       "id": "intake",

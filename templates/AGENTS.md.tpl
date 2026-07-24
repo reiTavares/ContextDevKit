@@ -60,6 +60,21 @@ receipts and bounded packets; when a lever lacks its prerequisite, report
 - Never auto-select Fable, paid benchmarks, or model upgrades without explicit
   user instruction or accepted project config.
 
+## Canonical Work Journey
+
+For non-trivial code work, follow this host-neutral order from
+`contextkit/policy/journey.json`:
+
+1. **Graph** — run `cdx project-map` before broad exploration; owner projection: `architect`.
+2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
+3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
+4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.
+5. **QA** — run tests, selected review, QA sign-off, and receipt/session closure; owners: `test-engineer`/`qa-orchestrator`.
+
+Economy may reduce context/output cost, but it cannot reorder stages, satisfy
+evidence, lower agent quality, or bypass tests/QA. Trivial and no-code work stay
+proportional; unknown evidence remains pending/skipped rather than passing.
+
 ## Complete Session Workflow (Codex)
 
 ### 1. Boot the session
