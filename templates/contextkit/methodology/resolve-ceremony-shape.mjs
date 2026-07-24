@@ -20,7 +20,29 @@ export const CEREMONY_SHAPES = Object.freeze([
 /** @type {readonly string[]} */
 export const CEREMONY_TIERS = Object.freeze(['trivial', 'feature', 'architectural']);
 
-const NATURES = Object.freeze(['operation', 'business']);
+/**
+ * Work natures — the first resolver axis. Exported so downstream single-sources
+ * this closed set instead of re-coining it (e.g. the WF-0088 governance-contract
+ * validator). `classifyNature` produces one of these.
+ * @type {readonly string[]}
+ */
+export const CEREMONY_NATURES = Object.freeze(['operation', 'business']);
+
+/**
+ * Operation/business functional kinds — the fourth resolver axis. Exported so the
+ * governance-contract validator (WF-0088) imports the same closed set the resolver
+ * asserts against, rather than duplicating the literal union. This is the
+ * classifier's `kind` output vocabulary — distinct from `enums.mjs` BUSINESS_KINDS,
+ * which the classifier does not emit.
+ * @type {readonly string[]}
+ */
+export const CEREMONY_KINDS = Object.freeze([
+  'capability', 'product', 'initiative', 'compliance',
+  'change', 'fix', 'maintenance', 'investigation', 'operationalResponse',
+]);
+
+// Backwards-compatible internal alias — the resolver's existing nature check.
+const NATURES = CEREMONY_NATURES;
 
 /**
  * Validate a resolver axis at the boundary.
@@ -63,10 +85,7 @@ export function resolveCeremonyShape(nature, executionMode, tier, operationKind)
   assertAxis('nature', nature, NATURES);
   assertAxis('executionMode', executionMode, EXECUTION_MODES);
   assertAxis('tier', tier, CEREMONY_TIERS);
-  assertAxis('operationKind', operationKind, [
-    'capability', 'product', 'initiative', 'compliance',
-    'change', 'fix', 'maintenance', 'investigation', 'operationalResponse',
-  ]);
+  assertAxis('operationKind', operationKind, CEREMONY_KINDS);
 
   if (nature === 'business') {
     return executionMode === 'workflow' && tier === 'architectural'
