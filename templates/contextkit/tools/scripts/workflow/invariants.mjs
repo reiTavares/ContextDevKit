@@ -102,12 +102,19 @@ function checkI1(input) {
     : verdict('I1', 'fail', 'done path and workflow state diverge', { inDone: input.inDone, stateDone });
 }
 
+/**
+ * The closed set of journal event types that carry a task-status transition.
+ * Single-sourced here so every consumer (the I2 fold, the corpus reconcile
+ * walker) reads one authority — adding a 4th type never silently drifts a copy.
+ */
+export const TASK_STATUS_EVENT_TYPES = Object.freeze(['task.status', 'task.updated', 'workflow.task-status']);
+
 /** Fold task status events into the taskStates projection. */
 export function foldTaskStates(journal) {
   const folded = {};
   for (const event of Array.isArray(journal) ? journal : []) {
     if (!event?.taskId || typeof event.status !== 'string') continue;
-    if (!['task.status', 'task.updated', 'workflow.task-status'].includes(event.type)) continue;
+    if (!TASK_STATUS_EVENT_TYPES.includes(event.type)) continue;
     folded[event.taskId] = { status: event.status };
   }
   return folded;

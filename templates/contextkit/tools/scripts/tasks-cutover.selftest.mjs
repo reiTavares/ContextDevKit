@@ -47,21 +47,33 @@ assert('[a] absent-from-derived flagged', !checkParity(derivedMissing, oracle).o
 assert('[b] assertParity returns true on match', assertParity(derivedMatch, oracle) === true);
 assert('[b] assertParity throws on mismatch', throwsType(() => assertParity(derivedBad, oracle)));
 
-// [c] canCutover — both gates
-assert('[c] both gates → ok', canCutover({ parityOk: true, rollbackExercised: true }).ok);
-assert('[c] missing parity → refused', !canCutover({ parityOk: false, rollbackExercised: true }).ok);
-assert('[c] missing rollback → refused', !canCutover({ parityOk: true, rollbackExercised: false }).ok);
-assert('[c] neither → two reasons', canCutover({}).reasons.length === 2);
+// [c] canCutover — all three gates (parity + rollback + observed provenance)
+assert('[c] all three gates → ok', canCutover({ parityOk: true, rollbackExercised: true, provenanceObserved: true }).ok);
+assert('[c] missing parity → refused', !canCutover({ parityOk: false, rollbackExercised: true, provenanceObserved: true }).ok);
+assert('[c] missing rollback → refused', !canCutover({ parityOk: true, rollbackExercised: false, provenanceObserved: true }).ok);
+assert('[c] none → three reasons', canCutover({}).reasons.length === 3);
+
+// [c2] inferred-cannot-flip (D2.2, ADR-0148) — a corpus reconciled only by
+// inference (observed provenance NOT proven) never authorizes a cutover, even
+// with parity + rollback satisfied. This is the independent fail-closed guard
+// against laundering an inferred reconciliation into cutover authority.
+assert('[c2] inferred provenance blocks cutover despite parity + rollback',
+  !canCutover({ parityOk: true, rollbackExercised: true, provenanceObserved: false }).ok);
+assert('[c2] absent provenance is default-refuse (not-proven)',
+  !canCutover({ parityOk: true, rollbackExercised: true }).ok);
+assert('[c2] inferred refusal names the observed-journal reason',
+  canCutover({ parityOk: true, rollbackExercised: true, provenanceObserved: false })
+    .reasons.some((reason) => reason.includes('observed-journal parity')));
 
 // [d] cutover
 {
   const io = makeIo();
-  assert('[d] cutover refused without gates', throwsType(() => cutover(io, { parityOk: false, rollbackExercised: false }, 'T0')));
+  assert('[d] cutover refused without gates', throwsType(() => cutover(io, { parityOk: false, rollbackExercised: false, provenanceObserved: false }, 'T0')));
   assert('[d] marker unchanged after refusal', io.box.marker === null);
-  const result = cutover(io, { parityOk: true, rollbackExercised: true }, 'T1');
+  const result = cutover(io, { parityOk: true, rollbackExercised: true, provenanceObserved: true }, 'T1');
   assert('[d] cutover writes Phase 2', result.phase === 'phase2' && io.box.marker.phase === 'phase2' && io.box.marker.at === 'T1');
   // idempotent
-  const again = cutover(io, { parityOk: true, rollbackExercised: true }, 'T1');
+  const again = cutover(io, { parityOk: true, rollbackExercised: true, provenanceObserved: true }, 'T1');
   assert('[d] idempotent re-cutover', again.phase === 'phase2');
 }
 

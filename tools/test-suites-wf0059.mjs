@@ -110,4 +110,24 @@ export const WF0059_SUITES = Object.freeze([
       `${SCRIPTS}/tasks-cutover.mjs`,
     ],
   },
+  {
+    // WF-0087 TL3 — deterministic corpus reconciliation (provenance-aware).
+    id: 'wf0087-tl3-corpus-reconcile',
+    file: `${SCRIPTS}/tasks-corpus-reconcile.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/tasks-corpus-reconcile.mjs`,
+      `${SCRIPTS}/tasks-migrate.mjs`,
+      `${SCRIPTS}/workflow/invariants.mjs`,
+    ],
+  },
+  {
+    // WF-0087 D5 — concluded-state checksum drift net.
+    id: 'wf0087-d5-checksum-manifest',
+    file: `${SCRIPTS}/workflow-state-checksum-manifest.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/workflow-state-checksum-manifest.mjs`,
+    ],
+  },
 ]);

@@ -72,16 +72,24 @@ export function assertParity(derivedBoard, oracleInventory) {
 }
 
 /**
- * Pure precondition check for cutover: BOTH gates must hold. Returns `{ ok,
+ * Pure precondition check for cutover: ALL gates must hold. Returns `{ ok,
  * reasons }` — the reasons name exactly which gate is unmet (default-refuse).
  *
- * @param {{ parityOk?: boolean, rollbackExercised?: boolean }} state
+ * The `provenanceObserved` gate (D2.2, ADR-0148) is the independent fail-closed
+ * guard against a cutover authorized by INFERRED reconciliation: a corpus
+ * reconciled only `reconciled-by-inference` never proved an observed-journal
+ * parity, so it must not flip. This check trusts only the boolean in `state` —
+ * never a caller-supplied verdict string — so a verdict cannot launder an
+ * inferred fact into cutover authority (defense in depth over the reconcile).
+ *
+ * @param {{ parityOk?: boolean, rollbackExercised?: boolean, provenanceObserved?: boolean }} state
  * @returns {{ ok: boolean, reasons: string[] }}
  */
 export function canCutover(state) {
   const reasons = [];
   if (!state || state.parityOk !== true) reasons.push('parity not proven (run derive vs oracle)');
   if (!state || state.rollbackExercised !== true) reasons.push('rollback drill not exercised');
+  if (!state || state.provenanceObserved !== true) reasons.push('observed-journal parity not proven (inferred reconciliation cannot authorize cutover)');
   return { ok: reasons.length === 0, reasons };
 }
 

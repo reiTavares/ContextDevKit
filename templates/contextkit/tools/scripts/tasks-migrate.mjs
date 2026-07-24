@@ -40,6 +40,31 @@ export const DISPOSITIONS = Object.freeze([
 ]);
 
 /**
+ * The closed provenance-aware reconciliation verdict set (D1, ADR-0148):
+ *   - `ready` — an OBSERVED journal folds to the recorded status; cutover-eligible.
+ *   - `reconciled-by-inference` — a concluded workflow with no journal but a
+ *     self-consistent `taskStates`; corpus-safe, but NEVER authorizes cutover
+ *     (provenance.observed = false). The honest verdict for the legacy corpus.
+ *   - `quarantined` — a genuine divergence (fold-mismatch / plan-hash-mismatch /
+ *     state-task-not-in-plan / invalid-journal); blocks the corpus gate.
+ *   - `excluded` — out of scope (a parallel session owns it); recorded explicitly.
+ */
+export const RECONCILIATION_VERDICTS = Object.freeze([
+  'ready', 'reconciled-by-inference', 'quarantined', 'excluded',
+]);
+
+/**
+ * Divergence kinds that quarantine a workflow (a genuine inconsistency, never
+ * silently reconciled). `missing-journal` is deliberately NOT here: on a concluded
+ * workflow it is inference-grade evidence, downgrading the verdict to
+ * `reconciled-by-inference` rather than blocking (constitution §8: an inferred
+ * fact is honestly marked, not fabricated into an observed pass).
+ */
+export const BLOCKING_DIVERGENCE_KINDS = Object.freeze([
+  'fold-mismatch', 'plan-hash-mismatch', 'state-task-not-in-plan', 'invalid-journal',
+]);
+
+/**
  * The conservation-law invariant, extracted so it is single-sourced AND directly
  * testable: `total` must equal the sum of `counts` over the closed disposition
  * set. A mismatch means a Stage-0 card was dropped, invented, or classified into
@@ -123,14 +148,19 @@ function workflowTaskIds(plan) {
 }
 
 /**
- * Reconcile journal folds against the legacy workflow-state projection.
- * Missing journals are safe only when the recorded state is the initial state;
- * a non-initial state without its journal is quarantined rather than guessed.
+ * Reconcile journal folds against the legacy workflow-state projection, deciding
+ * a provenance-aware verdict (D1, ADR-0148). A task whose status came from a real
+ * journal read is OBSERVED evidence; a concluded task with a non-initial status
+ * but no journal is INFERRED evidence — honestly downgraded to
+ * `reconciled-by-inference`, never fabricated into an observed pass (§8). A
+ * genuine inconsistency (fold-mismatch / plan-hash / orphan task / invalid
+ * journal) quarantines.
  *
  * @param {object} plan workflow topology
  * @param {object} workflowState existing workflow-state projection
  * @param {Record<string, Array<object>>} [journals] task id to journal events
- * @returns {{ ok: boolean, divergences: object[] }} parity result
+ * @returns {{ ok: boolean, divergences: object[], verdict: string,
+ *   provenance: { observed: boolean } }} parity result
  */
 export function reconcileWorkflowTaskStates(plan, workflowState, journals = {}) {
   const divergences = [];
@@ -138,6 +168,7 @@ export function reconcileWorkflowTaskStates(plan, workflowState, journals = {}) 
     ? workflowState.taskStates : {};
   const journalMap = journals && typeof journals === 'object' ? journals : {};
   const taskIds = workflowTaskIds(plan);
+  let inferredCount = 0;
 
   for (const taskId of taskIds) {
     const recordedStatus = stateTasks[taskId]?.status ?? INITIAL_STATE;
@@ -149,6 +180,9 @@ export function reconcileWorkflowTaskStates(plan, workflowState, journals = {}) 
     }
     const foldedStatus = foldStatus(events);
     if (recordedStatus !== foldedStatus) {
+      // A missing journal on a non-initial concluded status is inference-grade
+      // evidence (not a blocking divergence); a real fold-mismatch is genuine.
+      if (!hasJournal) inferredCount += 1;
       divergences.push({
         taskId,
         kind: hasJournal ? 'fold-mismatch' : 'missing-journal',
@@ -163,21 +197,60 @@ export function reconcileWorkflowTaskStates(plan, workflowState, journals = {}) 
   if (workflowState?.planHash != null && workflowState.planHash !== planHash(plan)) {
     divergences.push({ kind: 'plan-hash-mismatch', expected: planHash(plan), actual: workflowState.planHash });
   }
-  return { ok: divergences.length === 0, divergences };
+
+  const hasBlocking = divergences.some((divergence) => BLOCKING_DIVERGENCE_KINDS.includes(divergence.kind));
+  const verdict = hasBlocking
+    ? 'quarantined'
+    : inferredCount > 0 ? 'reconciled-by-inference' : 'ready';
+  // `observed` is true only when every status came from a real journal read —
+  // i.e. a `ready` verdict with no inferred contribution.
+  return {
+    ok: divergences.length === 0,
+    divergences,
+    verdict,
+    provenance: { observed: verdict === 'ready' },
+  };
 }
 
 /**
  * Build a dry-run, additive workflow migration projection. No filesystem write
- * occurs here. A non-green reconciliation returns `quarantined` and callers
- * must not persist the projection or flip a consumer.
+ * occurs here. `status` carries the provenance-aware verdict (D1): only `ready`
+ * (observed journal) authorizes a downstream cutover; `reconciled-by-inference`
+ * is corpus-safe but non-authorizing; `quarantined` blocks; `excluded` is a
+ * short-circuit for a ref another session owns. Callers must not persist the
+ * projection or flip a consumer on a non-`ready` verdict.
  *
- * @param {{ plan: object, workflowState: object, journals?: object }} workflowRef
- * @returns {{ schemaVersion: number, kind: string, status: string, planHash: string,
- *   reconciliation: object, projection: object }} migration plan
+ * @param {{ plan: object, workflowState: object, journals?: object,
+ *   excluded?: boolean, exclusionReason?: string }} workflowRef
+ * @returns {{ schemaVersion: number, kind: string, status: string, planHash?: string,
+ *   reconciliation?: object, projection?: object }} migration plan
  * @throws {TypeError} when the workflow reference is incomplete
  */
 export function migrateWorkflow(workflowRef) {
   if (!workflowRef || typeof workflowRef !== 'object') throw new TypeError('migrateWorkflow: workflowRef is required');
+  // `excluded` short-circuits BEFORE reconcile/derive — an out-of-scope ref (a
+  // parallel session owns it) is recorded explicitly, never silently dropped (§8).
+  if (workflowRef.excluded === true) {
+    return {
+      schemaVersion: 1,
+      kind: 'workflow-task-migration-plan',
+      workflowId: workflowRef.plan?.workflowId ?? workflowRef.workflowId ?? null,
+      status: 'excluded',
+      reason: workflowRef.exclusionReason ?? 'out-of-scope',
+    };
+  }
+  // `unreadable` = a present-but-unparseable plan/state file. It is an integrity
+  // fault, not an empty workflow: quarantine it, never certify ready+observed (§8).
+  if (workflowRef.unreadable === true) {
+    return {
+      schemaVersion: 1,
+      kind: 'workflow-task-migration-plan',
+      workflowId: workflowRef.plan?.workflowId ?? workflowRef.workflowId ?? null,
+      status: 'quarantined',
+      reconciliation: { ok: false, verdict: 'quarantined', provenance: { observed: false },
+        divergences: [{ kind: 'unreadable-artifact', detail: 'workflow plan or state present but unparseable' }] },
+    };
+  }
   if (!workflowRef.plan || typeof workflowRef.plan !== 'object') throw new TypeError('migrateWorkflow: workflowRef.plan is required');
   const workflowPlanHash = planHash(workflowRef.plan);
   const reconciliation = reconcileWorkflowTaskStates(
@@ -193,6 +266,9 @@ export function migrateWorkflow(workflowRef) {
       ? foldStatus(journalMap[task.id])
       : INITIAL_STATE,
   }));
+  // The projection carries the same provenance verdict — a downstream reader
+  // must be able to tell an inferred projection from an observed one.
+  projection.provenance = { observed: reconciliation.provenance.observed };
   return {
     schemaVersion: 1,
     kind: 'workflow-task-migration-plan',
@@ -200,32 +276,44 @@ export function migrateWorkflow(workflowRef) {
     planHash: workflowPlanHash,
     stateRevision: Number.isInteger(workflowRef.workflowState?.revision)
       ? workflowRef.workflowState.revision : null,
-    status: reconciliation.ok ? 'ready' : 'quarantined',
+    status: reconciliation.verdict,
     reconciliation,
     projection,
   };
 }
 
 /**
- * Reconcile a frozen corpus before any consumer cutover. Each workflow is
- * independently journal-first; a quarantined workflow keeps its re-derived
- * projection as the self-healing candidate, but the corpus remains blocked.
+ * Reconcile a frozen corpus before any consumer cutover (D1). Out-of-scope refs
+ * (`ref.excluded`) are partitioned into an auditable `excluded[]` and never enter
+ * the readiness computation (§8: recorded explicitly, never silently dropped).
+ * The corpus is `ready` iff ZERO in-scope results are `quarantined`; an in-scope
+ * `reconciled-by-inference` is corpus-safe (does not block) but does NOT authorize
+ * a cutover — that gate is `canCutover`'s observed-parity check, independently.
  *
  * @param {Array<object>} workflowRefs workflow references with plan/state/journals
  * @returns {{ schemaVersion: number, kind: string, status: string,
- *   workflowCount: number, results: object[] }} corpus gate receipt
+ *   workflowCount: number, results: object[], excluded: object[] }} corpus receipt
  */
 export function reconcileWorkflowCorpus(workflowRefs) {
-  if (!Array.isArray(workflowRefs) || workflowRefs.length === 0) {
+  const refs = Array.isArray(workflowRefs) ? workflowRefs : [];
+  const inScope = refs.filter((ref) => ref?.excluded !== true);
+  const excludedRefs = refs.filter((ref) => ref?.excluded === true);
+  const excluded = excludedRefs.map((ref) => ({
+    workflowId: ref.plan?.workflowId ?? ref.workflowId ?? null,
+    reason: ref.exclusionReason ?? 'out-of-scope',
+  }));
+
+  if (inScope.length === 0) {
     return {
       schemaVersion: 1,
       kind: 'workflow-task-reconciliation',
       status: 'skipped',
       workflowCount: 0,
       results: [],
+      excluded,
     };
   }
-  const results = workflowRefs.map((workflowRef) => {
+  const results = inScope.map((workflowRef) => {
     try {
       return migrateWorkflow(workflowRef);
     } catch (error) {
@@ -236,12 +324,16 @@ export function reconcileWorkflowCorpus(workflowRefs) {
       };
     }
   });
+  // Green iff nothing genuinely divergent — an inferred reconciliation is honest,
+  // not a block; a fabricated observed pass is what §8 forbids and what we avoid.
+  const hasQuarantine = results.some((result) => result.status === 'quarantined');
   return {
     schemaVersion: 1,
     kind: 'workflow-task-reconciliation',
-    status: results.every((result) => result.status === 'ready') ? 'ready' : 'quarantined',
+    status: hasQuarantine ? 'quarantined' : 'ready',
     workflowCount: results.length,
     results,
+    excluded,
   };
 }
 
@@ -272,7 +364,7 @@ export function applyMigration(io, manifest) {
   io.writeArchive(byteMap);
   io.writeManifest(serializeManifest(manifest));
   const archivedPaths = Object.keys(byteMap).sort();
-  const archiveDigest = hash(archivedPaths.map((p) => `${p} ${byteMap[p]}`).join(''));
+  const archiveDigest = hash(archivedPaths.map((p) => `${p}${byteMap[p]}`).join(''));
   return { archivedPaths, archiveDigest, applied: true };
 }
 
@@ -288,6 +380,6 @@ export function rollbackMigration(io) {
   const byteMap = io.readArchive();
   const restoredPaths = Object.keys(byteMap).sort();
   for (const path of restoredPaths) io.restore(path, byteMap[path]);
-  const digest = hash(restoredPaths.map((p) => `${p} ${byteMap[p]}`).join(''));
+  const digest = hash(restoredPaths.map((p) => `${p}${byteMap[p]}`).join(''));
   return { restoredPaths, digest };
 }

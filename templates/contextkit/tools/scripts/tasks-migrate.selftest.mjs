@@ -89,18 +89,58 @@ const journalWorkflow = migrateWorkflow({
   journals: { 'TL0-T1': [{ from: 'not_started', to: 'working', actor: 'auto' }] },
 });
 assert('[b2] journal fold drives the read-only projection', journalWorkflow.status === 'ready' && journalWorkflow.projection.tasks[0].status === 'working');
-const missingJournal = reconcileWorkflowTaskStates(
+// [b2] provenance-aware verdicts (D1, ADR-0148). A missing journal on a
+// concluded NON-initial status is INFERRED evidence — reconciled-by-inference,
+// never a silent block and never fabricated into an observed pass (§8).
+const inferred = reconcileWorkflowTaskStates(
   workflowPlan,
   { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
   {},
 );
-assert('[b2] non-initial state without journal is quarantined', !missingJournal.ok && missingJournal.divergences[0].kind === 'missing-journal');
+assert('[b2] missing journal on non-initial status is reconciled-by-inference',
+  inferred.verdict === 'reconciled-by-inference' && inferred.divergences[0].kind === 'missing-journal');
+assert('[b2] inferred reconciliation is not observed', inferred.provenance.observed === false);
+// A real fold-mismatch (journal present, folds to a different status) is a
+// GENUINE divergence — quarantined, never reconciled.
+const foldMismatch = reconcileWorkflowTaskStates(
+  workflowPlan,
+  { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+  { 'TL0-T1': [] },
+);
+assert('[b2] fold-mismatch quarantines', foldMismatch.verdict === 'quarantined');
+// plan-hash-mismatch quarantines (a post-conclusion plan drift must not be reconciled away).
+const planDrift = reconcileWorkflowTaskStates(
+  workflowPlan,
+  { planHash: 'sha256:stale', taskStates: {} },
+  {},
+);
+assert('[b2] plan-hash-mismatch quarantines',
+  planDrift.verdict === 'quarantined' && planDrift.divergences.some((divergence) => divergence.kind === 'plan-hash-mismatch'));
+// state-task-not-in-plan quarantines (an orphan task is a genuine inconsistency).
+const orphanTask = reconcileWorkflowTaskStates(
+  workflowPlan,
+  { planHash: workflowHash, taskStates: { 'GHOST-T9': { status: 'done' } } },
+  {},
+);
+assert('[b2] state-task-not-in-plan quarantines',
+  orphanTask.verdict === 'quarantined' && orphanTask.divergences.some((divergence) => divergence.kind === 'state-task-not-in-plan'));
+// An observed journal that folds to the recorded status is ready + observed.
+const observed = reconcileWorkflowTaskStates(
+  workflowPlan,
+  { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+  { 'TL0-T1': [{ from: 'not_started', to: 'working', actor: 'auto' }] },
+);
+assert('[b2] observed journal fold is ready + observed',
+  observed.verdict === 'ready' && observed.provenance.observed === true);
+
 const mismatchedJournal = migrateWorkflow({
   plan: workflowPlan,
   workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
   journals: { 'TL0-T1': [] },
 });
 assert('[b2] fold mismatch refuses migration', mismatchedJournal.status === 'quarantined');
+
+// Corpus: an all-observed corpus is ready.
 const corpusReceipt = reconcileWorkflowCorpus([
   {
     plan: workflowPlan,
@@ -113,17 +153,52 @@ const corpusReceipt = reconcileWorkflowCorpus([
     journals: { 'TL0-T1': [{ from: 'not_started', to: 'working', actor: 'auto' }] },
   },
 ]);
-assert('[b2] fully reconciled corpus is ready', corpusReceipt.status === 'ready' && corpusReceipt.workflowCount === 2);
-const blockedCorpus = reconcileWorkflowCorpus([
+assert('[b2] fully observed corpus is ready', corpusReceipt.status === 'ready' && corpusReceipt.workflowCount === 2);
+
+// Corpus: an inferred-only corpus is READY (corpus-safe) but each result is
+// reconciled-by-inference — corpus-green does NOT mean cutover-authorized.
+const inferredCorpus = reconcileWorkflowCorpus([
   {
     plan: workflowPlan,
     workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
     journals: {},
   },
 ]);
+assert('[b2] inferred-only corpus is ready but non-authorizing',
+  inferredCorpus.status === 'ready' && inferredCorpus.results[0].status === 'reconciled-by-inference');
+assert('[b2] inferred projection is marked not observed',
+  inferredCorpus.results[0].projection.provenance.observed === false);
+
+// Corpus: a genuine divergence quarantines the whole corpus.
+const blockedCorpus = reconcileWorkflowCorpus([
+  {
+    plan: workflowPlan,
+    workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+    journals: { 'TL0-T1': [] },
+  },
+]);
 assert('[b2] divergent corpus is quarantined', blockedCorpus.status === 'quarantined');
-assert('[b2] quarantined result keeps a journal-derived healing projection', blockedCorpus.results[0].projection.tasks[0].status === 'not_started');
+
+// Excluded refs are partitioned out and recorded explicitly, never dropped (§8).
+const excludedCorpus = reconcileWorkflowCorpus([
+  { plan: { workflowId: 'WF-0080' }, excluded: true, exclusionReason: 'BIZ-0004 parallel session (WF-0086)' },
+]);
+assert('[b2] excluded-only corpus is skipped (no in-scope refs)', excludedCorpus.status === 'skipped');
+assert('[b2] excluded ref is recorded explicitly, not dropped',
+  excludedCorpus.excluded.length === 1 && excludedCorpus.excluded[0].workflowId === 'WF-0080');
+const mixedCorpus = reconcileWorkflowCorpus([
+  { plan: workflowPlan, workflowState: { planHash: workflowHash, taskStates: {} }, journals: {} },
+  { plan: { workflowId: 'WF-0080' }, excluded: true, exclusionReason: 'BIZ-0004 parallel session' },
+]);
+assert('[b2] excluded does not block an otherwise-ready corpus',
+  mixedCorpus.status === 'ready' && mixedCorpus.workflowCount === 1 && mixedCorpus.excluded.length === 1);
 assert('[b2] empty corpus is skipped, never pass', reconcileWorkflowCorpus([]).status === 'skipped');
+
+// 0-planHash-breakage: reconcile/migrate never mutate the input plan's waves[].tasks.
+const planBefore = JSON.stringify(workflowPlan);
+migrateWorkflow({ plan: workflowPlan, workflowState: { planHash: workflowHash, taskStates: {} }, journals: {} });
+reconcileWorkflowCorpus([{ plan: workflowPlan, workflowState: { planHash: workflowHash, taskStates: {} }, journals: {} }]);
+assert('[b2] 0 planHash breakage: input plan is structurally untouched', JSON.stringify(workflowPlan) === planBefore);
 
 // [c] determinism
 assert('[c] serialize byte-identical across builds', serializeManifest(buildManifest(inventory)) === serializeManifest(buildManifest(inventory)));

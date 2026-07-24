@@ -211,6 +211,8 @@ function main() {
     'templates/contextkit/tools/scripts/tasks-compat.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-migrate.selftest.mjs',
     'templates/contextkit/tools/scripts/tasks-cutover.selftest.mjs',
+    'templates/contextkit/tools/scripts/tasks-corpus-reconcile.selftest.mjs',
+    'templates/contextkit/tools/scripts/workflow-state-checksum-manifest.selftest.mjs',
     // BIZ-0006 / WF-0081 (ADR-0148 §1) — classifier integrity & investigation
     // exemption; selftest lives beside its engine module under templates/,
     // registered via test-suites-wf0081.mjs, dispatched directly.
