@@ -217,6 +217,10 @@ function main() {
     // exemption; selftest lives beside its engine module under templates/,
     // registered via test-suites-wf0081.mjs, dispatched directly.
     'templates/contextkit/runtime/execution/no-code-prior.selftest.mjs',
+    // BIZ-0006 / WF-0088 (ADR-0148 position 11) — governance-contract envelope;
+    // selftest lives beside its schema module under templates/, registered via
+    // test-suites-wf0088.mjs, dispatched directly.
+    'templates/contextkit/runtime/work/schema-governance-contract.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',

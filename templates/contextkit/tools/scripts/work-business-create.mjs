@@ -31,6 +31,7 @@ import {
   resolveBusinessCeremony,
 } from './work-business-create-contract.mjs';
 import { applyBusinessPackage } from './work-business-create-publisher.mjs';
+import { emitBusinessGovernanceContract } from './emit-business-contract.mjs';
 
 export {
   assertBusinessIdAvailable,
@@ -297,6 +298,23 @@ export function handleBusinessCreate({ positionals = [], flags = {}, apply, root
   const publication = apply
     ? applyBusinessPackage(plan)
     : { committedWrites: [], stagingMode: 'not-applied' };
+
+  // WF-0088 SHADOW emit: serialize the resolved ceremony to governance-contract.json
+  // at the new context root. Fail-open — a skipped/failed emit never affects the
+  // create result; the contract is written but read by no gate at this stage.
+  let contractEmit = { emitted: false, reason: 'not-applied' };
+  if (apply) {
+    const paths = pathsFor(root);
+    contractEmit = emitBusinessGovernanceContract({
+      business: plan.business,
+      contextDir: plan.targetDir,
+      decisionsBusinessDir: paths.decisionsBusiness,
+      ceremony: inputs.ceremony,
+      emittedBy: 'create',
+      now: typeof flags.now === 'string' ? flags.now : new Date().toISOString(),
+    });
+  }
+
   return makeReceipt({
     command: 'business',
     applied: Boolean(apply),
@@ -316,6 +334,7 @@ export function handleBusinessCreate({ positionals = [], flags = {}, apply, root
       committedWrites: publication.committedWrites,
       atomicity: publication.stagingMode,
       validation: { business: 'pass', structure: apply ? 'pass' : 'planned' },
+      governanceContract: contractEmit,
     },
   });
 }

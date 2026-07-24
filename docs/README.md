@@ -41,6 +41,7 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 - [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
 - [Reference: Agents](reference/agents.md) — The specialized agents available to route work to. Generated from the agent registry.
 - [Reference: Slash commands](reference/commands.md) — Every slash command the platform ships, grouped by domain. Generated from the command registry.
+- [Reference: `governance-contract.json` — the cross-agent governance seam](reference/governance-contract.md) — `governance-contract.json` is a serialized, versioned, vendor-neutral record of the
 - [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
 - [CLI Reference](workflow-engine/cli-reference.md) — Every `workflow` command, its flags, one example, and whether it **writes
 
