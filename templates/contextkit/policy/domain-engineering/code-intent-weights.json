@@ -9,15 +9,15 @@
   "positiveSignals": {
     "explicitMutationVerb": {
       "weight": 35,
-      "tokens": ["implement", "create ", "build ", "add ", "write ", "fix ", "refactor", "migrate", "rename", "delete ", "remove ", "rewrite", "scaffold", "wire ", "patch "]
+      "tokens": ["implement", "create ", "build ", "add ", "write ", "fix ", "refactor", "migrate", "rename", "delete ", "remove ", "rewrite", "scaffold", "wire ", "patch ", "implementar", "implemente", "criar ", "crie ", "construir ", "adicionar ", "adicione ", "escrever ", "corrigir ", "corrija ", "conserto ", "refatorar", "refatoração", "refatoracao", "migrar", "migração", "migracao", "renomear", "deletar ", "apagar ", "remover ", "remova ", "reescrever"]
     },
     "activeMutationTask": {
       "weight": 25,
-      "tokens": ["feature task", "bug task", "refactor task", "migration task", "increment", "chore task"]
+      "tokens": ["feature task", "bug task", "refactor task", "migration task", "increment", "chore task", "tarefa de funcionalidade", "tarefa de bug", "tarefa de refatoração", "tarefa de refatoracao", "tarefa de migração", "tarefa de migracao", "tarefa de manutenção", "tarefa de manutencao"]
     },
     "shipOrWorkingPhase": {
       "weight": 20,
-      "tokens": ["ship phase", "working phase", "implementation phase", "/ship", "/dev-start"]
+      "tokens": ["ship phase", "working phase", "implementation phase", "/ship", "/dev-start", "fase de envio", "fase de trabalho", "fase de implementação", "fase de implementacao"]
     },
     "sourcePathOrExtension": {
       "weight": 20,
@@ -25,49 +25,49 @@
     },
     "executableAcceptance": {
       "weight": 15,
-      "tokens": ["acceptance test", "passes ci", "npm run ci", "npm test", "make it green", "test passes"]
+      "tokens": ["acceptance test", "passes ci", "npm run ci", "npm test", "make it green", "test passes", "teste de aceitação", "teste de aceitacao", "passa no ci", "torna verde", "teste passa"]
     },
     "namedSymbolOrEndpoint": {
       "weight": 10,
-      "tokens": ["function ", "endpoint", "module ", "class ", "method ", "route ", "schema ", "handler"]
+      "tokens": ["function ", "endpoint", "module ", "class ", "method ", "route ", "schema ", "handler", "função ", "funcao ", "módulo ", "modulo ", "classe ", "método ", "metodo ", "rota ", "esquema "]
     },
     "needsTestOrBuild": {
       "weight": 10,
-      "tokens": ["needs test", "add a test", "build ", "compile", "lint"]
+      "tokens": ["needs test", "add a test", "build ", "compile", "lint", "precisa de teste", "adicionar um teste", "construir ", "compilar"]
     },
     "activeImplementationPacket": {
       "weight": 10,
-      "tokens": ["implementation packet", "work-packet", "task-compiler"]
+      "tokens": ["implementation packet", "work-packet", "task-compiler", "pacote de implementação", "pacote de implementacao"]
     }
   },
   "negativeSignals": {
     "explicitReadOnly": {
       "weight": -100,
-      "tokens": ["read-only", "do not edit", "don't change", "without modifying", "no code changes", "just look", "just read"]
+      "tokens": ["read-only", "do not edit", "don't change", "without modifying", "no code changes", "just look", "just read", "somente leitura", "não edite", "nao edite", "não altere", "nao altere", "sem modificar", "sem alterações de código", "sem alteracoes de codigo", "apenas olhar", "apenas ler"]
     },
     "conversationOrExplanation": {
       "weight": -70,
-      "tokens": ["what is", "what are", "how does", "why does", "explain", "tell me", "describe "]
+      "tokens": ["what is", "what are", "how does", "why does", "explain", "tell me", "describe ", "o que é", "o que e", "o que são", "o que sao", "como funciona", "por que", "explique", "me diga", "descreva "]
     },
     "researchOrComparison": {
       "weight": -60,
-      "tokens": ["research", "investigate", "compare ", "evaluate options", "which approach", "should we use", "feasibility", "spike"]
+      "tokens": ["research", "investigate", "compare ", "evaluate options", "which approach", "should we use", "feasibility", "spike", "pesquisar", "pesquisa", "investigar", "comparar ", "avaliar opções", "avaliar opcoes", "qual abordagem", "devemos usar", "viabilidade"]
     },
     "reviewOnly": {
       "weight": -50,
-      "tokens": ["review only", "just review", "code review", "audit ", "assess ", "critique"]
+      "tokens": ["review only", "just review", "code review", "audit ", "assess ", "critique", "somente revisão", "somente revisao", "apenas revisar", "revisão de código", "revisao de codigo", "auditoria ", "avaliar ", "criticar"]
     },
     "docsOnly": {
       "weight": -45,
-      "tokens": ["document ", "readme", "changelog", "docs", "write up", "doc comment"]
+      "tokens": ["document ", "readme", "changelog", "docs", "write up", "doc comment", "documentar ", "documentação", "documentacao"]
     },
     "formattingOrGenerated": {
       "weight": -35,
-      "tokens": ["reformat", "prettier", "regenerate index", "generated file", "lockfile"]
+      "tokens": ["reformat", "prettier", "regenerate index", "generated file", "lockfile", "reformatar", "arquivo gerado", "regenerar índice", "regenerar indice"]
     },
     "statusOrPlanning": {
       "weight": -30,
-      "tokens": ["status", "plan ", "planning", "roadmap", "what's next", "summarize state"]
+      "tokens": ["status", "plan ", "planning", "roadmap", "what's next", "summarize state", "planejar ", "planejamento", "o que vem a seguir", "resumir o estado"]
     }
   },
   "bands": [

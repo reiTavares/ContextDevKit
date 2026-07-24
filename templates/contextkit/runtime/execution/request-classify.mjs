@@ -24,10 +24,10 @@ export const REQUEST_CONTEXTS = Object.freeze([
 ]);
 
 /** Token tables — supplementary signals, never the sole basis for a verdict. */
-const INCIDENT_TOKENS = ['outage', 'production failure', 'prod failure', 'broken in prod', 'regression', 'incident', 'down ', 'failing in production', 'hotfix'];
-const RESEARCH_TOKENS = ['investigate', 'research', 'explore options', 'compare ', 'evaluate options', 'spike', 'feasibility', 'which approach', 'should we use'];
-const DOC_TOKENS = ['document', 'readme', 'changelog', 'docs', 'comment', 'write up', 'explain in the docs'];
-const CONVERSATION_TOKENS = ['what is', 'what are', 'how does', 'why does', 'can you explain', 'tell me', '?'];
+const INCIDENT_TOKENS = ['outage', 'production failure', 'prod failure', 'broken in prod', 'regression', 'incident', 'down ', 'failing in production', 'hotfix', 'queda', 'indisponibilidade', 'falha em produção', 'falha em producao', 'incidente'];
+const RESEARCH_TOKENS = ['investigate', 'research', 'explore options', 'compare ', 'evaluate options', 'spike', 'feasibility', 'which approach', 'should we use', 'investigar', 'pesquisar', 'pesquisa', 'explorar opções', 'explorar opcoes', 'comparar ', 'avaliar opções', 'avaliar opcoes', 'qual abordagem', 'devemos usar', 'viabilidade'];
+const DOC_TOKENS = ['document', 'readme', 'changelog', 'docs', 'comment', 'write up', 'explain in the docs', 'documentar', 'documentação', 'documentacao', 'comentário', 'comentario'];
+const CONVERSATION_TOKENS = ['what is', 'what are', 'how does', 'why does', 'can you explain', 'tell me', '?', 'o que é', 'o que e', 'o que são', 'o que sao', 'como funciona', 'por que', 'você pode explicar', 'voce pode explicar', 'me diga'];
 
 /**
  * Maps the intake complexity tier to the §5 complexity vocabulary.

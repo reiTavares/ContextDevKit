@@ -129,9 +129,21 @@ export function pickSecondary(scored, winnerName, margin, cap = 2) {
  */
 export const STOPWORDS = Object.freeze(
   new Set([
+    // en function words + too-common task verbs (non-discriminating for overlap).
     'the', 'a', 'an', 'to', 'of', 'and', 'or', 'in', 'on', 'for', 'with',
     'at', 'by', 'from', 'as', 'is', 'are', 'be', 'this', 'that', 'it',
     'add', 'fix', 'new', 'every', 'all',
+    // pt function words + pt equivalents of the en verbs above (WF-0095). Each is
+    // pt-distinctive — none collides with an English content word — so stripping
+    // them removes pt noise without touching en overlap (mirrors PT_STOPWORDS in
+    // intent-language.mjs). Both accented and unaccented spellings are listed
+    // because the tokenizer now preserves accents (below).
+    'que', 'não', 'nao', 'para', 'com', 'uma', 'dos', 'das', 'como', 'mais',
+    'você', 'voce', 'está', 'esta', 'são', 'sao', 'isso', 'aqui', 'então',
+    'entao', 'porque', 'qual', 'quais', 'sobre', 'pelo', 'pela', 'este', 'essa',
+    'esse', 'meu', 'minha', 'ser', 'seu', 'sua', 'ele', 'ela', 'foi', 'de', 'da',
+    'em', 'na', 'nas', 'os', 'ao', 'aos', 'se', 'um', 'também', 'tambem', 'muito',
+    'quando', 'adicionar', 'corrigir', 'novo', 'nova', 'cada', 'todos', 'todas',
   ]),
 );
 
@@ -139,13 +151,18 @@ export const STOPWORDS = Object.freeze(
  * Tokenizes free text into a deterministic lowercased word set, stopwords
  * stripped (matcher token-overlap helper, design §8.2).
  *
+ * Splits on Unicode non-alphanumerics (`\p{L}`/`\p{N}`) rather than `[a-z0-9]`,
+ * so accented tokens survive as whole words — `correção` stays one token instead
+ * of shattering into `corre` + `o` (WF-0095). For ASCII-only input the token set
+ * is byte-identical to the previous behaviour (the character class is a superset).
+ *
  * @param {string} text - free text (objective, title, slug).
  * @returns {Set<string>} the unique non-stopword tokens (length ≥ 2).
  */
 export function tokenize(text) {
   const tokens = String(text || '')
     .toLowerCase()
-    .split(/[^a-z0-9]+/)
+    .split(/[^\p{L}\p{N}]+/u)
     .filter((token) => token.length >= 2 && !STOPWORDS.has(token));
   return new Set(tokens);
 }

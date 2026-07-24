@@ -3,17 +3,17 @@
   "_note": "Per-task complexity rubric (ADR-0030, adapted from EVO-METHOD/BMAD domain-complexity + project-types CSVs, MIT). Deterministic lookup — NOT LLM judgment. `tiers` right-size the ceremony per task; `domains` auto-route regulated work to the owning agents and force the architectural tier. Editing a row is an ADR act (constitution §9) — it is reviewable policy, not data. Levels (L1-L7) and tiers are ORTHOGONAL: a level is the platform ceiling, a tier is the per-task ceremony.",
   "tiers": {
     "trivial": {
-      "signals": ["typo", "rename", "comment", "bump version", "bump dep", "lint", "format", "whitespace", "changelog entry", "fix link", "docstring"],
+      "signals": ["typo", "rename", "comment", "bump version", "bump dep", "lint", "format", "whitespace", "changelog entry", "fix link", "docstring", "erro de digitação", "erro de digitacao", "renomear", "comentário", "comentario", "formatar", "formatação", "formatacao", "corrigir link", "espaço em branco", "espaco em branco"],
       "ceremony": { "adr": false, "story": false, "review": "light" },
       "summary": "One cohesive low-risk edit. No ADR, no story — just do it and log if it touched an important path."
     },
     "feature": {
-      "signals": ["add", "feature", "endpoint", "component", "screen", "page", "command", "field", "report", "export"],
+      "signals": ["add", "feature", "endpoint", "component", "screen", "page", "command", "field", "report", "export", "adicionar", "adicione", "funcionalidade", "recurso", "componente", "tela", "página", "pagina", "comando", "campo", "relatório", "relatorio", "exportar", "exportação", "exportacao"],
       "ceremony": { "adr": false, "story": true, "review": "standard" },
       "summary": "A user-visible increment. Roadmap entry + story + standard review. No ADR unless a structural decision surfaces."
     },
     "architectural": {
-      "signals": ["migrate", "migration", "new dependency", "add dependency", "auth", "authentication", "authorization", "schema", "breaking", "rewrite", "refactor architecture", "replace", "protocol", "data model", "multi-tenant", "encryption", "rename public", "deprecate"],
+      "signals": ["migrate", "migration", "new dependency", "add dependency", "auth", "authentication", "authorization", "schema", "breaking", "rewrite", "refactor architecture", "replace", "protocol", "data model", "multi-tenant", "encryption", "rename public", "deprecate", "migrar", "migração", "migracao", "nova dependência", "nova dependencia", "adicionar dependência", "adicionar dependencia", "autenticação", "autenticacao", "autorização", "autorizacao", "esquema", "quebra de compatibilidade", "reescrever", "reescrita", "refatorar arquitetura", "substituir", "protocolo", "modelo de dados", "criptografia", "renomear público", "renomear publico", "descontinuar", "depreciar"],
       "ceremony": { "adr": true, "story": true, "review": "deep" },
       "summary": "A decision with blast radius. /new-adr FIRST, then a story, then deep review. /simulate-impact if it crosses a high-risk path."
     }

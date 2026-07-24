@@ -102,12 +102,12 @@ export function deriveDecisionKind(work, tier, businessMatch, objectiveLower, po
     return { kind: 'ROUTINE_OPERATION_GOVERNANCE', reason: 'K5: maintenance kind → routine governance path' };
   }
   // K6: architectural tier or architectural-signal tokens
-  const archTokens = ['migrate', 'new dependency', 'schema', 'breaking', 'protocol', 'data model', 'auth', 'rewrite'];
+  const archTokens = ['migrate', 'new dependency', 'schema', 'breaking', 'protocol', 'data model', 'auth', 'rewrite', 'migrar', 'nova dependência', 'nova dependencia', 'esquema', 'quebra de compatibilidade', 'protocolo', 'modelo de dados', 'autenticação', 'autenticacao', 'autorização', 'autorizacao', 'reescrever'];
   if (tier?.tier === 'architectural' || archTokens.some((t) => objectiveLower.includes(t))) {
     return { kind: 'ARCHITECTURE', reason: 'K6: architectural tier or architectural signal token' };
   }
   // K7: QUALITY lever or policy/governance tokens
-  const policyTokens = ['policy', 'governance', 'threshold', 'naming', 'convention'];
+  const policyTokens = ['policy', 'governance', 'threshold', 'naming', 'convention', 'política', 'politica', 'governança', 'governanca', 'limite', 'convenção', 'convencao'];
   if (work?.growthLever === 'QUALITY' || policyTokens.some((t) => objectiveLower.includes(t))) {
     return { kind: 'POLICY', reason: 'K7: QUALITY growth lever or policy/governance token' };
   }
@@ -134,7 +134,7 @@ export function deriveDecisionKind(work, tier, businessMatch, objectiveLower, po
  * @returns {{ scope: string, reason: string }}
  */
 export function deriveDecisionScope(work, tier, decisionKind, primaryContext, objectiveLower, policy) {
-  const platformTokens = policy.platformTokens ?? ['platform', 'across modules', 'kit-wide'];
+  const platformTokens = policy.platformTokens ?? ['platform', 'across modules', 'kit-wide', 'plataforma', 'entre módulos', 'entre modulos'];
   const hitsPlatform = platformTokens.some((t) => objectiveLower.includes(t));
   // S1
   if (work?.executionMode === 'workflow' && decisionKind === 'BUSINESS_AUTHORIZATION' && hitsPlatform) {
