@@ -189,19 +189,25 @@ export function resolveReferenceIntent(work, citations, options = {}) {
 
     const top = cites[0];
     const explicit = top.tier === 'explicit' && top.resolved;
+    const unresolvedExplicit = top.tier === 'explicit' && !top.resolved;
 
-    // Fuzzy-only citation with no disambiguating intent → ask (spec §2).
+    // A citation that resolves to no real context (unresolved explicit id — a typo or
+    // a not-yet-created WF-9999) cannot be a continuation target: the intent table
+    // would fabricate a confident verdict against a non-existent id. Route it to `ask`
+    // regardless of any scope signal. A fuzzy citation is weak but resolved, so a clear
+    // scope intent may still override it and fall through to the table (spec §2).
     if (!explicit) {
-      if (hasAny(text, NEW_WORKFLOW_SIGNALS) || hasAny(text, NEW_CHILD_SIGNALS) || hasAny(text, NEW_SCOPE_SIGNALS)) {
-        // A clear intent overrides a weak citation — fall through to the table.
-      } else {
+      const scopeSignal = hasAny(text, NEW_WORKFLOW_SIGNALS)
+        || hasAny(text, NEW_CHILD_SIGNALS) || hasAny(text, NEW_SCOPE_SIGNALS);
+      if (unresolvedExplicit || !scopeSignal) {
         return {
           intent: 'ask', target: top, confidence: 'ask', needsClarification: true,
           clarifyQuestion: CLARIFY_Q,
-          reason: `ambiguous ${top.tier} citation of ${top.id} — clarify intent`,
+          reason: `ambiguous ${unresolvedExplicit ? 'unresolved ' : ''}${top.tier} citation of ${top.id} — clarify intent`,
           evidence: { citations: cites },
         };
       }
+      // else: a clear scope intent overrides a weak (resolved fuzzy) citation.
     }
 
     // Business nature OR an explicit new-scope signal → the citation is context.

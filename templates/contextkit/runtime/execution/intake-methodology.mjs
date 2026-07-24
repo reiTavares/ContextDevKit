@@ -42,25 +42,36 @@ const CONTINUATION_INTENTS = Object.freeze(
   new Set(['work-within', 'new-child-in-context', 'new-workflow-in-owner']),
 );
 
+/** Cheap pre-check: does the objective contain an explicit `WF-####` id? */
+const WF_ID_RE = /\bWF-\d{4}\b/i;
+
 /**
  * Reads the two registries the citation scan resolves against, fail-open
  * (immutable rule 2). Each read is isolated so one unreadable registry never
  * blanks the other; any failure degrades to an empty list, so `scanCitations`
  * simply surfaces fewer / unresolved citations rather than throwing.
  *
+ * The workflow-registry walk is skipped unless the objective actually contains a
+ * `WF-####` id: only the explicit workflow-citation path consumes it (the fuzzy
+ * pass matches BIZ/OP titles from the work-context registry only), so the common
+ * no-`WF-`-mention prompt avoids that disk walk entirely.
+ *
  * @param {string} root - project root.
+ * @param {string} [objective] - the request text (gates the workflow walk).
  * @returns {{ workContexts: object[], workflows: object[] }}
  */
-function readCitationRegistries(root) {
+function readCitationRegistries(root, objective = '') {
   const registries = { workContexts: [], workflows: [] };
   try {
     const wc = buildWorkContextRegistry(root);
     if (wc && Array.isArray(wc.contexts)) registries.workContexts = wc.contexts;
   } catch { /* fail-open — empty work-context list */ }
-  try {
-    const wf = buildWorkflowRegistry(root);
-    if (wf && Array.isArray(wf.workflows)) registries.workflows = wf.workflows;
-  } catch { /* fail-open — empty workflow list */ }
+  if (WF_ID_RE.test(String(objective || ''))) {
+    try {
+      const wf = buildWorkflowRegistry(root);
+      if (wf && Array.isArray(wf.workflows)) registries.workflows = wf.workflows;
+    } catch { /* fail-open — empty workflow list */ }
+  }
   return registries;
 }
 
@@ -194,7 +205,7 @@ export function runMethodology(params) {
     // referenceIntent), never to a broken methodology pass (immutable rule 2).
     let referenceIntent = null;
     try {
-      const citations = scanCitations(objective, readCitationRegistries(root));
+      const citations = scanCitations(objective, readCitationRegistries(root, objective));
       referenceIntent = resolveReferenceIntent(work, citations, { objective });
       // A strong continuation must never auto-create a redundant context: downgrade
       // the create-new action to `suggest` (advisory — never blocks; ADR-0125).

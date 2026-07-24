@@ -98,6 +98,19 @@ process.stdout.write('[b] resolveReferenceIntent (four intents + ask)\n');
   const r = resolveReferenceIntent(op('change'), scanCitations(obj, REG), { objective: obj });
   assert('fuzzy-only citation, no signal ⇒ ask', r.intent === 'ask');
 }
+{
+  // Regression (reviewer 🟡#1): an UNRESOLVED explicit id + a scope signal must NOT
+  // produce a confident verdict against a non-existent target — route to ask.
+  const obj = 'add a task to WF-9999';
+  const r = resolveReferenceIntent(op('change'), scanCitations(obj, REG), { objective: obj });
+  assert('unresolved explicit id + scope signal ⇒ ask (not confident phantom target)', r.intent === 'ask' && r.confidence === 'ask');
+}
+{
+  // executionMode==='workflow' against a workflow citation ⇒ new-workflow-in-owner.
+  const obj = 'the next wave on WF-0094';
+  const r = resolveReferenceIntent(op('change', 'workflow'), scanCitations(obj, REG), { objective: obj });
+  assert('executionMode=workflow + WF cite ⇒ new-workflow-in-owner (owner target)', r.intent === 'new-workflow-in-owner' && r.target?.id === 'BIZ-0006');
+}
 assert('every returned intent is in the closed enum', REFERENCE_INTENTS.length === 5);
 
 // [c] meta-repro — the user's reported Codex failure
