@@ -26,10 +26,11 @@
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { stripBom } from '../../runtime/work/enums.mjs';
-import { validateGovernanceContract } from '../../runtime/work/schema-governance-contract.mjs';
+import { validateGovernanceContract, GOVERNANCE_CONTRACT_FILENAME } from '../../runtime/work/schema-governance-contract.mjs';
 
-/** Canonical filename emitted at every context root. */
-export const GOVERNANCE_CONTRACT_FILENAME = 'governance-contract.json';
+// Re-export so existing importers of the filename from this module keep working;
+// the schema module owns the canonical definition (single-source).
+export { GOVERNANCE_CONTRACT_FILENAME };
 
 /** Where truth actually lives — the contract points away from itself. */
 const STATE_AUTHORITY = 'workflow-state.json (fold of the ADR-0043 event journal)';

@@ -18,6 +18,7 @@ import { getLevel, loadConfigSync } from '../config/load.mjs';
 import { routePrompt } from '../execution/routing-runtime.mjs';
 import { runMethodology } from '../execution/intake-methodology.mjs';
 import { renderJourneyAdvisory } from './journey-surface.mjs';
+import { renderGovernanceContractAdvisory } from '../../tools/scripts/read-governance-contract.mjs';
 
 // ---------------------------------------------------------------------------
 // Checklist renderer (exported for selfcheck unit testing)
@@ -149,6 +150,24 @@ export function runAdvisory({ promptText, signals, sessionId, taskId, root, host
     if (journeyMsg) process.stdout.write(journeyMsg);
   } catch {
     // journey surfacing is advisory; silent on any failure
+  }
+
+  // WF-0088 (BIZ-0006, ADR-0148 position 11) — governance-contract advisory: surface
+  // the serialized ceremony shape of the resolved work context (read-only projection).
+  // This is the advisory consumer the shadow stage lacked — the emitted contract is
+  // now actually READ, not written to a file nobody reads. Additive + fail-open;
+  // absent/invalid contract → silent. Never blocks.
+  try {
+    const work = signals.work || {};
+    const contextId = (typeof work.id === 'string' && /^(BIZ|OP)-\d{4}$/.test(work.id))
+      ? work.id
+      : ((work.businessMatch || signals.businessMatch || {}).suggested);
+    if (contextId) {
+      const contractMsg = renderGovernanceContractAdvisory(root, contextId);
+      if (contractMsg) process.stdout.write(contractMsg);
+    }
+  } catch {
+    // governance-contract advisory is fail-open; silent on any failure
   }
 
   return { routing };

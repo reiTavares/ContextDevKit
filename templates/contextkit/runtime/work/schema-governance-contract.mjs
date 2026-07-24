@@ -34,6 +34,11 @@ import {
 /** Schema version this validator understands. */
 export const GOVERNANCE_CONTRACT_SCHEMA_VERSION = 1;
 
+/** Canonical filename emitted + read at every context root. Defined here (the
+ * schema owns the artifact's identity) so both the emit hook and the read-only
+ * advisory reader single-source it without a runtime↔tools import cycle. */
+export const GOVERNANCE_CONTRACT_FILENAME = 'governance-contract.json';
+
 /** Context-ref types — the artifact-location taxonomy (3 values), distinct from
  * `resolvedAxes.nature` (2 values). */
 export const CONTEXT_REF_TYPES = Object.freeze(['business', 'operation', 'workflow']);
