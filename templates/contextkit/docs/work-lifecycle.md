@@ -29,6 +29,15 @@ Pure questions and read-only investigations are exempt from this write
 lifecycle. Missing or unreadable journey/state inputs are skipped silently and
 never fail-close real work.
 
+When a request **cites an existing work context** (a `BIZ-`/`OP-`/`WF-` id, or a
+recognizable title), intake resolves the *reference-intent* before treating the
+work as new (ADR-0152): `new-context` (the citation is only context for something
+new), `work-within` (continue inside the cited context), `new-child-in-context`
+(a new task/increment inside it), or `new-workflow-in-owner` (a new workflow under
+it) — asking when ambiguous. A strong explicit citation is **advisory**: it
+reframes the intake line and downgrades a would-be create-new action so a
+continuation prompt is not turned into a duplicate context; it never blocks.
+
 The read-only `work next` / `work map` surfaces can be disabled without
 removing the journey or its commands by setting `CONTEXTKIT_WORK_DISCOVERY=0`.
 
@@ -54,3 +63,13 @@ bloquear o trabalho.
 
 As superfícies somente-leitura `work next` / `work map` podem ser desativadas
 sem remover a jornada ou seus comandos com `CONTEXTKIT_WORK_DISCOVERY=0`.
+
+Quando um pedido **cita um contexto de trabalho existente** (um id `BIZ-`/`OP-`/
+`WF-`, ou um título reconhecível), o intake resolve a *intenção-da-citação* antes
+de tratar o trabalho como novo (ADR-0152): `new-context` (a citação é só contexto
+para algo novo), `work-within` (continuar dentro do contexto citado),
+`new-child-in-context` (uma nova tarefa/incremento dentro dele) ou
+`new-workflow-in-owner` (um novo workflow sob ele) — perguntando quando ambíguo.
+Uma citação explícita forte é **consultiva**: reformula a linha do intake e rebaixa
+uma ação de criar-novo, para que um prompt de continuação não vire um contexto
+duplicado; nunca bloqueia.
