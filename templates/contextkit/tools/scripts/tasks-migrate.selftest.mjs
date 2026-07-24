@@ -17,8 +17,10 @@
  */
 import {
   classifyCard, buildManifest, serializeManifest, applyMigration, rollbackMigration,
-  assertConservation, DISPOSITIONS,
+  assertConservation, DISPOSITIONS, migrateWorkflow, reconcileWorkflowTaskStates,
+  reconcileWorkflowCorpus,
 } from './tasks-migrate.mjs';
+import { planHash } from './workflow/plan.mjs';
 import { buildInventory } from './pipeline-inventory.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -65,6 +67,63 @@ assert('[b] counts as expected (2 migrated,1 fixture,3 review_required)',
 // not theatrical): total 5 but counts sum to 4 must throw; a matching sum passes.
 assert('[b] assertConservation THROWS on total≠Σ', throws(() => assertConservation(5, { migrated: 3, fixture: 1 })));
 assert('[b] assertConservation passes on total==Σ', assertConservation(4, { migrated: 3, fixture: 1 }) === 4);
+
+// [b2] workflow derive step — read-only, journal-first, planHash-bound.
+const workflowPlan = {
+  schemaVersion: 1, workflowId: '0087', slug: 'wf-0087', profile: 'program',
+  waves: [{ id: 'TL0', tasks: [{ id: 'TL0-T1', waveId: 'TL0', title: 'Inventory' }] }],
+  gates: [],
+};
+const workflowHash = planHash(workflowPlan);
+const cleanWorkflow = migrateWorkflow({
+  plan: workflowPlan,
+  workflowState: { revision: 4, planHash: workflowHash, taskStates: {} },
+  journals: {},
+});
+assert('[b2] clean initial workflow migration is ready', cleanWorkflow.status === 'ready');
+assert('[b2] migration projection starts not_started', cleanWorkflow.projection.tasks[0].status === 'not_started');
+assert('[b2] planHash is preserved as a migration binding', cleanWorkflow.planHash === workflowHash);
+const journalWorkflow = migrateWorkflow({
+  plan: workflowPlan,
+  workflowState: { revision: 5, planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+  journals: { 'TL0-T1': [{ from: 'not_started', to: 'working', actor: 'auto' }] },
+});
+assert('[b2] journal fold drives the read-only projection', journalWorkflow.status === 'ready' && journalWorkflow.projection.tasks[0].status === 'working');
+const missingJournal = reconcileWorkflowTaskStates(
+  workflowPlan,
+  { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+  {},
+);
+assert('[b2] non-initial state without journal is quarantined', !missingJournal.ok && missingJournal.divergences[0].kind === 'missing-journal');
+const mismatchedJournal = migrateWorkflow({
+  plan: workflowPlan,
+  workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+  journals: { 'TL0-T1': [] },
+});
+assert('[b2] fold mismatch refuses migration', mismatchedJournal.status === 'quarantined');
+const corpusReceipt = reconcileWorkflowCorpus([
+  {
+    plan: workflowPlan,
+    workflowState: { planHash: workflowHash, taskStates: {} },
+    journals: {},
+  },
+  {
+    plan: workflowPlan,
+    workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+    journals: { 'TL0-T1': [{ from: 'not_started', to: 'working', actor: 'auto' }] },
+  },
+]);
+assert('[b2] fully reconciled corpus is ready', corpusReceipt.status === 'ready' && corpusReceipt.workflowCount === 2);
+const blockedCorpus = reconcileWorkflowCorpus([
+  {
+    plan: workflowPlan,
+    workflowState: { planHash: workflowHash, taskStates: { 'TL0-T1': { status: 'working' } } },
+    journals: {},
+  },
+]);
+assert('[b2] divergent corpus is quarantined', blockedCorpus.status === 'quarantined');
+assert('[b2] quarantined result keeps a journal-derived healing projection', blockedCorpus.results[0].projection.tasks[0].status === 'not_started');
+assert('[b2] empty corpus is skipped, never pass', reconcileWorkflowCorpus([]).status === 'skipped');
 
 // [c] determinism
 assert('[c] serialize byte-identical across builds', serializeManifest(buildManifest(inventory)) === serializeManifest(buildManifest(inventory)));

@@ -16,7 +16,7 @@
  */
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { writeFileAtomicSync } from './io.mjs';
+import { writeFileAtomicSync, writeJsonStable } from './io.mjs';
 import { writePlan } from './plan.mjs';
 import { resolveProfile, requiredFilesFor } from './profiles.mjs';
 import { resolvePattern, waveSkeleton } from './patterns.mjs';
@@ -29,6 +29,7 @@ import {
   renderWaveIndex, renderPrd, renderSpec, renderDecisions,
   renderTasks, renderMemory, renderStub,
 } from './create-files.mjs';
+import { deriveWorkflowTasks } from '../tasks-derive.mjs';
 
 /** Slug shape (mirrors workflow-pack SLUG_RE) — validated at the boundary. */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -220,7 +221,7 @@ export function createWaveWorkflow(root, slug, options = {}) {
   }
   for (const artifactId of artifactIds) {
     if (artifactId === 'index' || artifactId === 'reports') continue; // index written above; reports is a dir
-    if (artifactId === 'workflow-plan' || artifactId === 'workflow-state') continue; // plan below; state on execution
+    if (artifactId === 'workflow-plan' || artifactId === 'workflow-state' || artifactId === 'tasks-json') continue; // machine projections below; state on execution
     writeArtifact(packDir, written, artifactId, slug, shapeManifest);
   }
 
@@ -229,6 +230,15 @@ export function createWaveWorkflow(root, slug, options = {}) {
     : planFromSkeleton({ number, slug, profile: profileName, pattern: patternId, addons, patternDef, skeleton, shapeManifest });
   writePlan(resolve(packDir, 'workflow-plan.json'), plan); // normalizes + validates; throws on a refused plan
   written.push('workflow-plan.json');
+
+  // Owner task projections are derived only after the topology has passed its
+  // validator. This keeps creation fail-fast and ensures `tasks.json` cannot
+  // become a second authored topology or lifecycle authority.
+  if (artifactIds.has('tasks-json')) {
+    const tasksDocument = deriveWorkflowTasks(plan, { workflowId: number });
+    writeJsonStable(resolve(packDir, 'tasks.json'), tasksDocument);
+    written.push('tasks.json');
+  }
 
   written.sort();
   return { dir: packDir, number, slug, profile: profileName, pattern: patternId, files: written };
