@@ -37,6 +37,7 @@ import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 import { WF0070_SUITES } from './test-suites-wf0070.mjs';
 import { WF0081_SUITES } from './test-suites-wf0081.mjs';
 import { WF0088_SUITES } from './test-suites-wf0088.mjs';
+import { WF0094_SUITES } from './test-suites-wf0094.mjs';
 import { WF0095_SUITES } from './test-suites-wf0095.mjs';
 
 export const TIERS = Object.freeze([
@@ -336,6 +337,9 @@ export const SUITES = Object.freeze([
   // WF-0088 (BIZ-0006, ADR-0148 position 11) governance-contract envelope suite —
   // own module for the line budget (see test-suites-wf0088.mjs).
   ...WF0088_SUITES,
+  // WF-0094 (BIZ-0006, ADR-0152) reference-intent / continuation-gate suite —
+  // own module for the line budget (see test-suites-wf0094.mjs).
+  ...WF0094_SUITES,
   // WF-0095 (OP-0008, reuses ADR-0131) bilingual classifier signals — own module
   // for the line budget (see test-suites-wf0095.mjs).
   ...WF0095_SUITES,
