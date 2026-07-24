@@ -76,6 +76,8 @@ receipts and bounded packets; when a lever lacks its prerequisite, report
 
 ## Canonical Work Journey
 
+Authoritative lifecycle details: `contextkit/docs/work-lifecycle.md`.
+
 For non-trivial code work, follow this host-neutral order from
 `contextkit/policy/journey.json`:
 

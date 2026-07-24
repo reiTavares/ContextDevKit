@@ -33,6 +33,7 @@ import { handleLink, handleUnlink } from './work-link.mjs';
 import { handleStart, handleClose, handlePromote } from './work-lifecycle-cmd.mjs';
 import { handleReconcile } from './work-reconcile.mjs';
 import { handleValidate } from './work-validate.mjs';
+import { handleNext, handleMap } from './work-next.mjs';
 
 /**
  * Selects the DevPipeline cards that belong to one Operation. A card is matched
@@ -133,11 +134,15 @@ export function dispatch(parsed, env = {}) {
       return handleClose({ flags: parsed.flags, apply, root });
     case 'validate':
       return handleValidate({ flags: parsed.flags, apply, root });
+    case 'next':
+      return handleNext({ flags: parsed.flags, root });
+    case 'map':
+      return handleMap({ flags: parsed.flags, root });
     default:
       throw new Error(
         `work: unknown command "${parsed.command || ''}". ` +
         `Try: operation | render | approve | revise | reject | status | ` +
-        `business | intake | link | unlink | promote | reconcile | start | close | validate`,
+        `business | intake | link | unlink | promote | reconcile | start | close | validate | next | map`,
       );
   }
 }
@@ -148,7 +153,13 @@ function main() {
   const { json } = resolvePosture(parsed.flags);
   try {
     const receipt = dispatch(parsed);
-    process.stdout.write(json ? `${JSON.stringify(receipt, null, 2)}\n` : `${formatReceipt(receipt)}\n`);
+    if (parsed.command === 'next') {
+      if (receipt.detail?.nextCommand) process.stdout.write(`${receipt.detail.nextCommand}\n`);
+    } else if (parsed.command === 'map') {
+      if (receipt.detail?.lifecycleMap) process.stdout.write(`${receipt.detail.lifecycleMap}\n`);
+    } else {
+      process.stdout.write(json ? `${JSON.stringify(receipt, null, 2)}\n` : `${formatReceipt(receipt)}\n`);
+    }
     process.exit(0);
   } catch (err) {
     process.stderr.write(`${err && err.message ? err.message : String(err)}\n`);

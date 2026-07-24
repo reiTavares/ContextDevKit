@@ -108,7 +108,14 @@ export function ruleEngineState(rootBizId, registry, readEngineWorkflowStateFn, 
       ? registry.contexts.find((c) => c.type === 'business').id
       : null);
   if (!effectiveBizId) return null;
-  const { workflow, wave, task } = readEngineWorkflowStateFn(root, effectiveBizId);
+  const { workflow, wave, task, ambiguous } = readEngineWorkflowStateFn(root, effectiveBizId);
+  if (ambiguous) {
+    return {
+      state: 'ambiguous',
+      source: 'engine-state',
+      reason: `engine-state: multiple active workflows for business=${effectiveBizId}`,
+    };
+  }
   if (!workflow) return null;
   return {
     state: 'confirmed', source: 'engine-state', business: effectiveBizId,

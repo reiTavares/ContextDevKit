@@ -42,17 +42,44 @@ export function loadJourney(root = process.cwd()) {
 }
 
 /**
+ * Loads the WF-0083 ceremony manifest for shape-to-branch resolution.
+ *
+ * @param {string} [root] - Project root.
+ * @returns {object|null} Parsed manifest, or null when unavailable.
+ */
+export function loadJourneyManifest(root = process.cwd()) {
+  const candidates = [
+    join(root, 'templates', 'contextkit', 'methodology', 'templates', 'manifest.json'),
+    join(root, 'contextkit', 'methodology', 'templates', 'manifest.json'),
+  ];
+  for (const path of candidates) {
+    try {
+      const manifest = JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+      if (manifest?.shapes && typeof manifest.shapes === 'object') return manifest;
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+/**
  * Resolves the journey branch id from classifier signals. Mirrors the methodology:
  * operation → direct vs workflow ceremony; business → the decision branch.
  *
  * @param {{ nature?: string, executionMode?: string }} signals - work signals.
  * @returns {string|null} a branch key present in `journey.branches`, or null.
  */
-export function selectBranch(signals = {}) {
+export function selectBranch(signals = {}, manifest = null) {
+  if (signals.journeyBranch) return signals.journeyBranch;
+  const manifestBranch = manifest?.shapes?.[signals.ceremonyShape]?.journeyBranch;
+  if (manifestBranch) return manifestBranch;
   const nature = signals.nature;
   const mode = signals.executionMode;
-  if (nature === 'business') return 'business-decision';
-  if (nature === 'operation') return mode === 'workflow' ? 'operation-workflow' : 'operation-direct';
+  if (nature === 'business') return mode === 'workflow' ? 'business-workflow' : 'business-decision';
+  if (nature === 'operation') {
+    if (mode === 'workflow') return 'operation-workflow';
+    if (mode === 'batch') return 'operation-batch';
+    return 'operation-direct';
+  }
   return null;
 }
 
@@ -74,7 +101,7 @@ function evaluateStage(stage, evidence) {
   }
   let state = 'satisfied';
   if (unmet.length) state = 'blocked';
-  else if (unknown.length) state = 'pending';
+  else if (unknown.length) state = stage.advisoryUntilPopulated === true ? 'skipped' : 'pending';
   return { id: stage.id, state, unmet, unknown };
 }
 
@@ -124,12 +151,17 @@ export function verifyCanonicalJourney(journey, evidence = {}) {
 export function verifyJourney(journey, branchId, evidence = {}) {
   if (!journey || !journey.branches || !journey.branches[branchId]) return null;
   const byId = new Map((journey.stages || []).map((stage) => [stage.id, stage]));
-  const sequence = journey.branches[branchId];
+  const sequence = [
+    ...journey.branches[branchId],
+    ...(Array.isArray(journey.postTerminal) ? journey.postTerminal : []),
+  ];
   const stages = [];
   for (const stageId of sequence) {
     const def = byId.get(stageId);
     if (!def) continue; // defensive — selfcheck guarantees referential integrity
-    stages.push({ ...evaluateStage(def, evidence), title: def.title, command: def.command || null, guidance: def.guidance || '' });
+    const hasBranchCommand = Object.prototype.hasOwnProperty.call(def.commandByBranch || {}, branchId);
+    const command = hasBranchCommand ? def.commandByBranch[branchId] : def.command || null;
+    stages.push({ ...evaluateStage(def, evidence), title: def.title, command, guidance: def.guidance || '' });
   }
   const current = stages.find((stage) => stage.state !== 'satisfied' && stage.state !== 'skipped') || null;
   const blocked = stages.filter((stage) => stage.state === 'blocked');

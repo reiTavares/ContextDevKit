@@ -254,7 +254,10 @@ function run() {
     }
     if (cmd === 'advance') {
       const [slug, legacyRef] = positional();
-      const workflow = advanceWorkflow(ROOT, slug, arg('ref', legacyRef || ''), { force: process.argv.includes('--force') });
+      const workflow = advanceWorkflow(ROOT, slug, arg('ref', legacyRef || ''), {
+        force: process.argv.includes('--force'),
+        now: new Date().toISOString(),
+      });
       console.log(workflow.currentPhase === 'done'
         ? `Workflow "${workflow.slug}" complete.`
         : `Workflow "${workflow.slug}" advanced. Next phase: ${workflow.currentPhase}.`);

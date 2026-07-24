@@ -6,10 +6,13 @@
   "description": "Canonical, checkpointed map the verifier walks to tell the agent the EXACT next step. One journey with branches by work nature + execution ceremony. Stages are ordered; `requires` are machine-checkable preconditions; `command` is host-resolved by the surfacing layer. ADR-0127.",
   "checkpointStates": ["pending", "satisfied", "blocked", "skipped"],
   "branches": {
-    "operation-direct": ["intake", "operation-context", "implement", "tests", "log-session"],
-    "operation-workflow": ["intake", "operation-context", "workflow-nested", "governing-adr", "implement", "tests", "qa-signoff", "log-session"],
-    "business-decision": ["intake", "business-context", "governing-adr", "business-approval", "workflow-nested", "implement", "tests", "qa-signoff", "log-session"]
+    "operation-direct": ["intake", "operation-context", "implement", "tests", "done-move"],
+    "operation-batch": ["intake", "operation-context", "tasks-authoring", "implement", "tests", "done-move"],
+    "operation-workflow": ["intake", "operation-context", "workflow-nested", "governing-adr", "tasks-authoring", "implement", "tests", "qa-signoff", "done-move"],
+    "business-decision": ["intake", "business-context", "governing-adr", "business-approval", "implement", "tests", "qa-signoff", "done-move"],
+    "business-workflow": ["intake", "business-context", "business-approval", "workflow-nested", "governing-adr", "tasks-authoring", "implement", "tests", "qa-signoff", "done-move"]
   },
+  "postTerminal": ["log-session"],
   "canonicalWorkJourney": {
     "schemaVersion": 1,
     "appliesWhen": "tier in ['feature','architectural']",
@@ -119,11 +122,28 @@
       "guidance": "An AI can never self-approve a Business — approval requires --actor human and a valid decision hash."
     },
     {
+      "id": "tasks-authoring",
+      "title": "Author the plurality task projection",
+      "appliesWhen": "shape in ['batch-operation','single-workflow-operation','multi-workflow-program']",
+      "requires": ["tasksAuthoringReady"],
+      "advisoryUntilPopulated": true,
+      "command": { "tool": "workflow.mjs", "args": "refresh <workflow>" },
+      "commandByBranch": {
+        "operation-batch": null
+      },
+      "checkpoint": "tasks-authored",
+      "guidance": "Author tasks.json only for batch, workflow, or program plurality. Until populated, this checkpoint is skipped and never fail-closes a fresh install."
+    },
+    {
       "id": "implement",
       "title": "Implement at the permitted phase",
       "appliesWhen": "always",
       "requires": ["atShipPhaseOrTrivial"],
       "command": null,
+      "commandByBranch": {
+        "operation-direct": { "work": "start", "args": "--id OP-#### --apply" },
+        "operation-batch": { "work": "start", "args": "--id OP-#### --apply" }
+      },
       "checkpoint": "implementation-started",
       "guidance": "Source writes are permitted once the workflow reaches the ship phase (or for trivial work). Earlier phases produce planning docs only."
     },
@@ -153,6 +173,22 @@
       "command": { "slash": "log-session" },
       "checkpoint": "session-logged",
       "guidance": "Close the loop: register the session so the journey + CHANGELOG stay truthful."
+    },
+    {
+      "id": "done-move",
+      "title": "Conclude or close and move to done",
+      "appliesWhen": "always",
+      "requires": ["entityMovedToDone"],
+      "commandByBranch": {
+        "operation-direct": { "work": "close", "args": "--id OP-#### --apply" },
+        "operation-batch": { "work": "close", "args": "--id OP-#### --apply" },
+        "operation-workflow": { "tool": "workflow.mjs", "args": "conclude <workflow> --apply" },
+        "business-decision": { "work": "close", "args": "--id BIZ-#### --status <validated|partially-validated|closed> --outcome-ref <report> --actor human --apply" },
+        "business-workflow": { "tool": "workflow.mjs", "args": "conclude <workflow> --apply" }
+      },
+      "businessCloseCommand": { "work": "close", "args": "--id BIZ-#### --status <validated|partially-validated|closed> --outcome-ref <existing-report> --actor human --apply" },
+      "checkpoint": "done-move",
+      "guidance": "Use the canonical conclude/close verb. Placement and lifecycle state must move atomically; never hand-move a workflow or entity into done."
     }
   ],
   "enforcement": {

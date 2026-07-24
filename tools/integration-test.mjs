@@ -62,6 +62,9 @@ try {
       .every((f) => existsSync(join(proj, 'contextkit', 'workflows', 'playbooks', f)))
     ? ok('workflows + playbooks installed (workflows/playbooks/)')
     : bad('workflows/playbooks not installed');
+  existsSync(join(proj, 'contextkit', 'docs', 'work-lifecycle.md'))
+    ? ok('authoritative work lifecycle documentation is installed')
+    : bad('contextkit/docs/work-lifecycle.md not installed');
   // Ancestor parity #1 (loop closed): predictions-review fills the Actual section.
   script('predictions-review.mjs');
   const predMd = readdirSync(join(proj, 'contextkit', 'memory', 'predictions')).find((f) => f.endsWith('.md'));

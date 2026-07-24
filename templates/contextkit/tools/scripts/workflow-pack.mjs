@@ -18,6 +18,7 @@ import { resolveWorkflow } from './registry/workflow.mjs';
 import { nextWorkflowNumber, workflowRoots } from './registry/ids.mjs';
 import { seedFileContents } from './workflow-pack-seeds.mjs';
 import { readCanonicalContinuationTemplate, resolveCeremonyManifest } from './workflow/ceremony-manifest.mjs';
+import { applyStateUpdate, readState, writeState } from './workflow/state.mjs';
 
 export { checkWorkflowDocument } from './workflow-doc-check.mjs';
 
@@ -310,6 +311,15 @@ export function advanceWorkflow(root, slug, ref = '', options = {}) {
   workflow.currentPhase = nextPhase || 'done';
   workflow.body = `${workflow.body.trim()}\n- ${note}${nextPhase ? `; next phase: ${nextPhase}` : '; workflow complete'}`.trim();
   writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
+  const statePath = resolve(packDir(root, slug), 'workflow-state.json');
+  const state = readState(statePath);
+  if (state && options.now) {
+    const overallStatus = state.overallStatus === 'done' ? 'done' : 'in-progress';
+    writeState(statePath, applyStateUpdate(state, {
+      journeyPhase: workflow.currentPhase,
+      overallStatus,
+    }, { now: options.now }));
+  }
   return readWorkflow(root, slug);
 }
 
