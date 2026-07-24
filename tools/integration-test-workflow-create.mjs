@@ -16,6 +16,8 @@ import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
 import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import { validatePlan } from '../templates/contextkit/tools/scripts/workflow/validate.mjs';
+import { validateTasksDoc } from '../templates/contextkit/tools/scripts/tasks-validate.mjs';
+import { deriveWorkflowTasks } from '../templates/contextkit/tools/scripts/tasks-derive.mjs';
 import { createWorkflow, readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
 
 const rep = reporter();
@@ -44,6 +46,18 @@ function assertFiles(packDir, names, label) {
   }
 }
 
+/** Assert an owner task projection is valid and return it. */
+function assertValidTasksDocument(packDir, label) {
+  const tasksPath = join(packDir, 'tasks.json');
+  if (!existsSync(tasksPath)) { rep.bad(`${label}: tasks.json missing`); return null; }
+  const document = readJsonAt(tasksPath);
+  const verdict = validateTasksDoc(document);
+  verdict.ok
+    ? rep.ok(`${label}: tasks.json passes validateTasksDoc`)
+    : rep.bad(`${label}: tasks.json invalid — ${verdict.errors.join('; ')}`);
+  return document;
+}
+
 try {
   // --- Basic (1-wave single-delivery) ------------------------------------
   const basic = createWaveWorkflow(root, 'basic-fix', { profile: 'basic', now: NOW });
@@ -62,6 +76,11 @@ try {
     now: NOW,
   });
   const shapedPlan = assertValidPlan(shaped.dir, 'shaped');
+  assertFiles(shaped.dir, ['tasks.json'], 'shaped');
+  const shapedTasks = assertValidTasksDocument(shaped.dir, 'shaped');
+  shapedTasks?.owner?.id === `WF-${String(shaped.number).padStart(4, '0')}`
+    ? rep.ok('shaped: tasks.json owner is derived from the workflow id')
+    : rep.bad('shaped: tasks.json owner is not derived from the workflow id');
   existsSync(join(shaped.dir, 'CONTINUATION-PROMPT.md'))
     ? rep.ok('shaped: manifest-selected workflow carries canonical continuation')
     : rep.bad('shaped: manifest-selected workflow is missing continuation');
@@ -98,7 +117,7 @@ try {
     profile: 'program',
     waves: [
       { id: 'W1', title: 'Foundation', dependsOn: [], gate: 'G-W1',
-        tasks: [{ id: 'W1-T1', waveId: 'W1', execution: { mode: 'agent' }, ownership: { allowedPaths: ['src/a/'] } }] },
+        tasks: [{ id: 'W1-T1', waveId: 'W1', title: 'Build foundation', execution: { mode: 'agent' }, ownership: { allowedPaths: ['src/a/'] } }] },
       { id: 'W2', title: 'Integration', dependsOn: ['W1'], gate: 'G-W2', tasks: [] },
     ],
     gates: [
@@ -106,9 +125,15 @@ try {
       { id: 'G-W2', waveId: 'W2', type: 'human', requirements: [] },
     ],
   };
-  const program = createWaveWorkflow(root, 'program-build', { profile: 'program', plan: programPlan, now: NOW });
-  assertFiles(program.dir, ['index.md', 'prd.md', 'spec.md', 'memory.md', 'risk-register.md', 'rollout-plan.md', 'workflow-plan.json'], 'program');
+  const program = createWaveWorkflow(root, 'program-build', {
+    profile: 'program',
+    shape: 'multi-workflow-program',
+    plan: programPlan,
+    now: NOW,
+  });
+  assertFiles(program.dir, ['index.md', 'prd.md', 'spec.md', 'memory.md', 'risk-register.md', 'rollout-plan.md', 'workflow-plan.json', 'tasks.json'], 'program');
   const programParsed = assertValidPlan(program.dir, 'program');
+  const programTasks = assertValidTasksDocument(program.dir, 'program');
   if (programParsed) {
     programParsed.slug === 'program-build'
       ? rep.ok('program: provided plan slug overwritten with the pack slug')
@@ -117,6 +142,17 @@ try {
       ? rep.ok('program: provided plan waves preserved (2)')
       : rep.bad(`program: expected 2 waves, got ${programParsed.waves.length}`);
   }
+  programTasks?.tasks?.length === 1 && programTasks.tasks[0].id === 'W1-T1'
+    ? rep.ok('program: tasks.json derives the provided plan task')
+    : rep.bad('program: tasks.json did not derive the provided plan task');
+
+  // Pure derivation is stable and does not mutate the topology input.
+  const derivationPlan = readJsonAt(join(program.dir, 'workflow-plan.json'));
+  const firstProjection = deriveWorkflowTasks(derivationPlan, { workflowId: program.number });
+  const secondProjection = deriveWorkflowTasks(derivationPlan, { workflowId: program.number });
+  JSON.stringify(firstProjection) === JSON.stringify(secondProjection)
+    ? rep.ok('tasks.json derivation is idempotent for identical topology')
+    : rep.bad('tasks.json derivation changed across identical inputs');
 
   // --- Add-on artifact creation ------------------------------------------
   const withAddon = createWaveWorkflow(root, 'secure-change', { profile: 'standard', addons: ['security'], now: NOW });

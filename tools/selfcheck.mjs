@@ -34,6 +34,7 @@ import { runDomainEnforcementChecks } from './selfcheck-domain-enforcement.mjs';
 import { runMadmChecks } from './selfcheck-madm.mjs';
 import { runAutonomyPostureChecks } from './selfcheck-autonomy-posture.mjs';
 import { runGraphSquadSelectionChecks } from './selfcheck-graph-squad-selection.mjs';
+import { runTaskLedgerChecks } from './selfcheck-task-ledger.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -191,6 +192,7 @@ async function main() {
   await runMadmChecks({ ok, bad }, { KIT });
   await runAutonomyPostureChecks({ ok, bad }, { KIT });
   await runGraphSquadSelectionChecks({ ok, bad }, { KIT });
+  await runTaskLedgerChecks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 

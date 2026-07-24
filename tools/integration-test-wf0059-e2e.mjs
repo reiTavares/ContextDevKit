@@ -149,8 +149,10 @@ try {
   {
     const box = { marker: null };
     const cio = { readMarker: () => box.marker, writeMarker: (m) => { box.marker = m; } };
-    assert('[8] cutover refused pre-gates', throwsType(() => cutover(cio, { parityOk: false, rollbackExercised: false }, 'T0')));
-    cutover(cio, { parityOk: true, rollbackExercised: true }, 'T1');
+    assert('[8] cutover refused pre-gates', throwsType(() => cutover(cio, { parityOk: false, rollbackExercised: false, provenanceObserved: false }, 'T0')));
+    // Parity here is proven against the frozen oracle (observed data), so the
+    // WF-0087 provenance gate is honestly satisfied — this is an observed cutover.
+    cutover(cio, { parityOk: true, rollbackExercised: true, provenanceObserved: true }, 'T1');
     assert('[8] cutover to Phase 2', box.marker.phase === 'phase2');
     assert('[8] old writer fenced post-cutover', throwsType(() => fenceOldWriter(cio, 'move', '701'), OldWriterFenced));
   }

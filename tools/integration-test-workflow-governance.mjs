@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { reporter, installFixture, git } from './it-helpers.mjs';
 import { renumberByStarted, nextNumber } from '../templates/contextkit/tools/scripts/workflow-number.mjs';
+import { checkPhaseGaps } from '../templates/contextkit/tools/scripts/workflow-gate.mjs';
 
 const rep = reporter();
 const fx = installFixture(rep);
@@ -72,6 +73,13 @@ checked.status !== 0 && /prd/i.test(checked.stdout + checked.stderr)
 // Fill prd.md; advance now passes.
 writeFileSync(join(wfDir('gate-test'), 'prd.md'), '# PRD\n\n## Problem\nReal problem statement.\n\n## Goals\nReal goal.\n');
 wf('advance', 'gate-test').status === 0 ? rep.ok('5. prd -> spec after filling prd.md') : rep.bad('5. advance after fill failed');
+
+const nestedSpecDir = mkdtempSync(join(tmpdir(), 'wf-spec-nested-it-'));
+writeFileSync(join(nestedSpecDir, 'spec.md'), '# SPEC\\n\\n## Proposed design\\n\\n### Nested detail\\nDesign.\\n\\n## Test plan\\n\\n### Tests\\nRun.\\n');
+checkPhaseGaps(nestedSpecDir, 'spec', { phases: { spec: { ref: '' } } }).length === 0
+  ? rep.ok('5a. populated spec sections with nested headings are not treated as empty')
+  : rep.bad('5a. nested headings incorrectly make populated spec sections empty');
+rmSync(nestedSpecDir, { recursive: true, force: true });
 
 // --force overrides the spec gate (spec.md still empty scaffold).
 wf('advance', 'gate-test', '--force').status === 0 ? rep.ok('6. --force overrides the spec gate') : rep.bad('6. --force did not override');

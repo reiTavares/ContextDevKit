@@ -117,9 +117,16 @@ function renderTemplate(rawContent, tokens, sourcePath) {
  */
 function ceremonyTokens(inputs, ceremony) {
   const workflowId = inputs.workflowId ?? 'NOT_APPLICABLE';
+  // The self-authored tasks.json skeleton (WF-0087) is owned by the Business
+  // being created: OWNER_ID is the BIZ id, OWNER_KIND its prefix (always 'BIZ'
+  // on this business-create path). A malformed prefix is caught downstream by
+  // validateTasksDoc (owner.kind must be in OWNER_KINDS).
+  const ownerKind = inputs.id.split('-')[0];
   return {
     DECISION_TITLE: inputs.title,
     OWNER: inputs.id,
+    OWNER_ID: inputs.id,
+    OWNER_KIND: ownerKind,
     DECISION_STATUS: 'proposed',
     DECISION: 'TO_BE_CONFIRMED',
     RATIONALE: 'TO_BE_CONFIRMED_BY_OWNER',

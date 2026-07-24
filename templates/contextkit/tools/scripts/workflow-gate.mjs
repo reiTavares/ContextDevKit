@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 
 /** A section header with no content beneath it (still the empty scaffold). */
 function sectionEmpty(text, heading) {
-  return new RegExp(`## ${heading}\\s*(?=\\n##|\\n#|\\s*$)`, 'i').test(text);
+  return new RegExp(`## ${heading}\\s*(?=\\r?\\n#{1,2}\\s|\\s*$)`, 'i').test(text);
 }
 
 function read(dir, file) {

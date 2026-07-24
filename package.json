@@ -29,7 +29,7 @@
     "test:integration:enforcement": "node tools/run-suites.mjs --tier integration:enforcement",
     "test:integration:ecosystem": "node tools/run-suites.mjs --tier integration:ecosystem",
     "test:impact": "node tools/run-suites.mjs --impact",
-    "ci": "npm test && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci",
+    "ci": "npm test && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci && node templates/contextkit/tools/scripts/workflow-state-checksum-manifest.mjs --check contextkit/memory/workflow-state-checksum-manifest.json",
     "ci:full": "npm run ci",
     "ci:fast": "node tools/run-suites.mjs --impact && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci",
     "dogfood:tarball": "node tools/dogfood-tarball.mjs",

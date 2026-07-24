@@ -70,9 +70,9 @@ existsSync(new URL('../templates/contextkit/methodology/exemplars/synthetic-sing
 requiredFilesForShape('quick-fix').length === 1 && !resolveCeremonyManifest('quick-fix').workflowBearing
   ? rep.ok('quick-fix remains proportional and non-workflow-bearing')
   : rep.bad('quick-fix carries unexpected workflow files');
-requiredFilesForShape('multi-workflow-program').length === 13
-  ? rep.ok('multi-workflow-program carries the canonical 13-file wave pack')
-  : rep.bad('multi-workflow-program does not carry exactly 13 required artifacts');
+requiredFilesForShape('multi-workflow-program').length === 14
+  ? rep.ok('multi-workflow-program carries the canonical 14-file wave pack')
+  : rep.bad('multi-workflow-program does not carry exactly 14 required artifacts');
 resolveCeremonyManifest('single-workflow-operation').requiredFiles.includes('continuation')
   && resolveCeremonyManifest('multi-workflow-program').requiredFiles.includes('continuation')
   ? rep.ok('every workflow-bearing shape requires continuation')
@@ -109,7 +109,7 @@ try {
   for (const artifactId of requiredFilesForShape('single-workflow-operation')) {
     const filename = artifactId === 'reports' ? 'reports/' : ({
       index: 'index.md', prd: 'prd.md', spec: 'spec.md', decisions: 'decisions.md',
-      tasks: 'tasks.md', continuation: 'CONTINUATION-PROMPT.md',
+      tasks: 'tasks.md', 'tasks-json': 'tasks.json', continuation: 'CONTINUATION-PROMPT.md',
       'workflow-plan': 'workflow-plan.json', 'workflow-state': 'workflow-state.json',
     }[artifactId]);
     const fullPath = join(structureFixture, filename);
