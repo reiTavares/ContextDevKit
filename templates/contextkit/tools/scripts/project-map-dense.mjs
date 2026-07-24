@@ -176,13 +176,50 @@ export function findSymbol(index, query) {
     results.push({ symbol: query, files: bySymbol[query] });
   }
 
-  // 2. Case-insensitive substring matches (skip already-added exact match).
+  // 2. Exact basename/path matches precede broad symbol matches. This makes the
+  // literal query `--find work` surface work.mjs even when 50+ symbols match.
   const lower = query.toLowerCase();
+  if (Array.isArray(index.byModule)) {
+    const exactPathMatches = [];
+    for (const moduleEntry of index.byModule) {
+      for (const fileEntry of moduleEntry?.files || []) {
+        const file = fileEntry?.file;
+        if (typeof file !== 'string') continue;
+        const basename = file.split('/').at(-1);
+        const stem = basename.replace(/\.[^.]+$/, '');
+        if (basename.toLowerCase() === lower || stem.toLowerCase() === lower) exactPathMatches.push(file);
+      }
+    }
+    for (const file of [...new Set(exactPathMatches)].sort()) {
+      results.push({ symbol: file.split('/').at(-1), files: [file] });
+      if (results.length >= MAX_RESULTS) return Object.freeze(results);
+    }
+  }
+
+  // 3. Case-insensitive substring matches (skip already-added exact match).
   for (const name of Object.keys(bySymbol).sort()) {
     if (seen.has(name)) continue;
     if (name.toLowerCase().includes(lower)) {
       seen.add(name);
       results.push({ symbol: name, files: bySymbol[name] });
+      if (results.length >= MAX_RESULTS) break;
+    }
+  }
+
+  // 4. Broader path substring fallback.
+  if (results.length < MAX_RESULTS && Array.isArray(index.byModule)) {
+    const pathMatches = [];
+    for (const moduleEntry of index.byModule) {
+      for (const fileEntry of moduleEntry?.files || []) {
+        const file = fileEntry?.file;
+        if (typeof file === 'string' && file.toLowerCase().includes(lower)) pathMatches.push(file);
+      }
+    }
+    for (const file of [...new Set(pathMatches)].sort()) {
+      const key = `path:${file}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ symbol: file.split('/').at(-1), files: [file] });
       if (results.length >= MAX_RESULTS) break;
     }
   }

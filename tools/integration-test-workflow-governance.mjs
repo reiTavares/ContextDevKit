@@ -5,7 +5,7 @@
  * deliverables are missing, `--force` overrides, and `check` reports the gaps.
  * (Numbering, branch-scoped guard, and migration are covered as they land.)
  */
-import { writeFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { reporter, installFixture, git } from './it-helpers.mjs';
@@ -34,7 +34,28 @@ const wfDir = (slug) => {
 
 // new -> intake. First advance (intake -> prd) has no leave-gate.
 wf('new', 'gate-test', '--kind', 'feature', '--business', 'BIZ-0001').status === 0 ? rep.ok('1. new workflow created') : rep.bad('1. new failed');
+writeFileSync(join(wfDir('gate-test'), 'workflow-state.json'), JSON.stringify({
+  schemaVersion: 1,
+  workflowId: 'WF-0001',
+  planHash: 'a'.repeat(64),
+  revision: 0,
+  overallStatus: 'not-started',
+  journeyPhase: 'intake',
+  waveStates: {},
+  taskStates: {},
+  runs: [],
+  gateResults: {},
+  carryForwards: [],
+  integrationRecords: [],
+  openBlockers: [],
+  events: [],
+  lastUpdate: '2026-01-01T00:00:00.000Z',
+}, null, 2));
 wf('advance', 'gate-test').status === 0 ? rep.ok('2. intake -> prd (no gate)') : rep.bad('2. intake advance failed');
+const advancedState = JSON.parse(readFileSync(join(wfDir('gate-test'), 'workflow-state.json'), 'utf8'));
+advancedState.journeyPhase === 'prd' && advancedState.overallStatus === 'in-progress'
+  ? rep.ok('2a. advance updates authoritative workflow-state phase/status')
+  : rep.bad(`2a. workflow state did not advance: ${JSON.stringify(advancedState)}`);
 
 // At prd with an empty scaffold, advance MUST refuse.
 const blocked = wf('advance', 'gate-test');

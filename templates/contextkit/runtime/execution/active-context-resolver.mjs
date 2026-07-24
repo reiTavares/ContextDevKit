@@ -124,7 +124,7 @@ function readPriorSessionIds(root) {
  * @returns {{ workflow:string|null, wave:string|null, task:string|null }}
  */
 function readEngineWorkflowState(root, bizId) {
-  const empty = { workflow: null, wave: null, task: null };
+  const empty = { workflow: null, wave: null, task: null, ambiguous: false };
   if (!bizId) return empty;
   const bizDir = pathsFor(root).business;
   if (!existsSync(bizDir)) return empty;
@@ -132,6 +132,7 @@ function readEngineWorkflowState(root, bizId) {
     const bizFolders = readdirSync(bizDir, { withFileTypes: true })
       .filter((e) => e.isDirectory() && e.name.startsWith(bizId))
       .map((e) => e.name);
+    const active = [];
     for (const folder of bizFolders) {
       const wfDir = join(bizDir, folder, 'workflows');
       if (!existsSync(wfDir)) continue;
@@ -139,15 +140,22 @@ function readEngineWorkflowState(root, bizId) {
         .filter((e) => e.isDirectory()).map((e) => e.name);
       for (const wf of wfFolders) {
         const state = readJsonSafe(join(wfDir, wf, 'workflow-state.json'), null);
-        if (state?.overallStatus === 'active' || state?.overallStatus === 'in-progress') {
-          return {
+        const hasRecordedActivity = Object.keys(state?.taskStates || {}).length > 0;
+        if (
+          state?.overallStatus === 'active'
+          || state?.overallStatus === 'in-progress'
+          || (state?.overallStatus === 'not-started' && hasRecordedActivity)
+        ) {
+          active.push({
             workflow: (wf.match(/^(WF-\d{4})/) ?? [])[1] ?? null,
             wave: state?.currentWave ?? null,
             task: state?.currentTask ?? null,
-          };
+          });
         }
       }
     }
+    if (active.length > 1) return { ...empty, ambiguous: true };
+    if (active.length === 1) return { ...active[0], ambiguous: false };
   } catch { /* fall through */ }
   return empty;
 }

@@ -289,7 +289,18 @@ export const BDM_SUITES = Object.freeze([
     touches: [
       'templates/contextkit/policy/journey.json',
       'templates/contextkit/runtime/work/journey-verifier.mjs',
+      'templates/contextkit/runtime/work/journey-command.mjs',
+      'templates/contextkit/runtime/work/lifecycle-map.mjs',
       'templates/contextkit/runtime/hooks/journey-surface.mjs',
+      'templates/contextkit/runtime/execution/active-context-resolver.mjs',
+      'templates/contextkit/runtime/execution/active-context-precedence.mjs',
+      'templates/contextkit/tools/scripts/work-next.mjs',
+      'templates/contextkit/tools/scripts/work.mjs',
+      'templates/contextkit/tools/scripts/workflow-pack.mjs',
+      'templates/contextkit/tools/scripts/workflow.mjs',
+      'templates/contextkit/docs/work-lifecycle.md',
+      'tools/fixtures/wf0085/lifecycle-state.json',
+      'tools/fixtures/wf0085/lifecycle-map.md',
     ],
   },
   {

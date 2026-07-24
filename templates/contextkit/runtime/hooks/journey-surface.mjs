@@ -10,8 +10,9 @@
  *
  * @module journey-surface
  */
-import { loadJourney, selectBranch, verifyJourney } from '../work/journey-verifier.mjs';
+import { loadJourney, loadJourneyManifest, selectBranch, verifyJourney } from '../work/journey-verifier.mjs';
 import { gatherRegistryEvidence } from '../work/journey-evidence-registry.mjs';
+import { renderJourneyCommand } from '../work/journey-command.mjs';
 
 /**
  * Resolves the work-context id the journey applies to, from classifier signals.
@@ -61,16 +62,6 @@ function glyph(state) {
   return state === 'satisfied' ? '✓' : state === 'blocked' ? '⚠' : '•';
 }
 
-/** Renders the host-resolved next command from a stage command descriptor. */
-function commandText(command) {
-  if (!command || typeof command !== 'object') return null;
-  if (command.work) return `node contextkit/tools/scripts/work.mjs ${command.work}${command.args ? ` ${command.args}` : ''}`;
-  if (command.slash) return `/${command.slash}${command.args ? ` ${command.args}` : ''}`;
-  if (command.tool) return `node contextkit/tools/scripts/${command.tool}${command.args ? ` ${command.args}` : ''}`;
-  if (command.shell) return command.shell;
-  return null;
-}
-
 /**
  * Renders the journey advisory block for the current request, or '' when no
  * branch can be resolved (the intake banner already covers that case).
@@ -81,10 +72,11 @@ function commandText(command) {
  */
 export function renderJourneyAdvisory(root, signals = {}) {
   try {
-    const branch = selectBranch(signals.work || {});
-    if (!branch) return '';
     const journey = loadJourney(root);
     if (!journey) return '';
+    const manifest = loadJourneyManifest(root);
+    const branch = selectBranch(signals.work || {}, manifest);
+    if (!branch) return '';
     // Registry evidence (real on-disk verdicts) overrides the signal-derived guess.
     const entityId = resolveEntityId(signals);
     const evidence = { ...evidenceFromSignals(signals), ...gatherRegistryEvidence(root, entityId) };
@@ -99,7 +91,7 @@ export function renderJourneyAdvisory(root, signals = {}) {
       if (result.canonical.currentStageId) lines.push(`  canonical next: ${result.canonical.currentStageId}`);
     }
     if (result.currentStageId) {
-      const cmd = commandText(result.nextCommand);
+      const cmd = renderJourneyCommand(result.nextCommand);
       lines.push(`  next: ${result.currentStageId}${cmd ? ` → ${cmd}` : ''}`);
       if (result.nextGuidance) lines.push(`  ${result.nextGuidance}`);
     } else {
@@ -108,7 +100,7 @@ export function renderJourneyAdvisory(root, signals = {}) {
     if (result.blocked.length) {
       lines.push(`  ⚠ blocked: ${result.blocked.map((s) => `${s.id}(${s.unmet.join(',')})`).join('; ')}`);
     }
-    lines.push('  (advisory — ADR-0127 first cut; blocking checkpoints arrive in the second cut)');
+    lines.push(`  (${journey.enforcement?.mode || 'advisory'} — ADR-0127 current posture)`);
     return lines.join('\n') + '\n';
   } catch {
     return ''; // fail-open — journey surfacing never breaks the hook

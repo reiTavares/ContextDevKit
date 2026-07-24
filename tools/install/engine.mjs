@@ -63,6 +63,7 @@ async function copyEngine(target, tplDir, report) {
   await copyTree(join(tplDir, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
   await copyTree(join(tplDir, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
   await copyTree(join(tplDir, 'contextkit', 'methodology'), join(target, 'contextkit', 'methodology'));
+  await copyTree(join(tplDir, 'contextkit', 'docs'), join(target, 'contextkit', 'docs'));
   await copyTree(join(tplDir, 'contextkit', 'mcp'), join(target, 'contextkit', 'mcp'));
   await copyTree(join(tplDir, 'contextkit', 'mcp-server'), join(target, 'contextkit', 'mcp-server'));
   // Domain Engineering contract tables (WF-0068, ADR-0128 §26): the deterministic
@@ -77,7 +78,7 @@ async function copyEngine(target, tplDir, report) {
   for (const sub of ['domain-engineering', 'devteam', 'domain-artifacts']) {
     await copyTree(join(tplDir, 'contextkit', 'policy', sub), join(target, 'contextkit', 'policy', sub));
   }
-  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts)');
+  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts)');
 }
 
 /**

@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "ceremonyShape": "multi-workflow-program",
+  "journeyBranch": "business-workflow",
+  "journeyPhase": "testing"
+}

@@ -50,7 +50,10 @@ async function checkModuleZeroDep(modPath) {
  */
 function fakeIndex() {
   return {
-    byModule: [],
+    byModule: [{
+      module: 'templates/contextkit',
+      files: [{ file: 'templates/contextkit/tools/scripts/work.mjs', symbols: ['dispatch'] }],
+    }],
     bySymbol: {
       buildDenseIndex: ['templates/contextkit/tools/scripts/project-map-dense.mjs'],
       findSymbol:      ['templates/contextkit/tools/scripts/project-map-dense.mjs'],
@@ -111,6 +114,16 @@ export async function runProjmapFindChecks({ ok, bad }, { KIT }) {
   caseResult.some((r) => r.symbol === 'scanProject')
     ? ok('findSymbol: uppercase query matches lowercase symbol (case-insensitive)')
     : bad(`findSymbol: case-insensitive wrong — ${JSON.stringify(caseResult.map((r) => r.symbol))}`);
+
+  const pathResult = findSymbol(index, 'work.mjs');
+  pathResult.some((entry) => entry.files.includes('templates/contextkit/tools/scripts/work.mjs'))
+    ? ok('findSymbol: path/basename query surfaces work.mjs')
+    : bad(`findSymbol: path query missed work.mjs — ${JSON.stringify(pathResult)}`);
+
+  const literalWorkResult = findSymbol(index, 'work');
+  literalWorkResult[0]?.files.includes('templates/contextkit/tools/scripts/work.mjs')
+    ? ok('findSymbol: literal work query prioritizes work.mjs')
+    : bad(`findSymbol: literal work query did not prioritize work.mjs — ${JSON.stringify(literalWorkResult.slice(0, 3))}`);
 
   // 4. Empty query → [].
   const emptyResult = findSymbol(index, '');
