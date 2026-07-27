@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  GOVERNANCE_CATEGORIES,
   GOVERNANCE_RESOURCES,
   readGovernanceTokenSeries,
   countConcludedContexts,
@@ -30,7 +31,7 @@ import {
   northStarReading,
   presentGovernanceNorthStar,
 } from './governance-north-star.mjs';
-import { ECONOMY_LEVERS } from '../economy/registry.mjs';
+import { ECONOMY_CATEGORIES, ECONOMY_LEVERS } from '../economy/registry.mjs';
 
 const failures = [];
 const assert = (label, condition) => {
@@ -47,6 +48,20 @@ for (const lever of ECONOMY_LEVERS) {
   assert(`[a] observable lever "${lever}" is NOT counted as governance spend`,
     !GOVERNANCE_RESOURCES.includes(lever));
 }
+// The allow-list must stay exhaustive against the registry: GOVERNANCE_CATEGORIES
+// plus 'lever' has to cover ECONOMY_CATEGORIES exactly. A category added later
+// fails HERE, forcing someone to classify it on purpose, instead of being silently
+// absorbed (a `!== 'lever'` filter would widen the denominator) or silently
+// dropped (an allow-list alone would narrow it — the unsafe direction for a
+// guardrail, since a smaller denominator flatters the north-star).
+assert('[a] GOVERNANCE_CATEGORIES + lever covers every ECONOMY_CATEGORIES member exactly',
+  (() => {
+    const classified = new Set([...GOVERNANCE_CATEGORIES, 'lever']);
+    return classified.size === ECONOMY_CATEGORIES.length
+      && ECONOMY_CATEGORIES.every((category) => classified.has(category));
+  })());
+assert('[a] no category is both governance spend and an observable lever',
+  !GOVERNANCE_CATEGORIES.includes('lever'));
 assert('[a] content-fill IS governance spend (the engine spends tokens)',
   GOVERNANCE_RESOURCES.includes('content-fill'));
 assert('[a] lifecycle/advisory resources are governance spend (dev-start, context-pack)',
@@ -85,8 +100,30 @@ assert('[b] per-session totals sum every governance row for that session',
   (() => { const r = series([row('dev-start', 'self', 10), row('context-pack', 'self', 5), row('dev-start', 'a', 100)]); return r.available === true && r.sessionTokens === 15; })());
 assert('[b] the prior session is the LAST DISTINCT session in append order',
   (() => { const r = series([row('dev-start', 'a', 100), row('dev-start', 'b', 7), row('dev-start', 'self', 1)]); return r.priorSessionTokens === 7; })());
-assert('[b] an absent observed.tokens measurement contributes 0, never NaN',
-  (() => { const r = series([{ lever: 'dev-start', sessionId: 'self' }, row('dev-start', 'a', 4)]); return r.sessionTokens === 0 && r.totalTokens === 4; })());
+// D1 (pre-merge review, CONFIRMED on the real dogfood ledger: 558 governance rows,
+// zero carrying observed.tokens, yet the guardrail returned pass "0 → 0"). An
+// UNMEASURED row must never become an authoritative-looking zero: that makes
+// "nothing was measured" indistinguishable from "measured, and it cost nothing",
+// and a HARD guardrail then reports green from no evidence (constitution §8).
+// An earlier revision of this suite pinned the opposite ("contributes 0, never
+// NaN") — it blessed the defect, so it is replaced rather than kept.
+assert('[b] D1 rows present but NONE measured ⇒ unavailable, never a measured zero',
+  (() => {
+    const r = series([{ lever: 'dev-start', sessionId: 'self' }, { lever: 'dev-start', sessionId: 'a' }]);
+    return r.available === false && /none carries an observed token measurement/.test(r.reason);
+  })());
+assert('[b] D1 an unmeasured row does not contribute 0 to its session total',
+  (() => { const r = series([{ lever: 'dev-start', sessionId: 'self' }, row('dev-start', 'a', 4)]); return r.available === false && r.sessionTokens === null && r.totalTokens === 4; })());
+assert('[b] D1 this session unmeasured while prior IS measured ⇒ unavailable, not a phantom fall',
+  (() => {
+    const r = series([row('dev-start', 'a', 500), { lever: 'dev-start', sessionId: 'self' }]);
+    return r.available === false && /both sides measured/.test(r.reason);
+  })());
+assert('[b] D1 a negative or non-finite observed.tokens is unusable, not zero',
+  (() => {
+    const r = series([{ lever: 'dev-start', sessionId: 'self', observed: { tokens: -5 } }, { lever: 'dev-start', sessionId: 'a', observed: { tokens: NaN } }]);
+    return r.available === false && /none carries an observed token measurement/.test(r.reason);
+  })());
 assert('[b] totalTokens counts governance spend across ALL sessions',
   series([row('dev-start', 'a', 30), row('dev-start', 'self', 12)]).totalTokens === 42);
 assert('[b] rows with no session id still count toward totalTokens but not a session',
@@ -107,6 +144,23 @@ for (const unavailable of [null, undefined, { available: false, reason: 'nothing
   assert(`[c] a skipped guardrail does not block promotion by itself (${JSON.stringify(unavailable)})`,
     g.blocksPromotion === false);
 }
+
+// D2 (pre-merge review, CONFIRMED): every corrupt reading fell through to `pass`,
+// because `Number(null)` is 0 and `NaN > 0` is false. The sibling
+// `token-guardrail.mjs` hardens exactly this; this module had inherited the shape
+// without the guard. An unusable measurement must be `skipped`, never a verdict.
+for (const [session, prior] of [
+  [NaN, 100], [Infinity, Infinity], [-500, 100], [{}, 1], ['900', '500'],
+  [null, 500], [900, null], [undefined, 10], [10, undefined], ['abc', 5],
+]) {
+  const g = evaluateGovernanceTokenGuardrail({ available: true, sessionTokens: session, priorSessionTokens: prior, totalTokens: 1 });
+  assert(`[c] D2 an unusable measurement is skipped, never a verdict (${JSON.stringify(session)} / ${JSON.stringify(prior)})`,
+    g.status === 'skipped' && g.delta === null && g.risen === null && g.blocksPromotion === false);
+}
+assert('[c] D2 a numeric-looking STRING does not coerce into a comparison',
+  evaluateGovernanceTokenGuardrail({ available: true, sessionTokens: '900', priorSessionTokens: '500', totalTokens: 1 }).status === 'skipped');
+assert('[c] D2 a legitimate zero-to-zero reading still passes (0 is measurable)',
+  evaluateGovernanceTokenGuardrail(avail(0, 0)).status === 'pass');
 
 // ── [d] concluded-context count — state authority, never placement ───────────
 /**
@@ -151,6 +205,18 @@ assert('[d] an unreadable/corrupt state is NOT a conclusion and never throws',
       readState: () => { throw new Error('corrupt json'); },
     });
     return c.available === true && c.concluded === 0 && c.scanned === 1;
+  })());
+// D3 (pre-merge review, CONFIRMED): a repeated corpus root counted the same pack
+// twice and inflated the numerator, which flatters the north-star. Latent on the
+// seam today (`workflowCorpusRoots` emits distinct paths) — pinned so it stays that
+// way if the seam ever changes.
+assert('[d] D3 duplicate corpus roots do not double-count a pack',
+  (() => {
+    const c = countConcludedContexts(ROOT, {
+      roots: ['/corpus/done', '/corpus/done'], exists: () => true,
+      listDirs: () => ['WF-1'], readState: () => ({ overallStatus: 'done' }),
+    });
+    return c.concluded === 1 && c.scanned === 1;
   })());
 assert('[d] a listDirs failure fails open rather than throwing',
   (() => {

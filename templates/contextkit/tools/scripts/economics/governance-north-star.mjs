@@ -33,17 +33,44 @@ import { ECONOMY_RESOURCES } from '../economy/registry.mjs';
 import { workflowCorpusRoots } from '../workflow/invariants.mjs';
 
 /**
+ * The economy categories that count as governance spend. An explicit allow-list,
+ * not `!== 'lever'`: the negation would silently absorb any category added later,
+ * widening the guardrail's denominator without anyone deciding to. The selftest
+ * asserts this list plus `lever` covers `ECONOMY_CATEGORIES` exactly, so a new
+ * category fails the suite until it is classified on purpose.
+ */
+export const GOVERNANCE_CATEGORIES = Object.freeze(['lifecycle', 'advisory']);
+
+/**
  * The plane's own machinery: every economy resource that SPENDS governance tokens.
  * Derived from the registry so a new resource is classified once, at its source.
  */
 export const GOVERNANCE_RESOURCES = Object.freeze(
-  ECONOMY_RESOURCES.filter((entry) => entry.category !== 'lever').map((entry) => entry.resource),
+  ECONOMY_RESOURCES
+    .filter((entry) => GOVERNANCE_CATEGORIES.includes(entry.category))
+    .map((entry) => entry.resource),
 );
 
-/** Sums the observed token measurement on one economy event (absent ⇒ 0). */
+/**
+ * Reads the observed token measurement on one economy event.
+ *
+ * Returns `null` when the row carries no usable measurement — deliberately NOT 0.
+ * `Number(null)` is 0, so folding an absent measurement into a sum makes "nothing
+ * was measured" indistinguishable from "measured, and it cost nothing", and a
+ * HARD guardrail would then report a green `pass` from zero evidence
+ * (constitution §8). A negative or non-finite value is unusable, not zero.
+ *
+ * @param {object} record one economy-events row
+ * @returns {number|null} the measured spend, or null when unmeasured/unusable
+ */
 function observedTokens(record) {
   const tokens = record?.observed?.tokens;
-  return typeof tokens === 'number' && Number.isFinite(tokens) ? tokens : 0;
+  return typeof tokens === 'number' && Number.isFinite(tokens) && tokens >= 0 ? tokens : null;
+}
+
+/** A usable token measurement: a finite, non-negative number. Strings do not coerce. */
+function isUsableMeasurement(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 /**
@@ -60,13 +87,13 @@ function observedTokens(record) {
  *   `readEvents` is a test seam so the selftest never touches disk.
  * @returns {{available: boolean, sessionTokens: number|null,
  *   priorSessionTokens: number|null, sessionId: string|null,
- *   totalTokens: number, sessionCount: number, reason: string|null}}
+ *   totalTokens: number, reason: string|null}}
  */
 export function readGovernanceTokenSeries(root, options = {}) {
   const sessionId = options.sessionId ?? process.env.CLAUDE_CODE_SESSION_ID ?? null;
   const blank = {
     available: false, sessionTokens: null, priorSessionTokens: null,
-    sessionId, totalTokens: 0, sessionCount: 0,
+    sessionId, totalTokens: 0,
   };
 
   if (typeof root !== 'string' || root.trim().length === 0) {
@@ -87,23 +114,39 @@ export function readGovernanceTokenSeries(root, options = {}) {
     return { ...blank, reason: 'no governance rows in the economy-events ledger (nothing measured yet)' };
   }
 
+  // Only rows carrying a usable measurement contribute. A session present in the
+  // ledger but with no measured row stays ABSENT from the map rather than landing
+  // there as 0 — otherwise "unmeasured" becomes an authoritative-looking zero and
+  // the guardrail below passes on no evidence at all.
   const totalsBySession = new Map();
   let totalTokens = 0;
+  let measuredRows = 0;
   for (const record of governanceRows) {
     const spend = observedTokens(record);
+    if (spend === null) continue;
+    measuredRows += 1;
     totalTokens += spend;
     const rowSession = typeof record?.sessionId === 'string' ? record.sessionId : null;
     if (!rowSession) continue;
     totalsBySession.set(rowSession, (totalsBySession.get(rowSession) ?? 0) + spend);
   }
 
+  if (measuredRows === 0) {
+    return {
+      ...blank,
+      reason: `${governanceRows.length} governance row(s) present but none carries an observed token measurement (nothing measured yet)`,
+    };
+  }
+
   const sessions = [...totalsBySession.keys()];
-  const measured = { totalTokens, sessionCount: sessions.length, sessionId };
+  const measured = { totalTokens, sessionId };
   if (!sessionId) {
     return { ...blank, ...measured, reason: 'no session id — cannot scope a per-session comparison' };
   }
   const priorSessions = sessions.filter((candidate) => candidate !== sessionId);
-  const sessionTokens = totalsBySession.get(sessionId) ?? 0;
+  // `has`, not `?? 0`: an unmeasured side must read as null (unavailable), never as
+  // a zero that would make a phantom rise or a phantom flat line look measured.
+  const sessionTokens = totalsBySession.has(sessionId) ? totalsBySession.get(sessionId) : null;
   if (priorSessions.length === 0) {
     return {
       ...measured,
@@ -113,12 +156,22 @@ export function readGovernanceTokenSeries(root, options = {}) {
       reason: 'no prior session in the ledger — a non-regression check needs a baseline',
     };
   }
+  const priorSessionTokens = totalsBySession.get(priorSessions[priorSessions.length - 1]);
+  if (!isUsableMeasurement(sessionTokens)) {
+    return {
+      ...measured,
+      available: false,
+      sessionTokens,
+      priorSessionTokens,
+      reason: 'this session has no measured governance spend — a non-regression check needs both sides measured',
+    };
+  }
 
   return {
     ...measured,
     available: true,
     sessionTokens,
-    priorSessionTokens: totalsBySession.get(priorSessions[priorSessions.length - 1]) ?? 0,
+    priorSessionTokens,
     reason: null,
   };
 }
@@ -144,6 +197,10 @@ export function countConcludedContexts(root, options = {}) {
   } catch {
     return { available: false, concluded: 0, scanned: 0, reason: 'workflow corpus roots unresolvable' };
   }
+  // Dedupe: a repeated corpus root would count the same pack twice and inflate the
+  // numerator, which flatters the north-star. `workflowCorpusRoots` emits distinct
+  // paths today, so this guards the seam rather than a live defect.
+  roots = [...new Set(roots)];
 
   const readState = typeof options.readState === 'function'
     ? options.readState
@@ -198,6 +255,19 @@ export function evaluateGovernanceTokenGuardrail(series) {
       reason: series?.reason ?? 'no governance-token measurement available',
     };
   }
+  // Type-checked, never coerced. `Number(null)` is 0 and `NaN > 0` is false, so a
+  // corrupt or absent reading would slide through the comparison below and land on
+  // `pass` — a green HARD guardrail from an unusable measurement. Both sides must
+  // be finite, non-negative numbers; a string that merely looks numeric is not one.
+  if (!isUsableMeasurement(series.sessionTokens) || !isUsableMeasurement(series.priorSessionTokens)) {
+    return {
+      status: 'skipped',
+      risen: null,
+      delta: null,
+      blocksPromotion: false,
+      reason: `unusable governance-token measurement (session=${JSON.stringify(series.sessionTokens)}, prior=${JSON.stringify(series.priorSessionTokens)}) — an unreadable guardrail is skipped, never a pass`,
+    };
+  }
   const delta = series.sessionTokens - series.priorSessionTokens;
   if (delta > 0) {
     return {
@@ -224,15 +294,29 @@ export function evaluateGovernanceTokenGuardrail(series) {
  * (constitution §8; BIZ-0006 growth targets are explicitly unset until shadow
  * calibration). This function reports the observation; it does not grade it.
  *
+ * **Cohort caveat, disclosed rather than hidden.** The numerator counts every
+ * concluded context in the corpus (all-time), while the denominator only covers
+ * what the append-only ledger has recorded (its measurement window). Those are
+ * different cohorts, so once spend is recorded the ratio counts conclusions that
+ * predate measurement against post-measurement tokens and reads flatteringly
+ * high. Narrowing the numerator to the window is not possible today: a
+ * `workflow.concluded` event carries no ledger-correlatable stamp the counter can
+ * filter on, and inventing one would be fabricating precision. So the reading
+ * carries `cohort: 'corpus-all-time / ledger-window'` and every consumer is
+ * expected to treat the absolute value as directional only — which is also why
+ * `baseline`/`target` stay null until shadow calibration sets them from a series
+ * measured under one cohort.
+ *
  * @param {ReturnType<typeof readGovernanceTokenSeries>} series
  * @param {ReturnType<typeof countConcludedContexts>} contexts
  * @returns {{available: boolean, metric: string, concludedContexts: number|null,
  *   governanceTokens: number|null, concludedPerThousandTokens: number|null,
- *   baseline: null, target: null, reason: string|null}}
+ *   cohort: string, baseline: null, target: null, reason: string|null}}
  */
 export function northStarReading(series, contexts) {
   const shape = {
     metric: 'concluded work contexts per 1k governance tokens',
+    cohort: 'corpus-all-time / ledger-window',
     baseline: null,
     target: null,
   };
