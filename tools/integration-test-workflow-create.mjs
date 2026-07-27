@@ -10,7 +10,7 @@
  * Packs are built in a throwaway temp root; cleaned up at the end. The clock is
  * injected (`now`) so the run is deterministic.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
@@ -19,6 +19,9 @@ import { validatePlan } from '../templates/contextkit/tools/scripts/workflow/val
 import { validateTasksDoc } from '../templates/contextkit/tools/scripts/tasks-validate.mjs';
 import { deriveWorkflowTasks } from '../templates/contextkit/tools/scripts/tasks-derive.mjs';
 import { createWorkflow, readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
+import { loadProjection } from '../templates/contextkit/tools/scripts/graph-query.mjs';
+import { deriveScope, deriveRisk } from '../templates/contextkit/methodology/projections.mjs';
+import { stampWorkflowTasksProvenance } from '../templates/contextkit/methodology/provenance.mjs';
 
 const rep = reporter();
 const NOW = '2026-06-17T00:00:00.000Z';
@@ -221,6 +224,72 @@ try {
   missingOwnerThrew
     ? rep.ok('owner with no context folder throws (no silent fallback to central)')
     : rep.bad('missing-owner-folder creation did not throw');
+
+  // --- WF-0089 SA4-T1 (BIZ-0006, ADR-0148 §9/§10) structure-only fallback --
+  // Rollout is shadow-first (risk R7): a root with NO committed graph
+  // projection must degrade the derive path to available:false and leave
+  // workflow creation - including the rendered skeleton - fully intact.
+  // `root` here has never had a graph committed, so this is a real disk
+  // read of an absent projection, not a hand-built fixture.
+  const noGraphProjection = loadProjection(root);
+  noGraphProjection.available === false && /no committed graph projection/.test(noGraphProjection.reason)
+    ? rep.ok('loadProjection degrades to available:false on a root with no committed graph (real read, not a fixture)')
+    : rep.bad(`loadProjection did not degrade on a graph-less root: ${JSON.stringify(noGraphProjection)}`);
+
+  const noGraphScope = deriveScope(['sym:seed'], noGraphProjection, 40);
+  const noGraphRisk = deriveRisk(['sym:seed'], noGraphProjection);
+  noGraphScope.available === false && noGraphScope.value === null && noGraphRisk.available === false && noGraphRisk.value === null
+    ? rep.ok('deriveScope/deriveRisk fail-open against the real graph-less projection (no fabrication)')
+    : rep.bad('deriveScope/deriveRisk did not fail-open against the real graph-less projection');
+
+  const noGraphWorkflow = createWaveWorkflow(root, 'no-graph-fallback', { profile: 'standard', shape: 'single-workflow-operation', now: NOW });
+  existsSync(join(noGraphWorkflow.dir, 'tasks.json'))
+    ? rep.ok('workflow creation succeeds on a graph-less root (never blocks on an absent projection)')
+    : rep.bad('workflow creation did not produce tasks.json on a graph-less root');
+  const noGraphSpec = readFileSync(join(noGraphWorkflow.dir, 'spec.md'), 'utf-8');
+  !noGraphSpec.includes('{{')
+    ? rep.ok('the {{TOKEN}} skeleton renders fully resolved even with no graph available')
+    : rep.bad(`an unresolved {{TOKEN}} survived skeleton rendering: ${noGraphSpec}`);
+  validateTasksDoc(JSON.parse(readFileSync(join(noGraphWorkflow.dir, 'tasks.json'), 'utf-8'))).ok
+    ? rep.ok('tasks.json remains structurally valid on a graph-less root')
+    : rep.bad('tasks.json is invalid on a graph-less root');
+
+  // The SA2 shadow stamp actually ran and recorded provenance for the one
+  // field it can stamp today (tasks) - proving the fail-open try/catch around
+  // stampWorkflowTasksProvenance is exercised on its SUCCESS path, not dead code.
+  const noGraphProvenancePath = join(noGraphWorkflow.dir, 'provenance.json');
+  const noGraphProvenance = existsSync(noGraphProvenancePath) ? JSON.parse(readFileSync(noGraphProvenancePath, 'utf-8')) : null;
+  noGraphProvenance?.fields?.tasks?.state === 'derived' && noGraphProvenance.fields.tasks.source === 'biz0003:tasks-derive'
+    ? rep.ok('SA2 shadow-stamps tasks provenance even when the graph-backed scope/risk projections are unavailable')
+    : rep.bad(`SA2 provenance stamp missing/wrong on a graph-less root: ${JSON.stringify(noGraphProvenance)}`);
+
+  // Prove the try/catch in workflow/create.mjs guards a REAL throwable failure
+  // mode (not a phantom no-op): stampWorkflowTasksProvenance itself throws
+  // when its sidecar write collides with an existing directory.
+  const provenanceFailureDir = mkdtempSync(join(tmpdir(), 'contextkit-provfail-'));
+  mkdirSync(join(provenanceFailureDir, 'provenance.json')); // forces the atomic write to fail
+  let provenanceStampThrew = false;
+  try {
+    stampWorkflowTasksProvenance(provenanceFailureDir, {
+      plan: { workflowId: '9001', waves: [] },
+      workflowId: '9001',
+      tasksDocument: { owner: { kind: 'WF', id: 'WF-9001' } },
+    });
+  } catch {
+    provenanceStampThrew = true;
+  } finally {
+    rmSync(provenanceFailureDir, { recursive: true, force: true });
+  }
+  provenanceStampThrew
+    ? rep.ok('stampWorkflowTasksProvenance throws on a real sidecar write failure (the catch it sits behind guards a genuine failure mode)')
+    : rep.bad('stampWorkflowTasksProvenance did not throw on a forced write failure — the fail-open proof below would be vacuous');
+
+  // Static proof the real call site never lets that throw escape and block
+  // creation (R7): the wrap is a no-rethrow try/catch, not a re-thrown catch.
+  const createSource = readFileSync(new URL('../templates/contextkit/tools/scripts/workflow/create.mjs', import.meta.url), 'utf-8');
+  /try\s*\{\s*stampWorkflowTasksProvenance\(packDir,\s*\{[^}]*\}\s*\)\s*;\s*\}\s*catch\s*\{[^}]*\}/.test(createSource)
+    ? rep.ok('workflow/create.mjs wraps the provenance stamp in a no-rethrow try/catch at the real call site')
+    : rep.bad('workflow/create.mjs no longer guards the provenance stamp — a write failure could now block creation');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

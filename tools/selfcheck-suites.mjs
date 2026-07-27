@@ -224,6 +224,24 @@ function main() {
     // selftest lives beside its schema module under templates/, registered via
     // test-suites-wf0088.mjs, dispatched directly.
     'templates/contextkit/runtime/work/schema-governance-contract.selftest.mjs',
+    // BIZ-0006 / WF-0094 (ADR-0152) — reference-intent resolution & continuation
+    // gate; selftest lives beside its engine module under templates/, registered
+    // via test-suites-wf0094.mjs, dispatched directly.
+    'templates/contextkit/runtime/execution/reference-intent.selftest.mjs',
+    // BIZ-0006 / WF-0089 (ADR-0148 §9/§10) — structural auto-fill projections
+    // (scope/risk/tasks/classification/KPI skeleton); selftest lives beside its
+    // engine module under templates/, registered via test-suites-wf0089.mjs.
+    'templates/contextkit/methodology/projections.selftest.mjs',
+    // BIZ-0006 / WF-0089 SA2 (ADR-0148 §9) — field-provenance sidecar +
+    // idempotent re-derive engine; selftest lives beside its engine module
+    // under templates/, registered via test-suites-wf0089.mjs.
+    'templates/contextkit/methodology/provenance.selftest.mjs',
+    // BIZ-0006 / WF-0089 SA3-T1 (ADR-0148 §9/§10) — verification wave: scope/
+    // risk traced to an independently-recomputed graph traversal, an
+    // explicitly-authored field preserved, and the zero-token-on-structure
+    // receipt; selftest lives beside its engine module under templates/,
+    // registered via test-suites-wf0089.mjs.
+    'templates/contextkit/methodology/projections-verify.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',

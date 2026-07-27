@@ -144,6 +144,7 @@ function ceremonyTokens(inputs, ceremony) {
     GOALS: '- Define the desired business outcome.\n- Record evidence for the owner decision.',
     NON_GOALS: '- No implementation is authorized by this scaffold.',
     SUMMARY: `This workflow provides the governed scaffold for "${inputs.title}".`,
+    SCOPE: 'To be filled once the owner defines which files/symbols this workflow touches.',
     CONTRACTS: 'The Business envelope owns identity and kind; this workflow owns execution artifacts.',
     DATA_FLOW: `${inputs.id}/business.json -> ${ceremony.shape} -> ${ceremony.journeyBranch}.`,
     TEST_PLAN: '- Validate the Business schema.\n- Validate the ceremony structure.\n- Record QA evidence before promotion.',

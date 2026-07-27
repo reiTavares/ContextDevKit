@@ -37,6 +37,7 @@ import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 import { WF0070_SUITES } from './test-suites-wf0070.mjs';
 import { WF0081_SUITES } from './test-suites-wf0081.mjs';
 import { WF0088_SUITES } from './test-suites-wf0088.mjs';
+import { WF0089_SUITES } from './test-suites-wf0089.mjs';
 import { WF0094_SUITES } from './test-suites-wf0094.mjs';
 import { WF0095_SUITES } from './test-suites-wf0095.mjs';
 
@@ -337,6 +338,9 @@ export const SUITES = Object.freeze([
   // WF-0088 (BIZ-0006, ADR-0148 position 11) governance-contract envelope suite —
   // own module for the line budget (see test-suites-wf0088.mjs).
   ...WF0088_SUITES,
+  // WF-0089 (BIZ-0006, ADR-0148 §9/§10) structural auto-fill projections — own
+  // module for the line budget (see test-suites-wf0089.mjs).
+  ...WF0089_SUITES,
   // WF-0094 (BIZ-0006, ADR-0152) reference-intent / continuation-gate suite —
   // own module for the line budget (see test-suites-wf0094.mjs).
   ...WF0094_SUITES,

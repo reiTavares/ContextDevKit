@@ -104,6 +104,22 @@ try {
       assert.equal(existsSync(installedMethodology), true);
       const { dispatch: installedDispatch } = await import(`${pathToFileURL(installedWork).href}?install-probe=${Date.now()}`);
       assert.equal(typeof installedDispatch, 'function');
+
+      // WF-0089 SA4-T1 (BIZ-0006, ADR-0148 §9/§10) — the structural auto-fill
+      // projection engine ships via the SAME copyTree('methodology') the ceremony
+      // skeletons above already ride (tools/install/engine.mjs); there is no
+      // separate installer wiring to add. Assert the three engine modules land
+      // AND are importable + functional post-install (not just copied bytes).
+      const installedProjections = join(installRoot, 'contextkit', 'methodology', 'projections.mjs');
+      const installedProvenance = join(installRoot, 'contextkit', 'methodology', 'provenance.mjs');
+      const installedProvenanceSchema = join(installRoot, 'contextkit', 'methodology', 'schema-provenance-sidecar.mjs');
+      assert.equal(existsSync(installedProjections), true);
+      assert.equal(existsSync(installedProvenance), true);
+      assert.equal(existsSync(installedProvenanceSchema), true);
+      const { deriveKpiSkeleton: installedDeriveKpiSkeleton } = await import(`${pathToFileURL(installedProjections).href}?install-probe=${Date.now()}`);
+      const installedKpiSkeleton = installedDeriveKpiSkeleton({ growthLever: 'RELIABILITY' });
+      assert.equal(installedKpiSkeleton.available, true);
+      assert.equal(installedKpiSkeleton.value.kpis.every((kpi) => kpi.baseline === null), true);
     } finally {
       rmSync(installRoot, { recursive: true, force: true });
     }
