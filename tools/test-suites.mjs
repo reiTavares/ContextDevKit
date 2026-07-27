@@ -36,6 +36,7 @@ import { WF0059_SUITES } from './test-suites-wf0059.mjs';
 import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 import { WF0070_SUITES } from './test-suites-wf0070.mjs';
 import { WF0081_SUITES } from './test-suites-wf0081.mjs';
+import { WF0089_SUITES } from './test-suites-wf0089.mjs';
 
 export const TIERS = Object.freeze([
   'smoke',
@@ -331,6 +332,9 @@ export const SUITES = Object.freeze([
   // WF-0081 (BIZ-0006, ADR-0148) classifier-integrity suite — own module for the
   // line budget (see test-suites-wf0081.mjs).
   ...WF0081_SUITES,
+  // WF-0089 (BIZ-0006, ADR-0148 §9/§10) structural auto-fill projections — own
+  // module for the line budget (see test-suites-wf0089.mjs).
+  ...WF0089_SUITES,
 ]);
 
 /**

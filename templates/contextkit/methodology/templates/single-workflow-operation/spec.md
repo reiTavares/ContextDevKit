@@ -4,6 +4,10 @@
 
 {{SUMMARY}}
 
+## Scope
+
+{{SCOPE}}
+
 ## Interfaces / contracts
 
 {{CONTRACTS}}

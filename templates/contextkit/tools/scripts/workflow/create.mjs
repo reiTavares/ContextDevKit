@@ -30,6 +30,7 @@ import {
   renderTasks, renderMemory, renderStub,
 } from './create-files.mjs';
 import { deriveWorkflowTasks } from '../tasks-derive.mjs';
+import { stampWorkflowTasksProvenance } from '../../../methodology/provenance.mjs';
 
 /** Slug shape (mirrors workflow-pack SLUG_RE) — validated at the boundary. */
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -238,6 +239,13 @@ export function createWaveWorkflow(root, slug, options = {}) {
     const tasksDocument = deriveWorkflowTasks(plan, { workflowId: number });
     writeJsonStable(resolve(packDir, 'tasks.json'), tasksDocument);
     written.push('tasks.json');
+    // WF-0089 SA2 shadow/advisory provenance stamp (ADR-0148 §9, risk R7):
+    // records that `tasks` came from biz0003:tasks-derive. Best-effort — a
+    // provenance-write failure must never block workflow creation, so any
+    // error here is swallowed after the artifact itself already landed.
+    try {
+      stampWorkflowTasksProvenance(packDir, { plan, workflowId: number, tasksDocument });
+    } catch { /* shadow/advisory — never blocks creation (R7) */ }
   }
 
   written.sort();

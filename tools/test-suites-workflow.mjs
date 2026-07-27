@@ -14,6 +14,17 @@
 const WORKFLOW_DIR = 'templates/contextkit/tools/scripts/workflow';
 const itFile = (name) => `tools/integration-test-workflow-${name}.mjs`;
 
+// WF-0089 SA4-T1 (BIZ-0006, ADR-0148 §9/§10) — `create` now also exercises the
+// structural auto-fill engine's fail-open/shadow-stamp path (structure-only
+// fallback proof), so its touches widen beyond the generic `[<name>, io]` pair.
+const EXTRA_MODULE_TOUCHES = Object.freeze({
+  create: [
+    'templates/contextkit/tools/scripts/graph-query.mjs',
+    'templates/contextkit/methodology/projections.mjs',
+    'templates/contextkit/methodology/provenance.mjs',
+  ],
+});
+
 const MODULE_SUITES = [
   'registries', 'plan', 'state', 'create', 'render', 'dag',
   'ownership', 'gates', 'scheduler', 'continuation', 'audit', 'migrate',
@@ -21,7 +32,7 @@ const MODULE_SUITES = [
   id: `workflow-${name}`,
   file: itFile(name),
   tier: 'integration:workflow',
-  touches: [`${WORKFLOW_DIR}/${name}`, `${WORKFLOW_DIR}/io`],
+  touches: [`${WORKFLOW_DIR}/${name}`, `${WORKFLOW_DIR}/io`, ...(EXTRA_MODULE_TOUCHES[name] ?? [])],
 }));
 
 export const WORKFLOW_ENGINE_SUITES = Object.freeze([
