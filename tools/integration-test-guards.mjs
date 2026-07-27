@@ -341,10 +341,29 @@ async function testInvariantRolloutLadder() {
 
     // The SHIPPED default must stay non-blocking: the guarded flip is a recorded
     // human gate (IN3), never something a distribution turns on by itself.
-    const shipped = readJson(join(KIT, 'templates', 'contextkit', 'config.json'))?.workflowIntegrity?.invariantGuard;
-    shipped?.mode === 'shadow'
-      ? ok('the shipped invariantGuard default is "shadow" — the guarded flip stays human-gated')
-      : bad(`the shipped invariantGuard mode is "${shipped?.mode}" — promoting it requires a recorded human gate (ADR-0148 IN3)`);
+    //
+    // Read the COMMITTED bytes, not the working tree. The suite pool runs suites in
+    // parallel and some of them mutate KIT-level files, so a working-tree read here
+    // is a race: this assertion passed standalone and in its own tier, then reported
+    // mode "guarded" under `--tier all` while the file on disk said "shadow".
+    // "Shipped" means what is committed, so the committed blob is also the more
+    // correct source — it cannot be perturbed by a neighbouring suite.
+    const committed = git(['show', 'HEAD:templates/contextkit/config.json'], KIT);
+    if (committed.status !== 0) {
+      // A check that cannot run reports skipped, never a pass (constitution §8).
+      ok('shipped invariantGuard default: SKIPPED — git could not read the committed config');
+    } else {
+      let shipped = null;
+      let parseError = null;
+      try {
+        shipped = JSON.parse(String(committed.stdout).replace(/^﻿/, ''))?.workflowIntegrity?.invariantGuard;
+      } catch (err) {
+        parseError = err?.message ?? String(err);
+      }
+      if (parseError) bad(`committed templates/contextkit/config.json is unparsable: ${parseError}`);
+      else if (shipped?.mode === 'shadow') ok('the shipped invariantGuard default is "shadow" — the guarded flip stays human-gated');
+      else bad(`the shipped invariantGuard mode is "${shipped?.mode}" — promoting it requires a recorded human gate (ADR-0148 IN3)`);
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
