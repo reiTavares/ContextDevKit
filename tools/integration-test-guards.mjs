@@ -355,8 +355,11 @@ async function testInvariantRolloutLadder() {
     // correct source — it cannot be perturbed by a neighbouring suite.
     const committed = git(['show', 'HEAD:templates/contextkit/config.json'], KIT);
     if (committed.status !== 0) {
-      // A check that cannot run reports skipped, never a pass (constitution §8).
-      ok('shipped invariantGuard default: SKIPPED — git could not read the committed config');
+      // `reporter()` has no skip channel, so routing this through ok() would count an
+      // unrunnable check as a pass and silently retire the assertion — the §8 false
+      // negative. Fail loudly instead (the same stance selfcheck-docs takes for a
+      // missing dependency): a guard that cannot read what it guards is not a pass.
+      bad(`shipped invariantGuard default UNVERIFIED — git could not read the committed config: ${String(committed.stderr || '').trim() || `exit ${committed.status}`}`);
     } else {
       let shipped = null;
       let parseError = null;
