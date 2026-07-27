@@ -22,7 +22,7 @@
  * Standalone: node tools/selfcheck-docs.mjs
  */
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
@@ -204,41 +204,67 @@ function assertStructuralCompleteness(reindexMod, committedIndex, indexPath) {
  * rejected as non-idempotent. The generated index must be a function of the tree, not
  * of the caller's environment.
  *
+ * SELF-CONTAINED BY NECESSITY. An earlier cut of this check ran against the real
+ * `KIT/docs` and relied on `docs/CHANGELOG.md` being present-and-ignored. That file is
+ * untracked and ignored only through this repo's local `.git/info/exclude`, so on a
+ * clean clone it does not exist — no `META_FILES` member is ignored, both renders come
+ * out identical, and the check went GREEN ON THE DEFECT. That is a false negative, the
+ * one direction constitution §8 forbids. The fixture below therefore builds the
+ * discriminating condition itself and asserts it is discriminating before judging.
+ *
  * @param {object} reindexMod
- * @param {Buffer} committed original docs/README.md bytes (always restored)
- * @param {string} indexPath absolute docs/README.md path
  */
-function assertIndexIgnoresAmbientGitEnv(reindexMod, committed, indexPath) {
+function assertIndexIgnoresAmbientGitEnv(reindexMod) {
   console.log('(f) generated index is invariant to the ambient git env...');
   const saved = { GIT_DIR: process.env.GIT_DIR, GIT_INDEX_FILE: process.env.GIT_INDEX_FILE };
-  // Fidelity matters here. Pointing GIT_DIR at any existing non-gitdir makes git exit
-  // 128 ("not a git repository"), which diverges for the WRONG reason and never
-  // exercises the real bug. A freshly-initialised repo is a VALID gitdir that simply
-  // lacks the `info/exclude` rule, so `check-ignore` exits 1 cleanly — byte-for-byte
-  // the linked-worktree shape (`.git/worktrees/<name>/` inherits no common excludes).
-  // With GIT_DIR set explicitly, git takes the work tree from `cwd`, i.e. KIT.
-  let scratch;
+  const clean = { ...process.env };
+  for (const key of ['GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE', 'GIT_PREFIX']) delete clean[key];
+  // `tree` owns the docs + the exclude rule; `other` is a VALID but unrelated gitdir —
+  // the linked-worktree shape (`.git/worktrees/<name>/` inherits no common excludes), so
+  // `check-ignore` exits 1 cleanly rather than 128 "not a git repository".
+  let tree; let other;
   try {
-    scratch = mkdtempSync(join(tmpdir(), 'ctxkit-docs-envcheck-'));
-    const init = spawnSync('git', ['init', '--quiet', scratch], { encoding: 'utf-8' });
-    if (init.status !== 0) {
-      bad(`(f) could not create the scratch gitdir fixture — check skipped, never passed: ${init.stderr?.trim() || init.error?.message || `exit ${init.status}`}`);
-      rmSync(scratch, { recursive: true, force: true });
-      return;
+    tree = mkdtempSync(join(tmpdir(), 'ctxkit-docs-env-tree-'));
+    other = mkdtempSync(join(tmpdir(), 'ctxkit-docs-env-other-'));
+    for (const dir of [tree, other]) {
+      const init = spawnSync('git', ['init', '--quiet', dir], { encoding: 'utf-8' });
+      if (init.status !== 0) {
+        bad(`(f) fixture repo could not be created — check SKIPPED, never passed: ${init.stderr?.trim() || init.error?.message || `exit ${init.status}`}`);
+        return;
+      }
     }
+    mkdirSync(join(tree, 'docs', 'reference'), { recursive: true });
+    writeFileSync(join(tree, 'docs', 'CHANGELOG.md'), '# Changelog\n\nLocal-only release chronology.\n');
+    writeFileSync(join(tree, 'docs', 'reference', 'thing.md'), '# Thing\n\nA reference doc.\n');
+    appendFileSync(join(tree, '.git', 'info', 'exclude'), '\n/docs/CHANGELOG.md\n');
   } catch (err) {
-    bad(`(f) scratch gitdir fixture threw — check skipped, never passed: ${err?.message ?? err}`);
+    bad(`(f) fixture setup threw — check SKIPPED, never passed: ${err?.message ?? err}`);
+    if (tree) rmSync(tree, { recursive: true, force: true });
+    if (other) rmSync(other, { recursive: true, force: true });
     return;
   }
+
+  const docsDir = join(tree, 'docs');
+  const indexPath = join(docsDir, 'README.md');
+  const pollution = { ...clean, GIT_DIR: join(other, '.git'), GIT_INDEX_FILE: join(other, '.git', 'index') };
   let plain; let polluted;
   try {
-    reindexMod.reindexDocs(KIT);
+    // Prove the fixture can actually tell the two readings apart. If it cannot, the
+    // comparison below would pass on broken and fixed code alike — report, never pass.
+    const changelog = join(docsDir, 'CHANGELOG.md');
+    const ignoredClean = spawnSync('git', ['check-ignore', '-q', changelog], { cwd: docsDir, env: clean }).status === 0;
+    const ignoredPolluted = spawnSync('git', ['check-ignore', '-q', changelog], { cwd: docsDir, env: pollution }).status === 0;
+    if (!ignoredClean || ignoredPolluted) {
+      bad(`(f) fixture is NOT discriminating (clean=${ignoredClean} polluted=${ignoredPolluted}) — check SKIPPED, never passed`);
+      return;
+    }
+    reindexMod.reindexDocs(tree);
     plain = readFileSync(indexPath);
-    process.env.GIT_DIR = join(scratch, '.git');
-    // Also drop the caller's index: `check-ignore` consults it (a tracked file is never
-    // reported ignored), so a hook's alternate index is part of the inherited state.
-    process.env.GIT_INDEX_FILE = join(scratch, '.git', 'index');
-    reindexMod.reindexDocs(KIT);
+    process.env.GIT_DIR = pollution.GIT_DIR;
+    // `check-ignore` also consults the index (a tracked file is never reported ignored),
+    // so a hook's alternate index is part of the inherited state under test.
+    process.env.GIT_INDEX_FILE = pollution.GIT_INDEX_FILE;
+    reindexMod.reindexDocs(tree);
     polluted = readFileSync(indexPath);
   } catch (err) {
     bad(`reindexDocs threw during git-env invariance check: ${err?.message ?? err}`);
@@ -247,8 +273,8 @@ function assertIndexIgnoresAmbientGitEnv(reindexMod, committed, indexPath) {
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
-    writeFileSync(indexPath, committed);
-    rmSync(scratch, { recursive: true, force: true });
+    rmSync(tree, { recursive: true, force: true });
+    rmSync(other, { recursive: true, force: true });
   }
   if (plain.equals(polluted)) {
     ok('generated index identical with and without an inherited GIT_DIR (hook-safe)');
@@ -306,7 +332,7 @@ async function main() {
   } else {
     assertReindexIdempotent(ctx.reindexMod, ctx.committed, ctx.indexPath);
     assertStructuralCompleteness(ctx.reindexMod, ctx.committed, ctx.indexPath);
-    assertIndexIgnoresAmbientGitEnv(ctx.reindexMod, ctx.committed, ctx.indexPath);
+    assertIndexIgnoresAmbientGitEnv(ctx.reindexMod);
   }
 
   const total = passes + failures;
