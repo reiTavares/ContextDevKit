@@ -21,7 +21,8 @@
  *   8. --check EXITS 0 on an already-rotated tree.
  *   9. ADVERSARIAL: BOM + CRLF parse; a version heading inside a code fence is
  *      NOT a version; a pre-release buckets with its own major.
- *  10. SINGLE-SOURCE: the templates/ script and the dogfood mirror agree.
+ *  10. SINGLE-SOURCE: when the installed dogfood mirror exists, it agrees
+ *      with the templates/ script; clean source checkouts report it skipped.
  *
  * Zero runtime deps — node:* only. Exits 0 on all-pass, 1 on any failure.
  * Standalone: node tools/integration-test-changelog.mjs
@@ -40,8 +41,10 @@ const node = process.execPath;
 
 let failures = 0;
 let passes = 0;
+let skips = 0;
 const ok = (msg) => { passes++; console.log(`  ✓ ${msg}`); };
 const bad = (msg) => { failures++; console.error(`  ✗ ${msg}`); };
+const skip = (msg) => { skips++; console.log(`  ⊘ ${msg}`); };
 
 /** @type {string[]} temp dirs registered for cleanup. */
 const tempDirs = [];
@@ -312,10 +315,20 @@ function assertAdversarialInput() {
   else bad('a pre-release must bucket with its own major');
 }
 
-/** 10 — single-source: the mirror must not drift from the template. */
+/**
+ * Checks source/install parity when the local dogfood installation exists.
+ *
+ * The dogfood tree is intentionally excluded from public source checkouts, so
+ * its absence is unknown evidence rather than a failure or an assumed pass.
+ *
+ * @returns {void}
+ */
 function assertSingleSource() {
   if (!existsSync(SOURCE_SCRIPT)) { bad(`source script missing: ${SOURCE_SCRIPT}`); return; }
-  if (!existsSync(MIRROR_SCRIPT)) { bad(`dogfood mirror missing: ${MIRROR_SCRIPT}`); return; }
+  if (!existsSync(MIRROR_SCRIPT)) {
+    skip('dogfood mirror parity unavailable in this source-only checkout');
+    return;
+  }
   if (readFileSync(SOURCE_SCRIPT, 'utf-8') === readFileSync(MIRROR_SCRIPT, 'utf-8')) {
     ok('templates/ source and dogfood mirror are identical');
   } else bad('templates/ source and dogfood mirror have drifted');
@@ -369,7 +382,7 @@ async function main() {
   } finally {
     cleanup();
   }
-  console.log(`\n${failures === 0 ? '✅' : '❌'} changelog rotation: ${passes} passed, ${failures} failed`);
+  console.log(`\n${failures === 0 ? '✅' : '❌'} changelog rotation: ${passes} passed, ${failures} failed, ${skips} skipped`);
   process.exit(failures === 0 ? 0 : 1);
 }
 
