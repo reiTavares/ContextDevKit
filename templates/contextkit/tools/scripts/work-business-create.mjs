@@ -25,6 +25,7 @@ import { makeReceipt } from './work-io.mjs';
 import { explainFile, requiredFilesForShape } from './workflow/files.mjs';
 import { resolveCeremonyManifest } from './workflow/ceremony-manifest.mjs';
 import { leakScrub } from '../../methodology/leak-scrub.mjs';
+import { reasonedSentinels } from '../../methodology/content-eligibility.mjs';
 import {
   assertBusinessIdAvailable,
   resolveBusinessCreateInputs,
@@ -140,19 +141,20 @@ function ceremonyTokens(inputs, ceremony) {
     FIRST_READ: `Read ${inputs.id}/business.json and the workflow plan before implementation.`,
     EXECUTION_RULES: `Use ${inputs.id} as the governing Business context and record evidence in this workflow.`,
     CUSTOM_RULES: 'Do not map classifier functional kinds into the persisted Business.kind enum.',
-    PROBLEM: `The owner must define the problem for "${inputs.title}".`,
-    GOALS: '- Define the desired business outcome.\n- Record evidence for the owner decision.',
-    NON_GOALS: '- No implementation is authorized by this scaffold.',
-    SUMMARY: `This workflow provides the governed scaffold for "${inputs.title}".`,
+    // The eight REASONED sentinels (PROBLEM / GOALS / NON_GOALS / SUMMARY /
+    // TRADEOFFS / TEST_PLAN / CRITERION / EVIDENCE) come from
+    // `content-eligibility.mjs`, which is also what WF-0090's engine compares
+    // against to decide a field is still scaffold-written. Sourcing them once
+    // means the scaffold text and the eligibility predicate cannot drift — a
+    // sentinel edited here without the predicate knowing would silently make the
+    // field look human-authored and permanently unfillable.
+    ...reasonedSentinels({ title: inputs.title }),
     SCOPE: 'To be filled once the owner defines which files/symbols this workflow touches.',
     CONTRACTS: 'The Business envelope owns identity and kind; this workflow owns execution artifacts.',
     DATA_FLOW: `${inputs.id}/business.json -> ${ceremony.shape} -> ${ceremony.journeyBranch}.`,
-    TEST_PLAN: '- Validate the Business schema.\n- Validate the ceremony structure.\n- Record QA evidence before promotion.',
     TASKS: '- Author the executable task plan through the workflow engine.',
     MEMORY: 'No durable workflow memory has been established yet.',
     DECISIONS: 'No decision has been accepted yet.',
-    CRITERION: 'Owner-approved ceremony acceptance',
-    EVIDENCE: 'To be recorded by the workflow owner',
     STATUS: 'pending',
     RISK: 'Business assumptions are unconfirmed',
     LIKELIHOOD: 'unknown',

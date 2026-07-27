@@ -10,20 +10,39 @@
  * exactly-one-authority-per-field:
  *   - `state:"authored"` carries ONLY `{ state }`.
  *   - `state:"derived"` carries all four of `{ state, source, inputHash, contentHash }`.
- * A field entry mixing the two shapes (e.g. `authored` with a leftover `source`,
- * or `derived` missing a hash) is rejected — that rejection IS the single-
- * authority invariant this schema exists to guard.
+ *   - `state:"draft"` carries those four PLUS a non-empty `citations` array
+ *     (WF-0090 GA1, ADR-0148 rail (b) — model-written content awaiting review).
+ * A field entry mixing the shapes (e.g. `authored` with a leftover `source`, a
+ * `derived` missing a hash, or a `draft` with no citation) is rejected — that
+ * rejection IS the single-authority invariant this schema exists to guard.
+ *
+ * WF-0090 GA1 widened the state enum with `draft` and left
+ * `PROVENANCE_SIDECAR_SCHEMA_VERSION` at 1 **deliberately**: the version check
+ * below is exact equality, so a bump would invalidate every sidecar WF-0089 has
+ * already written. Widening an enum and adding a per-state key set is purely
+ * permissive — old sidecars stay valid, new ones validate under the same
+ * version. The residual gap is forward-compat (a pre-update validator meeting a
+ * `draft` entry), which the default-off engine prevents in practice; the first
+ * genuinely BREAKING sidecar change is the one that must bump the version and
+ * introduce an accepted-versions set (GA0 risk R-A).
  */
 import { isNonEmptyString } from '../runtime/work/enums.mjs';
 
 /** Schema version this validator understands. */
 export const PROVENANCE_SIDECAR_SCHEMA_VERSION = 1;
 
-/** The only two field-authority states (constitution §8: default is human-owned). */
-export const PROVENANCE_FIELD_STATES = Object.freeze(['authored', 'derived']);
+/** The field-authority states (constitution §8: default is human-owned). */
+export const PROVENANCE_FIELD_STATES = Object.freeze(['authored', 'derived', 'draft']);
 
 /** Keys a `derived` entry MUST carry (co-occurrence invariant). */
 const DERIVED_REQUIRED_KEYS = Object.freeze(['source', 'inputHash', 'contentHash']);
+
+/**
+ * Keys a `draft` entry MUST carry. Identical to `derived` plus `citations`: a
+ * draft with no citation is exactly the ungrounded content rail (a) forbids, so
+ * the schema refuses it rather than trusting the engine to.
+ */
+const DRAFT_REQUIRED_KEYS = Object.freeze(['source', 'inputHash', 'contentHash', 'citations']);
 
 /** Closed top-level key set — `provenance.json` has exactly these three. */
 const ALLOWED_TOP_LEVEL_KEYS = Object.freeze(['schemaVersion', 'contextRef', 'fields']);
@@ -33,6 +52,30 @@ const ALLOWED_AUTHORED_KEYS = Object.freeze(['state']);
 
 /** Closed key set for a `derived` entry. */
 const ALLOWED_DERIVED_KEYS = Object.freeze(['state', 'source', 'inputHash', 'contentHash']);
+
+/** Closed key set for a `draft` entry (WF-0090 GA1). */
+export const ALLOWED_DRAFT_KEYS = Object.freeze(['state', 'source', 'inputHash', 'contentHash', 'citations']);
+
+/**
+ * Validates the `citations` payload of a `draft` entry: a non-empty array of
+ * non-empty strings. The array's *contents* are validated against the graph by
+ * `content-grounding.mjs#validateCitation` (rail a) — this schema only guarantees
+ * the shape, so a structurally-broken draft can never reach disk.
+ *
+ * @param {string} fieldKey - field key, for error context.
+ * @param {unknown} citations - the candidate citation list.
+ * @param {string[]} errors - sink for human-readable errors.
+ * @returns {void}
+ */
+function checkCitations(fieldKey, citations, errors) {
+  if (!Array.isArray(citations) || citations.length === 0) {
+    errors.push(`fields.${fieldKey}.citations: required non-empty array on a "draft" entry`);
+    return;
+  }
+  if (!citations.every((citation) => isNonEmptyString(citation))) {
+    errors.push(`fields.${fieldKey}.citations: every citation must be a non-empty string`);
+  }
+}
 
 /**
  * Validates one `fields.<key>` entry against the co-occurrence invariant.
@@ -48,7 +91,7 @@ function checkFieldEntry(fieldKey, entry, errors) {
     return;
   }
   if (!PROVENANCE_FIELD_STATES.includes(entry.state)) {
-    errors.push(`fields.${fieldKey}.state: must be "authored" or "derived", got ${JSON.stringify(entry.state)}`);
+    errors.push(`fields.${fieldKey}.state: must be one of ${PROVENANCE_FIELD_STATES.join(', ')}, got ${JSON.stringify(entry.state)}`);
     return;
   }
   const keys = Object.keys(entry);
@@ -57,6 +100,18 @@ function checkFieldEntry(fieldKey, entry, errors) {
     if (extra.length) {
       errors.push(`fields.${fieldKey}: an "authored" entry must carry ONLY {state} (extra key(s): ${extra.join(', ')})`);
     }
+    return;
+  }
+  if (entry.state === 'draft') {
+    const extra = keys.filter((key) => !ALLOWED_DRAFT_KEYS.includes(key));
+    if (extra.length) errors.push(`fields.${fieldKey}: unknown key(s) on a "draft" entry: ${extra.join(', ')}`);
+    for (const requiredKey of DRAFT_REQUIRED_KEYS) {
+      if (requiredKey === 'citations') continue;
+      if (!isNonEmptyString(entry[requiredKey])) {
+        errors.push(`fields.${fieldKey}.${requiredKey}: required non-empty string on a "draft" entry`);
+      }
+    }
+    checkCitations(fieldKey, entry.citations, errors);
     return;
   }
   // state === 'derived'

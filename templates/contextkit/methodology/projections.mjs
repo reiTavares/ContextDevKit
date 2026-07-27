@@ -27,6 +27,26 @@ import { boundedReachability, reverseConsumers } from '../tools/scripts/graph-qu
 import { deriveWorkflowTasks } from '../tools/scripts/tasks-derive.mjs';
 import { classifyWork, DEFAULT_WORK_CLASSIFICATION } from '../runtime/execution/work-classifier.mjs';
 
+/**
+ * The field keys this module's projections OWN — the DERIVED half of ADR-0148
+ * §10. Frozen and exported so WF-0090's disjointness argument is a mechanical
+ * test (`REASONED_FIELD_KEYS ∩ DERIVED_FIELD_KEYS === ∅`) rather than a claim in
+ * a report: nothing stops a future field from being added to both lists except
+ * an assertion that fails when it is.
+ *
+ * `kpi.*` is represented by its container key: `deriveKpiSkeleton` owns the whole
+ * KPI block, and the content engine has no write path into any of it (targets stay
+ * `null` until measured).
+ */
+export const DERIVED_FIELD_KEYS = Object.freeze([
+  'spec.scope',
+  'risk.table',
+  'tasks',
+  'classification',
+  'index.currentPhase',
+  'kpi',
+]);
+
 /** Returns a deterministic, de-duplicated, sorted list of non-empty entry-symbol strings. */
 function normalizeEntrySymbols(entrySymbols) {
   if (!Array.isArray(entrySymbols)) return [];

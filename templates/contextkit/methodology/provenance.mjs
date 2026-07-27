@@ -130,6 +130,27 @@ export function inputDomainForStateProjection({ overallStatus, journeyPhase }) {
   return { source: 'scaffold:state-projection', overallStatus, journeyPhase };
 }
 
+/**
+ * Domain for `llm:grounded-content` (WF-0090 GA1 rail (b)). Folding the sorted
+ * citation list and the prompt version into the hash is what makes generation
+ * affordable: the same exemplars under the same prompt version produce the same
+ * `inputHash`, so a re-run is a no-op and burns zero tokens. Bumping
+ * `promptVersion` is the explicit, recorded escape for intentional regeneration.
+ *
+ * @param {{fieldKey:string, citations:string[], graphSignature?:string, promptVersion?:number}} args
+ * @returns {{source:'llm:grounded-content', graphSignature:string, fieldKey:string,
+ *   citations:string[], promptVersion:number}}
+ */
+export function inputDomainForGroundedContent({ fieldKey, citations, graphSignature = '', promptVersion = 1 }) {
+  return {
+    source: 'llm:grounded-content',
+    graphSignature,
+    fieldKey,
+    citations: [...new Set(citations ?? [])].sort(),
+    promptVersion,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Sidecar I/O — the thin disk boundary. Everything above this line is pure.
 // ---------------------------------------------------------------------------
@@ -198,6 +219,37 @@ export function stampDerivedEntry({ source, inputHash, newContent, contentKind =
   return { state: 'derived', source, inputHash, contentHash: hashFieldContent(newContent, contentKind) };
 }
 
+/**
+ * Builds a fresh `draft` entry for model-written content (WF-0090 GA1, rail (b)).
+ * `draft` is deliberately NOT `derived`: `derived` means machine-owned and
+ * auto-refreshed, which a non-deterministic model output must never be. A draft
+ * is therefore skipped by `deriveField` forever and only a human verdict or a
+ * human edit promotes it (see `content-promote.mjs`).
+ *
+ * @param {object} args
+ * @param {string} args.source source id — `llm:grounded-content` for the content engine
+ * @param {string} args.inputHash `hashInputDomain(inputDomainForGroundedContent(...))`
+ * @param {unknown} args.newContent the content ACTUALLY written (hashed as-is)
+ * @param {string[]} args.citations validated exemplar ids (deduped + sorted here)
+ * @param {'json'|'markdown'} [args.contentKind='markdown']
+ * @returns {{state:'draft', source:string, inputHash:string, contentHash:string, citations:string[]}}
+ * @throws {TypeError} when `citations` is empty — an ungrounded draft is exactly
+ *   what rail (a) forbids, so it is refused at construction, before any write.
+ */
+export function stampDraftEntry({ source, inputHash, newContent, citations, contentKind = 'markdown' }) {
+  const validated = [...new Set(citations ?? [])].sort();
+  if (validated.length === 0) {
+    throw new TypeError('stampDraftEntry: refused — a draft entry requires at least one validated citation (rail a)');
+  }
+  return {
+    state: 'draft',
+    source,
+    inputHash,
+    contentHash: hashFieldContent(newContent, contentKind),
+    citations: validated,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // The idempotent re-derive engine (SA2-T2).
 // ---------------------------------------------------------------------------
@@ -224,8 +276,13 @@ export function stampDerivedEntry({ source, inputHash, newContent, contentKind =
 export function deriveField({ sidecar, fieldKey, contentKind = 'json', readContent, compute, writeContent }) {
   const { entry, claimed } = fieldAuthority(sidecar, fieldKey);
 
+  // Anything that is not `derived` is a permanent skip: `authored` (explicit or
+  // defaulted) is human-owned, and `draft` (WF-0090) is model-written content
+  // awaiting review — auto-refreshing either one would overwrite an authority
+  // this engine does not hold. `${entry.state}-lock` keeps the historical
+  // "authored-lock" wording for authored fields while naming a draft honestly.
   if (entry.state !== 'derived') {
-    return { action: 'skip', sidecar, reason: claimed ? 'authored-lock' : 'unclaimed-defaults-to-authored' };
+    return { action: 'skip', sidecar, reason: claimed ? `${entry.state}-lock` : 'unclaimed-defaults-to-authored' };
   }
 
   const currentContent = readContent();

@@ -8,6 +8,10 @@
 
 {{SCOPE}}
 
+## Trade-offs
+
+{{TRADEOFFS}}
+
 ## Interfaces / contracts
 
 {{CONTRACTS}}
