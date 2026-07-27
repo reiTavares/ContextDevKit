@@ -40,7 +40,13 @@ import {
   evaluateEligibility,
   reasonedSentinels,
 } from './content-eligibility.mjs';
-import { citingSources, numericLiteralsIn, retrieveExemplars, validateCitation } from './content-grounding.mjs';
+import {
+  citingSources,
+  evaluateGrounding,
+  numericLiteralsIn,
+  retrieveExemplars,
+  validateCitation,
+} from './content-grounding.mjs';
 import { DERIVED_FIELD_KEYS, deriveKpiSkeleton } from './projections.mjs';
 import { deriveField, getFieldEntry } from './provenance.mjs';
 import { validateProvenanceSidecar } from './schema-provenance-sidecar.mjs';
@@ -348,6 +354,82 @@ function fakeGenerator(text, citations) {
     }
     assert(`[k] ${label}: degrades instead of throwing`, threw === null, String(threw));
   }
+}
+
+// [qa] GA3-T2 adversarial regressions — each of these was a REAL hole an
+// independent QA pass found and this suite did not catch. They are kept as
+// named cases so a future refactor cannot quietly reopen them.
+{
+  const graph = fixtureProjection();
+  const bodies = { 'adr:0148': 'improved by 40 percent across 12 contexts. Budget 1,000 tokens.' };
+  const groundedOnce = (text) => evaluateGrounding({
+    text, citations: ['adr:0148'], projection: graph, retrievedSet: ['adr:0148'], exemplarBodies: bodies,
+  }).grounded;
+
+  // F1 — a target written in WORDS is a target. A model asked for prose writes
+  // "ninety-nine percent" as readily as "99%", so this is the likely form.
+  assert('[qa] F1 a spelled-out number absent from the exemplar refuses', groundedOnce('Reduces cost by ninety-nine percent.') === false);
+  assert('[qa] F1 a spelled-out number PRESENT in the exemplar is allowed', groundedOnce('Reduces cost by forty percent.') === true);
+  assert('[qa] F1 a non-ASCII digit is folded, not smuggled past',
+    groundedOnce('４０ percent better.') === true && groundedOnce('９９ percent better.') === false);
+
+  // F2 — substring containment licensed `4` because the exemplar said `40`.
+  assert('[qa] F2 a digit-substring of an exemplar number refuses', groundedOnce('Reduces cost by 4 percent.') === false);
+  assert('[qa] F2 a zero borrowed from "1,000" refuses', groundedOnce('Cut by 0 percent.') === false);
+  assert('[qa] F2 a thousands-separated number matches its unseparated form', groundedOnce('Budget 1000 tokens.') === true);
+  assert('[qa] F2 a real exemplar number still passes', groundedOnce('Improved by 40 percent across 12 contexts.') === true);
+
+  // F9 — exported validators on the anti-hallucination path must REFUSE junk,
+  // never throw: a crash is a worse failure mode than a refusal.
+  for (const [label, retrievedSet] of [['an object', { a: 1 }], ['a number', 42], ['null', null]]) {
+    let threw = null;
+    let verdict = null;
+    try {
+      verdict = validateCitation({ citation: 'adr:0148', projection: graph, retrievedSet });
+    } catch (err) {
+      threw = err;
+    }
+    assert(`[qa] F9 a non-iterable retrievedSet (${label}) refuses instead of throwing`, threw === null && verdict?.valid === false, String(threw));
+  }
+
+  // F6 — the §13 guardrail floor must be STRUCTURAL. Before the fix, a rising
+  // ledger filled the field whenever `deps.killSwitch` was simply not injected,
+  // so a wiring step that forgot one line shipped an ungoverned engine.
+  const rising = fillGroundedContent(activeContext(), placeholderSkeleton(), graph, { available: true, sessionTokens: 200, priorSessionTokens: 100 }, {
+    generate: fakeGenerator('grounded prose', ['adr:0148']).generate,
+    exemplarBodies: EXEMPLAR_BODIES,
+  });
+  assert('[qa] F6 a rising ledger refuses even with NO kill-switch injected (guardrail floor)',
+    rising.fields['prd.problem'] === undefined && Object.keys(rising.fields).join(',') === ENGINE_VERDICT_KEY,
+    JSON.stringify(rising.fields));
+  assert('[qa] F6 the floor names the regression', rising.fields[ENGINE_VERDICT_KEY].reason.includes('rising'), rising.fields[ENGINE_VERDICT_KEY].reason);
+
+  // F4 — `available:true` is not the same as trustworthy. Coercing would read a
+  // MISSING measurement (`Number(null) === 0`) as "measured zero spend".
+  for (const unusable of [null, undefined, NaN, -5, '100', {}]) {
+    const outcome = fillGroundedContent(activeContext(), placeholderSkeleton(), graph, { available: true, sessionTokens: unusable, priorSessionTokens: 1 }, {
+      generate: fakeGenerator('grounded prose', ['adr:0148']).generate,
+      exemplarBodies: EXEMPLAR_BODIES,
+    });
+    assert(`[qa] F4 an unusable measurement (${JSON.stringify(unusable)}) never authorizes spend`,
+      outcome.fields['prd.problem'] === undefined, JSON.stringify(outcome.fields));
+  }
+
+  // F5 — the kill-switch interprets an externally-read ledger, so it is the most
+  // plausible thing here to fail at runtime. The generator was wrapped; it was not.
+  let killSwitchThrew = null;
+  let guarded = null;
+  try {
+    guarded = fillGroundedContent(activeContext(), placeholderSkeleton(), graph, READY_LEDGER, {
+      generate: fakeGenerator('grounded prose', ['adr:0148']).generate,
+      exemplarBodies: EXEMPLAR_BODIES,
+      killSwitch: () => { throw new Error('guardrail exploded'); },
+    });
+  } catch (err) {
+    killSwitchThrew = err;
+  }
+  assert('[qa] F5 a throwing kill-switch lands in rail (d) instead of escaping', killSwitchThrew === null, String(killSwitchThrew));
+  assert('[qa] F5 a throwing kill-switch writes nothing', Object.keys(guarded?.fields ?? {}).join(',') === ENGINE_VERDICT_KEY);
 }
 
 process.stdout.write(failures.length === 0 ? '\nPASSED\n' : `\nFAILED (${failures.length})\n`);

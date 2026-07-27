@@ -12,10 +12,17 @@
  * session row it never fetches. Spawning the CLI per field, or re-implementing
  * transcript aggregation, were both refused (cost, and "reuse, don't
  * reimplement"). Instead this reads the existing append-only economy-events
- * ledger through `readEconomyEventsSync`, filtered to the engine's own lever —
- * and the engine records its own spend with `logEconomyEventSync` after each
- * fill, so the series it reads is an honest measurement of what content-fill
- * actually costs.
+ * ledger through `readEconomyEventsSync`, filtered to the engine's own lever.
+ *
+ * **The measurement loop is open, by sequence rather than by oversight.**
+ * `recordContentFillSpend` below is the writer that closes it, and it currently
+ * has NO caller: there is no production fill site yet (GA4 is the wiring wave).
+ * So on any real root `readGovernanceTokenLedger` reports
+ * `available:false, reason:'no content-fill rows…'` and the engine is OFF. The
+ * failure direction is the safe one — unmeasured ⇒ off ⇒ rail (d) — but rail (c)
+ * stays *unexercised against real data* until a fill path records spend. Whoever
+ * wires `deps.killSwitch` must wire `recordContentFillSpend` in the same change,
+ * or the guardrail can never arm.
  *
  * The honest limitation, recorded rather than hidden (GA0 risk R-C): this
  * measures the ENGINE's governance-token spend, not the whole plane's
@@ -58,8 +65,20 @@ function observedTokens(record) {
  *
  * The one read boundary. Fail-open and honest: a missing file, a ledger with no
  * content-fill rows, or no identifiable prior session all return
- * `available:false` with a reason — never a fabricated zero, which would read as
+ * `available:false` with a reason rather than a zero that would read as
  * "measured, and cheap".
+ *
+ * One case does report a real zero, and it is a measurement rather than a
+ * fabrication: a ledger holding rows for a PRIOR session but none for this one
+ * returns `available:true, sessionTokens:0`. On an append-only ledger "no rows
+ * yet" genuinely means "nothing spent yet". The consequence worth knowing is that
+ * the budget comparison cannot trip on a session's first fill — only the
+ * non-regression comparison can.
+ *
+ * "The prior session" is the last DISTINCT session id in ledger-append order, so
+ * an interleaved ledger (`A, self, A`) picks a baseline that includes rows
+ * appended after this session began. Accepted: the alternative is a clock, and a
+ * clock in the hash/compare path is what this module exists to avoid.
  *
  * @param {string} root project root (holds `contextkit/memory/economy-events.jsonl`)
  * @param {{sessionId?: string|null, readEvents?: Function}} [options]
@@ -159,18 +178,53 @@ export function evaluateKillSwitch(config, ledger, pressure = null) {
       tripped: false,
     };
   }
-  if (Number(ledger.sessionTokens) >= budget) {
+
+  // `available:true` is not the same as trustworthy. A non-finite or negative
+  // total is an UNUSABLE measurement, and unusable is `skipped` — never a pass
+  // (constitution §8). Without this guard both comparisons below are false for
+  // NaN and the function falls through to "satisfied", i.e. a corrupt reading
+  // would authorize spend. `readGovernanceTokenLedger` never emits one, but
+  // `ledger` is a documented injected parameter and this function is exported.
+  // Type-checked, never coerced: `Number(null)` is 0, so coercion would read a
+  // MISSING measurement as "measured zero spend" and authorize the fill.
+  const sessionTokens = ledger.sessionTokens;
+  if (typeof sessionTokens !== 'number' || !Number.isFinite(sessionTokens) || sessionTokens < 0) {
     return {
       enabled: false,
-      reason: `per-context token budget consumed (${ledger.sessionTokens} >= ${budget})`,
+      reason: `governance-token measurement unusable (skipped, never a pass): ${JSON.stringify(ledger.sessionTokens)}`,
+      tripped: false,
+    };
+  }
+  if (!Number.isFinite(budget)) {
+    return {
+      enabled: false,
+      reason: `config.tokenBudgetPerContext is not a finite number: ${JSON.stringify(config?.tokenBudgetPerContext)}`,
+      tripped: false,
+    };
+  }
+  if (sessionTokens >= budget) {
+    return {
+      enabled: false,
+      reason: `per-context token budget consumed (${sessionTokens} >= ${budget})`,
       tripped: true,
     };
   }
   // The guardrail proper: governance-tokens/session must NOT rise (ADR-0148 §13).
-  if (ledger.priorSessionTokens !== null && Number(ledger.sessionTokens) > Number(ledger.priorSessionTokens)) {
+  // `null`/`undefined` legitimately mean "no baseline recorded yet"; anything
+  // else that is not a finite number is a corrupt baseline, not an absent one.
+  const priorRaw = ledger.priorSessionTokens;
+  const priorTokens = priorRaw === null || priorRaw === undefined ? null : priorRaw;
+  if (priorTokens !== null && (typeof priorTokens !== 'number' || !Number.isFinite(priorTokens))) {
     return {
       enabled: false,
-      reason: `governance-tokens/session rising (${ledger.sessionTokens} > ${ledger.priorSessionTokens}) — kill-switch tripped`,
+      reason: `prior-session measurement unusable (skipped, never a pass): ${JSON.stringify(priorRaw)}`,
+      tripped: false,
+    };
+  }
+  if (priorTokens !== null && sessionTokens > priorTokens) {
+    return {
+      enabled: false,
+      reason: `governance-tokens/session rising (${sessionTokens} > ${priorTokens}) — kill-switch tripped`,
       tripped: true,
     };
   }

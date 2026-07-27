@@ -111,8 +111,48 @@ export function resolveActivation({ config, graph, ledger, deps }) {
   if (!ledger || ledger.available !== true) {
     return { allowed: false, reason: `governance-token ledger unavailable: ${ledger?.reason ?? 'not read'} (skipped, never a pass)` };
   }
+
+  // The §13 guardrail FLOOR, enforced here and not only in the injected
+  // kill-switch. An `available` ledger is not a trusted ledger: a non-finite or
+  // negative measurement is unusable, and unusable is `skipped` — never a pass
+  // (constitution §8). And the non-regression comparison is the guardrail
+  // itself ("governance-tokens/session must NOT rise"), so it cannot depend on
+  // a caller remembering to inject `deps.killSwitch`: a wiring step that forgets
+  // one line must not be able to ship an ungoverned engine.
+  // Type-checked, never coerced: `Number(null)` is 0, so coercion would read a
+  // MISSING measurement as "measured zero spend" and authorize the fill.
+  const sessionTokens = ledger.sessionTokens;
+  if (typeof sessionTokens !== 'number' || !Number.isFinite(sessionTokens) || sessionTokens < 0) {
+    return { allowed: false, reason: `governance-token measurement unusable (skipped, never a pass): ${JSON.stringify(ledger.sessionTokens)}` };
+  }
+  const budget = Number(resolved.tokenBudgetPerContext);
+  if (!Number.isFinite(budget)) {
+    return { allowed: false, reason: `config.tokenBudgetPerContext is not a finite number: ${JSON.stringify(resolved.tokenBudgetPerContext)}` };
+  }
+  if (sessionTokens >= budget) {
+    return { allowed: false, reason: `per-context token budget consumed (${sessionTokens} >= ${budget})` };
+  }
+  const priorRaw = ledger.priorSessionTokens;
+  const priorTokens = priorRaw === null || priorRaw === undefined ? null : priorRaw;
+  if (priorTokens !== null && (typeof priorTokens !== 'number' || !Number.isFinite(priorTokens))) {
+    return { allowed: false, reason: `prior-session measurement unusable (skipped, never a pass): ${JSON.stringify(priorRaw)}` };
+  }
+  if (priorTokens !== null && sessionTokens > priorTokens) {
+    return { allowed: false, reason: `governance-tokens/session rising (${sessionTokens} > ${priorTokens}) — guardrail floor tripped` };
+  }
+
+  // The injected kill-switch is an ADDITIONAL layer on top of that floor (it also
+  // reads session pressure). Wrapped like `safeGenerate` wraps the generator: the
+  // component that interprets an externally-read ledger is the most plausible
+  // thing here to fail at runtime, and a throwing guardrail must land in rail (d)
+  // rather than escape as an exception.
   if (typeof deps?.killSwitch === 'function') {
-    const verdict = deps.killSwitch(resolved, ledger, deps.pressure ?? null);
+    let verdict;
+    try {
+      verdict = deps.killSwitch(resolved, ledger, deps.pressure ?? null);
+    } catch {
+      return { allowed: false, reason: 'injected kill-switch threw (treated as tripped)' };
+    }
     if (!verdict || verdict.enabled !== true) {
       return { allowed: false, reason: verdict?.reason ?? 'kill-switch tripped' };
     }
@@ -123,9 +163,16 @@ export function resolveActivation({ config, graph, ledger, deps }) {
 /**
  * Fills the reasoned half of a skeleton behind all four rails.
  *
- * Never throws outward and never blocks: a refusal on any rail leaves the field's
- * bytes and the sidecar untouched, and the caller can ignore the result entirely
- * and still hold a valid artifact.
+ * Never blocks: a refusal on any rail leaves the field's bytes and the sidecar
+ * untouched, and the caller can ignore the result entirely and still hold a valid
+ * artifact. Every rail path — an off engine, a refused field, a throwing
+ * generator, a throwing kill-switch — is a refusal, not an exception.
+ *
+ * It is NOT throw-proof against a hostile argument: a getter that throws on
+ * `context.config`, `skeleton.fields`, `graph.nodes` or `ledger.available` will
+ * propagate. GA0 assigns fail-open at the boundary to the CALLER's try/catch (the
+ * same discipline as SA2's `stampWorkflowTasksProvenance`), so wrap the call the
+ * way `workflow/create.mjs` wraps the provenance stamp.
  *
  * @param {object} context resolved work context —
  *   `{ contextRef, sidecar, governingAdrIds, entrySymbols, title, graphSignature, config }`.

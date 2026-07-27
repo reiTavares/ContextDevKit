@@ -244,5 +244,55 @@ function receipt({ status = 'approved', approver = 'human:reviewer', evidence = 
     JSON.stringify(evaluateKillSwitch(ACTIVE, ledger(10, 100))) === JSON.stringify(evaluateKillSwitch(ACTIVE, ledger(10, 100))));
 }
 
+// [qa] GA3-T2 adversarial regressions — real holes an independent QA pass found
+// that this suite did not catch. Kept as named cases so they cannot reopen.
+{
+  const original = 'The model wrote this.';
+  const sidecar = draftSidecar(hashFieldContent(original, 'markdown'));
+
+  // F3 (the top finding) — a draft promoted ITSELF to `authored` with no human
+  // anywhere in the loop. `edited()` treated only `undefined`/throw as "cannot
+  // tell", so a reader returning '' read as a content-hash mismatch. Reachable,
+  // not theoretical: REASONED_FIELD_SECTIONS is null for acceptance.criterion and
+  // acceptance.evidence (table cells, not sections), so the natural
+  // markdownSectionBody reader returns '' for 2 of the 8 reasoned fields — those
+  // drafts got permanent human authority on the first promotion pass.
+  for (const [label, readContent] of [
+    ["an empty string (the acceptance.* section reader)", () => ''],
+    ['whitespace only', () => '   '],
+    ['CRLF whitespace', () => '\r\n  \r\n'],
+    ['null', () => null],
+    ['false', () => false],
+    ['zero', () => 0],
+    ['an object', () => ({})],
+    ['undefined', () => undefined],
+  ]) {
+    const outcome = promoteDrafts({ sidecar, readContent });
+    assert(`[qa] F3 a failed read (${label}) does NOT promote — "cannot tell" is not "edited"`,
+      outcome.promoted.length === 0 && outcome.sidecar.fields['prd.problem'].state === 'draft',
+      JSON.stringify(outcome.promoted));
+  }
+  // The channel must still WORK — a fix that simply disabled edit-promotion
+  // would pass every case above and be useless.
+  assert('[qa] F3 a genuine human edit still promotes (the fix did not disable the channel)',
+    promoteDrafts({ sidecar, readContent: () => 'A human rewrote this by hand.' }).sidecar.fields['prd.problem'].state === 'authored');
+
+  // F4 — `available:true` is not trustworthy. Type-checked, never coerced:
+  // `Number(null)` is 0, so coercion read a MISSING measurement as "zero spend".
+  for (const unusable of [null, undefined, NaN, -5, '100', {}, Infinity]) {
+    assert(`[qa] F4 an unusable sessionTokens (${JSON.stringify(unusable)}) never authorizes spend`,
+      evaluateKillSwitch(ACTIVE, { available: true, sessionTokens: unusable, priorSessionTokens: 1 }).enabled === false);
+  }
+  assert('[qa] F4 a corrupt prior-session baseline refuses',
+    evaluateKillSwitch(ACTIVE, { available: true, sessionTokens: 10, priorSessionTokens: 'lots' }).enabled === false);
+  assert('[qa] F4 an ABSENT baseline (null) is still allowed — no baseline yet is not corruption',
+    evaluateKillSwitch(ACTIVE, ledger(10, null)).enabled === true);
+  assert('[qa] F4 a legitimate measurement still passes', evaluateKillSwitch(ACTIVE, ledger(10, 100)).enabled === true);
+
+  // F12 — an absurd budget must not authorize unbounded spend.
+  assert('[qa] F12 a non-finite tokenBudgetPerContext refuses',
+    evaluateKillSwitch({ enabled: true, tokenBudgetPerContext: Infinity }, ledger(10, 100)).enabled === false);
+}
+
 process.stdout.write(failures.length === 0 ? '\nPASSED\n' : `\nFAILED (${failures.length})\n`);
 process.exit(failures.length === 0 ? 0 : 1);

@@ -237,7 +237,15 @@ export function stampDerivedEntry({ source, inputHash, newContent, contentKind =
  *   what rail (a) forbids, so it is refused at construction, before any write.
  */
 export function stampDraftEntry({ source, inputHash, newContent, citations, contentKind = 'markdown' }) {
-  const validated = [...new Set(citations ?? [])].sort();
+  // Non-empty STRINGS only, filtered before the emptiness check: `['']`/`[null]`
+  // would otherwise satisfy "at least one citation" while carrying none, and the
+  // refusal would then fall to the schema validator rather than to the throw the
+  // `@throws` contract promises.
+  const validated = [...new Set(
+    (Array.isArray(citations) ? citations : [])
+      .filter((citation) => typeof citation === 'string' && citation.trim().length > 0)
+      .map((citation) => citation.trim()),
+  )].sort();
   if (validated.length === 0) {
     throw new TypeError('stampDraftEntry: refused — a draft entry requires at least one validated citation (rail a)');
   }

@@ -131,6 +131,19 @@ function edited(entry, fieldKey, readContent, contentKinds) {
   } catch {
     return false;
   }
-  if (current === undefined) return false;
-  return hashFieldContent(current, contentKinds[fieldKey] ?? 'markdown') !== entry.contentHash;
+  // "Cannot tell" must never promote. A read that produced NOTHING — undefined,
+  // null, a non-string, or a string that normalizes to empty — is a failed read,
+  // not evidence of a human edit. This matters concretely, not theoretically:
+  // `REASONED_FIELD_SECTIONS` is `null` for `acceptance.criterion` and
+  // `acceptance.evidence` (they are table cells, not sections), so the natural
+  // `markdownSectionBody`-based reader returns `''` for those two fields. Reading
+  // `''` as a hash mismatch would hand model-written content permanent `authored`
+  // authority with no human anywhere in the loop — the exact inversion of rail (b).
+  const kind = contentKinds[fieldKey] ?? 'markdown';
+  if (kind === 'markdown') {
+    if (typeof current !== 'string' || current.replace(/\r\n/g, '\n').trim().length === 0) return false;
+  } else if (current === undefined || current === null) {
+    return false;
+  }
+  return hashFieldContent(current, kind) !== entry.contentHash;
 }

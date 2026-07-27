@@ -23,14 +23,30 @@
  *      generator for THIS field. This is the check that catches an id the model
  *      invented *or* borrowed from elsewhere in the graph — it can exist and
  *      still fail;
- *   4. **numeric containment** — every numeric literal in the generated text
- *      appears verbatim in a retrieved exemplar body. This is how "no invented
- *      targets" (constitution §8) becomes enforceable on prose.
+ *   4. **quantity containment** — every quantity the generated text asserts must
+ *      also be asserted by a retrieved exemplar. Compared as canonical token
+ *      SETS, per exemplar: Unicode digits fold to ASCII, thousands separators
+ *      drop, leading zeros are not significant, and English number words resolve
+ *      to their value, so "forty percent" is constrained exactly like "40%".
+ *      Never a substring scan over concatenated bodies — that licensed `4`
+ *      because some exemplar said `40`, and manufactured cross-exemplar numbers
+ *      belonging to no single exemplar.
  *
  * Sufficiency is **one validated citation** (GA0 decision D2): a higher
  * threshold would be a number nobody measured, and it would make the engine
  * structurally silent on a young project with a single governing ADR — the exact
  * case ADR-0148 §3 wants working.
+ *
+ * **The honest scope of these four checks**, so no downstream doc overclaims:
+ * they constrain *citation provenance* and *asserted quantities*, not entailment.
+ * One validated citation plus digit-free prose is `grounded:true` — the model
+ * cannot cite something it did not retrieve, and cannot state a number no
+ * exemplar states, but nothing here proves a sentence follows from its exemplar.
+ * Non-numeric claims ("risk is HIGH") are unconstrained, and a quantity written
+ * in a form outside the recognized digit/word vocabulary is not seen as a
+ * quantity. That is why rail (b) exists: WF-0090's real guarantee is "every
+ * generated field is traceable to a retrieved exemplar and lands as `draft` for
+ * human review" — never "every generated sentence is supported".
  *
  * A note the edge filter depends on: graph edges carry **`relation`**, not
  * `kind`/`type`. Filtering the wrong field yields zero cites for every field,
@@ -49,8 +65,77 @@ export const CITES_RELATION = 'cites';
 /** Accepted citation id shapes — an ADR rationale node, a file node, or a symbol node. */
 const CITATION_SHAPE = /^(adr:\d{4}|file:.+|sym:.+)$/;
 
-/** Matches numeric literals (integers, decimals, and percentages) in generated prose. */
-const NUMERIC_LITERAL = /\d+(?:[.,]\d+)?/g;
+/** Matches numeric literals (integers and decimals) in already-normalized prose. */
+const NUMERIC_LITERAL = /\d+(?:\.\d+)?/g;
+
+/**
+ * English number words mapped to their canonical value, so a target written in
+ * WORDS is constrained exactly like one written in digits — a model asked for
+ * prose writes "forty percent" as readily as "40%", so this is the likely form,
+ * not the exotic one.
+ *
+ * Bounded on purpose: units, teens, tens, the common scales, and the fraction
+ * words that carry a quantity claim. Compound forms are handled by summing
+ * hyphen/space-joined parts (`ninety-nine` -> 99). Anything outside this table is
+ * not recognized as a quantity — see the module header for what that means.
+ */
+const NUMBER_WORDS = Object.freeze({
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
+  seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
+  sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100, thousand: 1000,
+  million: 1000000, billion: 1000000000,
+  half: 0.5, third: 3, thirds: 3, quarter: 4, quarters: 4,
+});
+
+/**
+ * The decimal value of any Unicode decimal digit, as an ASCII digit string.
+ * Derived, not tabulated: every `Nd` block is exactly ten contiguous code points,
+ * so walking back to the block's zero yields the value without hardcoding a list
+ * of digit blocks.
+ *
+ * @param {string} character a single `\p{Nd}` character
+ * @returns {string} the ASCII digit
+ */
+function digitValue(character) {
+  const code = character.codePointAt(0);
+  let zero = code;
+  while (code - zero < 9 && zero > 0 && /\p{Nd}/u.test(String.fromCodePoint(zero - 1))) zero -= 1;
+  return String(code - zero);
+}
+
+/**
+ * Canonicalizes text before any numeric comparison: every Unicode decimal digit
+ * becomes its ASCII equivalent (so fullwidth `４０` and Arabic-Indic `٤٠` cannot
+ * smuggle a number past the check), and thousands separators inside a digit group
+ * are removed so `1,000` / `1 000` / `1000` are one token.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function normalizeQuantityText(text) {
+  const asciiDigits = String(text ?? '').replace(/\p{Nd}/gu, digitValue);
+  return asciiDigits.replace(/(\d)[,   ](\d{3})(?!\d)/g, '$1$2');
+}
+
+/**
+ * The canonical value of a hyphen/space-joined number-word compound, or null when
+ * the phrase is not a recognized quantity.
+ *
+ * @param {string[]} words lowercased word parts
+ * @returns {number|null}
+ */
+function compoundWordValue(words) {
+  let total = 0;
+  let matched = false;
+  for (const word of words) {
+    const value = NUMBER_WORDS[word];
+    if (value === undefined) return null;
+    matched = true;
+    total = value >= 100 && total > 0 ? total * value : total + value;
+  }
+  return matched ? total : null;
+}
 
 /**
  * Every `adr:NNNN` rationale node present in the projection, sorted. These are
@@ -147,6 +232,22 @@ export function retrieveExemplars(fieldKey, context = {}, projection = null) {
   };
 }
 
+/**
+ * Coerces a retrieved-set argument to a `Set` of ids, refusing rather than
+ * throwing on a malformed one. These are exported validators on the
+ * anti-hallucination path: a caller passing junk must get a REFUSAL (an empty
+ * set matches nothing, so every citation fails membership), never a `TypeError`
+ * from `new Set(nonIterable)`.
+ *
+ * @param {Set<string>|string[]|unknown} candidate
+ * @returns {Set<string>}
+ */
+function toIdSet(candidate) {
+  if (candidate instanceof Set) return candidate;
+  if (Array.isArray(candidate)) return new Set(candidate.map((id) => String(id)));
+  return new Set();
+}
+
 /** Normalizes `148` / `0148` / `ADR-0148` / `adr:0148` to the `adr:0148` node id form. */
 function normalizeAdrId(candidate) {
   const text = String(candidate ?? '').trim();
@@ -156,16 +257,42 @@ function normalizeAdrId(candidate) {
 }
 
 /**
- * Every numeric literal in a piece of text, deduped. Used by the containment
- * check so a generated target ("reduces cost by 40%") cannot pass unless the 40
- * came from an exemplar.
+ * Every quantity a piece of text asserts, as a deduped set of canonical numeric
+ * STRINGS. Used by the containment check so a generated target ("reduces cost by
+ * 40%") cannot pass unless that 40 came from an exemplar.
+ *
+ * Canonical, not literal, because the comparison has to survive the ways the same
+ * quantity can be spelled: Unicode digits are folded to ASCII, thousands
+ * separators are dropped, a leading zero is not significant (`04` and `4` are one
+ * quantity), and English number words are resolved to their value so
+ * "forty percent" is constrained exactly like "40%".
  *
  * @param {string} text
- * @returns {string[]} sorted numeric literals
+ * @returns {string[]} sorted canonical quantity strings
  */
 export function numericLiteralsIn(text) {
-  const matches = String(text ?? '').match(NUMERIC_LITERAL) ?? [];
-  return [...new Set(matches)].sort();
+  const normalized = normalizeQuantityText(text);
+  const quantities = new Set();
+  for (const match of normalized.match(NUMERIC_LITERAL) ?? []) {
+    const value = Number(match);
+    if (Number.isFinite(value)) quantities.add(String(value));
+  }
+  // Word compounds: scan maximal runs of hyphen/space-joined number words so
+  // `ninety-nine` resolves to 99 rather than to 90 and 9 separately.
+  const words = normalized.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  let run = [];
+  const flush = () => {
+    if (run.length === 0) return;
+    const value = compoundWordValue(run);
+    if (value !== null) quantities.add(String(value));
+    run = [];
+  };
+  for (const word of words) {
+    if (NUMBER_WORDS[word] !== undefined) run.push(word);
+    else flush();
+  }
+  flush();
+  return [...quantities].sort();
 }
 
 /**
@@ -188,7 +315,7 @@ export function validateCitation({ citation, projection, retrievedSet }) {
   const known = new Set((projection.nodes ?? []).map((node) => String(node?.id ?? '')));
   if (!known.has(id)) return { valid: false, reason: 'citation-resolves-to-no-node (hallucinated)' };
 
-  const retrieved = retrievedSet instanceof Set ? retrievedSet : new Set(retrievedSet ?? []);
+  const retrieved = toIdSet(retrievedSet);
   if (!retrieved.has(id)) return { valid: false, reason: 'citation-outside-this-field-retrieved-set' };
 
   return { valid: true, reason: 'validated' };
@@ -227,12 +354,18 @@ export function evaluateGrounding({ text, citations, projection, retrievedSet, e
     return { grounded: false, citations: [], reason: 'no-validated-citation', rejected };
   }
 
-  const retrieved = retrievedSet instanceof Set ? retrievedSet : new Set(retrievedSet ?? []);
-  const evidence = Object.entries(exemplarBodies)
-    .filter(([id]) => retrieved.has(id))
-    .map(([, body]) => String(body ?? ''))
-    .join('\n');
-  const invented = numericLiteralsIn(text).filter((literal) => !evidence.includes(literal));
+  const retrieved = toIdSet(retrievedSet);
+  // Quantity containment compares TOKEN SETS, per exemplar — never a substring
+  // scan over a concatenated blob. Two reasons, both of which were real holes:
+  // a substring test licenses `4` because some exemplar says `40` (and `0`/`00`
+  // because one says `1,000`), and concatenating bodies manufactures
+  // cross-exemplar numbers that exist in no single exemplar.
+  const evidenceQuantities = new Set();
+  for (const [id, body] of Object.entries(exemplarBodies ?? {})) {
+    if (!retrieved.has(id)) continue;
+    for (const quantity of numericLiteralsIn(body)) evidenceQuantities.add(quantity);
+  }
+  const invented = numericLiteralsIn(text).filter((quantity) => !evidenceQuantities.has(quantity));
   if (invented.length > 0) {
     return {
       grounded: false,
