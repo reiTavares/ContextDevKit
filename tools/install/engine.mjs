@@ -93,11 +93,23 @@ async function copyEngine(target, tplDir, report) {
   // always-overwrite in lockstep with the engine rather than seeded write-if-missing
   // like the flat registries a user EXTENDS. Undistributed, every reader silently
   // degraded to its fallback and the journey map went inert on a fresh install.
+  // Report what actually shipped, not what was intended: a table missing from the
+  // source is SKIPPED and must say so. An unconditional "✓ … policy/a|b|c" line
+  // would let a silent skip read as a successful install — the same §8 failure this
+  // whole wave exists to fix, one layer up in the report instead of the copy.
+  const copiedTables = [];
+  const skippedTables = [];
   for (const table of POLICY_TABLES) {
     const src = join(tplDir, 'contextkit', 'policy', table);
-    if (existsSync(src)) await overwrite(join(target, 'contextkit', 'policy', table), await read(src));
+    if (!existsSync(src)) { skippedTables.push(table); continue; }
+    await overwrite(join(target, 'contextkit', 'policy', table), await read(src));
+    copiedTables.push(table);
   }
-  report.push(`✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts, policy/${POLICY_TABLES.join('|')})`);
+  const tableReport = copiedTables.length ? `, policy/${copiedTables.join('|')}` : '';
+  report.push(`✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts${tableReport})`);
+  if (skippedTables.length) {
+    report.push(`⚠ policy table(s) SKIPPED — absent from the kit source, their readers will fall back to embedded defaults: ${skippedTables.join(', ')}`);
+  }
 }
 
 /**

@@ -312,11 +312,16 @@ async function testInvariantRolloutLadder() {
 
   try {
     // shadow + advisory: a drifting pack is REPORTED but never blocks (ADR-0125).
+    // Assert BOTH the exit code and the receipt status. `exitCode` alone is not
+    // enough: the hook gates the exit on `mode === 'guarded'`, so a regression that
+    // makes advisory populate `blocked` still exits 0 while the receipt reports
+    // `status: 'blocked'` — and any consumer branching on `status` (a UI, a future
+    // caller) would silently treat advisory as blocking.
     for (const mode of ['shadow', 'advisory']) {
       const receipt = hook(mode);
-      receipt.exitCode === 0
-        ? ok(`invariant guard in "${mode}" warns but never blocks (exit 0)`)
-        : bad(`invariant guard in "${mode}" blocked with exit ${receipt.exitCode} — the ladder must only block in guarded`);
+      receipt.exitCode === 0 && receipt.status !== 'blocked'
+        ? ok(`invariant guard in "${mode}" warns but never blocks (exit 0, status ${receipt.status})`)
+        : bad(`invariant guard in "${mode}" blocked: exit=${receipt.exitCode} status=${receipt.status} — the ladder must only block in guarded`);
     }
 
     // guarded: the SAME pack blocks, and names the hot-path invariants it can
@@ -363,6 +368,24 @@ async function testInvariantRolloutLadder() {
       if (parseError) bad(`committed templates/contextkit/config.json is unparsable: ${parseError}`);
       else if (shipped?.mode === 'shadow') ok('the shipped invariantGuard default is "shadow" — the guarded flip stays human-gated');
       else bad(`the shipped invariantGuard mode is "${shipped?.mode}" — promoting it requires a recorded human gate (ADR-0148 IN3)`);
+    }
+
+    // There is a SECOND shipped default: `runtime/config/defaults.mjs`. `loadConfig`
+    // deep-merges a project's config.json ONTO that, so any project whose config
+    // predates the `workflowIntegrity` key — realistic, the key is new — inherits
+    // defaults.mjs, not templates/contextkit/config.json. Pinning only the JSON left
+    // a path where a distribution ships `guarded` and this suite still passes green.
+    // Assert the resolved behaviour, which is what actually reaches a project.
+    const { loadConfigSync } = await importKit('templates/contextkit/runtime/config/load.mjs');
+    const legacyProject = tmp('ladder-legacy');
+    try {
+      seedConfig(legacyProject, { level: 5 }); // no workflowIntegrity key at all
+      const resolvedMode = loadConfigSync(legacyProject)?.workflowIntegrity?.invariantGuard?.mode;
+      resolvedMode === 'shadow'
+        ? ok('a project with no workflowIntegrity key RESOLVES to shadow (defaults.mjs pinned too)')
+        : bad(`a config predating workflowIntegrity resolves to "${resolvedMode}" — defaults.mjs promotes the ladder without a human gate (ADR-0148 IN3)`);
+    } finally {
+      rmSync(legacyProject, { recursive: true, force: true });
     }
   } finally {
     rmSync(root, { recursive: true, force: true });
