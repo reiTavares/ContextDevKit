@@ -247,7 +247,7 @@ leftover `{{tokens}}` / `[PREENCHA]` sentinels and runs `seo-audit` +
 componentization is native; map responsibilities as `/components` (dumb UI),
 `/features` (fold-level smart components), `/hooks`, `/services` (webhook/API
 clients), `/config` (tracking + SEO constants). Same SRP rules, same consent
-contract — the constitution's file budget governs (280 + 10%), no parallel cap.
+contract — the constitution governs (no line limit), no parallel cap.
 
 ## Indexability gate (cross-link)
 

@@ -41,7 +41,7 @@ the playbook is the judgment around it.
 
 ## Maintenance
 
-- Keep each doc **lean** and under the constitution's file-size budget (280 lines).
+- Keep each doc **lean**. There is no line limit — length only prompts a review.
 - These are stack-agnostic on purpose. Project-specific detail belongs in a scoped
   `CLAUDE.md` or an ADR, not here.
 - A stale workflow doc is worse than none — update it when its mechanism changes.

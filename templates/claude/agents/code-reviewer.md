@@ -103,7 +103,7 @@ with nothing to say emits nothing (the silence rule). Your severity classificati
 | Class | What | Grade 3 | Grade 4 |
 | --- | --- | --- | --- |
 | **Hard (blocks at g4)** | immutable-rule violation; DDD Class-A breach on the declared map; swallowed exception / leaked stack trace; business logic in the transport layer; language-policy violation | 🔴 proposed | 🔴 blocks until fixed or an ADR carve-out |
-| **Advisory (never blocks)** | file-size bands (240/308 — telemetry, never a verdict); naming; docs; And/Or names; coverage (QA owns the gate) | 🟡/🟢 proposed | 🟡/🟢 surfaced, non-blocking |
+| **Advisory (never blocks)** | file size (telemetry, never a verdict — there is no line limit); naming; docs; And/Or names; coverage (QA owns the gate) | 🟡/🟢 proposed | 🟡/🟢 surfaced, non-blocking |
 
 File size is an **investigation trigger, not a verdict** — never open a Blocker on
 line count alone. DDD Class-A adds the expensive tier the number never covered; the

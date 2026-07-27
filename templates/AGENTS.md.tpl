@@ -160,10 +160,10 @@ beat raw delivery speed.
 
 ### 1. File size: an advisory signal, never a blocker [-> ADR-0122]
 
-- **Line count is an advisory investigation signal, not a verdict.** Elevated
-  size (yellow >=240, elevated >308) triggers a structural REVIEW; it **cannot
-  independently block CI, completion, or merge.** 280 is a smell that starts
-  analysis, never a guillotine; it never blocks on its own.
+- **There is no line limit, and file size is not technical debt.** A small file
+  is not automatically well designed; a large file is not automatically a
+  monolith. Size may prompt a structural REVIEW; it **cannot independently
+  block CI, completion, or merge**, and it is never a verdict on its own.
 - **Real debt is judged by the Architecture & Technical Debt Governance Gate**
   (`arch-debt/`, ADR-0122) across 12 dimensions: architecture conformance,
   modularity, complexity, testability, reliability, security, observability,

@@ -17,5 +17,5 @@ This playbook coordinates the constructive team responsible for designing, build
 
 ## 📝 Best Practices
 1. **Design before Syntax:** For non-trivial modifications, always write/update ADRs or PRD/SPEC files in `contextkit/memory/workflows/`.
-2. **Coding Constitution:** Strictly follow standard limits (e.g. 280 lines limit per file, descriptive naming, fail-fast boundary validation).
+2. **Coding Constitution:** Strictly follow the constitution (no file-size limit — split on a real responsibility boundary; descriptive naming, fail-fast boundary validation).
 3. **Review Protocols:** Every code change should be statically verified using local checks before commit.

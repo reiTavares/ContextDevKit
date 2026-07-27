@@ -139,7 +139,7 @@ Before finishing:
 ## 🏛️ Coding Constitution
 
 - **Posture**: Staff/Principal Engineer — architecture before syntax.
-- **File limit**: 280 lines (+10% tolerance with documented cohesion reason in header JSDoc).
+- **File size**: no line limit — size only prompts a structural review; split on a real responsibility boundary, never to satisfy a number [→ ADR-0122].
 - **Single Responsibility**: no "And"/"Or" function names.
 - **Clean naming**: no `data`, `temp`, `obj`, `val`, `x`, `arr`, `result`.
 - **Fail fast**: validate at boundaries, typed errors, never swallow exceptions.

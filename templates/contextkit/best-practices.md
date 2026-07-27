@@ -148,11 +148,11 @@ target is *duplicated* and *drifting* state, not all state.
 Real and worth fixing — but local, cheap, and lower-leverage than Tier 1.
 This is where the deterministic scanner does most of its work.
 
-## H1 — Complexity & cohesion (line count is an advisory signal, not a verdict)
+## H1 — Complexity & cohesion (there is no line limit)
 
 **Principle.** A unit is too big when it carries more than one reason to
-change or exceeds what a reader can hold in their head. A line count (the
-~240/308 bands) is **pure investigation telemetry** — a cheap "look at this
+change or exceeds what a reader can hold in their head. File size is **pure
+investigation telemetry** — a cheap "look at this
 file" trigger that *starts* the conversation, never the verdict, and never a
 CI blocker (BIZ-0005/ADR-0143). **File size is not technical debt.** A small
 file is not automatically well-designed; a large file is not automatically a
@@ -165,9 +165,9 @@ auto-seeded domain map) plus the **reviewer-gate** on every material diff
 Governance Gate** (`contextkit/tools/scripts/arch-debt/`, ADR-0122) across its
 twelve dimensions. The line bands are never a blocker anywhere.
 
-**Smells.** Scanner advisory bands: yellow at **240+**, RED-advisory at
-**> 308** — a *louder investigation prompt*, not a hard block. The real
-smells the agent has to spot beyond the line count: deep
+**Smells.** The scanner's advisory size bands are a *louder investigation
+prompt*, not a hard block and not a limit. The real
+smells the agent has to spot beyond size: deep
 nesting; a function doing two jobs; a name needing a conjunction
 (`validateAndSave`, `fetchAndTransform`, or the Portuguese
 `validarESalvar`, `buscarETransformar`); grab-bag modules (`utils.ts`,
@@ -201,8 +201,8 @@ limit, and never preserve mixed responsibilities just to avoid multiple
 files.** Split only when a real responsibility or architecture boundary
 exists, and *every extraction must justify its cost*; merge or simplify when
 one journey is artificially fragmented, and *every merge must prove the
-boundaries it crosses stay protected*. **280 starts analysis; it is not a
-guillotine.**
+boundaries it crosses stay protected*. **Size starts analysis; it is not a
+guillotine, and it is not a limit.**
 
 ### Self-review before proposing a split, a merge, or "this file is too big"
 

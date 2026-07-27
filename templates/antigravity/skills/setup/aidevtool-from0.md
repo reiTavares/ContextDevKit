@@ -63,7 +63,7 @@ bugs or CI tasks (those live in the DevPipeline).
 ## Phase 5 — Best practices (the constitution)
 
 Offer to adopt the context-coding best practices in `contextkit/best-practices.md`
-(280-line rule + **intelligent** refactoring — split by responsibility, never
+(no line limit + **intelligent** refactoring — split by responsibility, never
 random; SoC; naming; errors; docs). On yes, fill the constitution section of
 `CLAUDE.md` accordingly and set `practices.active = true` via `/context-config`.
 

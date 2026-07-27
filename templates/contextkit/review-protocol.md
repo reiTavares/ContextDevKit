@@ -37,7 +37,7 @@ Mapping rules of thumb:
   surface is genuinely small and isolated.
 - A **Tier 2** (hygiene) finding starts at `CANDIDATE` and rises to `HARD`
   only when the over-apply clause has been considered and rejected. **Line
-  count is the exception: it is always advisory** — a `> 308` reading is a
+  count is the exception: it is always advisory** — an elevated reading is a
   louder *investigation prompt*, not a `BLOCKER`. Size alone never raises
   severity and never fails a build; the finding earns its severity from the
   real defect the investigation uncovers (a leaked layer, a second state
@@ -71,8 +71,8 @@ Rigor must match the stakes, or it's either waste or negligence.
 How `/analyze-code-ia-practices` should behave once the scanner has run.
 
 1. **Read both rubric files first** (`best-practices.md` and this protocol).
-   Use the project's `l5.lineBudget` thresholds from `contextkit/config.json`
-   (defaults: `yellow: 240`, `red: 308`).
+   Size bands come from the project's `contextkit/config.json`; they are
+   investigation telemetry, never a limit.
 
 2. **Run the deterministic scan:**
 
@@ -159,7 +159,7 @@ Example findings:
 ```
 src/api/orders.ts:142 — TIER1/S1 — HARD — controller imports DB client directly — extract an OrderRepo port; inject from edge
 src/state/cart.ts:88  — TIER1/S4 — HARD — cart total cached in 3 components, drifting — derive from one source (one query hook)
-src/ui/Dashboard.tsx  — TIER2/H1 — CANDIDATE — 412 lines (> 308, advisory) flags a god component: data-fetch + render mixed — extract `useDashboardData` hook + promote `renderHeader` to component
+src/ui/Dashboard.tsx  — TIER2/H1 — CANDIDATE — size (advisory) flags a god component: data-fetch + render mixed — extract `useDashboardData` hook + promote `renderHeader` to component
 src/lib/helpers.ts:8  — TIER2/H5 — NIT — `arr` carries meaning here — rename to `pendingInvoices`
 ```
 
@@ -181,7 +181,7 @@ signal; the agent owns everything that needs judgment. The split is honest
 
 | Detector               | Rule informed     | Sev    | Notes                                        |
 | ---------------------- | ----------------- | :----: | -------------------------------------------- |
-| `detectLineBudget`     | H1                | adv.   | Yellow ≥ 240, RED > 308 (configurable) — advisory investigation signal, never a build blocker. |
+| `detectLineBudget`     | H1                | adv.   | Configurable size bands — advisory investigation signal, never a limit and never a build blocker. |
 | `detectSrpAnd`         | H2                | 2      | JS/TS `And`/`Or`/`E`; Python `_and_`/`_or_`. |
 | `detectReactStateLoop` | H3 (React/JSX)    | 3      | `> 2 useState + ≥ 1 useEffect`; no-op elsewhere. |
 | `detectTodoMarkers`    | H4 / H6 (debt)    | 1      | `TODO`/`FIXME`/`HACK`/`XXX` in comments.     |
@@ -195,7 +195,7 @@ auto-loaded. A broken custom detector is skipped, never blocks the scan
 (constitution, rule 2 — "hooks never break real work").
 
 **`--ci` gate** fails the build on a severity-5 finding from a *non-advisory*
-detector. **Line budget is advisory and never gates the build** — a `> 308`
+detector. **Size is advisory and never gates the build** — an elevated
 reading raises an investigation prompt, not a `BLOCKER`. The binding
 build-blocking debt verdict is owned by the Architecture & Technical Debt
 Governance Gate (`contextkit/tools/scripts/arch-debt/`, ADR-0122), which
