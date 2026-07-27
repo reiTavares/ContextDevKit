@@ -8,6 +8,7 @@ Organized by [Diátaxis](https://diataxis.fr/) — by what you are trying to do.
 _Lessons that take a newcomer by the hand through a first success._
 
 - [Tutorial: <What the reader will accomplish>](tutorials/_TEMPLATE.md) — Goal: the reader succeeds at something for the FIRST TIME.
+- [Tutorial: your first business case](tutorials/first-business-case.md) — By the end of this tutorial you will have created a business context on disk, read
 - [Tutorial: From Idea to a Shipped Feature](tutorials/first-shipped-feature.md) — Goal: the reader succeeds at something for the FIRST TIME.
 - [Tutorial: Your First ContextDevKit Session](tutorials/getting-started.md) — Goal: the reader succeeds at something for the FIRST TIME.
 
@@ -20,14 +21,24 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [Anatomia de um Business, Operation e Workflow](how-to/anatomy-of-business-operation-workflow.pt-br.md) — Objetivo: entender a memória de governança do ContextDevKit numa leitura só — o
 - [How to audit and test](how-to/audit-and-test.md) — Goal: reader runs a health audit, creates a test plan, scaffolds tests,
 - [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
+- [How to configure ContextDevKit](how-to/configure-contextkit.md) — Goal: reader makes a specific configuration change safely, by area.
+- [How to connect MCP servers](how-to/connect-mcp-servers.md) — You want an external Model Context Protocol server available to the agent in this
+- [How to cut a release](how-to/cut-a-release.md) — Goal: maintainer ships a version without tagging on a red gate or double-publishing.
+- [How to forge an agent package](how-to/forge-an-agent-package.md) — You need an agent that is **portable** — one that runs outside this kit, against a
+- [How to install ContextDevKit and choose a level](how-to/install-and-choose-a-level.md) — Goal: reader installs the kit into a real project and lands on the right level.
 - [How to record a decision](how-to/record-a-decision.md) — Goal: reader writes a well-formed Architecture Decision Record before implementing.
-- [How to reduce token cost](how-to/reduce-token-cost.md) — Goal: reader uses the economy runtime features to lower token spend per session.
+- [How to reduce token cost](how-to/reduce-token-cost.md) — Goal: reader applies the economy levers deliberately, highest-effect first.
+- [How to run a business case from intent to an active workflow](how-to/run-a-business-case.md) — You have a goal — a capability to build, a problem to fix — and you want it to enter
 - [How to run a parallel swarm](how-to/run-a-parallel-swarm.md) — Goal: reader plans and runs a swarm of parallel workstreams, then reviews the results.
 - [How to run a workflow](how-to/run-a-workflow.md) — Goal: reader drives a large feature from intake through conclusion using the
 - [How to start a focused session](how-to/start-a-focused-session.md) — Goal: reader starts a scoped session that blocks opportunistic drift.
+- [How to troubleshoot an install](how-to/troubleshoot.md) — Goal: reader turns a confusing symptom into a named cause and a command.
 - [How to tune autonomy and level](how-to/tune-autonomy-and-level.md) — Goal: reader adjusts how much the AI may do without asking (grade) and which
+- [How to upgrade and update an install](how-to/upgrade-and-update.md) — Goal: reader updates a real install, understands every branch the updater can
 - [How to enable and calibrate Domain Engineering](how-to/use-domain-engineering.md) — Goal: a maintainer turns on the Domain Engineering capability and advances it
+- [How to use the structural knowledge graph](how-to/use-the-knowledge-graph.md) — You are about to answer a structural question about the codebase — who calls this
 - [How to use the pipeline board](how-to/use-the-pipeline-board.md) — Goal: reader creates, moves, and closes pipeline cards.
+- [How to work across hosts and bridges](how-to/work-across-hosts-and-bridges.md) — Your team does not all use the same AI coding tool, and you want the same commands, the
 - [File Catalog Guide](workflow-engine/file-catalog-guide.md) — Every workflow artifact, its purpose, who authors it, its single source of
 - [Migration Guide](workflow-engine/migration-guide.md) — Migrating a legacy workflow onto the wave engine is **opt-in and
 - [Profile Guide](workflow-engine/profile-guide.md) — A profile is the complexity dial. Values below are read directly from
@@ -36,13 +47,23 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 ## 📚 Reference — information-oriented
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
+- [Reference: privacy and recorded data](PRIVACY.md) — What the kit records about your work, where each artifact lives, what leaves the
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
 - [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
 - [Reference: Agents](reference/agents.md) — The specialized agents available to route work to. Generated from the agent registry.
+- [Reference: Changelog policy](reference/changelog-policy.md) — The rules governing release chronology: which file records what, who cuts a version,
 - [Reference: Slash commands](reference/commands.md) — Every slash command the platform ships, grouped by domain. Generated from the command registry.
-- [Reference: `governance-contract.json` — the cross-agent governance seam](reference/governance-contract.md) — `governance-contract.json` is a serialized, versioned, vendor-neutral record of the
+- [Configuration reference](reference/config.md) — Goal: reader finds what a configuration area governs and how to change it safely.
+- [Reference: data posture](reference/data-posture.md) — What each hook reads, what it writes, and whether it causes anything to leave the
+- [Reference: economy configuration and levers](reference/economy.md) — The `economy` block in `contextkit/config.json` governs the token-economy
+- [Reference: installation footprint](reference/footprint.md) — Every file the kit writes into a project, every process it causes to run, and what
+- [Reference: Glossary](reference/glossary.md) — The normative vocabulary of the platform. Every domain term used in the public
+- [Governance contract reference](reference/governance-contract.md) — The per-gate contract for every governance gate this project ships. One table per
+- [Reference: structural knowledge graph](reference/graph.md) — A committed, deterministic projection of the project's structure — files, modules,
 - [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
+- [Levels reference](reference/levels.md) — Goal: reader looks up exactly what a level activates.
+- [Reference: Memory model](reference/memory-model.md) — The layout of `contextkit/memory/`, which files are authored and which are
 - [CLI Reference](workflow-engine/cli-reference.md) — Every `workflow` command, its flags, one example, and whether it **writes
 
 ## 💡 Explanation — understanding-oriented
@@ -57,13 +78,15 @@ _Background and rationale — the why behind the decisions._
 - [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
 - [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
 - [Active agent squads](explanation/active-squads.md) — _Why ContextDevKit turned its declared agent squads into an actively-routed, governed orchestration layer — determini…
-- [Business-driven development: connecting intent to execution](explanation/business-driven-development.md) — _Why ContextDevKit anchors engineering work in an explicit business case rather than a queue of tickets — and how the…
+- [Business-driven development](explanation/business-driven-development.md) — _The central pillar of ContextDevKit: work starts from a business case, not from a
 - [Eight generic-engineering features: posture, safety, and reach](explanation/contextkit-parity.md) — _Why ContextDevKit added eight generic-engineering capabilities — real-time
 - [The deliberation council](explanation/deliberation-council.md) — _Why ContextDevKit convenes a relevant, cheaply-briefed panel of experts before a high-stakes choice — automatically,…
-- [Governance and enforcement: why the harness, not the prompt](explanation/governance-and-enforcement.md) — _Why ContextDevKit enforces its rules through Claude Code hooks and CI gates rather than trusting the AI to follow in…
+- [The work domain model](explanation/domain-model.md) — _Why the platform models work as four kinds of entity with explicit ownership, and
+- [Governance and enforcement](explanation/governance-and-enforcement.md) — Why this project enforces its rules through host hooks and CI scripts instead of
 - [Model-tier routing study — expensive models think, cheap models execute](explanation/model-tier-routing-study.md) — the kit, wired together, give ~80% of the value with zero new engine code:
+- [Quality model](explanation/quality-model.md) — How this project decides whether code is in good shape — what the architecture-debt
 - [Swarm feasibility study — a coordinated agent swarm on the autonomy substrate](explanation/swarm-feasibility-study.md) — Can ContextDevKit host a **strong agent swarm** — one coordinator pulling several
-- [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why a development platform that runs AI agents needs to track three distinct resource dimensions — and how they rela…
+- [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why an AI-assisted development platform tracks three separate resource
 - [Why ContextDevKit: the engineering case](explanation/value-and-impact.md) — _The rationale behind treating AI-assisted development as engineering — who this is
 - [Workflow governance: enforcing the journey, not suggesting it](explanation/workflow-governance.md) — _Why ContextDevKit makes the `/workflow` lifecycle an engine-enforced gate instead of a checklist the AI is trusted t…
 - [Token-Economy & Agility Plan](token-economy-plan.md) — In this kit, **tokens are spent when the AI (Claude) reads files and reasons over
