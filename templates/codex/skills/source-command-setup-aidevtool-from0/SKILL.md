@@ -70,9 +70,20 @@ bugs or CI tasks (those live in the DevPipeline).
 ## Phase 5 — Best practices (the constitution)
 
 Offer to adopt the context-coding best practices in `contextkit/best-practices.md`
-(no line limit + **intelligent** refactoring — split by responsibility, never
-random; SoC; naming; errors; docs). On yes, fill the constitution section of
-`AGENTS.md` accordingly and set `practices.active = true` via `/context-config`.
+— Tier 1 architecture (dependencies point inward; boundaries; one source of truth
+per piece of state) plus, when the project carries real domain weight, the domain
+lane (one word one meaning inside a boundary; invariants enforced by the owner of
+the state; foreign shapes translated at the seam); Tier 2 hygiene (no line limit +
+**intelligent** refactoring — split by responsibility, never random; SoC; naming;
+errors; docs) and **lean discipline** (abstract on the second real case, not the
+first). On yes, fill the constitution section of `AGENTS.md` accordingly and set
+`practices.active = true` via `/context-config`.
+
+Keep it proportional: a fresh project is usually `simple`/`modular`, so record the
+*direction* rules now and let the domain ceremony arrive when the classifier says
+the work needs it (`/domain "<objective>"`). Don't seed a hexagonal architecture
+into a project that has no domain yet — that is the speculative half rule 9
+forbids.
 
 ## Phase 6 — Initialize execution
 

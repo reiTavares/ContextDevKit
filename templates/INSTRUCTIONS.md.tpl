@@ -141,10 +141,15 @@ Before finishing:
 - **Posture**: Staff/Principal Engineer — architecture before syntax.
 - **File size**: no line limit — size only prompts a structural review; split on a real responsibility boundary, never to satisfy a number [→ ADR-0122].
 - **Single Responsibility**: no "And"/"Or" function names.
+- **Dependencies point inward**: the core defines the port, infrastructure implements it, the edge injects it. A DB row, vendor SDK type, or generated DTO is never the domain model — translate at the seam, in one place.
+- **One word, one meaning, inside one boundary**: the same word in two contexts is two models, not one type with optional fields. Use the business's vocabulary (`GLOSSARY.md`).
+- **Invariants live with the state they constrain**: enforced by the owner, in one transaction — not in a controller, the UI, or three handlers. No invariant → no aggregate.
+- **Proportionality**: simple CRUD gets a validated input and a repository call; full modeling ceremony is for work with real domain weight (`node ctx.mjs domain "<objective>"` resolves which). Rubric: `contextkit/best-practices.md` §S1–S7.
+- **Lean**: the smallest reversible step; abstract on the **second** real case, not the first; reach for deletion before addition. Duplicated *business rules* are the waste, not two similar code paths.
 - **Clean naming**: no `data`, `temp`, `obj`, `val`, `x`, `arr`, `result`.
 - **Fail fast**: validate at boundaries, typed errors, never swallow exceptions.
 - **Language**: code in English; docs bilingual (English + pt-BR).
-- **Self-audit**: check all rules before emitting code.
+- **Self-audit**: before emitting code check structure (layers, inward dependencies, no foreign shape in the domain), domain (one meaning, invariants placed right), waste (single-consumer abstraction, pass-through wrapper, rule written twice), then hygiene. Say what you deliberately did *not* add.
 
 ---
 

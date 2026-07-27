@@ -129,13 +129,29 @@ beat raw delivery speed.
   responsibilities just to avoid multiple files. Every extraction must justify
   its cost.
 
-### 2. Single Responsibility & layering
+### 2. Single Responsibility, layering & domain boundaries
 - Each function/module does **one** thing. If the name needs "And"/"Or"
   (`validateAndSave`, `fetchAndTransform`), split it.
 - Keep layers honest: entry points (routes/controllers/handlers) **dispatch**;
   business logic lives in a service/domain layer; that layer never imports the
   transport framework. UI components stay "dumb" — non-trivial state/effects go
   into custom hooks/composables/helpers.
+- **Dependencies point inward.** The domain does not know how it is stored or
+  transported: the core defines the port, infrastructure implements it, the
+  edge injects it. A persistence row, a vendor SDK type, or a generated DTO is
+  **never** the domain model — translate at the seam, in one place.
+- **One word, one meaning, inside one boundary.** Name where a model ends;
+  the same word in two contexts is two models, not one type with optional
+  fields. Use the business's own vocabulary in identifiers (record it in
+  `GLOSSARY.md`).
+- **Invariants live with the state they constrain.** A rule that must always
+  hold is enforced by the owner of that state, in one transaction — not in a
+  controller, not in the UI, not in three handlers. No invariant → no
+  aggregate; ceremony that protects nothing is waste.
+- **Proportionality is part of the rule.** Simple CRUD gets a validated input
+  and a repository call; full modeling ceremony is for work that carries real
+  domain weight (`/domain "<objective>"` resolves which). Rubric detail:
+  `contextkit/best-practices.md` §S1–S7.
 
 ### 3. Clean naming
 Descriptive, explicit names. **Banned without a qualifier**: `data`, `temp`,
@@ -160,10 +176,19 @@ Doc-comment every non-trivial function, hook, and route with `@param`/`@returns`
 is the first layer of documentation.
 
 ### 7. Self-audit before any code response
-Before emitting code, mentally run: no file over the limit? layers clean (no
-business logic in the transport layer)? names descriptive? no "And"/"Or"
-functions? errors typed and handled? language policy respected? docs on
-non-trivial logic? Fix any failure **before** showing the code.
+Before emitting code, mentally run:
+- **Structure** — layers clean (no business logic in the transport layer)? do
+  dependencies point inward? does any foreign shape (DB row, vendor type) leak
+  into the domain?
+- **Domain** (when the work carries domain weight) — one word, one meaning? is
+  every invariant enforced by the owner of the state, in one transaction?
+- **Waste** — would this still be needed if I deleted it? any abstraction with
+  a single consumer, pass-through wrapper, or business rule now written twice?
+- **Hygiene** — names descriptive? no "And"/"Or" functions? errors typed and
+  handled? language policy respected? docs on non-trivial logic?
+
+Fix any failure **before** showing the code. Note what you deliberately did
+*not* add — deferring is a decision worth stating, not a gap to hide.
 
 ### 8. Behavioral discipline (how you act, not just what you write)
 Beyond *what* the code looks like, *how* you produce it matters. Honor
@@ -171,8 +196,11 @@ Beyond *what* the code looks like, *how* you produce it matters. Honor
 - **Think before coding** — surface your assumptions, present interpretations
   instead of picking one silently, and **ask when the request is ambiguous**.
   Push back on a worse approach rather than silently complying.
-- **Simplicity first** — the minimum that solves the problem; no speculative
-  abstraction or unrequested options (the in-the-moment form of §1 + rule 9).
+- **Simplicity first (lean)** — the minimum that solves the problem; the
+  smallest reversible step; no speculative abstraction or unrequested options.
+  Abstract on the **second** real case, not the first — a wrong guess costs
+  more than the duplication it avoided. Reach for deletion before addition
+  (the in-the-moment form of §1 + rule 9).
 - **Surgical changes** — touch only what the task needs; **match the surrounding
   style even if you'd do it differently**; every changed line traces to the
   request. Refactoring is a *deliberate* task (`/dev-start`,
