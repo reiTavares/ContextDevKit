@@ -152,6 +152,9 @@ function main() {
     'tools/selfcheck-hotpath-purity.mjs',
     // WF-0074 (BIZ-0004) index-on-update installer machinery (default-off, fail-open).
     'tools/selfcheck-graph-index.mjs',
+    // WF-0108 (ADR-0155) — mandatory graph-first exploration: per-session refresh
+    // ladder, gate decision matrix, dependency guarantee, and the host wiring.
+    'tools/selfcheck-graph-first.mjs',
     // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
     // 6 per-analyzer selftests); sibling, dispatched directly.
     'tools/selfcheck-arch-debt.mjs',

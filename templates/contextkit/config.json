@@ -242,9 +242,10 @@
   "projectMap": {
     "graph": {
       "enabled": true,
-      "mode": "advisory",
-      "humanFlip": false,
-      "autoIndex": true
+      "mode": "guarded",
+      "humanFlip": true,
+      "autoIndex": true,
+      "maxAgeMinutes": 60
     }
   },
   "workflowIntegrity": {

@@ -13,8 +13,16 @@
 
 1. **Intake** - a new request is classified (trivial / feature / architectural) and an
    execution contract is recorded. Trivial tasks skip the ceremony.
-2. **Map before broad exploration** - for non-trivial work, consult `cdx project-map`
-   before wide text/file sweeps.
+2. **Graph before ANY exploration - mandatory, enforced.** Locate code through the
+   structural graph, never by a broad text sweep. Broad search tools are **blocked**
+   by `graph-first-gate.mjs` when the graph can answer the term (ADR-0155):
+   `node contextkit/tools/scripts/graph.mjs query "<symbol>"` to find it,
+   `... callers <id>` for who calls it, `... impact <id>` for blast radius. The graph
+   re-indexes itself every session; a stale one is rebuilt on demand. If the graph
+   genuinely cannot answer, the gate says so out loud and the fallback search
+   proceeds - treat that as "graph incomplete here", not "the symbol is absent".
+   Reading one named file is never gated. Only a **human** can waive the gate, by
+   putting `no-graph` / `sem-grafo` in the prompt.
 3. **Workflow before the first source write** - feature/architectural work needs an
    active workflow at the permitted phase; architectural also needs an ADR.
 4. **Tests + QA before completion** - not done until the suite and `cdx qa-signoff`
@@ -41,7 +49,9 @@ Economy mode is the default posture for non-trivial work. Prefer deterministic
 receipts and bounded packets; when a lever lacks its prerequisite, report
 `skipped: <reason>` instead of treating it as applied.
 
-- Before broad search, run `node cdx.mjs project-map --find <symbol-or-path>`.
+- Locate code with `node contextkit/tools/scripts/graph.mjs query "<symbol>"` FIRST
+  (mandatory, gate-enforced - ADR-0155); `node cdx.mjs project-map --find <symbol-or-path>`
+  is the module-level companion, not a substitute.
   Use Task Compiler only on exact Project Map matches:
   `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <symbol> --objective "<objective>"`.
 - During `/dev-start` or `node cdx.mjs dev-start`, render
@@ -67,7 +77,8 @@ Authoritative lifecycle details: `contextkit/docs/work-lifecycle.md`.
 For non-trivial code work, follow this host-neutral order from
 `contextkit/policy/journey.json`:
 
-1. **Graph** — run `cdx project-map` before broad exploration; owner projection: `architect`.
+1. **Graph** - query the structural graph (`graph.mjs query`) before ANY exploration;
+   gate-enforced, not advisory (ADR-0155); owner projection: `architect`.
 2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
 3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
 4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.

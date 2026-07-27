@@ -50,6 +50,12 @@ export function composeCodexHooks(existing, level) {
   if (level >= 3) add('PreToolUse', 'Edit|Write', 'concurrency-guard.mjs');
   if (level >= 4) {
     add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+    // Graph-first (WF-0108, ADR-0155) — Codex twin of the Claude wiring. Same
+    // hooks, same level; the Codex tool names for broad search ride the shared
+    // matcher alternation and are normalized by `extractSearchTerm`.
+    add('SessionStart', null, 'graph-session-refresh.mjs');
+    add('UserPromptSubmit', null, 'graph-first-gate.mjs'); // captures the human `no-graph` bypass
+    add('PreToolUse', 'Grep|Glob|grep|glob|search_files|grep_search', 'graph-first-gate.mjs');
     // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25) — Codex twin of
     // the Claude wiring. Default-OFF + fail-open + inert below L4; block verb
     // translated per-host by host-adapter (codex uses the Claude `block` shape).

@@ -12,7 +12,9 @@ function checkCompose({ ok, bad }, composeSettings) {
     1: ['SessionStart'],
     2: ['PostToolUse', 'SessionStart', 'Stop'],
     3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    // L4 gains UserPromptSubmit: the graph-first gate captures the human bypass
+    // token there (WF-0108 / ADR-0155), alongside its PreToolUse enforcement.
+    4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
     5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
     6: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
     7: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
@@ -57,11 +59,14 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
       : bad(`agy L${lvl} expected [${want}] got [${got}]`);
   }
   const l5 = group(5);
-  // L5 PreToolUse = five per-write controls plus the generic execution gate.
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 + 1
+  // L5 PreToolUse = five per-write controls plus TWO matcher-less hooks: the generic
+  // execution gate and the graph-first gate (WF-0108 / ADR-0155 — agy's search tool
+  // names are host-owned, so the gate self-filters by payload shape instead).
+  const genericPreToolUse = ['execution-gate.mjs', 'graph-first-gate.mjs'];
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 + genericPreToolUse.length
     && l5.PreToolUse.filter((entry) => adapter.AGY_WRITE_TOOLS.includes(entry.matcher)).length === adapter.AGY_WRITE_TOOLS.length * 5
-    && l5.PreToolUse.some((entry) => entry.hooks?.[0]?.command.includes('execution-gate.mjs'))
-    ? ok('agy PreToolUse wires per-write controls plus generic execution-gate parity')
+    && genericPreToolUse.every((script) => l5.PreToolUse.some((entry) => entry.hooks?.[0]?.command.includes(script)))
+    ? ok('agy PreToolUse wires per-write controls plus generic execution-gate + graph-first parity')
     : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
   l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
     ? ok('every agy tool hook carries the --host agy flag')

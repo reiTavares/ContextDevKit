@@ -39,6 +39,7 @@ import { renumberByStarted } from './templates/contextkit/tools/scripts/workflow
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
 import { maybeGenerateGraph } from './tools/install/graph-index.mjs';
+import { maybeInstallGraphDeps } from './tools/install/graph-deps.mjs';
 import { maybeSeedMethodology } from './tools/install/seed-methodology.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
@@ -224,6 +225,20 @@ async function main() {
   // 7. Context bridges for non-native tools — opt-in per tool via config
   //    `bridges.enabled`; context only, no enforcement [ADR-0068].
   await installBridges(target, ctx, report);
+
+  // 7b. Graph dependencies (WF-0108, ADR-0155). Graph-first exploration is MANDATORY,
+  // so the AST tier's binding (`web-tree-sitter`) must be installed rather than hoped
+  // for: the `.wasm` grammars ship vendored, but the JS binding resolves against the
+  // TARGET's node_modules, so without this a fresh install degraded silently to the
+  // regex tier. Runs on fresh install AND --update (the user-visible contract), before
+  // the graph index below so the first projection is built at full fidelity. Fail-open:
+  // a failed install leaves an honest regex-tier graph and never blocks (rule 2).
+  const graphDeps = await maybeInstallGraphDeps(target, {
+    kitRoot: KIT_ROOT,
+    selfHost: ctx.preflight?.selfHost === true,
+    activeSessions: ctx.preflight?.activeSessions,
+  });
+  if (graphDeps?.note && graphDeps.status !== 'disabled') report.push(`  ${graphDeps.note}`);
 
   // FINAL critical write [ADR-0099 P0-06/P0-08]: stamp .engine-version only now that
   // engine, hosts, config, conflicts and settings have all landed. A throw at any

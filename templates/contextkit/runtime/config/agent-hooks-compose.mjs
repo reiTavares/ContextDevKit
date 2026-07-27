@@ -59,6 +59,13 @@ export function composeAgentHooks(existing, level) {
     // (`deny`) translated by host-adapter. Per-write-tool matchers (agy exact-match).
     group.PreToolUse.push(...perWriteTool('domain-code-gate.mjs')); // §16 code gate
     group.PostToolUse.push(...perWriteTool('domain-conformance.mjs')); // §19 conformance reconciler
+    // Graph-first (WF-0108, ADR-0155) — agy twin of the Claude/Codex wiring. Like
+    // the L5 capability hooks below, the gate carries NO tool matcher: agy's search
+    // tool names are host-owned, and `extractSearchTerm` already returns null for
+    // any payload that is not a broad search (fail-open by shape, not by guess).
+    group.SessionStart.push(command(`node ${HOOKS_DIR}/graph-session-refresh.mjs --host agy`));
+    group.UserPromptSubmit = [command(`node ${HOOKS_DIR}/graph-first-gate.mjs --host agy`)]; // human `no-graph` bypass
+    group.PreToolUse.push(command(`node ${HOOKS_DIR}/graph-first-gate.mjs --host agy`));
   }
   if (level >= 5) {
     group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
@@ -67,7 +74,9 @@ export function composeAgentHooks(existing, level) {
     // Capability Enforcement parity (ADR-0072/0151). These generic event hooks
     // deliberately use no tool matcher: Antigravity's tool catalog is host-owned,
     // while the shared adapters already fail-open on payloads without paths.
-    group.UserPromptSubmit = [command(`node ${HOOKS_DIR}/execution-contract-hook.mjs --host agy`)];
+    // Additive, not assignment: L4 may already have registered a UserPromptSubmit
+    // entry (graph-first-gate), and overwriting it here would silently drop it.
+    group.UserPromptSubmit = [...(group.UserPromptSubmit ?? []), command(`node ${HOOKS_DIR}/execution-contract-hook.mjs --host agy`)];
     group.PreToolUse.push(command(`node ${HOOKS_DIR}/execution-gate.mjs --host agy`));
     group.PostToolUse.push(command(`node ${HOOKS_DIR}/indirect-write-reconcile.mjs --host agy`));
     group.Stop.push(command(`node ${HOOKS_DIR}/completion-gate.mjs --host agy`));

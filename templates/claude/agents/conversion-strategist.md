@@ -51,3 +51,23 @@ doesn't answer — never re-ask what is already given:
 Deep reference: `contextkit/squads/design-team/conversion-strategist.md` +
 the fold-anatomy and neurodesign sections of
 `contextkit/workflows/playbooks/landing-page.md`.
+
+## Graph-first code location (mandatory, gate-enforced — ADR-0155)
+
+Locate code through the **structural knowledge graph**, never by a broad text
+sweep. This is enforced, not advised: `graph-first-gate.mjs` BLOCKS `Grep`/`Glob`
+when the graph can answer the term. You do not have to remember to consult it —
+the gate consults it for you and hands you the answer in the denial.
+
+```bash
+node contextkit/tools/scripts/graph.mjs query "<symbol>"   # where does this live
+node contextkit/tools/scripts/graph.mjs callers <id>       # who calls it
+node contextkit/tools/scripts/graph.mjs impact <id>        # blast radius
+```
+
+The graph re-indexes every session; a projection older than the configured age is
+rebuilt on demand before your search is answered. When the graph genuinely cannot
+answer, the gate **warns on screen** and the fallback search proceeds — read that
+as "the graph is incomplete for this term", never as "the symbol does not exist".
+Reading one named file is never gated. Only a **human** can waive the gate, via
+`no-graph` / `sem-grafo` in the prompt — you cannot waive it for yourself.
