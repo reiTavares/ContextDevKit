@@ -22,7 +22,8 @@ const POLICY = 'templates/contextkit/policy';
 
 /**
  * @param {{ ok:(m:string)=>void, bad:(m:string)=>void }} counters
- * @param {{ KIT: string }} ctx  KIT = project/worktree root (holds the graph + policy).
+ * @param {{ KIT: string }} ctx KIT = source checkout root. Shipped policy is read
+ * from `templates/contextkit/policy`, which exists in a clean clone.
  */
 export async function runGraphSquadSelectionChecks({ ok, bad }, { KIT }) {
   let sel;
@@ -48,7 +49,10 @@ export async function runGraphSquadSelectionChecks({ ok, bad }, { KIT }) {
     bad(`(1) registry read failed: ${err?.message ?? err}`);
   }
 
-  const reg = sel.loadAgentRegistry(KIT);
+  // The self-hosted checkout intentionally gitignores its installed `contextkit/`
+  // tree. Load the shipped template registry so CI and local dogfood exercise the
+  // same versioned policy bytes.
+  const reg = sel.loadAgentRegistry(resolve(KIT, 'templates'));
   const cls = { intent: 'material-decision', risk: 'medium', primaryType: 'business', complexity: 'feature' };
 
   // (2)+(3) graph is a weighted signal, not a router.

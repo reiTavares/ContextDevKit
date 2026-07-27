@@ -6,18 +6,58 @@
  * (so the phantom-pass trap — an export-only file that silently exits 0 — cannot hide
  * a failure here).
  *
- * Proves: real-graph generation in the consumer shape (a), freeze-and-ratchet ⇒ zero
- * blocking on the current tree (b), a planted NEW forbidden edge DOES fire (c),
+ * Proves: graph generation in the consumer shape from a deterministic clean-checkout
+ * fixture (a), freeze-and-ratchet ⇒ zero blocking on the fixture baseline (b), a
+ * planted NEW forbidden edge DOES fire (c),
  * profile gate ⇒ null for `simple` (d), graph-absent ⇒ null + reason no-throw (e),
  * provenance demotion (f).
  *
  * Zero runtime deps beyond node:* + the modules under test.
  */
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const SCRIPTS = 'templates/contextkit/tools/scripts';
 const RT = 'templates/contextkit/runtime';
+
+/**
+ * Runs a callback against a minimal on-disk graph projection with the same public
+ * shape as the BIZ-0004 writer. The self-hosted repo intentionally gitignores its
+ * live dogfood graph, so acceptance tests must own their deterministic substrate.
+ *
+ * @param {(fixtureRoot:string)=>unknown} run callback receiving the fixture root.
+ * @returns {unknown} callback result.
+ * @throws {Error} when the temporary fixture cannot be created.
+ */
+function withGraphFixture(run) {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'contextdevkit-madm-'));
+  const graphDir = resolve(fixtureRoot, 'contextkit/memory/project-map/graph');
+  const projection = {
+    schemaVersion: '1.0.0',
+    graphSignature: 'selfcheck-clean-checkout',
+    layers: ['structural'],
+    nodes: [
+      { id: 'file:orders/domain/order.mjs', kind: 'file', sourceFile: 'orders/domain/order.mjs' },
+      { id: 'file:billing/infrastructure/gateway.mjs', kind: 'file', sourceFile: 'billing/infrastructure/gateway.mjs' },
+    ],
+    edges: [
+      {
+        source: 'file:orders/domain/order.mjs',
+        target: 'file:billing/infrastructure/gateway.mjs',
+        relation: 'imports',
+      },
+    ],
+  };
+  try {
+    mkdirSync(graphDir, { recursive: true });
+    writeFileSync(resolve(graphDir, 'graph.json'), `${JSON.stringify(projection, null, 2)}\n`, 'utf-8');
+    return run(fixtureRoot);
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+}
 
 /**
  * Run the MADM acceptance checks. Async (dynamic imports). Never throws — a thrown
@@ -36,12 +76,19 @@ export async function runMadmChecks({ ok, bad }, { KIT }) {
     return;
   }
 
-  // (a) real-graph generation in the consumer shape.
-  const gen = madm.generateMadm(KIT, { profile: 'domain-driven' });
+  // (a) clean-checkout graph generation in the consumer shape. The fixture uses
+  // the real on-disk graph reader; only the private dogfood bytes are substituted.
+  let gen;
+  try {
+    gen = withGraphFixture((fixtureRoot) => madm.generateMadm(fixtureRoot, { profile: 'domain-driven' }));
+  } catch (err) {
+    bad(`(a) MADM clean-checkout fixture failed: ${err?.message ?? err}`);
+    return;
+  }
   if (gen.map && Array.isArray(gen.map.contexts) && gen.map.contexts.length > 0
     && gen.map.contexts.every((c) => typeof c.name === 'string' && typeof c.path === 'string' && Array.isArray(c.internalPaths))
     && Array.isArray(gen.map.allowedRelations) && Array.isArray(gen.map.domainPaths) && Array.isArray(gen.map.infrastructurePaths)) {
-    ok(`(a) MADM built ${gen.map.contexts.length} contexts, ${gen.map.allowedRelations.length} frozen relations, in the consumer shape`);
+    ok(`(a) MADM built ${gen.map.contexts.length} contexts, ${gen.map.allowedRelations.length} frozen relations, from a clean-checkout graph fixture`);
   } else {
     bad(`(a) MADM map missing/wrong shape: ${gen.reason}`);
     return; // downstream checks need a map
