@@ -20,24 +20,91 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.8.0] - 2026-07-27
+
+> **Publishing note.** `3.7.0` was closed in this changelog and bumped in
+> `package.json`, but its tag was never pushed — so npm never received it and the
+> last published version is `3.6.0`. `3.8.0` is therefore the first release to
+> ship 3.7.0's content as well. No separate `v3.7.0` tag will be cut.
+
 ### Added
-- **BIZ-0006 / WF-0084 — Finalization integrity & lifecycle verbs complete (ADR-0148).** Added the CAS-backed `conclude`, governed Business `close`, unified state-authoritative `done-move`, the I1–I10 drift guard, and a staged-file pre-commit adapter. The human rollout decision promotes shadow-first observation and defers guarded enforcement until global QA follow-ups and real-corpus evidence are green; BIZ-0004 reconciliation remains deferred to WF-0086.
-- **WF-0083 - Canonical ceremony shapes and neutral methodology templates.** Added the pure five-shape resolver, manifest, proportional skeleton packs, canonical continuation prompts, synthetic exemplar, structure validator, and dogfood leak scrub. The shape-aware path is staged opt-in; target-project installer distribution remains owned by WF-0086.
+- **BIZ-0006 — Methodology Plane Integrity, delivered (ADR-0148, ADR-0150..0152).**
+  The governance plane that the runtime platform presupposed is now real:
+  - **WF-0081** classifier integrity + an explicit investigation exemption, so a
+    question stops being classified as code work.
+  - **WF-0082** a real Business `create` verb (dry-run by default, atomic apply,
+    manifest-validator dispatch, explicit legacy-kind migration). Executable
+    ceremonies are `decision` and `workflow`; persisted `Business.kind` is the
+    five-value uppercase domain enum, with the classifier's functional axis kept
+    separate.
+  - **WF-0083** canonical ceremony shapes — the pure five-shape resolver,
+    manifest, proportional skeleton packs, canonical continuation prompts,
+    structure validator, and a dogfood-leak scrub of the neutral templates.
+  - **WF-0084** finalization integrity: the CAS-backed `conclude`, governed
+    Business `close`, unified state-authoritative `done-move`, the I1–I10 drift
+    guard, and a staged-file pre-commit adapter.
+  - **WF-0085** canonical lifecycle discovery + journey branches.
+  - **WF-0086** program integration and rollout: the flat methodology policy
+    tables are now distributed by the installer, and the plane-wide north-star +
+    governance guardrail are instrumented. An unmeasured guardrail is refused
+    rather than passed, and the invariant guard's blocking surface is pinned
+    across the enforcement ladder.
+  - **WF-0087** honest, provenance-aware task-ledger reconciliation (OP-0004).
+  - **WF-0088** the governance-contract envelope + schema, lifted from shadow to
+    **advisory default-on**.
+  - **WF-0089** structural auto-fill by projection — the derived half of a work
+    context comes free from the graph.
+  - **WF-0090** grounded content auto-fill: the one place an LLM writes, behind
+    four rails (grounded-only retrieval with deterministic citation validation,
+    provenance-gated `draft` stamping, a pure token guardrail that never calls a
+    model, and a structure-only fallback). Ships **default-off twice over**.
+  - **WF-0092** the cross-host Canonical Work Journey (ADR-0151).
+  - **WF-0094** reference-intent resolution + an existing-context continuation
+    gate (ADR-0152).
+  - **WF-0095** bilingual pt-BR classifier signals across the whole request-text
+    classifier fleet, plus a fix to the accent-stripping tokenizer (ADR-0131).
+  - **WF-0096** changelog rotation — closed majors move behind a generated index.
+- **BIZ-0005 — Governed Agent Activation & DDD-first quality (ADR-0141..0146).**
+  WF-0075 two-tier dispatch gate (pre-write dispatch check + subagent exemption,
+  honest fail-open); **WF-0076 DDD-first quality — MADM + reviewer-gate, retiring
+  the numeric line-nag**; WF-0077 zero-config autonomy dial + session posture;
+  WF-0078 graph-driven cross-squad selection; WF-0079 program distribution +
+  rollout guard.
+- **BIZ-0004 — the knowledge graph leaves regex tier (ADR-0147).** WF-0080 lands
+  the real **WASM AST extractor (Tier-1)**: receiver-type method-call
+  resolution, golden fixtures with determinism checks, degrade-to-regex, and
+  vendored grammars pinned by SHA-256 with Windows CI coverage. The graph is
+  wired into `simulate-gate` and the task compiler with rollout backoff
+  telemetry, and its graded signals fold into the arch-debt board as
+  `OBSERVE_ONLY`. **WF-0108** makes graph-first exploration mandatory and
+  self-refreshing.
+- **Architecture & Technical Debt Governance Gate is now a real guarded gate** —
+  the twelve dimensions are wired and stated before coding, not after.
+- **OP-0009 / WF-0093 — Codex GPT-5.6 effort-aware swarm routing (ADR-0150).**
 
 ### Changed
-- Workflow close-wave now persists passed gate receipts into workflow state so the scheduler can unlock dependent waves, with an integration regression test.
-- **WF-0082 Business create implemented.** ADR-0150 is accepted: executable
-  ceremonies are `decision` and `workflow`, mapped to the WF-0083
-  `business-decision` and `business-workflow` branches; persisted `Business.kind`
-  is the five-value uppercase domain enum, with the classifier's functional axis
-  kept separate. Dry-run, atomic apply, complete manifest-validator dispatch,
-  explicit legacy-kind migration, and QA coverage are shipped in the source tree.
-- **WF-0082 Business create implemented.** ADR-0150 is accepted: executable
-  ceremonies are `decision` and `workflow`, mapped to the WF-0083
-  `business-decision` and `business-workflow` branches; persisted `Business.kind`
-  is the five-value uppercase domain enum, with the classifier's functional axis
-  kept separate. Dry-run, atomic apply, complete manifest-validator dispatch,
-  explicit legacy-kind migration, and QA coverage are shipped in the source tree.
+- **OP-0010 — documentation restructured** (ADR-0153): the entry doors (README,
+  `instrucoes.md`) were rewritten and the docs spine reorganized.
+- Agent instructions deepened with DDD and lean discipline, and **numeric
+  file-size limits were removed** from them — size is investigation telemetry,
+  never a verdict or a blocker (ADR-0122/ADR-0143).
+- Workflow close-wave persists passed gate receipts into workflow state so the
+  scheduler can unlock dependent waves, with an integration regression test.
+- Workflow index and continuation renderers prefer the authoritative
+  `workflow-state.json` journey phase over the static plan phase.
+- Intake routes an unresolved citation to `ask` instead of guessing, and gates
+  the workflow-registry walk.
+
+### Fixed
+- `work` now allocates the next **free** OP id and refuses one already taken.
+- `decision accept --apply` actually stamps the ADR front-matter.
+- Two phantom-pass paths in the installer, found in pre-merge QA.
+- The generated docs index no longer depends on the ambient git environment, and
+  no longer lists the gitignored `docs/CHANGELOG.md`.
+- An unrunnable check is no longer counted as a pass; an enforcement with no
+  consumer is no longer claimed.
+- `project-map` dense-index dogfood exclusion and a prototype-collision bug.
+- Finalization state-phase and human-gate task-completion projections.
 
 ## [3.7.0] - 2026-07-19
 
