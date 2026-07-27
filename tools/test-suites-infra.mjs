@@ -51,6 +51,12 @@ export const INFRA_SUITES = Object.freeze([
   { id: 'integration-test-docs', file: 'tools/integration-test-docs.mjs', tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/docs-public-lint.mjs', 'templates/contextkit/tools/scripts/readme-claims.mjs', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'docs/'] },
 
+  // WF-0096 (OP-0010, ADR-0153) — changelog rotation boundary. Fixture-driven, never
+  // the real CHANGELOG.md: proves conservation, idempotence and reentrancy, refuses on a
+  // duplicate, and covers the adversarial inputs (BOM+CRLF, fenced heading, pre-release).
+  { id: 'integration-test-changelog', file: 'tools/integration-test-changelog.mjs', tier: 'integration:core',
+    touches: ['templates/contextkit/tools/scripts/changelog-rotate.mjs', 'templates/contextkit/tools/scripts/draft-changelog.mjs'] },
+
   // MCP-006 suites moved to test-suites-mcp.mjs (MCP_SUITES) after the WF0014
   // suite split; the monolithic selfcheck-mcp-006.mjs / integration-test-mcp-006.mjs
   // were divided into focused sub-suites registered there.
