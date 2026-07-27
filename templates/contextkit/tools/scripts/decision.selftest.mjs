@@ -13,12 +13,13 @@
  * Run:  node templates/contextkit/tools/scripts/decision.selftest.mjs
  * Exit: 0 = all pass, 1 = failures (printed to stderr).
  */
-import { rmSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { rmSync, mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { dispatch } from './decision.mjs';
+import { alreadyStamped, readField, stampFrontmatter } from './decision-frontmatter.mjs';
 import {
   assert,
   assertThrows,
@@ -161,6 +162,8 @@ try {
 
   // --- 13. `accept` dry-run with human actor (file must exist from step 10) ---
   {
+    const adrPath = join(pathsFor(root).decisionsBusiness, 'ADR-0200-selftest-authorization.md');
+    const before = existsSync(adrPath) ? readFileSync(adrPath, 'utf-8') : null;
     const r = dispatch({
       command: 'accept',
       positionals: [],
@@ -169,6 +172,83 @@ try {
     assert('accept dry-run: returns receipt', r && r.command === 'accept');
     assert('accept dry-run: applied=false', r.applied === false);
     assert('accept dry-run: patch contains status=accepted', r.detail?.patch?.status === 'accepted');
+    // Dry-run must leave the ADR byte-identical (it used to be the ONLY mode).
+    assert('accept dry-run: ADR untouched on disk', before !== null && readFileSync(adrPath, 'utf-8') === before);
+  }
+
+  // --- 13b. `accept --apply` really stamps the front-matter ---
+  // Regression: `--apply` used to print "wrote 1 file(s)" while returning only a
+  // patch receipt, leaving the ADR `proposed`. Two sessions hand-stamped it.
+  {
+    const adrPath = join(pathsFor(root).decisionsBusiness, 'ADR-0200-selftest-authorization.md');
+    const r = dispatch({
+      command: 'accept', positionals: [], flags: { id: 'ADR-0200', actor: 'human', apply: true },
+    }, { root });
+    const text = readFileSync(adrPath, 'utf-8');
+    assert('accept --apply: applied=true', r.applied === true, `got applied=${r.applied}`);
+    assert('accept --apply: status is accepted on DISK', /^status: accepted$/m.test(text));
+    assert('accept --apply: approvalSource.actor is human on disk', /^ {2}actor: human$/m.test(text));
+    assert('accept --apply: approvalSource.revision is 1 on disk', /^ {2}revision: 1$/m.test(text));
+    // Scope check: no TBD survives in the FRONT-MATTER. The template also prints
+    // the approval facts as body prose ("Approval source: … decisionHash `TBD`"),
+    // which this verb deliberately does not rewrite — body content is the author's.
+    assert('accept --apply: no TBD placeholder left in the front-matter', !text.split('---')[1].includes('TBD'));
+    assert('accept --apply: body survives the surgery', text.includes('# ADR-0200'));
+
+    // Idempotent: re-accepting is a no-op, not a second write.
+    const again = dispatch({
+      command: 'accept', positionals: [], flags: { id: 'ADR-0200', actor: 'human', apply: true },
+    }, { root });
+    assert('accept --apply idempotent: second run applied=false', again.applied === false);
+    assert('accept --apply idempotent: flagged as noop', again.detail?.idempotentNoop === true);
+    assert('accept --apply idempotent: bytes unchanged', readFileSync(adrPath, 'utf-8') === text);
+  }
+
+  // --- 13bb. `accept` must NOT widen the approval identity ---
+  // Regression: the handler defaulted `approvalSource.id` to the ADR's OWN id, so
+  // accepting overwrote the owning entity that `create` had seeded from
+  // primaryContext (OP-0011 silently became ADR-0155 on a real ADR).
+  {
+    const adrPath = join(pathsFor(root).decisionsBusiness, 'ADR-0200-selftest-authorization.md');
+    const text = readFileSync(adrPath, 'utf-8');
+    assert('accept: approvalSource.id keeps the owning entity, not the ADR id',
+      readField(text.split('---')[1], 'approvalSource.id') === 'BIZ-0001',
+      `got ${readField(text.split('---')[1], 'approvalSource.id')}`);
+
+    // An explicit flag still wins over what is on the file.
+    const r = dispatch({
+      command: 'accept', positionals: [], flags: { id: 'ADR-0200', actor: 'human', 'approval-id': 'BIZ-0009' },
+    }, { root });
+    assert('accept: --approval-id overrides the on-file value', r.detail?.patch?.approvalSource?.id === 'BIZ-0009');
+  }
+
+  // --- 13c. front-matter surgery: scope, refusals, and CRLF preservation ---
+  {
+    const doc = ['---', 'id: ADR-1', 'status: proposed', 'approvalSource:', '  type: business', '  revision: 0', 'tags: []', '---', '', '# Body'].join('\n');
+    const stamped = stampFrontmatter(doc, { status: 'accepted', approvalSource: { type: 'human', revision: 1 }, acceptedAt: '2026-01-02' });
+    assert('stamp: replaces a top-level scalar', /^status: accepted$/m.test(stamped.text));
+    assert('stamp: replaces a nested mapping wholesale', stamped.text.includes('  type: human') && !stamped.text.includes('revision: 0'));
+    assert('stamp: keys after a nested block survive', /^tags: \[\]$/m.test(stamped.text));
+    assert('stamp: appends a missing key', /^acceptedAt: 2026-01-02$/m.test(stamped.text));
+    assert('stamp: body is preserved', stamped.text.endsWith('\n\n# Body'));
+    assert('stamp: is idempotent', stampFrontmatter(stamped.text, { status: 'accepted' }).text === stamped.text);
+    assert('stamp: alreadyStamped detects the applied patch', alreadyStamped(stamped.text.split('---')[1], { status: 'accepted' }) === true);
+
+    // CRLF must survive — this repo is edited on Windows; normalising would show
+    // up as a whole-file diff.
+    const crlf = stampFrontmatter('---\r\nid: A\r\nstatus: proposed\r\n---\r\n\r\n# B\r\n', { status: 'accepted' }).text;
+    assert('stamp: CRLF line endings preserved', crlf.includes('status: accepted\r\n') && !/[^\r]\n/.test(crlf));
+
+    // An indented lookalike key must not be mistaken for the top-level one.
+    const nested = stampFrontmatter('---\nprimaryContext:\n  id: OP-1\nid: ADR-9\n---\nb', { id: 'ADR-10' }).text;
+    assert('stamp: indented lookalike key untouched', nested.includes('  id: OP-1') && /^id: ADR-10$/m.test(nested));
+
+    // Refuse rather than guess (constitution §8).
+    assertThrows('stamp: refuses a document with no front-matter', () => stampFrontmatter('# plain\n', { status: 'x' }), 'no leading');
+    assertThrows('stamp: refuses an empty patch', () => stampFrontmatter(doc, {}), 'empty patch');
+    assertThrows('stamp: refuses a list value', () => stampFrontmatter(doc, { tags: ['a'] }), 'list value');
+    assertThrows('stamp: refuses nesting deeper than one level', () => stampFrontmatter(doc, { a: { b: { c: 1 } } }), 'deeper than one level');
+    assertThrows('stamp: refuses a non-identifier key', () => stampFrontmatter(doc, { 'a b': 1 }), 'unsupported');
   }
 
   // --- 14. `link` verb dry-run ---

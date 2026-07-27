@@ -16,6 +16,7 @@ import { stripBom } from '../../runtime/work/enums.mjs';
 import { DECISION_ID_PATTERN } from '../../runtime/work/decision-enums.mjs';
 import { supersede } from './work-decision-supersede.mjs';
 import { makeReceipt, writeFileEnsured } from './work-io.mjs';
+import { alreadyStamped, readField, splitFrontmatter, stampFrontmatter } from './decision-frontmatter.mjs';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -64,21 +65,25 @@ function locateAdrFile(root, adrId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Handles the `accept` verb: produces an `approvalSource` patch for an ADR.
- * REFUSES when `--actor` is not `human` (schema §3 invariant).
+ * Handles the `accept` verb: stamps `status: accepted` + `approvalSource` into the
+ * ADR's YAML front-matter. REFUSES when `--actor` is not `human` (schema §3).
  *
- * NOTE: Front-matter YAML rewriting is non-trivial YAML surgery — this handler
- * returns a structured `patch` receipt (the fields to stamp) rather than directly
- * mutating the markdown file. The `--apply` flag signals explicit write intent and
- * is recorded in the receipt. A follow-up YAML-aware tool or manual edit applies
- * the patch to the ADR file.
+ * `--apply` performs the write atomically; dry-run computes the patch and touches
+ * nothing. Re-accepting an already-accepted ADR is an idempotent no-op (no second
+ * write, `applied: false`).
+ *
+ * The front-matter surgery lives in `decision-frontmatter.mjs`: it was previously
+ * declared "non-trivial YAML" and deferred to the caller, which made `--apply`
+ * report `wrote 1 file(s)` while the ADR stayed `proposed` — write intent reported
+ * as a write, and two sessions hand-stamped the same block as a result.
  *
  * @param {object} args
  * @param {object} args.flags - parsed CLI flags.
- * @param {boolean} args.apply - write intent; recorded in receipt.
+ * @param {boolean} args.apply - write when true; dry-run when false.
  * @param {string} args.root - project root.
  * @returns {ReturnType<typeof makeReceipt>}
- * @throws {Error} on non-human actor or invalid id.
+ * @throws {Error} on non-human actor, invalid id, a missing ADR file, or
+ *   front-matter this module refuses to rewrite.
  */
 export function handleAccept({ flags, apply, root }) {
   const actor = String(flags.actor || '');
@@ -101,9 +106,29 @@ export function handleAccept({ flags, apply, root }) {
   }
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Read + parse BEFORE computing the patch: unparseable front-matter must refuse
+  // rather than half-write (§8), and the ADR itself carries the approval identity.
+  const original = stripBom(readFileSync(adrPath, 'utf-8'));
+  const split = splitFrontmatter(original);
+  if (!split) {
+    throw new Error(`decision accept: refused — ${adrId} has no YAML front-matter block to stamp (${adrPath})`);
+  }
+
+  // Approval-id precedence: explicit flag > the id already on the ADR >
+  // `primaryContext.id` > the ADR's own id. `handleCreate` seeds this from the
+  // primary context, so defaulting straight to `adrId` silently OVERWROTE the
+  // owning entity (OP-0011 became ADR-0155). Never widen an identity on accept.
+  const approvalId = String(
+    flags['approval-id']
+    || flags.approvalId
+    || readField(split.block, 'approvalSource.id')
+    || readField(split.block, 'primaryContext.id')
+    || adrId,
+  );
   const approvalSource = {
     type: 'human',
-    id: String(flags['approval-id'] || flags.approvalId || adrId),
+    id: approvalId,
     revision: 1,
     decisionHash: null,
     approvedAt: today,
@@ -111,18 +136,28 @@ export function handleAccept({ flags, apply, root }) {
   };
   const patch = { status: 'accepted', approvalSource, acceptedAt: today, updatedAt: today };
 
+  const idempotentNoop = alreadyStamped(split.block, patch);
+  const stamped = idempotentNoop ? { text: original, changes: {} } : stampFrontmatter(original, patch);
+
+  const applied = apply && !idempotentNoop;
+  if (applied) writeFileEnsured(adrPath, stamped.text);
+
   return makeReceipt({
     command: 'accept',
-    applied: apply,
+    applied,
     writes: [adrPath],
     detail: {
       adrId,
       adrPath,
       patch,
       actor,
-      note: apply
-        ? 'patch produced — stamp these fields into the ADR YAML front-matter'
-        : 'dry-run: patch computed only; pass --apply to confirm write intent',
+      changes: stamped.changes,
+      idempotentNoop,
+      note: idempotentNoop
+        ? `${adrId} is already accepted with this approvalSource — no write`
+        : apply
+          ? `stamped status=accepted + approvalSource into ${adrId} front-matter`
+          : 'dry-run: patch computed and front-matter validated; pass --apply to write',
     },
   });
 }
