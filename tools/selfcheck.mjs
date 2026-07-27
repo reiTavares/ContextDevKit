@@ -32,6 +32,7 @@ import { runDomainArtifactsChecks } from './selfcheck-domain-artifacts.mjs';
 import { runDomainLifecycleChecks } from './selfcheck-domain-lifecycle.mjs';
 import { runDomainEnforcementChecks } from './selfcheck-domain-enforcement.mjs';
 import { runMadmChecks } from './selfcheck-madm.mjs';
+import { runPolicyDistributionChecks } from './selfcheck-policy-distribution.mjs';
 import { runAutonomyPostureChecks } from './selfcheck-autonomy-posture.mjs';
 import { runGraphSquadSelectionChecks } from './selfcheck-graph-squad-selection.mjs';
 import { runTaskLedgerChecks } from './selfcheck-task-ledger.mjs';
@@ -190,6 +191,7 @@ async function main() {
   await runDomainLifecycleChecks({ ok, bad }, { KIT });
   await runDomainEnforcementChecks({ ok, bad }, { KIT });
   await runMadmChecks({ ok, bad }, { KIT });
+  runPolicyDistributionChecks({ ok, bad }, { KIT });
   await runAutonomyPostureChecks({ ok, bad }, { KIT });
   await runGraphSquadSelectionChecks({ ok, bad }, { KIT });
   await runTaskLedgerChecks({ ok, bad }, { KIT });

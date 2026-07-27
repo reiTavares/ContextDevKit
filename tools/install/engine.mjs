@@ -27,6 +27,12 @@ const ECONOMY_NOTICE =
   'Disable one module via contextkit/config.json → economy.<module>.enabled=false, ' +
   'or turn it all off with economy.enabled=false.';
 
+// Deterministic methodology-plane contract tables (WF-0086 IN1, ADR-0148). Kit code,
+// not user data: each is schema-coupled to the runtime module that reads it, so they
+// ship always-overwrite in lockstep with the engine. Per-project tuning lives in
+// `config.json`, never in these files.
+const POLICY_TABLES = ['journey.json', 'work-classification.json', 'decision-intelligence.json'];
+
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
@@ -78,7 +84,20 @@ async function copyEngine(target, tplDir, report) {
   for (const sub of ['domain-engineering', 'devteam', 'domain-artifacts']) {
     await copyTree(join(tplDir, 'contextkit', 'policy', sub), join(target, 'contextkit', 'policy', sub));
   }
-  report.push('✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts)');
+  // Methodology-plane contract tables (WF-0086 IN1, ADR-0148): the canonical journey
+  // map, the work classifier's signal tables, and the decision-materiality weights.
+  // Same class as the domain-engineering tables above — deterministic kit data that
+  // the runtime is schema-coupled to (`work/journey-verifier.mjs`,
+  // `execution/work-classifier.mjs`, `execution/materiality-score.mjs`), tuned per
+  // project through `config.json`, never by editing these files. So they ship
+  // always-overwrite in lockstep with the engine rather than seeded write-if-missing
+  // like the flat registries a user EXTENDS. Undistributed, every reader silently
+  // degraded to its fallback and the journey map went inert on a fresh install.
+  for (const table of POLICY_TABLES) {
+    const src = join(tplDir, 'contextkit', 'policy', table);
+    if (existsSync(src)) await overwrite(join(target, 'contextkit', 'policy', table), await read(src));
+  }
+  report.push(`✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts, policy/${POLICY_TABLES.join('|')})`);
 }
 
 /**
