@@ -10,8 +10,9 @@
  * Packs are built in a throwaway temp root; cleaned up at the end. The clock is
  * injected (`now`) so the run is deterministic.
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
 import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
@@ -20,13 +21,40 @@ import { validateTasksDoc } from '../templates/contextkit/tools/scripts/tasks-va
 import { deriveWorkflowTasks } from '../templates/contextkit/tools/scripts/tasks-derive.mjs';
 import { createWorkflow, readWorkflow, listWorkflows } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
 import { loadProjection } from '../templates/contextkit/tools/scripts/graph-query.mjs';
-import { deriveScope, deriveRisk } from '../templates/contextkit/methodology/projections.mjs';
-import { stampWorkflowTasksProvenance } from '../templates/contextkit/methodology/provenance.mjs';
+import { deriveScope, deriveRisk, deriveTasks } from '../templates/contextkit/methodology/projections.mjs';
+import {
+  deriveField,
+  hashFieldContent,
+  inputDomainForTasks,
+  readSidecar,
+  stampWorkflowTasksProvenance,
+} from '../templates/contextkit/methodology/provenance.mjs';
+import { CONTENT_FILL_DEFAULTS, ENGINE_VERDICT_KEY, fillGroundedContent } from '../templates/contextkit/methodology/content-fill.mjs';
 
 const rep = reporter();
 const NOW = '2026-06-17T00:00:00.000Z';
 const root = mkdtempSync(join(tmpdir(), 'contextkit-wfcreate-'));
 const readJsonAt = (path) => JSON.parse(readFileSync(path, 'utf-8').replace(/^﻿/, ''));
+
+/**
+ * Every `.mjs` file below a directory URL, recursively. Used by the WF-0090
+ * `no-llm-to-decide` scan, which has to look at the real trees rather than a
+ * curated list — a new gate that imported the content engine must be caught.
+ * @param {URL} dirUrl directory to walk
+ * @returns {string[]} absolute file paths
+ */
+function walkMjs(dirUrl) {
+  const dir = fileURLToPath(dirUrl);
+  const found = [];
+  let entries = [];
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return found; }
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...walkMjs(new URL(`${entry.name}/`, dirUrl)));
+    else if (entry.name.endsWith('.mjs')) found.push(path);
+  }
+  return found;
+}
 
 /** Assert a created pack's plan is structurally valid, return the parsed plan. */
 function assertValidPlan(packDir, label) {
@@ -290,6 +318,88 @@ try {
   /try\s*\{\s*stampWorkflowTasksProvenance\(packDir,\s*\{[^}]*\}\s*\)\s*;\s*\}\s*catch\s*\{[^}]*\}/.test(createSource)
     ? rep.ok('workflow/create.mjs wraps the provenance stamp in a no-rethrow try/catch at the real call site')
     : rep.bad('workflow/create.mjs no longer guards the provenance stamp — a write failure could now block creation');
+
+  // --- WF-0090 GA3-T1 (BIZ-0006, ADR-0148 four rails) ---------------------
+  // Rail (d) at INTEGRATION level, on the pack `createWaveWorkflow` just wrote
+  // rather than on a fixture: with the engine off, a real artifact stays valid.
+  const disabledOutcome = fillGroundedContent(
+    {
+      contextRef: 'WF-9090',
+      title: 'no-graph-fallback',
+      sidecar: readSidecar(noGraphWorkflow.dir, 'WF-9090'),
+      config: CONTENT_FILL_DEFAULTS,
+    },
+    { fields: { 'prd.problem': { contentKind: 'markdown', current: '{{PROBLEM}}' } } },
+    noGraphProjection,
+    { available: false, reason: 'no economy-events ledger on a fresh root' },
+  );
+  Object.keys(disabledOutcome.fields).join(',') === ENGINE_VERDICT_KEY && Object.keys(disabledOutcome.provenance.fields ?? {}).every((key) => key !== 'prd.problem')
+    ? rep.ok('WF-0090 rail (d): the shipped-default engine writes no field on a real pack (structure-only fallback)')
+    : rep.bad(`WF-0090 rail (d) leaked a write with the engine off: ${JSON.stringify(disabledOutcome.fields)}`);
+
+  const specAfterEngine = readFileSync(join(noGraphWorkflow.dir, 'spec.md'), 'utf-8');
+  specAfterEngine === noGraphSpec
+    ? rep.ok('WF-0090 rail (d): the rendered artifact is byte-identical after running the disabled engine (never blocks, never edits)')
+    : rep.bad('WF-0090: running the disabled engine changed the artifact bytes');
+
+  // wf0089-fields-untouched: the engine must not disturb WF-0089's authority.
+  // `tasks` was stamped `derived` by the SA2 shadow stamp above, so a re-derive
+  // AFTER the engine ran must still report `noop` — proving no content-hash drift.
+  const sidecarAfterEngine = readSidecar(noGraphWorkflow.dir, 'WF-9090');
+  const tasksEntryAfterEngine = sidecarAfterEngine.fields?.tasks;
+  tasksEntryAfterEngine?.state === 'derived' && tasksEntryAfterEngine.source === 'biz0003:tasks-derive'
+    ? rep.ok('WF-0090: WF-0089\'s `tasks` field is still derived (unpromoted) after the content engine ran')
+    : rep.bad(`WF-0090: the content engine disturbed WF-0089's tasks authority: ${JSON.stringify(tasksEntryAfterEngine)}`);
+
+  // The property WF-0090 owns is: the content engine must not cause a
+  // content-hash drift on a WF-0089 field, because a drift reads as an
+  // out-of-band human edit and would PROMOTE the field to `authored`, killing
+  // re-derive permanently. So the assertion is `action !== 'promote'` — the
+  // strongest claim that is actually about this engine.
+  //
+  // It deliberately does NOT assert `noop`. Doing so would fail for a reason
+  // WF-0090 neither causes nor owns: `workflow/create.mjs` stamps provenance
+  // with the IN-MEMORY plan, while `writePlan` normalizes the plan before
+  // writing it, and `inputDomainForTasks` folds the whole plan into the hash.
+  // The recorded `inputHash` therefore cannot be reproduced from the plan on
+  // disk (measured: recorded 80083fe3a5de vs on-disk 408f4cb34cc0), so a
+  // re-derive from disk always looks like an input change. Recorded as a
+  // WF-0089 carry-forward in reports/ga3-report.md, not patched here.
+  const tasksDocumentOnDisk = readJsonAt(join(noGraphWorkflow.dir, 'tasks.json'));
+  const planOnDisk = readJsonAt(join(noGraphWorkflow.dir, 'workflow-plan.json'));
+  const rederiveWrites = [];
+  const rederiveAfterEngine = deriveField({
+    sidecar: sidecarAfterEngine,
+    fieldKey: 'tasks',
+    readContent: () => tasksDocumentOnDisk,
+    compute: () => {
+      const envelope = deriveTasks(planOnDisk, { workflowId: noGraphWorkflow.number });
+      return { inputDomain: inputDomainForTasks(envelope, planOnDisk), source: envelope.source, value: envelope.value };
+    },
+    writeContent: (value) => { rederiveWrites.push(value); },
+  });
+  rederiveAfterEngine.action !== 'promote'
+    ? rep.ok(`WF-0090: a post-engine deriveField on \`tasks\` is "${rederiveAfterEngine.action}", never a promote — the content engine caused no content-hash drift`)
+    : rep.bad('WF-0090: deriveField PROMOTED `tasks` after the engine ran — the engine drifted a WF-0089 field and killed its re-derive');
+  hashFieldContent(tasksDocumentOnDisk, 'json') === tasksEntryAfterEngine?.contentHash
+    ? rep.ok('WF-0090: the `tasks` contentHash still matches the bytes on disk after the engine ran')
+    : rep.bad('WF-0090: the `tasks` contentHash no longer matches disk after the engine ran');
+
+  // no-llm-to-decide, BROAD scope: a governance decision must never be able to
+  // dispatch a model. Asserted structurally over the real trees — no hook and no
+  // *-gate.mjs may import the content engine (ADR-0148 §13).
+  const engineImporters = [];
+  for (const dir of ['../templates/contextkit/runtime/hooks', '../templates/contextkit/runtime/execution', '../templates/contextkit/tools/scripts']) {
+    const scanRoot = new URL(`${dir}/`, import.meta.url);
+    for (const file of walkMjs(scanRoot)) {
+      const isGate = /-gate\.mjs$/.test(file) || /[\\/]hooks[\\/]/.test(file);
+      if (!isGate) continue;
+      if (readFileSync(file, 'utf-8').includes('content-fill.mjs')) engineImporters.push(file);
+    }
+  }
+  engineImporters.length === 0
+    ? rep.ok('WF-0090: no hook and no *-gate.mjs imports content-fill.mjs (no gate dispatches an LLM to decide)')
+    : rep.bad(`WF-0090: a gate/hook imports the content engine: ${engineImporters.join(', ')}`);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

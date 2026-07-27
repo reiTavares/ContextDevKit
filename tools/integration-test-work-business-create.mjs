@@ -120,6 +120,40 @@ try {
       const installedKpiSkeleton = installedDeriveKpiSkeleton({ growthLever: 'RELIABILITY' });
       assert.equal(installedKpiSkeleton.available, true);
       assert.equal(installedKpiSkeleton.value.kpis.every((kpi) => kpi.baseline === null), true);
+
+      // WF-0090 GA3-T1 (ADR-0148, the four rails) — the grounded content engine
+      // rides the same copyTree('methodology'), so again there is no separate
+      // installer wiring. Assert all five modules land AND that a fresh install
+      // ships the engine OFF: with no config and no generator the engine writes
+      // nothing, which is rail (d) proven on a real post-install import rather
+      // than on a fixture.
+      for (const moduleName of ['content-fill.mjs', 'content-grounding.mjs', 'content-eligibility.mjs', 'token-guardrail.mjs', 'content-promote.mjs']) {
+        assert.equal(existsSync(join(installRoot, 'contextkit', 'methodology', moduleName)), true, `${moduleName} did not land`);
+      }
+      const installedContentFill = join(installRoot, 'contextkit', 'methodology', 'content-fill.mjs');
+      const { fillGroundedContent: installedFill, CONTENT_FILL_DEFAULTS: installedDefaults, ENGINE_VERDICT_KEY: installedVerdictKey } =
+        await import(`${pathToFileURL(installedContentFill).href}?install-probe=${Date.now()}`);
+      assert.equal(installedDefaults.enabled, false);
+      assert.equal(installedDefaults.tokenBudgetPerContext, 0);
+      const freshSkeleton = { fields: { 'prd.problem': { contentKind: 'markdown', current: '{{PROBLEM}}' } } };
+      const freshOutcome = installedFill(
+        { contextRef: 'BIZ-0000', sidecar: { schemaVersion: 1, contextRef: null, fields: {} }, config: installedDefaults },
+        freshSkeleton,
+        { available: false, reason: 'no committed graph projection' },
+        { available: false, reason: 'no ledger' },
+      );
+      assert.deepEqual(Object.keys(freshOutcome.fields), [installedVerdictKey]);
+      assert.equal(Object.keys(freshOutcome.provenance.fields).length, 0);
+      assert.equal(freshSkeleton.fields['prd.problem'].current, '{{PROBLEM}}');
+
+      // The guardrail is importable and refuses on a fresh install's own ledger
+      // (there is none) — an unavailable measurement never authorizes spend.
+      const installedGuardrail = join(installRoot, 'contextkit', 'methodology', 'token-guardrail.mjs');
+      const { readGovernanceTokenLedger: installedReadLedger, evaluateKillSwitch: installedKillSwitch } =
+        await import(`${pathToFileURL(installedGuardrail).href}?install-probe=${Date.now()}`);
+      const freshLedger = installedReadLedger(installRoot, { sessionId: 'S-install-probe' });
+      assert.equal(freshLedger.available, false);
+      assert.equal(installedKillSwitch({ enabled: true, tokenBudgetPerContext: 5000 }, freshLedger).enabled, false);
     } finally {
       rmSync(installRoot, { recursive: true, force: true });
     }
