@@ -358,6 +358,12 @@ export function presentGovernanceNorthStar(northStar, guardrail) {
     : `  north-star: skipped — ${northStar?.reason ?? 'unavailable'} (baseline null, target null)`);
   const mark = guardrail?.status === 'pass' ? '✓' : guardrail?.status === 'fail' ? '✗' : '–';
   lines.push(`  ${mark} governance-tokens/session: ${guardrail?.status ?? 'skipped'} — ${guardrail?.reason ?? 'unavailable'}`);
-  if (guardrail?.blocksPromotion) lines.push('  ⛔ promotion is blocked while this reading rises.');
+  // OBSERVATIONAL, deliberately: `blocksPromotion` has no consumer yet — nothing in
+  // the engine reads it, so a rising reading cannot actually stop a promotion today.
+  // Saying "promotion is blocked" here would be the ADR-0148 R1 failure (governance
+  // theater) in one line of output. Wiring the consumer needs a measured series first.
+  if (guardrail?.blocksPromotion) {
+    lines.push('  ⚠ this reading rises — it SHOULD block promotion (advisory: no enforcing consumer yet).');
+  }
   return lines.join('\n');
 }

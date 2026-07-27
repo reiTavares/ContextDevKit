@@ -22,8 +22,10 @@
  * Standalone: node tools/selfcheck-docs.mjs
  */
 
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -209,14 +211,33 @@ function assertStructuralCompleteness(reindexMod, committedIndex, indexPath) {
 function assertIndexIgnoresAmbientGitEnv(reindexMod, committed, indexPath) {
   console.log('(f) generated index is invariant to the ambient git env...');
   const saved = { GIT_DIR: process.env.GIT_DIR, GIT_INDEX_FILE: process.env.GIT_INDEX_FILE };
+  // Fidelity matters here. Pointing GIT_DIR at any existing non-gitdir makes git exit
+  // 128 ("not a git repository"), which diverges for the WRONG reason and never
+  // exercises the real bug. A freshly-initialised repo is a VALID gitdir that simply
+  // lacks the `info/exclude` rule, so `check-ignore` exits 1 cleanly — byte-for-byte
+  // the linked-worktree shape (`.git/worktrees/<name>/` inherits no common excludes).
+  // With GIT_DIR set explicitly, git takes the work tree from `cwd`, i.e. KIT.
+  let scratch;
+  try {
+    scratch = mkdtempSync(join(tmpdir(), 'ctxkit-docs-envcheck-'));
+    const init = spawnSync('git', ['init', '--quiet', scratch], { encoding: 'utf-8' });
+    if (init.status !== 0) {
+      bad(`(f) could not create the scratch gitdir fixture — check skipped, never passed: ${init.stderr?.trim() || init.error?.message || `exit ${init.status}`}`);
+      rmSync(scratch, { recursive: true, force: true });
+      return;
+    }
+  } catch (err) {
+    bad(`(f) scratch gitdir fixture threw — check skipped, never passed: ${err?.message ?? err}`);
+    return;
+  }
   let plain; let polluted;
   try {
     reindexMod.reindexDocs(KIT);
     plain = readFileSync(indexPath);
-    // A gitdir that exists but holds no `info/exclude` — exactly the linked-worktree
-    // shape. If the env leaks through, ignore-resolution changes and the bytes differ.
-    process.env.GIT_DIR = resolve(KIT, 'docs');
-    process.env.GIT_INDEX_FILE = resolve(KIT, 'docs', 'index');
+    process.env.GIT_DIR = join(scratch, '.git');
+    // Also drop the caller's index: `check-ignore` consults it (a tracked file is never
+    // reported ignored), so a hook's alternate index is part of the inherited state.
+    process.env.GIT_INDEX_FILE = join(scratch, '.git', 'index');
     reindexMod.reindexDocs(KIT);
     polluted = readFileSync(indexPath);
   } catch (err) {
@@ -227,6 +248,7 @@ function assertIndexIgnoresAmbientGitEnv(reindexMod, committed, indexPath) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     writeFileSync(indexPath, committed);
+    rmSync(scratch, { recursive: true, force: true });
   }
   if (plain.equals(polluted)) {
     ok('generated index identical with and without an inherited GIT_DIR (hook-safe)');

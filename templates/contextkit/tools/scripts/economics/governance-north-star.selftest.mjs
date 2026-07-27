@@ -247,8 +247,19 @@ const skippedText = presentGovernanceNorthStar(
 );
 assert('[e] the rendered skipped reading says "skipped" and shows baseline/target null',
   /skipped/.test(skippedText) && /baseline null/.test(skippedText));
-assert('[c] the rendered failing reading announces the promotion block',
-  /promotion is blocked/.test(presentGovernanceNorthStar(northStarReading(avail(120, 100), ctx(1)), evaluateGovernanceTokenGuardrail(avail(120, 100)))));
+// A rising series must be ANNOUNCED, but must not claim an enforcement that does not
+// exist: `blocksPromotion` has no consumer, so "promotion is blocked" would be a lie in
+// output — ADR-0148 R1 governance theater. Assert both halves: the rise is surfaced AND
+// the advisory limit is disclosed. This assertion fails if someone restores the
+// absolute wording without first wiring a real consumer.
+const risingText = presentGovernanceNorthStar(
+  northStarReading(avail(120, 100), ctx(1)),
+  evaluateGovernanceTokenGuardrail(avail(120, 100)),
+);
+assert('[c] the rendered rising reading announces the guardrail without overclaiming enforcement',
+  /SHOULD block promotion/.test(risingText) && /advisory: no enforcing consumer yet/.test(risingText));
+assert('[c] the rendered rising reading does not claim promotion is already blocked',
+  !/promotion is blocked/.test(risingText));
 
 // ── [f] no-llm-to-decide, asserted statically ────────────────────────────────
 const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'governance-north-star.mjs'), 'utf-8');
