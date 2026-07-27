@@ -71,6 +71,11 @@ export function composeSettings(existing, level) {
     // guarded/strict fleet flip stays human-gated (rolloutStage ceiling).
     add('PreToolUse', 'Edit|Write|MultiEdit', 'domain-code-gate.mjs'); // §16 code gate + authoritative CMIS=100
     add('PostToolUse', 'Edit|Write|MultiEdit', 'domain-conformance.mjs'); // §19 conformance reconciler (record + advisory)
+    // Arch-debt pre-coding law (OP-0012, ADR-0122 §9): state the twelve dimensions
+    // BEFORE the first source write instead of only refusing after the diff exists.
+    // Advisory + once-per-session — enforcement stays with the gate, which has real
+    // evidence. Same L>=4 floor as the gate itself.
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'arch-debt-law-gate.mjs');
   }
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');

@@ -17,6 +17,7 @@
 import { z } from 'zod';
 
 const GATE_MODES = ['active', 'shadow', 'canary'];
+const ENFORCEMENT_POSTURES = ['advisory', 'guarded', 'strict'];
 const FLOOR_AUTHORITIES = ['BLOCKING', 'REVIEW_REQUIRED', 'ADVISORY', 'OBSERVE_ONLY', 'DISABLED'];
 
 const FloorAuthority = z.enum(FLOOR_AUTHORITIES, {
@@ -60,6 +61,14 @@ export const ArchitectureDebtGateSchema = z
     mode: z
       .enum(GATE_MODES, { error: () => 'architectureDebtGate.mode must be one of: ' + GATE_MODES.join(', ') })
       .default('active'),
+    // Enforcement POSTURE for the twelve dimensions (OP-0012). `guarded` is the
+    // default: a deterministic VIOLATION on a changed line BLOCKS. Line count is
+    // never affected — it stays advisory in every posture (ADR-0143).
+    enforcement: z
+      .enum(ENFORCEMENT_POSTURES, {
+        error: () => 'architectureDebtGate.enforcement must be one of: ' + ENFORCEMENT_POSTURES.join(', '),
+      })
+      .default('guarded'),
     baseline: z
       .object({
         strategy: z.string().min(1).default('ratchet'),

@@ -36,6 +36,9 @@ const CHILDREN = [
   'selfcheck-arch-debt-gate.mjs',
   // W6 — activation: §13 protection-gap + one-CI-verdict-path invariants
   'selfcheck-arch-debt-activation.mjs',
+  // OP-0012 — the wiring hotfix: change evidence, enforcement posture, resolver
+  // keys, pre-coding law delivery, and the guarded-blocks/escapes-do-not ladder.
+  'selfcheck-arch-debt-wiring.mjs',
 ];
 
 let failed = 0;

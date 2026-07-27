@@ -59,12 +59,15 @@ function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
       : bad(`agy L${lvl} expected [${want}] got [${got}]`);
   }
   const l5 = group(5);
-  // L5 PreToolUse = five per-write controls plus TWO matcher-less hooks: the generic
-  // execution gate and the graph-first gate (WF-0108 / ADR-0155 — agy's search tool
-  // names are host-owned, so the gate self-filters by payload shape instead).
+  // L5 PreToolUse = SIX per-write controls (concurrency-guard, domain-code-gate,
+  // arch-debt-law-gate, simulate-gate, journey-gate, deliberation-nudge) plus TWO
+  // matcher-less hooks: the generic execution gate and the graph-first gate
+  // (WF-0108 / ADR-0155 — agy's search tool names are host-owned, so that gate
+  // self-filters by payload shape instead).
+  const perWriteControls = 6;
   const genericPreToolUse = ['execution-gate.mjs', 'graph-first-gate.mjs'];
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * 5 + genericPreToolUse.length
-    && l5.PreToolUse.filter((entry) => adapter.AGY_WRITE_TOOLS.includes(entry.matcher)).length === adapter.AGY_WRITE_TOOLS.length * 5
+  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * perWriteControls + genericPreToolUse.length
+    && l5.PreToolUse.filter((entry) => adapter.AGY_WRITE_TOOLS.includes(entry.matcher)).length === adapter.AGY_WRITE_TOOLS.length * perWriteControls
     && genericPreToolUse.every((script) => l5.PreToolUse.some((entry) => entry.hooks?.[0]?.command.includes(script)))
     ? ok('agy PreToolUse wires per-write controls plus generic execution-gate + graph-first parity')
     : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);

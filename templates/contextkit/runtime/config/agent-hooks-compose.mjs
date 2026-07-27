@@ -59,6 +59,8 @@ export function composeAgentHooks(existing, level) {
     // (`deny`) translated by host-adapter. Per-write-tool matchers (agy exact-match).
     group.PreToolUse.push(...perWriteTool('domain-code-gate.mjs')); // §16 code gate
     group.PostToolUse.push(...perWriteTool('domain-conformance.mjs')); // §19 conformance reconciler
+    // Arch-debt pre-coding law (OP-0012) — agy twin of the Claude/Codex wiring.
+    group.PreToolUse.push(...perWriteTool('arch-debt-law-gate.mjs'));
     // Graph-first (WF-0108, ADR-0155) — agy twin of the Claude/Codex wiring. Like
     // the L5 capability hooks below, the gate carries NO tool matcher: agy's search
     // tool names are host-owned, and `extractSearchTerm` already returns null for

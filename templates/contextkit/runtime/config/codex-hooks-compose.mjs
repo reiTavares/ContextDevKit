@@ -61,6 +61,8 @@ export function composeCodexHooks(existing, level) {
     // translated per-host by host-adapter (codex uses the Claude `block` shape).
     add('PreToolUse', 'Edit|Write', 'domain-code-gate.mjs'); // §16 code gate
     add('PostToolUse', 'Edit|Write', 'domain-conformance.mjs'); // §19 conformance reconciler
+    // Arch-debt pre-coding law (OP-0012) — Codex twin of the Claude wiring.
+    add('PreToolUse', 'Edit|Write', 'arch-debt-law-gate.mjs');
   }
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write', 'simulate-gate.mjs');

@@ -94,6 +94,7 @@
   "architectureDebtGate": {
     "enabled": true,
     "mode": "active",
+    "enforcement": "guarded",
     "baseline": {
       "strategy": "ratchet",
       "blockUnchangedLegacyDebt": false
@@ -204,7 +205,7 @@
   },
   "economy": {
     "enabled": true,
-    "mode": "advisory",
+    "mode": "guarded",
     "outputContract": {
       "enabled": true
     },
