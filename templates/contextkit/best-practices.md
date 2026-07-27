@@ -34,8 +34,13 @@ A finding's weight is not "which rule." It is:
 
 That is why the rubric is reviewed **top-down by tier**:
 
-1. **System & architecture** — wrong here and everything downstream inherits it.
-2. **Module & function hygiene** — real, but local and cheap to fix.
+1. **System & architecture** — wrong here and everything downstream inherits
+   it. Two lanes: code shape (**S1–S4**) and, when the work carries domain
+   weight, domain shape (**S5–S7** — contexts and language, invariants,
+   seam contracts).
+2. **Module & function hygiene** — real, but local and cheap to fix. Includes
+   **H8 (waste)**: code that should not exist costs review, tests, and
+   carrying forever.
 
 **Security is deliberately *not* a tier here.** The kit already has a
 dedicated security ecosystem (`code-security`, `security`, `infra-security`
@@ -60,6 +65,15 @@ false positive. (Severity, scope, and reporting format live in
 
 The highest-leverage tier, and the one a line-counting linter is blind to.
 The scanner gives the agent almost nothing here — read the code.
+
+Two lanes, both structural. **S1–S4 govern the shape of the code**
+(dependency direction, boundaries, coupling, state authority) and apply to
+any project. **S5–S7 govern the shape of the domain** (bounded contexts and
+language, aggregates and invariants, seam contracts) and apply once the work
+carries real domain weight — the kit resolves that deterministically via the
+Implementation Profile (ADR-0128), so a simple CRUD surface is *not* expected
+to answer for them. When the domain lane does apply, it outranks hygiene: a
+misplaced invariant costs more than every naming nit in the file.
 
 ## S1 — Dependency direction
 
@@ -141,12 +155,90 @@ to one function. Derive, don't duplicate.
 UI state (a toggle, an input draft, a hover flag) belongs where it lives. The
 target is *duplicated* and *drifting* state, not all state.
 
+## S5 — Bounded contexts & ubiquitous language
+
+**Principle.** A model is only valid *inside a boundary*. Name where one
+model ends and another begins, and inside a context let each term mean
+exactly one thing. The same word in two contexts is **two models**, not one
+shared type — and the words in the code are the words in the conversation.
+
+**Smells.** One `shared/types` module every feature imports and every
+feature widens. A term that means different things per area (`Order` in
+checkout vs. in fulfilment) collapsed into a single type with a drift of
+optional fields that "only apply sometimes." A glossary that disagrees with
+the identifiers. Entity names inherited from table names. A domain concept
+the business has a word for that appears nowhere in the code.
+
+**Fix.** Draw the boundary and give each context its own model; translate at
+the edge (**S7**). Record the language where the team will actually read it
+(`GLOSSARY.md`). When two contexts genuinely share a stable primitive, make
+it an explicit, small, deliberately-owned shared kernel — not a dumping
+ground.
+
+**Don't over-apply.** A single-context application has *one* bounded context
+and that is the correct answer — don't manufacture contexts to look
+domain-driven. Optional fields are not automatically a second context. The
+trigger is **divergent meaning or divergent lifecycle**, not table count.
+
+## S6 — Aggregates, invariants & transactional boundaries
+
+**Principle.** An invariant is a rule that must hold *at all times*. Where
+one exists, a single owner enforces it within a single transaction — that is
+the aggregate, and its boundary is a *consistency* decision, not a folder
+layout. **No invariant → no aggregate.**
+
+**Smells.** Aggregate roots and factories that protect nothing. One
+transaction writing several aggregates to keep them consistent. An invariant
+enforced in the UI, in a controller, or in a trigger nobody reads, instead of
+in the model that owns the state. Objects with only getters and setters while
+the rules live in a service ("anemic model"). The same rule re-implemented in
+three handlers.
+
+**Fix.** State the invariant in plain words first, then place it on the one
+type that owns the state it constrains. Keep the transaction inside the
+aggregate; between aggregates choose eventual consistency **on purpose**
+(a domain event, not a CRUD echo). If a rule spans two aggregates and must
+hold immediately, that is evidence the boundary is drawn in the wrong place —
+redraw it rather than widening the transaction.
+
+**Don't over-apply.** CRUD with no invariants needs no aggregate; a
+validated input and a repository call is the honest design. Ceremony that
+protects nothing is waste (**H8**).
+
+## S7 — Seam contracts & anti-corruption
+
+**Principle.** Every seam — another context, a third-party API, a legacy
+schema, a queue — has an **explicit contract**, and foreign shapes are
+translated at the edge instead of spreading inward. The core speaks its own
+vocabulary.
+
+**Smells.** A vendor SDK's response type used as the domain model. Generated
+persistence or DTO types serving as the ubiquitous language. A provider's
+error codes branched on deep inside business logic. External JSON parsed once
+and passed around unvalidated. Swapping a third party would touch files all
+over the codebase.
+
+**Fix.** Validate and map at the boundary into your own types (an adapter /
+anti-corruption layer), and keep that mapping in **one** place per seam. Make
+contracts you publish explicit and tested; treat changing one as a Decision,
+not a refactor.
+
+**Don't over-apply.** A thin call between two of your own modules does not
+need a translation layer. One mapper is a boundary; a mapper per hop is
+bouncing (**H1**). Scale the ceremony to how likely the foreign shape is to
+change and how far it would spread if it did.
+
 ---
 
 # TIER 2 — Module & function hygiene
 
 Real and worth fixing — but local, cheap, and lower-leverage than Tier 1.
 This is where the deterministic scanner does most of its work.
+
+H1–H7 are hygiene *within* code that exists. **H8 asks whether the code
+should exist at all** — it is the cheapest finding in the rubric to act on
+(delete) and the easiest to miss, because unread inventory never fails a
+test.
 
 ## H1 — Complexity & cohesion (there is no line limit)
 
@@ -336,6 +428,46 @@ test that fails if the bug returns. See the QA squad (`/test-plan`,
 
 **Don't over-apply.** Coverage % is not the goal; risk is. Don't pad with
 trivial tests to hit a number.
+
+## H8 — Waste (lean code: the cheapest code is the code you didn't write)
+
+**Principle.** Every line is inventory someone must read, test, and carry.
+Build what the current requirement needs and **delete what stopped earning
+its keep**. Removing code is a first-class contribution, not a chore.
+
+**Smells — each is unread inventory:**
+
+- **Speculative generality** — a strategy/factory/base class/plugin registry
+  with exactly one implementation; an interface with one implementor and no
+  test double; config for a case nobody asked for. Written for a second
+  consumer that never arrived.
+- **Dead and unreachable code** — commented-out blocks kept "just in case",
+  unexported helpers nobody calls, feature flags whose rollout finished,
+  branches for versions no longer supported.
+- **Pass-through layers** — a wrapper that only forwards arguments; a service
+  that only calls the repository; a mapper that copies identical fields.
+  Indirection that adds a hop and no meaning.
+- **Duplicated rules** — the same business rule in three handlers. (One
+  concept, several truths — the **S4** failure at unit scale.)
+- **Defensive code for impossible states** — a null check the type system
+  already excludes; a catch for an error the callee cannot throw.
+- **Premature optimization** — a cache, index, or memo added with no measured
+  hot path, buying complexity with no evidence of a problem.
+
+**Fix.** Delete it, or collapse it into its single caller. Inline the
+one-implementation abstraction and reintroduce it when the second real case
+arrives — **the second case is what justifies the abstraction, and it is
+cheaper to add then than to carry a wrong guess now.** For duplicated rules,
+extract *one* function and let the callers converge. For performance, measure
+first, then optimize the path the measurement named.
+
+**Don't over-apply.** Lean is not terse: names, guard clauses at real
+boundaries (**H4**), and tests that catch bugs (**H7**) are not waste — they
+are the work. Nor is this a licence for drive-by deletion: **remove
+pre-existing dead code as a deliberate, scoped task** — in an unrelated diff,
+*mention* it instead (`behaviors.md` §3). Deleting code whose purpose you
+cannot explain is a guess, not a simplification; a comment explaining a
+non-obvious *why* is documentation (**H6**), not dead weight.
 
 ---
 

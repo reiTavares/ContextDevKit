@@ -38,7 +38,7 @@ the big call *before* implementing) and `/dev-start` (lock the objective). The
 `architect` and `product-owner` agents exist precisely to resolve ambiguity —
 route to them when the unknown is design or scope.
 
-## 2. Simplicity first
+## 2. Simplicity first (lean: the cheapest code is the code you didn't write)
 
 **The minimum code that solves the problem. Nothing speculative.**
 
@@ -48,16 +48,33 @@ route to them when the unknown is design or scope.
   class earns its place when a *second* real consumer appears — not before.
 - No error handling for impossible scenarios; handle the failures that can
   actually happen at the boundary (constitution §4).
+- **Prefer the smallest reversible step.** Ship the change that can be undone
+  with one revert over the sweeping version that cannot. Correct-and-small
+  beats complete-and-entangled — the next requirement is allowed to teach you
+  something.
+- **Reach for deletion before addition.** If an existing unit already does the
+  job, call it; if it *almost* does, change it; only then write something new.
+  Removing code is a legitimate way to finish a task.
 - If you wrote 200 lines and 50 would do, rewrite it. Ask: *"Would a senior
   engineer call this overcomplicated?"* If yes, simplify before showing it.
 
+**The second-case rule.** Every line is inventory someone must read, test, and
+carry. The honest sequence is: **write the concrete thing → let the second
+real case arrive → then abstract.** Abstracting at case one means guessing
+which axis will vary, and a wrong guess costs more than the duplication it
+avoided (the duplication is visible; the wrong abstraction is load-bearing).
+Two similar code paths are not automatically waste — **duplicated *business
+rules* are** (rubric H8/S4). Copy the shape, converge the rule.
+
 **Fits the kit.** This is constitution §9 ("build what is asked; defer the
-rest") and §1 (complexity & cohesion) as an *in-the-moment* habit. The line
-budget there is an **advisory signal, not a hard rule** — never add an
-abstraction, helper, or file just to satisfy a number, and never preserve
-mixed responsibilities just to avoid one. The trap is **timing**: the
-over-engineered version isn't "wrong" — it adds complexity *before it's
-needed*. Add it later, when the requirement is real.
+rest") and §1 (complexity & cohesion) as an *in-the-moment* habit, and the
+prospective half of rubric **H8 (waste)** — H8 finds the speculative
+abstraction in review; this rule keeps you from writing it. File size is an
+**advisory signal, not a rule** — never add an abstraction, helper, or file
+just to satisfy a number, and never preserve mixed responsibilities just to
+avoid one. The trap is **timing**: the over-engineered version isn't "wrong" —
+it adds complexity *before it's needed*. Add it later, when the requirement is
+real.
 
 ## 3. Surgical changes
 

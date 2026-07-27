@@ -9,10 +9,11 @@
 > *how to apply it and how to report.*
 >
 > **Scope.** This protocol covers the *code-quality* lens: architecture
-> (Tier 1) and hygiene (Tier 2). Security, accessibility, privacy and
-> dependency / supply-chain concerns are owned by the kit's specialised
-> agents and commands — see *Adjacent concerns* at the foot of
-> `best-practices.md` for the routing.
+> (Tier 1 — code shape S1–S4, and domain shape S5–S7 when the profile carries
+> domain weight) and hygiene (Tier 2 — H1–H7, plus H8 waste). Security,
+> accessibility, privacy and dependency / supply-chain concerns are owned by
+> the kit's specialised agents and commands — see *Adjacent concerns* at the
+> foot of `best-practices.md` for the routing.
 >
 > Keep both files in sync with the constitution in `CLAUDE.md` and with
 > `contextkit/config.json` (thresholds and ledger paths).
@@ -35,6 +36,20 @@ Mapping rules of thumb:
 - A **Tier 1** (architecture) finding is typically `HARD` — the cost of
   leaving it grows fast. Downgrade to `CANDIDATE` only when the affected
   surface is genuinely small and isolated.
+- **Domain-lane findings (S5–S7) inherit the profile.** They only apply once
+  the resolved Implementation Profile carries domain weight (ADR-0128); on a
+  simple/modular profile they are **not findings at all**, and reporting them
+  there is a manufactured finding. Where the profile *does* apply, a breach of
+  a **declared** domain boundary is `BLOCKER` — that is the Class-A
+  conformance the arch-debt gate enforces (ADR-0143) — while the same
+  observation against an *undeclared* (auto-seeded, unreviewed) map is at most
+  `CANDIDATE`: propose the boundary, don't sentence the code for missing one.
+  A misplaced invariant (S6) outranks every hygiene nit in the same file.
+- **H8 (waste)** starts at `CANDIDATE` — deletion is cheap, so say it plainly
+  and move on. It rises to `HARD` for a **duplicated business rule** (several
+  truths for one concept: the S4 failure at unit scale). It never rises to
+  `BLOCKER` on volume alone, and pre-existing dead code is an *observation*
+  routed to its own task, never a demand inside an unrelated diff.
 - A **Tier 2** (hygiene) finding starts at `CANDIDATE` and rises to `HARD`
   only when the over-apply clause has been considered and rejected. **Line
   count is the exception: it is always advisory** — an elevated reading is a
@@ -65,6 +80,17 @@ Rigor must match the stakes, or it's either waste or negligence.
   need a hexagonal architecture; an app with a real domain does. The
   *direction* of dependencies still matters at any size — the *depth* of
   layering scales with complexity.
+- **Tier 1's domain lane (S5–S7) is gated by the resolved Implementation
+  Profile**, not by taste. At `simple`/`modular` it does not apply: report
+  "not assessed" and move on. At `domain-driven`/`distributed-domain` it
+  applies in full and outranks Tier 2. The classifier decides
+  (`/domain "<objective>"` shows what and why) — the same signal that selects
+  the `domain-modeler` agent (ADR-0128 §9/§11), so review and build judge the
+  work against the same bar.
+- **H8 (waste) applies everywhere, and hardest on new code.** In a spike,
+  disposable duplication is the point — don't police it. In a production diff,
+  an abstraction with one consumer is a finding *now*, while deleting it is
+  still free.
 
 ## Running the analysis
 
@@ -87,14 +113,31 @@ How `/analyze-code-ia-practices` should behave once the scanner has run.
 
 3. **Apply judgment the regex can't, in tier order:**
 
-   - **Tier 1 first.** Read the code: does the domain depend on
-     infrastructure? Are boundaries respected? Any circular imports or
-     fan-out monsters? Where does state actually live, and does it live
+   - **Tier 1, code lane first (S1–S4).** Read the code: does the domain
+     depend on infrastructure? Are boundaries respected? Any circular imports
+     or fan-out monsters? Where does state actually live, and does it live
      once?
+   - **Tier 1, domain lane next (S5–S7) — only if the profile carries domain
+     weight.** Resolve the profile before you judge (`/domain "<objective>"`
+     reports what the classifier decides, read-only). At
+     `domain-driven`/`distributed-domain`: does one word mean one thing inside
+     its context, and do the identifiers match the business's own words? Does
+     every aggregate name the invariant it protects — and is that invariant
+     enforced by the owner of the state rather than in a controller or the UI?
+     Does any transaction span aggregates? Is a foreign shape (vendor SDK,
+     persistence row) being used as the domain model? At `simple`/`modular`,
+     **skip this lane and say so** — proportionality is the contract, and
+     asking CRUD to answer for aggregates is the manufactured finding rule 5
+     forbids.
    - **Tier 2 next.** Walk the scanner findings; for each file, decide the
      *right* fix per H1's preference list (extract a unit with one job,
      promote inline render functions, lift complex state into a hook,
      separate layers), not "split at random."
+   - **Ask H8 last, on everything you touched.** For each unit in the report:
+     does this code still earn its keep? A one-implementation abstraction, a
+     pass-through wrapper, a finished feature flag, or the same business rule
+     in three places is a finding whose fix is *deletion* — the cheapest fix
+     in the rubric, and invisible to every other rule.
 
 4. **Lead with the right fix, per file.** Name the concrete refactor
    ("extract the `OrderRepo` port", "lift this state into a hook", "move
@@ -157,16 +200,25 @@ path:line — TIER/§ID — SEVERITY — what's wrong — proposed fix
 Example findings:
 
 ```
-src/api/orders.ts:142 — TIER1/S1 — HARD — controller imports DB client directly — extract an OrderRepo port; inject from edge
-src/state/cart.ts:88  — TIER1/S4 — HARD — cart total cached in 3 components, drifting — derive from one source (one query hook)
-src/ui/Dashboard.tsx  — TIER2/H1 — CANDIDATE — size (advisory) flags a god component: data-fetch + render mixed — extract `useDashboardData` hook + promote `renderHeader` to component
-src/lib/helpers.ts:8  — TIER2/H5 — NIT — `arr` carries meaning here — rename to `pendingInvoices`
+src/api/orders.ts:142      — TIER1/S1 — HARD — controller imports DB client directly — extract an OrderRepo port; inject from edge
+src/state/cart.ts:88       — TIER1/S4 — HARD — cart total cached in 3 components, drifting — derive from one source (one query hook)
+src/billing/Invoice.ts:34  — TIER1/S6 — BLOCKER — "paid total never exceeds order total" enforced in the checkout controller, not on the aggregate that owns the state — move the invariant onto Invoice; keep the write in one transaction
+src/shipping/Order.ts:12   — TIER1/S5 — CANDIDATE — `Order` carries checkout AND fulfilment fields (7 optional, mutually exclusive) — two contexts sharing a name; split the model and translate at the seam
+src/integr/stripe.ts:60    — TIER1/S7 — HARD — Stripe response type used as the domain model in 9 files — map to a local type in one adapter
+src/ui/Dashboard.tsx       — TIER2/H1 — CANDIDATE — size (advisory) flags a god component: data-fetch + render mixed — extract `useDashboardData` hook + promote `renderHeader` to component
+src/core/PricingStrategy.ts — TIER2/H8 — CANDIDATE — strategy interface with one implementation and no test double — inline into the caller; reintroduce when a second rule arrives
+src/lib/helpers.ts:8       — TIER2/H5 — NIT — `arr` carries meaning here — rename to `pendingInvoices`
 ```
 
 **Sort by:** tier (1 → 2), then severity (5 → 1), then **blast radius** —
 how far the smell spreads (how many call sites, how exposed the code path
 is). A `BLOCKER` on a widely-imported module beats a `BLOCKER` on a leaf
 utility.
+
+When the domain lane was **skipped** (simple/modular profile), say so in one
+line rather than leaving the reader to guess whether it passed or never ran —
+"S5–S7 not assessed: profile is `modular`" is a result, silence is not
+(constitution §8: skipped is never reported as pass).
 
 Group findings by file in the final report so the human sees the *file's*
 story, not a flat list.
@@ -210,15 +262,29 @@ carry no invented domain content).
 
 ### Agent only — judgment, no regex can do it
 
-- **All of Tier 1** (S1 dependency direction, S2 boundaries, S3 coupling
-  and cycles, S4 state location). These require reading import graphs and
-  understanding intent, not pattern-matching strings.
+- **All of Tier 1's code lane** (S1 dependency direction, S2 boundaries, S3
+  coupling and cycles, S4 state location). These require reading import
+  graphs and understanding intent, not pattern-matching strings.
+- **All of Tier 1's domain lane** (S5 contexts and language, S6 aggregates
+  and invariants, S7 seam contracts). Strictly beyond regex: an invariant is
+  a *business* rule, and no detector can tell you whether `Order` means one
+  thing or two. The nearest deterministic signal is the declared domain map
+  the arch-debt gate checks for Class-A conformance (ADR-0143) — that gate
+  verifies conformance to a map someone wrote; it does not discover the model
+  for you.
+- **Whether the domain lane applies at all.** Read the resolved profile
+  (`/domain "<objective>"`), then judge — and report "not assessed" when it
+  doesn't apply.
 - **Whether a flagged H1 size is cohesion or rot.** The scanner sees 312
   lines; only the agent can tell whether they're a dumb constants file or
   a god component.
 - **The right refactor per file.** "Extract `X`", "lift state into a
   hook", "promote `renderY` to a component" — these are H1's *Fix*
   preference list, not the scanner's job.
+- **All of H8 (waste).** Whether an abstraction has a second consumer,
+  whether a flag's rollout is finished, whether two code paths encode the
+  *same* business rule — all semantic. A dead-code detector would need the
+  whole call graph plus intent; the kit ships none and does not pretend to.
 - **Whether a Tier-2 violation is relaxable** because the file is a spike
   or throwaway (see *When this rubric applies*).
 
