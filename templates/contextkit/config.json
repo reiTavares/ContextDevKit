@@ -94,6 +94,7 @@
   "architectureDebtGate": {
     "enabled": true,
     "mode": "active",
+    "enforcement": "guarded",
     "baseline": {
       "strategy": "ratchet",
       "blockUnchangedLegacyDebt": false
@@ -204,7 +205,7 @@
   },
   "economy": {
     "enabled": true,
-    "mode": "advisory",
+    "mode": "guarded",
     "outputContract": {
       "enabled": true
     },
@@ -242,9 +243,10 @@
   "projectMap": {
     "graph": {
       "enabled": true,
-      "mode": "advisory",
-      "humanFlip": false,
-      "autoIndex": true
+      "mode": "guarded",
+      "humanFlip": true,
+      "autoIndex": true,
+      "maxAgeMinutes": 60
     }
   },
   "workflowIntegrity": {

@@ -24,10 +24,28 @@ const HOOKS = resolve(KIT, 'templates/contextkit/runtime/hooks');
 const LOAD = resolve(KIT, 'templates/contextkit/runtime/config/load.mjs');
 const configPath = resolve(SCRIPTS, 'graph-config.mjs');
 
-/** The graph modules WF-0071 added — the ones that must stay off the hot path. */
+/** Every WF-0071 graph module — all of these must be third-party-dep-free (check B). */
 const GRAPH_MODULES = [
   'graph-extract.mjs', 'project-map-graph.mjs', 'project-map-resolve.mjs',
   'blast-radius.mjs', 'graph-config.mjs',
+];
+
+/**
+ * The subset that must stay OFF the hot path (check C): the builder/resolver tree.
+ *
+ * `graph-config.mjs` is deliberately EXCLUDED — ADR-0134's own purity proof
+ * (`selfcheck-hotpath-purity.mjs`) declares it hot-path-SAFE and readable by a hook,
+ * because it has zero imports (not even `node:*`) and only reads a config flag.
+ * WF-0071 originally listed it here while no consumer existed ("the expected count is
+ * zero" above); WF-0108/ADR-0155 wires the first real consumers (the graph session
+ * refresh + the graph-first gate), which single-source the enablement check through
+ * `isGraphEnabled` rather than duplicating the flag read in each hook.
+ *
+ * The teeth stay: importing a BUILDER, RESOLVER or QUERY module from a hook is still
+ * a violation, and check B still proves every graph module is dependency-free.
+ */
+const HOT_PATH_FORBIDDEN = [
+  'graph-extract.mjs', 'project-map-graph.mjs', 'project-map-resolve.mjs', 'blast-radius.mjs',
 ];
 
 /** Static import specifiers in a source string (line-scan; avoids regex fragility). */
@@ -95,8 +113,8 @@ export async function runGc4Checks() {
   record('B. graph modules import only node:* + relative siblings (zero third-party)', depViolations.length === 0,
     depViolations.length === 0 ? GRAPH_MODULES.length + ' modules clean' : 'violations: ' + depViolations.join(', '));
 
-  // C. no hot-path file statically imports a graph module.
-  const graphSet = new Set(GRAPH_MODULES.map((m) => m.replace(/\.mjs$/, '')));
+  // C. no hot-path file statically imports a graph BUILDER/RESOLVER module.
+  const graphSet = new Set(HOT_PATH_FORBIDDEN.map((m) => m.replace(/\.mjs$/, '')));
   const hotFiles = [...listMjs(HOOKS)];
   try { if (statSync(LOAD).isFile()) hotFiles.push(LOAD); } catch { /* load.mjs optional */ }
   const hotViolations = [];

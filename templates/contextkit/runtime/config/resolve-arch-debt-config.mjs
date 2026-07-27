@@ -26,6 +26,9 @@
 /** The gate's own default bands (mirrors defaults-arch-debt.mjs / DEFAULT_LINE_BANDS). */
 const DEFAULT_BANDS = Object.freeze({ yellow: 240, elevated: 308 });
 
+/** Enforcement postures for the twelve dimensions (OP-0012). Guarded is the default. */
+const ENFORCEMENT_POSTURES = Object.freeze(['advisory', 'guarded', 'strict']);
+
 /** A finite positive integer guard — a malformed band number is ignored, never NaN. */
 function isBand(value) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -52,6 +55,48 @@ function normaliseBaseline(provided) {
     forbiddenEdges: Array.isArray(base.forbiddenEdges) ? base.forbiddenEdges : [],
     stateAuthorities: Array.isArray(base.stateAuthorities) ? base.stateAuthorities : [],
   };
+}
+
+/**
+ * Map the `floors.{security,reliability,testability}` config keys onto the
+ * DIMENSION-keyed authority map `enforcement-posture.mjs` consumes.
+ *
+ * Keyed by dimension (not ruleId) because floor rule ids are GENERATED per hit
+ * (`F7.security-regression.<code>`), so a ruleId-keyed override could never
+ * target them. The dimension names are inlined as string literals on purpose:
+ * `Dimension` lives under `tools/scripts/arch-debt/`, and this module sits in
+ * `runtime/config/` — importing upward would invert the dependency direction
+ * (rubric S1) and create a cycle, since the gate imports this resolver.
+ *
+ * An unrecognised authority value is DROPPED (not passed through), so a typo
+ * leaves the declared authority in force rather than silently disarming a floor.
+ *
+ * @param {Object} [floors]  the `architectureDebtGate.floors` slice.
+ * @returns {Object<string,string>} dimension → Enforcement override.
+ */
+function floorAuthoritiesFrom(floors) {
+  const source = floors && typeof floors === 'object' ? floors : {};
+  const VALID = ['BLOCKING', 'REVIEW_REQUIRED', 'ADVISORY', 'OBSERVE_ONLY', 'DISABLED'];
+  const BY_DIMENSION = {
+    security: 'SECURITY_PRIVACY',
+    reliability: 'RELIABILITY',
+    testability: 'TESTABILITY',
+    architecture: 'ARCHITECTURE_CONFORMANCE',
+    dataContracts: 'DATA_CONTRACTS',
+    modularity: 'MODULARITY',
+    complexity: 'COMPLEXITY',
+    observability: 'OBSERVABILITY',
+    performance: 'PERFORMANCE',
+    operations: 'OPERATIONS_DELIVERY',
+    dependencies: 'DEPENDENCIES',
+    cognitiveCoherence: 'COGNITIVE_COHERENCE',
+  };
+  const authorities = {};
+  for (const [key, dimension] of Object.entries(BY_DIMENSION)) {
+    const value = source[key];
+    if (typeof value === 'string' && VALID.includes(value)) authorities[dimension] = value;
+  }
+  return authorities;
 }
 
 /**
@@ -151,10 +196,18 @@ export function resolveArchDebtConfig(config = {}) {
   const writeAuthorities = Array.isArray(gate.writeAuthorities) ? gate.writeAuthorities : undefined;
   const conformanceConfigured = Boolean(layerRules || ownership || writeAuthorities);
 
+  // Enforcement POSTURE for the twelve dimensions (OP-0012). `guarded` is the
+  // default: a deterministic VIOLATION on a changed line BLOCKS. An unknown value
+  // falls back to `guarded` rather than silently disarming the gate.
+  const enforcement = ENFORCEMENT_POSTURES.includes(gate.enforcement)
+    ? gate.enforcement
+    : 'guarded';
+
   return {
     // Master switch + gear (ACTIVE by contract).
     enabled: gate.enabled !== false,
     mode: typeof gate.mode === 'string' ? gate.mode : 'active',
+    enforcement,
 
     // Line-count signal — ADVISORY only. `blocking` is forced false (hard invariant):
     // line count alone can never block, regardless of any config value.
@@ -167,6 +220,29 @@ export function resolveArchDebtConfig(config = {}) {
     floors: gate.floors && typeof gate.floors === 'object' ? gate.floors : {},
     scope: gate.scope && typeof gate.scope === 'object' ? gate.scope : {},
     unknownEvidence: typeof gate.unknownEvidence === 'string' ? gate.unknownEvidence : 'REVIEW_REQUIRED',
+
+    // Per-DIMENSION authority overrides (OP-0012). `floors.{security,reliability,
+    // testability}` used to be decorative — nothing read it. It is now the
+    // dimension-keyed authority map `enforcement-posture.mjs` applies, so setting
+    // `floors.security: "ADVISORY"` genuinely demotes that dimension.
+    floorAuthorities: floorAuthoritiesFrom(gate.floors),
+
+    // DECLARED change evidence (§9.4/§9.5). These are facts only the project can
+    // state — which migrations are irreversible, which behaviors are critical. The
+    // resolver passes them through verbatim and NEVER infers them from a diff:
+    // guessing would turn the reliability/testability floors into false-positive
+    // generators. Absent ⇒ the floor emits nothing (silence, never a pass claim).
+    reliability: gate.reliability && typeof gate.reliability === 'object' ? gate.reliability : undefined,
+    changedBehaviors: Array.isArray(gate.changedBehaviors) ? gate.changedBehaviors : undefined,
+    // The test-impact selector result (§17 — the gate CONSUMES it, never recomputes
+    // it). Must be passthrough-able: `testabilityFloor` fails CLOSED to UNKNOWN when
+    // a critical behavior is declared but no selector evidence exists, so a project
+    // that declares `changedBehaviors` without ever being able to supply
+    // `impactedTests` would sit at a permanent non-passing UNKNOWN.
+    impactedTests: gate.impactedTests && typeof gate.impactedTests === 'object' ? gate.impactedTests : undefined,
+    domainConformance: gate.domainConformance && typeof gate.domainConformance === 'object'
+      ? gate.domainConformance
+      : undefined,
 
     // The structural scanner honours projectMap roots/excludes when present.
     projectMap: cfg.projectMap,

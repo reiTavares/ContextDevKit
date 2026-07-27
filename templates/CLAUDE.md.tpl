@@ -28,8 +28,16 @@
    those are the Antigravity/Codex runners and may be absent in a Claude install.
    Then create the context with `/work operation` and **nest any workflow under its
    owner** (`workflow.mjs new <slug> --owner <OP/BIZ-id>`), never loose/central.
-2. **Map before broad exploration** — for non-trivial work, consult `/project-map`
-   before wide `Grep`/`Glob` sweeps.
+2. **Graph before ANY exploration — mandatory, enforced.** Locate code through the
+   structural graph, never by a broad text sweep. `Grep`/`Glob` are **blocked** by
+   `graph-first-gate.mjs` when the graph can answer the term (ADR-0155):
+   `node contextkit/tools/scripts/graph.mjs query "<symbol>"` to find it,
+   `… callers <id>` for who calls it, `… impact <id>` for blast radius. The graph
+   re-indexes itself every session; a stale one is rebuilt on demand. If the graph
+   genuinely cannot answer, the gate says so out loud and the fallback search
+   proceeds — treat that as "graph incomplete here", not "the symbol is absent".
+   Reading one named file is never gated. Only a **human** can waive the gate, by
+   putting `no-graph` / `sem-grafo` in the prompt.
 3. **Workflow before the first source write** — feature/architectural work needs an
    active `/workflow` at the permitted phase; architectural also needs an ADR.
 4. **Tests + QA before completion** — not done until the suite and `/qa-signoff`
@@ -55,7 +63,9 @@ Economy mode is the default posture for non-trivial work. Prefer deterministic
 receipts and bounded packets; when a lever lacks its prerequisite, report
 `skipped: <reason>` instead of treating it as applied.
 
-- Before broad search, run `/project-map --find <symbol-or-path>`. Use Task
+- Locate code with `node contextkit/tools/scripts/graph.mjs query "<symbol>"` FIRST
+  (mandatory, gate-enforced — ADR-0155); `/project-map --find <symbol-or-path>` is
+  the module-level companion, not a substitute. Use Task
   Compiler only on exact Project Map matches:
   `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <symbol> --objective "<objective>"`.
 - During `/dev-start`, render
@@ -81,7 +91,8 @@ Authoritative lifecycle details: `contextkit/docs/work-lifecycle.md`.
 For non-trivial code work, follow this host-neutral order from
 `contextkit/policy/journey.json`:
 
-1. **Graph** — run `/project-map` before broad exploration; owner projection: `architect`.
+1. **Graph** — query the structural graph (`graph.mjs query`) before ANY exploration;
+   gate-enforced, not advisory (ADR-0155); owner projection: `architect`.
 2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
 3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
 4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.

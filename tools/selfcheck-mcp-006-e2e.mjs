@@ -21,6 +21,12 @@ import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { MCP_SERVER_DIR, makeReporter } from './selfcheck-mcp-006-helpers.mjs';
+// WF-0108 / ADR-0155 — the graph tools the server advertises alongside the ten
+// MCP-006 core tools. Derived from the registry, never a second hardcoded list.
+import { MCP_GRAPH_TOOLS } from '../templates/contextkit/tools/scripts/graph-consumers.mjs';
+
+/** The ten MCP-006 core tool names (AC-1). */
+const CORE_TOOL_COUNT = 10;
 
 const { ok, bad, summary, hasFailed } = makeReporter();
 
@@ -83,12 +89,20 @@ await new Promise((resolveTest) => {
       bad('initialize response', JSON.stringify(byId[1]));
     }
 
-    // tools/list
+    // tools/list — core ten + the graph tools (count derived, so adding a graph
+    // tool needs no edit here; a missing one still changes the total and fails).
     const toolNames = (byId[2]?.result?.tools || []).map((t) => t.name);
-    if (toolNames.length === 10) {
-      ok('tools/list returns 10 tools');
+    const expectedToolCount = CORE_TOOL_COUNT + MCP_GRAPH_TOOLS.length;
+    if (toolNames.length === expectedToolCount) {
+      ok(`tools/list returns ${expectedToolCount} tools (${CORE_TOOL_COUNT} core + ${MCP_GRAPH_TOOLS.length} graph)`);
     } else {
-      bad('tools/list count', `got ${toolNames.length}: ${toolNames.join(', ')}`);
+      bad('tools/list count', `expected ${expectedToolCount}, got ${toolNames.length}: ${toolNames.join(', ')}`);
+    }
+    const missingGraphTools = MCP_GRAPH_TOOLS.filter((name) => !toolNames.includes(name));
+    if (missingGraphTools.length === 0) {
+      ok('tools/list advertises every graph tool (the graph is reachable over MCP)');
+    } else {
+      bad('tools/list graph tools', `missing: ${missingGraphTools.join(', ')}`);
     }
 
     // resources/list

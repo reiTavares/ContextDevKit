@@ -11,10 +11,12 @@
  *
  * Zero runtime dependencies — `node:*` + sibling/runtime modules only.
  */
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { EXECUTION_MODES, VALUE_INTENTS, isNonEmptyString } from '../../runtime/work/enums.mjs';
 import { validateOperation, OPERATION_ID_PATTERN } from '../../runtime/work/schema-operation.mjs';
+import { nextOperationId } from './registry/ids.mjs';
 import { makeReceipt, slugify, writeFileEnsured } from './work-io.mjs';
 import { buildOperationJson, buildReasonMd, buildTasksMd } from './work-templates.mjs';
 import { operationTasksMarkers } from './work-render.mjs';
@@ -23,14 +25,44 @@ import { operationTasksMarkers } from './work-render.mjs';
 const DEFAULT_MODE = 'direct';
 
 /**
+ * Refuses an `OP-####` id that is already taken on disk (constitution §8:
+ * validators THROW, at the boundary, before any write is attempted).
+ *
+ * The allocator picks a free id when `--id` is omitted, but an EXPLICIT `--id`
+ * used to be trusted blindly — which is how three separate `OP-0001-*` packages
+ * ended up in the same operations root. Existence is keyed on the `OP-####-`
+ * prefix, not the full slug, so a second package with the same number but a
+ * different title is still refused.
+ *
+ * @param {string} id - the `OP-####` id to check.
+ * @param {string} root - project root.
+ * @throws {Error} when a directory for that id already exists.
+ */
+function assertOperationIdFree(id, root) {
+  const operationsRoot = pathsFor(root).operations;
+  if (!existsSync(operationsRoot)) return;
+  const taken = readdirSync(operationsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(`${id}-`))
+    .map((entry) => entry.name);
+  if (taken.length > 0) {
+    throw new Error(
+      `operation: id "${id}" is ALREADY TAKEN by ${taken.join(', ')} — `
+      + 'omit --id to allocate the next free id, or pass an explicit unused one',
+    );
+  }
+}
+
+/**
  * Resolves and validates the create inputs from parsed flags/positionals,
  * throwing a typed boundary error on the first refusal (fail-fast, §4).
  *
  * @param {object} args - `{ positionals, flags }` from `parseArgs`.
+ * @param {string} [root] - project root, used to allocate the next free `OP-####`
+ *   when `--id` is omitted (fleet-reconciled via `nextOperationId`, ADR-0119).
  * @returns {{ id, title, slug, kind, executionMode, valueIntents, urgency, severity }}
  * @throws {Error} when required inputs are missing/invalid.
  */
-export function resolveCreateInputs({ positionals, flags }) {
+export function resolveCreateInputs({ positionals, flags }, root = process.cwd()) {
   const title = isNonEmptyString(flags.title) ? String(flags.title) : positionals.join(' ').trim();
   if (!isNonEmptyString(title)) throw new Error('operation: a title is required (positional or --title)');
 
@@ -47,8 +79,15 @@ export function resolveCreateInputs({ positionals, flags }) {
     throw new Error(`operation: --intent "${primary}" must be one of ${VALUE_INTENTS.join('|')}`);
   }
 
-  const id = isNonEmptyString(flags.id) ? String(flags.id) : 'OP-0001';
+  // Never a hardcoded default: an explicit --id wins, otherwise ALLOCATE the next
+  // free id across the whole worktree fleet. A fixed 'OP-0001' silently produced
+  // duplicate OP-0001-* packages whenever the caller omitted --id (ADR-0119).
+  const id = isNonEmptyString(flags.id) ? String(flags.id) : nextOperationId(root);
   if (!OPERATION_ID_PATTERN.test(id)) throw new Error(`operation: --id "${id}" must match OP-####`);
+  // Refuse a collision even when the id was passed explicitly — the allocator only
+  // protects the omitted-flag path, and a blindly trusted --id is how the three
+  // duplicate OP-0001-* packages were created.
+  assertOperationIdFree(id, root);
 
   return {
     id,
@@ -100,7 +139,7 @@ export function planOperationPackage(inputs, root, createdAt) {
 export function runOperationCreate(ctx) {
   const { positionals, flags, apply, root = process.cwd(), now } = ctx;
   const createdAt = now || new Date().toISOString().slice(0, 10);
-  const inputs = resolveCreateInputs({ positionals, flags });
+  const inputs = resolveCreateInputs({ positionals, flags }, root);
   const plan = planOperationPackage(inputs, root, createdAt);
 
   if (apply) {

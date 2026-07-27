@@ -43,6 +43,11 @@ import { RESOURCE_LIST, readResource } from './resources.mjs';
 import { PROMPT_LIST, getPrompt } from './prompts.mjs';
 
 import { TOOL_LIST } from './tool-catalog.mjs';
+// Structural knowledge graph (WF-0108 / ADR-0155). The MCP server is NOT on the
+// zero-dep hot path (that is `runtime/hooks/**` + `runtime/config/load.mjs`), so
+// it may import the graph consumer directly — unlike the graph hooks, which read
+// the projection via fs. Single traversal implementation, reused not reforked.
+import { mcpGraphTool, MCP_GRAPH_TOOLS } from '../tools/scripts/graph-consumers.mjs';
 
 // Tool dispatcher
 
@@ -58,6 +63,13 @@ const TOOL_HANDLERS = {
   get_relevant_decisions: (args) => getRelevantDecisions(args),
   get_context_pack: () => getContextPack(),
   get_quality_status: () => getQualityStatus(),
+  // Graph tools (WF-0108 / ADR-0155) — one entry per name in MCP_GRAPH_TOOLS,
+  // built from that single source so the catalog, the registry and this dispatcher
+  // can never drift apart. `mcpGraphTool` owns the traversal and already degrades
+  // to `{available:false}` on an absent projection.
+  ...Object.fromEntries(
+    MCP_GRAPH_TOOLS.map((tool) => [tool, (args) => mcpGraphTool(process.cwd(), tool, args ?? {})]),
+  ),
 };
 
 // JSON-RPC helpers

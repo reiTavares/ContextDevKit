@@ -1,549 +1,595 @@
 # ContextDevKit
 
-[![CI](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/contextdevkit)](https://www.npmjs.com/package/contextdevkit)
-![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
+[![CI — GitHub Actions full gate on the main branch: click for the current pass or fail state](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/ContextDevKit/actions/workflows/ci.yml)
+[![npm — currently published version of the contextdevkit package](https://img.shields.io/npm/v/contextdevkit)](https://www.npmjs.com/package/contextdevkit)
+![Node — requires version 18 or newer](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+![License — MIT](https://img.shields.io/badge/license-MIT-blue)
+![Runtime dependencies — zero on the hot path](https://img.shields.io/badge/runtime%20deps-0-success)
 
-> A portable, **business-driven, level-based AI-assisted development platform** that
-> runs natively on **Claude Code**, **Antigravity**, and **Codex**. It connects
-> *business intent* to *governed engineering execution*. Drop it into any project —
-> greenfield or existing, any stack — and the *harness* starts enforcing durable
-> project memory, automatic context loading, drift detection, specialized
-> sub-agents, governed deliberation, and a workflow journey it won't let you skip.
-> Turn on as much or as little as you want.
+**ContextDevKit is a business-driven, governance-first development platform for coding
+agents.** Work starts from business intent, gets classified by deterministic
+scoring — not by asking a model — and is then driven through a ceremony the harness
+*enforces* with hooks, receipts and specialist agents. Portable into any project, any
+stack, three agent hosts.
 
-ContextDevKit treats "AI-assisted coding" as **engineering**. A plain `CLAUDE.md`
-is just instructions the model is free to ignore; ContextDevKit makes the harness
-*enforce* the rules with hooks and gates, and records the *why* in version control
-so any future session — human or AI — can pick up exactly where the last one left off.
+Almost all of it runs automatically, and almost all of it can be driven end to end by
+an agent. You decide how much, with a dial that never lowers the quality bar — only who
+presses the button.
 
----
-
-## What ContextDevKit is
-
-ContextDevKit is a **business-driven development platform**: it ties *business
-intent* to *governed engineering execution*, and every feature in the kit exists to
-keep that line intact. You start from a business case — the problem, the value
-hypothesis, the investment decision — and the platform drives the work from that
-intent rather than from ad-hoc tickets: requirements become workflows, workflows
-become governed tasks, and each decision is recorded with the *why* so the next
-session continues the same thread. A hard rule keeps it honest — proposals follow a
-draft → approve → revise → reject lifecycle, and the AI **cannot self-approve**.
-
-Around that spine sit the systems that make it trustworthy, summarised across the
-whole feature set:
-
-- **Durable memory** keeps decisions, sessions, and domain language in your repo.
-- **Automatic context loading** opens every session with the current state loaded.
-- **Drift detection** refuses to let work go unrecorded.
-- **Hook-enforced governance** makes the rules the harness *runs*, not requests the AI may ignore.
-- **Specialized squads** route each concern to the right domain agent.
-- **Three economies** — token, cost, autonomy — keep AI-assisted work efficient and accountable.
-- **The level system** lets you adopt all of it gradually.
-
-The result: development that stays **accountable to business value** at every step,
-with a paper trail any future session — human or AI — can pick up.
-
-## What's active by default, what's automatic, what's manual
-
-You decide how much runs on its own. The **autonomy dial** (`/autonomy`, grades 1–4)
-is the master knob: it turns automatic behaviour back into manual confirmation
-whenever you want — so *even what is automatic can always be made manual*. The level
-sets **which** capabilities exist; the autonomy dial sets **how much** of them runs
-without you.
-
-| Capability | Active by default | Automatic | Run it manually |
-| --- | --- | --- | --- |
-| Context loading at session start | ✅ L1+ | ✅ boot hook | — always on |
-| Edit tracking + drift detection | ✅ L2+ | ✅ ledger + Stop nudge | `/context-stats` · `/watch` |
-| Session registration | ✅ nudge, L2+ | ⚠️ nudged — you confirm | `/log-session` |
-| Conventional Commits + quality gates | ✅ L3+ | ✅ git hooks | — enforced on commit/push |
-| Auto-format on edit | ✅ L4+ | ✅ PostToolUse | — |
-| Squad routing | ✅ L4+ | ✅ at boot | `/squad` |
-| High-risk blast-radius gate | ✅ L5+ | ✅ before flagged edits | `/simulate-impact` |
-| Deliberation before a decision | grade ≥ 3 | ✅ auto-convened | `/debate` |
-| Request orchestration | ✅ L7 | ✅ per prompt | `/workflow` · `/new-adr` · `/ship` |
-| Token / cost economy | ✅ advisory, L6+ | ✅ measured | `/token-report` · toggle to blocking |
-| Feature-reference docs | ✅ | ✅ regenerated + CI gate | `/docs-reindex` |
-| Decisions · workflows · shipping | — opt-in | — you drive | `/new-adr` · `/workflow` · `/ship` · `/swarm` · `/pipeline` |
-
-Lower the grade to turn the automatic rows into manual confirmations; raise it to let
-the harness drive. A non-negotiable floor keeps secrets, force-push, gate self-edits,
-ADRs, and grade changes human at **every** grade.
-
----
-
-## The 60-second mental model
-
-Everything in the kit serves one thesis: **don't depend on the AI's goodwill — make
-the environment enforce it.** Four durable artifacts, all in your repo, all plain text:
-
-| Artifact | Question it answers | Where |
-|---|---|---|
-| **ADRs** | *Why* did we decide this? | `memory/decisions/` inside the installed kit |
-| **Session logs** | *What* happened, session by session? | `memory/sessions/` inside the installed kit |
-| **Glossary** | What does this domain word *mean* in code? | `memory/GLOSSARY.md` inside the installed kit |
-| **Changelog** | What shipped, and when? | `CHANGELOG.md` |
-
-Around those, **hooks** inject context at session start, track every edit, and
-*block* the session from ending with unregistered work — while **gates** stop a
-high-risk edit, a half-finished workflow, or an unreviewed decision from sliding
-through. You adopt it gradually through **seven levels**, and a separate
-**autonomy dial** decides how much the AI may do without asking.
-
-## The seven systems
-
-### 1. Durable memory
-
-Every decision, session, and domain term lives in plain-text files under version
-control. ADRs record the *why* behind choices; session logs record the *what* of
-each working session; the glossary maps UI language to code identifiers; the
-changelog records what shipped and when. No database, no external service — just
-files your team owns, reads, and diffs.
-
-### 2. Automatic context loading
-
-The boot hook fires before the first message of every session. It reads the ledger
-state, detects drift (edits since the last session log), identifies the active
-workflow and its phase, and assembles a compact context packet — so the AI is never
-starting cold from a blank CLAUDE.md. Every session opens with the current
-decisions, open tasks, and relevant ADRs already loaded.
-
-### 3. Drift detection
-
-Every file edit is tracked in an append-only session ledger. When the session ends
-without a `log-session`, the Stop hook flags it. `/context-stats` reports the drift
-rate over time. The goal is zero unregistered sessions — because an unregistered
-session is context the next session can never recover.
-
-### 4. Specialized sub-agents (squads)
-
-Level 4 installs six domain squads — devteam, qa-team, design-team, security-team,
-compliance-team, ops-team — each with a router agent that picks the right specialist
-by intent. Level 6 adds the agent-forge squad, the "agent that builds agents"
-pipeline. Squads are active: the squad director reads the current diff at boot and
-activates only the postures the session actually needs, keeping context lean.
-
-### 5. Hook-enforced governance
-
-The harness enforces rules that don't rely on the AI remembering. Git hooks enforce
-Conventional Commits and run multi-language quality gates on push. Claude Code hooks
-inject boot context, track edits, nudge session registration, and at Level 5 run the
-`/simulate-impact` blast-radius check before any edit on a flagged high-risk path.
-The Stop hook refuses to let a session close silently with unregistered work.
-
-### 6. The level system
-
-Seven levels, each adding capability without removing anything below it:
-
-| Level | Name | Adds |
-| --- | --- | --- |
-| **1** | Memory | Boot context injection, `/log-session`, ADRs, changelog |
-| **2** | Ledger | Drift detection — tracks edits, nudges you to register the session |
-| **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits + conflict-blocking pre-push + multi-language quality gates) |
-| **4** | Squads | Specialized sub-agents (devteam, qa-team, design-team, security-team, compliance-team, ops-team) + PostToolUse auto-format |
-| **5** | Proactive | `/simulate-impact` gate on high-risk paths, branch-scoped workflow guard, `/tech-debt-sweep`, `/contract-check`, auto-distill nudge |
-| **6** | Autonomy & Insight | `/ship`, `/swarm`, `/pipetest`, the auto-invoked deliberation council, `/retro`, `/context-stats`, agent-forge squad |
-| **7** | Ecosystem | `/fleet` multi-repo control plane, `/tune-agents`, visual tests, playbook runner, multi-platform context bridges |
-
-Change level anytime from inside the project:
+Every claim below is falsifiable. Start with this one — **no rule in this kit depends on
+the model choosing to obey it.** Run it in any installed project:
 
 ```bash
-node contextkit/tools/scripts/context-level.mjs        # show
-node contextkit/tools/scripts/context-level.mjs 4      # move to L4 (or /context-level 4)
+node contextkit/tools/scripts/doctor.mjs
 ```
 
-Going up adds capability; going down cleanly removes the now-disabled hooks. See
-[docs/LEVELS.md](docs/LEVELS.md).
+It prints the hooks wired at your level, the git hooks on disk, and the install mode,
+then exits non-zero when the wiring disagrees with your configuration. A prompt-only kit
+cannot produce that output, because there is nothing to inspect.
 
-### 7. The DevPipeline
+## The problem
 
-Two different artifacts manage work. **`roadmap.md`** (in the kit's memory folder)
-is the *product/business plan* (capabilities, the what/why). The **DevPipeline**
-(`contextkit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
-increments, chores, and roadmap items broken into tasks with priority, SLA, DAG
-dependencies, and complexity, flowing `backlog → working → testing → conclusion`.
-The roadmap says *what* to build; the pipeline *runs* the work.
+A session ends. The reasoning behind the schema, the three approaches already rejected,
+the reason that retry loop exists — gone. The next session starts from a blank slate and
+rebuilds a worse version of a decision you already made.
 
-## Three economies
+Worse, the work has no *why* attached. Tickets arrive detached from the value they were
+supposed to create, so nobody can tell whether a change was worth making, and the drift
+goes unnoticed until someone re-litigates it in review.
 
-### Token economy
+A memory file helps, and only that far: **it is instruction.** Under context pressure the
+model can skip it, and nothing detects that it did. You are left with confident output,
+no accountable trail, and no way to tell a verified result from a plausible sentence.
 
-The kit is built on a discipline of spending tokens only where they change the
-outcome. The squad director assembles context from only the matched squads' playbooks
-— not the whole library. Cost-tiered model routing assigns cheap models to execution
-(read, scaffold, package), mid-tier to building, and the reasoning tier to
-architecture and security — so expensive capacity is reserved for decisions that
-genuinely require it.
+## How work is structured
 
-### Autonomy economy
+Three entity kinds, each with a real shape on disk. This is the spine — everything else
+in the kit exists to keep it intact.
 
-The autonomy dial (`autonomy.grade` 1–4) decides what the AI may do without asking,
-at any level. Grade 1 is fully manual; grade 2 (the default) suggests but waits for
-confirmation; grade 3 auto-executes most actions but defers decisions to a human
-quorum; grade 4 is full-auto with a deliberation quorum at each gate. A
-non-negotiable floor in code keeps secrets, force-push, gate self-edits, ADRs, and
-grade changes human at every grade, regardless of the dial setting.
-
-Set with `/autonomy`. See [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md)
-for the engineering rationale.
-
-### Cost economy
-
-The economy runtime (Level 6+) measures every session's token spend, attributes it
-per command and per agent, and surfaces the data on the Execution Contract after
-each run. Advisory mode reports; blocking mode enforces a budget gate. The goal is
-making AI-assisted development costs observable before they compound.
-
-## The workflow spine
-
-For larger features, `/workflow` creates a spec pack under the kit's memory folder
-(`memory/workflows/<slug>/`) carrying `prd.md`, `spec.md`, ADR and task indexes,
-and dated completion reports. The engine *enforces* the lifecycle:
+**Business (`BIZ-####`)** — a durable strategic capability. It carries the business case,
+the investment decision, the approved plan and its own governance contract, and it owns
+the workflows that deliver it.
 
 ```text
-intake → prd → spec → adr → roadmap(if feature) → pipeline → ship → testing → conclusion
+business/BIZ-0005-governed-agent-activation/
+├── business-case.md            the problem and the value hypothesis
+├── investment-decision.md      what is being committed, and by whom
+├── approved-plan.md            the plan a human accepted
+├── business.json               typed state — kind, value intents, relations
+├── governance-contract.json    the ceremony and evidence this context owes
+├── growth.md · architecture/   supporting analysis
+├── workflows/                  the workflows this Business owns
+└── done/ · reports/            terminal artifacts and evidence
 ```
 
-`advance` refuses to leave a phase with missing deliverables — it names the gaps.
-`--force` is the explicit, recorded escape. Pipeline cards link back with
-`--workflow <slug>`; moving a card to `testing` stamps `implemented: YYYY-MM-DD`;
-QA sign-off is the governed path into `conclusion`.
+**Operation (`OP-####`)** — maintaining, fixing or executing inside something that
+already exists. Deliberately lighter than a Business.
 
-## Requirements
+```text
+operations/OP-0010-documentation-restructure/
+├── operation.json              typed state — kind, intents, decision coverage
+├── reason.md                   why this Operation exists
+├── tasks.md                    board cards linked to it
+└── workflows/                  nested workflows, when the work needs them
+```
 
-- **Node.js ≥ 18** — the hooks/scripts are plain `.mjs`; **Levels 1–3 need zero npm
-  packages**. Node 20.6+ unlocks `--env-file` for the media-gen credentials flow.
-- **git** — for divergence detection and the Level 3 git hooks.
-- **Claude Code**, **Antigravity**, or **Codex** (IDE agent, CLI, desktop, or web).
-- *Optional:* `gh` (GitHub CLI) for PR/sync awareness; `GOOGLE_AI_API_KEY` for `/media-gen`.
+**Workflow (`WF-####`)** — one delivery unit, always nested under the context that owns
+it. A workflow is a checkpointed spec pack, not a ticket.
 
-## Quickstart
+```text
+workflows/WF-0096-docs-tooling-and-gates/
+├── index.md          phase state — intake · prd · spec · adr · roadmap ·
+│                     pipeline · ship · testing · conclusion
+├── prd.md            problem, goals, users, non-goals, success metrics
+├── spec.md           architecture read, design, contracts, test plan
+├── decisions.md      the decision records that govern it
+├── tasks.md          the board cards that implement it
+├── memory.md         working notes that survive the session
+└── reports/          completion evidence
+```
 
-**One command, from anywhere** — the repo *is* the installer.
+Two invariants hold this together. A workflow with an owner **lives under that owner's
+directory**, so no delivery floats free of its justification. And workflow numbering is a
+single **global** sequence, not a per-owner counter — gaps are normal and must never be
+renumbered, because the number is an identity.
 
-**First, pick how the kit lives in git** (you can switch later — it's non-destructive):
+Full model and vocabulary: [domain model](docs/explanation/domain-model.md) ·
+[glossary](docs/reference/glossary.md).
 
-| Mode | When | What it does |
+## The classifiers are deterministic, not a prompt
+
+Every request is classified before substantive work, by **weighted substring scoring over
+a policy file** — no model call, same input always yields the same verdict, and the
+tables are bilingual (English and Portuguese signals carry equal weight). Editing a row
+is a governance act, not a tweak.
+
+| Axis | What it decides | Vocabulary |
 | --- | --- | --- |
-| **Local-only** *(default)* | Solo work, an experiment, or trying the kit | Writes a managed `.git/info/exclude` block so the installed artifacts (`contextkit/`, `.claude/`, `CLAUDE.md`, …) stay out of your git history — updates never flood your commits. Your teammates and CI **won't** see the kit. |
-| **Tracked** *(`--tracked`)* | A team, multiple machines, or CI that needs the kit | Skips the exclude block so you can `git add` and commit the kit — everyone who clones gets the same memory, agents, and governance. |
+| Nature | Business or Operation | `business` · `operation` |
+| Business kind | The shape of a strategic capability | `TRANSFORMATION` · `INITIATIVE` · `PROGRAMME` · `FEATURE` · `ENABLER` |
+| Value intent | Why the work has value | `CREATE` · `PROTECT` · `RECOVER` · `ENABLE` · `IMPROVE` · `LEARN` · `COMPLY` · `SERVE_MISSION` |
+| Execution mode | How much ceremony the work earns | `direct` · `batch` · `workflow` |
+| Ceremony shape | The concrete artifact set | `quick-fix` · `batch-operation` · `single-workflow-operation` · `decision-only` · `multi-workflow-program` |
+| Journey branch | The ordered path the harness enforces | `operation-direct` · `operation-batch` · `operation-workflow` · `business-decision` · `business-workflow` |
+| Relations | How contexts depend on each other | `supports` · `contributes-to` · `triggered-by` · `derived-from` · `blocks` · `blocked-by` · `protects` · `replaces` |
 
-Not sure? Start **local-only** (just run the command below). Move to tracked the moment a second person or machine needs the kit: re-run with `--tracked` and `git add` the artifacts — switching only toggles the exclude block, it never touches your index or edits. `/context-doctor` reports your current mode and flags a local-only kit in a repo that already has a remote.
+The nature classifier defaults to **Operation** and only escalates to Business when the
+score clears a floor by a margin, above a confidence threshold. That asymmetry is
+deliberate: over-classifying routine maintenance as strategic work is the expensive
+mistake, so the cheap ceremony is the default and the expensive one must be earned.
+
+Proportionality is a feature. A trivial fix does not pay for a full spec pack — the
+classifier says so, and the journey for that branch is correspondingly short.
+
+Two further scores drive implementation quality: a **code-mutation intent** score that
+recognises when a request is really a write (an actual write attempt is an authoritative
+override, not a guess), and a **domain-applicability** score that decides when a request
+deserves explicit domain modelling instead of being treated as plumbing. Together they
+select which specialists must be in the room before code is written.
+
+See it decide, without mutating anything:
 
 ```bash
-# from npm (recommended) — auto-picks L3 for an empty folder, L7 if it already has code
+node contextkit/tools/scripts/work.mjs intake "<your objective>"
+node contextkit/tools/scripts/domain.mjs "<your objective>"
+```
+
+Details: [business-driven development](docs/explanation/business-driven-development.md).
+
+## Decisions are the authorization mechanism
+
+Nothing material gets authorized by a conversation. A **decision record** is a typed,
+validated artifact with its own lifecycle, and it is what authorizes a Business, an
+Operation, a workflow, or any change to something that already exists.
+
+Every request is checked for **decision coverage** before substantive work. When an
+entity has no governing decision, the harness says so by name rather than proceeding
+quietly:
+
+```text
+NEEDS_DECISION: "work entity" has no decisionRefs.
+A governing accepted ADR is required before material work proceeds.
+```
+
+### The kinds, and what each authorizes
+
+Eight kinds, a closed set — adding one is itself a decision.
+
+| Kind | Authorizes |
+| --- | --- |
+| `BUSINESS_AUTHORIZATION` | Standing up or changing a Business context |
+| `OPERATION_AUTHORIZATION` | Standing up or changing an Operation context |
+| `ARCHITECTURE` | A structural or design choice |
+| `POLICY` | A rule the platform will enforce afterwards |
+| `ROUTINE_OPERATION_GOVERNANCE` | Pre-authorizing recurring, low-materiality operations, so routine work is not blocked waiting on ceremony |
+| `EMERGENCY_GOVERNANCE` | Acting under time pressure, recorded as such rather than skipped |
+| `COMPLIANCE` | An obligation imposed from outside |
+| `LIFECYCLE` | Concluding, superseding or retiring something |
+
+Each record also declares **how far it reaches** — `platform`, `business`, `operation` or
+`workflow` — separately from **whose** decision it is. Scope and ownership are orthogonal
+on purpose: a platform-wide policy can be owned by a single Operation.
+
+### The lifecycle, and the one rule that cannot be configured away
+
+```text
+proposed ──→ accepted ──→ superseded
+    └──────→ rejected
+```
+
+`accepted` and `superseded` and `rejected` are terminal in the directions shown; there is
+no path back. And the invariant the whole model rests on:
+
+> **`accepted` implies the approving actor was human.**
+
+That is not a policy setting. The accept verb **refuses** when the actor is anything other
+than a human, and it names the schema rule in the refusal. The agent may draft a decision,
+argue for it, and fill in every field — it cannot stamp it. No autonomy grade, including
+the highest, changes this.
+
+### Authorizing something, end to end
+
+Mutators are dry-run by default. Run each command without `--apply` first and read the
+receipt; add `--apply` when the plan is what you wanted.
+
+```bash
+# 1. does this objective even need a decision, and is one already covering it?
+node contextkit/tools/scripts/decision.mjs need "<your objective>"
+node contextkit/tools/scripts/decision.mjs search "<your objective>"
+
+# 2. draft it — kind, scope and owning context are declared up front
+node contextkit/tools/scripts/decision.mjs create \
+  --kind OPERATION_AUTHORIZATION --title "<the decision>" \
+  --primary-context OP-0010 --apply
+
+# 3. bind it to the entity it governs
+node contextkit/tools/scripts/decision.mjs link --id ADR-0153 --apply
+
+# 4. a human accepts it. this step refuses any other actor
+node contextkit/tools/scripts/decision.mjs accept --id ADR-0153 --actor human --apply
+```
+
+Changing something already accepted is not an edit. It is a **supersede**: the old record
+keeps its history and points forward, the new one points back, and that transition is
+also human-gated.
+
+```bash
+node contextkit/tools/scripts/decision.mjs supersede --id ADR-0153 --actor human --apply
+```
+
+Read the whole corpus at any time, and validate it:
+
+```bash
+node contextkit/tools/scripts/decision.mjs render      # the catalog
+node contextkit/tools/scripts/decision.mjs validate    # front matter across every record
+```
+
+Hard calls get a **deliberation** first: independent specialist voices argue the question
+blind to each other, a separate synthesizer converges, and the result feeds the decision's
+context. An unresolved deliberation is a valid outcome — it hands you the tradeoff to
+break instead of manufacturing agreement.
+
+```bash
+/debate "<the decision question>"
+```
+
+Full model: [record a decision](docs/how-to/record-a-decision.md) ·
+[deliberation council](docs/explanation/deliberation-council.md) ·
+[governance contract](docs/reference/governance-contract.md).
+
+## Almost everything is automatic
+
+The kit is designed so an agent can drive the lifecycle, and a human supervises the
+result rather than each step.
+
+| Runs on its own | Driven by an agent on request | Always yours |
+| --- | --- | --- |
+| Boot context at session start | Full feature pipeline (`/ship`) | Accepting a decision record |
+| Edit ledger and drift detection | Parallel workstreams in isolated worktrees (`/swarm`) | Anything touching secrets |
+| Request classification and squad routing | Multi-agent deliberation on a hard call (`/debate`) | Force-push |
+| Structural graph refresh, detached from boot | Test plan, scaffolding, QA sign-off | Editing the gates themselves |
+| Gate evaluation and receipt checks | Business and Operation ceremony (`/work`) | Raising the autonomy grade |
+| Session-end sweep of concluded workflows | Session registration and changelog entry | |
+
+The **autonomy dial** (grades 1 to 4) decides how much of the middle column happens
+without a confirmation: manual, suggest-and-wait, auto-except-decisions, and full-auto on
+feature branches. Lowering the grade turns automatic behaviour back into a prompt. It
+never lowers quality — the same gates, receipts and specialists apply at every grade. The
+right-hand column is a floor that no configuration removes, including at grade 4.
+
+```bash
+node contextkit/tools/scripts/autonomy.mjs      # the grade in force and what it refuses
+```
+
+## Specialist agents that govern quality
+
+36 agents across 9 squads, each with a lead and a set of paths it owns. Routing is
+**path- and signal-based**, so the squad whose surface a change provably touches is the
+one that engages — and a squad with nothing to say emits nothing.
+
+| Squad | Lead | Engages on |
+| --- | --- | --- |
+| devteam | architect | Core library, utilities, services — plus implementation, review and domain modelling |
+| qa-team | qa-orchestrator | Tests and specs; routes to unit, integration, end-to-end, performance and adversarial specialists |
+| security-team | security | Auth, middleware, trust boundaries, dependencies, infrastructure |
+| design-team | ux-designer | Components, pages, flows, accessibility, conversion surfaces |
+| product-team | product-owner | Roadmap and requirements |
+| ops-team | devops | Pipelines, deploys, environments, observability |
+| growth-team | growth | Analytics, funnels, retention, discoverability |
+| compliance-team | privacy-lgpd | Personal-data handling and regional obligations |
+| agent-forge | forge-orchestrator | Forging portable agent packages |
+
+What this buys you concretely: a change to an auth path pulls in the security lead
+whether or not you remembered to ask; a code change cannot reach completion without the
+reviewer having looked; and quality is judged against **domain conformance** — dependency
+direction, context boundaries, cross-context access — rather than against a line count.
+
+File size is an **advisory investigation signal and never a blocker.** A small file can
+be badly designed and a large one can be clean, and artificial fragmentation is debt too.
+See [quality model](docs/explanation/quality-model.md).
+
+Roster and triggers: [agents reference](docs/reference/agents.md) ·
+[active squads](docs/explanation/active-squads.md).
+
+## The engineering rubric it ships with
+
+Every install receives four documents that are loaded into agent context, not merely
+filed: the rubric, the review protocol, behavioral discipline, and worked before/after
+examples. They are what the specialist agents judge against, so the standard the reviewer
+applies is the standard you can read.
+
+The rubric is ordered by what actually costs the project, not by what a linter can match:
+
+```text
+severity ≈ likelihood × blast radius × cost-to-fix-later
+```
+
+### Tier 1 — system and architecture
+
+The high-leverage tier, and the one a line-counting linter is blind to.
+
+| Rule | Principle |
+| --- | --- |
+| S1 Dependency direction | Dependencies point inward; the domain does not know how it is stored or transported |
+| S2 Boundaries and encapsulation | Each module has a deliberate public surface; callers depend on the contract, not the guts |
+| S3 Coupling and cycles | No import cycles; watch high fan-in on things that change often and high fan-out as a missing decomposition |
+| S4 State location | Every piece of state has one source of truth; derived data is computed, not stored |
+| S5 Bounded contexts and ubiquitous language | A model is valid only inside a boundary; the same word in two contexts is two models, and the words in the code are the words in the conversation |
+| S6 Aggregates, invariants, transactional boundaries | Where an invariant exists, one owner enforces it in one transaction. **No invariant means no aggregate** |
+| S7 Seam contracts and anti-corruption | Every seam has an explicit contract; foreign shapes are translated at the edge instead of spreading inward |
+
+**The domain lane is profile-gated, and that is the point.** S5 through S7 apply only once
+the resolved implementation profile carries domain weight. On a simple or modular profile
+they are **not findings at all** — reporting them there is a manufactured finding, and the
+review says "not assessed" instead. A breach of a *declared* domain boundary is a merge
+blocker; the same observation against an auto-seeded, unreviewed map is at most a
+candidate — propose the boundary, do not sentence the code for missing one.
+
+The classifier decides, and it is the same signal that puts the domain-modeling specialist
+in the room, so review and build judge the work against one bar:
+
+```bash
+node contextkit/tools/scripts/domain.mjs "<your objective>"
+```
+
+### Tier 2 — module and function hygiene
+
+Real and worth fixing, but local and cheap: complexity and cohesion, single
+responsibility, separation of concerns, errors, naming, documentation, tests — and waste.
+
+**Lean code is an explicit rule, not a slogan.** The cheapest code is the code you did not
+write, every line is inventory someone must read and carry, and **removing code is a
+first-class contribution.** Six named forms of waste: speculative generality (an
+abstraction with exactly one implementation, written for a second consumer that never
+arrived), dead and unreachable code, pass-through layers that add a hop and no meaning,
+duplicated business rules, defensive code for impossible states, and premature
+optimization with no measured hot path.
+
+The calibration matters as much as the rule: lean is not terse. Names, guard clauses at
+real boundaries and tests that catch bugs are the work, not waste. And pre-existing dead
+code is routed to its own scoped task — never demanded inside an unrelated change.
+
+### Severity, and what can actually block
+
+| Label | Meaning |
+| --- | --- |
+| Blocker | Fix before merge. Fails the debt gate — a real debt floor, never file size alone |
+| Hard | Clear violation with no cohesion excuse |
+| Candidate | Judgment call; may be justified. Explain the tradeoff |
+| Nit | Mention once, do not litigate |
+
+Two properties keep this from becoming bureaucracy. **Line count is always advisory** — an
+elevated reading is a louder investigation prompt, never a blocker; the finding earns its
+severity from the real defect the investigation uncovers, or it stays advisory. And
+**every rule carries a "don't over-apply" clause**, because a respected guardrail beats a
+flagged false positive: a single-context application has one bounded context and that is
+the correct answer; CRUD with no invariants needs no aggregate; a three-file script does
+not need a hexagonal architecture.
+
+Rigor scales to stakes: the full rubric applies to production paths, while spikes and
+throwaway code relax the hygiene and test bar deliberately.
+
+```bash
+/analyze-code-ia-practices     # run the rubric and get proposals, not random splits
+```
+
+Full rubric and protocol: [quality model](docs/explanation/quality-model.md) ·
+[audit and test](docs/how-to/audit-and-test.md) ·
+[domain engineering](docs/how-to/use-domain-engineering.md).
+
+## The capability pillars
+
+The kit's own governance record, each pillar a program with its decisions and workflows
+on disk. This is what the platform is made of.
+
+| Pillar | What it delivers |
+| --- | --- |
+| Business-driven development and decision governance (`BIZ-0001`) | The spine above: business intent, the deterministic classifiers, the journey the harness enforces, and the rule that the agent may propose a decision but never accept it |
+| Domain engineering and deterministic implementation (`BIZ-0003`) | The implementation profile — domain modelling, ubiquitous language, bounded contexts, state authority — plus the scores that decide when it applies |
+| Structural knowledge graph and code intelligence (`BIZ-0004`) | A queryable graph of the codebase, so an agent answers structural questions from an index instead of re-reading the tree |
+| Governed agent activation and quality (`BIZ-0005`) | The two-tier dispatch gate, agent evidence, the reviewer gate on every material change, graph-driven cross-squad selection, and retiring the line-count nag |
+| Methodology plane integrity and self-governance (`BIZ-0006`) | The methodology governing itself: canonical ceremony shapes, finalization integrity, lifecycle verbs, drift guards, and a cross-host canonical journey |
+
+One more program, the governed agent runtime and execution platform (`BIZ-0002`), is
+**proposed direction, not shipped capability** — it is named here for honesty about the
+roadmap, and nothing in the kit today depends on it.
+
+## Instruction versus enforcement
+
+Four mechanisms carry the difference. None run at the model's discretion.
+
+**Hooks that block, not ask.** Boot context loads before the first message. Every edit
+lands in an append-only ledger. A session cannot close silently with unregistered work.
+From level 5, a blast-radius gate blocks edits to paths you flagged high-risk until an
+impact record exists.
+
+Said precisely, because it matters in review: hooks are a **governance** control, not a
+security control. They exit 0 and stay quiet on their own errors by design, so a broken
+hook can never break real work.
+
+**Receipts, not assertions.** A gate is satisfied by script output alone. "The tests
+passed" as prose is not evidence, and neither is a stale, wrong-branch or bypassed
+receipt. When a check cannot run the result is `skipped` — **never** a pass. Absent data
+never counts in your favour.
+
+**The agent cannot approve its own work.** Proposals move draft → approve → revise →
+reject, and the approving actor is never the one that drafted.
+
+**Graceful degradation instead of false blocking.** The enforcement gate ships guarded by
+default and is safe to ship active precisely because it **degrades to advisory whenever it
+cannot evaluate safely** — a fresh install is never falsely blocked, and a refusal always
+names the exact corrective command.
+
+Full behaviour, per gate: [governance and
+enforcement](docs/explanation/governance-and-enforcement.md) ·
+[governance contract](docs/reference/governance-contract.md).
+
+## Proof you can run
+
+Every row is a command that exists on disk and prints the claim instead of restating it.
+
+| Command | What it proves |
+| --- | --- |
+| `doctor.mjs` | Hook wiring matches the configured level; git hooks present; install mode |
+| `work.mjs intake "<objective>"` | The classifier's verdict for a real request, read-only |
+| `work.mjs status` | Business and Operation contexts, and their decision coverage |
+| `workflow-assist.mjs --list` | Active workflows and the phase each is parked at |
+| `domain.mjs "<objective>"` | Which implementation profile and specialists a request selects |
+| `project-map.mjs --find <symbol>` | A symbol resolves to a file without a repository-wide search |
+| `graph-query.mjs` | The structural graph is readable, or honestly reports `available: false` |
+| `autonomy.mjs` | The autonomy grade in force, and what it still refuses |
+| `token-report.mjs` | Token spend measured in your repo, not estimated here |
+
+All live under `contextkit/tools/scripts/` in an installed project.
+
+Measured in this repository on 2026-07-27: **83 slash commands, 36 agents, 83 skills,
+3 native hosts**, and a structural graph of **24,157 nodes over 46,949 edges**. Those are
+this repo's numbers on that date — the commands above print yours.
+
+## Install
+
+```bash
+# from npm — level 3 for an empty folder, level 7 when the folder already has code
 npx contextdevkit --target . --yes
 
-# or straight from GitHub (no npm needed)
+# or straight from GitHub, no npm account needed
 npx github:reiTavares/ContextDevKit --target . --yes
-
-# team / multi-machine / CI — commit the kit instead of keeping it local-only
-npx contextdevkit --target . --tracked --yes
 ```
 
-Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the whole
-thing. Existing project? It detects your stack, **never clobbers your `CLAUDE.md`**
-(it writes `CLAUDE.contextdevkit.md` to merge by hand), and preserves any hooks you
-already had.
+Pick how the kit lives in git. Switching later is non-destructive — it toggles a managed
+local exclude block, never your index.
 
-Then, **one-shot self-configuration** — open the project in Claude Code, approve the
-hooks once, and the boot hook tells you it isn't configured yet. Run:
+| Mode | Choose it when | Effect |
+| --- | --- | --- |
+| Local-only (default) | Solo work, an experiment, evaluating the kit | Kit artifacts stay out of git history; updates never flood your commits. Teammates and CI do not see it. |
+| Tracked (`--tracked`) | A team, several machines, or CI | No exclude block, so you can commit the kit and everyone who clones inherits the same memory, agents and governance. |
 
-```
+An empty folder is scaffolded end to end. An existing project has its stack detected, and
+your own boot file is never clobbered — the kit writes a companion file for you to merge.
+Pre-existing git hooks are preserved and backed up.
+
+This is a code-execution tool. Install it with the care you give any dependency you run:
+it writes git hooks from level 3 upward and host hooks that run `node` on each session,
+commit and push. Pin a tag for a reproducible install. Full inventory of what lands on
+disk, and how to remove it: [footprint](docs/reference/footprint.md).
+
+Then open the project in your host and run one thing:
+
+```text
 /setupcontextdevkit
 ```
 
-This inspects the project, tunes the config to your stack (`ledger` path lists,
-high-risk paths), fills in `CLAUDE.md` (rules, stack, glossary), scaffolds domain
-sub-agents, records a baseline ADR, and logs the session — going from "kit installed"
-to "kit fitted to *this* project" in a single pass.
+It inspects the project, tunes the configuration to your stack, scaffolds the domain
+sub-agents, records a baseline decision and logs the session — from "kit installed" to
+"kit fitted to this project" in one pass.
 
-```text
-$ npx contextdevkit --target . --yes
-✓ .claude/settings.json wired for L7
-✓ engine installed (contextkit/runtime, contextkit/tools)
-✓ slash commands installed · agents installed · providers installed
-✓ CLAUDE.md created  ·  CHANGELOG.md created
-✅ ContextDevKit installed at Level 7 (existing project — full toolkit)
+## Levels
 
-> /setupcontextdevkit
-  Phase 1 — Inspect ……  detected: TypeScript · Vite · React · vitest
-  Phase 3 — Apply ……    ledger tuned (src/, tests/); high-risk: src/db/schema.ts
-  Phase 4 — CLAUDE.md …  stack + immutable rules filled in
-  Phase 7 — baseline ADR-0001 recorded; session logged
-  ✅ ContextDevKit fitted to this project.
-```
+The **level** decides which capabilities exist; the **autonomy grade** decides how much
+of them runs without you. Independent dials. Every level keeps everything below it.
 
-> **Security & trust — read before installing.** ContextDevKit is a code-execution
-> tool: install it like any dependency you run. `npx` writes git hooks under
-> `.git/hooks/` (L≥3) and Claude Code hooks into `.claude/settings.json`, which then
-> run `node` on each session/commit/push. **Pin a tag** for a reproducible install:
-> `npx github:reiTavares/ContextDevKit#v3.0.0 --target . --yes`. An existing git hook
-> is never clobbered (backed up to `<hook>.bak`). `/fleet` and custom
-> `contextkit/detectors/*.mjs` execute with full Node privileges — only register
-> repos and add detectors you trust.
-
-## Governance — what the harness enforces
-
-This is the part that doesn't rely on the AI remembering. Three layers, each
-documented in its own explanation doc:
-
-- **Hooks & gates.** Boot context injection, edit tracking, a Stop hook that blocks
-  ending with unregistered work, the L5 `/simulate-impact` gate on high-risk paths,
-  and PostToolUse auto-format + multi-language pre-push quality gates.
-- **Deliberation council** ([explanation](docs/explanation/deliberation-council.md)).
-  At grade ≥ 3, opening a feature or recording a decision auto-convenes a
-  deterministic, named specialist council that argues the question before the ADR is
-  written — evidence gathered cheaply, voices never downgraded.
-- **Workflow journey** ([explanation](docs/explanation/workflow-governance.md)).
-  `/workflow` won't let `advance` leave a phase with empty deliverables; `--force` is
-  the explicit, recorded escape. Numbered `NNNN-slug`; the mutation guard is
-  branch-scoped so parallel sessions don't block each other.
-
-## Squads — sub-agents organised by domain
-
-Each squad has a **router agent** that picks specialists by intent. As of v2.6 the
-squads are *active*: routed deterministically, given stack-aware playbooks, and
-audited at the pre-commit gate — see [docs/explanation/active-squads.md](docs/explanation/active-squads.md).
-
-| Squad | Specialists | When |
-|---|---|---|
-| **devteam** | `architect`, `code-reviewer`, `context-keeper`, `test-engineer` | Cross-cutting design + PR review + memory hygiene |
-| **qa-team** | `qa-orchestrator` + `qa-unit` / `qa-integration` / `qa-fuzzer` / `qa-perf` / `qa-e2e` | Testing strategy + execution |
-| **design-team** | `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator` | UI/UX, WCAG AA, SEO + AISO, high-conversion landing pages |
-| **security-team** | `security`, `code-security`, `infra-security` | Auth, secrets, dependencies, IaC, supply chain |
-| **compliance-team** | `privacy-lgpd`, `governance-officer` | LGPD (Brazilian data protection), policy |
-| **ops-team** | `devops` | CI/CD, deploys, environments, observability |
-| **agent-forge** *(L6+)* | `forge-orchestrator`, `model-router`, `prompt-engineer`, `tool-designer`, `eval-designer`, `packager`, `rag-designer`, `agent-architect` | The "agent that builds agents" — produces portable Agent Packages |
-
-Grow your own — or new squads — from `_BRIEFING.md.tpl` via `/squad`. See
-[docs/SQUADS/design-team.md](docs/SQUADS/design-team.md) and
-[docs/SQUADS/agent-forge.md](docs/SQUADS/agent-forge.md) for two squads in depth.
-
-## What gets installed into your project
-
-```
-your-project/
-  CLAUDE.md                          # boot context + your coding constitution
-  .claude/
-    settings.json                    # hook wiring (composed for your level)
-    commands/                        # the slash-command set, organised in packs
-      audit/ pipeline/ qa/ vcs/ forge/ setup/   # domain packs (see Slash commands)
-    agents/                          # the sub-agent archetypes, each with a cost tier (L4+)
-  .agents/                           # Antigravity host (skills, personas, playbooks — built from Claude sources)
-  INSTRUCTIONS.md  ·  ctx.mjs        # Antigravity boot context + central CLI runner (agy)
-  .codex/  ·  AGENTS.md  ·  cdx.mjs  # Codex host (hooks + TOML subagents + boot context + runner)
-  contextkit/
-    .env.example                     # optional credentials template (media-gen)
-    runtime/hooks/                   # the engine: boot, ledger, drift, L5 gate, auto-format, deliberation-nudge
-    runtime/config/                  # zero-dep loader, defaults, settings composer
-    runtime/git-hooks/               # pre-commit (reindex), commit-msg, pre-push (conflicts + quality gates)
-    runtime/providers/review/        # PR/review CLI adapters (gh)
-    runtime/providers/media/         # Veo + Nano Banana adapters
-    runtime/state/                   # canonical append-only state.json substrate
-    tools/scripts/                   # reindex, dashboard, sync-check, guard, swarm, deliberation-council, audits, …
-    memory/decisions/                # ADRs (the why)
-    memory/sessions/                 # one file per session (the what)
-    memory/workflows/                # /workflow spec packs (NNNN-slug)
-    memory/GLOSSARY.md
-    pipeline/                        # DevPipeline lanes: backlog / working / testing / conclusion
-    workflows/playbooks/             # tanstack, landing-page, seo-aiso, tech-debt-sweep, squads/…
-    squads/agent-forge/              # the "agent that builds agents" (L6+)
-    config.json                      # level + ledger path lists + L5 params + autonomy grade
-  CHANGELOG.md
-```
-
-## Slash commands
-
-Organised into **domain packs** so the `/` menu doesn't read as a 60-file scroll.
-The basename resolver is path-agnostic — `/qa-signoff` finds `qa/qa-signoff.md`
-exactly the same as a flat layout.
-
-**Setup:** `/aidevtool-from0` (empty project) · `/setupcontextdevkit` (existing project)
-
-**Daily** (root pack): `/state` · `/log-session` · `/new-adr` · `/debate` · `/advise`
-· `/close-version` · `/context-refresh` · `/project-map` · `/bug-hunt` · `/dashboard`
-· `/watch` · `/landing-page` · `/media-gen` · `/playbook` · `/predictions-review`
-· `/squad` · `/context-budget` · `/token-report` · `/tune-agents` · `/context-stats`
-· `/fleet` · `/distill-sessions` · `/distill-apply` · `/simulate-impact` · `/roadmap`
-· `/claude-md` · `/docs-reindex`
-
-**`pipeline/`:** `/pipeline` · `/ship` · `/swarm` · `/pipetest` · `/dev-start`
-· `/plan-week` · `/retro` · `/runs` · `/workflow` · `/workflow-assist` · `/resume`
-
-**`vcs/`:** `/git` · `/claim` · `/release` · `/worktree-new` · `/gh-triage`
-· `/draft-changelog` · `/changelog-social`
-
-**`qa/`:** `/qa-signoff` · `/test-plan` · `/scaffold-tests` · `/visual-test`
-
-**`audit/`:** `/audit` · `/deep-analysis` · `/security-setup` · `/deps-audit` ·
-`/tech-debt-sweep` · `/analyze-code-ia-practices` · `/contract-check` · `/seo-audit`
-· `/validate-doc`
-
-**`forge/`** (L6+, agent-forge squad): `/forge-new` and 13 lifecycle commands
-(`forge-{list,show,doctor,policy,budget,audit,eval,redteam,route,fallback-test,refresh-matrix,killswitch,deprecate}`)
-
-**`setup/`:** `/setupcontextdevkit` · `/aidevtool-from0` · `/autonomy`
-· `/context-doctor` · `/context-level` · `/context-config`
-
-On **Antigravity** every command is a **skill** under `.agents/skills/` (same names,
-no `/` prefix), run through the `agy` runner — see [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md).
-On **Codex**, generated skills live under `.agents/skills/`, subagents under
-`.codex/agents/*.toml`, and the same scripts run through `node cdx.mjs <command>` —
-see [docs/CODEX.md](docs/CODEX.md).
-
-## Beyond governance — the rest of the toolkit
-
-<details>
-<summary><strong>Playbooks</strong> — reusable procedures (`/playbook run <name>`)</summary>
-
-| Playbook | What it covers |
-|---|---|
-| **`landing-page.md`** | Fold rules, anti-Lovable refusals, dated package recs, Core Web Vitals budget |
-| **`seo-aiso.md`** | SEO + AISO checklist (`llms.txt`, FAQ schema, semantic HTML5, AI-crawler robots.txt) |
-| **`tanstack.md`** | TanStack family, cache-key discipline, typed router params |
-| **`simulate-impact.md` / `tech-debt-sweep.md` / `distillation-cycle.md`** | Blast-radius mapping, constitution scan, CLAUDE.md refinement |
-| **`security-batch.md`** | Batch security findings → ADRs + backlog |
-| **`squads/*.md`** | Stack-aware posture guide per active squad |
-
-</details>
-
-<details>
-<summary><strong>Provider adapters</strong> — zero-dep, refuse-on-missing-creds</summary>
-
-Pluggable runtime adapters (`node:fetch` / `child_process.spawn`) with a typed error
-contract.
-
-- **Review** (`contextkit/runtime/providers/review/`): `gh` CLI for PR creation,
-  review-comment listing, and posting. Add `glab.mjs` / `bb.mjs` / `tea.mjs` for
-  GitLab / Bitbucket / Gitea — same `_adapter.mjs` contract; `detect.mjs` resolves
-  from `git remote get-url origin`.
-- **Media** (`contextkit/runtime/providers/media/`): `nano-banana` (Imagen 3 image,
-  ~$0.04/image) and `veo` (Veo 3 video, ~$0.50/s), both on `GOOGLE_AI_API_KEY`.
-  Cap per-process spend with `CONTEXTDEVKIT_MEDIA_MAX_USD=5.00`; `--dry-run` never charges.
+| Level | What it adds |
+| --- | --- |
+| 1 Memory | Boot context, session log, decision records, changelog |
+| 2 Ledger | Drift detection — edit tracking plus a session-end nudge |
+| 3 Multi | Claims, worktrees, derived indices, git hooks (default for a new project) |
+| 4 Squads | Specialist sub-agents, structural graph, domain gates |
+| 5 Proactive | Blast-radius gate, journey enforcement, completion evidence, sub-agent scoping |
+| 6 Autonomy and insight | Ship pipeline, learning loop, measured metrics |
+| 7 Ecosystem and scale | Multi-repo fleet, agent tuning, visual tests, playbooks, token and cost insight (default for an existing codebase) |
 
 ```bash
-node --env-file=contextkit/.env contextkit/tools/scripts/media-gen.mjs image \
-  --prompt "editorial product hero, asymmetric grid" --out public/hero.png
+node contextkit/tools/scripts/context-level.mjs      # show, or pass 1-7 to move
 ```
 
-</details>
+Choosing: [install and choose a level](docs/how-to/install-and-choose-a-level.md) ·
+[levels reference](docs/reference/levels.md).
 
-<details>
-<summary><strong>SEO + AISO audit</strong> — two static analysers, refuse-on-SPA</summary>
+## Three native hosts
 
-```bash
-node contextkit/tools/scripts/seo-audit.mjs           # 8 SEO codes, exit 1 on SPA_ENTRYPOINT
-node contextkit/tools/scripts/aiso-audit.mjs --json   # 8 AISO codes, machine-readable
-```
+The same engine, the same scripts, three first-class front ends.
 
-SEO: `SPA_ENTRYPOINT` ⚠️, `MISSING_TITLE`, `MISSING_DESCRIPTION`, `MULTIPLE_H1`,
-`MISSING_CANONICAL`, `MISSING_ALT`, `MISSING_SITEMAP`, `MISSING_ROBOTS`.
-AISO: `MISSING_LLMS_TXT`, `MISSING_FAQ_SCHEMA`, `MISSING_ORG_SCHEMA`, `DIV_SOUP`,
-`JS_RENDERED_CONTENT`, `MISSING_AUTHOR_SCHEMA`, `MISSING_DATE_STAMP`, `BLOCKS_AI_CRAWLERS`.
-See [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md) for the rationale behind AISO.
+| Host | Surface | Runner |
+| --- | --- | --- |
+| Claude Code | Slash commands, sub-agents, hooks | native |
+| Antigravity | Skills, personas, playbooks | `node ctx.mjs <command>` |
+| Codex | Skills plus subagent definitions | `node cdx.mjs <command>` |
 
-</details>
+Other editors reach the same memory through opt-in context bridges, which project context
+without the native hook layer — they inform the agent and enforce nothing. See
+[work across hosts and bridges](docs/how-to/work-across-hosts-and-bridges.md).
 
-<details>
-<summary><strong>Visual surfaces</strong> — <code>/dashboard</code> + <code>/watch</code></summary>
+## Where to go next
 
-```bash
-node contextkit/tools/scripts/dashboard.mjs              # snapshot → dashboard.html
-node contextkit/tools/scripts/dashboard.mjs --watch      # live on 127.0.0.1:4242 (SSE)
-node contextkit/tools/scripts/watch.mjs --follow         # tail the ledger
-```
+**Get running.** [Install and choose a level](docs/how-to/install-and-choose-a-level.md) ·
+[Configure](docs/how-to/configure-contextkit.md) ·
+[Configuration reference](docs/reference/config.md) ·
+[Upgrade](docs/how-to/upgrade-and-update.md) ·
+[Troubleshoot](docs/how-to/troubleshoot.md)
 
-`/dashboard` renders pipeline lanes + ADRs + sessions + roadmap + `[Unreleased]`
-changelog as self-contained HTML; `/watch` tails the active session ledger.
+**Learn the method.** [First business case](docs/tutorials/first-business-case.md) ·
+[Run a business case](docs/how-to/run-a-business-case.md) ·
+[Run a workflow](docs/how-to/run-a-workflow.md) ·
+[Anatomy of a business, operation and
+workflow](docs/how-to/anatomy-of-business-operation-workflow.md)
 
-</details>
+**Understand the model.** [Business-driven
+development](docs/explanation/business-driven-development.md) ·
+[Governance and enforcement](docs/explanation/governance-and-enforcement.md) ·
+[Quality model](docs/explanation/quality-model.md) ·
+[Domain model](docs/explanation/domain-model.md) ·
+[The three economies](docs/explanation/the-three-economies.md) ·
+[Glossary](docs/reference/glossary.md)
 
-## Maintenance
+**Go deeper.** [Knowledge graph](docs/how-to/use-the-knowledge-graph.md) ·
+[Domain engineering](docs/how-to/use-domain-engineering.md) ·
+[Forge an agent package](docs/how-to/forge-an-agent-package.md) ·
+[Connect MCP servers](docs/how-to/connect-mcp-servers.md) ·
+[Parallel swarm](docs/how-to/run-a-parallel-swarm.md) ·
+[Reduce token cost](docs/how-to/reduce-token-cost.md)
 
-```bash
-# diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
-/context-doctor          # or: agy doctor / node contextkit/tools/scripts/doctor.mjs
+**Trust and review.** [Footprint](docs/reference/footprint.md) ·
+[Data posture](docs/reference/data-posture.md) · [Privacy](docs/PRIVACY.md) ·
+[Security policy](SECURITY.md) ·
+[Memory model](docs/reference/memory-model.md)
 
-# safe update — refresh engine, commands, agents, configs
-# (never modifies user-authored memory, CLAUDE.md, or custom settings;
-#  project-map may be generated/refreshed when safe — deferred on active sessions)
-npx contextdevkit@latest --target . --update
+Full index, organized by [Diátaxis](https://diataxis.fr/), in
+[docs/README.md](docs/README.md). Guia em português: [instrucoes.md](instrucoes.md).
 
-# change level (rewires settings.json, installs git hooks at L≥3)
-/context-level 4
+## FAQ
 
-# uninstall — keeps memory (ADRs, sessions) and CLAUDE.md; add --purge to also remove the engine
-node /path/to/contextdevkit/install.mjs --target . --uninstall
-```
+**What leaves my machine?** No telemetry, no account, no endpoint belonging to this
+project. Memory, ledger and metrics are plain files in your repository. Two calls in a
+stock install reach your *own* git remote. Adding an MCP server is the one opt-in path
+that grants a third party read access to the repo. Details:
+[data posture](docs/reference/data-posture.md).
 
-`--update` runs a conflict-safe 3-way merge against a sha256 manifest (personalized
-commands/agents are never clobbered), refreshes the installed `contextkit/README.md`,
-regenerates `docs/README.md`, and runs the workflow-numbering migration — but does
-**not** take ownership of your project's root `README.md`.
+**Does it need an API key?** Not for the kit. Your agent brings its own authentication;
+the kit is plain Node scripts and host configuration.
 
-## Develop the kit itself
+**Does the ceremony slow down small changes?** No, and that is enforced rather than
+promised: the classifier resolves a trivial fix to the shortest branch, and the artifacts
+that branch owes are correspondingly few. The expensive ceremony has to be earned by
+score.
 
-### Test scripts
+**What does it cost in tokens?** Not a number this page can honestly give you; it depends
+on repo size, level and accumulated memory. It is measurable rather than estimated —
+`token-report.mjs` attributes spend per session and per command in your own project.
 
-| Script | When to run | What it does |
-|---|---|---|
-| `npm run test:smoke` | Inner loop — after every local edit | Hermetic, no-install suites (~1.5 s) |
-| `npm run test:impact` | Inner loop — conservative auto-selector | Runs only the suites touched by changed files; falls back to full on any uncertainty |
-| `npm run test:selfcheck` | After wiring changes | Static engine checks (660+ assertions); quiet on pass (`selfcheck: N/N`) |
-| `npm run test:unit` | Alias for smoke + selfcheck | `test:smoke` then `test:selfcheck` |
-| `npm run test:integration` | Before opening a PR | All six integration clusters (core / installer / hosts / workflow / enforcement / ecosystem) |
-| `npm run test:integration:<cluster>` | Closing a card in that area | One cluster: `core`, `installer`, `hosts`, `workflow`, `enforcement`, `ecosystem` |
-| `npm run test:full` | Named alias for the full run | Identical to `npm test` — every suite, serial, fail-fast |
-| `npm test` | Pre-push / CI baseline | Full suite; **behavior preserved** — external callers unaffected |
-| `npm run ci:fast` | PR gate (CI runs this) | `test:impact` + tech-debt RED-line; single Node version; uploads `runs/` logs |
-| `npm run ci:full` | Main/release gate (CI + pre-publish) | Full suite + tech-debt; runs on Node 18/20/22; **mandatory before release** |
-| `npm run ci` | Alias for `ci:full` | Same as `ci:full` — legacy callers are safe |
+**Does it work outside my stack?** The engine is stack-agnostic — plain Node with zero
+runtime dependencies on the hot path, so levels 1 to 3 run in a project with nothing
+installed. Stack detection tunes paths and gates to what you already use, and never
+installs a second test framework or formatter.
 
-`npm test`, `npm run ci`, and `npm run check` keep their exact meaning — external
-`npx`/automation callers are unaffected. Logs land in the gitignored `runs/` directory;
-`--verbose` on any suite restores full output; `--legacy` on `run-suites.mjs` executes
-the literal pre-TEA serial chain (rollback escape hatch).
+**What breaks if I uninstall?** Nothing in your source. Uninstalling unwires the hooks
+and leaves your memory and boot file in place; `--purge` also removes the engine
+directory. Pre-existing git hooks are restored from their backups.
 
-```bash
-npm run test:smoke            # fast hermetic pass after an edit
-npm run test:impact           # conservative selector — inner loop for larger changes
-npm test                      # full suite (selfcheck + all integration tests)
-npm run ci:full               # full gate + tech-debt RED-line (validate before pushing)
-node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
-node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
-npm run build:antigravity     # regenerate .agents skills/personas from templates/claude
-npm run build:codex           # regenerate .codex agents + source-command skills
-```
+## Contributing
 
-The kit dogfoods itself, so the SOURCE lives under `templates/` and `tools/` — never
-edit the installed `contextkit/` copies. See [CONTRIBUTING.md](CONTRIBUTING.md) for the
-immutable rules (zero hot-path deps, hooks never break work, add a test for anything you add).
-
-## Docs
-
-Organized by [Diátaxis](https://diataxis.fr/) — see [docs/README.md](docs/README.md) for the full index.
-
-**Explanation — the *why*:**
-- [docs/explanation/value-and-impact.md](docs/explanation/value-and-impact.md) — the engineering rationale: why enforcement beats instructions, who this is for, and what it costs.
-- [docs/explanation/contextkit-parity.md](docs/explanation/contextkit-parity.md) — the eight generic-engineering features and their safety posture.
-- [docs/explanation/deliberation-council.md](docs/explanation/deliberation-council.md) — auto-invoked, tiered, named deliberation.
-- [docs/explanation/workflow-governance.md](docs/explanation/workflow-governance.md) — the engine-enforced workflow journey.
-- [docs/explanation/active-squads.md](docs/explanation/active-squads.md) — passive → actively-routed, governed squads.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally (hooks, providers, state substrate).
-- [docs/ANTIGRAVITY.md](docs/ANTIGRAVITY.md) · [docs/CODEX.md](docs/CODEX.md) — the two non-Claude native hosts.
-
-**Reference & how-to:**
-- [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
-- [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, provider adapters, rebrand.
-- [docs/SQUADS/design-team.md](docs/SQUADS/design-team.md) · [docs/SQUADS/agent-forge.md](docs/SQUADS/agent-forge.md) — squads in depth.
-- [docs/AGENT-PACKAGE-FORMAT.md](docs/AGENT-PACKAGE-FORMAT.md) · [docs/SQUAD-PIPELINE-FORMAT.md](docs/SQUAD-PIPELINE-FORMAT.md) — agent-forge specs.
-- [docs/ROADMAP.md](docs/ROADMAP.md) — architect analysis, the L6/L7 capability tiers, future directions.
-
-🇧🇷 Guia em português: [instrucoes.md](instrucoes.md).
+Source lives under `templates/` and `tools/` — never in an installed `contextkit/` copy.
+[CONTRIBUTING.md](CONTRIBUTING.md) has the immutable rules: zero hot-path dependencies,
+hooks never break real work, every addition ships with a test.
 
 ## License
 

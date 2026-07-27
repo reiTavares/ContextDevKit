@@ -24,6 +24,10 @@ import {
   EXPECTED_RESOURCE_URIS,
   EXPECTED_PROMPT_NAMES,
 } from './integration-test-mcp-006-helpers.mjs';
+// WF-0108 / ADR-0155 — the graph tools the server now advertises alongside the
+// MCP-006 core ten. Imported from the registry so the expected set is derived,
+// never a second hardcoded list that can drift.
+import { MCP_GRAPH_TOOLS } from '../templates/contextkit/tools/scripts/graph-consumers.mjs';
 
 const { ok, bad, finish } = reporter();
 
@@ -171,13 +175,18 @@ await new Promise((resolveTest) => {
       ? ok('initialize: capabilities.tools present')
       : bad('initialize: capabilities.tools missing');
 
-    const toolNames = (byId[3]?.result?.tools || []).map((t) => t.name);
-    toolNames.length === 10
-      ? ok('tools/list: 10 tools returned')
-      : bad(`tools/list: expected 10, got ${toolNames.length} — [${toolNames.join(', ')}]`);
-    for (const name of ['get_project_state', 'get_project_map', 'get_module_context',
+    // The 10 MCP-006 core tools PLUS the graph tools (WF-0108 / ADR-0155). The
+    // expected total is DERIVED from MCP_GRAPH_TOOLS, so adding a graph tool never
+    // needs a matching edit here — while a MISSING one still fails below.
+    const coreTools = ['get_project_state', 'get_project_map', 'get_module_context',
       'get_workflow_status', 'get_pipeline_cards', 'get_active_claims',
-      'get_latest_session', 'get_relevant_decisions', 'get_context_pack', 'get_quality_status']) {
+      'get_latest_session', 'get_relevant_decisions', 'get_context_pack', 'get_quality_status'];
+    const toolNames = (byId[3]?.result?.tools || []).map((t) => t.name);
+    const expectedTools = [...coreTools, ...MCP_GRAPH_TOOLS];
+    toolNames.length === expectedTools.length
+      ? ok(`tools/list: ${expectedTools.length} tools returned (${coreTools.length} core + ${MCP_GRAPH_TOOLS.length} graph)`)
+      : bad(`tools/list: expected ${expectedTools.length}, got ${toolNames.length} — [${toolNames.join(', ')}]`);
+    for (const name of expectedTools) {
       toolNames.includes(name)
         ? ok(`tools/list includes ${name}`)
         : bad(`tools/list missing ${name}`);

@@ -5,6 +5,8 @@
   "publicPaths": [
     "README.md",
     "instrucoes.md",
+    "SECURITY.md",
+    "docs/PRIVACY.md",
     "docs/explanation",
     "docs/reference",
     "docs/how-to",

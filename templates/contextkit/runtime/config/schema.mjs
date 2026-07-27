@@ -102,6 +102,21 @@ const AutonomySchema = z
   .passthrough()
   .default({});
 
+// ADR-0134 / ADR-0155 - structural knowledge graph. `mode` is the activation
+// ladder (resolveGraphActivation clamps a blocking mode without `humanFlip`);
+// `autoIndex` drives the per-session refresh; `maxAgeMinutes` is the staleness
+// threshold above which the graph-first gate rebuilds on demand.
+const GraphSchema = z
+  .object({
+    enabled: z.boolean().default(true),
+    mode: z.enum(['off', 'shadow', 'advisory', 'guarded', 'strict']).default('guarded'),
+    humanFlip: z.boolean().default(true),
+    autoIndex: z.boolean().default(true),
+    maxAgeMinutes: z.number().int().positive().default(60),
+  })
+  .passthrough()
+  .default({});
+
 // ADR-0046 - project-map active-fitness toggles (auto-refresh + rule enforcement).
 const ProjectMapSchema = z
   .object({
@@ -111,6 +126,7 @@ const ProjectMapSchema = z
     // (defaults to the whole project); `excludes` adds bare-name excludes.
     roots: z.array(z.string().min(1)).min(1).default(['.']),
     excludes: z.array(z.string().min(1)).default([]),
+    graph: GraphSchema,
   })
   .passthrough()
   .default({});

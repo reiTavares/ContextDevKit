@@ -42,6 +42,15 @@
 export const ARCH_DEBT_GATE_DEFAULTS = Object.freeze({
   enabled: true,
   mode: 'active',
+  // Enforcement POSTURE (OP-0012, mirrors ADR-0125's guarded-by-default contract).
+  // `guarded`  — DEFAULT. The twelve dimensions enforce for real: a deterministic
+  //              VIOLATION on a changed line blocks. Analyzers whose evidence or
+  //              declaration is absent degrade to advisory/SKIPPED — never a false
+  //              block, never a false pass.
+  // `advisory` — every dimension is demoted to observation (opt-out escape hatch).
+  // `strict`   — additionally blocks on REVIEW_REQUIRED-grade findings.
+  // Line count is NEVER affected by this: it stays advisory in every posture.
+  enforcement: 'guarded',
   baseline: { strategy: 'ratchet', blockUnchangedLegacyDebt: false },
   ruleModes: {},
   lineSignals: { enabled: true, blocking: false, yellow: 240, elevated: 308 },

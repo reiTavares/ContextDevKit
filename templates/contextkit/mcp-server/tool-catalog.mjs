@@ -86,4 +86,71 @@ export const TOOL_LIST = [
     description: 'Returns QA gate receipts and quality snapshot if available.',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
+  // Structural knowledge graph (WF-0108 / ADR-0155). `mcpGraphTool` already
+  // implemented these traversals; before this they were unreachable over MCP
+  // because the catalog never advertised them. Locating code through the graph is
+  // MANDATORY (graph-first), so the graph must be reachable on every surface —
+  // an absent projection returns `{available:false}`, never a fabricated answer.
+  {
+    name: 'query_graph',
+    description: 'GRAPH-FIRST: find nodes (files/symbols) by substring before any broad text search. Returns matching node ids from the committed structural graph.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        q: { type: 'string', description: 'Substring to match against node ids (e.g. a symbol or file name)' },
+      },
+      required: ['q'],
+    },
+  },
+  {
+    name: 'get_node',
+    description: 'Returns one structural-graph node by exact id (e.g. "sym:src/a.ts#doThing" or "file:src/a.ts").',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'Exact node id' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'get_neighbors',
+    description: 'Returns a bounded, hub-avoiding neighborhood of a node — the cheap way to understand local structure.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Node id to expand from' },
+        budget: { type: 'number', description: 'Max nodes to return (default 40)' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'shortest_path',
+    description: 'Returns the shortest structural path between two graph nodes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Source node id' },
+        to: { type: 'string', description: 'Target node id' },
+      },
+      required: ['id', 'to'],
+    },
+  },
+  {
+    name: 'affected',
+    description: 'Returns reverse consumers of a node — who breaks if it changes (blast radius).',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'Node id to analyse' } },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'god_nodes',
+    description: 'Returns the most-connected graph nodes — structural hotspots worth reviewing.',
+    inputSchema: {
+      type: 'object',
+      properties: { topN: { type: 'number', description: 'How many to return (default 10)' } },
+      required: [],
+    },
+  },
 ];

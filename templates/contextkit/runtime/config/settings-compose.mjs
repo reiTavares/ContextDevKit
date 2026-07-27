@@ -55,6 +55,14 @@ export function composeSettings(existing, level) {
   if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
   if (level >= 4) {
     add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
+    // Graph-first (WF-0108, ADR-0155): the structural graph is refreshed EVERY
+    // session (detached spawn — never delays boot) and broad exploration is gated
+    // on it. L>=4 is the graph's own minimum level; the gate only BLOCKS at L7 with
+    // an explicit human flip (resolveGraphActivation clamps otherwise), and always
+    // degrades to warn-and-allow when it cannot evaluate.
+    add('SessionStart', null, 'graph-session-refresh.mjs');
+    add('UserPromptSubmit', null, 'graph-first-gate.mjs'); // captures the human `no-graph` bypass
+    add('PreToolUse', 'Grep|Glob', 'graph-first-gate.mjs'); // graph answers before a text sweep
     // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25/§26). Registered
     // at L≥4 so the level→mode ladder has its advisory floor (L4 advisory / L5-6
     // guarded / L7 strict, via resolveDomainMode). Default-OFF: each hook exits early
@@ -63,6 +71,11 @@ export function composeSettings(existing, level) {
     // guarded/strict fleet flip stays human-gated (rolloutStage ceiling).
     add('PreToolUse', 'Edit|Write|MultiEdit', 'domain-code-gate.mjs'); // §16 code gate + authoritative CMIS=100
     add('PostToolUse', 'Edit|Write|MultiEdit', 'domain-conformance.mjs'); // §19 conformance reconciler (record + advisory)
+    // Arch-debt pre-coding law (OP-0012, ADR-0122 §9): state the twelve dimensions
+    // BEFORE the first source write instead of only refusing after the diff exists.
+    // Advisory + once-per-session — enforcement stays with the gate, which has real
+    // evidence. Same L>=4 floor as the gate itself.
+    add('PreToolUse', 'Edit|Write|MultiEdit', 'arch-debt-law-gate.mjs');
   }
   if (level >= 5) {
     add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');

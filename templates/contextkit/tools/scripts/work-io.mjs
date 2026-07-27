@@ -123,7 +123,15 @@ export function makeReceipt({ command, applied, writes, detail = {} }) {
  * @returns {string} a multi-line human summary.
  */
 export function formatReceipt(receipt) {
-  const verb = receipt.applied ? 'wrote' : 'would write (dry-run; pass --apply)';
+  // An idempotent no-op also carries `applied: false`, but calling it a dry-run
+  // would be a lie when the caller DID pass --apply — the state was already
+  // correct. Name the real reason instead (same honesty rule the `accept` verb
+  // now follows: never report intent as an outcome).
+  const verb = receipt.applied
+    ? 'wrote'
+    : receipt.detail?.idempotentNoop === true
+      ? 'no change needed (already up to date)'
+      : 'would write (dry-run; pass --apply)';
   const lines = [`work ${receipt.command}: ${verb} ${receipt.writes.length} file(s)`];
   for (const target of receipt.writes) lines.push(`  - ${target}`);
   return lines.join('\n');

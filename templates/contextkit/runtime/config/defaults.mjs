@@ -51,8 +51,25 @@ export const DEFAULT_CONFIG = Object.freeze({
    * `roots`/`excludes` (CDK-050): configurable scan scope — `roots` defaults to
    * the whole project (`['.']`); `excludes` adds bare-name excludes on top of the
    * hardcoded catalogue. Defaults reproduce the legacy scan exactly.
+   *
+   * `graph` (ADR-0134, amended by ADR-0155): the structural knowledge graph is
+   * MANDATORY, not opt-in — ADR-0155 replaces ADR-0134's default-OFF posture with
+   * a forced default, because an optional graph was never consulted (0 of 37 agent
+   * briefings referenced it, and `autoIndex` had no consumer at all). `mode:
+   * 'guarded'` + `humanFlip: true` is the kit-level flip ADR-0134 §G-RO4 demands
+   * for a blocking mode; `resolveGraphActivation` still clamps it to advisory
+   * below L7. Safety comes from DEGRADATION, not from being off: an absent or
+   * unreadable projection makes the gate warn-and-allow (skipped, never a
+   * fabricated pass), so no project is ever false-blocked. `maxAgeMinutes` is the
+   * age above which the gate rebuilds the projection on demand.
    */
-  projectMap: { autoRefresh: true, enforce: true, roots: ['.'], excludes: [] },
+  projectMap: {
+    autoRefresh: true,
+    enforce: true,
+    roots: ['.'],
+    excludes: [],
+    graph: { enabled: true, mode: 'guarded', humanFlip: true, autoIndex: true, maxAgeMinutes: 60 },
+  },
 
   /** WF-0084 invariant guard: shadow-first, explicitly promotable, killable. */
   workflowIntegrity: {

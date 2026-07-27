@@ -237,7 +237,10 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['project-map CLI exposes the focused --for subgraph for the F3 retriever (ADR-0046)', 'templates/contextkit/tools/scripts/project-map.mjs', /flag\('--for'\)/],
     ['pre-commit auto-refreshes the map, grade-blind + never blocks (ADR-0046, rule 2)', 'templates/contextkit/runtime/git-hooks/pre-commit.mjs', /projectMap\?\.autoRefresh !== false && stagedTouchesSource\(\)/],
     ['boot surfaces project-map violations + cycles from the manifest (ADR-0046)', 'templates/contextkit/runtime/hooks/boot-signals-projmap.mjs', /architecture-rule violation/],
-    ['defaults ship the projectMap toggles (ADR-0046)', 'templates/contextkit/runtime/config/defaults.mjs', /projectMap: \{ autoRefresh: true, enforce: true/],
+    // Whitespace-tolerant: the block went multi-line when the graph sub-section
+    // landed (WF-0108 / ADR-0155). The assertion is the TOGGLES, not the formatting.
+    ['defaults ship the projectMap toggles (ADR-0046)', 'templates/contextkit/runtime/config/defaults.mjs', /projectMap: \{\s*autoRefresh: true,\s*enforce: true/],
+    ['defaults ship the graph as mandatory: guarded + human flip (ADR-0155)', 'templates/contextkit/runtime/config/defaults.mjs', /graph: \{ enabled: true, mode: 'guarded', humanFlip: true, autoIndex: true, maxAgeMinutes: \d+ \}/],
     ['schema models the projectMap block (ADR-0046)', 'templates/contextkit/runtime/config/schema.mjs', /projectMap: ProjectMapSchema/],
     ['quality.yml runs the structural fitness gate (ADR-0046)', 'templates/github/workflows/quality.yml', /project-map\.mjs --check --strict/],
     // ADR-0044 F3 D3 — per-agent / per-command token attribution.
