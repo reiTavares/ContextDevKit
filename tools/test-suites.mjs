@@ -40,6 +40,7 @@ import { WF0088_SUITES } from './test-suites-wf0088.mjs';
 import { WF0089_SUITES } from './test-suites-wf0089.mjs';
 import { WF0090_SUITES } from './test-suites-wf0090.mjs';
 import { WF0094_SUITES } from './test-suites-wf0094.mjs';
+import { WF0086_SUITES } from './test-suites-wf0086.mjs';
 import { WF0095_SUITES } from './test-suites-wf0095.mjs';
 
 export const TIERS = Object.freeze([
@@ -353,6 +354,9 @@ export const SUITES = Object.freeze([
   // WF-0094 (BIZ-0006, ADR-0152) reference-intent / continuation-gate suite —
   // own module for the line budget (see test-suites-wf0094.mjs).
   ...WF0094_SUITES,
+  // WF-0086 (BIZ-0006, ADR-0148 §13) plane-wide governance measurement + north-star
+  // — own module for the line budget (see test-suites-wf0086.mjs).
+  ...WF0086_SUITES,
   // WF-0095 (OP-0008, reuses ADR-0131) bilingual classifier signals — own module
   // for the line budget (see test-suites-wf0095.mjs).
   ...WF0095_SUITES,

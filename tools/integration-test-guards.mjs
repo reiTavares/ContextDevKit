@@ -275,9 +275,130 @@ function testInstallerHookBackup() {
   }
 }
 
+/**
+ * WF-0086 IN3 (ADR-0148 / ADR-0125) — pin the invariant guard's BLOCKING SURFACE
+ * across the rollout ladder, so promoting a level is always a deliberate act.
+ *
+ * The ladder's whole safety property is that only `guarded` may block: shadow and
+ * advisory warn at exit 0. Nothing asserted that, which meant a one-word config
+ * change could silently turn a warning into a merge-blocking failure — and with
+ * ~14 pre-guard legacy rows in the corpus (IN0 finding R9) that would brick real
+ * installs. This test is what makes that flip visible.
+ *
+ * Uses a synthetic pack (filed under `done/` while its state says `not-started`,
+ * with a mismatched planHash) so the guard has positively-false hot-path
+ * invariants to act on. No real corpus is read and nothing is mutated.
+ */
+async function testInvariantRolloutLadder() {
+  const { runWorkflowInvariantHook } = await importKit('templates/contextkit/runtime/git-hooks/workflow-invariant-hook.mjs');
+
+  const root = tmp('ladder');
+  const rel = 'contextkit/memory/business/BIZ-9999-probe/done/WF-9999-probe';
+  const packDir = join(root, rel);
+  mkdirSync(packDir, { recursive: true });
+  writeFileSync(join(packDir, 'workflow-plan.json'), JSON.stringify({
+    schemaVersion: 1, workflowId: 'WF-9999', slug: 'probe', waves: [{ id: 'W1', title: 'w', tasks: [] }],
+  }));
+  writeFileSync(join(packDir, 'workflow-state.json'), JSON.stringify({
+    schemaVersion: 1, workflowId: 'WF-9999', planHash: 'deadbeef', revision: 0,
+    overallStatus: 'not-started', journeyPhase: 'intake', waveStates: {}, taskStates: {},
+    runs: [], gateResults: {}, carryForwards: [], integrationRecords: [], openBlockers: [],
+    events: [], lastUpdate: '2026-01-01T00:00:00.000Z',
+  }));
+
+  const stagedFiles = [`${rel}/workflow-state.json`];
+  const cfg = (mode, enabled = true) => ({ workflowIntegrity: { invariantGuard: { enabled, mode, phase: 'finalization' } } });
+  const hook = (mode, enabled) => runWorkflowInvariantHook(root, { stagedFiles, config: cfg(mode, enabled) });
+
+  try {
+    // shadow + advisory: a drifting pack is REPORTED but never blocks (ADR-0125).
+    // Assert BOTH the exit code and the receipt status. `exitCode` alone is not
+    // enough: the hook gates the exit on `mode === 'guarded'`, so a regression that
+    // makes advisory populate `blocked` still exits 0 while the receipt reports
+    // `status: 'blocked'` — and any consumer branching on `status` (a UI, a future
+    // caller) would silently treat advisory as blocking.
+    for (const mode of ['shadow', 'advisory']) {
+      const receipt = hook(mode);
+      receipt.exitCode === 0 && receipt.status !== 'blocked'
+        ? ok(`invariant guard in "${mode}" warns but never blocks (exit 0, status ${receipt.status})`)
+        : bad(`invariant guard in "${mode}" blocked: exit=${receipt.exitCode} status=${receipt.status} — the ladder must only block in guarded`);
+    }
+
+    // guarded: the SAME pack blocks, and names the hot-path invariants it can
+    // evaluate safely. If this ever stops blocking, the ladder is inert.
+    const guarded = hook('guarded');
+    const blockedIds = (guarded.packs[0]?.blocked ?? []).map((entry) => entry.id ?? entry);
+    guarded.exitCode === 1 && guarded.status === 'blocked'
+      ? ok(`invariant guard in "guarded" blocks a positively-false pack (exit 1, ${blockedIds.join('/')})`)
+      : bad(`invariant guard in "guarded" did NOT block: status=${guarded.status} exit=${guarded.exitCode}`);
+    blockedIds.includes('I1')
+      ? ok('guarded blocks on I1 done-parity (the exact BIZ-0004 drift shape)')
+      : bad(`guarded did not block on I1: ${JSON.stringify(blockedIds)}`);
+
+    // The two kill paths: an explicit disable, and a commit touching no pack.
+    hook('guarded', false).exitCode === 0
+      ? ok('an explicit enabled:false disables the guard (silent no-op, exit 0)')
+      : bad('enabled:false did not disable the guard');
+    const untouched = runWorkflowInvariantHook(root, { stagedFiles: ['README.md'], config: cfg('guarded') });
+    untouched.exitCode === 0 && untouched.status === 'skipped'
+      ? ok('a commit touching no workflow pack is skipped, never blocked')
+      : bad(`untouched commit was not skipped: ${untouched.status}/${untouched.exitCode}`);
+
+    // The SHIPPED default must stay non-blocking: the guarded flip is a recorded
+    // human gate (IN3), never something a distribution turns on by itself.
+    //
+    // Read the COMMITTED bytes, not the working tree. The suite pool runs suites in
+    // parallel and some of them mutate KIT-level files, so a working-tree read here
+    // is a race: this assertion passed standalone and in its own tier, then reported
+    // mode "guarded" under `--tier all` while the file on disk said "shadow".
+    // "Shipped" means what is committed, so the committed blob is also the more
+    // correct source — it cannot be perturbed by a neighbouring suite.
+    const committed = git(['show', 'HEAD:templates/contextkit/config.json'], KIT);
+    if (committed.status !== 0) {
+      // `reporter()` has no skip channel, so routing this through ok() would count an
+      // unrunnable check as a pass and silently retire the assertion — the §8 false
+      // negative. Fail loudly instead (the same stance selfcheck-docs takes for a
+      // missing dependency): a guard that cannot read what it guards is not a pass.
+      bad(`shipped invariantGuard default UNVERIFIED — git could not read the committed config: ${String(committed.stderr || '').trim() || `exit ${committed.status}`}`);
+    } else {
+      let shipped = null;
+      let parseError = null;
+      try {
+        shipped = JSON.parse(String(committed.stdout).replace(/^﻿/, ''))?.workflowIntegrity?.invariantGuard;
+      } catch (err) {
+        parseError = err?.message ?? String(err);
+      }
+      if (parseError) bad(`committed templates/contextkit/config.json is unparsable: ${parseError}`);
+      else if (shipped?.mode === 'shadow') ok('the shipped invariantGuard default is "shadow" — the guarded flip stays human-gated');
+      else bad(`the shipped invariantGuard mode is "${shipped?.mode}" — promoting it requires a recorded human gate (ADR-0148 IN3)`);
+    }
+
+    // There is a SECOND shipped default: `runtime/config/defaults.mjs`. `loadConfig`
+    // deep-merges a project's config.json ONTO that, so any project whose config
+    // predates the `workflowIntegrity` key — realistic, the key is new — inherits
+    // defaults.mjs, not templates/contextkit/config.json. Pinning only the JSON left
+    // a path where a distribution ships `guarded` and this suite still passes green.
+    // Assert the resolved behaviour, which is what actually reaches a project.
+    const { loadConfigSync } = await importKit('templates/contextkit/runtime/config/load.mjs');
+    const legacyProject = tmp('ladder-legacy');
+    try {
+      seedConfig(legacyProject, { level: 5 }); // no workflowIntegrity key at all
+      const resolvedMode = loadConfigSync(legacyProject)?.workflowIntegrity?.invariantGuard?.mode;
+      resolvedMode === 'shadow'
+        ? ok('a project with no workflowIntegrity key RESOLVES to shadow (defaults.mjs pinned too)')
+        : bad(`a config predating workflowIntegrity resolves to "${resolvedMode}" — defaults.mjs promotes the ladder without a human gate (ADR-0148 IN3)`);
+    } finally {
+      rmSync(legacyProject, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   await testConfigLoader();
   await testGhAlertMappers();
+  await testInvariantRolloutLadder();
   testInstallerHookBackup();
   testInstallerWorktreeGitPointer();
   const fx = installFixture(rep);

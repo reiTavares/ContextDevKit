@@ -34,6 +34,7 @@ import { presentPilot } from './economics/benchmark-pilot.mjs';
 import { readSavingsSync, savingsSummary, presentSavings, observedSavingsReport, savingsFile } from './economy/economy-savings.mjs';
 import { readEconomyEventsSync, summarizeEconomyEvents, presentEconomyEvents, economyEventsFile } from './economy/economy-events.mjs';
 import { estimatedLane, presentEstimatedLane } from './economy/kill-criterion.mjs';
+import { readGovernanceTokenSeries, countConcludedContexts, evaluateGovernanceTokenGuardrail, northStarReading, presentGovernanceNorthStar } from './economics/governance-north-star.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { listStates } from '../../runtime/state/state-io.mjs';
@@ -198,6 +199,7 @@ function main() {
   let financial = null, advisories = null, budgetGuard = null;
   let routing = null, routingDecisionAnalysis = null, quota = null, autonomy = null;
   let routingTelemetry = null, economyLifecycle = null, savings = null, observedSavings = null;
+  let northStar = null, governanceGuardrail = null;
   const routingEconomicsEnabled = eacpEnabled && cfg.eacp?.routingEconomics?.enabled === true;
   if (eacpEnabled) {
     financial = financialSummary(attribution);
@@ -224,6 +226,12 @@ function main() {
     savings = savingsSummary(readSavingsSync(savingsFile(ROOT)));
     observedSavings = observedSavingsReport(savings);
     economyLifecycle = summarizeEconomyEvents(readEconomyEventsSync(economyEventsFile(ROOT)));
+    // WF-0086 IN2 (ADR-0148 §13) — the methodology plane's north-star + the HARD
+    // governance-token guardrail. Read-only and honest-or-absent: an unmeasured
+    // reading is `skipped` with a reason, never a pass and never a flattering zero.
+    const governanceSeries = readGovernanceTokenSeries(ROOT);
+    governanceGuardrail = evaluateGovernanceTokenGuardrail(governanceSeries);
+    northStar = northStarReading(governanceSeries, countConcludedContexts(ROOT));
     let registry = null;
     try { registry = loadRegistry(); } catch { registry = null; }
     routing = routingSummary({ byModel: attribution.byModel, registry });
@@ -237,6 +245,7 @@ function main() {
     const eacpData = {
       financial, pressure: advisories?.pressure, mapEffectiveness: advisories?.mapEffectiveness,
       budgetGuard, routing, quota, autonomy, routingTelemetry, economyLifecycle, observedSavings,
+      northStar, governanceGuardrail,
     };
     if (routingEconomicsEnabled) Object.assign(eacpData, {
       routing, routingDecisionAnalysis,
@@ -291,6 +300,8 @@ function main() {
     console.log(presentEconomyEvents(economyLifecycle));
     console.log('');
     console.log(presentEstimatedLane(estimatedLane(readEconomyEventsSync(economyEventsFile(ROOT))))); // W8: estimated lane, never folded into observed
+    console.log('');
+    console.log(presentGovernanceNorthStar(northStar, governanceGuardrail)); // WF-0086 IN2 (ADR-0148 §13)
     console.log('');
     console.log(presentSavings(savings));
     console.log('');
