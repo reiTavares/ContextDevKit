@@ -60,6 +60,20 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
 
   /**
+   * WF-0090 grounded content auto-fill (ADR-0148, the four rails) — the ONE place
+   * an LLM writes. Ships OFF twice over, deliberately: `enabled:false` is the
+   * primary switch and `tokenBudgetPerContext:0` means *no spend authorized*, so
+   * a single mis-flip cannot open the gate. A disabled engine leaves WF-0089's
+   * `{{TOKEN}}` skeleton standing and never blocks (rail d).
+   * `promptVersion` is the explicit, recorded escape for intentional
+   * regeneration: it is folded into the field inputHash, so bumping it — and
+   * only bumping it — re-runs generation on unchanged exemplars.
+   */
+  methodology: {
+    contentFill: { enabled: false, tokenBudgetPerContext: 0, promptVersion: 1 },
+  },
+
+  /**
    * First-run onboarding state. The installer writes `completed: false` into a
    * fresh project's config so the SessionStart hook fires the `/setupcontextdevkit`
    * trigger on the first session. `/setupcontextdevkit` flips it to `true` when

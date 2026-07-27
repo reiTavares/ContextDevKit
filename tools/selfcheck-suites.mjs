@@ -247,6 +247,10 @@ function main() {
     // the never-blocking fallback; selftest lives beside its engine modules
     // under templates/, registered via test-suites-wf0090.mjs.
     'templates/contextkit/methodology/content-fill.selftest.mjs',
+    // BIZ-0006 / WF-0090 GA2 (ADR-0148 §13 + rail (b) promotion) — the token
+    // guardrail / kill-switch, its single ledger read boundary, and the one-way
+    // draft->authored promotion pass; registered via test-suites-wf0090.mjs.
+    'templates/contextkit/methodology/content-guardrail.selftest.mjs',
     // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
     // under templates/ (engine source), registered as suites, dispatched directly.
     'templates/contextkit/tools/scripts/adr-index.selftest.mjs',

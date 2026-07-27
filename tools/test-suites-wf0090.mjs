@@ -25,7 +25,24 @@
  *                           plus hostile input all leave the `{{TOKEN}}` skeleton
  *                           intact and never throw.
  *
- * Every case runs with a FAKE generator — zero model calls, zero tokens.
+ *   - wf0090-content-guardrail : rail (c) token guardrail + kill-switch and the
+ *                           rail-(b) promotion pass. The ADR-0148 §13 guardrail
+ *                           proper — `governance-tokens/session` must not rise —
+ *                           plus per-context budget, session pressure, and the
+ *                           ONE ledger read boundary with every fail-open branch
+ *                           (an unavailable measurement is `skipped`, never a
+ *                           pass, and never a fabricated zero). Promotion is
+ *                           one-way and human-sourced: an `approveGate` receipt
+ *                           naming a field promotes it, while a stale, anonymous,
+ *                           pending, or null receipt promotes nothing; a
+ *                           content-hash mismatch promotes on human edit. Also
+ *                           asserts `no-llm-to-decide` statically — neither
+ *                           module imports the content engine or takes a
+ *                           generator, so a governance decision cannot dispatch
+ *                           a model.
+ *
+ * Every case runs with a FAKE generator and an injected ledger reader — zero
+ * model calls, zero tokens, zero disk I/O.
  * Zero runtime dependencies — node:* only.
  *
  * @module test-suites-wf0090
@@ -49,6 +66,21 @@ export const WF0090_SUITES = Object.freeze([
       'templates/contextkit/methodology/projections.mjs',
       'templates/contextkit/tools/scripts/graph-query.mjs',
       'templates/contextkit/tools/scripts/work-business-create.mjs',
+    ],
+  },
+  {
+    id: 'wf0090-content-guardrail',
+    file: 'templates/contextkit/methodology/content-guardrail.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/methodology/token-guardrail.mjs',
+      'templates/contextkit/methodology/content-promote.mjs',
+      'templates/contextkit/methodology/content-fill.mjs',
+      'templates/contextkit/methodology/provenance.mjs',
+      'templates/contextkit/tools/scripts/economy/economy-events.mjs',
+      'templates/contextkit/tools/scripts/economy/registry.mjs',
+      'templates/contextkit/tools/scripts/workflow/gates.mjs',
+      'templates/contextkit/runtime/config/defaults.mjs',
     ],
   },
 ]);

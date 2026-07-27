@@ -22,6 +22,9 @@ const SCAN_DIRS = [
   'templates/contextkit/tools/scripts',
   'templates/contextkit/runtime/execution',
   'templates/contextkit/runtime/hooks',
+  // WF-0090: the methodology engines (content-fill's token guardrail) record
+  // spend from here, so an emit-site in this tree must count as instrumented.
+  'templates/contextkit/methodology',
 ].map((d) => resolve(KIT, d));
 
 const EMIT_RE = /emitEconomy\(|logSavingSync\(|logEconomyEventSync\(|appendEconomyEventSync\(/;

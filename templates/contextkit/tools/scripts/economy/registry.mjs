@@ -40,6 +40,12 @@ export const ECONOMY_RESOURCES = Object.freeze([
   { resource: 'output-contract', category: 'advisory' },
   { resource: 'findings', category: 'advisory' },
   { resource: 'agent-contract', category: 'advisory' },
+  // WF-0090 rail (c): the grounded content engine records its OWN governance-token
+  // spend so `token-guardrail.mjs` reads a real series instead of an empty one.
+  // `lifecycle`, not `lever`: the engine SPENDS tokens, and only the four
+  // observable levers may ever write the savings ledger — a content fill must
+  // never be able to claim a saving.
+  { resource: 'content-fill', category: 'lifecycle' },
 ]);
 
 /** Frozen list of resource ids (used by the events ledger + meta-test). */
