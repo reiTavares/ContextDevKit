@@ -189,6 +189,54 @@ function assertStructuralCompleteness(reindexMod, committedIndex, indexPath) {
 }
 
 // ---------------------------------------------------------------------------
+// Assertion (f): the generated index does not depend on the ambient git env
+// ---------------------------------------------------------------------------
+
+/**
+ * Regression seal (WF-0086): `reindexDocs` decides whether to index a doc by asking
+ * `git check-ignore`. Git hooks export GIT_DIR/GIT_INDEX_FILE, and in a LINKED
+ * WORKTREE those point at `.git/worktrees/<name>/`, which carries no `info/exclude`
+ * — that rule lives in the common git dir. Inherited, the same file read as ignored
+ * from a shell and NOT ignored from a hook, so `docs/README.md` differed depending on
+ * who regenerated it: the pre-commit hook kept re-adding an entry the selfcheck then
+ * rejected as non-idempotent. The generated index must be a function of the tree, not
+ * of the caller's environment.
+ *
+ * @param {object} reindexMod
+ * @param {Buffer} committed original docs/README.md bytes (always restored)
+ * @param {string} indexPath absolute docs/README.md path
+ */
+function assertIndexIgnoresAmbientGitEnv(reindexMod, committed, indexPath) {
+  console.log('(f) generated index is invariant to the ambient git env...');
+  const saved = { GIT_DIR: process.env.GIT_DIR, GIT_INDEX_FILE: process.env.GIT_INDEX_FILE };
+  let plain; let polluted;
+  try {
+    reindexMod.reindexDocs(KIT);
+    plain = readFileSync(indexPath);
+    // A gitdir that exists but holds no `info/exclude` — exactly the linked-worktree
+    // shape. If the env leaks through, ignore-resolution changes and the bytes differ.
+    process.env.GIT_DIR = resolve(KIT, 'docs');
+    process.env.GIT_INDEX_FILE = resolve(KIT, 'docs', 'index');
+    reindexMod.reindexDocs(KIT);
+    polluted = readFileSync(indexPath);
+  } catch (err) {
+    bad(`reindexDocs threw during git-env invariance check: ${err?.message ?? err}`);
+    return;
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    writeFileSync(indexPath, committed);
+  }
+  if (plain.equals(polluted)) {
+    ok('generated index identical with and without an inherited GIT_DIR (hook-safe)');
+  } else {
+    bad('generated index CHANGES when GIT_DIR is inherited — a hook and a shell would disagree');
+    console.error(`       plain length: ${plain.length}, with inherited GIT_DIR: ${polluted.length}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Assertion (e): generated reference in sync + coverage debt (ADR-0115)
 // ---------------------------------------------------------------------------
 
@@ -236,6 +284,7 @@ async function main() {
   } else {
     assertReindexIdempotent(ctx.reindexMod, ctx.committed, ctx.indexPath);
     assertStructuralCompleteness(ctx.reindexMod, ctx.committed, ctx.indexPath);
+    assertIndexIgnoresAmbientGitEnv(ctx.reindexMod, ctx.committed, ctx.indexPath);
   }
 
   const total = passes + failures;

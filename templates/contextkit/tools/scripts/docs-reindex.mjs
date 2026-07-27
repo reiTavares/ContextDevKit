@@ -46,7 +46,14 @@ const META_FILES = new Set(['roadmap.md', 'changelog.md']);
  */
 function isGitIgnored(file, cwd) {
   try {
-    return spawnSync('git', ['check-ignore', '-q', file], { cwd }).status === 0;
+    // Git hooks run with GIT_DIR/GIT_INDEX_FILE exported, and in a linked worktree
+    // they point at `.git/worktrees/<name>/` — which has no `info/exclude`, since
+    // that rule lives in the COMMON git dir. Inherited, the same file reads ignored
+    // from a plain shell and NOT ignored from a hook, so the generated index depends
+    // on who called it. Drop the ambient git env and let git rediscover from `cwd`.
+    const env = { ...process.env };
+    for (const key of ['GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE', 'GIT_PREFIX']) delete env[key];
+    return spawnSync('git', ['check-ignore', '-q', file], { cwd, env }).status === 0;
   } catch {
     return false;
   }
