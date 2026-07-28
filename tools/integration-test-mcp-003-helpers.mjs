@@ -112,21 +112,23 @@ export function expectThrow(rep, label, fn, msgFragment) {
 // ---------------------------------------------------------------------------
 
 /**
- * Loads all four host renderers and the shared render utilities.
- * @returns {Promise<{renderClaude, renderCodex, renderCursor, renderAg,
+ * Loads all five host renderers and the shared render utilities.
+ * @returns {Promise<{renderClaude, renderCodex, renderCursor, renderAg, renderGrok,
  *                    filterForHost, expandSource, buildEnvRefs, assertSecretName}>}
  */
 export async function loadRenderers() {
   const [{ renderHost: renderClaude }, { renderHost: renderCodex },
          { renderHost: renderCursor }, { renderHost: renderAg },
+         { renderHost: renderGrok },
          shared] = await Promise.all([
     import(pathToFileURL(join(RENDER_DIR, 'render-claude.mjs')).href),
     import(pathToFileURL(join(RENDER_DIR, 'render-codex.mjs')).href),
     import(pathToFileURL(join(RENDER_DIR, 'render-cursor.mjs')).href),
     import(pathToFileURL(join(RENDER_DIR, 'render-antigravity.mjs')).href),
+    import(pathToFileURL(join(RENDER_DIR, 'render-grok.mjs')).href),
     import(pathToFileURL(join(RENDER_DIR, 'render-shared.mjs')).href),
   ]);
   const { filterForHost, expandSource, buildEnvRefs, assertSecretName } = shared;
-  return { renderClaude, renderCodex, renderCursor, renderAg,
+  return { renderClaude, renderCodex, renderCursor, renderAg, renderGrok,
            filterForHost, expandSource, buildEnvRefs, assertSecretName };
 }

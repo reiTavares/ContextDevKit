@@ -28,6 +28,12 @@ export const ANTIGRAVITY_LEGACY_DIR = '.antigravity';
 /** Codex host folder — project-local hooks and subagent TOML definitions. */
 export const CODEX_DIR = '.codex';
 
+/** Grok Build host folder - project hooks and MCP configuration. */
+export const GROK_DIR = '.grok';
+
+/** ContextDevKit-owned Grok hook projection, kept separate from user config. */
+export const GROK_HOOKS_FILE = `${GROK_DIR}/hooks/contextdevkit.json`;
+
 /** Codex local skills live where Codex discovers project skills in this host. */
 export const CODEX_SKILLS_DIR = `${ANTIGRAVITY_DIR}/skills`;
 
@@ -126,6 +132,8 @@ export function pathsFor(root = process.cwd()) {
     platform: at(PLATFORM_DIR),
     antigravity: at(ANTIGRAVITY_DIR),
     codex: at(CODEX_DIR),
+    grok: at(GROK_DIR),
+    grokHooks: at(GROK_HOOKS_FILE),
     codexSkills: at(CODEX_SKILLS_DIR),
     memory: at(MEMORY_DIR),
     sessions: at(SESSIONS_DIR),

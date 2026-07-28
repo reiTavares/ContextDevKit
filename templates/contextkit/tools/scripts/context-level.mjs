@@ -16,6 +16,7 @@ import { resolve, dirname } from 'node:path';
 import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { composeAgentHooks } from '../../runtime/config/agent-hooks-compose.mjs';
 import { composeCodexHooks } from '../../runtime/config/codex-hooks-compose.mjs';
+import { composeGrokHooks } from '../../runtime/config/grok-hooks-compose.mjs';
 import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { LEVEL_LABELS as LABELS, MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
@@ -26,6 +27,7 @@ const CONFIG = PATHS.config;
 const SETTINGS = resolve(ROOT, '.claude/settings.json');
 const AGY_HOOKS = resolve(PATHS.antigravity, 'hooks.json');
 const CODEX_HOOKS = resolve(PATHS.codex, 'hooks.json');
+const GROK_HOOKS = PATHS.grokHooks;
 
 async function installGitHooks() {
   const hooksDir = resolve(ROOT, '.git/hooks');
@@ -110,6 +112,25 @@ async function main() {
     await writeFile(CODEX_HOOKS, JSON.stringify(composeCodexHooks(codexExisting, level), null, 2) + '\n', 'utf-8');
   }
 
+  // 2d. Grok hooks — only when the Grok host is installed. Keep malformed
+  // user-owned content untouched so changing the level cannot destroy it.
+  if (existsSync(PATHS.grok)) {
+    let grokExisting = null;
+    let grokReadable = true;
+    if (existsSync(GROK_HOOKS)) {
+      try {
+        grokExisting = JSON.parse((await readFile(GROK_HOOKS, 'utf-8')).replace(/^\uFEFF/, ''));
+      } catch {
+        grokReadable = false;
+        console.warn('⚠️  .grok/hooks/contextdevkit.json is not valid JSON — left untouched.');
+      }
+    }
+    if (grokReadable) {
+      await mkdir(dirname(GROK_HOOKS), { recursive: true });
+      await writeFile(GROK_HOOKS, JSON.stringify(composeGrokHooks(grokExisting, level), null, 2) + '\n', 'utf-8');
+    }
+  }
+
   // 3. git hooks at L >= 3
   if (level >= 3) await installGitHooks();
 
@@ -117,7 +138,7 @@ async function main() {
   if (level >= 4 && !existsSync(resolve(ROOT, '.claude/agents'))) {
     console.log('ℹ️  Level 4 uses sub-agents. Copy them with the kit installer or add your own to .claude/agents/.');
   }
-  console.log('↻  Restart your host (Claude Code, Antigravity, or Codex) to load the new hook wiring.');
+  console.log('↻  Restart your host (Claude Code, Antigravity, Codex, or Grok) to load the new hook wiring.');
 }
 
 main().catch((err) => {

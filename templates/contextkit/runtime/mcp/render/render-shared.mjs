@@ -1,7 +1,7 @@
 ﻿/**
- * render-shared.mjs - Pure helpers shared by all four host renderers.
+ * render-shared.mjs - Pure helpers shared by all five host renderers.
  *
- * WHY: all four renderers (Claude, Codex, Cursor, Antigravity) need the same
+ * WHY: all five renderers (Claude, Codex, Cursor, Antigravity, Grok) need the same
  * three primitives: (1) filter a manifest to the servers the host is allowed to
  * see, (2) expand a registry source string into runtime command/args,
  * (3) emit secrets as ${env:NAME} references, NEVER literal values.
@@ -175,7 +175,7 @@ export function buildEnvRefs(secretNames, serverId) {
  * @param {ManifestEntry[]}  manifestServers  From readManifest().servers.
  * @param {RegistryEntry[]}  registry         From loadRegistry().
  * @param {string}           host             Canonical host id (e.g. "claude-code",
- *                                            "cursor", "codex", "antigravity").
+ *                                            "cursor", "codex", "antigravity", "grok").
  * @returns {{ entries: ResolvedRenderEntry[], skipped: string[] }}
  */
 export function filterForHost(manifestServers, registry, host) {

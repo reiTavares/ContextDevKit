@@ -10,7 +10,7 @@
 agents.** Work starts from business intent, gets classified by deterministic
 scoring — not by asking a model — and is then driven through a ceremony the harness
 *enforces* with hooks, receipts and specialist agents. Portable into any project, any
-stack, three agent hosts.
+stack, four native agent hosts.
 
 Almost all of it runs automatically, and almost all of it can be driven end to end by
 an agent. You decide how much, with a dial that never lowers the quality bar — only who
@@ -443,7 +443,7 @@ Every row is a command that exists on disk and prints the claim instead of resta
 All live under `contextkit/tools/scripts/` in an installed project.
 
 Measured in this repository on 2026-07-27: **83 slash commands, 36 agents, 83 skills,
-3 native hosts**, and a structural graph of **24,157 nodes over 46,949 edges**. Those are
+4 native hosts**, and a structural graph of **24,157 nodes over 46,949 edges**. Those are
 this repo's numbers on that date — the commands above print yours.
 
 ## Install
@@ -505,15 +505,16 @@ node contextkit/tools/scripts/context-level.mjs      # show, or pass 1-7 to move
 Choosing: [install and choose a level](docs/how-to/install-and-choose-a-level.md) ·
 [levels reference](docs/reference/levels.md).
 
-## Three native hosts
+## Four native hosts
 
-The same engine, the same scripts, three first-class front ends.
+The same engine, the same scripts, four first-class front ends.
 
 | Host | Surface | Runner |
 | --- | --- | --- |
 | Claude Code | Slash commands, sub-agents, hooks | native |
 | Antigravity | Skills, personas, playbooks | `node ctx.mjs <command>` |
 | Codex | Skills plus subagent definitions | `node cdx.mjs <command>` |
+| Grok Build | Project hooks, MCP, and native lifecycle payloads | `grok` / native |
 
 Other editors reach the same memory through opt-in context bridges, which project context
 without the native hook layer — they inform the agent and enforce nothing. See

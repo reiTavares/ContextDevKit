@@ -34,6 +34,16 @@ de produto → visão, stack, roadmap, boas práticas e DevPipeline montados num
 
 Trocar de nível: `/context-level <n>` (reinicie o Claude Code depois).
 
+## Grok Build
+
+O Grok Build é um host nativo próprio do ContextDevKit, não um provider. O
+instalador compõe `.grok/hooks/contextdevkit.json` para o CLI/TUI/headless
+oficial e usa `.grok/config.toml` para MCP; valide a descoberta com
+`grok inspect --json`. O Grok exige confiança explícita na pasta antes de
+executar hooks ou MCP do projeto; o ContextDevKit não concede essa confiança
+automaticamente. As operações e workflows permanecem independentes dos
+workflows de providers.
+
 ## Comandos principais
 
 - **Setup:** `/aidevtool-from0` (vazio) · `/setupcontextdevkit` (existente)

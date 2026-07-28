@@ -110,6 +110,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/squads/', 'templates/contextkit/runtime/hooks/squad-context'] },
   { id: 'codex', file: it('codex'), tier: 'integration:hosts',
     touches: ['templates/contextkit/runtime/codex/', 'templates/cdx.mjs'] },
+  { id: 'grok', file: it('grok'), tier: 'integration:hosts',
+    touches: ['install.mjs', 'tools/install/grok.mjs', 'templates/contextkit/runtime/config/grok-hooks-compose.mjs', 'templates/contextkit/runtime/hooks/host-adapter.mjs'] },
   { id: 'lp', file: it('lp'), tier: 'integration:hosts',
     touches: ['templates/contextkit/squads/design-team/', 'templates/contextkit/commands/landing-page'] },
   { id: 'swarm', file: it('swarm'), tier: 'smoke',

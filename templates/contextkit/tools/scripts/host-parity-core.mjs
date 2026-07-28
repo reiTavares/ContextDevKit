@@ -42,7 +42,7 @@ export const ENFORCEMENT_HOOK_REASONS = {
  */
 
 /**
- * @typedef {{ name: string, claude: HostPresence, codex: HostPresence|'skipped', agy: HostPresence, reason?: string, verdict: Verdict }} ParityRow
+ * @typedef {{ name: string, claude: HostPresence, codex: HostPresence|'skipped', agy: HostPresence, grok: HostPresence, reason?: string, verdict: Verdict }} ParityRow
  */
 
 /**

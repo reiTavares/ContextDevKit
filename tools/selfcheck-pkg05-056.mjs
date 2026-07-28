@@ -4,9 +4,9 @@
  *
  * WHY: host-parity introduces the first cross-host context-load parity API.
  * This test proves:
- *   (1) checkParity enumerates all three hosts (claude, codex, agy) in every row.
+ *   (1) checkParity enumerates all four native hosts (claude, codex, agy, grok) in every row.
  *   (2) A hook present on Claude AND in the codex skill-skip list → 'reasoned-skip'.
- *   (3) A synthetic hook present on Claude but absent on Codex/agy with no skip
+ *   (3) A synthetic hook present on Claude but absent on Codex/agy/Grok with no skip
  *       reason → flagged as 'GAP'.
  *   (4) Fail-open: when a composer is unreadable the affected host column = 'unknown'
  *       and checkParity resolves (no throw).
@@ -76,11 +76,11 @@ assert('1b report has loads array', Array.isArray(realReport?.loads));
 assert('1c report has gaps array', Array.isArray(realReport?.gaps));
 assert('1d loads is non-empty (at least one hook known)', realReport.loads.length > 0);
 
-// Every row must have the three host keys.
+// Every row must have the four native host keys.
 const allRowsHaveHosts = realReport.loads.every(
-  (r) => 'claude' in r && 'codex' in r && 'agy' in r,
+  (r) => 'claude' in r && 'codex' in r && 'agy' in r && 'grok' in r,
 );
-assert('1e every load row has claude/codex/agy keys', allRowsHaveHosts);
+assert('1e every load row has claude/codex/agy/grok keys', allRowsHaveHosts);
 
 // Every verdict must be one of the three known values.
 const VALID_VERDICTS = new Set(['parity', 'reasoned-skip', 'GAP']);
@@ -96,7 +96,7 @@ const gapsConsistent =
 assert('1g gaps array matches load rows with verdict GAP', gapsConsistent);
 
 // ---------------------------------------------------------------------------
-// Section 2 — All three hosts represented in each row.
+// Section 2 — All four native hosts represented in each row.
 // ---------------------------------------------------------------------------
 console.log('\nSection 2: host-key presence in every row');
 
@@ -104,7 +104,8 @@ const firstRow = realReport.loads[0];
 assert('2a first row has claude key', 'claude' in firstRow);
 assert('2b first row has codex key', 'codex' in firstRow);
 assert('2c first row has agy key', 'agy' in firstRow);
-assert('2d first row has a name', typeof firstRow.name === 'string' && firstRow.name.length > 0);
+assert('2d first row has grok key', 'grok' in firstRow);
+assert('2e first row has a name', typeof firstRow.name === 'string' && firstRow.name.length > 0);
 
 // ---------------------------------------------------------------------------
 // Section 3 — session-start.mjs: Claude + Codex present, agy uses a substitution.
@@ -127,6 +128,10 @@ if (sessionStartRow) {
     sessionStartRow.codex === true,
   );
   assert(
+    '3g session-start.mjs grok=true (present on Grok)',
+    sessionStartRow.grok === true,
+  );
+  assert(
     '3d session-start.mjs agy=false (agy uses session-manager substitution)',
     sessionStartRow.agy === false,
   );
@@ -141,7 +146,7 @@ if (sessionStartRow) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 4 — Capability Enforcement hooks are parity across all three hosts.
+// Section 4 — Capability Enforcement hooks are parity across all four native hosts.
 // The Antigravity composer now exposes the same fail-open control points.
 // ---------------------------------------------------------------------------
 console.log('\nSection 4: Capability Enforcement hooks → parity');
@@ -172,6 +177,10 @@ for (const hookName of enforcementHooks) {
   assert(
     `4 ${hookName} is present on Antigravity`,
     row.agy === true,
+  );
+  assert(
+    `4 ${hookName} is present on Grok`,
+    row.grok === true,
   );
 }
 
@@ -277,6 +286,10 @@ if (regRow) {
   assert(
     '8d check-registration.mjs codex=true',
     regRow.codex === true,
+  );
+  assert(
+    '8f check-registration.mjs grok=true',
+    regRow.grok === true,
   );
   assert(
     '8e check-registration.mjs agy=false (substituted by session-manager)',

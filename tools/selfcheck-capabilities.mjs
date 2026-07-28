@@ -10,7 +10,7 @@
  *   2. Every capability has required fields and a valid `requiredMoment`.
  *   3. Every `entrypoint` that is a file path resolves to an existing file.
  *   4. Every registered capability is `kind === 'public'` (no internals).
- *   5. Aliases are present for all three known hosts and not empty/divergent.
+ *   5. Aliases are present for all four known native hosts and not empty/divergent.
  *   6. The resolver is pure: identical input → identical JSON output.
  *   7. The resolver source does NOT import `config/load.mjs` or any hook
  *      file (proves no circular dep on the hot path, rule 1 / ADR-0001).
@@ -26,8 +26,8 @@ const REQUIRED_FIELDS = ['id', 'kind', 'entrypoint', 'aliases', 'minLevel', 'app
 /** Valid requiredMoment values per the schema. */
 const VALID_MOMENTS = new Set(['informational', 'beforeExploration', 'beforeWrite', 'beforeCompletion']);
 
-/** Known multi-host alias keys. Every capability must carry all three. */
-const KNOWN_HOSTS = ['claude', 'codex', 'agy'];
+/** Known multi-host alias keys. Every capability must carry all four. */
+const KNOWN_HOSTS = ['claude', 'codex', 'agy', 'grok'];
 
 /**
  * Runs all capability registry and resolver invariant checks.

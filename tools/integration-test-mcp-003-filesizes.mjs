@@ -29,6 +29,7 @@ console.log('\n[Suite 1] AC#5 — Renderer file sizes\n');
     'render-codex.mjs',
     'render-cursor.mjs',
     'render-antigravity.mjs',
+    'render-grok.mjs',
   ];
   // ADR-0143 (BIZ-0005/WF-0076): file size is advisory telemetry, never a verdict.
   // Enforcement moved to DDD Class-A + the reviewer-gate; the measurement stays as a

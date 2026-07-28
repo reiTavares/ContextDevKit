@@ -6,11 +6,13 @@
  *
  *   Claude Code            → stdin `{ tool_name, tool_input: { file_path } }`,
  *                            block via `{ decision: "block", reason }`.
+ *   Grok Build             → stdin `{ toolName, toolInput: { filePath } }`,
+ *                            block via `{ decision: "deny", reason }`.
  *   Antigravity CLI (agy)  → stdin `{ toolCall: { args: { TargetFile } } }`,
  *                            block via `{ decision: "deny", reason }`.
  *
- * The composer (`agent-hooks-compose.mjs`) appends `--host agy` to every agy
- * command, so hooks never sniff the payload to guess the host. Everything here
+ * Each host composer appends its explicit `--host` value to every command, so
+ * hooks never sniff the payload to guess the host. Everything here
  * is defensive: unknown shapes normalize to "no paths", never to a throw.
  */
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -24,7 +26,7 @@ export const AGY_WRITE_TOOLS = ['write_to_file', 'replace_file_content', 'multi_
 /**
  * Bridge hosts (F8 / ADR-0068) — third-party AI coding tools that receive the
  * CONTEXT layer ONLY. ContextDevKit governance (hooks, gates, ledger) runs on the
- * three NATIVE hosts (Claude Code / Antigravity / Codex); these six get a
+ * four NATIVE hosts (Claude Code / Antigravity / Codex / Grok); these six get a
  * generated, idempotent context bridge and **no enforcement** (`enforced:false`
  * is explicit so nobody mistakes a bridge for a governed host). Installation is
  * opt-in per tool via config `bridges.enabled` and non-destructive via
@@ -46,23 +48,29 @@ export const AGY_SESSION_MARKER = '.agy-active.json';
 /** Marker file Codex SessionStart mints so hook processes share one session. */
 export const CODEX_SESSION_MARKER = '.codex-active.json';
 
+/** Marker file Grok SessionStart mints so hook processes share one session. */
+export const GROK_SESSION_MARKER = '.grok-active.json';
+
 /**
- * Resolves which host invoked this hook from its argv (`--host agy` or
- * `--host=agy`). Default is Claude Code — the original wire format.
+ * Resolves which host invoked this hook from its argv (`--host agy|codex|grok`
+ * or the equals form). Default is Claude Code — the original wire format.
  * @param {string[]} [argv]
- * @returns {'agy'|'claude'}
+ * @returns {'agy'|'claude'|'codex'|'grok'}
  */
 export function hookHost(argv = process.argv) {
   const flagIndex = argv.indexOf('--host');
   if (flagIndex !== -1 && argv[flagIndex + 1] === 'agy') return 'agy';
   if (flagIndex !== -1 && argv[flagIndex + 1] === 'codex') return 'codex';
+  if (flagIndex !== -1 && argv[flagIndex + 1] === 'grok') return 'grok';
   if (argv.includes('--host=agy')) return 'agy';
-  return argv.includes('--host=codex') ? 'codex' : 'claude';
+  if (argv.includes('--host=codex')) return 'codex';
+  if (argv.includes('--host=grok')) return 'grok';
+  return 'claude';
 }
 
-/** First string value among the path-bearing keys agy variants have shipped. */
+/** First string value among the path-bearing keys host variants have shipped. */
 function firstPathKey(args) {
-  for (const key of ['TargetFile', 'target_file', 'file_path', 'path']) {
+  for (const key of ['TargetFile', 'targetFile', 'target_file', 'filePath', 'file_path', 'path']) {
     if (typeof args?.[key] === 'string' && args[key].length > 0) return args[key];
   }
   return null;
@@ -91,10 +99,12 @@ export function extractApplyPatchPaths(command) {
 }
 
 /**
- * Normalizes a tool payload from either host into `{ toolName, filePaths }`.
+ * Normalizes a tool payload from any native host into `{ toolName, filePaths }`.
  * Claude Code: Edit/Write carry `tool_input.file_path`; MultiEdit may carry an
  * `edits[]` array. agy: `toolCall.args` carries a TargetFile-style key (the
  * matcher already restricted the tool, so any path-bearing payload counts).
+ * Grok Build uses camelCase `toolName`/`toolInput` and maps Claude tool names;
+ * both camelCase and snake_case path keys are accepted defensively.
  *
  * @param {any} payload parsed stdin JSON
  * @returns {{ toolName: string|null, filePaths: string[] }}
@@ -110,23 +120,31 @@ export function normalizeToolPayload(payload) {
     return { toolName, filePaths: path ? [path] : [] };
   }
 
-  const toolName = typeof payload.tool_name === 'string' ? payload.tool_name : null;
-  const input = payload.tool_input ?? {};
+  const isGrokPayload = typeof payload.toolName === 'string' || payload.toolInput !== undefined;
+  const toolName = isGrokPayload
+    ? (typeof payload.toolName === 'string' ? payload.toolName : null)
+    : (typeof payload.tool_name === 'string' ? payload.tool_name : null);
+  const input = isGrokPayload ? (payload.toolInput ?? {}) : (payload.tool_input ?? {});
   if (toolName === 'apply_patch') {
-    return { toolName: 'Write', filePaths: extractApplyPatchPaths(input.command) };
+    return { toolName: 'Write', filePaths: extractApplyPatchPaths(input.command ?? input.patch) };
   }
   if (toolName === 'Edit' || toolName === 'Write') {
-    return { toolName, filePaths: input.file_path ? [input.file_path] : [] };
+    const filePath = input.file_path ?? input.filePath;
+    return { toolName, filePaths: filePath ? [filePath] : [] };
   }
   if (toolName === 'MultiEdit') {
     if (input.file_path) return { toolName, filePaths: [input.file_path] };
+    if (input.filePath) return { toolName, filePaths: [input.filePath] };
     if (Array.isArray(input.edits)) {
-      return { toolName, filePaths: input.edits.map((edit) => edit?.file_path).filter(Boolean) };
+      return {
+        toolName,
+        filePaths: input.edits.map((edit) => firstPathKey(edit)).filter(Boolean),
+      };
     }
   }
-  // agy variants that mimic the Claude shape but keep their own arg key.
+  // Host variants that mimic the Claude shape but keep their own arg key.
   const agyStylePath = firstPathKey(input);
-  if (toolName && AGY_WRITE_TOOLS.includes(toolName) && agyStylePath) {
+  if (toolName && (AGY_WRITE_TOOLS.includes(toolName) || isGrokPayload) && agyStylePath) {
     return { toolName, filePaths: [agyStylePath] };
   }
   return { toolName, filePaths: [] };
@@ -134,12 +152,12 @@ export function normalizeToolPayload(payload) {
 
 /**
  * Writes the host-correct blocking decision to stdout.
- * Claude Code expects `decision: "block"`; agy expects `decision: "deny"`.
+ * Claude/Codex expect `decision: "block"`; agy/Grok expect `decision: "deny"`.
  * @param {string} reason human-readable explanation shown to the agent
- * @param {'agy'|'claude'} [host]
+ * @param {'agy'|'claude'|'codex'|'grok'} [host]
  */
 export function emitBlockDecision(reason, host = hookHost()) {
-  process.stdout.write(JSON.stringify({ decision: host === 'agy' ? 'deny' : 'block', reason }));
+  process.stdout.write(JSON.stringify({ decision: ['agy', 'grok'].includes(host) ? 'deny' : 'block', reason }));
 }
 
 /**
@@ -147,12 +165,13 @@ export function emitBlockDecision(reason, host = hookHost()) {
  * stdout for tool/compaction hooks and requires JSON for Stop/SubagentStop.
  *
  * @param {string} text advisory body
- * @param {'agy'|'claude'|'codex'} host
+ * @param {'agy'|'claude'|'codex'|'grok'} host
  * @param {string} eventName hook event name
  * @returns {string}
  */
 export function advisoryPayload(text, host = hookHost(), eventName = '') {
   if (host === 'agy') return JSON.stringify({ decision: 'allow', reason: text });
+  if (host === 'grok') return JSON.stringify({ decision: 'allow', reason: text });
   if (host !== 'codex') return text;
   if (['SessionStart', 'SubagentStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit'].includes(eventName)) {
     return JSON.stringify({
@@ -170,7 +189,7 @@ export function advisoryPayload(text, host = hookHost(), eventName = '') {
  * to the agent; agy parses stdout as a decision object, so the text rides an
  * explicit allow (immutable rule 2 — a nudge must never break the tool call).
  * @param {string} text the warning / nudge body
- * @param {'agy'|'claude'} [host]
+ * @param {'agy'|'claude'|'codex'|'grok'} [host]
  */
 export function emitAdvisory(text, host = hookHost(), eventName = '') {
   process.stdout.write(advisoryPayload(text, host, eventName));
@@ -184,7 +203,7 @@ export function emitAdvisory(text, host = hookHost(), eventName = '') {
  * agy ledger) rather than a synthetic per-process one.
  *
  * @param {any} payload parsed stdin JSON
- * @param {'agy'|'claude'} [host]
+ * @param {'agy'|'claude'|'codex'|'grok'} [host]
  * @param {string} [root] project root (default cwd)
  * @returns {string}
  */
@@ -201,6 +220,17 @@ export function resolveHookSessionId(payload, host = hookHost(), root = process.
     }
     return 'codex_local';
   }
+  if (host === 'grok') {
+    if (payload?.sessionId && typeof payload.sessionId === 'string') return payload.sessionId;
+    if (process.env.GROK_SESSION_ID) return process.env.GROK_SESSION_ID;
+    try {
+      const marker = JSON.parse(readFileSync(resolve(root, LEDGER_DIR, GROK_SESSION_MARKER), 'utf-8'));
+      if (typeof marker?.sid === 'string' && marker.sid.length > 0) return marker.sid;
+    } catch {
+      /* no marker yet: SessionStart has not run */
+    }
+    return 'grok_local';
+  }
   try {
     const marker = JSON.parse(readFileSync(resolve(root, LEDGER_DIR, AGY_SESSION_MARKER), 'utf-8'));
     if (typeof marker?.sid === 'string' && marker.sid.length > 0) return marker.sid;
@@ -213,15 +243,16 @@ export function resolveHookSessionId(payload, host = hookHost(), root = process.
 /**
  * Persists the Codex session id so future hook events reuse the same ledger.
  * @param {string} sessionId resolved session id
- * @param {'agy'|'claude'|'codex'} [host]
+ * @param {'agy'|'claude'|'codex'|'grok'} [host]
  * @param {string} [root] project root
  */
 export function rememberHookSessionId(sessionId, host = hookHost(), root = process.cwd()) {
-  if (host !== 'codex') return;
+  if (!['codex', 'grok'].includes(host)) return;
   try {
     const dir = resolve(root, LEDGER_DIR);
     mkdirSync(dir, { recursive: true });
-    writeFileSync(resolve(dir, CODEX_SESSION_MARKER), JSON.stringify({ sid: sessionId, at: Date.now() }, null, 2), 'utf-8');
+    const marker = host === 'grok' ? GROK_SESSION_MARKER : CODEX_SESSION_MARKER;
+    writeFileSync(resolve(dir, marker), JSON.stringify({ sid: sessionId, at: Date.now() }, null, 2), 'utf-8');
   } catch {
     /* best effort */
   }

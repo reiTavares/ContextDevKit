@@ -42,7 +42,7 @@ const RUNTIME_FILES = Object.freeze([
   'resolve-profile.mjs', 'risk-classes.mjs', 'secret-shape.mjs',
   'render/render-shared.mjs', 'render/render-claude.mjs',
   'render/render-codex.mjs', 'render/render-cursor.mjs',
-  'render/render-antigravity.mjs',
+  'render/render-antigravity.mjs', 'render/render-grok.mjs',
 ]);
 const SERVER_FILES = Object.freeze([
   'server.mjs', 'tools.read.mjs', 'tools.write.mjs',

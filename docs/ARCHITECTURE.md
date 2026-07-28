@@ -2,7 +2,7 @@
 
 How ContextDevKit works internally — for anyone extending the engine.
 
-## Install Locations (Three Hosts, One Engine)
+## Install Locations (Four Hosts, One Engine)
 
 Claude Code reads settings, slash commands, and agents from **hardcoded** paths
 under `.claude/`. Everything else — the engine, memory, scripts, providers —
@@ -15,14 +15,16 @@ Antigravity** (`.agents/` assets + the `ctx.mjs`/`agy` runner +
 `INSTRUCTIONS.md` boot context, generated 1:1 from the Claude sources) — see
 [ANTIGRAVITY.md](ANTIGRAVITY.md). Codex is the third host: `AGENTS.md`,
 `.codex/` hooks/subagents, `source-command-*` skills, and `cdx.mjs` are generated
-from the same Claude source — see [CODEX.md](CODEX.md). The tree below shows the
-host surfaces plus the shared engine:
+from the same Claude source — see [CODEX.md](CODEX.md). Grok Build is the fourth
+host: `.grok/hooks/contextdevkit.json` and `.grok/config.toml` are native project
+configuration surfaces. The tree below shows the host surfaces plus the shared engine:
 
 ```
 .agents/             # Antigravity host (skills/personas/playbooks/workflows)
 INSTRUCTIONS.md           # Antigravity boot context · ctx.mjs = the agy runner
 .codex/                   # Codex host (hooks + TOML subagents)
 AGENTS.md                 # Codex boot context · cdx.mjs = the Codex runner
+.grok/                    # Grok Build host (hooks + MCP project config)
 .claude/                  # fixed by Claude Code
   settings.json           # hook wiring (composed by the installer per level)
   commands/               # 78 slash commands, organised in domain packs

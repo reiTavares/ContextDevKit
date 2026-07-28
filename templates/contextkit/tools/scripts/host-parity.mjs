@@ -2,11 +2,11 @@
 /**
  * Multi-host selective context-load parity checker (CDK-056, PKG-05).
  *
- * Enumerates which context-LOADING hooks each native host (claude / codex / agy)
+ * Enumerates which context-LOADING hooks each native host (claude / codex / agy / grok)
  * receives at the highest configured level, then cross-references the Codex
  * skill-skip list to distinguish intentional omissions from silent gaps.
  *
- * A "context-load" is any hook registered by one of the three native-host
+ * A "context-load" is any hook registered by one of the four native-host
  * composers — the unit of comparison is the hook SCRIPT basename. A
  * "reasoned-skip" is declared when a CODEX_SKILL_SKIP_LIST entry matches the
  * script name (without extension) OR a reason is supplied via `skipReasons`.
@@ -37,6 +37,7 @@ const COMPOSERS = {
   claude: resolve(RUNTIME, 'config', 'settings-compose.mjs'),
   codex: resolve(RUNTIME, 'config', 'codex-hooks-compose.mjs'),
   agy: resolve(RUNTIME, 'config', 'agent-hooks-compose.mjs'),
+  grok: resolve(RUNTIME, 'config', 'grok-hooks-compose.mjs'),
 };
 const CONVERT_CORE = resolve(RUNTIME, 'codex', 'convert-core.mjs');
 
@@ -44,7 +45,7 @@ const CONVERT_CORE = resolve(RUNTIME, 'codex', 'convert-core.mjs');
  * Imports a composer module and extracts its hook-script set; 'unknown' on failure.
  *
  * @param {string} composerPath absolute path to the composer module
- * @param {string} exportName named export to call (composeSettings / composeCodexHooks / composeAgentHooks)
+ * @param {string} exportName named export to call
  * @param {(composed: any) => Set<string>} extractor
  * @returns {Promise<Set<string> | 'unknown'>}
  */
@@ -58,8 +59,8 @@ async function loadHostScripts(composerPath, exportName, extractor) {
 }
 
 /**
- * Checks hook-registration parity across the three native hosts (claude / codex
- * / agy) at `REPRESENTATIVE_LEVEL` (L5).
+ * Checks hook-registration parity across the four native hosts (claude / codex
+ * / agy / grok) at `REPRESENTATIVE_LEVEL` (L5).
  *
  * @param {string} [root] reserved for future override; current impl self-resolves paths.
  * @param {Record<string, string>} [skipReasons] caller-supplied hook→reason map,
@@ -81,10 +82,11 @@ export async function checkParity(root, skipReasons = {}) {
   const claudeScripts = await loadHostScripts(COMPOSERS.claude, 'composeSettings', extractClaudeOrCodexScripts);
   const codexScripts = await loadHostScripts(COMPOSERS.codex, 'composeCodexHooks', extractClaudeOrCodexScripts);
   const agyScripts = await loadHostScripts(COMPOSERS.agy, 'composeAgentHooks', extractAgyScripts);
+  const grokScripts = await loadHostScripts(COMPOSERS.grok, 'composeGrokHooks', extractClaudeOrCodexScripts);
 
   // Union of all known hooks across resolvable hosts.
   const allScripts = new Set();
-  for (const set of [claudeScripts, codexScripts, agyScripts]) {
+  for (const set of [claudeScripts, codexScripts, agyScripts, grokScripts]) {
     if (set !== 'unknown') for (const s of set) allScripts.add(s);
   }
 
@@ -93,6 +95,7 @@ export async function checkParity(root, skipReasons = {}) {
   for (const script of [...allScripts].sort()) {
     const inClaude = claudeScripts === 'unknown' ? 'unknown' : claudeScripts.has(script);
     const inAgy = agyScripts === 'unknown' ? 'unknown' : agyScripts.has(script);
+    const inGrok = grokScripts === 'unknown' ? 'unknown' : grokScripts.has(script);
 
     const isCodexSkillSkipped = codexSkipList.has(script.replace(/\.mjs$/, ''));
     let codexPresence;
@@ -102,7 +105,7 @@ export async function checkParity(root, skipReasons = {}) {
     else codexPresence = false;
 
     const reason = allReasons[script];
-    const resolvable = [inClaude, codexPresence, inAgy].filter((v) => v !== 'unknown');
+    const resolvable = [inClaude, codexPresence, inAgy, inGrok].filter((v) => v !== 'unknown');
     const absentCount = resolvable.filter((v) => v === false).length;
 
     let verdict;
@@ -111,7 +114,7 @@ export async function checkParity(root, skipReasons = {}) {
     else verdict = 'GAP';
 
     /** @type {import('./host-parity-core.mjs').ParityRow} */
-    const row = { name: script, claude: inClaude, codex: codexPresence, agy: inAgy, verdict };
+    const row = { name: script, claude: inClaude, codex: codexPresence, agy: inAgy, grok: inGrok, verdict };
     if (reason) row.reason = reason;
     loads.push(row);
   }
@@ -142,12 +145,12 @@ export function renderParity(report) {
   const lines = [
     `## Host-Parity Report (level ${REPRESENTATIVE_LEVEL})`,
     '',
-    '| Hook script | claude | codex | agy | verdict |',
-    '|---|:---:|:---:|:---:|:---:|',
+    '| Hook script | claude | codex | agy | grok | verdict |',
+    '|---|:---:|:---:|:---:|:---:|:---:|',
   ];
   for (const row of report.loads) {
     const reasonNote = row.reason ? ` <!-- ${row.reason.slice(0, 80)} -->` : '';
-    lines.push(`| ${row.name} | ${cell(row.claude)} | ${cell(row.codex)} | ${cell(row.agy)} | ${row.verdict} |${reasonNote}`);
+    lines.push(`| ${row.name} | ${cell(row.claude)} | ${cell(row.codex)} | ${cell(row.agy)} | ${cell(row.grok)} | ${row.verdict} |${reasonNote}`);
   }
   lines.push('');
   if (report.gaps.length === 0) {
@@ -157,7 +160,7 @@ export function renderParity(report) {
     lines.push('');
     lines.push('Silent gaps (absent on ≥1 host with no declared reason):');
     for (const gap of report.gaps) {
-      lines.push(`- \`${gap.name}\`: claude=${cell(gap.claude)}, codex=${cell(gap.codex)}, agy=${cell(gap.agy)}`);
+      lines.push(`- \`${gap.name}\`: claude=${cell(gap.claude)}, codex=${cell(gap.codex)}, agy=${cell(gap.agy)}, grok=${cell(gap.grok)}`);
     }
   }
   lines.push('');

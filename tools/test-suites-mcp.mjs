@@ -26,7 +26,7 @@ const it = (name) => `tools/integration-test-${name}.mjs`;
  */
 const TICKETS = {
   '002': { tier: 'integration:ecosystem', touches: ['templates/contextkit/runtime/mcp/registry.mjs', 'templates/contextkit/runtime/mcp/manifest.mjs', 'templates/contextkit/runtime/mcp/resolve-profile.mjs', 'templates/contextkit/mcp/'], aspects: ['deny', 'manifest', 'registry', 'seed'] },
-  '003': { tier: 'integration:hosts', touches: ['templates/contextkit/runtime/mcp/render/'], aspects: ['deny', 'filesizes', 'happy', 'parity', 'secrets'] },
+  '003': { tier: 'integration:hosts', touches: ['templates/contextkit/runtime/mcp/render/'], aspects: ['deny', 'filesizes', 'grok', 'happy', 'parity', 'secrets'] },
   '004': { tier: 'integration:ecosystem', touches: ['templates/contextkit/tools/scripts/mcp-doctor.mjs', 'templates/contextkit/tools/scripts/mcp.mjs'], aspects: ['degraded', 'deny', 'dispatch', 'happy'] },
   '005': { tier: 'integration:ecosystem', touches: ['templates/contextkit/runtime/mcp/policy.mjs', 'templates/contextkit/mcp/policies/'], aspects: ['deny', 'pure', 'taxonomy', 'tools'] },
   '006': { tier: 'integration:ecosystem', touches: ['templates/contextkit/mcp-server/'], aspects: ['catalog', 'contract', 'handlers', 'rpc'] },

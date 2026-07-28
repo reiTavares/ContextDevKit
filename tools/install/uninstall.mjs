@@ -6,9 +6,10 @@
 import { rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
+import { ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR, GROK_HOOKS_FILE } from '../../templates/contextkit/runtime/config/paths.mjs';
 import { stripAgentHooks } from '../../templates/contextkit/runtime/config/agent-hooks-compose.mjs';
 import { stripCodexHooks } from '../../templates/contextkit/runtime/config/codex-hooks-compose.mjs';
+import { stripGrokHooks } from '../../templates/contextkit/runtime/config/grok-hooks-compose.mjs';
 import { read, overwrite } from './fs.mjs';
 
 export async function uninstall(target, purge) {
@@ -56,6 +57,19 @@ export async function uninstall(target, purge) {
       report.push(`✓ removed ContextDevKit hook wiring from ${ANTIGRAVITY_DIR}/hooks.json`);
     } catch {
       report.push(`⚠️  could not parse ${ANTIGRAVITY_DIR}/hooks.json — left untouched`);
+    }
+  }
+  // 1c. Strip only the ContextDevKit-owned Grok projection. Keep .grok/config.toml
+  // and unrelated user hooks because Grok stores project MCP configuration there.
+  const grokHooksPath = join(target, GROK_HOOKS_FILE);
+  if (existsSync(grokHooksPath)) {
+    try {
+      const remaining = stripGrokHooks(JSON.parse((await read(grokHooksPath)).replace(/^\uFEFF/, '')));
+      if (remaining) await overwrite(grokHooksPath, JSON.stringify(remaining, null, 2) + '\n');
+      else await rm(grokHooksPath, { force: true });
+      report.push(`✓ removed ContextDevKit hook wiring from ${GROK_HOOKS_FILE}`);
+    } catch {
+      report.push(`⚠️  could not parse ${GROK_HOOKS_FILE} — left untouched`);
     }
   }
   // 2. Remove the git hook wrappers we installed.

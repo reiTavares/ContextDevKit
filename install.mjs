@@ -13,7 +13,7 @@
  * installEngine (engine.mjs), installAntigravityHost (antigravity.mjs),
  * installCodexHost (codex.mjs), and installVcsIntegration (git.mjs). It detects
  * --update and owns the summary; the
- * per-file update guards live next to the writes they protect. Adding a third host
+ * per-file update guards live next to the writes they protect. Adding a fourth host
  * is a new module + one call here, not more interleaving.
  * Run `node install.mjs --help` for usage and the full flag list.
  */
@@ -30,6 +30,7 @@ import { DEFERRED_ACTIVE_SESSIONS, DEFERRED_SELF_UPDATE, FAILED_SNAPSHOT, UPDATE
 import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
 import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
+import { installGrokHost, wireGrokHooks } from './tools/install/grok.mjs';
 import { installBridges } from './tools/install/bridges/index.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { migrateLegacy } from './tools/install/migrate.mjs';
@@ -146,11 +147,12 @@ async function main() {
   const sync = { manifest: await loadManifest(target), nextFiles: {}, conflicts: [] };
   const ctx = { name, level, mode, version, args, sync, priorVersion };
 
-  // --rewire: recompose ONLY .claude/settings.json for the level, then stop.
+  // --rewire: recompose the installed native host hook projections for the level, then stop.
   if (args.rewire) {
     await wireClaudeSettings(target, level, report);
+    await wireGrokHooks(target, level, report);
     console.log(report.join('\n'));
-    console.log(`\n✅ Rewired to Level ${level}. Restart your host (Claude Code, Antigravity, or Codex) to load the new hooks.`);
+    console.log(`\n✅ Rewired to Level ${level}. Restart your host (Claude Code, Antigravity, Codex, or Grok) to load the new hooks.`);
     return;
   }
 
@@ -205,6 +207,9 @@ async function main() {
 
   // 4. Codex host — third native host (AGENTS.md, .codex, cdx runner).
   await installCodexHost(target, TPL, ctx, report);
+
+  // 4b. Grok Build host — fourth native host (.grok hook projection).
+  await installGrokHost(target, TPL, ctx, report);
 
   // 5. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
   await installClaudeHost(target, TPL, ctx, report);

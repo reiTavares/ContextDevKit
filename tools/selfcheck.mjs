@@ -56,6 +56,7 @@ async function importLibs() {
     'config/settings-compose.mjs',
     'config/agent-hooks-compose.mjs',
     'config/codex-hooks-compose.mjs',
+    'config/grok-hooks-compose.mjs',
     'config/presets.mjs',
     'config/resolve-autonomy.mjs',
     'hooks/host-adapter.mjs',

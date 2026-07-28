@@ -34,7 +34,7 @@ node contextkit/tools/scripts/mcp.mjs <subcommand> [options]
   failure.
 - **`audit [--json]`** — surface audit flags and posture for enabled servers.
 - **`sync`** — push manifest changes into the per-host config files
-  (Claude / Codex / Cursor / Antigravity renderers). Marker-idempotent
+  (Claude / Codex / Cursor / Antigravity / Grok renderers). Marker-idempotent
   (ADR-0067): re-running is a no-op when nothing changed.
 - **`disable <id>`** — disable an enabled server.
 - **`receipt [--write]`** — write (or dry-run) an MCP execution receipt.

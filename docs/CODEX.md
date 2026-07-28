@@ -1,6 +1,6 @@
 # Codex Integration — Architecture & Specification
 
-How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Google Antigravity: same engine, same memory, generated host assets, local-only dogfood by default.
+How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code, Google Antigravity, and Grok Build: same engine, same memory, generated host assets, local-only dogfood by default.
 
 ## Overview
 
@@ -102,8 +102,9 @@ invent a project MCP configuration when no canonical project MCP source exists.
 - Claude Code reads `.claude/` and `CLAUDE.md`.
 - Antigravity reads `.agents/` and `INSTRUCTIONS.md`.
 - Codex reads `AGENTS.md`, `.codex/`, and project skills under `.agents/skills/`.
+- Grok Build reads `AGENTS.md`, `.grok/hooks/contextdevkit.json`, and `.grok/config.toml`.
 
-The three hosts share `contextkit/` memory, scripts, hooks, ADRs, sessions,
+The four hosts share `contextkit/` memory, scripts, hooks, ADRs, sessions,
 pipeline state, and changelog. The installer excludes generated Codex artifacts
 through the managed `info/exclude` block, so dogfood installs stay local unless a
 project opts into `--tracked`.

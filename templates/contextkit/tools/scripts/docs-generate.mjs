@@ -21,7 +21,10 @@ import { resolve, join, relative, basename } from 'node:path';
 
 const COMMANDS_DIR = 'templates/claude/commands';
 const AGENTS_DIR = 'templates/claude/agents';
-const CANDIDATE_HOSTS = ['claude', 'codex', 'antigravity', 'cursor', 'opencode'];
+const CANDIDATE_HOSTS = ['claude', 'codex', 'antigravity', 'grok', 'cursor', 'opencode'];
+const HOST_SOURCE_PATHS = Object.freeze({
+  grok: 'templates/contextkit/runtime/config/grok-hooks-compose.mjs',
+});
 
 /** Strip a UTF-8 BOM so downstream parsing never trips on it. */
 function deBom(text) {
@@ -95,7 +98,9 @@ function renderAgents(root) {
 
 /** Build the host matrix from the host template dirs that actually ship. */
 function renderHosts(root) {
-  const present = CANDIDATE_HOSTS.filter((h) => existsSync(resolve(root, 'templates', h)));
+  const present = CANDIDATE_HOSTS.filter((h) =>
+    existsSync(resolve(root, HOST_SOURCE_PATHS[h] ?? `templates/${h}`))
+  );
   const lines = [`_${present.length} native hosts._`, '', '| Host | Status |', '| --- | --- |'];
   for (const host of present) lines.push(`| ${host} | shipped |`);
   return { body: lines.join('\n').trimEnd(), total: present.length };

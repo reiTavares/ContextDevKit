@@ -8,7 +8,8 @@
       "aliases": {
         "claude": "/state",
         "codex": "cdx state",
-        "agy": "agy state"
+        "agy": "agy state",
+        "grok": "node contextkit/tools/scripts/context-pack.mjs"
       },
       "minLevel": 1,
       "appliesWhen": {
@@ -30,7 +31,8 @@
       "aliases": {
         "claude": "/context-pack",
         "codex": "cdx context-pack",
-        "agy": "agy context-pack"
+        "agy": "agy context-pack",
+        "grok": "node contextkit/tools/scripts/context-pack.mjs"
       },
       "minLevel": 3,
       "appliesWhen": {
@@ -52,7 +54,8 @@
       "aliases": {
         "claude": "/project-map",
         "codex": "cdx project-map",
-        "agy": "agy project-map"
+        "agy": "agy project-map",
+        "grok": "node contextkit/tools/scripts/project-map.mjs"
       },
       "minLevel": 3,
       "appliesWhen": {
@@ -74,7 +77,8 @@
       "aliases": {
         "claude": "/workflow",
         "codex": "cdx workflow",
-        "agy": "agy workflow"
+        "agy": "agy workflow",
+        "grok": "node contextkit/tools/scripts/workflow.mjs"
       },
       "minLevel": 3,
       "appliesWhen": {
@@ -96,7 +100,8 @@
       "aliases": {
         "claude": "/dev-start",
         "codex": "cdx pipeline dev-start",
-        "agy": "agy dev-start"
+        "agy": "agy dev-start",
+        "grok": "node contextkit/tools/scripts/sync-check.mjs"
       },
       "minLevel": 2,
       "appliesWhen": {
@@ -118,7 +123,8 @@
       "aliases": {
         "claude": "/simulate-impact",
         "codex": "cdx simulate-impact",
-        "agy": "agy simulate-impact"
+        "agy": "agy simulate-impact",
+        "grok": "node contextkit/tools/scripts/mark-simulation.mjs"
       },
       "minLevel": 5,
       "appliesWhen": {
@@ -140,7 +146,8 @@
       "aliases": {
         "claude": "/test-plan",
         "codex": "cdx qa test-plan",
-        "agy": "agy test-plan"
+        "agy": "agy test-plan",
+        "grok": "node contextkit/tools/scripts/scaffold-tests.mjs"
       },
       "minLevel": 4,
       "appliesWhen": {
@@ -162,7 +169,8 @@
       "aliases": {
         "claude": "npm test",
         "codex": "npm test",
-        "agy": "npm test"
+        "agy": "npm test",
+        "grok": "npm test"
       },
       "minLevel": 1,
       "appliesWhen": {
@@ -184,7 +192,8 @@
       "aliases": {
         "claude": "/qa-signoff",
         "codex": "cdx qa qa-signoff",
-        "agy": "agy qa-signoff"
+        "agy": "agy qa-signoff",
+        "grok": "node contextkit/tools/scripts/ship-state.mjs"
       },
       "minLevel": 4,
       "appliesWhen": {
@@ -206,7 +215,8 @@
       "aliases": {
         "claude": "/log-session",
         "codex": "cdx log-session",
-        "agy": "agy log-session"
+        "agy": "agy log-session",
+        "grok": "node contextkit/tools/scripts/session-draft.mjs"
       },
       "minLevel": 2,
       "appliesWhen": {

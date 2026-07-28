@@ -72,7 +72,7 @@ _Background and rationale — the why behind the decisions._
 - [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
 - [Antigravity Integration — Architecture & Specification](ANTIGRAVITY.md) — How ContextDevKit runs natively in **Google Antigravity** alongside Claude Code —
 - [Architecture](ARCHITECTURE.md) — How ContextDevKit works internally — for anyone extending the engine.
-- [Codex Integration — Architecture & Specification](CODEX.md) — How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code and Google Antigravity: same engine, same m…
+- [Codex Integration — Architecture & Specification](CODEX.md) — How ContextDevKit runs natively in **OpenAI Codex** alongside Claude Code, Google Antigravity, and Grok Build: same e…
 - [Levels](LEVELS.md) — ContextDevKit activates progressively. The active level lives in
 - [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
@@ -99,4 +99,5 @@ _Background and rationale — the why behind the decisions._
 ## ❓ Unclassified
 _Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
 
+- [Grok Build Integration](GROK.md) — Grok Build is a first-class native ContextDevKit host. It is an operation-owned
 - [Architecture: <Subsystem or feature name>](architecture/_TEMPLATE.md) — Goal: describe components, boundaries, data flow, and the decisions that

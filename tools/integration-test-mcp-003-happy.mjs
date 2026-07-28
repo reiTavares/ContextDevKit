@@ -1,7 +1,7 @@
 /**
  * integration-test-mcp-003-happy.mjs — AC#1: All renderers accept the manifest
  *
- * Happy-path tests: all four renderers produce valid ConfigArtifact arrays,
+ * Happy-path tests: the baseline renderers produce valid ConfigArtifact arrays,
  * correct file paths per scope, expandSource format contracts, streamable-http
  * transport rendering, Codex TOML format correctness, and ConfigArtifact
  * required-field contract across all hosts.

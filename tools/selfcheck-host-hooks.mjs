@@ -1,5 +1,5 @@
 /**
- * Host hook composition checks for Claude settings, Antigravity, and Codex.
+ * Host hook composition checks for Claude settings, Antigravity, Codex, and Grok.
  *
  * Kept outside the main selfcheck runner so the entrypoint remains an
  * orchestrator instead of becoming a host-contract test module.
@@ -158,15 +158,123 @@ function checkCodexHooksCompose({ ok, bad }, composer) {
     : bad('stripCodexHooks left kit-only residue');
 }
 
+function checkGrokHooksCompose({ ok, bad }, composer, adapter) {
+  console.log('Checking Grok hooks composition + host adapter (OP-0014)...');
+  const events = (lvl) => Object.keys(composer.composeGrokHooks(null, lvl).hooks || {}).sort();
+  const expect = {
+    1: ['SessionStart'],
+    2: ['PostToolUse', 'SessionStart', 'Stop'],
+    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
+  };
+  for (const [lvl, want] of Object.entries(expect)) {
+    const got = events(Number(lvl));
+    JSON.stringify(got) === JSON.stringify(want.sort())
+      ? ok(`Grok L${lvl} -> ${got.join(', ')}`)
+      : bad(`Grok L${lvl} expected [${want}] got [${got}]`);
+  }
+
+  const once = composer.composeGrokHooks(null, 5);
+  const twice = composer.composeGrokHooks(structuredClone(once), 5);
+  JSON.stringify(twice) === JSON.stringify(once)
+    ? ok('Grok hook re-compose is idempotent')
+    : bad('Grok hook re-compose duplicated or reordered kit entries');
+
+  const commands = Object.values(once.hooks).flat().flatMap((entry) =>
+    (entry.hooks || []).map((hook) => hook.command || '')
+  );
+  commands.length > 0 && commands.every((command) => command.endsWith('--host grok'))
+    ? ok('every Grok hook command carries the --host grok flag')
+    : bad('a Grok hook command is missing the --host grok flag');
+
+  const scriptsFor = (hooks, eventName) => (hooks?.[eventName] || [])
+    .flatMap((entry) => (entry.hooks || []).map((hook) => String(hook.command || '').split('/').pop()?.split(' ')[0] || ''));
+  const codexLikeScripts = new Set([
+    ...scriptsFor(once.hooks, 'SessionStart'),
+    ...scriptsFor(once.hooks, 'PostToolUse'),
+    ...scriptsFor(once.hooks, 'Stop'),
+    ...scriptsFor(once.hooks, 'PreToolUse'),
+    ...scriptsFor(once.hooks, 'UserPromptSubmit'),
+    ...scriptsFor(once.hooks, 'SubagentStart'),
+    ...scriptsFor(once.hooks, 'SubagentStop'),
+    ...scriptsFor(once.hooks, 'PreCompact'),
+  ]);
+  const codexScripts = new Set([
+    'session-start.mjs', 'track-edits.mjs', 'check-registration.mjs',
+    'concurrency-guard.mjs', 'auto-format.mjs', 'graph-session-refresh.mjs',
+    'graph-first-gate.mjs', 'domain-code-gate.mjs', 'domain-conformance.mjs',
+    'arch-debt-law-gate.mjs', 'simulate-gate.mjs', 'journey-gate.mjs',
+    'deliberation-nudge.mjs', 'execution-contract-hook.mjs', 'execution-gate.mjs',
+    'indirect-write-reconcile.mjs', 'completion-gate.mjs', 'done-sweep.mjs',
+    'subagent-gate.mjs', 'compaction-continuity.mjs',
+  ]);
+  const missingCodexControls = [...codexScripts].filter((script) => !codexLikeScripts.has(script));
+  missingCodexControls.length === 0
+    ? ok('Grok L5 exposes every Codex control script')
+    : bad(`Grok L5 is missing Codex control scripts: ${missingCodexControls.join(', ')}`);
+
+  const executionMatcher = once.hooks.PreToolUse?.find((entry) =>
+    entry.hooks?.some((hook) => String(hook.command || '').includes('execution-gate.mjs')),
+  )?.matcher || '';
+  const indirectMatcher = once.hooks.PostToolUse?.find((entry) =>
+    entry.hooks?.some((hook) => String(hook.command || '').includes('indirect-write-reconcile.mjs')),
+  )?.matcher || '';
+  /MCPTool/.test(executionMatcher) && /__/.test(executionMatcher) && /MCPTool/.test(indirectMatcher) && /__/.test(indirectMatcher)
+    ? ok('Grok L5 captures native and qualified MCP tool calls for execution/indirect-write parity')
+    : bad(`Grok MCP matcher parity is incomplete: execution=${executionMatcher}, indirect=${indirectMatcher}`);
+
+  const userFile = {
+    hooks: {
+      SessionStart: [{ hooks: [{ type: 'command', command: 'echo user-hook' }] }],
+    },
+  };
+  const withUser = composer.composeGrokHooks(userFile, 5);
+  const reComposed = composer.composeGrokHooks(withUser, 5);
+  const userCommands = reComposed.hooks.SessionStart.flatMap((group) => group.hooks || [])
+    .map((hook) => hook.command);
+  userCommands.filter((command) => command === 'echo user-hook').length === 1
+    ? ok('Grok recomposition preserves one unrelated user hook')
+    : bad('Grok recomposition dropped or duplicated an unrelated user hook');
+  const stripped = composer.stripGrokHooks(reComposed);
+  stripped?.hooks?.SessionStart?.some((group) => group.hooks?.some((hook) => hook.command === 'echo user-hook'))
+    && !JSON.stringify(stripped).includes('contextkit/runtime/hooks')
+    ? ok('stripGrokHooks removes only ContextDevKit hooks')
+    : bad('stripGrokHooks removed user content or left kit residue');
+  composer.stripGrokHooks(once) === null
+    ? ok('stripGrokHooks returns null for a kit-only file')
+    : bad('stripGrokHooks left kit-only residue');
+
+  const normalized = adapter.normalizeToolPayload({
+    sessionId: 'grok-selfcheck',
+    toolName: 'Write',
+    toolInput: { filePath: 'src/grok.js' },
+  });
+  normalized.toolName === 'Write' && normalized.filePaths[0] === 'src/grok.js'
+    ? ok('Grok camelCase tool payload normalizes to a write path')
+    : bad(`Grok camelCase payload normalized incorrectly: ${JSON.stringify(normalized)}`);
+  adapter.hookHost(['node', 'hook.mjs', '--host', 'grok']) === 'grok'
+    && adapter.hookHost(['node', 'hook.mjs', '--host=grok']) === 'grok'
+    ? ok('hookHost resolves explicit Grok host flags')
+    : bad('hookHost Grok flag parsing is incorrect');
+  try {
+    const advisory = JSON.parse(adapter.advisoryPayload('note', 'grok', 'PreToolUse'));
+    advisory.decision === 'allow' && advisory.reason === 'note'
+      ? ok('Grok advisories use an explicit allow payload')
+      : bad('Grok advisory payload shape is invalid');
+  } catch {
+    bad('Grok advisory payload shape is invalid');
+  }
+}
+
 /**
  * Cross-host parity for the WF-0068 Domain Engineering gate hooks (ADR-0128
- * §25/§31): each of the three native hosts must wire BOTH gate hooks at L≥4 with
+ * §25/§31): each native host must wire BOTH gate hooks at L≥4 with
  * equivalent behaviour, or declare an explicit limitation. Equivalence here is
  * genuine — the block verb is translated per host by the host-adapter
- * (claude/codex `block`, agy `deny`), so no limitation is declared. Both hooks are
+ * (claude/codex `block`, agy/Grok `deny`), so no limitation is declared. Both hooks are
  * default-OFF + fail-open, so wiring them across hosts can never false-block.
  */
-function checkDomainHookParity({ ok, bad }, { settings, agy, codex }) {
+function checkDomainHookParity({ ok, bad }, { settings, agy, codex, grok }) {
   console.log('Checking Domain Engineering gate-hook cross-host parity (WF-0068, ADR-0128 §25)...');
   const CODE_GATE = 'domain-code-gate.mjs';
   const CONFORMANCE = 'domain-conformance.mjs';
@@ -179,6 +287,7 @@ function checkDomainHookParity({ ok, bad }, { settings, agy, codex }) {
     claude: (lvl) => settings.composeSettings(null, lvl).hooks,
     codex: (lvl) => codex.composeCodexHooks(null, lvl).hooks,
     agy: (lvl) => agy.composeAgentHooks(null, lvl)[agy.KIT_HOOK_GROUP],
+    grok: (lvl) => grok.composeGrokHooks(null, lvl).hooks,
   };
 
   for (const [host, hooksAt] of Object.entries(hosts)) {
@@ -202,16 +311,21 @@ export function runHostHookChecks(report, { mods }) {
     checkAgentHooksCompose(report, mods['config/agent-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
   }
   if (mods['config/codex-hooks-compose.mjs']?.composeCodexHooks) checkCodexHooksCompose(report, mods['config/codex-hooks-compose.mjs']);
-  // WF-0068 cross-host parity — needs all three composers loaded.
+  if (mods['config/grok-hooks-compose.mjs']?.composeGrokHooks && mods['hooks/host-adapter.mjs']) {
+    checkGrokHooksCompose(report, mods['config/grok-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
+  }
+  // WF-0068 cross-host parity — needs all native composers loaded.
   if (
     mods['config/settings-compose.mjs']?.composeSettings &&
     mods['config/agent-hooks-compose.mjs']?.composeAgentHooks &&
-    mods['config/codex-hooks-compose.mjs']?.composeCodexHooks
+    mods['config/codex-hooks-compose.mjs']?.composeCodexHooks &&
+    mods['config/grok-hooks-compose.mjs']?.composeGrokHooks
   ) {
     checkDomainHookParity(report, {
       settings: mods['config/settings-compose.mjs'],
       agy: mods['config/agent-hooks-compose.mjs'],
       codex: mods['config/codex-hooks-compose.mjs'],
+      grok: mods['config/grok-hooks-compose.mjs'],
     });
   }
 }

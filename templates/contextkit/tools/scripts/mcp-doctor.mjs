@@ -75,7 +75,7 @@ function readJsonSafe(filePath, fallback = null) {
  * Known host identifiers for host-presence determination.
  * Extend when a new host is added to the kit (ADR-0036 / ADR-0068).
  */
-const KNOWN_HOSTS = ['claude-code', 'cursor', 'codex', 'antigravity', 'opencode'];
+const KNOWN_HOSTS = ['claude-code', 'cursor', 'codex', 'antigravity', 'grok', 'opencode'];
 
 /**
  * Extracts server definitions from .claude/settings.json and the manifest,
