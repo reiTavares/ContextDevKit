@@ -47,6 +47,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 ## 📚 Reference — information-oriented
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
+- [Grok Build Integration](GROK.md) — Grok Build is a first-class native ContextDevKit host. It is an operation-owned
 - [Reference: privacy and recorded data](PRIVACY.md) — What the kit records about your work, where each artifact lives, what leaves the
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
@@ -99,5 +100,4 @@ _Background and rationale — the why behind the decisions._
 ## ❓ Unclassified
 _Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
 
-- [Grok Build Integration](GROK.md) — Grok Build is a first-class native ContextDevKit host. It is an operation-owned
 - [Architecture: <Subsystem or feature name>](architecture/_TEMPLATE.md) — Goal: describe components, boundaries, data flow, and the decisions that
