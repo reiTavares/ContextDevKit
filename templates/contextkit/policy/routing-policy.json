@@ -4,7 +4,7 @@
   "_hostNote": "hostModels maps the demand tiers to the model override each host can enforce; Codex uses the current GPT-5.6 Sol/Terra/Luna model ids, while Antigravity remains an explicit host gap.",
   "_codexModelReference": "https://developers.openai.com/codex/models",
   "_codexModelNote": "Codex recommended models: gpt-5.6-sol for flagship reasoning, gpt-5.6-terra for balanced work, and gpt-5.6-luna for fast/affordable work.",
-  "updated": "2026-07-23",
+  "updated": "2026-08-01",
   "tiers": {
     "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
     "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
@@ -25,26 +25,40 @@
     }
   },
   "codexDispatch": {
-    "supportedEfforts": ["low", "medium", "high", "max"],
-    "canonicalComplexities": ["low", "moderate", "high", "very-high"],
-    "canonicalRisks": ["low", "moderate", "high", "very-high"],
-    "taskKindRules": {
-      "search": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
-      "research": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
-      "exploration": { "tier": "fast", "effort": "low", "ruleId": "codex-bounded-exploration-low" },
-      "simple-action": { "tier": "fast", "effort": "high", "ruleId": "codex-simple-action-high" },
-      "simple-code": { "tier": "fast", "effort": "high", "ruleId": "codex-simple-action-high" }
+    "policyVersion": "2026-08-01.1",
+    "supportedEfforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+    "canonicalComplexities": ["low", "moderate", "high", "xhigh", "critical"],
+    "canonicalRisks": ["low", "moderate", "high", "xhigh", "critical"],
+    "modelEfforts": {
+      "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
+      "gpt-5.6-sol": ["low", "medium", "high", "xhigh", "max", "ultra"]
     },
     "matrixRules": [
-      { "complexity": "moderate", "risk": "moderate", "tier": "fast", "effort": "max", "ruleId": "codex-moderate-moderate-max" },
-      { "complexity": "moderate", "risk": "high", "tier": "fast", "effort": "max", "ruleId": "codex-moderate-high-max" },
-      { "complexity": "high", "risk": "moderate", "tier": "powerful", "effort": "high", "ruleId": "codex-high-moderate-high" },
-      { "complexity": "high", "risk": "very-high", "tier": "reasoning", "effort": "medium", "ruleId": "codex-high-very-high-medium" },
-      { "complexity": "very-high", "risk": "low", "tier": "reasoning", "effort": "high", "ruleId": "codex-very-high-low-high" },
-      { "complexity": "very-high", "risk": "moderate", "tier": "reasoning", "effort": "high", "ruleId": "codex-very-high-moderate-high" },
-      { "complexity": "very-high", "risk": "very-high", "tier": "reasoning", "effort": "max", "ruleId": "codex-very-high-very-high-max" }
+      { "complexity": "low", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "low", "ruleId": "codex-low-low-luna-low" },
+      { "complexity": "low", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "medium", "ruleId": "codex-low-moderate-luna-medium" },
+      { "complexity": "low", "risk": "high", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-low-high-luna-max" },
+      { "complexity": "low", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-low-xhigh-sol-high" },
+      { "complexity": "moderate", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "high", "ruleId": "codex-moderate-low-luna-high" },
+      { "complexity": "moderate", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-moderate-moderate-luna-max" },
+      { "complexity": "moderate", "risk": "high", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-moderate-high-luna-max" },
+      { "complexity": "moderate", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-moderate-xhigh-sol-high" },
+      { "complexity": "high", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-high-low-luna-max" },
+      { "complexity": "high", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-high-moderate-luna-max" },
+      { "complexity": "high", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-high-high-sol-high" },
+      { "complexity": "high", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-high-xhigh-sol-xhigh" },
+      { "complexity": "xhigh", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-xhigh-low-luna-max" },
+      { "complexity": "xhigh", "risk": "moderate", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-xhigh-moderate-sol-high" },
+      { "complexity": "xhigh", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-xhigh-high-sol-xhigh" },
+      { "complexity": "xhigh", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "max", "ruleId": "codex-xhigh-xhigh-sol-max" },
+      { "complexity": "critical", "risk": "low", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-low-sol-xhigh" },
+      { "complexity": "critical", "risk": "moderate", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-moderate-sol-xhigh" },
+      { "complexity": "critical", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-high-sol-xhigh" },
+      { "complexity": "critical", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "max", "ruleId": "codex-critical-xhigh-sol-max" },
+      { "complexity": "critical", "risk": "critical", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "ultra", "ruleId": "codex-critical-critical-sol-ultra" }
     ],
-    "unmatched": "refuse-effort"
+    "criticalRiskPolicy": "refuse-noncritical-complexity",
+    "ultraPolicy": "critical-complexity-and-critical-risk-only",
+    "unmatched": "refuse-dispatch"
   },
   "ladder": ["fast", "powerful", "reasoning"],
   "floorTier": "powerful",

@@ -70,6 +70,27 @@ receipts and bounded packets; when a lever lacks its prerequisite, report
 - Never auto-select Fable, paid benchmarks, or model upgrades without explicit
   user instruction or accepted project config.
 
+### Codex-only mandatory subagent routing
+
+Before every Codex subagent invocation, the primary agent MUST classify both
+`complexity` and `risk` as `low|moderate|high|xhigh|critical`, then run:
+
+`node contextkit/tools/scripts/model-policy.mjs resolve --agent <role> --host codex --complexity <value> --risk <value>`
+
+Spawn only when the JSON receipt contains `decision:"dispatch"`, a non-null
+`model`, `effort`, and `ruleId`; pass the exact model and reasoning effort.
+Missing/invalid dimensions, refusal, malformed output, or policy drift blocks
+the invocation. If a static agent profile conflicts, use the neutral `default`
+profile and carry the role in its prompt.
+
+Complete dimensions outrank task kind, role defaults, budget downgrade, QA
+escalation, session model, and global defaults. The canonical high-end name is
+`xhigh`, not `very-high` (accepted only as an input alias). Critical risk with
+non-critical complexity is refused. `ultra` is legal only for
+`critical × critical` on `gpt-5.6-sol`. When ContextKit is absent, the personal
+global harness installed by `install-codex-global-routing.mjs` applies the same
+matrix; when ContextKit is present, exact parity is mandatory. [-> ADR-0150]
+
 ## Canonical Work Journey
 
 Authoritative lifecycle details: `contextkit/docs/work-lifecycle.md`.

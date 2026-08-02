@@ -128,14 +128,16 @@ try {
   const tierRun = createRun(root, { runId: 'run-tiers', grade: 3, workstreams: [
     { id: 'ws-a', taskId: '10', branch: 'b/a', worktree: 'w/a', touchSet: ['x'], model: aliasForTier('fast').model },
     { id: 'ws-b', taskId: '11', branch: 'b/b', worktree: 'w/b', touchSet: ['y'], model: aliasForTier('powerful').model },
-    { id: 'ws-c', taskId: '12', branch: 'b/c', worktree: 'w/c', touchSet: ['z'], model: 'gpt-5.6-luna', effort: 'low', ruleId: 'codex-bounded-exploration-low' },
+    { id: 'ws-c', taskId: '12', branch: 'b/c', worktree: 'w/c', touchSet: ['z'], model: 'gpt-5.6-luna', effort: 'low', ruleId: 'codex-low-low-luna-low' },
   ] });
   tierRun.workstreams.find((ws) => ws.id === 'ws-a').model === 'haiku' && tierRun.workstreams.find((ws) => ws.id === 'ws-b').model === 'sonnet'
     ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
-  aliasForTier('powerful', { host: 'codex' }).model === 'gpt-5.6-terra'
-    ? ok('Codex swarm tierHint resolves through model-policy (powerful->gpt-5.6-terra)') : bad('Codex swarm tierHint did not resolve to gpt-5.6-terra');
+  const codexMissingDimensions = aliasForTier('powerful', { host: 'codex' });
+  const codexClassified = aliasForTier('powerful', { host: 'codex', complexity: 'high', risk: 'high' });
+  codexMissingDimensions.decision === 'refuse' && codexClassified.model === 'gpt-5.6-sol' && codexClassified.effort === 'high'
+    ? ok('Codex swarm refuses missing dimensions and applies the classified matrix') : bad('Codex swarm classification gate is wrong');
   updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
-  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model, effort: 'high', ruleId: 'codex-high-moderate-high' });
+  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model, effort: 'high', ruleId: 'test-escalation' });
   const mix = byModel(readRun(root, 'run-tiers'));
   const haiku = mix.find((m) => m.model === 'haiku');
   const opus = mix.find((m) => m.model === 'opus');

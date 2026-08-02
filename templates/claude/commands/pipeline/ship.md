@@ -93,26 +93,22 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    bounded pack carries the standing rule "do not re-read boot context", so each
    delegated agent starts cheap.
 
-   **Model tier per dispatch (ADR-0052 Phase 2 — resolve, don't eyeball).**
+   **Model tier per dispatch (ADR-0052 / ADR-0150 — resolve, don't eyeball).**
    Classify the TASK (**think**: design, review, security, root-cause, planning →
    keep the agent's tier; **execute**: tests from a given plan, mechanical
    refactor, scaffold, format, summarize → cheap tier; **ambiguous**: agent
    default), then ask the resolver for the concrete alias:
    `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--task-kind kind] [--complexity value] [--risk value] [--title "objective"] [--qa-failures N] [--budget-exhausted] --host <claude|codex|agy>`
    using the current host value (`claude`, `codex`, or `agy`), then pass its
-   `model` to the Agent tool. On Codex, when the resolver returns a non-null
-   `effort`, pass it as Agent `reasoning_effort`; `null` means the Codex effort
-   policy refused an override and must remain visible rather than being
-   guessed. The Codex matrix is owned by `model-policy.mjs`/ADR-0150; this
-   skill must not duplicate it. (`execute` keeps the legacy low-effort behavior
-   only where no explicit Codex context rule applies.)
-   Omitting `model` silently inherits the premium session model — the costly
-   default. The resolver already enforces the floor (security / code-security /
-   infra-security / privacy-lgpd never below `powerful`), the one-step escalation
-   on `--qa-failures 2` (cap `reasoning`), and the budget downgrade (one tier
-   down, never below the floor — ADR-0044 §3). If it returns `model:null`,
-   surface the reason and dispatch without a fake override. Report any
-   non-default resolution in the run summary.
+   `model` to the Agent tool. On Codex, the PRIMARY AGENT must classify both
+   dimensions before every invocation and may spawn only when the receipt has
+   `decision:"dispatch"`, non-null `model`, `effort`, and `ruleId`. Pass effort
+   as `reasoning_effort`; any refusal or null field blocks the invocation.
+   Complete dimensions outrank task kind, budget, QA, and role defaults;
+   `xhigh` is canonical and `ultra` is legal only for `critical × critical`.
+   The matrix is owned by `model-policy.mjs`/ADR-0150 and is not duplicated here.
+   Non-Codex routing retains the existing floor, escalation, budget, and
+   documented host-gap behavior. Report every non-default resolution.
 
    If the change crosses high-risk paths (L5), run
    `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.

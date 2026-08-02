@@ -57,9 +57,9 @@ try {
     ? ok('Codex subagents carry host-resolved models and preserve inherit')
     : bad('Codex subagent model projection is wrong');
 
-  const codexModel = run([join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'resolve', '--agent', 'qa-unit', '--task', 'execute', '--host', 'codex'], { cwd: proj });
-  (() => { try { return JSON.parse(codexModel.stdout).model === 'gpt-5.6-luna'; } catch { return false; } })()
-    ? ok('Codex model policy resolves execute work to gpt-5.6-luna')
+  const codexModel = run([join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'resolve', '--agent', 'qa-unit', '--task', 'execute', '--host', 'codex', '--complexity', 'low', '--risk', 'low'], { cwd: proj });
+  (() => { try { const dispatch = JSON.parse(codexModel.stdout); return dispatch.decision === 'dispatch' && dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low'; } catch { return false; } })()
+    ? ok('Codex model policy resolves classified low-risk work to gpt-5.6-luna@low')
     : bad(`Codex model policy did not resolve: ${(codexModel.stdout + codexModel.stderr).slice(0, 200)}`);
   const codexSearch = run([
     join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'tier', 'powerful',
@@ -68,14 +68,14 @@ try {
   (() => {
     try {
       const dispatch = JSON.parse(codexSearch.stdout);
-      return dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low' && dispatch.ruleId === 'codex-bounded-exploration-low';
+      return dispatch.decision === 'dispatch' && dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low' && dispatch.ruleId === 'codex-low-low-luna-low';
     } catch { return false; }
   })()
-    ? ok('Codex policy resolves research subagents to gpt-5.6-luna at low effort')
+    ? ok('Codex complete dimensions outrank research task kind')
     : bad(`Codex effort policy did not resolve research: ${(codexSearch.stdout + codexSearch.stderr).slice(0, 300)}`);
   const installedSwarmSkill = readFileSync(join(proj, '.agents', 'skills', 'source-command-pipeline-swarm', 'SKILL.md'), 'utf-8');
-  /reasoning_effort/.test(installedSwarmSkill) && /--complexity/.test(installedSwarmSkill) && /ADR-0150/.test(installedSwarmSkill)
-    ? ok('Codex swarm skill carries effort-aware dispatch instructions')
+  /reasoning_effort/.test(installedSwarmSkill) && /decision:\"dispatch\"/.test(installedSwarmSkill) && /xhigh/.test(installedSwarmSkill) && /ADR-0150/.test(installedSwarmSkill)
+    ? ok('Codex swarm skill carries mandatory classified dispatch instructions')
     : bad('Codex swarm skill is missing effort-aware dispatch instructions');
 
   const hooks = JSON.parse(readFileSync(join(proj, '.codex', 'hooks.json'), 'utf-8'));

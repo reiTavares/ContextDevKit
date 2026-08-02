@@ -110,6 +110,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/squads/', 'templates/contextkit/runtime/hooks/squad-context'] },
   { id: 'codex', file: it('codex'), tier: 'integration:hosts',
     touches: ['templates/contextkit/runtime/codex/', 'templates/cdx.mjs'] },
+  { id: 'codex-global-routing', file: it('codex-global-routing'), tier: 'integration:hosts',
+    touches: ['templates/contextkit/policy/routing-policy.json', 'templates/contextkit/tools/scripts/model-policy.mjs', 'templates/contextkit/tools/scripts/install-codex-global-routing.mjs', 'templates/contextkit/runtime/codex/global-routing/'] },
   { id: 'grok', file: it('grok'), tier: 'integration:hosts',
     touches: ['install.mjs', 'tools/install/grok.mjs', 'templates/contextkit/runtime/config/grok-hooks-compose.mjs', 'templates/contextkit/runtime/hooks/host-adapter.mjs'] },
   { id: 'lp', file: it('lp'), tier: 'integration:hosts',
