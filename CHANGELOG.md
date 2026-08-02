@@ -20,6 +20,38 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [3.9.0] - 2026-08-02
+
+### Added
+- **Codex global subagent routing fallback.** Added an explicit,
+  non-destructive installer for personal Codex multi-agent configuration, a
+  global AGENTS admission contract, a zero-dependency routing gate, and a
+  policy snapshot for projects without ContextKit.
+
+### Changed
+- **Mandatory Codex complexity-risk matrix.** Codex subagent dispatch now
+  requires primary-agent classification of both dimensions, uses canonical
+  `xhigh`, implements 21 exact Luna/Sol routes, refuses critical risk outside
+  critical complexity, and reserves `ultra` for `critical x critical`.
+
+## [3.8.2] - 2026-07-28
+
+### Added
+- **OP-0014 - Grok Build native host.** Added Grok as a first-class
+  ContextDevKit host with native hook projection, host adapter,
+  installer/uninstaller wiring, capability parity, and MCP rendering.
+- **Codex-equivalent host controls.** Added Grok parity coverage for the L5
+  hook surface, official CLI inspection, MCP doctor integration, and qualified
+  MCP tool matching.
+
+## [3.8.1] - 2026-07-27
+
+### Fixed
+- **Clean-checkout CI fixtures.** MADM and graph-based squad selfchecks now use
+  committed deterministic fixtures and the shipped capability registry instead
+  of requiring private dogfood artifacts. Changelog integration still enforces
+  installed-mirror parity whenever that mirror exists.
+
 ## [3.8.0] - 2026-07-27
 
 > **Publishing note.** `3.7.0` was closed in this changelog and bumped in
