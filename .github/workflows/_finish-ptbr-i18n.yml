@@ -1,0 +1,146 @@
+name: One-shot pt-BR parity fix
+
+on:
+  push:
+    branches:
+      - agent/docs-governance-loop-business-intake
+
+permissions:
+  contents: write
+
+jobs:
+  finish-ptbr:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: agent/docs-governance-loop-business-intake
+          fetch-depth: 0
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '20'
+
+      - name: Add missing pt-BR reference docs and align selfcheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/pt-BR/reference
+
+          cat > docs/pt-BR/reference/agents.md <<'DOC'
+          # Referência de agentes
+
+          ContextDevKit disponibiliza especialistas para ampliar a capacidade do agente ativo. Eles são **ferramentas de engenharia**, não uma lista obrigatória de participantes nem recibos de conclusão.
+
+          ## Regra de roteamento
+
+          O routing de agentes é advisory. O agente ativo escolhe especialistas com base em escopo, risco, complexidade, domínio, blast radius e evidência disponível.
+
+          Para um diff material, `code-reviewer` é fortemente recomendado e aparece como etapa explícita do pipeline completo `/ship`. Se o host não puder criar o subagente, a responsabilidade de revisão permanece com o agente ativo.
+
+          ## Famílias principais
+
+          - **devteam** — arquitetura, implementação, code review, testes e domain modeling;
+          - **qa-team** — orquestração de QA, unit, integration, fuzz, E2E e performance;
+          - **security-team** — AppSec, code-security e infra-security;
+          - **design-team** — UX, UI, accessibility, conversion e tracking;
+          - **product/ops** — product-owner, DevOps e especialistas operacionais;
+          - **agent-forge** — design, routing, prompts, tools, governance, evals e packaging de agentes portáveis.
+
+          ## Semântica de autoridade
+
+          A presença ou ausência de um especialista nunca é, por si só, uma condição de autorização. O que importa é a responsabilidade de engenharia e a evidência produzida.
+
+          Um specialist pode retornar findings, recomendações, riscos e evidência. Apenas os domínios explicitamente elegíveis ao enforcement central podem negar, e mesmo nesses casos a política `owner-wins` e os limites reais do host continuam valendo.
+
+          ## Hosts
+
+          Claude Code usa os agentes canônicos em `templates/claude/agents/`. Codex e Antigravity recebem projeções nativas geradas a partir dessas fontes; o projeto evita manter autoridades duplicadas por host.
+
+          Consulte também [Hosts](hosts.md), [Contrato de governança](governance-contract.md) e [Modelo de qualidade](../explanation/quality-model.md).
+          DOC
+
+          cat > docs/pt-BR/reference/hosts.md <<'DOC'
+          # Referência de hosts nativos
+
+          ContextDevKit é host-agnostic: o host executa modelo, ferramentas, shell/filesystem, MCP e seu próprio safety boundary; o ContextDevKit preserva governança, memória, estado e inteligência do projeto.
+
+          ## Hosts suportados
+
+          - **Claude Code** — fonte canônica das superfícies de comandos/agentes do kit;
+          - **OpenAI Codex** — projeções nativas de hooks, agents e skills;
+          - **Google Antigravity** — projeções em `.agents/` e hooks nativos;
+          - **Grok** — adapter e superfícies nativas do host.
+
+          ## Paridade sem autoridade duplicada
+
+          Fontes canônicas são convertidas para o formato de cada host. Projeções geradas não devem ser editadas como uma segunda fonte de verdade.
+
+          O host pode mudar sem alterar as autoridades persistentes de Workflow, Tasks, Business, Operation, ADRs, reports ou owner preferences.
+
+          ## Limites
+
+          ContextDevKit não promete recursos que o host não oferece. Por exemplo, uma recomendação de modelo ou specialist não se transforma em troca de modelo ou spawn obrigatório se o host não expõe essa capacidade.
+
+          Veja [Agentes](agents.md), [Arquitetura](../ARCHITECTURE.md) e [Governança](../explanation/governance-and-enforcement.md).
+          DOC
+
+          cat > docs/pt-BR/reference/graph.md <<'DOC'
+          # Referência do grafo estrutural
+
+          O Project Map/grafo fornece um fast path determinístico para perguntas estruturais sobre o projeto: módulos, símbolos, dependências, chamadas, referências e blast radius quando a informação estiver disponível.
+
+          ## Princípio graph-first
+
+          Graph-first significa **preferir** o índice quando ele responde melhor e com menos custo. Não significa proibir `grep`, busca textual, leitura direta ou outras ferramentas.
+
+          Se o grafo estiver ausente, stale, parcial, degradado ou incapaz de responder, o agente deve usar busca normal imediatamente.
+
+          ## Memory é parte do projeto
+
+          Roots de governança podem ser indexadas mesmo quando um diretório pai é ignorado pelo Git. `contextkit/memory/` é memória autoritativa do projeto e não deve ser tratado como irrelevante por estar gitignored.
+
+          O grafo pode incluir, conforme configuração e provider:
+
+          - source code e módulos;
+          - Workflows e Tasks ativos;
+          - Business e Operations;
+          - ADRs/decisions;
+          - reports;
+          - owner preferences e outras raízes de memória governada.
+
+          ## Providers
+
+          O runtime possui uma boundary de provider para permitir outros grafos/índices. A indisponibilidade de um provider é degradação observável, nunca permissão para bloquear exploração.
+
+          Veja [Como usar o grafo](../how-to/use-the-knowledge-graph.md), [Arquitetura](../ARCHITECTURE.md) e [Memória](memory-model.md).
+          DOC
+
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tools/selfcheck-templates.mjs')
+          s = p.read_text(encoding='utf-8')
+          old = "'.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',"
+          new = "'.github/workflows/ci.yml', 'CHANGELOG.md', 'docs/pt-BR/README.md', 'docs/locales.json', 'docs/LANGUAGES.md', 'docs/ROADMAP.md',"
+          if old not in s:
+              raise SystemExit('legacy root instrucoes.md inventory token not found')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          rm .github/workflows/_finish-ptbr-i18n.yml
+
+      - name: Validate focused documentation contracts
+        run: |
+          node tools/selfcheck.mjs
+          node tools/selfcheck-docs.mjs
+
+      - name: Commit completed parity fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/pt-BR/reference/agents.md docs/pt-BR/reference/hosts.md docs/pt-BR/reference/graph.md tools/selfcheck-templates.mjs .github/workflows/_finish-ptbr-i18n.yml
+          git commit -m "docs(pt-BR): complete core reference parity"
+          git push origin HEAD:agent/docs-governance-loop-business-intake
