@@ -75,6 +75,8 @@ export const SUITES = Object.freeze([
   // integration:core — engine + real hooks — 5
   { id: 'integration-test', file: 'tools/integration-test.mjs', tier: 'integration:core',
     touches: ['install.mjs', 'templates/contextkit/runtime/hooks/', 'templates/contextkit/runtime/config/'] },
+  { id: 'governance-anti-loop', file: it('governance-anti-loop'), tier: 'integration:core',
+    touches: ['templates/contextkit/runtime/governance/'] },
   { id: 'tooling', file: it('tooling'), tier: 'integration:installer',
     touches: ['templates/contextkit/tools/scripts/', 'templates/contextkit/squads/'] },
   { id: 'tooling-qa', file: it('tooling-qa'), tier: 'integration:workflow',
