@@ -13,6 +13,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathsFor } from '../runtime/config/paths.mjs';
 import { parseAdr, renderCatalogLine, ADR_FILENAME_RE } from '../tools/scripts/adr-digest-core.mjs';
+import { getTasks, getWorkflowStatus } from './tools.read.mjs';
 
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
@@ -39,9 +40,9 @@ export const RESOURCE_LIST = [
     mimeType: 'application/json',
   },
   {
-    uri: 'contextdevkit://pipeline/working',
-    name: 'Pipeline Working Cards',
-    description: 'Tasks currently in the working stage of the DevPipeline.',
+    uri: 'contextdevkit://tasks/working',
+    name: 'Working Tasks',
+    description: 'Tasks whose canonical JSON status is working.',
     mimeType: 'application/json',
   },
   {
@@ -73,41 +74,11 @@ async function readProjectMap() {
 }
 
 async function readCurrentWorkflows() {
-  const workflowsDir = resolve(P.memory, 'workflows');
-  let entries = [];
-  try { entries = await readdir(workflowsDir); } catch {
-    return JSON.stringify({ workflows: [], note: 'No workflows directory found.' });
-  }
-  const workflows = [];
-  for (const entry of entries) {
-    const indexPath = resolve(workflowsDir, entry, 'index.md');
-    const text = await readSafe(indexPath);
-    if (!text) continue;
-    const fm = {};
-    const fmMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (fmMatch) {
-      for (const line of fmMatch[1].split(/\r?\n/)) {
-        const colon = line.indexOf(':');
-        if (colon > 0) fm[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
-      }
-    }
-    const phase = fm.currentPhase || '';
-    if (phase && phase !== 'conclusion') {
-      workflows.push({ slug: fm.slug || entry, kind: fm.kind || '', number: fm.number || '', currentPhase: phase });
-    }
-  }
-  return JSON.stringify({ workflows, total: workflows.length });
+  return JSON.stringify(await getWorkflowStatus());
 }
 
-async function readPipelineWorking() {
-  // Import lazily to avoid circular deps in test harness
-  const { listTasks } = await import('../tools/scripts/pipeline-tasks.mjs'); // dynamic to avoid circular deps in test harness
-  try {
-    const tasks = listTasks(P.pipeline).filter((t) => t.stage === 'working');
-    return JSON.stringify({ tasks, total: tasks.length });
-  } catch (err) {
-    return JSON.stringify({ tasks: [], error: String(err.message) });
-  }
+async function readWorkingTasks() {
+  return JSON.stringify(await getTasks({ status: 'working' }));
 }
 
 async function readLatestSession() {
@@ -162,7 +133,7 @@ async function readBusinessRules() {
 const READERS = {
   'contextdevkit://project/map': readProjectMap,
   'contextdevkit://workflow/current': readCurrentWorkflows,
-  'contextdevkit://pipeline/working': readPipelineWorking,
+  'contextdevkit://tasks/working': readWorkingTasks,
   'contextdevkit://memory/latest-session': readLatestSession,
   'contextdevkit://decisions/catalog': readDecisionsCatalog,
   'contextdevkit://business-rules': readBusinessRules,

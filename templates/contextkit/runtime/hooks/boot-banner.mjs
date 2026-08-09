@@ -1,7 +1,7 @@
 /**
  * boot-banner — pure presentation layer for the SessionStart hook.
  *
- * `session-start.mjs` GATHERS the boot signals (I/O, git, ledgers, config); this
+ * The host boot composer GATHERS the boot signals (I/O, git, ledgers, config); this
  * module RENDERS them into the `<project-context-boot>` banner. Splitting the two
  * keeps each within the line budget and mirrors the existing boot decomposition
  * (`boot-context-readers`, `boot-signals`, `boot-signals-projmap`): the hook stays
@@ -12,7 +12,7 @@
 /**
  * Renders the full boot banner from a pre-gathered signal bundle.
  *
- * @param {object} boot the resolved boot signals (see `session-start.mjs#main`)
+ * @param {object} boot the resolved host boot signals
  * @returns {string} the complete `<project-context-boot>` block (newline-terminated)
  */
 export function renderBootBanner(boot) {
@@ -24,7 +24,7 @@ export function renderBootBanner(boot) {
   out.push('<project-context-boot>');
   out.push(`# 📚 Boot context — ${boot.projectName} (${boot.host})`);
   out.push('');
-  out.push(`Session id: \`${boot.sessionId.slice(0, 16)}\` · Branch: \`${boot.branch}\` · ContextDevKit level: \`L${boot.level}\`${boot.autonomyBadge}`);
+  out.push(`Session id: \`${boot.sessionId.slice(0, 16)}\` · Branch: \`${boot.branch}\` · ContextDevKit level: \`L${boot.level}\``);
   out.push('');
 
   // ADR-0094 — one short routing-posture line (null when routing is inert).
@@ -62,7 +62,7 @@ export function renderBootBanner(boot) {
   if (boot.practicesActive) {
     out.push('## 🧠 Best-practices skill is ACTIVE');
     out.push('');
-    out.push('Honor `contextkit/best-practices.md` (file-size budget, intelligent refactor by responsibility,');
+    out.push('Honor `contextkit/best-practices.md` (architecture boundaries, intelligent refactor by responsibility,');
     out.push(`SoC, naming, docs). Run \`${commandRef('analyze-code-ia-practices')}\` to audit + get refactor proposals.`);
     out.push('');
   }
@@ -74,35 +74,19 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
-  // OP-0005 / ADR-0125 Wave 5: intake readiness banner — only shown when the
-  // gate is live (guarded or strict). Advisory mode is silent (no banner noise).
-  if (boot.intakeReadiness && boot.intakeReadiness.mode !== 'advisory') {
-    const { mode } = boot.intakeReadiness;
-    out.push(`## 🔒 Intake gate active (${mode} mode)`);
+  if (boot.governanceMatrix) {
+    const counts = boot.governanceMatrix.counts ?? {};
+    out.push('## Governance matrix');
     out.push('');
-    out.push(`The capability enforcement gate is in **${mode}** mode — business tasks and`);
-    out.push('ceremony prompts require a completed intake before any writes are allowed.');
-    out.push(`Run **\`${commandRef('work', 'intake "<objective>"')}\`** to classify the request and satisfy the gate`);
-    out.push('(host-neutral CLI: `node contextkit/tools/scripts/work.mjs intake` — never `ctx`/`cdx`).');
-    out.push(`For non-trivial work, then open the context + workflow with \`${commandRef('work', 'operation')}\` / \`${commandRef('dev-start')}\`.`);
-    out.push('🗺️ The methodology **journey is mapped + checkpointed** (`policy/journey.json`, ADR-0127): each');
-    out.push('   request prints the exact next stage + command (`‹CONTEXTKIT-JOURNEY›`) — follow it in order,');
-    out.push('   nest workflows under their owner, and never start a new ADR series.');
+    out.push(`Policy \`${boot.governanceMatrix.policyVersion ?? 'unknown'}\` · guarded ${Number(counts.guarded ?? 0)} · canary ${Number(counts.canary ?? 0)} · shadow ${Number(counts.shadow ?? 0)} · off ${Number(counts.off ?? 0)} · failure policy \`${boot.governanceMatrix.failurePolicy ?? 'continue'}\`.`);
     out.push('');
   }
 
   // ADR-0128 §14 (WF-0065) — Domain Engineering readiness. Pre-rendered by
-  // session-start.mjs (keeps this pure module free of domain-engineering imports);
+  // the host composer (keeps this pure module free of domain-engineering imports);
   // '' when the capability is disabled, so a non-adopting project stays silent.
   if (boot.domainEngineeringBanner) {
     out.push(boot.domainEngineeringBanner);
-    out.push('');
-  }
-
-  // BIZ-0005/WF-0077/ADR-0144 — standing session posture (grade contract + cross-squad
-  // activation obligation). '' when it cannot resolve, so a degraded dial stays silent.
-  if (boot.sessionPosture) {
-    out.push(boot.sessionPosture);
     out.push('');
   }
 
@@ -134,10 +118,14 @@ export function renderBootBanner(boot) {
 
   if (boot.bugs) {
     const bugs = boot.bugs;
-    out.push('## 🐞 Open bugs awaiting resolution');
+    out.push('## 🐞 Canonical task health');
     out.push('');
-    out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in backlog/working.`);
-    out.push(`Resolve pending bugs (P0/P1 first) before new feature work — \`${commandRef('pipeline')}\` to triage, \`${commandRef('bug-hunt', '<id>')}\` to fix.`);
+    if (bugs.authorityStatus === 'unavailable' || bugs.authorityStatus === 'corrupt') {
+      out.push(`Task authority is **${bugs.authorityStatus}**; no task count was assumed.`);
+    } else {
+      out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in canonical backlog/working status.`);
+      if (bugs.authorityStatus === 'partial') out.push('Task authority is **partial**; inspect diagnostics before relying on totals.');
+    }
     out.push('');
   }
 
@@ -223,6 +211,10 @@ export function renderBootBanner(boot) {
     out.push(boot.latest.content);
     if (boot.latest.mode === 'digest') out.push('\n_(digest — open the full log in `contextkit/memory/sessions/` if you need detail) [ADR-0027]_');
     out.push('');
+    if (boot.latest.governedContextText) {
+      out.push(boot.latest.governedContextText);
+      out.push('');
+    }
   }
 
   if (boot.unreleased) {

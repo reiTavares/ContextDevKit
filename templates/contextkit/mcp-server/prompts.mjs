@@ -42,9 +42,9 @@ export const PROMPT_LIST = [
   },
   {
     name: 'resume-task',
-    description: 'Reconstruct context for resuming an in-flight task from session logs and pipeline state.',
+    description: 'Load the governed workflow pack and canonical JSON task state for resuming work.',
     arguments: [
-      { name: 'task_id', description: 'Pipeline card id or workflow slug', required: true },
+      { name: 'task_id', description: 'Canonical task id or workflow reference', required: true },
     ],
   },
   {
@@ -85,7 +85,7 @@ export function getPrompt(name, args = {}) {
 function buildPlanFeature({ feature_name = '', objective = '', constraints = '' }) {
   return `You are a Staff/Principal Engineer operating under the ContextDevKit coding constitution.
 
-Plan the feature **${feature_name}** using the standard workflow lifecycle (intake → prd → spec → adr → pipeline).
+Plan the feature **${feature_name}** using the proportional v4 workflow lifecycle only when the work has real dependencies, multiple sessions, or cutover requirements.
 
 **Objective:** ${objective}
 ${constraints ? `**Constraints:** ${constraints}` : ''}
@@ -94,7 +94,7 @@ Produce:
 1. **PRD** — Problem, Goals, Users/Jobs, Non-goals, Success metrics, Open questions
 2. **SPEC executive summary** — Proposed design, interfaces/contracts, data flow, impact analysis
 3. **ADR recommendation** — is a new ADR needed? If yes, state the decision, rationale, and alternatives.
-4. **Pipeline cards** — 3–6 specific, sized tickets (id · title · priority · acceptance criteria)
+4. **Canonical tasks** — 3–6 specific, sized tasks for \`pipeline/tasks.json\` (id · title · priority · acceptance criteria)
 
 Stay within the immutable rules: zero runtime deps on the hot path; hooks exit 0; every addition ships a test; Conventional Commits.`;
 }
@@ -112,7 +112,7 @@ Run the following checklist (top-down, Tier 1 before Tier 2):
 - S4 State: single source of truth per piece of state?
 
 **TIER 2 — Module hygiene**
-- H1 Size: any file > 240 lines (yellow) or > 308 lines (BLOCKER)?
+- H1 Cohesion: does the module cross real responsibility or architecture boundaries?
 - H2 SRP: functions needing "And"/"Or" in their name?
 - H3 Separation: business logic leaking into transport/view layers?
 - H4 Errors: swallowed exceptions? raw stack traces to users?
@@ -141,8 +141,8 @@ function buildResumeTask({ task_id = '' }) {
   return `Reconstruct the context needed to resume task **${task_id}**.
 
 Steps:
-1. Look up the pipeline card for **${task_id}** (stage, title, priority, dependencies).
-2. Find the most recent session log that mentions this task or its workflow.
+1. Load the workflow's validated \`workflow.json\`, \`workflow-state.json\`, context manifest, and \`pipeline/tasks.json\`.
+2. Find task **${task_id}** and the relevant reports/session history.
 3. Check the active workspace claims — is another session holding this task?
 4. Summarise the last known state, what was completed, and what remains.
 5. Propose the immediate next action with a verifiable success criterion.

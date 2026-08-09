@@ -334,6 +334,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/setup-complete.mjs', 'templates/claude/commands/setup/setupcontextdevkit.md'] },
   { id: 'projmap-boot-nudge', file: 'tools/selfcheck-boot-signals-projmap.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/runtime/hooks/boot-signals-projmap.mjs'] },
+  { id: 'authority-consumers-v4', file: 'tools/integration-test-authority-consumers-v4.mjs', tier: 'integration:workflow',
+    touches: ['templates/contextkit/runtime/authority-reader.mjs', 'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/hooks/boot-', 'templates/contextkit/tools/scripts/dashboard-', 'templates/contextkit/mcp-server/'] },
 
   // BIZ-0001 / WF-0036+WF-0037 (Business-driven methodology) — split into its own
   // module to keep this registry within the line budget (see test-suites-bdm.mjs).

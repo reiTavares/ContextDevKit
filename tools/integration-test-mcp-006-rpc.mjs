@@ -179,7 +179,7 @@ await new Promise((resolveTest) => {
     // expected total is DERIVED from MCP_GRAPH_TOOLS, so adding a graph tool never
     // needs a matching edit here — while a MISSING one still fails below.
     const coreTools = ['get_project_state', 'get_project_map', 'get_module_context',
-      'get_workflow_status', 'get_pipeline_cards', 'get_active_claims',
+      'get_workflow_status', 'get_tasks', 'get_active_claims',
       'get_latest_session', 'get_relevant_decisions', 'get_context_pack', 'get_quality_status'];
     const toolNames = (byId[3]?.result?.tools || []).map((t) => t.name);
     const expectedTools = [...coreTools, ...MCP_GRAPH_TOOLS];

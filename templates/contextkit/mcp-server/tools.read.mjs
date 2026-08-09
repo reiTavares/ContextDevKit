@@ -20,8 +20,9 @@ import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathsFor } from '../runtime/config/paths.mjs';
 import { loadConfigSync } from '../runtime/config/load.mjs';
-import { listTasks } from '../tools/scripts/pipeline-tasks.mjs';
 import { parseAdr, renderCatalogLine, ADR_FILENAME_RE } from '../tools/scripts/adr-digest-core.mjs';
+import { readAuthoritySnapshot, TASK_STATUSES, readGovernedWorkflowContext } from '../runtime/authority-reader.mjs';
+import { resolveGovernanceMatrix } from '../runtime/governance/gate-mode.mjs';
 
 /** Root of the project this server is running against. */
 const ROOT = process.cwd();
@@ -108,7 +109,13 @@ export async function getProjectState() {
     const level = config.level ?? config.contextLevel ?? 1;
     let adrCount = 0;
     try { adrCount = (await readdir(P.decisions)).filter((f) => ADR_FILENAME_RE.test(f) && f !== '_TEMPLATE.md').length; } catch { /* skip */ }
-    return { level, config: { ...config }, adrCount, root: ROOT };
+    return {
+      level,
+      config: { ...config },
+      governance: resolveGovernanceMatrix(config),
+      adrCount,
+      root: ROOT,
+    };
   } catch (err) {
     return { error: String(err.message) };
   }
@@ -145,56 +152,50 @@ export async function getModuleContext({ modulePath } = {}) {
 }
 
 /**
- * get_workflow_status — lists workflows and their current phases.
+ * get_workflow_status — lists workflows from canonical JSON authorities.
  * @param {object} params
- * @param {string} [params.slug] - optional workflow slug to filter
+ * @param {string} [params.ref] - optional workflow id, slug, or path filter
  * @returns {Promise<object>}
  */
-export async function getWorkflowStatus({ slug } = {}) {
-  const workflowsDir = resolve(P.memory, 'workflows');
-  let entries = [];
-  try { entries = await readdir(workflowsDir); } catch { return { workflows: [], error: 'No workflows directory' }; }
-  const workflows = [];
-  for (const entry of entries) {
-    if (slug && !entry.includes(slug)) continue;
-    const indexPath = resolve(workflowsDir, entry, 'index.md');
-    const legacyPath = resolve(workflowsDir, `${entry}.md`);
-    const text = (await readSafe(indexPath)) ?? (await readSafe(legacyPath));
-    if (!text) continue;
-    const fm = {};
-    const fmMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-    if (fmMatch) {
-      for (const line of fmMatch[1].split(/\r?\n/)) {
-        const colon = line.indexOf(':');
-        if (colon > 0) fm[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
-      }
-    }
-    workflows.push({
-      slug: fm.slug || entry,
-      kind: fm.kind || '',
-      number: fm.number || '',
-      currentPhase: fm.currentPhase || '',
-      branch: fm.branch || '',
-      started: fm.started || '',
-    });
-  }
-  return { workflows, total: workflows.length };
+export async function getWorkflowStatus({ ref } = {}) {
+  const snapshot = readAuthoritySnapshot(ROOT);
+  const workflows = ref
+    ? snapshot.workflows.filter((workflow) =>
+        [workflow.id, workflow.slug, workflow.path]
+          .some((value) => String(value ?? '').includes(ref)))
+    : snapshot.workflows;
+  return {
+    authority: snapshot.authority,
+    status: snapshot.status,
+    workflows,
+    total: workflows.length,
+    diagnostics: snapshot.diagnostics,
+  };
 }
 
 /**
- * get_pipeline_cards — returns pipeline tasks across all stages.
+ * get_tasks — returns canonical v4 tasks.
  * @param {object} params
- * @param {string} [params.stage] - filter by stage (backlog/working/testing/conclusion)
+ * @param {string} [params.status] canonical task status
+ * @param {string} [params.workflowRef] optional workflow or batch id
  * @returns {Promise<object>}
  */
-export async function getPipelineCards({ stage } = {}) {
-  try {
-    const tasks = listTasks(P.pipeline);
-    const filtered = stage ? tasks.filter((t) => t.stage === stage) : tasks;
-    return { tasks: filtered, total: filtered.length };
-  } catch (err) {
-    return { tasks: [], error: String(err.message) };
+export async function getTasks({ status, workflowRef } = {}) {
+  if (status && !TASK_STATUSES.includes(status)) {
+    return { error: `Unknown task status "${status}".`, allowedStatuses: TASK_STATUSES };
   }
+  const snapshot = readAuthoritySnapshot(ROOT);
+  const statusTasks = status ? snapshot.tasksByStatus[status] : snapshot.tasks;
+  const tasks = workflowRef
+    ? statusTasks.filter((task) => task.scopeRef === workflowRef)
+    : statusTasks;
+  return {
+    authority: snapshot.authority,
+    status: snapshot.status,
+    tasks,
+    total: tasks.length,
+    diagnostics: snapshot.diagnostics,
+  };
 }
 
 /**
@@ -239,15 +240,20 @@ export async function getRelevantDecisions({ query, limit = 20 } = {}) {
 }
 
 /**
- * get_context_pack — the bounded start-of-work bundle (context-pack.mjs output).
+ * get_context_pack — the bounded start-of-work or governed workflow bundle.
+ * @param {object} params
+ * @param {string} [params.workflowRef]
  * @returns {Promise<object>}
  */
-export async function getContextPack() {
+export async function getContextPack({ workflowRef } = {}) {
+  if (workflowRef) return readGovernedWorkflowContext(ROOT, workflowRef);
+
+  const taskAuthority = readAuthoritySnapshot(ROOT);
   const [sessionData, changelogText, recentAdrs, backlogTasks] = await Promise.all([
     readLatestSession(),
     readSafe(P.changelog),
     readAdrCatalog(5),
-    getPipelineCards({ stage: 'backlog' }),
+    getTasks({ status: 'backlog' }),
   ]);
 
   const unreleasedBlock = (() => {
@@ -262,8 +268,15 @@ export async function getContextPack() {
     latestSession: sessionData.filename || null,
     sessionSummary: sessionData.latest ? sessionData.latest.split('\n').slice(0, 20).join('\n') : null,
     unreleased: unreleasedBlock,
-    recentDecisions: recentAdrs.map((a) => renderCatalogLine(a)).filter(Boolean),
-    openBacklog: (backlogTasks.tasks || []).slice(0, 8).map((t) => `- **${t.priority}** · #${t.id} · ${t.title}`),
+    recentDecisions: recentAdrs.map((adr) => renderCatalogLine(adr)).filter(Boolean),
+    taskAuthority: {
+      authority: taskAuthority.authority,
+      status: taskAuthority.status,
+      counts: taskAuthority.counts,
+      diagnostics: taskAuthority.diagnostics,
+    },
+    openBacklog: (backlogTasks.tasks || []).slice(0, 8)
+      .map((task) => `- **${task.priority}** · #${task.id} · ${task.title}`),
   };
 }
 

@@ -8,7 +8,7 @@
  *   - getProjectMap on empty root returns an object with string .error (graceful)
  *   - getLatestSession on empty root returns an object with string .error (graceful)
  *   - getWorkflowStatus on empty root returns { workflows: [] }
- *   - getPipelineCards returns { tasks: [] }
+ *   - getTasks returns { tasks: [] }
  *   - getActiveClaims returns { sessions: [] }
  *   - getQualityStatus returns { receipts: [] }
  *
@@ -42,9 +42,9 @@ const TOOL_CALLS = [
   ['getModuleContext (no args)', () => toolsMod.getModuleContext()],
   ['getModuleContext (with path)', () => toolsMod.getModuleContext({ modulePath: 'src/index.mjs' })],
   ['getWorkflowStatus', () => toolsMod.getWorkflowStatus()],
-  ['getWorkflowStatus (slug)', () => toolsMod.getWorkflowStatus({ slug: 'test' })],
-  ['getPipelineCards', () => toolsMod.getPipelineCards()],
-  ['getPipelineCards (stage)', () => toolsMod.getPipelineCards({ stage: 'backlog' })],
+  ['getWorkflowStatus (ref)', () => toolsMod.getWorkflowStatus({ ref: 'WF-test' })],
+  ['getTasks', () => toolsMod.getTasks()],
+  ['getTasks (status)', () => toolsMod.getTasks({ status: 'backlog' })],
   ['getActiveClaims', () => toolsMod.getActiveClaims()],
   ['getLatestSession', () => toolsMod.getLatestSession()],
   ['getRelevantDecisions', () => toolsMod.getRelevantDecisions()],
@@ -103,10 +103,10 @@ Array.isArray(wfResult?.workflows)
   ? ok('getWorkflowStatus on empty root returns workflows array')
   : bad(`getWorkflowStatus on empty root: expected { workflows: [] }, got ${JSON.stringify(wfResult)}`);
 
-const pcResult = await toolsMod.getPipelineCards();
+const pcResult = await toolsMod.getTasks();
 Array.isArray(pcResult?.tasks)
-  ? ok('getPipelineCards returns tasks array')
-  : bad(`getPipelineCards: expected { tasks: [] }, got ${JSON.stringify(pcResult)}`);
+  ? ok('getTasks returns tasks array')
+  : bad(`getTasks: expected { tasks: [] }, got ${JSON.stringify(pcResult)}`);
 
 const claimsResult = await toolsMod.getActiveClaims();
 Array.isArray(claimsResult?.sessions)

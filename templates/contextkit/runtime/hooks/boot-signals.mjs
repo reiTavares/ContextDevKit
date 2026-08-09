@@ -8,18 +8,14 @@
  * a signal never blocks a session. Zero third-party deps.
  */
 import { execSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
 import { pathsFor } from '../config/paths.mjs';
+import { readAuthoritySnapshot } from '../authority-reader.mjs';
 
 export function checkGitDivergence(root) {
-  try {
-    execSync('git fetch origin --quiet', { cwd: root, stdio: 'ignore', timeout: 5000 });
-  } catch {
-    return null;
-  }
   try {
     const counts = execSync('git rev-list --left-right --count HEAD...@{u}', { cwd: root, encoding: 'utf-8', timeout: 3000 }).trim();
     const [a, b] = counts.split(/\s+/);
@@ -101,8 +97,8 @@ function sessionCount(root) {
  * ADR-0033 — cross-session engine-update signal. The installer (`--update`) stamps
  * `contextkit/.engine-version`; this compares it to a hook-side "seen" marker and
  * announces the bump ONCE on the next session (a SessionStart hook can't detect a
- * mid-session update, so the honest signal is cross-session). First observation is
- * set silently to avoid a banner on a fresh install. Returns a line or null.
+ * mid-session update, so the honest signal is cross-session). This reader does not
+ * advance the marker; mutation-only postflight owns any acknowledgement write.
  */
 export function engineUpdateSignal(root) {
   try {
@@ -118,11 +114,6 @@ export function engineUpdateSignal(root) {
       /* never seen */
     }
     if (seen === current) return null;
-    try {
-      writeFileSync(seenPath, current);
-    } catch {
-      return null; // can't persist → don't risk re-announcing every boot
-    }
     return seen ? `🔄 ContextDevKit engine updated to **v${current}** since your last session — new commands/hooks are active (restart Claude Code if a command seems missing).` : null;
   } catch {
     return null;
@@ -132,7 +123,8 @@ export function engineUpdateSignal(root) {
 /**
  * ADR-0033 — weekly local value line (config-gated via `boot.valueLine`, default on;
  * local-only, no PII). Reflects the kit's accrued value back so the dev can see it.
- * Debounced to once per 7 days via a marker in the ledger dir. Returns a line or null.
+ * Reads the existing debounce marker without modifying it. Mutation-only
+ * postflight owns any acknowledgement write.
  */
 export function valueLine(root) {
   try {
@@ -153,11 +145,6 @@ export function valueLine(root) {
       /* no decisions dir */
     }
     if (sessions === 0 && adrs === 0) return null;
-    try {
-      writeFileSync(markerPath, String(Date.now()));
-    } catch {
-      return null;
-    }
     return `📈 ContextDevKit here: **${sessions}** session(s) logged · **${adrs}** ADR(s) recorded — the kit is keeping this project's memory.`;
   } catch {
     return null;
@@ -165,38 +152,29 @@ export function valueLine(root) {
 }
 
 /**
- * ADR-0034 — open bugs awaiting resolution in backlog/working. Surfaces them at
- * boot so a pending bug isn't buried under new feature work. Returns
- * `{ total, p0, p1 }` or null when there are none. Best-effort, silent on error.
+ * Open bugs from canonical task JSON. Corrupt/unavailable authority stays visible
+ * instead of degrading to a fabricated zero.
  */
 export function openBugsDue(root) {
   try {
-    const pipe = pathsFor(root).pipeline;
+    const authority = readAuthoritySnapshot(root);
+    if (authority.status === 'unavailable' || authority.status === 'corrupt') {
+      return { total: 0, p0: 0, p1: 0, authorityStatus: authority.status };
+    }
     let total = 0;
     let p0 = 0;
     let p1 = 0;
-    for (const stage of ['backlog', 'working']) {
-      let files = [];
-      try {
-        files = readdirSync(resolve(pipe, stage));
-      } catch {
-        continue;
-      }
-      for (const f of files) {
-        if (!f.endsWith('.md')) continue;
-        let text = '';
-        try {
-          text = readFileSync(resolve(pipe, stage, f), 'utf-8');
-        } catch {
-          continue;
-        }
-        if (!/^type:\s*bug\s*$/m.test(text)) continue;
+    for (const status of ['backlog', 'working']) {
+      for (const task of authority.tasksByStatus[status]) {
+        if (task.type !== 'bug') continue;
         total += 1;
-        if (/^priority:\s*P0\b/m.test(text)) p0 += 1;
-        else if (/^priority:\s*P1\b/m.test(text)) p1 += 1;
+        if (task.priority === 'P0') p0 += 1;
+        else if (task.priority === 'P1') p1 += 1;
       }
     }
-    return total > 0 ? { total, p0, p1 } : null;
+    return total > 0 || authority.status === 'partial'
+      ? { total, p0, p1, authorityStatus: authority.status }
+      : null;
   } catch {
     return null;
   }

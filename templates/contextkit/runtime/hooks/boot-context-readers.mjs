@@ -10,11 +10,13 @@ import { resolve } from 'node:path';
 import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
 import { parseSessionLog, renderDigest } from './session-digest-core.mjs';
 import { clip, stripMd } from './md-extract.mjs';
+import { readGovernedWorkflowContext as loadGovernedWorkflowContext } from '../authority-reader.mjs';
 
 const SECTION_LIMIT = 60;
 
 /** Matches `<YYYY-MM-DD>-<NN>-<slug>.md`. Slug allows `a-z0-9._-`. */
 const ENTRY_PATTERN = /^(\d{4}-\d{2}-\d{2})-(\d{2,})-([a-z0-9._-]+)\.md$/;
+const WORKFLOW_REFERENCE_PATTERN = /\bWF-\d{4}\b/g;
 
 async function readSafe(root, relPath) {
   try {
@@ -71,10 +73,77 @@ export async function extractLatestSession(root) {
 export async function digestLatestSession(root) {
   const entry = await latestSessionEntry(root);
   if (!entry) return null;
+  const workflowRef = [...new Set(entry.content.match(WORKFLOW_REFERENCE_PATTERN) ?? [])][0] ?? null;
+  const governedContext = workflowRef
+    ? readGovernedWorkflowContext(root, workflowRef)
+    : null;
+  const governedContextText = governedContext
+    ? renderGovernedWorkflowContext(governedContext)
+    : null;
   const digest = renderDigest(parseSessionLog(entry.content, entry.filename));
-  if (digest) return { path: entry.path, content: digest, mode: 'digest' };
+  if (digest) return { path: entry.path, content: digest, mode: 'digest', governedContext, governedContextText };
   const lines = entry.content.split('\n').slice(0, SECTION_LIMIT);
-  return { path: entry.path, content: lines.join('\n').trim(), mode: 'raw' };
+  return { path: entry.path, content: lines.join('\n').trim(), mode: 'raw', governedContext, governedContextText };
+}
+
+/**
+ * Loads the validated governed workflow pack without a compatibility fallback.
+ * Dependency injection keeps cold-boot and corrupt-state tests deterministic.
+ *
+ * @param {string} root project root
+ * @param {string} workflowRef workflow id, slug, or canonical path
+ * @param {object} [dependencies]
+ * @returns {{ status: string, workflowRef: string, pack?: object, diagnostic?: object }}
+ */
+export function readGovernedWorkflowContext(root, workflowRef, dependencies = {}) {
+  return loadGovernedWorkflowContext(root, workflowRef, dependencies);
+}
+
+/**
+ * Renders every required governed document into one host-neutral context block.
+ * Reports are already relevance-bounded and ordered by the W05 loader.
+ *
+ * @param {{ status: string, workflowRef: string, pack?: object, diagnostic?: object }} context
+ * @returns {string}
+ */
+export function renderGovernedWorkflowContext(context) {
+  if (!context || context.status !== 'available' || !context.pack) {
+    const diagnostic = context?.diagnostic;
+    return `Workflow context ${context?.workflowRef ?? '(unknown)'} is ${context?.status ?? 'unavailable'}${diagnostic?.message ? `: ${diagnostic.message}` : '.'}`;
+  }
+  const pack = context.pack;
+  const documents = pack.documents ?? {};
+  const sections = [
+    `## Governed workflow context — ${context.workflowRef}`,
+    '',
+    '### workflow.json',
+    '```json',
+    JSON.stringify(pack.definition, null, 2),
+    '```',
+    '',
+    '### workflow-state.json',
+    '```json',
+    JSON.stringify(pack.state, null, 2),
+    '```',
+    '',
+    '### pipeline/tasks.json',
+    '```json',
+    JSON.stringify(pack.tasks, null, 2),
+    '```',
+  ];
+  for (const [name, content] of [
+    ['prd.md', documents.prd],
+    ['spec.md', documents.spec],
+    ['decisions.md', documents.decisions],
+    ['CONTINUATION-PROMPT.md', documents.continuation],
+  ]) {
+    if (typeof content !== 'string' || content.length === 0) continue;
+    sections.push('', `### ${name}`, content);
+  }
+  for (const report of Array.isArray(pack.reports) ? pack.reports : []) {
+    sections.push('', `### ${report.ref}`, report.content);
+  }
+  return sections.join('\n');
 }
 
 /** Extracts the `[Unreleased]` block from a CHANGELOG-shaped string. */

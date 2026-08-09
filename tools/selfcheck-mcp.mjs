@@ -45,8 +45,7 @@ const RUNTIME_FILES = Object.freeze([
   'render/render-antigravity.mjs', 'render/render-grok.mjs',
 ]);
 const SERVER_FILES = Object.freeze([
-  'server.mjs', 'tools.read.mjs', 'tools.write.mjs',
-  'tools.write-gate.mjs', 'resources.mjs', 'prompts.mjs',
+  'server.mjs', 'tools.read.mjs', 'resources.mjs', 'prompts.mjs',
 ]);
 const SCRIPT_FILES = Object.freeze([
   'mcp.mjs', 'mcp-discover.mjs', 'mcp-discover-core.mjs',

@@ -88,7 +88,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['fleet.mjs delegates to home helper (ticket 048)', 'templates/contextkit/tools/scripts/fleet.mjs', /from '\.\/home\.mjs'/],
     // Ticket 051 — /dashboard (snapshot + --watch live mode).
     ['dashboard-data exports buildDashboardData (ticket 051)', 'templates/contextkit/tools/scripts/dashboard-data.mjs', /export function buildDashboardData/],
-    ['dashboard-data exports parseFrontmatter helper', 'templates/contextkit/tools/scripts/dashboard-data.mjs', /export function parseFrontmatter/],
+    ['dashboard-data reads the canonical authority snapshot', 'templates/contextkit/tools/scripts/dashboard-data.mjs', /readAuthoritySnapshot\(root\)/],
     ['dashboard-data single-sources PLATFORM_DIR (rule 4)', 'templates/contextkit/tools/scripts/dashboard-data.mjs', /PLATFORM_DIR/],
     ['dashboard-html exports renderDashboardHTML (ticket 051)', 'templates/contextkit/tools/scripts/dashboard-html.mjs', /export function renderDashboardHTML/],
     ['dashboard-html escapes user content', 'templates/contextkit/tools/scripts/dashboard-html.mjs', /escapeHtml/],

@@ -1,8 +1,8 @@
 /**
  * MCP server — tool catalog (JSON Schema descriptors advertised to the client).
  *
- * Cohesion note: pure data, extracted from server.mjs so the server entry stays
- * under the 308-line RED ceiling (constitution section 1). The handler map (which
+ * Cohesion note: pure data, extracted from server.mjs to keep the transport and
+ * public schema responsibilities separate. The handler map (which
  * binds these names to implementations) stays in server.mjs next to its imports.
  * node:* only — zero runtime deps.
  *
@@ -34,22 +34,23 @@ export const TOOL_LIST = [
   },
   {
     name: 'get_workflow_status',
-    description: 'Lists all workflows and their current phase. Optionally filter by slug.',
+    description: 'Lists workflows from canonical v4 JSON state. Optionally filter by id, slug, or path.',
     inputSchema: {
       type: 'object',
       properties: {
-        slug: { type: 'string', description: 'Workflow slug to filter (optional)' },
+        ref: { type: 'string', description: 'Workflow id, slug, or canonical path (optional)' },
       },
       required: [],
     },
   },
   {
-    name: 'get_pipeline_cards',
-    description: 'Returns DevPipeline tasks. Optionally filter by stage (backlog/working/testing/conclusion).',
+    name: 'get_tasks',
+    description: 'Returns tasks from canonical v4 JSON authorities. Optionally filter by status and workflow.',
     inputSchema: {
       type: 'object',
       properties: {
-        stage: { type: 'string', enum: ['backlog', 'working', 'testing', 'conclusion'], description: 'Pipeline stage' },
+        status: { type: 'string', enum: ['backlog', 'working', 'blocked', 'testing', 'done', 'cancelled'], description: 'Canonical task status' },
+        workflowRef: { type: 'string', description: 'Workflow or batch id' },
       },
       required: [],
     },
@@ -78,8 +79,14 @@ export const TOOL_LIST = [
   },
   {
     name: 'get_context_pack',
-    description: 'Returns the bounded start-of-work context bundle (session + changelog + ADRs + backlog).',
-    inputSchema: { type: 'object', properties: {}, required: [] },
+    description: 'Returns the bounded context bundle; with workflowRef, loads the validated governed workflow pack.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        workflowRef: { type: 'string', description: 'Workflow id, slug, or canonical path' },
+      },
+      required: [],
+    },
   },
   {
     name: 'get_quality_status',

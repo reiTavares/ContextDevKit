@@ -212,7 +212,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['ctx-menu lists the autonomy dial for the Antigravity host (task 107)', 'templates/contextkit/runtime/antigravity/ctx-menu.mjs', /'autonomy': 'Show\/set the autonomy dial/],
     ['/autonomy command briefing ships on the Claude host (task 107)', 'templates/claude/commands/setup/autonomy.md', /Never run the setter on your own initiative/],
     ['override read has one owner — readAutonomyOverride in the dial module (task 108, rule 4)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /export function readAutonomyOverride/],
-    ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
+    ['statusline governance segment derives from the v4 matrix resolver', 'templates/contextkit/runtime/statusline.mjs', /resolveGovernanceMatrix\(config\)/],
     ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(ROOT\)/],
     ['qa-reject is the testing-to-working semantic alias', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /to: 'working',[\s\S]*actor: 'qa'/],
     ['canonical task store pairs status and audit event atomically', 'templates/contextkit/tools/scripts/tasks-store.mjs', /status\/event pairing in one atomic JSON commit/],

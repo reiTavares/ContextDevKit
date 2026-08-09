@@ -6,9 +6,8 @@
  * goes through `buildDashboardData(root)`. Files are re-read on each
  * call; there is no caching — the data object is the snapshot.
  *
- * Zero deps. YAML frontmatter is parsed with a small inline parser
- * (key: value pairs only — the kit's tickets/ADRs do not use nested
- * YAML).
+ * Task state is read only through the validated v4 JSON authorities. Missing or
+ * corrupt documents are surfaced in the snapshot diagnostics.
  *
  * Single-sourced paths via `paths.mjs` per rule 4.
  *
@@ -18,7 +17,7 @@
  * metadata-only. Depends on economic-report.mjs (pure aggregator).
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import {
   PLATFORM_DIR,
@@ -28,6 +27,8 @@ import {
   CHANGELOG,
   CONFIG_FILE,
 } from '../../runtime/config/paths.mjs';
+import { readAuthoritySnapshot, TASK_STATUSES } from '../../runtime/authority-reader.mjs';
+import { resolveGovernanceMatrix } from '../../runtime/governance/gate-mode.mjs';
 import {
   buildRepoEconomicSummary,
   buildTrendSlice,
@@ -36,9 +37,7 @@ import {
   MIN_COHORT_SIZE,
 } from './economics/economic-report.mjs';
 
-const PIPELINE_DIR = `${PLATFORM_DIR}/pipeline`;
 const ROADMAP_FILE = `${MEMORY_DIR}/roadmap.md`;
-const LANES = ['backlog', 'working', 'testing', 'conclusion'];
 
 /** Strip a leading UTF-8 BOM if present (rule 4). */
 const stripBom = (s) => s.replace(/^﻿/, '');
@@ -46,61 +45,6 @@ const stripBom = (s) => s.replace(/^﻿/, '');
 /** Read a file as utf-8; returns '' on any failure (defensive — rule 2). */
 function readSafe(path) {
   try { return stripBom(readFileSync(path, 'utf-8')); } catch { return ''; }
-}
-
-/**
- * Parse YAML-frontmatter from a markdown file's text.
- *
- * @param {string} text
- * @returns {{ data: Record<string, string>, body: string }}
- */
-export function parseFrontmatter(text) {
-  if (!text.startsWith('---')) return { data: {}, body: text };
-  const end = text.indexOf('\n---', 4);
-  if (end === -1) return { data: {}, body: text };
-  const raw = text.slice(4, end).trim();
-  const body = text.slice(end + 4).replace(/^\n/, '');
-  const data = {};
-  for (const line of raw.split('\n')) {
-    const m = /^([\w-]+):\s*(.*)$/.exec(line);
-    if (m) data[m[1]] = m[2].trim();
-  }
-  return { data, body };
-}
-
-function readTicket(lane, file, dir) {
-  const text = readSafe(resolve(dir, file));
-  const { data, body } = parseFrontmatter(text);
-  const lines = body.split('\n').filter((l) => l.trim().length > 0);
-  const firstHeading = lines.find((l) => l.startsWith('## ')) || '';
-  const bodyExcerpt = (firstHeading ? body.split(firstHeading)[1] || '' : body).slice(0, 280).trim();
-  return {
-    id: data.id || file.slice(0, 3),
-    title: data.title || firstHeading.replace(/^##\s+/, '') || file.replace(/\.md$/, ''),
-    type: data.type || '',
-    priority: data.priority || '',
-    sla: data.sla || '',
-    status: data.status || lane,
-    source: data.source || '',
-    bodyExcerpt,
-    file: `${PIPELINE_DIR}/${lane}/${file}`,
-    lane,
-  };
-}
-
-function readLane(lane, root) {
-  const dir = resolve(root, PIPELINE_DIR, lane);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith('.md') && !f.startsWith('.'))
-    .map((file) => readTicket(lane, file, dir))
-    .sort((a, b) => a.id.localeCompare(b.id));
-}
-
-function readPipeline(root) {
-  const out = {};
-  for (const lane of LANES) out[lane] = readLane(lane, root);
-  return out;
 }
 
 function readAdrs(root) {
@@ -184,7 +128,17 @@ function readBranch(root) {
  */
 export function buildDashboardData(root) {
   const config = readConfig(root);
-  const pipeline = readPipeline(root);
+  const taskAuthority = readAuthoritySnapshot(root);
+  let governance = null;
+  try {
+    governance = resolveGovernanceMatrix(config ?? {});
+  } catch (error) {
+    governance = {
+      status: 'unavailable',
+      failurePolicy: 'continue',
+      error: typeof error?.message === 'string' ? error.message : 'Governance matrix unavailable.',
+    };
+  }
   return {
     meta: {
       project: basename(root),
@@ -193,13 +147,16 @@ export function buildDashboardData(root) {
       platformDir: PLATFORM_DIR,
       generatedAt: Date.now(),
     },
-    pipeline,
-    counts: {
-      backlog: pipeline.backlog.length,
-      working: pipeline.working.length,
-      testing: pipeline.testing.length,
-      conclusion: pipeline.conclusion.length,
+    authority: {
+      kind: taskAuthority.authority,
+      status: taskAuthority.status,
+      diagnostics: taskAuthority.diagnostics,
     },
+    workflows: taskAuthority.workflows,
+    batches: taskAuthority.batches,
+    tasks: taskAuthority.tasksByStatus,
+    counts: taskAuthority.counts,
+    governance,
     adrs: readAdrs(root),
     sessions: readSessions(root),
     roadmap: readRoadmap(root),
@@ -207,7 +164,7 @@ export function buildDashboardData(root) {
   };
 }
 
-export const DASHBOARD_LANES = LANES;
+export const DASHBOARD_TASK_STATUSES = TASK_STATUSES;
 
 // ---------------------------------------------------------------------------
 // EACP-15 / card #244 — Economic dashboard data builder
