@@ -26,14 +26,21 @@ The update refreshes the engine, the host front-end assets (commands, agents, sk
 and the hook wiring for your **current** level. The level is preserved — it is read
 from your configuration, not reset.
 
-It never modifies:
+It never overwrites:
 
 - Your project memory — decisions, sessions, roadmap, business rules, project docs.
-- Your boot instruction files.
 - Your configuration.
 - Your pipeline tasks.
+- Your project personalization in
+  `contextkit/memory/preferences/personalization.md` or
+  `contextkit/memory/preferences/owner-preferences.json`.
 - Anything you personalised. A file you changed and the kit also changed is a real
   conflict, and it is surfaced rather than overwritten.
+
+`CLAUDE.md`, `AGENTS.md`, and `INSTRUCTIONS.md` are the narrow exception: the
+updater may atomically create or refresh only the dedicated
+`contextdevkit:personalization` marker block that points to those two user-owned
+files. Every byte outside that block remains owner-controlled.
 
 Derived artifacts — the structural map, the symbol graph, the docs navigation index —
 may be regenerated, but only when doing so is safe.
@@ -112,6 +119,10 @@ Deliberately **outside** the project, so a bad update cannot damage its own reco
 path. The project id is a deterministic hash of the canonical project path, so the same
 project always maps to the same backup location. If the snapshot cannot be verified,
 the update aborts rather than proceeding without a way back.
+
+The snapshot includes the three native host roots, platform configuration,
+install manifest and engine version, plus the personalization Markdown, JSON,
+and audit log whenever they exist.
 
 ### Roll back
 

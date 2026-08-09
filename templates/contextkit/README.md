@@ -21,6 +21,8 @@ Claude Code sessions reliable, self-documenting, and consistent across time.
 | `memory/SESSIONS.md` | Auto-generated index (do not hand-edit) |
 | `memory/WORKSPACE.md` | Auto-generated active-claims index (do not hand-edit) |
 | `memory/GLOSSARY.md` | Domain term ↔ code identifier |
+| `memory/preferences/personalization.md` | User-owned, explicit project instructions; seeded once and never overwritten |
+| `memory/preferences/owner-preferences.json` | Existing structured, recommendation-only owner preference store |
 | `memory/workflows/` | Workflow spec packs: PRD/PDR, SPEC, ADR/task indexes, handoffs, reports |
 | `pipeline/` | DevPipeline lanes: `backlog/ → working/ → testing/ → conclusion/` |
 | `workflows/playbooks/` | Reusable procedures (tanstack, landing-page, seo-aiso, tech-debt-sweep, …) |
@@ -58,9 +60,13 @@ change it. Higher levels add capability — earlier ones stay active.
 
 Re-run the kit installer over the project to pull engine updates. It never
 modifies user-authored memory (ADRs, executed workflows, sessions, roadmap,
-business rules, project docs), `CLAUDE.md`, or your config overrides. Derived
-artifacts such as the project-map may be generated or refreshed transactionally
-when safe (deferred if active sessions or a self-update are detected):
+business rules, project docs), your config overrides, pipeline tasks, or either
+file under `memory/preferences/`. In `CLAUDE.md`, `AGENTS.md`, and
+`INSTRUCTIONS.md`, only the dedicated ContextDevKit personalization-reference
+block may be refreshed atomically; all owner prose outside that block remains
+byte-preserved. Derived artifacts such as the project-map may be generated or
+refreshed transactionally when safe (deferred if active sessions or a
+self-update are detected):
 
 ```bash
 npx contextdevkit@latest --target . --update
@@ -76,6 +82,17 @@ are required when both risks apply.
 `--update` also refreshes the installed kit README through the conflict-safe
 manifest path and regenerates `docs/README.md`. Your product's root `README.md`
 stays yours.
+
+## Project personalization
+
+Put durable project instructions in `memory/preferences/personalization.md`.
+Keep bounded structured preferences in the existing
+`memory/preferences/owner-preferences.json`; that JSON is recommendation-only
+and never authorizes work. Both files are user-owned, created only when absent,
+and preserved across normal updates and `--force`. Native host roots point to
+them instead of copying personalized content into generated base instructions.
+Current system, developer, and user instructions plus platform safety
+boundaries always take precedence.
 
 ## Workflow spec packs
 

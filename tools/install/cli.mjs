@@ -36,7 +36,7 @@ Usage:
   node install.mjs [--target <path>] [--level <1-7>] [--name <str>]
                    [--mode greenfield|existing] [--yes] [--force]
   node install.mjs --update                   safe update: refresh engine + commands,
-                                              keep your level/config/memory/CLAUDE.md
+                                              keep your level/config/memory/personalization
   node install.mjs --rewire --level <1-7>     only recompose .claude/settings.json
   node install.mjs --uninstall [--purge]      unwire hooks (--purge also removes engine)
   node install.mjs --help | --version
@@ -50,11 +50,15 @@ Flags:
   --ci-squad        also install the CI Squad GitHub Action (issue→draft PR, ADR-0064).
                     Opt-in: needs the ANTHROPIC_API_KEY repo secret; off unless asked.
   --yes, -y         non-interactive (use flags/defaults, no prompts)
-  --force           overwrite CLAUDE.md / memory seeds if they exist
+  --force           overwrite ordinary CLAUDE.md / memory seeds if they exist;
+                    never overwrite the two project-personalization files
   --update          safe update: refresh engine/commands/agents + re-wire hooks for
-                    the CURRENT level. Never modifies user-authored memory (ADRs,
-                    sessions, roadmap, project docs), CLAUDE.md, or config. Derived
-                    artifacts (project-map) may be refreshed when safe. Defers on
+                    the CURRENT level. Never overwrites user-authored memory (ADRs,
+                    sessions, roadmap, project docs), config, pipeline tasks, or
+                    project personalization. In native host roots, only the dedicated
+                    personalization reference block may be refreshed atomically;
+                    all owner prose outside it is preserved. Derived artifacts
+                    (project-map) may be refreshed when safe. Defers on
                     active sessions / self-update (override: --allow-* flags).
                     Files YOU personalized are kept; a real conflict (you changed it
                     AND the kit changed it) asks you — keep both / replace / keep mine

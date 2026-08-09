@@ -16,8 +16,19 @@ memory/
   decisions/{business,operations,legacy}/ADR-####-<slug>.md
   sessions/<date>-<sequence>-<slug>.md
   deliberations/
+  preferences/personalization.md
   preferences/owner-preferences.json
+  preferences/owner-preferences.audit.jsonl
 ```
+
+`preferences/personalization.md` is explicit user-authored project guidance.
+`preferences/owner-preferences.json` is the existing structured,
+recommendation-only store, and its JSONL sibling is the append-only audit
+stream. The installer seeds the Markdown and JSON only when absent and never
+overwrites either one, including under `--force`. Native host roots reference
+both sources through one dedicated managed block instead of duplicating their
+content. Current system, developer, and user instructions and platform safety
+boundaries take precedence.
 
 An owned active workflow lives under its Business or Operation's `workflows/`
 directory and moves as a complete package to that owner's `done/` directory

@@ -64,6 +64,14 @@ const MEMORY_SEEDS = [
   'policy/capability-registry.json', 'policy/agent-capability-registry.json', 'policy/playbook-registry.json', '.env.example',
 ];
 
+// Explicit owner personalization is never overwritten, including with --force.
+// Structured preferences reuse the existing v4 store; Markdown carries the
+// longer project guidance that does not fit its bounded scalar schema.
+const PERSONALIZATION_SEEDS = [
+  'memory/preferences/personalization.md',
+  'memory/preferences/owner-preferences.json',
+];
+
 /** Copies the engine (always overwrite — kit code). The version is NOT stamped
  *  here: `.engine-version` is written LAST, only on final success [ADR-0099 P0-06],
  *  via {@link stampEngineVersion}, so a crash mid-install leaves the prior version. */
@@ -140,12 +148,19 @@ export async function stampEngineVersion(target, version) {
 /** Seeds memory, pipeline and detectors (write-if-missing, user-owned); syncs workflows, overwrites starters. */
 async function seedSubstrate(target, tplDir, ctx, report) {
   const force = ctx.args.force;
+  for (const rel of PERSONALIZATION_SEEDS) {
+    const src = join(tplDir, PLATFORM_DIR, rel);
+    if (!existsSync(src)) continue;
+    if (await writeIfMissing(join(target, PLATFORM_DIR, rel), await read(src), false)) {
+      report.push(`✓ seeded user-owned ${PLATFORM_DIR}/${rel}`);
+    }
+  }
   for (const rel of MEMORY_SEEDS) {
     const src = join(tplDir, 'contextkit', rel);
     if (!existsSync(src)) continue;
     if (await writeIfMissing(join(target, 'contextkit', rel), await read(src), force)) report.push(`✓ seeded contextkit/${rel}`);
   }
-  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations', 'project-map', 'business', 'operations', 'batches', 'workflows']) {
+  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations', 'project-map', 'preferences', 'business', 'operations', 'batches', 'workflows']) {
     await ensureDir(join(target, 'contextkit', 'memory', d));
   }
   // Workflow guides + playbooks: kit content the user may tune — 3-way sync so a

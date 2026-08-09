@@ -20,6 +20,18 @@ Projeto vazio (greenfield)? Use **`/aidevtool-from0`** — questionário interat
 de produto → visão, stack, roadmap, boas práticas e DevPipeline montados num
 único passo.
 
+## Personalização do projeto
+
+Coloque instruções duráveis do projeto em
+`contextkit/memory/preferences/personalization.md`. Preferências estruturadas
+continuam no JSON já existente
+`contextkit/memory/preferences/owner-preferences.json`, que é somente
+recomendatório e nunca autoriza trabalho. Os dois arquivos pertencem ao usuário,
+são criados apenas quando ausentes e não são sobrescritos por update nem por
+`--force`. `CLAUDE.md`, `AGENTS.md` e `INSTRUCTIONS.md` apenas apontam para eles
+por um bloco delimitado; todo texto fora desse bloco é preservado. Instruções
+atuais de system, developer e user e limites de segurança sempre prevalecem.
+
 ## Os 7 níveis
 
 | Nível | O que ativa |
@@ -181,8 +193,10 @@ Setup do `/media-gen`:
 - Atualizar o kit: rode o instalador de novo ou
   `npx contextdevkit@latest --target . --update`.
   Nunca modifica memória de autoria do usuário (ADRs, sessões, roadmap, regras
-  de negócio, docs do projeto), `CLAUDE.md`, config ou personalizações — apenas
-  o engine e os comandos. Artefatos derivados como o project-map podem ser
+  de negócio, docs do projeto), config, pipeline tasks ou os dois arquivos de
+  personalização. Nos arquivos raiz dos hosts, apenas o bloco delimitado que
+  aponta para esses arquivos pode ser atualizado atomicamente; todo o restante
+  permanece byte a byte. Artefatos derivados como o project-map podem ser
   gerados de forma transacional quando seguro (adiado com sessões ativas).
   Use `--allow-active-sessions` para prosseguir com sessões ativas (um snapshot
   é tirado antes); `--allow-self-update` ao atualizar o próprio repositório do kit.
