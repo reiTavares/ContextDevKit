@@ -9,7 +9,8 @@
       "nativeName": "English",
       "path": "docs",
       "direction": "ltr",
-      "status": "canonical"
+      "status": "canonical",
+      "coverage": "full"
     },
     {
       "tag": "pt-BR",
@@ -17,7 +18,8 @@
       "nativeName": "Português (Brasil)",
       "path": "docs/pt-BR",
       "direction": "ltr",
-      "status": "active"
+      "status": "active",
+      "coverage": "extended-v4"
     },
     {
       "tag": "ru-RU",
@@ -25,7 +27,8 @@
       "nativeName": "Русский",
       "path": "docs/ru-RU",
       "direction": "ltr",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     },
     {
       "tag": "hi-IN",
@@ -33,7 +36,8 @@
       "nativeName": "हिन्दी",
       "path": "docs/hi-IN",
       "direction": "ltr",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     },
     {
       "tag": "es-ES",
@@ -41,7 +45,8 @@
       "nativeName": "Español",
       "path": "docs/es-ES",
       "direction": "ltr",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     },
     {
       "tag": "zh-CN",
@@ -49,7 +54,8 @@
       "nativeName": "简体中文",
       "path": "docs/zh-CN",
       "direction": "ltr",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     },
     {
       "tag": "ar",
@@ -57,7 +63,8 @@
       "nativeName": "العربية",
       "path": "docs/ar",
       "direction": "rtl",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     },
     {
       "tag": "he-IL",
@@ -65,7 +72,8 @@
       "nativeName": "עברית",
       "path": "docs/he-IL",
       "direction": "rtl",
-      "status": "scaffolded"
+      "status": "active",
+      "coverage": "core-v4"
     }
   ]
 }
