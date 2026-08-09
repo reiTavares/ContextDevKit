@@ -1,10 +1,12 @@
 /**
- * Optional subagent-count recommendation (ADR-0158).
+ * Non-binding subagent-count recommendation with conditional coordination state.
  *
- * The active agent owns whether parallel work is useful. Complexity tiers,
- * councils, roles, and configured semantic caps cannot trim a plan or deny
- * delivery. A host may enforce its own technical concurrency limit externally;
- * this module reports that limit but does not impersonate the host scheduler.
+ * Complexity tiers, roles, and configured semantic caps cannot trim a plan or
+ * deny delivery. A governed `needsDebate` signal still marks the council as
+ * required; advisory routing selects an executor but cannot erase that
+ * requirement. A host may enforce its own technical concurrency limit
+ * externally; this module reports that limit without impersonating the host
+ * scheduler.
  */
 
 const DEFAULT_RECOMMENDED_CAPS = Object.freeze({ trivial: 0, feature: 3, architectural: 5 });
@@ -60,7 +62,7 @@ function normalizeSelection(selection) {
  * @param {object} classification task classification.
  * @param {object} [config] project config.
  * @param {object} [opts] optional caller metadata.
- * @returns {Readonly<object>} unchanged selection plus non-binding audit data.
+ * @returns {Readonly<object>} unchanged selection plus routing and coordination audit data.
  */
 export function applyOverOrchestrationGuard(selection, classification, config = {}, opts = {}) {
   const normalized = normalizeSelection(selection);
@@ -77,9 +79,10 @@ export function applyOverOrchestrationGuard(selection, classification, config = 
     : null;
   const planned = countSubAgents(normalized);
   const excess = Math.max(0, planned - recommendedCap);
+  const debateRequired = classification?.needsDebate === true;
   const reasonCodes = normalized.reasonCodes.slice();
   if (excess > 0) reasonCodes.push(`orchestration-size-recommendation:${planned}>${recommendedCap}`);
-  if (classification?.needsDebate === true) reasonCodes.push('council-is-optional-owner-guidance');
+  if (debateRequired) reasonCodes.push('council-required-by-governed-classification');
   if (technicalHostLimit !== null && planned > technicalHostLimit) {
     reasonCodes.push(`host-technical-limit-observed:${planned}>${technicalHostLimit}`);
   }
@@ -92,6 +95,11 @@ export function applyOverOrchestrationGuard(selection, classification, config = 
     council: Object.freeze(normalized.council),
     synthesizer: normalized.synthesizer,
     reasonCodes: Object.freeze(reasonCodes),
+    coordination: Object.freeze({
+      debate: debateRequired ? 'required' : 'optional',
+      trigger: debateRequired ? 'needsDebate' : null,
+      routingAuthority: 'recommendation-only',
+    }),
     guard: Object.freeze({
       tier: complexity,
       cap: recommendedCap,

@@ -214,18 +214,6 @@ function authoredDocument(title, sections) {
   return [`# ${title}`, '', ...sections.flatMap((section) => [`## ${section}`, '']), ''].join('\n');
 }
 
-/** Optional continuation projection for hosts that request one. */
-function continuationDocument(definition) {
-  return [
-    `# Continue ${definition.id} — ${definition.title}`,
-    '',
-    'Load `context-manifest.json`, then read every required artifact before mutation.',
-    'Treat `workflow.json`, `workflow-state.json`, and `pipeline/tasks.json` as separate authorities.',
-    'Regenerate Markdown projections; do not hand-edit their state.',
-    '',
-  ].join('\n');
-}
-
 /** Write every canonical and authored artifact into an empty staging directory. */
 function writeInitialPack(stagingDirectory, definition, options) {
   mkdirSync(join(stagingDirectory, 'pipeline'), { recursive: true });
@@ -238,7 +226,6 @@ function writeInitialPack(stagingDirectory, definition, options) {
   writeFileAtomicSync(join(stagingDirectory, 'prd.md'), authoredDocument(`PRD/PDR — ${definition.title}`, ['Problem', 'Goals', 'Users / Jobs', 'Non-goals', 'Success metrics', 'Open questions']));
   writeFileAtomicSync(join(stagingDirectory, 'spec.md'), authoredDocument(`SPEC — ${definition.title}`, ['Executive summary', 'Current architecture', 'Proposed design', 'Interfaces / contracts', 'Data flow', 'Impact analysis', 'Test plan', 'Development sequence']));
   writeFileAtomicSync(join(stagingDirectory, 'decisions.md'), `# Decisions — ${definition.title}\n\nReference accepted ADRs here; do not duplicate their content.\n\n| Decision | Status | Relevance |\n| --- | --- | --- |\n`);
-  if (options.continuation) writeFileAtomicSync(join(stagingDirectory, 'CONTINUATION-PROMPT.md'), continuationDocument(definition));
   renderWorkflowPack(stagingDirectory);
 }
 
@@ -282,10 +269,7 @@ export function materializeWorkflowPack(directory, options = {}) {
   if (!definitionVerdict.valid) throw new Error(definitionVerdict.errors.map((entry) => entry.message).join('; '));
   mkdirSync(targetDirectory, { recursive: true });
   try {
-    writeInitialPack(targetDirectory, definition, {
-      ...options,
-      continuation: Boolean(options.continuation || options.shape),
-    });
+    writeInitialPack(targetDirectory, definition, options);
     assertValidPack(targetDirectory);
   } catch (error) {
     rmSync(targetDirectory, { recursive: true, force: true });
@@ -357,7 +341,7 @@ export function createWaveWorkflow(root, slug, options = {}) {
     files: [
       'context-manifest.json', 'decisions.md', 'index.md', 'pipeline/tasks.json',
       'pipeline/tasks.md', 'prd.md', 'reports/', 'spec.md', 'workflow-state.json',
-      'workflow.json', ...(options.continuation || options.shape ? ['CONTINUATION-PROMPT.md'] : []),
+      'workflow.json', 'CONTINUATION-PROMPT.md',
     ].sort(),
   };
 }
@@ -379,12 +363,31 @@ function copyDirectoryContents(source, target) {
   }
 }
 
-/** List required paths absent from an incomplete v2 scaffold. */
-function missingScaffoldArtifacts(packDirectory) {
-  return [
+/** True when the generated context manifest differs from the v2 contract. */
+function contextManifestRequiresRepair(packDirectory, workflowId) {
+  const current = readJsonSafe(join(packDirectory, 'context-manifest.json'), null);
+  const expected = createContextManifest(workflowId);
+  return !current
+    || current.schemaVersion !== expected.schemaVersion
+    || current.workflowId !== expected.workflowId
+    || JSON.stringify(current.required) !== JSON.stringify(expected.required)
+    || JSON.stringify(current.optional) !== JSON.stringify(expected.optional);
+}
+
+/** List missing or version-stale artifacts in an incomplete v2 scaffold. */
+function missingScaffoldArtifacts(packDirectory, definition) {
+  const missing = [
     'workflow-state.json', 'pipeline', 'pipeline/tasks.json', 'pipeline/tasks.md',
     'reports', 'context-manifest.json', 'prd.md', 'spec.md', 'decisions.md', 'index.md',
+    'CONTINUATION-PROMPT.md',
   ].filter((artifact) => !existsSync(join(packDirectory, artifact)));
+  if (
+    contextManifestRequiresRepair(packDirectory, definition.id)
+    && !missing.includes('context-manifest.json')
+  ) {
+    missing.push('context-manifest.json');
+  }
+  return missing;
 }
 
 /** Fill missing v2 artifacts in staging without overwriting authored/canonical files. */
@@ -393,7 +396,9 @@ function fillMissingScaffold(stagingDirectory, definition, now) {
   mkdirSync(join(stagingDirectory, 'reports'), { recursive: true });
   if (!existsSync(join(stagingDirectory, 'workflow-state.json'))) writeJsonStable(join(stagingDirectory, 'workflow-state.json'), createWorkflowState({ workflowId: definition.id, now }));
   if (!existsSync(join(stagingDirectory, 'pipeline', 'tasks.json'))) writeJsonStable(join(stagingDirectory, 'pipeline', 'tasks.json'), assertTasksDocument(createTasksDocument(definition.id)));
-  if (!existsSync(join(stagingDirectory, 'context-manifest.json'))) writeJsonStable(join(stagingDirectory, 'context-manifest.json'), createContextManifest(definition.id));
+  if (contextManifestRequiresRepair(stagingDirectory, definition.id)) {
+    writeJsonStable(join(stagingDirectory, 'context-manifest.json'), createContextManifest(definition.id));
+  }
   if (!existsSync(join(stagingDirectory, 'prd.md'))) writeFileAtomicSync(join(stagingDirectory, 'prd.md'), authoredDocument(`PRD/PDR — ${definition.title}`, ['Problem', 'Goals', 'Users / Jobs', 'Non-goals', 'Success metrics', 'Open questions']));
   if (!existsSync(join(stagingDirectory, 'spec.md'))) writeFileAtomicSync(join(stagingDirectory, 'spec.md'), authoredDocument(`SPEC — ${definition.title}`, ['Executive summary', 'Current architecture', 'Proposed design', 'Interfaces / contracts', 'Data flow', 'Impact analysis', 'Test plan', 'Development sequence']));
   if (!existsSync(join(stagingDirectory, 'decisions.md'))) writeFileAtomicSync(join(stagingDirectory, 'decisions.md'), `# Decisions — ${definition.title}\n\nReference accepted ADRs here; do not duplicate their content.\n`);
@@ -417,7 +422,7 @@ export function repairWorkflowScaffold(packDirectory, { write = false, now } = {
   const definition = readJsonSafe(definitionPath, null);
   const verdict = validateWorkflowDefinition(definition);
   if (!verdict.valid) throw new Error(`Cannot repair invalid workflow.json: ${verdict.errors.map((entry) => entry.message).join('; ')}`);
-  const missing = missingScaffoldArtifacts(targetDirectory);
+  const missing = missingScaffoldArtifacts(targetDirectory, definition);
   if (!write) return { status: missing.length > 0 ? 'repair-required' : 'complete', write: false, missing, directory: targetDirectory };
   if (typeof now !== 'string' || Number.isNaN(Date.parse(now))) throw new Error('repairWorkflowScaffold: a valid ISO `now` is required in write mode');
   const parent = dirname(targetDirectory);

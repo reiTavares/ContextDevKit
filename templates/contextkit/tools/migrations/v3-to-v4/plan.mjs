@@ -8,8 +8,16 @@ import {
 } from '../../scripts/tasks-schema.mjs';
 import { renderTasksMarkdown } from '../../scripts/tasks-render.mjs';
 import { assertTasksDocument } from '../../scripts/tasks-validate.mjs';
-import { optionalContextFiles, requiredContextFiles, WORKFLOW_PHASES } from '../../scripts/workflow/catalog.mjs';
-import { renderIndexMarkdown } from '../../scripts/workflow/render.mjs';
+import {
+  CONTEXT_MANIFEST_SCHEMA_VERSION,
+  optionalContextFiles,
+  requiredContextFiles,
+  WORKFLOW_PHASES,
+} from '../../scripts/workflow/catalog.mjs';
+import {
+  renderContinuationMarkdown,
+  renderIndexMarkdown,
+} from '../../scripts/workflow/render.mjs';
 import {
   validateContextManifest,
   validateWorkflowDefinition,
@@ -304,7 +312,7 @@ function workflowFiles(workflow, activeTaskIds, workflowId) {
     [`${directory}/workflow.json`]: stableJson(definition),
     [`${directory}/workflow-state.json`]: stableJson(state),
     [`${directory}/context-manifest.json`]: stableJson({
-      schemaVersion: 1,
+      schemaVersion: CONTEXT_MANIFEST_SCHEMA_VERSION,
       workflowId,
       required: requiredContextFiles(),
       optional: optionalContextFiles(),
@@ -565,7 +573,14 @@ export function planV3ToV4(inventory, options = {}) {
     const definition = JSON.parse(targetFiles[`${targetDirectoryPrefix}workflow.json`]);
     const state = JSON.parse(targetFiles[`${targetDirectoryPrefix}workflow-state.json`]);
     const tasks = JSON.parse(targetFiles[tasksPath]);
+    const contextManifest = JSON.parse(targetFiles[`${targetDirectoryPrefix}context-manifest.json`]);
     targetFiles[`${targetDirectoryPrefix}index.md`] = renderIndexMarkdown(definition, state, tasks);
+    targetFiles[`${targetDirectoryPrefix}CONTINUATION-PROMPT.md`] = renderContinuationMarkdown(
+      definition,
+      state,
+      tasks,
+      contextManifest,
+    );
   }
   for (const artifact of inventory.memoryArtifacts || []) {
     if (Object.prototype.hasOwnProperty.call(targetFiles, artifact.sourcePath)) continue;

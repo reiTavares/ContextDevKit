@@ -16,7 +16,7 @@ Claude Code sessions reliable, self-documenting, and consistent across time.
 | `runtime/providers/media/` | Media generation adapters — `nano-banana` (Imagen 3) + `veo` (Veo 3); see ADR-0024 |
 | `runtime/state/` | Canonical `state.json` substrate for tasks + pipeline runs (ADR-0015) |
 | `tools/scripts/` | 50+ helpers (reindex, dashboard, sync-check, audits, media-gen, …) |
-| `memory/decisions/` | ADRs — the immutable *why* |
+| `memory/decisions/` | ADRs — generated/validated by the canonical Decision CLI; see `memory/decisions/README.md` |
 | `memory/sessions/` | One markdown file per work session — the *what* |
 | `memory/SESSIONS.md` | Auto-generated index (do not hand-edit) |
 | `memory/WORKSPACE.md` | Auto-generated active-claims index (do not hand-edit) |

@@ -115,6 +115,29 @@ test('swarm caps are recommendations and selections remain byte-identical', () =
   assert.equal(recommendation.guard.plannedAfter, recommendation.guard.plannedBefore);
 });
 
+test('governed debate remains required without turning routing into admission control', () => {
+  const selection = {
+    lead: 'architect',
+    supporting: [],
+    scouts: [],
+    reviewers: [],
+    council: ['architect', 'security', 'product-owner'],
+    synthesizer: 'context-keeper',
+    reasonCodes: [],
+  };
+  const recommendation = applyOverOrchestrationGuard(
+    selection,
+    { complexity: 'architectural', needsDebate: true },
+    {},
+  );
+  assert.deepEqual(recommendation.council, selection.council);
+  assert.equal(recommendation.coordination.debate, 'required');
+  assert.equal(recommendation.coordination.trigger, 'needsDebate');
+  assert.equal(recommendation.coordination.routingAuthority, 'recommendation-only');
+  assert.equal(recommendation.guard.blocking, false);
+  assert.ok(recommendation.reasonCodes.includes('council-required-by-governed-classification'));
+});
+
 test('real safety gets non-binding acknowledgement metadata without grades', () => {
   const ordinary = resolveRiskAcknowledgement('edit');
   assert.equal(ordinary.required, false);

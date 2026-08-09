@@ -10,11 +10,22 @@
  *
  * @module decision-cli-create
  */
-import { resolve, basename } from 'node:path';
+import { resolve } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import { pathsFor, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
-import { DECISION_ID_PATTERN, DECISION_KINDS, DECISION_CONTEXT_TYPES } from '../../runtime/work/decision-enums.mjs';
-import { renderDecisionFromTemplate, DECISION_TEMPLATES } from './decision-template.mjs';
+import {
+  DECISION_CONTEXT_TYPES,
+  DECISION_ID_PATTERN,
+  DECISION_KINDS,
+  VALUE_INTENTS,
+} from '../../runtime/work/decision-enums.mjs';
+import { readFrontMatter } from '../../runtime/work/front-matter.mjs';
+import { validateDecision } from '../../runtime/work/schema-decision.mjs';
+import {
+  DECISION_DOCUMENT_VERSION,
+  renderDecisionFromTemplate,
+  validateDecisionDocument,
+} from './decision-template.mjs';
 import { makeReceipt } from './work-io.mjs';
 
 /** Maps contextType → decisions sub-dir. */
@@ -62,7 +73,7 @@ function slugify(title) {
  * Validates the required inputs for the `create` verb. Fails fast at the boundary.
  *
  * @param {object} flags - parsed CLI flags.
- * @returns {{ id: string, kind: string, title: string, contextType: string, primaryContextId: string }}
+ * @returns {{ id: string, kind: string, title: string, contextType: string, primaryContextId: string, valueIntent: string }}
  * @throws {Error} on missing or invalid inputs.
  */
 export function validateCreateInputs(flags) {
@@ -79,18 +90,71 @@ export function validateCreateInputs(flags) {
   const title = String(flags.title || '').trim();
   if (!title) throw new Error('decision create: --title is required');
 
-  // contextType defaults to 'business' when omitted; validated below.
-  const contextType = String(flags['context-type'] || flags.contextType || 'business');
+  const contextType = String(flags['context-type'] || flags.contextType || '');
   if (!DECISION_CONTEXT_TYPES.includes(contextType)) {
     throw new Error(
       `decision create: --context-type must be one of ${DECISION_CONTEXT_TYPES.join('|')} (got "${contextType}")`,
     );
   }
+  if (contextType === 'legacy') {
+    throw new Error('decision create: legacy context is read-only compatibility; create a schema-v2 owned ADR instead');
+  }
   const primaryContextId = String(flags['primary-context'] || flags.primaryContext || '');
-  if (contextType !== 'legacy' && !primaryContextId) {
+  if (!primaryContextId) {
     throw new Error('decision create: --primary-context (e.g. BIZ-0001) is required for non-legacy ADRs');
   }
-  return { adrId, kind, title, contextType, primaryContextId };
+  const requiredContextByKind = {
+    BUSINESS_AUTHORIZATION: 'business',
+    OPERATION_AUTHORIZATION: 'operation',
+    ROUTINE_OPERATION_GOVERNANCE: 'platform',
+    EMERGENCY_GOVERNANCE: 'platform',
+  };
+  const requiredContext = requiredContextByKind[kind];
+  if (requiredContext && contextType !== requiredContext) {
+    throw new Error(`decision create: ${kind} requires --context-type ${requiredContext}`);
+  }
+  const valueIntent = String(flags['value-intent'] || flags.valueIntent || 'IMPROVE');
+  if (!VALUE_INTENTS.includes(valueIntent)) {
+    throw new Error(`decision create: --value-intent must be one of ${VALUE_INTENTS.join('|')} (got "${valueIntent}")`);
+  }
+  return { adrId, kind, title, contextType, primaryContextId, valueIntent };
+}
+
+/**
+ * Select the content profile without allowing it to redefine context ownership.
+ * @param {string} kind canonical decision kind
+ * @param {string} contextType canonical context owner kind
+ * @returns {'business'|'operation'|'routine-operation-governance'|'emergency-governance'}
+ */
+function templateKindFor(kind, contextType) {
+  if (kind === 'ROUTINE_OPERATION_GOVERNANCE') return 'routine-operation-governance';
+  if (kind === 'EMERGENCY_GOVERNANCE') return 'emergency-governance';
+  return contextType === 'operation' ? 'operation' : 'business';
+}
+
+/**
+ * Refuse a rendered ADR that violates either the schema or document standard.
+ * @param {string} markdown rendered ADR
+ * @returns {void}
+ * @throws {Error} when the render is not a canonical new ADR
+ */
+function assertRenderedDecision(markdown) {
+  const parsed = readFrontMatter(markdown);
+  if (!parsed.ok || !parsed.hasFrontMatter || !parsed.data) {
+    throw new Error('decision create: rendered ADR has invalid YAML front matter');
+  }
+  const schemaVerdict = validateDecision(parsed.data);
+  const documentVerdict = validateDecisionDocument(markdown);
+  const errors = [
+    ...schemaVerdict.errors,
+    ...(parsed.data.documentVersion === DECISION_DOCUMENT_VERSION
+      ? []
+      : [`documentVersion must be ${DECISION_DOCUMENT_VERSION}`]),
+    ...documentVerdict.errors,
+  ];
+  if (errors.length > 0) {
+    throw new Error(`decision create: rendered ADR is invalid: ${errors.join('; ')}`);
+  }
 }
 
 /**
@@ -104,22 +168,18 @@ export function validateCreateInputs(flags) {
  * @throws {Error} on validation failures or unresolved template tokens.
  */
 export function handleCreate({ flags, apply, root }) {
-  const { adrId, kind, title, contextType, primaryContextId } = validateCreateInputs(flags);
+  const {
+    adrId,
+    kind,
+    title,
+    contextType,
+    primaryContextId,
+    valueIntent,
+  } = validateCreateInputs(flags);
   const slug = slugify(title);
   const today = new Date().toISOString().slice(0, 10);
 
-  // Map DECISION_KINDS to template keys (closest fit for kinds without a dedicated template).
-  const templateKindMap = Object.freeze({
-    BUSINESS_AUTHORIZATION: 'business',
-    OPERATION_AUTHORIZATION: 'operation',
-    ARCHITECTURE: 'business',
-    POLICY: 'business',
-    ROUTINE_OPERATION_GOVERNANCE: 'routine-operation-governance',
-    EMERGENCY_GOVERNANCE: 'emergency-governance',
-    COMPLIANCE: 'business',
-    LIFECYCLE: 'business',
-  });
-  const templateKind = templateKindMap[kind] ?? 'business';
+  const templateKind = templateKindFor(kind, contextType);
 
   const fields = {
     // Template uses {{ID}} — canonical token for the ADR id.
@@ -127,18 +187,18 @@ export function handleCreate({ flags, apply, root }) {
     ADR_ID: adrId,          // kept for forward-compat / old template variants
     TITLE: title,
     STATUS: 'proposed',
+    CONTEXT_TYPE: contextType,
+    PRIMARY_CONTEXT_TYPE: contextType,
     DECISION_KIND: kind,
     DECISION_SCOPE: String(flags['decision-scope'] || flags.decisionScope || 'platform'),
-    CONTEXT_TYPE: contextType,
-    PRIMARY_CONTEXT_TYPE: contextType === 'legacy' ? '' : contextType,
     PRIMARY_CONTEXT_ID: primaryContextId,
     // approvalSource block — intentionally blank until accepted; placeholders
     // keep the template renderable at `create` time (no unresolved tokens).
     APPROVAL_ID: primaryContextId || adrId,
     APPROVAL_REVISION: '0',
-    DECISION_HASH: 'TBD',
-    APPROVED_AT: 'TBD',
-    VALUE_INTENT_PRIMARY: String(flags['value-intent'] || flags.valueIntent || 'EFFICIENCY'),
+    DECISION_HASH: 'pending-acceptance',
+    APPROVED_AT: 'pending-acceptance',
+    VALUE_INTENT_PRIMARY: valueIntent,
     PRODUCT_ID: String(flags['product-id'] || flags.productId || ''),
     PRODUCT_AREA: String(flags['product-area'] || flags.productArea || ''),
     PRODUCT_CAPABILITY: String(flags['product-capability'] || flags.productCapability || ''),
@@ -163,6 +223,7 @@ export function handleCreate({ flags, apply, root }) {
       `decision create: template has unresolved tokens: ${renderResult.missing.join(', ')}`,
     );
   }
+  assertRenderedDecision(renderResult.text);
 
   let written = false;
   if (apply) {
@@ -185,6 +246,13 @@ export function handleCreate({ flags, apply, root }) {
     command: 'create',
     applied: written,
     writes: [outPath],
-    detail: { adrId, kind: templateKind, contextType, outPath, idempotentNoop: false },
+    detail: {
+      adrId,
+      kind: templateKind,
+      contextType,
+      documentVersion: DECISION_DOCUMENT_VERSION,
+      outPath,
+      idempotentNoop: false,
+    },
   });
 }

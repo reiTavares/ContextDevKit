@@ -24,10 +24,17 @@ differ, but no host may add a second authority or a stronger private ceremony.
   `workflow-state.json` stores aggregate execution state, and
   `pipeline/tasks.json` owns task definition/status. Markdown, reports,
   dashboards, statuslines, and physical folders are projections only.
-- `advisory-agent-routing`: agent/model selection, economy, risk guidance, simulation,
-  architecture guidance, and deliberation are advisory. Resolver failure never
-  denies spawn or delivery; current explicit human direction wins within platform
-  security, secret, credential, and destructive-action boundaries.
+- `advisory-agent-routing`: before an actual subagent invocation, resolve current
+  routing guidance when the host exposes it. The result recommends an agent/model;
+  it never authorizes or denies the invocation and never requires legacy
+  `decision`, `model`, `effort`, or `ruleId` fields.
+- `conditional-coordination`: debate and swarm are not blanket prerequisites. They
+  become required when the current owner instruction, selected workflow/skill, or
+  governed classification explicitly activates them. When activated, attempt the
+  coordination even if routing is unavailable or incomplete; report a real host
+  limitation honestly instead of treating a stale routing contract as a veto.
+  Current explicit human direction wins within platform security, secret,
+  credential, and destructive-action boundaries.
 <!-- contextdevkit:host-contract:end -->
 
 ## Project

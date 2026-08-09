@@ -22,7 +22,7 @@
  *   migrate-legacy File loose top-level ADRs into owned subdirectories.
  *
  * @example node decision.mjs registry --json
- * @example node decision.mjs create --id ADR-0126 --kind ARCHITECTURE --title "Auth layer" --primary-context BIZ-0001 --apply
+ * @example node decision.mjs create --id ADR-0126 --kind ARCHITECTURE --title "Auth layer" --context-type business --primary-context BIZ-0001 --apply
  * @example node decision.mjs accept --id ADR-0125 --actor human --apply
  */
 import { parseArgs, resolvePosture, formatReceipt, makeReceipt } from './work-io.mjs';
@@ -37,6 +37,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { stripBom } from '../../runtime/work/enums.mjs';
+import { DECISION_DOCUMENT_VERSION, validateDecisionDocument } from './decision-template.mjs';
 
 // ---------------------------------------------------------------------------
 // Read-only verb helpers (need, search, classify, validate)
@@ -150,9 +151,12 @@ function handleValidate({ flags, root }) {
     if (!existsSync(absPath)) throw new Error(`decision validate: file not found: ${absPath}`);
     const contents = stripBom(readFileSync(absPath, 'utf-8'));
     const classified = classifyDecisionFile(absPath.split(/[\\/]/).pop(), contents);
-    const validation = classified.data ? validateDecision(classified.data) : { ok: false, errors: ['not a v2 decision file'] };
-    const ok = validation.ok;
-    return makeReceipt({ command: 'validate', applied: false, writes: [], detail: { file: absPath, ok, errors: validation.errors } });
+    const schemaVerdict = classified.data ? validateDecision(classified.data) : { ok: false, errors: ['not a v2 decision file'] };
+    const documentVerdict = classified.data?.documentVersion === DECISION_DOCUMENT_VERSION
+      ? validateDecisionDocument(contents)
+      : { ok: true, errors: [] };
+    const errors = [...schemaVerdict.errors, ...documentVerdict.errors];
+    return makeReceipt({ command: 'validate', applied: false, writes: [], detail: { file: absPath, ok: errors.length === 0, errors } });
   }
   // Scan + validate all.
   const paths = pathsFor(root);
@@ -168,9 +172,13 @@ function handleValidate({ flags, root }) {
       const abs = resolve(dir, entry.name);
       const text = stripBom(readFileSync(abs, 'utf-8'));
       const classified = classifyDecisionFile(entry.name, text);
-      const validation = classified.data ? validateDecision(classified.data) : { ok: false, errors: ['not a v2 decision file'] };
-      if (!validation.ok) allOk = false;
-      results.push({ file: abs, ok: validation.ok, errors: validation.errors });
+      const schemaVerdict = classified.data ? validateDecision(classified.data) : { ok: false, errors: ['not a v2 decision file'] };
+      const documentVerdict = classified.data?.documentVersion === DECISION_DOCUMENT_VERSION
+        ? validateDecisionDocument(text)
+        : { ok: true, errors: [] };
+      const errors = [...schemaVerdict.errors, ...documentVerdict.errors];
+      if (errors.length > 0) allOk = false;
+      results.push({ file: abs, ok: errors.length === 0, errors });
     }
   }
   return makeReceipt({ command: 'validate', applied: false, writes: [], detail: { allOk, scanned: results.length, results } });

@@ -167,7 +167,7 @@ export function loadWorkflowPack(root, ref) {
       prd: readDocument(join(directory, 'prd.md')),
       spec: readDocument(join(directory, 'spec.md')),
       decisions: readDocument(join(directory, 'decisions.md')),
-      continuation: readDocument(join(directory, 'CONTINUATION-PROMPT.md'), true),
+      continuation: readDocument(join(directory, 'CONTINUATION-PROMPT.md')),
     },
     reports: readReports(directory),
     diagnostics: verdict.errors.filter((error) => error.code === 'projection-drift'),

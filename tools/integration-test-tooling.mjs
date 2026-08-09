@@ -71,11 +71,19 @@ try {
     ? ok('complexity-rubric classifies a trivial task with no ceremony')
     : bad(`complexity-rubric trivial classify failed: ${clsTrivial.stdout || clsTrivial.stderr}`);
 
-  // ADR-0030 — validate-doc flags an unfilled ADR template (placeholders), runs the adr rubric.
+  // ContextDevKit 4 — the compatibility template is visibly non-authoritative;
+  // new ADRs are generated through the canonical Decision CLI.
   const vdTpl = script('validate-doc.mjs', 'contextkit/memory/decisions/_TEMPLATE.md', '--json');
-  (() => { try { const j = JSON.parse(vdTpl.stdout); return j.type === 'adr' && j.errorCount > 0 && j.findings.some((f) => f.code === 'PLACEHOLDER'); } catch { return false; } })()
-    ? ok('validate-doc flags an unfilled ADR template (placeholders)')
-    : bad(`validate-doc template check failed: ${vdTpl.stdout || vdTpl.stderr}`);
+  const installedDecisionReference = readFileSync(join(proj, 'contextkit', 'memory', 'decisions', '_TEMPLATE.md'), 'utf-8');
+  (() => { try { const j = JSON.parse(vdTpl.stdout); return j.type === 'adr' && j.errorCount > 0 && /do not copy/i.test(installedDecisionReference); } catch { return false; } })()
+    ? ok('legacy ADR template is an explicit rejected compatibility reference')
+    : bad(`ADR compatibility reference check failed: ${vdTpl.stdout || vdTpl.stderr}`);
+  const installedDecisionStandard = join(proj, 'contextkit', 'memory', 'decisions', 'README.md');
+  existsSync(installedDecisionStandard)
+    && /canonical Decision CLI/.test(readFileSync(installedDecisionStandard, 'utf-8'))
+    && !existsSync(join(proj, 'contextkit', 'memory', 'decisions', '0000-record-architecture-decisions.md'))
+    ? ok('installer publishes the canonical ADR authoring standard')
+    : bad('installer did not publish the canonical ADR authoring standard');
 
   // ADR-0030 — draft-changelog groups Conventional Commits since the last tag.
   git(['add', '-A'], proj);

@@ -100,7 +100,7 @@ export function applyBusinessPackage(plan, options = {}) {
     renameSync(stagingDirectory, targetDir);
     stagingDirectory = null;
     const workflowWrites = plan.workflowSpec
-      ? ['workflow.json', 'workflow-state.json', 'context-manifest.json', 'pipeline/tasks.json', 'pipeline/tasks.md', 'index.md', 'prd.md', 'spec.md', 'decisions.md']
+      ? ['workflow.json', 'workflow-state.json', 'context-manifest.json', 'pipeline/tasks.json', 'pipeline/tasks.md', 'index.md', 'CONTINUATION-PROMPT.md', 'prd.md', 'spec.md', 'decisions.md']
         .map((path) => join(plan.ceremonyDir, path))
       : [];
     return {

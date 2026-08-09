@@ -7,6 +7,9 @@ Organized by [Diátaxis](https://diataxis.fr/) — by what you are trying to do.
 ## 🎓 Tutorials — learning-oriented
 _Lessons that take a newcomer by the hand through a first success._
 
+- [Tutorial: seu primeiro Business](pt-BR/tutorials/first-business-case.md) — Use este tutorial quando a mudança representa um resultado estratégico durável, e não apenas uma task comum.
+- [Tutorial: sua primeira feature entregue com evidência](pt-BR/tutorials/first-shipped-feature.md) — Este tutorial mostra o caminho de uma mutação real até `done` sem transformar uma feature simples em excesso de cerim…
+- [Tutorial: sua primeira sessão com ContextDevKit](pt-BR/tutorials/getting-started.md) — Este tutorial leva um projeto do zero até uma primeira sessão governada sem exigir que você conheça toda a metodologia.
 - [Tutorial: <What the reader will accomplish>](tutorials/_TEMPLATE.md) — Goal: the reader succeeds at something for the FIRST TIME.
 - [Tutorial: your first business case](tutorials/first-business-case.md) — By the end of this tutorial you will have created a business context on disk, read
 - [Tutorial: your first shipped feature](tutorials/first-shipped-feature.md) — This tutorial creates one durable workflow, adds canonical tasks, implements a
@@ -17,8 +20,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
 - [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
-- [Anatomy of a Business, Operation & Workflow](how-to/anatomy-of-business-operation-workflow.md) — Goal: understand ContextDevKit's governance memory in one read — what a
-- [Anatomia de um Business, Operation e Workflow](how-to/anatomy-of-business-operation-workflow.pt-br.md) — Objetivo: entender a memória de governança do ContextDevKit numa leitura só — o
+- [Anatomy of a Business, Operation & Workflow](how-to/anatomy-of-business-operation-workflow.md) — Goal: understand ContextDevKit's durable governance memory in one read — what a **Business**, an **Operation**, and a…
 - [Audit and test a change](how-to/audit-and-test.md) — Use audits to collect evidence, then decide explicitly whether any finding should
 - [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
 - [How to configure ContextDevKit](how-to/configure-contextkit.md) — Goal: reader makes a specific configuration change safely, by area.
@@ -28,7 +30,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [How to install ContextDevKit and choose a level](how-to/install-and-choose-a-level.md) — Goal: reader installs the kit into a real project and lands on the right level.
 - [Record a decision](how-to/record-a-decision.md) — Create an ADR when a material choice needs durable rationale. Deliberation can
 - [How to reduce token cost](how-to/reduce-token-cost.md) — Goal: reader applies the economy levers deliberately, highest-effect first.
-- [How to run a business case from intent to an active workflow](how-to/run-a-business-case.md) — You have a goal — a capability to build, a problem to fix — and you want it to enter
+- [Run a governed business or operation case](how-to/run-a-business-case.md) — Use this guide when a confirmed mutation needs durable Business or Operation memory. Most code changes do not.
 - [Run a parallel swarm](how-to/run-a-parallel-swarm.md) — Use parallel agents when ready tasks are independent and the host can execute
 - [Run a Workflow v2 package](how-to/run-a-workflow.md) — Use a workflow for real dependencies, waves, multi-session execution, cutover,
 - [Start focused work](how-to/start-a-focused-session.md) — Conversation and exploration are read-only. For a mutation:
@@ -39,6 +41,12 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [How to use the structural knowledge graph](how-to/use-the-knowledge-graph.md) — You are about to answer a structural question about the codebase — who calls this
 - [Use the canonical task board](how-to/use-the-pipeline-board.md) — Choose one workflow or batch scope. All commands require it explicitly:
 - [How to work across hosts and bridges](how-to/work-across-hosts-and-bridges.md) — Your team does not all use the same AI coding tool, and you want the same commands, the
+- [Personalizando o ContextDevKit](pt-BR/CUSTOMIZING.md) — O kit funciona com defaults, mas deve refletir o projeto real.
+- [Instalar ContextDevKit e escolher um nível](pt-BR/how-to/install-and-choose-a-level.md) — npx contextdevkit --target /caminho/do/projeto
+- [Catálogo de arquivos de Workflow](pt-BR/workflow-engine/file-catalog-guide.md) — Um pacote v2 completo usa responsabilidades separadas.
+- [Migração de Workflow 3.x para 4.x](pt-BR/workflow-engine/migration-guide.md) — O runtime 4.x não lê `workflow-plan.json`, lanes Markdown ou status inferido de diretório.
+- [Perfis e patterns de Workflow](pt-BR/workflow-engine/profile-guide.md) — Profiles/patterns ajudam a sugerir topologia e profundidade, mas não mudam as autoridades de estado nem transformam r…
+- [Guia de Workflow](pt-BR/workflow-engine/workflow-guide.md) — Use Workflow somente quando a execução realmente precisa de uma estrutura durável de coordenação.
 - [Workflow file catalog](workflow-engine/file-catalog-guide.md) — Every ContextDevKit 4 workflow has the same authority contract. Profiles and
 - [Workflow migration guide](workflow-engine/migration-guide.md) — Workflow v1 is not read by the normal workflow engine. `workflow-plan.json`,
 - [Profile and pattern guidance](workflow-engine/profile-guide.md) — Profiles and patterns are optional topology suggestions. They do not change the
@@ -48,9 +56,17 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
 - [Grok Build Integration](GROK.md) — Grok Build is a first-class native ContextDevKit host. It is an operation-owned
+- [Documentation languages](LANGUAGES.md) — English is the canonical technical documentation. Localized trees preserve command names, paths, ids, JSON keys, code…
 - [Privacy and data posture](PRIVACY.md) — ContextDevKit is local-first. Normal hooks and read-only context commands do not
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
+- [Agent Package Format (APF) v1](pt-BR/AGENT-PACKAGE-FORMAT.md) — APF descreve um agente portátil como pacote versionado, separado da memória de execução do ContextDevKit.
+- [Níveis de capacidade](pt-BR/LEVELS.md) — Níveis selecionam quais capacidades do ContextDevKit são instaladas ou expostas. Eles não concedem consentimento, não…
+- [Squad Pipeline Format v1](pt-BR/SQUAD-PIPELINE-FORMAT.md) — Squad pipelines descrevem procedimentos reutilizáveis de coordenação entre especialistas para casos em que a própria …
+- [Configurar o ContextDevKit](pt-BR/how-to/configure-contextkit.md) — A configuração vive em `contextkit/config.json` e é lida pelo runtime zero-dependency.
+- [Referência de configuração](pt-BR/reference/config.md) — O runtime lê `contextkit/config.json` e aplica defaults defensivos quando uma seção está ausente ou inválida.
+- [Referência de níveis](pt-BR/reference/levels.md) — `contextkit/config.json` contém um `level` inteiro de 1 a 7. O nível seleciona capacidades disponíveis; ele não é uma…
+- [Referência da CLI de Workflow](pt-BR/workflow-engine/cli-reference.md) — Entrypoint:
 - [Reference: <Component / API / Config key name>](reference/_TEMPLATE.md) — Goal: complete, accurate lookup — describe the machinery exactly as it is.
 - [Reference: Agents](reference/agents.md) — The specialized agents available to route work to. Generated from the agent registry.
 - [Reference: Changelog policy](reference/changelog-policy.md) — The rules governing release chronology: which file records what, who cuts a version,
@@ -59,7 +75,7 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 - [Runtime data posture](reference/data-posture.md) — This table describes the stock 4.0 hot path.
 - [Reference: economy configuration and levers](reference/economy.md) — The `economy` block in `contextkit/config.json` governs the token-economy
 - [Installed footprint](reference/footprint.md) — AGENTS.md / CLAUDE.md / INSTRUCTIONS.md
-- [Glossary](reference/glossary.md) — `backlog`, `working`, `blocked`, `testing`, `done`, and `cancelled` are task
+- [Glossary](reference/glossary.md) — `backlog`, `working`, `blocked`, `testing`, `done`, and `cancelled` are task status values, not directory names.
 - [Governance contract](reference/governance-contract.md) — This page is the public contract of the ContextDevKit 4 governance runtime.
 - [Reference: structural knowledge graph](reference/graph.md) — A committed, deterministic projection of the project's structure — files, modules,
 - [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
@@ -72,21 +88,29 @@ _Background and rationale — the why behind the decisions._
 
 - [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
 - [Antigravity host integration](ANTIGRAVITY.md) — Antigravity uses `INSTRUCTIONS.md` plus generated assets under `.agents/`.
-- [Architecture](ARCHITECTURE.md) — ContextDevKit is a source-distributed, host-neutral governance and project
+- [Architecture](ARCHITECTURE.md) — ContextDevKit is a source-distributed, host-neutral **AI Software Engineering Governance Harness**. Its runtime hot p…
 - [Codex host integration](CODEX.md) — ContextDevKit projects expose Codex through generated files. Canonical sources
 - [Capability levels](LEVELS.md) — Levels select which ContextDevKit capabilities are installed or surfaced. They
 - [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
+- [البنية المعمارية](ar/ARCHITECTURE.md) — ContextDevKit هو **AI Software Engineering Governance Harness** مستقل عن الـ host. يحتفظ الـ host بملكية agent loop و…
 - [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
+- [Arquitectura](es-ES/ARCHITECTURE.md) — ContextDevKit es un **AI Software Engineering Governance Harness** host-agnostic. El host conserva el agent loop, las…
 - [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
-- [Business-driven development](explanation/business-driven-development.md) — ContextDevKit preserves durable business and operation contexts when the work
+- [Business-Driven Development](explanation/business-driven-development.md) — ContextDevKit treats software engineering as work performed in service of durable outcomes — without forcing every co…
 - [Host parity without duplicated authority](explanation/contextkit-parity.md) — ContextDevKit supports Claude Code, Codex, Antigravity, and Grok through one
 - [Deliberation is advisory](explanation/deliberation-council.md) — ContextDevKit can convene several specialist viewpoints when a decision benefits
-- [Work and governance domain model](explanation/domain-model.md) — ContextDevKit 4 keeps authorities small and explicit:
-- [Governance and enforcement](explanation/governance-and-enforcement.md) — ContextDevKit 4 separates deterministic safety checks from advisory engineering
-- [Quality model](explanation/quality-model.md) — ContextDevKit 4 separates observations from authority. A useful warning may be
+- [Work and governance domain model](explanation/domain-model.md) — ContextDevKit 4 keeps authorities small and explicit.
+- [Governance and enforcement](explanation/governance-and-enforcement.md) — ContextDevKit 4 separates deterministic quality floors from advisory engineering guidance.
+- [Evidence-Driven Loop Engineering](explanation/loop-engineering.md) — ContextDevKit supports software engineering as an iterative evidence loop rather than a one-shot generation event.
+- [Quality model](explanation/quality-model.md) — ContextDevKit 4 separates observations from authority. A useful warning may be heuristic; a denial must be determinis…
 - [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why an AI-assisted development platform tracks three separate resource
-- [Value and impact](explanation/value-and-impact.md) — ContextDevKit turns project context into durable, inspectable engineering state
+- [Value and impact](explanation/value-and-impact.md) — ContextDevKit turns project context into durable, inspectable engineering state without making ceremony the permissio…
+- [ארכיטקטורה](he-IL/ARCHITECTURE.md) — ContextDevKit הוא **AI Software Engineering Governance Harness** שאינו תלוי ב-host. ה-host ממשיך להיות אחראי על ה-age…
+- [आर्किटेक्चर](hi-IN/ARCHITECTURE.md) — ContextDevKit एक host-agnostic **AI Software Engineering Governance Harness** है। Host अपने agent loop, tools और plat…
+- [Arquitetura](pt-BR/ARCHITECTURE.md) — O ContextDevKit é um **AI Software Engineering Governance Harness** host-neutral, distribuído como source. O hot path…
+- [Архитектура](ru-RU/ARCHITECTURE.md) — ContextDevKit — host-agnostic **AI Software Engineering Governance Harness**. Хост отвечает за agent loop, инструмент…
 - [Workflow engine](workflow-engine/README.md) — ContextDevKit 4 workflows are atomic JSON-backed packages for work whose
+- [架构](zh-CN/ARCHITECTURE.md) — ContextDevKit 是一个与宿主无关的 **AI Software Engineering Governance Harness**。宿主继续负责 agent loop、工具调用以及平台自身的安全边界；ContextDevKi…
 
 ## 🗂️ Planning & meta
 
@@ -95,4 +119,90 @@ _Background and rationale — the why behind the decisions._
 ## ❓ Unclassified
 _Add these to `docs/.diataxis.json` so they land in a Diátaxis mode:_
 
+- [توثيق ContextDevKit — العربية](ar/README.md) — اللغة: `ar` · الاتجاه: `rtl` · التغطية: `core-v4`
+- [Business-Driven Development](ar/explanation/business-driven-development.md) — يفصل Business-Driven Development بين ثلاثة أسئلة: هل يوجد عمل حقيقي على المشروع، من يملك السبب الدائم لهذا العمل، وما…
+- [الحوكمة وEnforcement](ar/explanation/governance-and-enforcement.md) — يفصل ContextDevKit بين quality floors الحتمية وبين الإرشاد الهندسي advisory.
+- [Loop Engineering قائم على الأدلة](ar/explanation/loop-engineering.md) — يتعامل ContextDevKit مع التسليم كحلقة هندسية، لا كعملية توليد لمرة واحدة.
+- [نموذج الجودة](ar/explanation/quality-model.md) — يفصل ContextDevKit 4 بين observations وبين authority.
+- [تشغيل Business case](ar/how-to/run-a-business-case.md) — استخدم هذا المسار فقط عندما يمثل العمل outcome استراتيجياً دائماً.
+- [مسرد المصطلحات](ar/reference/glossary.md) — حالات task: `backlog`, `working`, `blocked`, `testing`, `done`, `cancelled`.
+- [عقد الحوكمة](ar/reference/governance-contract.md) — أحداث runtime:
 - [Architecture: <Subsystem or feature name>](architecture/_TEMPLATE.md) — Goal: describe components, boundaries, data flow, and the decisions that
+- [Documentación de ContextDevKit — Español](es-ES/README.md) — Locale: `es-ES` · dirección: `ltr` · cobertura: `core-v4`
+- [Business-Driven Development](es-ES/explanation/business-driven-development.md) — Business-Driven Development separa tres preguntas: si existe trabajo real, quién posee de forma duradera el motivo de…
+- [Gobernanza y enforcement](es-ES/explanation/governance-and-enforcement.md) — ContextDevKit separa quality floors deterministas de orientación de ingeniería.
+- [Loop Engineering basado en evidencia](es-ES/explanation/loop-engineering.md) — ContextDevKit trata la entrega como un ciclo de ingeniería, no como generación de una sola pasada.
+- [Modelo de calidad](es-ES/explanation/quality-model.md) — ContextDevKit 4 separa observaciones de autoridad.
+- [Ejecutar un caso de Business](es-ES/how-to/run-a-business-case.md) — Use este flujo solo cuando el trabajo representa un outcome estratégico duradero.
+- [Glosario](es-ES/reference/glossary.md) — Status de task: `backlog`, `working`, `blocked`, `testing`, `done`, `cancelled`.
+- [Contrato de gobernanza](es-ES/reference/governance-contract.md) — Eventos del runtime:
+- [תיעוד ContextDevKit — עברית](he-IL/README.md) — תג שפה: `he-IL` · כיוון: `rtl` · כיסוי: `core-v4`
+- [Business-Driven Development](he-IL/explanation/business-driven-development.md) — Business-Driven Development מפריד בין שלוש שאלות: האם יש עבודה אמיתית בפרויקט, מי מחזיק לאורך זמן את הסיבה לעבודה הזא…
+- [Governance ו-Enforcement](he-IL/explanation/governance-and-enforcement.md) — ContextDevKit מפריד בין quality floors דטרמיניסטיים לבין guidance הנדסי advisory.
+- [Loop Engineering מבוסס Evidence](he-IL/explanation/loop-engineering.md) — ContextDevKit מתייחס למסירה כאל engineering loop ולא כאל generation חד-פעמי.
+- [מודל איכות](he-IL/explanation/quality-model.md) — ContextDevKit 4 מפריד בין observations לבין authority.
+- [הפעלת Business case](he-IL/how-to/run-a-business-case.md) — השתמשו בזרימה הזו רק כאשר העבודה מייצגת outcome אסטרטגי עמיד.
+- [מילון מונחים](he-IL/reference/glossary.md) — Task statuses: `backlog`, `working`, `blocked`, `testing`, `done`, `cancelled`.
+- [חוזה Governance](he-IL/reference/governance-contract.md) — אירועי runtime:
+- [ContextDevKit दस्तावेज़ — हिन्दी](hi-IN/README.md) — लोकेल: `hi-IN` · दिशा: `ltr` · कवरेज: `core-v4`
+- [Business-Driven Development](hi-IN/explanation/business-driven-development.md) — Business-Driven Development तीन अलग प्रश्नों को अलग रखता है: क्या वास्तव में project work है, उस काम के कारण का durab…
+- [Governance और Enforcement](hi-IN/explanation/governance-and-enforcement.md) — ContextDevKit deterministic quality floors को advisory engineering guidance से अलग रखता है।
+- [Evidence-Driven Loop Engineering](hi-IN/explanation/loop-engineering.md) — ContextDevKit delivery को one-shot generation नहीं, बल्कि engineering loop मानता है।
+- [Quality Model](hi-IN/explanation/quality-model.md) — ContextDevKit 4 observations और authority को अलग रखता है।
+- [Business case चलाना](hi-IN/how-to/run-a-business-case.md) — इस flow का उपयोग तभी करें जब work एक durable strategic outcome दर्शाता हो।
+- [Glossary](hi-IN/reference/glossary.md) — Task statuses: `backlog`, `working`, `blocked`, `testing`, `done`, `cancelled`।
+- [Governance Contract](hi-IN/reference/governance-contract.md) — Runtime events:
+- [Integração com Google Antigravity](pt-BR/ANTIGRAVITY.md) — Antigravity usa projeções geradas a partir das fontes canônicas do ContextDevKit.
+- [Integração com OpenAI Codex](pt-BR/CODEX.md) — ContextDevKit expõe o projeto ao Codex através de projeções geradas, mantendo as fontes canônicas separadas do host.
+- [Integração com Grok](pt-BR/GROK.md) — Grok é uma superfície de execução suportada pelo ContextDevKit. Assim como nos demais hosts, o projeto mantém a autor…
+- [Privacidade e postura de dados](pt-BR/PRIVACY.md) — O ContextDevKit é local-first. Hooks normais e comandos de contexto somente leitura não enviam conteúdo do repositóri…
+- [ContextDevKit](pt-BR/README.md) — O ContextDevKit é um harness host-agnostic que fornece inteligência persistente do projeto, memória de longa duração,…
+- [Arquitetura — forma do sistema e decisões](pt-BR/architecture/README.md) — Esta seção explica por que o ContextDevKit 4 é organizado como harness host-agnostic com autoridades pequenas, intake…
+- [Business-Driven Development](pt-BR/explanation/business-driven-development.md) — O ContextDevKit trata engenharia de software como trabalho realizado em serviço de outcomes duráveis — sem obrigar to…
+- [Modelo de domínio do trabalho e da governança](pt-BR/explanation/domain-model.md) — O ContextDevKit 4 mantém autoridades pequenas e explícitas.
+- [Governança e enforcement](pt-BR/explanation/governance-and-enforcement.md) — O ContextDevKit 4 separa quality floors determinísticos de guidance de engenharia advisory.
+- [Loop Engineering orientado a evidência](pt-BR/explanation/loop-engineering.md) — O ContextDevKit trata engenharia de software como um loop iterativo de evidência, e não como um evento único de geração.
+- [Modelo de qualidade](pt-BR/explanation/quality-model.md) — O ContextDevKit 4 separa observações de autoridade. Um warning útil pode ser heurístico; uma negação precisa ser dete…
+- [Valor e impacto](pt-BR/explanation/value-and-impact.md) — O ContextDevKit transforma contexto de projeto em estado de engenharia durável e inspecionável sem transformar cerimô…
+- [Anatomia de Business, Operation e Workflow](pt-BR/how-to/anatomy-of-business-operation-workflow.md) — Objetivo: entender a memória durável de governança em uma leitura — o que são **Business**, **Operation** e **Workflo…
+- [Auditar e testar uma mudança](pt-BR/how-to/audit-and-test.md) — Use auditorias para coletar evidência e transformar findings em trabalho somente quando isso fizer sentido para o owner.
+- [Escrever documentação no nível certo](pt-BR/how-to/authoring-docs.md) — A documentação do ContextDevKit segue Diátaxis.
+- [Conectar servidores MCP](pt-BR/how-to/connect-mcp-servers.md) — MCP amplia as ferramentas disponíveis ao host; ele não altera o contrato de autoridade do ContextDevKit.
+- [Cortar uma release](pt-BR/how-to/cut-a-release.md) — Uma release deve sair de evidência reprodutível, não apenas de um número de versão alterado.
+- [Criar um Agent Package](pt-BR/how-to/forge-an-agent-package.md) — Use Agent Forge quando o produto do projeto é um agente portátil que precisa sair como pacote versionado, com prompt,…
+- [Registrar uma decisão](pt-BR/how-to/record-a-decision.md) — Crie uma ADR quando uma escolha material precisa sobreviver à sessão e orientar
+- [Reduzir custo de tokens](pt-BR/how-to/reduce-token-cost.md) — Economia existe para reduzir trabalho repetitivo sem reduzir qualidade.
+- [Executar um caso Business ou Operation governado](pt-BR/how-to/run-a-business-case.md) — Use este guia quando uma mutação confirmada realmente precisa de memória durável Business ou Operation. A maioria das…
+- [Executar trabalho paralelo com swarm](pt-BR/how-to/run-a-parallel-swarm.md) — Use swarm quando o owner pede agentes paralelos ou quando o workflow/skill
+- [Executar um Workflow v2](pt-BR/how-to/run-a-workflow.md) — Use Workflow quando existem dependências reais, waves, ordem obrigatória, múltiplas sessões, integração coordenada ou…
+- [Iniciar trabalho focado](pt-BR/how-to/start-a-focused-session.md) — Conversa e exploração não precisam iniciar uma sessão governada. Use uma sessão focada quando houver mutação real com…
+- [Troubleshooting](pt-BR/how-to/troubleshoot.md) — Use esta sequência para separar falha do projeto de falha do próprio ContextDevKit.
+- [Configurar níveis de capacidade](pt-BR/how-to/tune-autonomy-and-level.md) — ContextDevKit 4 removeu o conceito de autonomy grade como autorização. O `level` controla quais capacidades são insta…
+- [Atualizar uma instalação](pt-BR/how-to/upgrade-and-update.md) — Atualizações devem preservar memória authored, personalização do owner e autoridades v4 enquanto regeneram apenas sup…
+- [Usar Domain Engineering](pt-BR/how-to/use-domain-engineering.md) — Domain Engineering é uma lente proporcional, não um pré-requisito universal de escrita.
+- [Usar o grafo estrutural](pt-BR/how-to/use-the-knowledge-graph.md) — Project Map/grafo é o fast path preferido para perguntas estruturais, não uma limitação de busca.
+- [Usar o task board canônico](pt-BR/how-to/use-the-pipeline-board.md) — ContextDevKit 4 não possui backlog global gravável. Cada Workflow ou Batch possui seu próprio `tasks.json`.
+- [Trabalhar entre hosts](pt-BR/how-to/work-across-hosts-and-bridges.md) — ContextDevKit mantém fontes canônicas e gera projeções para hosts suportados.
+- [Referência de agentes](pt-BR/reference/agents.md) — ContextDevKit disponibiliza especialistas para ampliar a capacidade do agente ativo. Eles são **ferramentas de engenh…
+- [Glossário](pt-BR/reference/glossary.md) — `backlog`, `working`, `blocked`, `testing`, `done` e `cancelled` são valores de status, não nomes de diretórios.
+- [Contrato de governança](pt-BR/reference/governance-contract.md) — Esta é a referência pública resumida da governança ContextDevKit 4.
+- [Referência do grafo estrutural](pt-BR/reference/graph.md) — O Project Map/grafo fornece um fast path determinístico para perguntas estruturais sobre o projeto: módulos, símbolos…
+- [Referência de hosts nativos](pt-BR/reference/hosts.md) — ContextDevKit é host-agnostic: o host executa modelo, ferramentas, shell/filesystem, MCP e seu próprio safety boundar…
+- [Modelo de memória](pt-BR/reference/memory-model.md) — `contextkit/memory/` preserva conhecimento durável do projeto e projeções reconstruíveis.
+- [Workflow Engine v2](pt-BR/workflow-engine/README.md) — Workflows 4.x são pacotes atômicos baseados em JSON para trabalho que realmente precisa de coordenação durável.
+- [Документация ContextDevKit — Русский](ru-RU/README.md) — Локаль: `ru-RU` · направление: `ltr` · покрытие: `core-v4`
+- [Business-Driven Development](ru-RU/explanation/business-driven-development.md) — Business-Driven Development разделяет три вопроса: есть ли реальная работа, кто долговременно владеет причиной этой р…
+- [Governance и enforcement](ru-RU/explanation/governance-and-enforcement.md) — ContextDevKit отделяет детерминированные quality floors от инженерных рекомендаций.
+- [Loop Engineering на основе доказательств](ru-RU/explanation/loop-engineering.md) — ContextDevKit рассматривает доставку как инженерный цикл, а не как одноразовую генерацию.
+- [Модель качества](ru-RU/explanation/quality-model.md) — ContextDevKit 4 отделяет наблюдения от authority.
+- [Запустить Business case](ru-RU/how-to/run-a-business-case.md) — Используйте этот поток только когда работа представляет долговечный стратегический outcome.
+- [Глоссарий](ru-RU/reference/glossary.md) — Task statuses: `backlog`, `working`, `blocked`, `testing`, `done`, `cancelled`.
+- [Контракт governance](ru-RU/reference/governance-contract.md) — События runtime:
+- [ContextDevKit 文档 — 简体中文](zh-CN/README.md) — 区域标签：`zh-CN` · 方向：`ltr` · 覆盖范围：`core-v4`
+- [Business-Driven Development](zh-CN/explanation/business-driven-development.md) — Business-Driven Development 将三个问题分开：这是否是真实的项目工作、谁持久地拥有这项工作的原因，以及执行真正需要什么形态。
+- [治理与 Enforcement](zh-CN/explanation/governance-and-enforcement.md) — ContextDevKit 将确定性的 quality floors 与工程建议分开。
+- [基于证据的 Loop Engineering](zh-CN/explanation/loop-engineering.md) — ContextDevKit 把交付视为工程循环，而不是一次性生成。
+- [质量模型](zh-CN/explanation/quality-model.md) — ContextDevKit 4 将观察结果与 authority 分离。
+- [运行一个 Business case](zh-CN/how-to/run-a-business-case.md) — 只有当工作代表持久战略 outcome 时才使用此流程。
+- [术语表](zh-CN/reference/glossary.md) — Task statuses：`backlog`、`working`、`blocked`、`testing`、`done`、`cancelled`。
+- [治理契约](zh-CN/reference/governance-contract.md) — Runtime events：

@@ -22,7 +22,9 @@ Commands describe ContextDevKit 4 behavior:
 - conversation and read-only exploration persist nothing;
 - mutation uses direct, batch, or workflow shape;
 - tasks live in scoped `pipeline/tasks.json`, never physical lanes;
-- model routing and swarm composition are recommendations;
+- model routing recommends the executor but never authorizes dispatch;
+- debate and swarm are required only when explicit owner, workflow/skill, or
+  governed classification triggers activate them;
 - only the three canonical guarded gates may deny.
 
 ## Adding or removing a command

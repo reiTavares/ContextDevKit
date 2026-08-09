@@ -22,7 +22,9 @@ All levels share these invariants:
 - missing/invalid gate configuration becomes canary/continue;
 - only QA at done, Class A DDD invariants, and current-diff high/critical debt
   can deny;
-- graph, routing, agents, swarm, economy, and preferences are advisory;
+- graph, routing output, agent selection, economy, and preferences are advisory;
+- debate and swarm are required only when the current owner, workflow/skill, or
+  governed classification explicitly activates them;
 - LGPD is shadow;
 - level is not consent.
 
