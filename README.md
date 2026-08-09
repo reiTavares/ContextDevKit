@@ -1,15 +1,43 @@
 # ContextDevKit
 
-ContextDevKit is a portable governance and project-memory layer for AI-assisted
-development. It supports Claude Code, OpenAI Codex, Google Antigravity, and Grok
-without putting an application framework or package dependency on the runtime
-hook path.
+**ContextDevKit is a host-agnostic AI Software Engineering Governance Harness.**
+It provides persistent project intelligence, long-term memory, context
+orchestration, work lifecycle management, policy enforcement, and execution
+continuity across coding agents such as Claude Code, OpenAI Codex, Google
+Antigravity, and Grok.
+
+ContextDevKit does not replace the coding agent, model provider, tool runtime, or
+agent loop. Those hosts execute models and tools; ContextDevKit sits around and
+above them to keep project state, context, memory, governance, and work history
+portable across hosts without putting an application framework or package
+dependency on the runtime hook path.
 
 The 4.0 model is deliberately quiet: governance starts when an interaction will
 mutate files or governed state. Conversation and read-only exploration create
 no task, workflow, ledger, receipt, or durable context.
 
 Portuguese documentation: [instrucoes.md](instrucoes.md).
+
+## Harness boundary
+
+ContextDevKit is a governance and project-intelligence harness, not an LLM
+execution runtime. The execution host remains responsible for the model loop,
+tool calls, shell/filesystem access, MCP transport, and platform safety
+boundaries. ContextDevKit is responsible for the durable engineering environment
+that survives those hosts:
+
+- interaction intent and mutation classification;
+- project graph and filesystem-backed project intelligence;
+- long-term project memory and owner preferences;
+- direct, batch, workflow, task, report, and continuation lifecycle;
+- bounded governance, evidence, and policy evaluation;
+- context assembly and continuity across sessions;
+- host-neutral recommendations for routing, specialists, and swarms;
+- adapters that let the same governed project work across supported coding
+  agents.
+
+This separation makes the coding agent replaceable while the project's governed
+intelligence and operational memory remain durable.
 
 ## The operating contract
 
