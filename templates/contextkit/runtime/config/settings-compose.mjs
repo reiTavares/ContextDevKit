@@ -1,104 +1,57 @@
 /**
- * Composes `.claude/settings.json` hook wiring for a given activation level.
+ * Composes `.claude/settings.json` with the ContextDevKit v4 event dispatchers.
  *
- * Shared by the installer (`install.mjs`) and the in-project `/context-level`
- * helper so they can never drift. It preserves the user's own hooks and
- * top-level keys, stripping only previously-installed ContextDevKit entries
- * (so re-running at a lower level cleanly removes now-disabled hooks).
+ * Recomposition preserves user-owned hooks and top-level settings while
+ * replacing every previously installed ContextDevKit hook chain. One command
+ * owns each governance event; the command dispatches internal gates in-process.
  *
- * Level → hooks:
- *   1  SessionStart
- *   2  + PostToolUse (Edit|Write|MultiEdit), Stop
- *   3  + PreToolUse  (concurrency-guard) — and git hooks (installed separately)
- *   5  + PreToolUse  (simulate-gate, deliberation-nudge)
- *   5  + Capability Enforcement (ADR-0072/0097, advisory): UserPromptSubmit
- *        (execution-contract-hook), PreToolUse (execution-gate), PostToolUse
- *        (indirect-write-reconcile), Stop (completion-gate), PreToolUse[Task] +
- *        SubagentStop (subagent-gate), PreCompact + SessionStart
- *        (compaction-continuity) — fail-open, warn-only until enforcement.mode raised
- * (Level 4 adds agents — not Claude hooks.)
- *
- * @param {Record<string, any> | null} existing parsed settings.json (or null)
- * @param {number} level 1–7
- * @returns {Record<string, any>}
+ * @param {Record<string, any> | null} existing parsed settings file, if any
+ * @param {number} level active ContextDevKit level
+ * @returns {Record<string, any>} composed settings file
  */
 export function composeSettings(existing, level) {
   const settings = existing && typeof existing === 'object' ? existing : {};
   if (!settings['$schema']) settings['$schema'] = 'https://json.schemastore.org/claude-code-settings.json';
   const hooks = settings.hooks && typeof settings.hooks === 'object' ? settings.hooks : {};
 
-  for (const evt of ['SessionStart', 'PostToolUse', 'Stop', 'PreToolUse', 'UserPromptSubmit', 'SubagentStop', 'PreCompact']) {
-    if (!Array.isArray(hooks[evt])) continue;
-    hooks[evt] = hooks[evt]
-      .map((g) => ({ ...g, hooks: (g.hooks || []).filter((h) => !String(h.command || '').includes('contextkit/runtime/hooks')) }))
-      .filter((g) => (g.hooks || []).length > 0);
-    if (hooks[evt].length === 0) delete hooks[evt];
+  for (const eventName of [
+    'SessionStart',
+    'PostToolUse',
+    'Stop',
+    'PreToolUse',
+    'UserPromptSubmit',
+    'SubagentStart',
+    'SubagentStop',
+    'PreCompact',
+  ]) {
+    if (!Array.isArray(hooks[eventName])) continue;
+    hooks[eventName] = hooks[eventName]
+      .map((group) => ({
+        ...group,
+        hooks: (group.hooks || []).filter((hook) => !String(hook.command || '').includes('contextkit/runtime/hooks')),
+      }))
+      .filter((group) => (group.hooks || []).length > 0);
+    if (hooks[eventName].length === 0) delete hooks[eventName];
   }
 
-  const add = (evt, matcher, script) => {
+  const add = (eventName, matcher, script) => {
     const entry = { hooks: [{ type: 'command', command: `node contextkit/runtime/hooks/${script}` }] };
     if (matcher) entry.matcher = matcher;
-    (hooks[evt] = hooks[evt] || []).push(entry);
+    (hooks[eventName] = hooks[eventName] || []).push(entry);
   };
 
-  // Status-line widget (level >= 1). Preserve a user's own statusLine — only set
-  // or replace a previously-installed ContextDevKit one.
   if (level >= 1 && (!settings.statusLine || String(settings.statusLine.command || '').includes('contextkit/runtime/statusline'))) {
     settings.statusLine = { type: 'command', command: 'node contextkit/runtime/statusline.mjs', padding: 0 };
   }
 
-  if (level >= 1) add('SessionStart', null, 'session-start.mjs');
   if (level >= 2) {
-    add('PostToolUse', 'Edit|Write|MultiEdit', 'track-edits.mjs');
-    add('Stop', null, 'check-registration.mjs');
+    add('PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*', 'governance-postflight.mjs');
+    add('Stop', null, 'governance-completion.mjs');
   }
-  if (level >= 3) add('PreToolUse', 'Edit|Write|MultiEdit', 'concurrency-guard.mjs');
-  if (level >= 4) {
-    add('PostToolUse', 'Edit|Write|MultiEdit', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
-    // Graph-first (WF-0108, ADR-0155): the structural graph is refreshed EVERY
-    // session (detached spawn — never delays boot) and broad exploration is gated
-    // on it. L>=4 is the graph's own minimum level; the gate only BLOCKS at L7 with
-    // an explicit human flip (resolveGraphActivation clamps otherwise), and always
-    // degrades to warn-and-allow when it cannot evaluate.
-    add('SessionStart', null, 'graph-session-refresh.mjs');
-    add('UserPromptSubmit', null, 'graph-first-gate.mjs'); // captures the human `no-graph` bypass
-    add('PreToolUse', 'Grep|Glob', 'graph-first-gate.mjs'); // graph answers before a text sweep
-    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25/§26). Registered
-    // at L≥4 so the level→mode ladder has its advisory floor (L4 advisory / L5-6
-    // guarded / L7 strict, via resolveDomainMode). Default-OFF: each hook exits early
-    // unless `domainEngineering.enabled` (false by default) — inert on every existing
-    // install — and fail-open (exit 0 on any error, never breaks a write). The
-    // guarded/strict fleet flip stays human-gated (rolloutStage ceiling).
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'domain-code-gate.mjs'); // §16 code gate + authoritative CMIS=100
-    add('PostToolUse', 'Edit|Write|MultiEdit', 'domain-conformance.mjs'); // §19 conformance reconciler (record + advisory)
-    // Arch-debt pre-coding law (OP-0012, ADR-0122 §9): state the twelve dimensions
-    // BEFORE the first source write instead of only refusing after the diff exists.
-    // Advisory + once-per-session — enforcement stays with the gate, which has real
-    // evidence. Same L>=4 floor as the gate itself.
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'arch-debt-law-gate.mjs');
+  if (level >= 3) {
+    add('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*', 'governance-write-preflight.mjs');
   }
-  if (level >= 5) {
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'simulate-gate.mjs');
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)
-    add('PreToolUse', 'Edit|Write|MultiEdit', 'deliberation-nudge.mjs'); // ADR-0035 — soft nudge, never blocks
-    // Capability Enforcement (PKG-03, ADR-0072; ADR-0125) — GUARDED-with-fallback by
-    // DEFAULT (enforcement.mode defaults to 'guarded'): the intake ceremony ships ACTIVE.
-    // Safe because the gate degrades to advisory (warn, exit 0) whenever it cannot
-    // evaluate — a fresh install is never false-blocked. Every hook is fail-open. Set
-    // enforcement.mode='advisory' to opt OUT, or 'strict' to tighten.
-    add('UserPromptSubmit', null, 'execution-contract-hook.mjs'); // CDK-031 — records the contract
-    add('PreToolUse', 'Read|Edit|Write|MultiEdit|Grep|Glob|Bash', 'execution-gate.mjs'); // CDK-032/033/035 — warns
-    add('PostToolUse', 'Edit|Write|MultiEdit|Bash', 'indirect-write-reconcile.mjs'); // CDK-034 — reconciles
-    // Capability Enforcement (PKG-04, ADR-0072/0097) — advisory continuity + evidence
-    // gates. All warn-only, fail-open, once-per-session debounced. (CDK-043 status-line
-    // compliance segment ships inside statusline.mjs, already wired above.)
-    add('Stop', null, 'completion-gate.mjs'); // CDK-040 — completion evidence nudge
-    add('Stop', null, 'done-sweep.mjs'); // ADR-0119 — file concluded workflows into done/ at session end
-    add('PreToolUse', 'Task', 'subagent-gate.mjs'); // CDK-041 — subagent spawn scope
-    add('SubagentStop', null, 'subagent-gate.mjs'); // CDK-041 — subagent completion
-    add('PreCompact', null, 'compaction-continuity.mjs'); // CDK-042 — persist obligations
-    add('SessionStart', null, 'compaction-continuity.mjs'); // CDK-042 — resurface on resume
-  }
+  if (level >= 5) add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
 
   settings.hooks = hooks;
   return settings;

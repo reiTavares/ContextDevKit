@@ -1,12 +1,9 @@
 /**
- * Composes `.codex/hooks.json` for the Codex host.
+ * Composes `.codex/hooks.json` with the ContextDevKit v4 event dispatchers.
  *
- * Codex uses the same project hook scripts as Claude Code in the dogfood host:
- * boot context at SessionStart, edit tracking after writes, pre-edit guards at
- * L3/L5, and drift checking at Stop. Each hook carries `--host codex` so the
- * shared hook adapter can keep a stable Codex ledger. The file is separate from
- * `.claude/settings.json` because Codex owns `.codex/` and should never require
- * Claude Code to be installed.
+ * Every host event starts at most one ContextDevKit process. Gate selection,
+ * interaction classification, deduplication, and budgets stay behind that
+ * process boundary in the shared governance event runtime.
  *
  * @param {Record<string, any> | null} existing parsed hooks file, if any
  * @param {number} level active ContextDevKit level
@@ -16,7 +13,7 @@ export function composeCodexHooks(existing, level) {
   const file = existing && typeof existing === 'object' ? { ...existing } : {};
   const hooks = file.hooks && typeof file.hooks === 'object' ? { ...file.hooks } : {};
 
-  for (const evt of [
+  for (const eventName of [
     'SessionStart',
     'PostToolUse',
     'Stop',
@@ -26,58 +23,32 @@ export function composeCodexHooks(existing, level) {
     'SubagentStop',
     'PreCompact',
   ]) {
-    if (!Array.isArray(hooks[evt])) continue;
-    hooks[evt] = hooks[evt]
+    if (!Array.isArray(hooks[eventName])) continue;
+    hooks[eventName] = hooks[eventName]
       .map((group) => ({
         ...group,
         hooks: (group.hooks || []).filter((hook) => !String(hook.command || '').includes('contextkit/runtime/hooks')),
       }))
       .filter((group) => (group.hooks || []).length > 0);
-    if (hooks[evt].length === 0) delete hooks[evt];
+    if (hooks[eventName].length === 0) delete hooks[eventName];
   }
 
-  const add = (evt, matcher, script) => {
-    const entry = { hooks: [{ type: 'command', command: `node contextkit/runtime/hooks/${script} --host codex` }] };
+  const add = (eventName, matcher, script) => {
+    const entry = {
+      hooks: [{ type: 'command', command: `node contextkit/runtime/hooks/${script} --host codex` }],
+    };
     if (matcher) entry.matcher = matcher;
-    (hooks[evt] = hooks[evt] || []).push(entry);
+    (hooks[eventName] = hooks[eventName] || []).push(entry);
   };
 
-  if (level >= 1) add('SessionStart', null, 'session-start.mjs');
   if (level >= 2) {
-    add('PostToolUse', 'Edit|Write', 'track-edits.mjs');
-    add('Stop', null, 'check-registration.mjs');
+    add('PostToolUse', 'Edit|Write|apply_patch|Bash|mcp__.*', 'governance-postflight.mjs');
+    add('Stop', null, 'governance-completion.mjs');
   }
-  if (level >= 3) add('PreToolUse', 'Edit|Write', 'concurrency-guard.mjs');
-  if (level >= 4) {
-    add('PostToolUse', 'Edit|Write', 'auto-format.mjs'); // ADR-0061 — advisory format/lint
-    // Graph-first (WF-0108, ADR-0155) — Codex twin of the Claude wiring. Same
-    // hooks, same level; the Codex tool names for broad search ride the shared
-    // matcher alternation and are normalized by `extractSearchTerm`.
-    add('SessionStart', null, 'graph-session-refresh.mjs');
-    add('UserPromptSubmit', null, 'graph-first-gate.mjs'); // captures the human `no-graph` bypass
-    add('PreToolUse', 'Grep|Glob|grep|glob|search_files|grep_search', 'graph-first-gate.mjs');
-    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25) — Codex twin of
-    // the Claude wiring. Default-OFF + fail-open + inert below L4; block verb
-    // translated per-host by host-adapter (codex uses the Claude `block` shape).
-    add('PreToolUse', 'Edit|Write', 'domain-code-gate.mjs'); // §16 code gate
-    add('PostToolUse', 'Edit|Write', 'domain-conformance.mjs'); // §19 conformance reconciler
-    // Arch-debt pre-coding law (OP-0012) — Codex twin of the Claude wiring.
-    add('PreToolUse', 'Edit|Write', 'arch-debt-law-gate.mjs');
+  if (level >= 3) {
+    add('PreToolUse', 'Edit|Write|apply_patch|Bash|mcp__.*', 'governance-write-preflight.mjs');
   }
-  if (level >= 5) {
-    add('PreToolUse', 'Edit|Write', 'simulate-gate.mjs');
-    add('PreToolUse', 'Edit|Write', 'journey-gate.mjs'); // ADR-0127 — methodology journey enforcement (guarded+fallback)
-    add('PreToolUse', 'Edit|Write', 'deliberation-nudge.mjs');
-    add('UserPromptSubmit', null, 'execution-contract-hook.mjs');
-    add('PreToolUse', 'Edit|Write|Bash|mcp__.*', 'execution-gate.mjs');
-    add('PostToolUse', 'Edit|Write|Bash|mcp__.*', 'indirect-write-reconcile.mjs');
-    add('Stop', null, 'completion-gate.mjs');
-    add('Stop', null, 'done-sweep.mjs'); // ADR-0119 — file concluded workflows into done/ at session end
-    add('SubagentStart', null, 'subagent-gate.mjs');
-    add('SubagentStop', null, 'subagent-gate.mjs');
-    add('PreCompact', null, 'compaction-continuity.mjs');
-    add('SessionStart', 'compact|resume', 'compaction-continuity.mjs');
-  }
+  if (level >= 5) add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
 
   file.hooks = hooks;
   return file;
@@ -85,6 +56,7 @@ export function composeCodexHooks(existing, level) {
 
 /**
  * Removes only ContextDevKit hook commands from `.codex/hooks.json`.
+ *
  * @param {Record<string, any> | null} existing parsed hooks file, if any
  * @returns {Record<string, any> | null} remaining user hooks, or null if empty
  */

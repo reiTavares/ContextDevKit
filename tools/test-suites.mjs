@@ -77,6 +77,8 @@ export const SUITES = Object.freeze([
     touches: ['install.mjs', 'templates/contextkit/runtime/hooks/', 'templates/contextkit/runtime/config/'] },
   { id: 'governance-anti-loop', file: it('governance-anti-loop'), tier: 'integration:core',
     touches: ['templates/contextkit/runtime/governance/'] },
+  { id: 'governance-dispatchers', file: it('governance-dispatchers'), tier: 'integration:hosts',
+    touches: ['templates/contextkit/runtime/hooks/governance-', 'templates/contextkit/runtime/config/settings-compose.mjs', 'templates/contextkit/runtime/config/codex-hooks-compose.mjs'] },
   { id: 'tooling', file: it('tooling'), tier: 'integration:installer',
     touches: ['templates/contextkit/tools/scripts/', 'templates/contextkit/squads/'] },
   { id: 'tooling-qa', file: it('tooling-qa'), tier: 'integration:workflow',
