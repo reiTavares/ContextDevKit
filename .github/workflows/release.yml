@@ -11,9 +11,10 @@ name: Release
 #   1. close the matching section in CHANGELOG.md and bump package.json/lock
 #   2. merge the release PR to main
 #   3. push the annotated vX.Y.Z tag from that main commit
-# This workflow is the single publication path: it validates the exact changelog
-# section, runs the gates, publishes npm with provenance, and creates the GitHub
-# Release with the same complete notes. Do not publish npm manually as well.
+# This workflow is the single publication path: it validates the exact changelog,
+# package manifest, lockfile, and tag version; runs the gates; publishes npm with
+# provenance; and creates the GitHub Release with the same complete notes. Do not
+# publish npm manually as well.
 
 on:
   push:
@@ -34,6 +35,34 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify tag, package and lockfile versions agree
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          node --input-type=module - "$VERSION" <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const version = process.argv[2];
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          const rootLockVersion = lock?.packages?.['']?.version;
+
+          const mismatches = [
+            ['package.json', pkg.version],
+            ['package-lock.json', lock.version],
+            ['package-lock.json packages[""]', rootLockVersion],
+          ].filter(([, actual]) => actual !== version);
+
+          if (mismatches.length) {
+            for (const [source, actual] of mismatches) {
+              console.error(`${source}: expected ${version}, found ${String(actual)}`);
+            }
+            process.exit(1);
+          }
+          console.log(`version parity OK: ${version}`);
+          NODE
 
       - name: Render complete release notes from CHANGELOG.md
         run: >-
