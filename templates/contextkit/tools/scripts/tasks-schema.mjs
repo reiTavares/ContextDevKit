@@ -23,8 +23,8 @@ export const TASK_TRANSITIONS = Object.freeze({
   backlog: Object.freeze(['working', 'cancelled']),
   working: Object.freeze(['backlog', 'blocked', 'testing', 'cancelled']),
   blocked: Object.freeze(['backlog', 'working', 'cancelled']),
-  testing: Object.freeze(['working', 'blocked', 'done', 'cancelled']),
-  done: Object.freeze([]),
+  testing: Object.freeze(['backlog', 'working', 'blocked', 'done', 'cancelled']),
+  done: Object.freeze(['backlog']),
   cancelled: Object.freeze([]),
 });
 

@@ -56,14 +56,18 @@ function normalizeOwner(owner) {
   throw new Error(`owner must match OP-#### or BIZ-#### (got "${owner}")`);
 }
 
-/** Immediate canonical workflow-holding roots under the local project. */
+/** Canonical active and completed workflow-holding roots under the project. */
 function localWorkflowRoots(root) {
   const paths = pathsFor(root);
-  const roots = [join(paths.memory, 'workflows')];
+  const neutralRoot = join(paths.memory, 'workflows');
+  const roots = [neutralRoot, join(neutralRoot, 'done')];
   for (const [contextsRoot] of [[paths.business], [paths.operations]]) {
     if (!existsSync(contextsRoot)) continue;
     for (const entry of readdirSync(contextsRoot, { withFileTypes: true })) {
-      if (entry.isDirectory()) roots.push(join(contextsRoot, entry.name, 'workflows'));
+      if (entry.isDirectory()) {
+        roots.push(join(contextsRoot, entry.name, 'workflows'));
+        roots.push(join(contextsRoot, entry.name, 'done'));
+      }
     }
   }
   return roots;
@@ -87,17 +91,39 @@ function allocateLocalWorkflowId(root) {
 }
 
 /** Locate an existing Business/Operation context folder. */
-function ownerWorkflowRoot(root, owner) {
-  if (owner.kind === 'none') return join(pathsFor(root).memory, 'workflows');
-  const parent = owner.kind === 'operation' ? pathsFor(root).operations : pathsFor(root).business;
+function ownerContextDirectory(root, owner) {
+  const paths = pathsFor(root);
+  const parent = owner.kind === 'operation' ? paths.operations : paths.business;
   if (!existsSync(parent)) throw new Error(`Owner ${owner.id} has no context directory under ${parent}`);
   const entry = readdirSync(parent, { withFileTypes: true })
     .find((candidate) => candidate.isDirectory() && (candidate.name === owner.id || candidate.name.startsWith(`${owner.id}-`)));
   if (!entry) throw new Error(`Owner ${owner.id} has no context directory under ${parent}`);
-  return join(parent, entry.name, 'workflows');
+  return join(parent, entry.name);
 }
 
-/** Refuse duplicate ids or slugs across every active canonical root. */
+/**
+ * Resolve the bounded active and completed roots for one workflow owner.
+ * Directory placement is a human projection; lifecycle status remains JSON.
+ *
+ * @param {string} root project root
+ * @param {string|object|null} ownerInput workflow owner
+ * @returns {{activeRoot:string,doneRoot:string}}
+ * @throws {Error} when a declared owner context does not exist
+ */
+export function workflowStorageRoots(root, ownerInput) {
+  const owner = normalizeOwner(ownerInput);
+  if (owner.kind === 'none') {
+    const activeRoot = join(pathsFor(root).memory, 'workflows');
+    return { activeRoot, doneRoot: join(activeRoot, 'done') };
+  }
+  const ownerDirectory = ownerContextDirectory(root, owner);
+  return {
+    activeRoot: join(ownerDirectory, 'workflows'),
+    doneRoot: join(ownerDirectory, 'done'),
+  };
+}
+
+/** Refuse duplicate ids or slugs across active and completed roots. */
 function assertWorkflowAbsent(root, id, slug) {
   for (const workflowsRoot of localWorkflowRoots(root)) {
     if (!existsSync(workflowsRoot)) continue;
@@ -302,8 +328,10 @@ export function createWaveWorkflow(root, slug, options = {}) {
   const id = options.id ?? (options.number ? `WF-${String(options.number).replace(/^WF-/, '')}` : allocateLocalWorkflowId(root));
   if (!ID_RE.test(id)) throw new Error(`workflow id must match WF-#### (got "${id}")`);
   assertWorkflowAbsent(root, id, slug);
-  const workflowsRoot = ownerWorkflowRoot(root, owner);
+  const { activeRoot: workflowsRoot, doneRoot } = workflowStorageRoots(root, owner);
   mkdirSync(workflowsRoot, { recursive: true });
+  mkdirSync(doneRoot, { recursive: true });
+  assertContained(pathsFor(root).memory, doneRoot, 'workflow done root');
   const targetDirectory = join(workflowsRoot, `${id}-${slug}`);
   assertContained(workflowsRoot, targetDirectory, 'workflow target');
   if (existsSync(targetDirectory)) throw new Error(`Workflow target already exists: ${targetDirectory}`);

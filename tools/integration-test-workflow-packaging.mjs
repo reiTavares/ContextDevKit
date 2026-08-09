@@ -12,6 +12,7 @@
  *   2. a fresh install carries the engine into `contextkit/tools/scripts/workflow/`;
  *   3. the INSTALLED CLI works (`required-files`, `explain-file`);
  *   4. wave creation works in the installed project (`new --profile basic`);
+ *      creation also guarantees the human-facing `done/` archive root;
  *   5. a second `--update` is idempotent and leaves the engine intact;
  *   6. the CLI survives a project path that contains a SPACE (Windows path hygiene).
  *
@@ -99,6 +100,9 @@ try {
   created.status === 0 && definition && definition.schemaVersion === 2 && Array.isArray(definition.structure?.waves)
     ? ok('installed CLI: new --profile basic creates a Workflow v2 definition')
     : bad(`wave creation failed (status ${created.status}): ${created.stdout}${created.stderr}`);
+  existsSync(join(fix.proj, 'contextkit', 'memory', 'workflows', 'done'))
+    ? ok('installed CLI: workflow creation guarantees the neutral done directory')
+    : bad('installed CLI: workflow creation did not create the neutral done directory');
 
   // Validate the freshly-created package THROUGH the installed engine's own
   // validator — proves the shipped validate.mjs loads and runs in-project.

@@ -54,11 +54,13 @@ function childDirectories(root) {
  * @returns {{ workflowDirectories: string[], batchDirectories: string[] }}
  */
 function discoverAuthorityDirectories(memoryRoot) {
-  const workflowRoots = [resolve(memoryRoot, 'workflows')];
+  const neutralWorkflowRoot = resolve(memoryRoot, 'workflows');
+  const workflowRoots = [neutralWorkflowRoot, resolve(neutralWorkflowRoot, 'done')];
   const ownedBatchDirectories = [];
   for (const collection of ['operations', 'business']) {
     for (const scopeDirectory of childDirectories(resolve(memoryRoot, collection))) {
       workflowRoots.push(resolve(scopeDirectory, 'workflows'));
+      workflowRoots.push(resolve(scopeDirectory, 'done'));
       const batchDirectory = resolve(scopeDirectory, 'batch');
       if (existsSync(resolve(batchDirectory, 'tasks.json'))) ownedBatchDirectories.push(batchDirectory);
     }

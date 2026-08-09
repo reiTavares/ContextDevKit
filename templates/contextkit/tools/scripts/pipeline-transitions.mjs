@@ -1,8 +1,20 @@
 /** Semantic transition aliases over the canonical ContextDevKit 4 task store. */
-import { listTasks, readTasksDocument, transitionTask } from './tasks-store.mjs';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import {
+  listTasks,
+  readTasksDocument,
+  resolveTasksDocumentPath,
+  transitionTask,
+} from './tasks-store.mjs';
+import { loadWorkflowPack, reopenCompletedWorkflow } from './workflow-pack.mjs';
 
 const STATUS_ALIASES = Object.freeze({ conclusion: 'done' });
-const AUTOMATIC_EDGES = Object.freeze({ backlog: ['working'], working: ['testing'] });
+const AUTOMATIC_EDGES = Object.freeze({
+  backlog: ['working'],
+  working: ['testing'],
+  testing: ['done'],
+});
 
 /** @param {string[]} argv @param {string} name @returns {string|undefined} */
 function getArgument(argv, name) {
@@ -82,23 +94,45 @@ export function move({ target, argv }) {
   });
 }
 
-/** `pipeline qa-reject <id> <feedback>`: testing to working with feedback. */
-export function qaReject({ target, argv }) {
+/** Return the workflow package that owns a task scope, when one exists. */
+function workflowDirectoryForTaskScope(target) {
+  const tasksPath = resolveTasksDocumentPath(target);
+  const workflowDirectory = dirname(dirname(tasksPath));
+  return existsSync(join(workflowDirectory, 'workflow.json'))
+    && existsSync(join(workflowDirectory, 'workflow-state.json'))
+    ? workflowDirectory
+    : null;
+}
+
+/** `pipeline qa-reject <id> <feedback>`: testing/done to a fresh backlog cycle. */
+export function qaReject({ target, argv, root = process.cwd() }) {
   const [taskId, feedback] = argv;
   if (!taskId || !feedback) {
     throw new Error('Usage: pipeline.mjs qa-reject <id> "feedback" --tasks <scope>');
   }
   const document = readTasksDocument(target);
   const task = findTask(document, taskId);
-  if (task.status !== 'testing') {
-    throw new Error(`qa-reject: task ${taskId} is in "${task.status}", not "testing"`);
+  if (!['testing', 'done'].includes(task.status)) {
+    throw new Error(`qa-reject: task ${taskId} is in "${task.status}", not "testing" or "done"`);
   }
-  return transitionTask(target, taskId, {
-    to: 'working',
-    actor: 'qa',
+  let transitionTarget = target;
+  const workflowDirectory = workflowDirectoryForTaskScope(target);
+  if (workflowDirectory) {
+    const workflow = loadWorkflowPack(root, workflowDirectory);
+    if (workflow.state.status === 'done') {
+      transitionTarget = reopenCompletedWorkflow(root, workflowDirectory, {
+        expectedRevision: workflow.state.revision,
+      }).dir;
+    }
+  }
+  const currentDocument = readTasksDocument(transitionTarget);
+  findTask(currentDocument, taskId);
+  return transitionTask(transitionTarget, taskId, {
+    to: 'backlog',
+    actor: getArgument(argv, 'actor') ?? 'qa',
     note: feedback,
     eventId: getArgument(argv, 'event-id'),
-  }, document.revision);
+  }, currentDocument.revision);
 }
 
 /** `pipeline qa-approve <id>`: testing to done with required evidence. */
@@ -121,11 +155,11 @@ export function qaApprove({ target, argv }) {
   }, document.revision);
 }
 
-/** Automatic alias limited to deterministic forward edges; no autonomy gate. */
+/** Automatic alias limited to deterministic forward edges and evidence-bound QA. */
 export function autoTransition({ target, argv }) {
   const [taskId, requestedStatus] = argv;
   if (!taskId || !requestedStatus) {
-    throw new Error('Usage: pipeline.mjs auto-transition <id> <working|testing> --tasks <scope>');
+    throw new Error('Usage: pipeline.mjs auto-transition <id> <working|testing|done> --tasks <scope> [--evidence <test-receipt>]');
   }
   const document = readTasksDocument(target);
   const task = findTask(document, taskId);
@@ -133,9 +167,15 @@ export function autoTransition({ target, argv }) {
   if (!(AUTOMATIC_EDGES[task.status] ?? []).includes(targetStatus)) {
     throw new Error(`auto-transition: ${task.status} -> ${targetStatus} is not a permitted automatic edge`);
   }
+  const evidence = getArgument(argv, 'evidence');
+  if (targetStatus === 'done' && !evidence) {
+    throw new Error('auto-transition: testing -> done requires --evidence <successful automated-test receipt>');
+  }
   return transitionTask(target, taskId, {
     to: targetStatus,
-    actor: 'auto',
+    actor: targetStatus === 'done' ? 'automated-test' : 'auto',
+    note: getArgument(argv, 'note'),
+    evidenceRefs: evidence ? [evidence] : undefined,
     eventId: getArgument(argv, 'event-id'),
   }, document.revision);
 }

@@ -27,8 +27,10 @@ release reports, and developer-only scratch data.
 - `contextkit/.cache/`: disposable cache.
 - `contextkit/.updates/`: active update staging only.
 
-There are no active `contextkit/pipeline/<status>/` lanes, workflow `done/`
-directory, session edit-ledger folders, or global-routing harness files.
+There are no active `contextkit/pipeline/<status>/` lanes, session edit-ledger
+folders, or global-routing harness files. Bounded `done/` roots contain complete
+Workflow packages for human navigation; they never become task or lifecycle
+state authorities.
 
 Before an update mutates installed files, the updater creates a verified
 out-of-tree backup under `~/.contextdevkit/projects/<projectId>/backups/` for

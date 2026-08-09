@@ -179,9 +179,30 @@ try {
   check('done transition carries evidence and report refs',
     doneReceipt.task.evidenceRefs.includes('reports/tests.json')
     && doneReceipt.task.reportRefs.includes('reports/final.md'));
-  const secondTaskReceipt = addTask(tasksPath, { id: 'T-002', title: 'Projection repair' }, 3, { now: finalTime });
+  const reopenedReceipt = transitionTask(tasksPath, 'T-001', {
+    to: 'backlog', actor: 'qa', at: finalTime, eventId: 'evt-human-feedback',
+    note: 'Human requested an adjustment.',
+  }, 3);
+  check('human feedback reopens done at backlog and clears stale current evidence',
+    reopenedReceipt.task.status === 'backlog'
+    && reopenedReceipt.task.evidenceRefs.length === 0
+    && reopenedReceipt.document.events.find((event) => event.id === 'evt-done')?.evidenceRefs.includes('reports/tests.json'));
+  transitionTask(tasksPath, 'T-001', {
+    to: 'working', actor: 'implementation-engineer', at: finalTime, eventId: 'evt-rework',
+  }, 4);
+  transitionTask(tasksPath, 'T-001', {
+    to: 'testing', actor: 'implementation-engineer', at: finalTime, eventId: 'evt-retest',
+  }, 5);
+  const redoneReceipt = transitionTask(tasksPath, 'T-001', {
+    to: 'done', actor: 'automated-test', at: finalTime, eventId: 'evt-redone',
+    evidenceRefs: ['reports/retest.json'],
+  }, 6);
+  check('reopened task requires and retains fresh evidence on its next done cycle',
+    redoneReceipt.task.status === 'done'
+    && redoneReceipt.task.evidenceRefs.join(',') === 'reports/retest.json');
+  const secondTaskReceipt = addTask(tasksPath, { id: 'T-002', title: 'Projection repair' }, 7, { now: finalTime });
   check('addTask creates the complete default shape through CAS',
-    secondTaskReceipt.revision === 4
+    secondTaskReceipt.revision === 8
     && secondTaskReceipt.task.status === 'backlog'
     && secondTaskReceipt.task.priority === 'P2'
     && secondTaskReceipt.task.batchId === null);

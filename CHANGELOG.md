@@ -20,6 +20,68 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-08-09
+
+> **Workflow placement correction.** ContextDevKit 4.0.1 restores the
+> human-facing completed-workflow archive promised by the Workflow contract.
+> Canonical JSON remains the only machine authority; `done/` is a derived,
+> bounded placement of the complete Workflow v2 package. Task state continues
+> to use JSON only and does not regain physical status lanes.
+
+### Fixes (`fix`)
+
+- **`fix(workflow)` — create the archive root with every workflow.** Neutral
+  creation now guarantees `memory/workflows/done/`; Business- and
+  Operation-owned creation guarantees `<owner>/done/`. A human never has to
+  create the directory manually.
+- **`fix(workflow)` — archive the complete package on completion.** After task,
+  blocker, QA, report, and CAS validation, completion commits
+  `workflow-state.json`, repairs generated projections, and atomically renames
+  the entire package from `workflows/<WF>/` to `done/<WF>/` on the same volume.
+  The archived directory retains `workflow.json`, `workflow-state.json`,
+  `pipeline/tasks.json`, generated `pipeline/tasks.md`, PRD, SPEC, decisions,
+  reports, context manifest, index, and continuation artifacts.
+- **`fix(workflow)` — refuse collisions before state mutation.** If both the
+  active source and derived `done/` target exist, completion refuses before the
+  JSON revision changes. A filesystem failure after state commit is reported
+  explicitly with a safe, idempotent recovery command.
+- **`fix(workflow)` — resolve active and completed packages uniformly.** Lookup,
+  listing, duplicate-slug detection, workflow-number allocation, dashboard,
+  MCP/status consumers, and the canonical authority snapshot now enumerate the
+  bounded active and completed roots while deriving status only from JSON.
+- **`fix(workflow)` — recover 4.0.0 placement drift.** The Workflow v2 CLI
+  exposes `done-move <WF> [--apply]`. It is dry-run by default, requires
+  `workflow-state.json.status === "done"`, changes no lifecycle state, and is a
+  no-op after a successful move.
+- **`fix(tasks)` — close automated QA and human-feedback cycles.** A testing
+  task with an explicit successful automated-suite receipt now transitions
+  directly to `done` instead of waiting indefinitely for a second human test.
+  `qa-reject` moves `testing` or `done` back to `backlog`, records the feedback,
+  clears stale current-cycle evidence, and requires fresh proof on the next
+  `done`. If the enclosing Workflow is already complete, its aggregate reopens
+  to `working/ship` and the complete package returns to `workflows/` before the
+  task reset; a later green cycle can conclude and archive it again.
+- **`fix(migration)` — preserve completed placement during 3.x cutover.** The
+  explicit offline migrator now stages owner-scoped completed workflows under
+  `<BIZ|OP>/done/` and neutral completed workflows under
+  `memory/workflows/done/`, preserving their full validated v2 packages instead
+  of normalizing them back into active `workflows/`.
+
+### Verification
+
+- Focused task-store and pipeline-cutover tests cover receipt-bound automatic
+  `testing -> done`, rejection without evidence, human-feedback reopen from
+  `testing` and `done`, stale current-evidence clearing, append-only historical
+  events, and a second green backlog-to-done cycle with fresh evidence.
+- Focused Workflow v2 integration covers neutral and owner creation, complete
+  package retention, JSON-first completion, target collision, idempotent retry,
+  completed-workflow reopen, retest/rearchive, duplicate/number scans, Windows
+  paths with spaces, and installed CLI behavior.
+- Focused migration integration covers owner and neutral completed targets,
+  conservation, parity, stage/rollback, cutover, retirement, and old-writer
+  fencing. Canonical consumer integration proves completed tasks remain visible
+  from `done/` without restoring path-derived task status.
+
 ## [4.0.0] - 2026-08-09
 
 > **Major release.** ContextDevKit 4 replaces speculative, self-authorizing

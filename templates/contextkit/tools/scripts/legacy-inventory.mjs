@@ -37,7 +37,7 @@ export const LEGACY_RULES = Object.freeze([
   {
     id: 'workflow-v1-finalization',
     path: /(?:^|\/)tools\/scripts\/workflow\/(?:commands|finalization|invariant-guard|invariants|state)\.mjs$/,
-    text: /--adopt-plan-hash|--expected-journal-seq|\bdone-move\b|finalizationEvent\(|expectedPlanHash/,
+    text: /--adopt-plan-hash|--expected-journal-seq|finalizationEvent\(|expectedPlanHash/,
     replacedBy: 'v4 workflow-state writer; v1 reader only in explicit v3-to-v4 migration',
     reason: 'Workflow v1 conclude/finalization flags and journal/hash authority are migration-only after cutover.',
   },
@@ -45,8 +45,8 @@ export const LEGACY_RULES = Object.freeze([
     id: 'done-sweep-runtime',
     path: /(?:workflow-)?done-sweep(?:\.selftest)?\.mjs$|workflow-conclusion-sweep(?:\.selftest)?\.mjs$/,
     text: /done-sweep\.mjs|workflow-done-sweep\.mjs|autoMoveDoneWorkflows|file(?:s|d)?[^\n]{0,80}workflow[^\n]{0,80}done\//i,
-    replacedBy: 'workflow-state.json status transition',
-    reason: 'A v4 workflow never changes path because its status changed.',
+    replacedBy: 'Workflow v2 JSON-first completion plus explicit done-move recovery',
+    reason: 'Implicit directory sweeps are retired; only the canonical JSON completion boundary may project a completed package into done/.',
   },
   {
     id: 'lane-task-reader-writer',

@@ -13,7 +13,8 @@ node contextkit/tools/scripts/workflow.mjs new first-feature
 
 The command creates one atomic package containing `workflow.json`,
 `workflow-state.json`, `pipeline/tasks.json`, `context-manifest.json`, the PRD,
-SPEC, decision links, continuation notes, and reports directory.
+SPEC, decision links, continuation notes, and reports directory. It also
+guarantees the corresponding empty `done/` archive root.
 
 Complete the PRD and SPEC with the outcome, acceptance criteria, boundaries,
 rollback, and test approach. Add an ADR only if the feature contains a material
@@ -47,8 +48,11 @@ status-and-event update.
 ## 4. Verify and complete
 
 Run the focused suite, the relevant integration suite, and QA sign-off. Then use
-the canonical transition command to approve completion. The workflow directory
-never moves when status changes.
+the canonical transition command to approve completion. Completion commits the
+JSON state first and then atomically moves the complete package from
+`workflows/<WF>/` to the corresponding `done/<WF>/` location for human
+navigation. JSON remains authoritative; the folder name is never parsed as
+state.
 
 Inspect the result with:
 
@@ -57,5 +61,5 @@ node contextkit/tools/scripts/workflow.mjs status WF-0001
 node contextkit/tools/scripts/pipeline.mjs board --tasks <workflow-path>
 ```
 
-You now have one stable workflow path, one task authority, explicit evidence,
-and no hidden global queue.
+You now have one resolvable workflow identity, one task authority, explicit
+evidence, and no hidden global queue.

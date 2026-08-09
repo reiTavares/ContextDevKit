@@ -23,6 +23,33 @@ records, rejects unresolved duplicate identities, stages a complete v4
 generation, verifies schema and parity, exercises a rollback copy, and fences
 old writers before authority changes.
 
+## Workflow placement in 4.0.1 and later
+
+`workflow-state.json` remains the sole workflow lifecycle authority. Directory
+placement is only a human navigation projection:
+
+- active owner-scoped workflow: `<BIZ|OP>/workflows/<WF>/`;
+- completed owner-scoped workflow: `<BIZ|OP>/done/<WF>/`;
+- active neutral workflow: `memory/workflows/<WF>/`;
+- completed neutral workflow: `memory/workflows/done/<WF>/`.
+
+Every location contains the complete Workflow v2 package, including
+`workflow.json`, `workflow-state.json`, `pipeline/tasks.json`, generated
+`pipeline/tasks.md`, authored planning documents, reports, manifest, and index.
+The migrator preserves completed placement; it never creates task status
+directories or derives lifecycle state from a folder name.
+
+ContextDevKit 4.0.0 could leave an already-completed v2 package in its active
+directory. After updating to 4.0.1, preview and apply the idempotent placement
+repair from the target project root:
+
+```powershell
+node .\contextkit\tools\scripts\workflow.mjs done-move WF-####
+node .\contextkit\tools\scripts\workflow.mjs done-move WF-#### --apply
+```
+
+The command refuses a non-`done` JSON state and never changes lifecycle state.
+
 ## Preconditions
 
 1. Use a tested 4.0 checkout or package on the same filesystem volume as the
@@ -233,6 +260,8 @@ old objects wholesale into `config.json`.
 - attempts to use an old writer are refused;
 - normal boot does not load the migrator or any legacy module;
 - CLI, MCP, dashboard, and statusline agree with `pipeline/tasks.json`;
+- completed workflow packages and their tasks remain readable from the derived
+  `done/` location;
 - second dry-run/stage/cutover operation is idempotent or revision-refused, not
   a duplicate mutation;
 - final authority points to the accepted v4 generation after the rollback drill;

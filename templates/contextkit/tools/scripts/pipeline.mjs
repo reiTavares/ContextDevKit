@@ -67,7 +67,7 @@ export function parsePipelineInvocation(argv, environment = process.env) {
  * without replacing the canonical store implementation.
  *
  * @param {{command:string,target:string,args:string[]}} invocation
- * @param {{out?:(text:string)=>void,now?:string,session?:object}} [environment]
+ * @param {{out?:(text:string)=>void,now?:string,session?:object,root?:string}} [environment]
  * @returns {Promise<object>}
  */
 export async function dispatchPipelineCommand(invocation, environment = {}) {
@@ -121,7 +121,7 @@ export async function dispatchPipelineCommand(invocation, environment = {}) {
     const handler = command === 'qa-reject'
       ? qaReject
       : command === 'qa-approve' ? qaApprove : autoTransition;
-    const receipt = handler({ target, argv: args });
+    const receipt = handler({ target, argv: args, root: environment.root ?? process.cwd() });
     output(`${command} ${receipt.task.id} -> ${receipt.task.status}`);
     reportProjectionFailure(receipt, output);
     return receipt;

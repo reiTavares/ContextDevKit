@@ -97,6 +97,23 @@ function buildFixture(platformRoot) {
   write(resolve(workflowRoot, 'decisions.md'), '# Decisions\n');
   write(resolve(workflowRoot, 'tasks.md'), '| id | status |\n| 999 | stale |\n');
 
+  const neutralWorkflowRoot = resolve(platformRoot, 'memory/workflows/done/WF-0002-neutral');
+  write(resolve(neutralWorkflowRoot, 'workflow-plan.json'), JSON.stringify({
+    schemaVersion: 1,
+    workflowId: 'WF-0002',
+    slug: 'neutral',
+    waves: [],
+  }, null, 2));
+  write(resolve(neutralWorkflowRoot, 'workflow-state.json'), JSON.stringify({
+    schemaVersion: 1,
+    workflowId: 'WF-0002',
+    revision: 2,
+    overallStatus: 'done',
+  }, null, 2));
+  write(resolve(neutralWorkflowRoot, 'prd.md'), '# Neutral PRD\n');
+  write(resolve(neutralWorkflowRoot, 'spec.md'), '# Neutral SPEC\n');
+  write(resolve(neutralWorkflowRoot, 'decisions.md'), '# Neutral decisions\n');
+
   write(resolve(platformRoot, 'memory/business/BIZ-0001-demo/tasks.json'), JSON.stringify({
     schemaVersion: 1,
     owner: { kind: 'BIZ', id: 'BIZ-0001' },
@@ -127,7 +144,7 @@ try {
     assert.equal(inventory.counts.laneCards, 5);
     assert.equal(inventory.counts.ownerTasks, 2);
     assert.equal(inventory.counts.workflowTasks, 1);
-    assert.equal(inventory.counts.workflows, 1);
+    assert.equal(inventory.counts.workflows, 2);
     assert.equal(inventory.counts.sidecars, 1);
     assert.equal(inventory.duplicates.length, 1);
     assert.equal(inventory.ownerless.length, 1);
@@ -209,14 +226,16 @@ try {
     assert.deepEqual(document.tasks.find((task) => task.id === 'T-006').dependsOn, ['T-004']);
   });
 
-  await test('done workflow returns to canonical path and preserves documents', () => {
+  await test('completed workflows preserve owner and neutral done placement with full packages', () => {
     const targets = Object.keys(plan.manifest.targetFileHashes);
-    assert.equal(targets.some((path) => path.includes('/done/')), false);
-    assert.equal(targets.some((path) => path.includes('/OP-0001-demo/workflows/WF-0001-demo/workflow.json')), true);
+    assert.equal(targets.some((path) => path.includes('/OP-0001-demo/done/WF-0001-demo/workflow.json')), true);
+    assert.equal(targets.some((path) => path.includes('/workflows/done/WF-0002-neutral/workflow.json')), true);
     assert.equal(targets.some((path) => path.endsWith('/WF-0001-demo/prd.md')), true);
     const statePath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow-state.json'));
     const workflowPath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow.json'));
     assert.equal(JSON.parse(plan.targetFiles[statePath]).status, 'done');
+    const neutralStatePath = targets.find((path) => path.endsWith('/WF-0002-neutral/workflow-state.json'));
+    assert.equal(JSON.parse(plan.targetFiles[neutralStatePath]).status, 'done');
     const migratedWave = JSON.parse(plan.targetFiles[workflowPath]).structure.waves[0];
     assert.equal(Object.hasOwn(migratedWave, 'status'), false);
     assert.equal(Object.hasOwn(migratedWave, 'tasks'), false);

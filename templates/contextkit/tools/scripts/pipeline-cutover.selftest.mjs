@@ -83,9 +83,27 @@ try {
 
   await dispatchPipelineCommand(invocation(['start', 'T-002']), environment);
   await dispatchPipelineCommand(invocation(['auto-transition', 'T-002', 'testing']), environment);
-  await dispatchPipelineCommand(invocation(['move', 'T-002', 'conclusion', '--evidence', 'owner:accepted']), environment);
+  let missingAutomatedEvidenceRefused = false;
+  try {
+    await dispatchPipelineCommand(invocation(['auto-transition', 'T-002', 'done']), environment);
+  } catch (error) {
+    missingAutomatedEvidenceRefused = /requires --evidence/.test(error.message);
+  }
+  check('automatic testing-to-done refuses without a bound test receipt', missingAutomatedEvidenceRefused);
+  await dispatchPipelineCommand(invocation(['auto-transition', 'T-002', 'done', '--evidence', 'suite:auto-green']), environment);
   currentDocument = readTasksDocument(scopeRoot);
-  check('conclusion is semantic alias for done', currentDocument.tasks.find((task) => task.id === 'T-002')?.status === 'done');
+  check('green automated tests transition testing directly to done', currentDocument.tasks.find((task) => task.id === 'T-002')?.status === 'done');
+  await dispatchPipelineCommand(invocation(['qa-reject', 'T-002', 'human requested adjustment']), environment);
+  currentDocument = readTasksDocument(scopeRoot);
+  const reopenedTask = currentDocument.tasks.find((task) => task.id === 'T-002');
+  check('human feedback reopens a done task in backlog', reopenedTask?.status === 'backlog');
+  check('human feedback clears stale current-cycle evidence', reopenedTask?.evidenceRefs.length === 0);
+  await dispatchPipelineCommand(invocation(['start', 'T-002']), environment);
+  await dispatchPipelineCommand(invocation(['auto-transition', 'T-002', 'testing']), environment);
+  await dispatchPipelineCommand(invocation(['auto-transition', 'T-002', 'done', '--evidence', 'suite:retest-green']), environment);
+  currentDocument = readTasksDocument(scopeRoot);
+  const retestedTask = currentDocument.tasks.find((task) => task.id === 'T-002');
+  check('reopened task completes a fresh backlog-to-testing-to-done cycle', retestedTask?.status === 'done' && retestedTask.evidenceRefs.join(',') === 'suite:retest-green');
 
   await dispatchPipelineCommand(invocation([
     'add', '--title', 'Canonical new task', '--priority', 'P1',

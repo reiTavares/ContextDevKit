@@ -147,5 +147,5 @@ marker CAS. Legacy sources are retired to an external audit bundle afterward.
 
 Repository tests are not installed in user projects. The package is built from
 an allowlist and refuses selftests, fixtures, golden data, dogfood memory,
-orphaned projections, and reachable legacy modules. Version 4.0.0 is stamped
-only after the complete release gate passes.
+orphaned projections, and reachable legacy modules. A release version is
+stamped only after the complete release gate passes.
