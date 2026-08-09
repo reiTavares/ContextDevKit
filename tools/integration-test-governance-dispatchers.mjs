@@ -13,6 +13,7 @@ import { dispatchPromptPreflight } from '../templates/contextkit/runtime/hooks/g
 import { dispatchWritePreflight } from '../templates/contextkit/runtime/hooks/governance-write-preflight.mjs';
 import { dispatchPostflight } from '../templates/contextkit/runtime/hooks/governance-postflight.mjs';
 import { dispatchCompletion } from '../templates/contextkit/runtime/hooks/governance-completion.mjs';
+import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import {
   emitGovernanceResult,
   normalizeGovernancePayload,
@@ -101,6 +102,8 @@ async function checkAdapter(label, dispatchAdapter, expectedMoment) {
         session_id: 'session-123',
         task_id: 'T-412',
         prompt_revision: 7,
+        ...(expectedMoment === 'prompt-preflight' ? { prompt: 'Please fix this file.' } : {}),
+        ...(['write-preflight', 'postflight'].includes(expectedMoment) ? { tool_name: 'Edit' } : {}),
         untouched: 'preserved',
       },
       { root: scratchRoot, env, host: 'claude', dispatch },
@@ -176,12 +179,12 @@ const envIdentity = normalizeGovernancePayload(
   'codex',
   { CODEX_THREAD_ID: 'thread-42', CONTEXTKIT_WORK_ITEM_ID: 'T-412', CONTEXTKIT_REVISION: '9' },
 );
-assert.deepEqual(envIdentity, {
-  untouched: true,
-  sessionId: 'thread-42',
-  workItemId: 'T-412',
-  revision: '9',
-});
+assert.equal(envIdentity.untouched, true);
+assert.equal(envIdentity.sessionId, 'thread-42');
+assert.equal(envIdentity.workItemId, 'T-412');
+assert.equal(envIdentity.revision, '9');
+assert.equal(envIdentity.mutationAttempt, false);
+assert.equal(envIdentity.interaction.intent, 'unclassified');
 ok('host identity comes only from payload or environment');
 
 let rendered = '';
@@ -202,5 +205,71 @@ await checkAdapter('prompt preflight', dispatchPromptPreflight, 'prompt-prefligh
 await checkAdapter('write preflight', dispatchWritePreflight, 'write-preflight');
 await checkAdapter('postflight', dispatchPostflight, 'postflight');
 await checkAdapter('completion', dispatchCompletion, 'completion');
+
+let noOpDispatchCount = 0;
+const noOpDispatch = async () => { noOpDispatchCount += 1; return { status: 'unexpected' }; };
+const exploration = await dispatchPromptPreflight(
+  { prompt: 'How could I refactor this without changing anything?', session_id: 'read-only' },
+  { root: ROOT, env: {}, host: 'claude', dispatch: noOpDispatch },
+);
+assert.equal(exploration.status, 'not-applicable');
+assert.equal(exploration.messages.length, 0);
+const readTool = await dispatchWritePreflight(
+  { tool_name: 'Read', session_id: 'read-only' },
+  { root: ROOT, env: {}, host: 'claude', dispatch: noOpDispatch },
+);
+assert.equal(readTool.status, 'not-applicable');
+assert.equal(noOpDispatchCount, 0);
+ok('conversation, exploration, and read tools never enter governance runtime');
+
+const clarification = await dispatchPromptPreflight(
+  { prompt: 'Adjust this.', session_id: 'unclear' },
+  { root: ROOT, env: {}, host: 'claude', dispatch: noOpDispatch },
+);
+const repeatedClarification = await dispatchPromptPreflight(
+  { prompt: 'Adjust this.', session_id: 'unclear', clarificationAsked: true },
+  { root: ROOT, env: {}, host: 'claude', dispatch: noOpDispatch },
+);
+assert.equal(clarification.messages.length, 1);
+assert.equal(repeatedClarification.messages.length, 0);
+assert.equal(noOpDispatchCount, 0);
+ok('unclassified interaction asks at most one ephemeral clarification');
+
+const workflowContextRoot = mkdtempSync(join(tmpdir(), 'cdk-w03-context-'));
+try {
+  createWaveWorkflow(workflowContextRoot, 'dispatcher-context', {
+    id: 'WF-0111',
+    title: 'Dispatcher context',
+    objective: 'Load the governed pack before a mutation',
+    now: '2026-08-08T12:00:00.000Z',
+  });
+  let contextDispatchCall = null;
+  const contextResult = await dispatchWritePreflight(
+    {
+      tool_name: 'Edit',
+      session_id: 'context-session',
+      workflow_ref: 'WF-0111',
+      revision: 1,
+    },
+    {
+      root: workflowContextRoot,
+      env: {},
+      host: 'claude',
+      dispatch: async (call) => {
+        contextDispatchCall = call;
+        return { status: 'completed', allowed: true, evaluations: [], messages: [], diagnostics: [] };
+      },
+    },
+  );
+  assert.equal(contextDispatchCall.payload.observations['context-pack'].status, 'passed');
+  assert.match(contextResult.contextPack, /### workflow\.json/);
+  assert.match(contextResult.contextPack, /### prd\.md/);
+  assert.match(contextResult.contextPack, /### spec\.md/);
+  assert.match(contextResult.contextPack, /### decisions\.md/);
+  assert.match(contextResult.contextPack, /### pipeline\/tasks\.json/);
+  ok('write preflight injects the complete governed workflow pack before dispatch');
+} finally {
+  rmSync(workflowContextRoot, { recursive: true, force: true });
+}
 
 console.log(`\n${checks} checks passed.\n`);

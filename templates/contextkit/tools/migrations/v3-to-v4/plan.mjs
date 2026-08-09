@@ -103,6 +103,24 @@ function resolveTaskId(record, duplicateGroup) {
   return { id: `${baseId}-${record.recordKey.slice(-8).toUpperCase()}`, resolution: 'namespaced' };
 }
 
+/** @param {object[]} waves @returns {object[]} */
+function sanitizeWorkflowWaves(waves) {
+  return (Array.isArray(waves) ? waves : []).map((wave) => {
+    const { status: ignoredWaveStatus, state: ignoredWaveState, ...waveTopology } = wave || {};
+    void ignoredWaveStatus;
+    void ignoredWaveState;
+    return {
+      ...waveTopology,
+      tasks: (Array.isArray(wave?.tasks) ? wave.tasks : []).map((task) => {
+        const { status: ignoredTaskStatus, state: ignoredTaskState, ...taskTopology } = task || {};
+        void ignoredTaskStatus;
+        void ignoredTaskState;
+        return taskTopology;
+      }),
+    };
+  });
+}
+
 /**
  * Refuse a bare v3 id when more than one source record owns it.
  *
@@ -143,13 +161,13 @@ function workflowFiles(workflow, activeTaskIds) {
     scope: legacyPlan.scope || { included: [], excluded: [] },
     acceptance: Array.isArray(legacyPlan.acceptance) ? legacyPlan.acceptance : [],
     dependencies: Array.isArray(legacyPlan.dependencies) ? legacyPlan.dependencies : [],
-    structure: { mode: 'workflow', waves: Array.isArray(legacyPlan.waves) ? legacyPlan.waves : [] },
+    structure: { mode: 'workflow', waves: sanitizeWorkflowWaves(legacyPlan.waves) },
     artifacts: {
       prd: 'prd.md', spec: 'spec.md', decisions: 'decisions.md', tasks: 'pipeline/tasks.json',
       state: 'workflow-state.json', reports: 'reports/',
     },
-    createdAt: legacyPlan.createdAt || null,
-    updatedAt: legacyPlan.updatedAt || null,
+    createdAt: legacyPlan.createdAt || workflow.sourceModifiedAt,
+    updatedAt: legacyPlan.updatedAt || workflow.sourceModifiedAt,
     migration: { sourceVersion: '3.x', sourcePath: workflow.sourcePath, contentHash: workflow.contentHash },
   };
   const state = {

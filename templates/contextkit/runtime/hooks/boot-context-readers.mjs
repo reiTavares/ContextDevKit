@@ -10,7 +10,10 @@ import { resolve } from 'node:path';
 import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
 import { parseSessionLog, renderDigest } from './session-digest-core.mjs';
 import { clip, stripMd } from './md-extract.mjs';
-import { readGovernedWorkflowContext as loadGovernedWorkflowContext } from '../authority-reader.mjs';
+import {
+  readGovernedWorkflowContext as loadGovernedWorkflowContext,
+  renderGovernedWorkflowContext as renderLoadedWorkflowContext,
+} from '../authority-reader.mjs';
 
 const SECTION_LIMIT = 60;
 
@@ -107,43 +110,7 @@ export function readGovernedWorkflowContext(root, workflowRef, dependencies = {}
  * @returns {string}
  */
 export function renderGovernedWorkflowContext(context) {
-  if (!context || context.status !== 'available' || !context.pack) {
-    const diagnostic = context?.diagnostic;
-    return `Workflow context ${context?.workflowRef ?? '(unknown)'} is ${context?.status ?? 'unavailable'}${diagnostic?.message ? `: ${diagnostic.message}` : '.'}`;
-  }
-  const pack = context.pack;
-  const documents = pack.documents ?? {};
-  const sections = [
-    `## Governed workflow context — ${context.workflowRef}`,
-    '',
-    '### workflow.json',
-    '```json',
-    JSON.stringify(pack.definition, null, 2),
-    '```',
-    '',
-    '### workflow-state.json',
-    '```json',
-    JSON.stringify(pack.state, null, 2),
-    '```',
-    '',
-    '### pipeline/tasks.json',
-    '```json',
-    JSON.stringify(pack.tasks, null, 2),
-    '```',
-  ];
-  for (const [name, content] of [
-    ['prd.md', documents.prd],
-    ['spec.md', documents.spec],
-    ['decisions.md', documents.decisions],
-    ['CONTINUATION-PROMPT.md', documents.continuation],
-  ]) {
-    if (typeof content !== 'string' || content.length === 0) continue;
-    sections.push('', `### ${name}`, content);
-  }
-  for (const report of Array.isArray(pack.reports) ? pack.reports : []) {
-    sections.push('', `### ${report.ref}`, report.content);
-  }
-  return sections.join('\n');
+  return renderLoadedWorkflowContext(context);
 }
 
 /** Extracts the `[Unreleased]` block from a CHANGELOG-shaped string. */

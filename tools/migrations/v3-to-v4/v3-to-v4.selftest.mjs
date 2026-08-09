@@ -68,7 +68,7 @@ function buildFixture(platformRoot) {
     schemaVersion: 1,
     workflowId: 'WF-0001',
     slug: 'demo',
-    waves: [{ id: 'W1', tasks: [{ id: '001', title: 'Owned' }] }],
+    waves: [{ id: 'W1', status: 'done', tasks: [{ id: '001', title: 'Owned', status: 'done' }] }],
   }, null, 2));
   write(resolve(workflowRoot, 'workflow-state.json'), JSON.stringify({
     schemaVersion: 1,
@@ -181,7 +181,11 @@ try {
     assert.equal(targets.some((path) => path.includes('/done/')), false);
     assert.equal(targets.some((path) => path.endsWith('/WF-0001-demo/prd.md')), true);
     const statePath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow-state.json'));
+    const workflowPath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow.json'));
     assert.equal(JSON.parse(plan.targetFiles[statePath]).status, 'done');
+    const migratedWave = JSON.parse(plan.targetFiles[workflowPath]).structure.waves[0];
+    assert.equal(Object.hasOwn(migratedWave, 'status'), false);
+    assert.equal(Object.hasOwn(migratedWave.tasks[0], 'status'), false);
   });
 
   await test('target traversal is refused', () => {

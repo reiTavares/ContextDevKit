@@ -249,20 +249,20 @@ console.log('\nF5. Hook superset / fail-open...');
       : rep.bad('F5. genuine input produced no/multi-line advisory');
     readIntakeProposal(root, 'task-real-1') !== null ? rep.ok('F5. genuine input persisted a proposal') : rep.bad('F5. genuine input wrote no proposal');
 
-    // Autonomy floor: Business is manual at every grade; Operation auto at grade 3.
+    // ContextDevKit 4: autonomy is posture only; neither nature nor grade gates work.
     const bizAct = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' }, { autonomy: { grade: 4 } });
-    bizAct.mode === 'manual' && bizAct.area === 'adr'
-      ? rep.ok('F5. Business stays manual even at grade 4 (human floor)')
-      : rep.bad(`F5. Business escaped the manual floor: ${bizAct.mode}/${bizAct.area}`);
+    bizAct.mode === 'advisory' && bizAct.area === 'adr'
+      ? rep.ok('F5. Business recommendation is advisory at grade 4')
+      : rep.bad(`F5. Business recommendation gained authority: ${bizAct.mode}/${bizAct.area}`);
     const opAct = resolveProposedAction(opWork, { autonomy: { grade: 3 } });
-    opAct.mode === 'auto' && opAct.area === 'edit'
-      ? rep.ok('F5. Operation is auto at grade 3')
-      : rep.bad(`F5. Operation not auto at grade 3: ${opAct.mode}/${opAct.area}`);
-    // Low-confidence near-tie downgrades one notch (uncertain guess never auto-acts).
+    opAct.mode === 'advisory' && opAct.area === 'edit'
+      ? rep.ok('F5. Operation recommendation is advisory at grade 3')
+      : rep.bad(`F5. Operation recommendation gained authority: ${opAct.mode}/${opAct.area}`);
+    // Low confidence remains an advisory fact; it does not manufacture a manual gate.
     const lowAct = resolveProposedAction({ ...opWork, confidence: 'low' }, { autonomy: { grade: 3 } });
-    lowAct.mode === 'suggest' && lowAct.downgraded === true
-      ? rep.ok('F5. low-confidence Operation downgrades auto→suggest')
-      : rep.bad(`F5. low-confidence not downgraded: ${lowAct.mode}/${lowAct.downgraded}`);
+    lowAct.mode === 'advisory' && lowAct.downgraded === false
+      ? rep.ok('F5. low-confidence Operation remains non-blocking advisory')
+      : rep.bad(`F5. low-confidence created an authority floor: ${lowAct.mode}/${lowAct.downgraded}`);
 
     // Fail-open: a matcher/classifier error inside runMethodology degrades to null,
     // never throws. A malformed `work` (string) must not break the hook surface.

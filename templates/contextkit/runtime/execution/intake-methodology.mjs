@@ -6,18 +6,15 @@
  * It is the thin, PURE orchestration that turns a `signals.work` classification
  * (already computed by intake, A2-T1) into:
  *   - a Business-match suggestion (operation-nature only — propose-not-auto),
- *   - the autonomy-per-grade proposed action, and
+ *   - a non-authoritative action recommendation, and
  *   - the persisted intake proposal,
  * plus one advisory checklist line. Extracting it from the hook keeps the hook a
  * minimal, fail-open superset (immutable rule 2) and makes the autonomy mapping
  * unit-testable without spawning a process.
  *
- * Autonomy-per-grade (design §6.4) — NO new gate, reuses `resolveAutonomy`:
- *   - Business creation/approval is ALWAYS human at EVERY grade (the `adr` floor
- *     guarantees it). The classifier may only ever PROPOSE a Business.
- *   - Operations are auto-actionable from grade 3 via the existing `edit` area.
- *   - A `nature` near-tie (`confidence: low`) downgrades the action one notch so
- *     an uncertain guess never auto-acts.
+ * Autonomy is posture metadata only in ContextDevKit 4. It never authorizes or
+ * refuses a mutation, and classifier uncertainty never creates a hidden manual
+ * floor. Explicit owner intent remains authoritative.
  *
  * Zero runtime dependencies — only the matcher, the proposal store, and the
  * autonomy resolver (all `node:*`-only themselves).
@@ -29,9 +26,6 @@ import { buildIntakeProposal, saveIntakeProposal } from './intake-proposal-store
 import { scanCitations, resolveReferenceIntent } from './reference-intent.mjs';
 import { buildWorkContextRegistry } from '../../tools/scripts/registry/work-context.mjs';
 import { buildWorkflowRegistry } from '../../tools/scripts/registry/workflow.mjs';
-
-/** One notch down the consent ladder, used by the low-confidence downgrade. */
-const DOWNGRADE = Object.freeze({ auto: 'suggest', suggest: 'manual', manual: 'manual', debate: 'suggest' });
 
 /**
  * Reference-intents that mean "work inside an existing context" rather than
@@ -87,15 +81,14 @@ function isStrongContinuation(referenceIntent) {
 /**
  * Resolves the proposed action mode for a classification at a given grade.
  *
- * Business → always `manual` (human consent floor; map onto the `adr` area which
- * is `manual` at every grade). Operation → the `edit` area mode (auto from grade
- * 3). A low-confidence near-tie downgrades one notch so an uncertain Business
- * guess never auto-acts.
+ * The legacy area/grade remain observable for compatibility, but the only v4
+ * mode is `advisory`. Owner intent and external platform/security controls decide
+ * whether an action proceeds.
  *
  * @param {object} work - the `signals.work` classification.
  * @param {object} config - loaded contextkit config (caller owns the I/O).
  * @param {number|null} sessionOverride - live `/autonomy --session` grade or null.
- * @returns {{ nature, kind, grade, mode, area, reason, downgraded: boolean }}
+ * @returns {{ nature, kind, grade, mode:'advisory', area, reason, downgraded: false }}
  */
 export function resolveProposedAction(work, config = {}, sessionOverride = null) {
   const isBusiness = work?.nature === 'business';
@@ -104,23 +97,16 @@ export function resolveProposedAction(work, config = {}, sessionOverride = null)
   try {
     resolved = resolveAutonomy(area, config, sessionOverride);
   } catch {
-    resolved = { grade: 1, mode: 'manual', reason: 'resolve-failed-fail-safe' };
-  }
-  let mode = resolved.mode;
-  let downgraded = false;
-  // Low-confidence near-tie: never let an uncertain guess auto-act (design §6.4).
-  if (work?.confidence === 'low' && mode !== 'manual') {
-    mode = DOWNGRADE[mode] || 'manual';
-    downgraded = true;
+    resolved = { grade: null, reason: 'resolver unavailable; recommendation remains advisory' };
   }
   return {
     nature: work?.nature ?? null,
     kind: work?.kind ?? null,
     grade: resolved.grade,
-    mode,
+    mode: 'advisory',
     area,
-    reason: resolved.reason,
-    downgraded,
+    reason: resolved.reason ?? 'ContextDevKit 4 routing and autonomy are advisory',
+    downgraded: false,
   };
 }
 

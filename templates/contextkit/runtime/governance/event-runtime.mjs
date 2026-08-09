@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { createSessionCircuitBreaker } from './circuit-breaker.mjs';
+import { createGovernanceSessionStateStore } from './session-state-store.mjs';
 import {
   createDedupCache,
   createGateDedupKey,
@@ -150,6 +151,7 @@ function hasTestGateInjection(payload) {
  * @param {(callback:Function,delay:number)=>unknown} [options.setTimer]
  * @param {(handle:unknown)=>void} [options.clearTimer]
  * @param {number} [options.failureThreshold]
+ * @param {object|null} [options.stateStore] cross-process mutation-session state
  * @returns {{dispatch:(input:object)=>Promise<object>, clearSession:(sessionId:string)=>void, clear:()=>void}}
  */
 export function createGovernanceEventRuntime({
@@ -159,6 +161,7 @@ export function createGovernanceEventRuntime({
   setTimer = setTimeout,
   clearTimer = clearTimeout,
   failureThreshold = 3,
+  stateStore = null,
 } = {}) {
   const evaluationCache = createDedupCache();
   const visibleProblemCache = createDedupCache();
@@ -225,6 +228,48 @@ export function createGovernanceEventRuntime({
       });
     }
 
+    const mutationStateEnabled = Boolean(stateStore) && (
+      (['write-preflight', 'postflight'].includes(moment) && payload.mutationAttempt === true)
+      || (moment === 'completion' && (payload.mutationAttempt === true || stateStore.hasSession(sessionId)))
+    );
+    if (moment === 'completion' && stateStore && !mutationStateEnabled) {
+      return finish('not-applicable', {
+        diagnostics: [],
+      });
+    }
+
+    const persistentDiagnostics = [];
+    const recordFailure = () => {
+      circuitBreaker.recordFailure(sessionId);
+      if (!mutationStateEnabled) return;
+      const recorded = stateStore.recordCircuitFailure(sessionId, failureThreshold);
+      if (recorded.status !== 'ok') {
+        persistentDiagnostics.push({ code: 'SESSION_STATE_UNAVAILABLE', message: recorded.reason ?? recorded.status });
+      }
+    };
+    const recordSuccess = () => {
+      circuitBreaker.recordSuccess(sessionId);
+      if (!mutationStateEnabled) return;
+      const recorded = stateStore.recordCircuitSuccess(sessionId);
+      if (recorded.status !== 'ok') {
+        persistentDiagnostics.push({ code: 'SESSION_STATE_UNAVAILABLE', message: recorded.reason ?? recorded.status });
+      }
+    };
+
+    if (mutationStateEnabled) {
+      const persistentCircuit = stateStore.circuitSnapshot(sessionId);
+      if (persistentCircuit.status !== 'ok') {
+        return finish('state-unavailable', {
+          diagnostics: [{ code: 'SESSION_STATE_UNAVAILABLE', message: persistentCircuit.reason ?? persistentCircuit.status }],
+        });
+      }
+      if (persistentCircuit.open) {
+        return finish('circuit-open', {
+          diagnostics: [{ code: 'SESSION_CIRCUIT_OPEN', message: 'Governance evaluation bypassed after repeated cross-process session failures.' }],
+        });
+      }
+    }
+
     if (!circuitBreaker.canEvaluate(sessionId)) {
       return finish('circuit-open', {
         diagnostics: [{ code: 'SESSION_CIRCUIT_OPEN', message: 'Governance evaluation bypassed after repeated session failures.' }],
@@ -245,10 +290,13 @@ export function createGovernanceEventRuntime({
         timers,
       );
       if (planOutcome.status !== 'completed') {
-        circuitBreaker.recordFailure(sessionId);
+        recordFailure();
         const code = planOutcome.status === 'timed-out' ? 'GATE_PLAN_TIMEOUT' : 'GATE_PLAN_FAILURE';
         return finish('completed', {
-          diagnostics: [{ code, message: planOutcome.status === 'failed' ? errorMessage(planOutcome.error) : 'Canonical gate plan timed out.' }],
+          diagnostics: [
+            ...persistentDiagnostics,
+            { code, message: planOutcome.status === 'failed' ? errorMessage(planOutcome.error) : 'Canonical gate plan timed out.' },
+          ],
         });
       }
       gatePlan = planOutcome.value;
@@ -257,9 +305,12 @@ export function createGovernanceEventRuntime({
     const gates = Array.isArray(gatePlan?.gates) ? gatePlan.gates : [];
     const evaluations = [];
     const messages = [];
-    const diagnostics = Array.isArray(gatePlan?.warnings)
-      ? gatePlan.warnings.map((warning) => ({ code: 'GATE_PLAN_WARNING', message: String(warning) }))
-      : [];
+    const diagnostics = [
+      ...persistentDiagnostics,
+      ...(Array.isArray(gatePlan?.warnings)
+        ? gatePlan.warnings.map((warning) => ({ code: 'GATE_PLAN_WARNING', message: String(warning) }))
+        : []),
+    ];
     let allowed = true;
     let stoppedStatus = null;
 
@@ -275,7 +326,21 @@ export function createGovernanceEventRuntime({
       }
 
       const dedupKey = createGateDedupKey({ sessionId, workItemId, revision, gateId: gate.id, moment });
-      if (!evaluationCache.claim(dedupKey)) {
+      let evaluationClaimed;
+      if (mutationStateEnabled) {
+        const persistentClaim = stateStore.claimEvaluation(sessionId, dedupKey);
+        if (persistentClaim.status !== 'ok') {
+          stoppedStatus = 'state-unavailable';
+          evaluations.push({ gateId: gate.id, status: 'state-unavailable', durationMs: 0 });
+          diagnostics.push({ code: 'SESSION_STATE_UNAVAILABLE', gateId: gate.id, message: persistentClaim.reason ?? persistentClaim.status });
+          break;
+        }
+        evaluationClaimed = persistentClaim.claimed;
+        if (evaluationClaimed) evaluationCache.claim(dedupKey);
+      } else {
+        evaluationClaimed = evaluationCache.claim(dedupKey);
+      }
+      if (!evaluationClaimed) {
         evaluations.push({ gateId: gate.id, status: 'deduplicated', durationMs: 0 });
         continue;
       }
@@ -290,24 +355,29 @@ export function createGovernanceEventRuntime({
       const gateStartedAt = now();
       const observation = payload.observations?.[gate.evaluatorId ?? gate.id]
         ?? { status: 'unknown', deterministic: false, applicable: false, evidenced: false };
+      const contextualObservation = {
+        ...observation,
+        currentRevision: observation.currentRevision ?? revision,
+        currentScope: observation.currentScope ?? { workItemId },
+      };
       const internalEnv = { ...env, CONTEXTKIT_INTERNAL: '1' };
       const evaluationOutcome = await runWithTimeout(
         (signal) => testInjection
           ? gate.evaluate({ moment, root, payload, env: internalEnv }, { signal })
-          : evaluateGateObservation({ gate, moment, observation, signal }),
+          : evaluateGateObservation({ gate, moment, observation: contextualObservation, signal }),
         Math.min(gateTimeoutMs, remainingBudgetMs),
         timers,
       );
       const durationMs = Math.max(0, now() - gateStartedAt);
 
       if (evaluationOutcome.status === 'timed-out') {
-        circuitBreaker.recordFailure(sessionId);
+        recordFailure();
         evaluations.push({ gateId: gate.id, status: 'timed-out', durationMs });
         diagnostics.push({ code: 'GATE_TIMEOUT', gateId: gate.id, message: `Gate exceeded its ${Math.min(gateTimeoutMs, remainingBudgetMs)} ms timeout.` });
         continue;
       }
       if (evaluationOutcome.status === 'failed') {
-        circuitBreaker.recordFailure(sessionId);
+        recordFailure();
         evaluations.push({ gateId: gate.id, status: 'failed', durationMs });
         diagnostics.push({ code: 'GATE_FAILURE', gateId: gate.id, message: errorMessage(evaluationOutcome.error) });
         continue;
@@ -317,20 +387,31 @@ export function createGovernanceEventRuntime({
       try {
         verdict = normalizeVerdict(evaluationOutcome.value);
       } catch (error) {
-        circuitBreaker.recordFailure(sessionId);
+        recordFailure();
         evaluations.push({ gateId: gate.id, status: 'failed', durationMs });
         diagnostics.push({ code: 'MESSAGE_RENDER_FAILURE', gateId: gate.id, message: errorMessage(error) });
         continue;
       }
-      if (observation.status === 'error') circuitBreaker.recordFailure(sessionId);
-      else circuitBreaker.recordSuccess(sessionId);
+      if (observation.status === 'error') recordFailure();
+      else recordSuccess();
       if (verdict.decision === 'deny') allowed = false;
       evaluations.push({ gateId: gate.id, status: 'evaluated', durationMs, verdict });
 
       const visibleMessage = visibleMessageFor(gate, verdict);
       if (visibleMessage) {
         const problemDedupKey = createVisibleProblemKey({ sessionId, problemKey: visibleMessage.problemKey });
-        if (visibleProblemCache.claim(problemDedupKey)) messages.push(visibleMessage);
+        let visibleProblemClaimed;
+        if (mutationStateEnabled) {
+          const persistentClaim = stateStore.claimVisibleProblem(sessionId, problemDedupKey);
+          visibleProblemClaimed = persistentClaim.status === 'ok' && persistentClaim.claimed;
+          if (persistentClaim.status !== 'ok') {
+            diagnostics.push({ code: 'SESSION_STATE_UNAVAILABLE', gateId: gate.id, message: persistentClaim.reason ?? persistentClaim.status });
+          }
+          if (visibleProblemClaimed) visibleProblemCache.claim(problemDedupKey);
+        } else {
+          visibleProblemClaimed = visibleProblemCache.claim(problemDedupKey);
+        }
+        if (visibleProblemClaimed) messages.push(visibleMessage);
       }
     }
 
@@ -362,6 +443,7 @@ export function createGovernanceEventRuntime({
       evaluationCache.deleteWhere(belongsToSession);
       visibleProblemCache.deleteWhere(belongsToSession);
       circuitBreaker.clearSession(sessionId);
+      stateStore?.clearSession?.(sessionId);
     },
     clear() {
       evaluationCache.clear();
@@ -371,7 +453,9 @@ export function createGovernanceEventRuntime({
   });
 }
 
-const defaultRuntime = createGovernanceEventRuntime();
+const defaultRuntime = createGovernanceEventRuntime({
+  stateStore: createGovernanceSessionStateStore(),
+});
 
 /**
  * Canonical W03/W04 seam: one call per host event, one structured verdict.

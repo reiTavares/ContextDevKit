@@ -5,14 +5,32 @@
  * machines cannot turn timing variance into correctness failures.
  */
 import { reporter } from './it-helpers.mjs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   DEFAULT_EVENT_BUDGET_MS,
   MAX_EVENT_BUDGET_MS,
   MAX_GATE_TIMEOUT_MS,
   createGovernanceEventRuntime,
+  dispatchGovernanceEvent,
 } from '../templates/contextkit/runtime/governance/event-runtime.mjs';
 import { createSessionCircuitBreaker } from '../templates/contextkit/runtime/governance/circuit-breaker.mjs';
 import { createGateDedupKey } from '../templates/contextkit/runtime/governance/dedup-cache.mjs';
+
+if (process.argv.includes('--cross-process-worker')) {
+  const payload = JSON.parse(process.env.CDK_GOVERNANCE_WORKER_PAYLOAD ?? '{}');
+  const response = await dispatchGovernanceEvent({
+    moment: process.env.CDK_GOVERNANCE_WORKER_MOMENT,
+    root: process.env.CDK_GOVERNANCE_WORKER_ROOT,
+    env: process.env,
+    payload,
+  });
+  process.stdout.write(JSON.stringify(response));
+  process.exit(0);
+}
 
 const rep = reporter();
 const eventInput = (payload = {}, overrides = {}) => ({
@@ -201,6 +219,87 @@ await verify('circuit breaker validates its threshold and is scoped by session',
   return refusedInvalidThreshold
     && breaker.canEvaluate('failed-session') === false
     && breaker.canEvaluate('healthy-session') === true;
+});
+
+await verify('deduplication, completion idempotence, and circuit state survive hook processes', () => {
+  const scratchRoot = mkdtempSync(join(tmpdir(), 'ck-gov-cross-process-'));
+  const stateDirectory = join(scratchRoot, 'state');
+  const workerPath = fileURLToPath(import.meta.url);
+  const runWorker = (moment, payload) => {
+    const worker = spawnSync(process.execPath, [workerPath, '--cross-process-worker'], {
+      cwd: scratchRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CONTEXTKIT_GOVERNANCE_STATE_DIR: stateDirectory,
+        CDK_GOVERNANCE_WORKER_ROOT: scratchRoot,
+        CDK_GOVERNANCE_WORKER_MOMENT: moment,
+        CDK_GOVERNANCE_WORKER_PAYLOAD: JSON.stringify(payload),
+      },
+    });
+    if (worker.status !== 0) throw new Error(worker.stderr || `worker exit ${worker.status}`);
+    return JSON.parse(worker.stdout);
+  };
+
+  try {
+    const basePayload = {
+      sessionId: 'cross-session',
+      workItemId: 'WF-0111',
+      revision: '21',
+      mutationAttempt: true,
+    };
+    const firstWrite = runWorker('write-preflight', basePayload);
+    const duplicateWrite = runWorker('write-preflight', basePayload);
+    const firstCompletion = runWorker('completion', { ...basePayload, revision: '22' });
+    const duplicateCompletion = runWorker('completion', { ...basePayload, revision: '22' });
+
+    const failingPayload = {
+      sessionId: 'cross-circuit',
+      workItemId: 'WF-0111',
+      revision: '1',
+      mutationAttempt: true,
+      observations: {
+        'ddd-invariants': { status: 'error' },
+        'architecture-debt': { status: 'error' },
+        'privacy-lgpd': { status: 'error' },
+      },
+    };
+    const opensCircuit = runWorker('write-preflight', failingPayload);
+    const seesOpenCircuit = runWorker('write-preflight', { ...failingPayload, revision: '2' });
+
+    return firstWrite.status === 'completed'
+      && duplicateWrite.status === 'deduplicated'
+      && firstCompletion.status === 'completed'
+      && duplicateCompletion.status === 'deduplicated'
+      && opensCircuit.status === 'circuit-open'
+      && seesOpenCircuit.status === 'circuit-open';
+  } finally {
+    rmSync(scratchRoot, { recursive: true, force: true });
+  }
+});
+
+await verify('a completion-only conversation creates no cross-process state artifact', () => {
+  const scratchRoot = mkdtempSync(join(tmpdir(), 'ck-gov-noop-process-'));
+  const stateDirectory = join(scratchRoot, 'state');
+  const worker = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--cross-process-worker'], {
+    cwd: scratchRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CONTEXTKIT_GOVERNANCE_STATE_DIR: stateDirectory,
+      CDK_GOVERNANCE_WORKER_ROOT: scratchRoot,
+      CDK_GOVERNANCE_WORKER_MOMENT: 'completion',
+      CDK_GOVERNANCE_WORKER_PAYLOAD: JSON.stringify({
+        sessionId: 'conversation-session', workItemId: 'conversation-session', revision: '1',
+      }),
+    },
+  });
+  try {
+    const response = worker.status === 0 ? JSON.parse(worker.stdout) : null;
+    return response?.status === 'not-applicable' && !existsSync(stateDirectory);
+  } finally {
+    rmSync(scratchRoot, { recursive: true, force: true });
+  }
 });
 
 rep.finish('governance anti-loop (WF-0111 W04)');

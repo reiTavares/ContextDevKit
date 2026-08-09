@@ -191,6 +191,7 @@ function inventoryWorkflow(platformRoot, planPath) {
     sourcePath: portableSourcePath,
     directoryPath: sourcePath(platformRoot, workflowDirectory),
     contentHash: sha256(raw),
+    sourceModifiedAt: lstatSync(planPath).mtime.toISOString(),
     stateSourcePath: stateRaw === null ? null : sourcePath(platformRoot, statePath),
     stateContentHash: stateRaw === null ? null : sha256(stateRaw),
     archivedDone: toPortablePath(workflowDirectory).split('/').includes('done'),

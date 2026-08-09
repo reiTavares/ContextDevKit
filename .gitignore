@@ -57,3 +57,4 @@ contextkit/memory/work-context-registry.json
 contextkit/memory/workflow-registry.json
 contextkit/memory/decision-registry.json
 contextkit/memory/project-map/
+tools/release/v4/reports/
