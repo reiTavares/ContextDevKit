@@ -18,6 +18,7 @@ import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
 import { LEDGER_DEFAULTS } from './defaults-ledger.mjs';
 import { ARCH_DEBT_GATE_DEFAULTS } from './defaults-arch-debt.mjs';
+import { DEFAULT_GOVERNANCE_CONFIG } from '../governance/gate-registry.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
@@ -32,6 +33,9 @@ import { ARCH_DEBT_GATE_DEFAULTS } from './defaults-arch-debt.mjs';
  */
 export const DEFAULT_CONFIG = Object.freeze({
   level: 2,
+
+  /** ContextDevKit 4 canonical gate matrix (ADR-0158). */
+  governance: DEFAULT_GOVERNANCE_CONFIG,
 
   /**
    * Autonomy dial (ADR-0041/0042) — a CONSENT axis orthogonal to `level` (L1–L7

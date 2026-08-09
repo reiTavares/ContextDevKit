@@ -18,6 +18,7 @@ import { composeSettings } from '../../runtime/config/settings-compose.mjs';
 import { composeCodexHooks } from '../../runtime/config/codex-hooks-compose.mjs';
 import { getLevel, loadConfigSync } from '../../runtime/config/load.mjs';
 import { resolveArchDebtConfig } from '../../runtime/config/resolve-arch-debt-config.mjs';
+import { resolveGovernanceMatrix } from '../../runtime/governance/gate-mode.mjs';
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
@@ -150,6 +151,24 @@ function checkArchDebtGate() {
   pass(`arch-debt gate: mode ${resolved.mode}, line-budget ADVISORY (yellow ${resolved.lineBands.yellow} / elevated ${resolved.lineBands.elevated}) — never blocks`);
   if (resolved.deprecationNotice) {
     note('config still uses the deprecated l5.lineBudget alias', 'move thresholds to architectureDebtGate.lineSignals.{yellow, elevated} and drop l5.lineBudget (ADR-0122)');
+  }
+}
+
+/**
+ * Reports the single v4 gate matrix after alias normalization and allowlist
+ * clamping. Resolver problems are advisory because policy is canary/continue.
+ *
+ * @returns {void}
+ */
+function checkGovernanceMatrix() {
+  const matrix = resolveGovernanceMatrix(loadConfigSync(ROOT));
+  const guarded = Object.entries(matrix.modes)
+    .filter(([, mode]) => mode === 'guarded')
+    .map(([gateId]) => gateId);
+  pass(`governance gates: failurePolicy=${matrix.failurePolicy}; guarded=${guarded.join(', ') || '(none)'}`);
+  pass(`governance defaults: architecture-debt=${matrix.modes['architecture-debt']}; privacy-lgpd=${matrix.modes['privacy-lgpd']}; graph-first=${matrix.modes['graph-first']}`);
+  if (matrix.warnings.length > 0) {
+    note(`governance config normalized with ${matrix.warnings.length} warning(s)`, matrix.warnings.join('; '));
   }
 }
 
@@ -293,6 +312,7 @@ checkRoadmap();
 checkModuleClaudeMd();
 checkRemote();
 checkArchDebtGate();
+checkGovernanceMatrix();
 checkZod(level);
 checkAntigravityHost();
 checkCodexHost(level);

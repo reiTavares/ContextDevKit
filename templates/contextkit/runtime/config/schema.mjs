@@ -28,6 +28,11 @@ import { MAX_LEVEL, MIN_LEVEL } from './levels.mjs';
 import { EconomySchema } from './schema-economy.mjs';
 import { ArchitectureDebtGateSchema } from './schema-arch-debt.mjs';
 import {
+  DEFAULT_GOVERNANCE_CONFIG,
+  GATE_IDS,
+  GUARDED_GATE_IDS,
+} from '../governance/gate-registry.mjs';
+import {
   AdvisorSchema,
   AutoFormatSchema,
   BehaviorsSchema,
@@ -102,6 +107,40 @@ const AutonomySchema = z
   .passthrough()
   .default({});
 
+const GovernanceModeSchema = z.enum(['off', 'shadow', 'canary', 'guarded', 'advisory', 'strict']);
+const GovernanceGatesSchema = z
+  .object(Object.fromEntries(GATE_IDS.map((gateId) => [gateId, GovernanceModeSchema.optional()])))
+  .passthrough()
+  .default({});
+
+const GovernanceSchema = z
+  .object({
+    defaultMode: GovernanceModeSchema.default('canary'),
+    failurePolicy: z.literal('continue').default('continue'),
+    humanAuthority: z.literal('owner-wins').default('owner-wins'),
+    gates: GovernanceGatesSchema,
+  })
+  .passthrough()
+  .superRefine((governance, context) => {
+    if (['guarded', 'strict'].includes(governance.defaultMode)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['defaultMode'],
+        message: 'governance.defaultMode cannot guard gates outside the explicit allowlist',
+      });
+    }
+    for (const [gateId, mode] of Object.entries(governance.gates)) {
+      if (['guarded', 'strict'].includes(mode) && !GUARDED_GATE_IDS.includes(gateId)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['gates', gateId],
+          message: `${gateId} cannot use guarded outside the blocking allowlist`,
+        });
+      }
+    }
+  })
+  .default(DEFAULT_GOVERNANCE_CONFIG);
+
 // ADR-0134 / ADR-0155 - structural knowledge graph. `mode` is the activation
 // ladder (resolveGraphActivation clamps a blocking mode without `humanFlip`);
 // `autoIndex` drives the per-session refresh; `maxAgeMinutes` is the staleness
@@ -162,6 +201,7 @@ const DepsSchema = z
 export const ConfigSchema = z
   .object({
     level: z.number().int().min(MIN_LEVEL).max(MAX_LEVEL).default(2),
+    governance: GovernanceSchema,
     ledger: LedgerSchema,
     l3: L3Schema,
     l5: L5Schema,

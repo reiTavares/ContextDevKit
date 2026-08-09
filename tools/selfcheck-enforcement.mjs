@@ -158,99 +158,108 @@ export async function runEnforcementChecks(rep, { KIT }) {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-  // =========================================================================
-  // CDK-023: ENFORCEMENT MODES + BYPASS CHECKS
-  // =========================================================================
-  console.log('Checking enforcement modes + bypass (CDK-023, ADR-0072)...');
+  console.log('Checking canonical governance modes + gate registry (ADR-0158)...');
 
-  let modes, bypass;
+  let modes, bypass, registry, gateMode, defaults;
   try {
     const modesPath = resolve(KIT, 'templates/contextkit/runtime/execution/enforcement-modes.mjs');
     const bypassPath = resolve(KIT, 'templates/contextkit/runtime/execution/bypass-store.mjs');
+    const registryPath = resolve(KIT, 'templates/contextkit/runtime/governance/gate-registry.mjs');
+    const gateModePath = resolve(KIT, 'templates/contextkit/runtime/governance/gate-mode.mjs');
+    const defaultsPath = resolve(KIT, 'templates/contextkit/runtime/config/defaults.mjs');
     modes = await import('file://' + modesPath.replaceAll('\\', '/'));
     bypass = await import('file://' + bypassPath.replaceAll('\\', '/'));
+    registry = await import('file://' + registryPath.replaceAll('\\', '/'));
+    gateMode = await import('file://' + gateModePath.replaceAll('\\', '/'));
+    defaults = await import('file://' + defaultsPath.replaceAll('\\', '/'));
   } catch (err) {
-    bad(`enforcement-modes or bypass-store failed to import: ${err?.message ?? err}`);
+    bad(`governance module failed to import: ${err?.message ?? err}`);
     return;
   }
 
-  const { resolveEnforcementMode, decide } = modes;
+  const { ENFORCEMENT_MODES, resolveEnforcementMode, decide } = modes;
   const { writeBypass, readBypass, readBypasses, isBypassValid } = bypass;
+  const { DEFAULT_CONFIG } = defaults;
+  const { GATE_IDS, GUARDED_GATE_IDS, OVERRIDE_METADATA_FIELDS } = registry;
+  const {
+    buildHumanOverrideMetadata,
+    evaluateGateObservation,
+    resolveGateMode,
+    resolveGovernanceMatrix,
+  } = gateMode;
 
-  // Verify exports.
-  for (const [mod, name] of [['enforcement-modes', 'resolveEnforcementMode'], ['enforcement-modes', 'decide'],
-       ['bypass-store', 'writeBypass'], ['bypass-store', 'readBypass'], ['bypass-store', 'readBypasses'], ['bypass-store', 'isBypassValid']]) {
-    const fn = mod === 'enforcement-modes' ? modes[name] : bypass[name];
-    typeof fn === 'function' ? ok(`export: ${name} present`) : bad(`export: ${name} missing`);
-  }
+  JSON.stringify(ENFORCEMENT_MODES) === JSON.stringify(['off', 'shadow', 'canary', 'guarded'])
+    ? ok('modes: canonical enum is exact') : bad(`modes: wrong enum ${JSON.stringify(ENFORCEMENT_MODES)}`);
+  resolveEnforcementMode(null) === 'canary' && resolveEnforcementMode({}) === 'canary'
+    ? ok('modes: missing config -> canary') : bad('modes: missing config did not become canary');
+  resolveEnforcementMode({ enforcement: { mode: 'advisory' } }) === 'canary'
+    ? ok('modes: advisory aliases to canary') : bad('modes: advisory alias failed');
+  const aliasWarnings = [];
+  resolveEnforcementMode({ enforcement: { mode: 'strict' } }, { onWarning: (message) => aliasWarnings.push(message) }) === 'guarded'
+    && aliasWarnings.some((message) => message.includes('deprecated'))
+    ? ok('modes: strict aliases to guarded with warning') : bad('modes: strict alias/warning failed');
+  const throwingConfig = Object.defineProperty({}, 'governance', { get() { throw new Error('fixture'); } });
+  resolveEnforcementMode(throwingConfig) === 'canary'
+    ? ok('modes: resolver error -> canary') : bad('modes: resolver error did not become canary');
 
-  // --- resolveEnforcementMode (ADR-0125 business rule: default is GUARDED with
-  // graceful gate-level fallback; an explicit 'advisory' opts OUT). ---
-  resolveEnforcementMode(null) === 'guarded' ? ok('mode: null config -> guarded (default)') : bad('mode: null config not guarded');
-  resolveEnforcementMode({}) === 'guarded' ? ok('mode: empty config -> guarded (default)') : bad('mode: empty config not guarded');
-  resolveEnforcementMode({ enforcement: { mode: 'unknown' } }) === 'guarded'
-    ? ok('mode: unknown value -> guarded (default)') : bad('mode: unknown value not guarded');
-  resolveEnforcementMode({ enforcement: { mode: 'advisory' } }) === 'advisory'
-    ? ok('mode: explicit advisory opt-out honored') : bad('mode: advisory opt-out not honored');
-  resolveEnforcementMode({ enforcement: { mode: 'guarded' } }) === 'guarded'
-    ? ok('mode: guarded honored') : bad('mode: guarded not honored');
-  resolveEnforcementMode({ enforcement: { mode: 'strict' } }) === 'strict'
-    ? ok('mode: strict honored') : bad('mode: strict not honored');
+  const matrix = resolveGovernanceMatrix(DEFAULT_CONFIG);
+  const guardedIds = Object.entries(matrix.modes).filter(([, mode]) => mode === 'guarded').map(([id]) => id);
+  guardedIds.length === 3 && guardedIds.every((id) => GUARDED_GATE_IDS.includes(id))
+    ? ok('matrix: only QA, DDD invariants, and technical debt are guarded')
+    : bad(`matrix: guarded allowlist drifted: ${guardedIds.join(', ')}`);
+  matrix.modes['architecture-debt'] === 'canary' && matrix.modes['privacy-lgpd'] === 'shadow'
+    && matrix.modes['graph-first'] === 'canary'
+    ? ok('matrix: architecture, LGPD, and graph defaults match contract')
+    : bad('matrix: non-blocking defaults drifted');
+  GATE_IDS.length === 16 && matrix.failurePolicy === 'continue'
+    ? ok('matrix: registry complete and failurePolicy=continue') : bad('matrix: registry/failure policy malformed');
+  resolveGateMode({ governance: { defaultMode: 'canary', failurePolicy: 'continue', humanAuthority: 'owner-wins', gates: { 'privacy-lgpd': 'guarded' } } }, 'privacy-lgpd').mode === 'canary'
+    ? ok('allowlist: guarded outside allowlist clamps to canary') : bad('allowlist: LGPD was allowed to become guarded');
+  resolveGateMode(null, 'qa-signoff').mode === 'canary'
+    ? ok('gate resolver: missing config -> canary') : bad('gate resolver: missing config did not become canary');
+
+  const shadowGate = resolveGateMode(DEFAULT_CONFIG, 'privacy-lgpd');
+  evaluateGateObservation({ gate: shadowGate, moment: 'postflight', observation: { status: 'violated' } }).decision === 'silent'
+    ? ok('shadow: violation is silent and non-blocking') : bad('shadow: violation leaked or blocked');
+  const canaryGate = resolveGateMode(DEFAULT_CONFIG, 'architecture-debt');
+  evaluateGateObservation({ gate: canaryGate, moment: 'postflight', observation: { status: 'violated' } }).decision === 'warn'
+    ? ok('canary: violation warns and does not block') : bad('canary: violation semantics wrong');
+  const qaGate = { id: 'qa-signoff', mode: 'guarded' };
+  const qaFacts = { status: 'violated', deterministic: true, applicable: true, evidenced: true, transition: 'done' };
+  evaluateGateObservation({ gate: qaGate, moment: 'completion', observation: qaFacts }).decision === 'deny'
+    ? ok('guarded: evidenced QA violation denies only completion') : bad('guarded: applicable QA violation did not deny');
+  evaluateGateObservation({ gate: qaGate, moment: 'write-preflight', observation: qaFacts }).decision === 'warn'
+    ? ok('guarded: QA never blocks implementation start') : bad('guarded: QA blocked write-preflight');
+  evaluateGateObservation({ gate: qaGate, moment: 'completion', observation: { status: 'error' } }).decision === 'warn'
+    ? ok('guarded: evaluator error continues') : bad('guarded: evaluator error blocked');
+
+  const override = buildHumanOverrideMetadata('qa-signoff', {
+    actor: 'owner', reason: 'explicit release decision', scope: { taskId: '410' },
+    baseRevision: 7, outcome: 'accepted', timestamp: '2026-08-08T12:00:00.000Z',
+  });
+  OVERRIDE_METADATA_FIELDS.every((field) => Object.hasOwn(override, field))
+    && evaluateGateObservation({ gate: qaGate, moment: 'completion', observation: { ...qaFacts, override } }).decision === 'allow'
+    ? ok('override: complete audit metadata allows owner override without grade')
+    : bad('override: metadata or owner-wins behavior failed');
 
   const root2 = mkdtempSync(join(tmpdir(), 'ck-enf-sc-'));
   try {
     const scope = { branch: 'feat/x', taskId: 'task-sc-01', paths: ['src/a.mjs'] };
-    const contract = { requiredBeforeExploration: ['sim-impact'], requiredBeforeWrite: ['qa-signoff'], requiredBeforeCompletion: ['adr-review'] };
-    const base = { mode: 'advisory', contract, moment: 'beforeWrite', scope, root: root2 };
+    const contract = { requiredBeforeWrite: ['qa-signoff'], requiredBeforeCompletion: ['qa-signoff'] };
+    const base = { mode: 'canary', contract, moment: 'beforeWrite', scope, root: root2 };
+    decide(base).decision === 'warn' ? ok('compat decide: canary never denies') : bad('compat decide: canary semantics wrong');
+    decide({ ...base, mode: 'shadow' }).visibility === 'silent'
+      ? ok('compat decide: shadow remains silent') : bad('compat decide: shadow visibility wrong');
+    const guardedFacts = { gateId: 'qa-signoff', violation: { deterministic: true, applicable: true, evidenced: true, transition: 'done' } };
+    decide({ ...base, ...guardedFacts, mode: 'guarded', moment: 'beforeCompletion' }).decision === 'deny'
+      ? ok('compat decide: guarded uses central allowlist') : bad('compat decide: guarded allowlist failed');
 
-    // Advisory + missing -> warn, never deny.
-    const advMissing = decide({ ...base, mode: 'advisory' });
-    advMissing.decision === 'warn' ? ok('advisory: missing -> warn (never deny)') : bad(`advisory: expected warn, got ${advMissing.decision}`);
-    advMissing.missing.includes('qa-signoff') ? ok('advisory: qa-signoff in missing') : bad('advisory: qa-signoff not in missing');
-
-    // Guarded + missing beforeWrite -> deny.
-    const guardDeny = decide({ ...base, mode: 'guarded' });
-    guardDeny.decision === 'deny' ? ok('guarded: missing beforeWrite -> deny') : bad(`guarded: expected deny, got ${guardDeny.decision}`);
-
-    // Guarded + missing beforeExploration -> warn only.
-    const guardExpl = decide({ ...base, mode: 'guarded', moment: 'beforeExploration' });
-    guardExpl.decision === 'warn' ? ok('guarded: missing beforeExploration -> warn') : bad(`guarded: expected warn at exploration, got ${guardExpl.decision}`);
-
-    // Strict + any missing -> deny.
-    const strictDeny = decide({ ...base, mode: 'strict', moment: 'beforeExploration' });
-    strictDeny.decision === 'deny' ? ok('strict: any missing -> deny') : bad(`strict: expected deny, got ${strictDeny.decision}`);
-
-    // Write a valid human-approved bypass and verify guarded allows + reports as 'bypassed' not 'satisfied'.
     writeBypass(root2, { capability: 'qa-signoff', taskId: 'task-sc-01', branch: 'feat/x', reason: 'pre-approved', actor: 'human-lead', approvedBy: 'alice' });
-    const guardBypassed = decide({ ...base, mode: 'guarded' });
+    const guardBypassed = decide({ ...base, ...guardedFacts, mode: 'guarded', moment: 'beforeCompletion' });
     guardBypassed.decision === 'allow' ? ok('guarded: valid bypass -> allow') : bad(`guarded: bypass should allow, got ${guardBypassed.decision}`);
     guardBypassed.bypassed.includes('qa-signoff') ? ok('guarded: bypass in bypassed list (not satisfied)') : bad('guarded: bypass not in bypassed list');
     !guardBypassed.satisfied.includes('qa-signoff') ? ok('anti-theatre: bypassed != satisfied') : bad('anti-theatre: bypass wrongly counted as satisfied');
 
-    // Expired bypass does not rescue.
-    writeBypass(root2, { capability: 'adr-review', taskId: 'task-sc-01', branch: 'feat/x', reason: 'old', actor: 'dev', approvedBy: 'bob' }, { ttlMs: 0 });
-    const expiredBypass = decide({ ...base, mode: 'guarded', moment: 'beforeCompletion', now: Date.now() + 999_999 });
-    expiredBypass.decision === 'deny' ? ok('expired bypass: still deny under guarded') : bad(`expired bypass: expected deny, got ${expiredBypass.decision}`);
-
-    // Grade-4 floor: actor='auto' bypass of requiresHumanApproval capability is invalid.
-    writeBypass(root2, { capability: 'sim-impact', taskId: 'task-sc-01', branch: 'feat/x', reason: 'auto-self', actor: 'auto', approvedBy: '' });
-    // approvedBy='' will be stored but the actor='auto' + requiresHumanApproval check in isBypassValid blocks it
-    // Actually writeBypass won't throw for approvedBy='', only validateBypassInput checks required fields
-    // isBypassValid will catch actor='auto' when requiresHumanApproval=true
-    const autoBypass = decide({ ...base, mode: 'strict', moment: 'beforeExploration', requiresHumanApproval: true });
-    autoBypass.decision === 'deny' ? ok('grade-4 floor: auto bypass of human-approval cap -> deny') : bad(`grade-4 floor: expected deny, got ${autoBypass.decision}`);
-
-    // Scope isolation: bypass for (cap A, task X) does NOT satisfy (cap A, task Y).
-    const otherScope = { ...scope, taskId: 'task-sc-DIFFERENT' };
-    const isolatedResult = decide({ ...base, mode: 'guarded', scope: otherScope });
-    isolatedResult.decision === 'deny' ? ok('scope isolation: bypass for task X does not rescue task Y') : bad(`scope isolation: expected deny for different task, got ${isolatedResult.decision}`);
-
-    // Scope isolation: bypass for (cap A, task X) does NOT satisfy (cap B, task X).
-    const otherCapContract = { requiredBeforeWrite: ['other-capability'] };
-    const otherCapResult = decide({ ...base, mode: 'guarded', contract: otherCapContract });
-    otherCapResult.decision === 'deny' ? ok('scope isolation: bypass for cap-A does not rescue cap-B') : bad(`scope isolation: expected deny for different cap, got ${otherCapResult.decision}`);
-
-    // isBypassValid - direct checks.
     const bp = readBypass(root2, 'task-sc-01', 'qa-signoff');
     const { valid: bv } = isBypassValid(bp, { capability: 'qa-signoff', taskId: 'task-sc-01', branch: 'feat/x' });
     bv ? ok('isBypassValid: valid bypass -> valid') : bad('isBypassValid: expected valid');
@@ -261,7 +270,6 @@ export async function runEnforcementChecks(rep, { KIT }) {
     isBypassValid(null, { capability: 'x', taskId: 'y', branch: 'z' }).valid === false
       ? ok('isBypassValid: null bypass -> invalid') : bad('isBypassValid: null should be invalid');
 
-    // writeBypass throws on missing required field.
     let threwOnMissing = false;
     try { writeBypass(root2, { capability: 'x', taskId: 'y' }); } catch (e) { threwOnMissing = e instanceof TypeError; }
     threwOnMissing ? ok('writeBypass: missing field -> TypeError') : bad('writeBypass: missing field did not throw TypeError');

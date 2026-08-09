@@ -69,6 +69,18 @@ async function checkSchema(rep, mods, RT) {
   const good = schema.validateConfig(defaults);
   good.ok && good.config.qa && good.config.pipeline
     ? ok('schema validates DEFAULT_CONFIG + passthrough keeps every section') : bad('schema rejected defaults / dropped sections');
+  good.ok && good.config.governance?.defaultMode === 'canary'
+    && good.config.governance?.failurePolicy === 'continue'
+    ? ok('schema validates canonical governance defaults') : bad('schema rejected/dropped governance defaults');
+  !schema.validateConfig({
+    ...defaults,
+    governance: {
+      ...defaults.governance,
+      gates: { ...defaults.governance.gates, 'privacy-lgpd': 'guarded' },
+    },
+  }).ok
+    ? ok('schema rejects guarded outside the blocking allowlist')
+    : bad('schema accepted guarded privacy-lgpd');
   schema.validateConfig({ ...defaults, level: 7 }).ok ? ok('schema accepts level 7') : bad('schema rejects level 7');
   !schema.validateConfig({ ...defaults, level: 9 }).ok ? ok('schema rejects an out-of-range level') : bad('schema accepted level 9');
 }

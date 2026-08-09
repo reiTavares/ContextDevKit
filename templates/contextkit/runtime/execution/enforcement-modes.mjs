@@ -1,60 +1,57 @@
 /**
- * enforcement-modes.mjs - Mode resolver and pure decide() function (CDK-023, ADR-0072).
+ * Canonical ContextDevKit 4 enforcement modes plus the compatibility decision
+ * adapter used by the remaining receipt-based consumers during cutover.
  *
- * Implements the three enforcement modes for capability gate enforcement:
- *   advisory - never blocks; warns when capabilities are missing.
- *   guarded  - blocks writes and completions when required capabilities are missing.
- *   strict   - blocks at every moment when any required capability is missing.
- *
- * The decide() function is the heart of the enforcement substrate. It:
- *   1. Resolves which capabilities are required for the given lifecycle moment.
- *   2. Checks each against real on-disk receipts and bypasses.
- *   3. Returns a structured verdict: decision + categorized capability lists.
- *
- * Anti-theatre rule: a bypass counts as 'bypassed', NEVER as 'satisfied'. The
- * caller of decide() can see exactly which capabilities were genuinely proved
- * (satisfied) vs. waived (bypassed) vs. absent (missing).
- *
- * Zero runtime deps - node:* + safe-io.mjs + paths.mjs + siblings only.
- * Do NOT import config/load.mjs or any hook file.
+ * Zero third-party dependencies. Do not import config/load.mjs or hook files.
  */
 import { readReceipt, isReceiptValid } from './receipt-store.mjs';
 import { readBypass, isBypassValid } from './bypass-store.mjs';
+import { canGateDeny } from '../governance/gate-registry.mjs';
 
-// ---------------------------------------------------------------------------
-// Mode resolver
-// ---------------------------------------------------------------------------
-
-const VALID_MODES = new Set(['advisory', 'guarded', 'strict']);
+export const ENFORCEMENT_MODES = Object.freeze(['off', 'shadow', 'canary', 'guarded']);
+const VALID_MODES = new Set(ENFORCEMENT_MODES);
+const MODE_ALIASES = Object.freeze({ advisory: 'canary', strict: 'guarded' });
 
 /**
- * Resolves the enforcement mode from a config object.
+ * Normalizes one mode without throwing. Compatibility aliases never add
+ * powers, and any missing or invalid value becomes canary.
  *
- * Reads config?.enforcement?.mode. Unknown or missing values fall back to
- * 'guarded' — the BUSINESS RULE of this template (ADR-0125): the intake
- * ceremony ships ACTIVE for every install. This is safe because the gate
- * itself degrades to advisory (warn, exit 0) whenever it cannot evaluate
- * safely (no contract, no signals, registry-fail, unregistered task, any
- * throw) — see gate-enforcement-decision.mjs — so a fresh install is never
- * false-blocked. A project may explicitly set 'advisory' to opt OUT.
- *
- * @param {object|null|undefined} config project config
- * @returns {'advisory'|'guarded'|'strict'}
+ * @param {unknown} value configured mode
+ * @returns {{mode:'off'|'shadow'|'canary'|'guarded', source:'canonical'|'alias'|'fallback', warning:string|null}}
  */
-export function resolveEnforcementMode(config) {
-  const mode = config?.enforcement?.mode;
-  if (typeof mode === 'string' && VALID_MODES.has(mode)) return mode;
-  return 'guarded';
+export function normalizeEnforcementMode(value) {
+  if (typeof value === 'string' && VALID_MODES.has(value)) {
+    return { mode: value, source: 'canonical', warning: null };
+  }
+  if (typeof value === 'string' && Object.hasOwn(MODE_ALIASES, value)) {
+    const mode = MODE_ALIASES[value];
+    return { mode, source: 'alias', warning: `${value} is deprecated; using ${mode}` };
+  }
+  return { mode: 'canary', source: 'fallback', warning: 'mode missing or invalid; using canary' };
 }
 
-// ---------------------------------------------------------------------------
-// Core decision engine
-// ---------------------------------------------------------------------------
-
 /**
- * Moment keys map to contract fields. beforeExploration is the least critical
- * moment; beforeCompletion is the most critical.
+ * Resolves the v4 governance default, accepting the v3 enforcement key only as
+ * a temporary input. Property access errors also fail open to canary.
+ *
+ * @param {object|null|undefined} config project config
+ * @param {{onWarning?:(message:string)=>void}} [options] optional warning sink
+ * @returns {'off'|'shadow'|'canary'|'guarded'} canonical mode
  */
+export function resolveEnforcementMode(config, options = {}) {
+  try {
+    const candidate = config?.governance?.defaultMode ?? config?.enforcement?.mode;
+    const normalized = normalizeEnforcementMode(candidate);
+    if (normalized.warning && typeof options.onWarning === 'function') options.onWarning(normalized.warning);
+    return normalized.mode;
+  } catch (error) {
+    if (typeof options.onWarning === 'function') {
+      options.onWarning(`mode resolver failed; using canary: ${error?.message ?? error}`);
+    }
+    return 'canary';
+  }
+}
+
 const MOMENT_TO_CONTRACT_FIELD = {
   beforeExploration: 'requiredBeforeExploration',
   beforeWrite: 'requiredBeforeWrite',
@@ -62,53 +59,44 @@ const MOMENT_TO_CONTRACT_FIELD = {
 };
 
 /**
- * Moments at which guarded mode blocks (missing required capability -> deny).
- * For beforeExploration, guarded only warns.
- */
-const GUARDED_BLOCKING_MOMENTS = new Set(['beforeWrite', 'beforeCompletion']);
-
-/**
- * Pure enforcement decision for a single lifecycle moment.
- *
- * Reads receipts and bypasses from disk (the authoritative state for a given
- * moment). For each required capability:
- *   - A valid receipt (result='passed', not expired, scope-matched) -> satisfied.
- *   - A valid bypass (not expired, scope-matched, human-floor enforced) -> bypassed.
- *   - Otherwise -> missing.
- *
- * Decision by mode:
- *   advisory: NEVER deny. Warns on anything missing; allows otherwise.
- *   guarded:  Denies at beforeWrite/beforeCompletion when missing is non-empty.
- *             Only warns at beforeExploration.
- *   strict:   Denies at ANY moment when missing is non-empty.
- *
- * Bypassed capabilities are reported separately from satisfied ones. This is the
- * anti-theatre invariant: a bypass is a waiver, not a proof. Callers that need
- * to surface bypasses to auditors can inspect the 'bypassed' list.
+ * Evaluates remaining receipt contracts under the v4 mode rules. A guarded
+ * mode denies only when `gateId`, lifecycle moment, and deterministic violation
+ * facts satisfy the central allowlist. Absence of those facts is a warning.
  *
  * @param {{
- *   mode: 'advisory'|'guarded'|'strict',
- *   contract: object,
- *   moment: 'beforeExploration'|'beforeWrite'|'beforeCompletion',
- *   scope: { branch: string, taskId: string, paths?: string[], contentHash?: string },
- *   root: string,
- *   now?: number,
- *   requiresHumanApproval?: boolean
- * }} params
- * @returns {{
- *   decision: 'allow'|'warn'|'deny',
- *   missing: string[],
- *   bypassed: string[],
- *   satisfied: string[],
- *   reasons: string[]
- * }}
+ *   mode:'off'|'shadow'|'canary'|'guarded'|'advisory'|'strict',
+ *   contract:object,
+ *   moment:'beforeExploration'|'beforeWrite'|'beforeCompletion',
+ *   scope:{branch:string,taskId:string,paths?:string[],contentHash?:string},
+ *   root:string,
+ *   now?:number,
+ *   requiresHumanApproval?:boolean,
+ *   gateId?:string,
+ *   violation?:object
+ * }} params decision inputs
+ * @returns {{decision:'allow'|'warn'|'deny',missing:string[],bypassed:string[],
+ *   satisfied:string[],reasons:string[],visibility:'silent'|'visible'}} verdict
  */
-export function decide({ mode, contract, moment, scope, root, now = Date.now(), requiresHumanApproval = false }) {
+export function decide({
+  mode,
+  contract,
+  moment,
+  scope,
+  root,
+  now = Date.now(),
+  requiresHumanApproval = false,
+  gateId,
+  violation = {},
+}) {
+  const normalizedMode = normalizeEnforcementMode(mode).mode;
+  if (normalizedMode === 'off') {
+    return { decision: 'allow', missing: [], bypassed: [], satisfied: [], reasons: [], visibility: 'silent' };
+  }
+
   const contractField = MOMENT_TO_CONTRACT_FIELD[moment];
   const requiredCapabilities = contractField && Array.isArray(contract?.[contractField])
     ? contract[contractField]
     : [];
-
   const satisfied = [];
   const bypassed = [];
   const missing = [];
@@ -132,26 +120,27 @@ export function decide({ mode, contract, moment, scope, root, now = Date.now(), 
     reasons.push(`capability '${capability}' missing: ${receiptResult.reason}`);
   }
 
-  const decision = resolveDecision(mode, moment, missing);
+  const resolvedGateId = gateId ?? (missing.length === 1 ? missing[0] : null);
+  const decision = resolveDecision(normalizedMode, resolvedGateId, moment, missing, violation);
   if (decision === 'warn' && missing.length > 0) {
-    reasons.push(`mode=${mode} at ${moment}: missing capabilities recorded but not blocking`);
+    reasons.push(`mode=${normalizedMode} at ${moment}: missing capabilities recorded but not blocking`);
   }
-
-  return { decision, missing, bypassed, satisfied, reasons };
+  return {
+    decision,
+    missing,
+    bypassed,
+    satisfied,
+    reasons,
+    visibility: normalizedMode === 'shadow' ? 'silent' : 'visible',
+  };
 }
 
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
-
 /**
- * Checks whether a valid receipt exists for the capability in this scope.
- *
- * @param {string} root
- * @param {{ branch: string, taskId: string, paths?: string[], contentHash?: string }} scope
- * @param {string} capability
- * @param {number} now
- * @returns {{ satisfied: boolean, reason: string }}
+ * @param {string} root project root
+ * @param {object} scope receipt scope
+ * @param {string} capability capability id
+ * @param {number} now current epoch
+ * @returns {{satisfied:boolean,reason:string}} receipt status
  */
 function checkReceipt(root, scope, capability, now) {
   const receipt = readReceipt(root, scope.taskId, capability);
@@ -161,45 +150,32 @@ function checkReceipt(root, scope, capability, now) {
 }
 
 /**
- * Checks whether a valid bypass exists for the capability in this scope.
- *
- * @param {string} root
- * @param {{ branch: string, taskId: string }} scope
- * @param {string} capability
- * @param {boolean} requiresHumanApproval
- * @param {number} now
- * @returns {{ bypassed: boolean, reason: string }}
+ * @param {string} root project root
+ * @param {object} scope bypass scope
+ * @param {string} capability capability id
+ * @param {boolean} requiresHumanApproval human-only capability flag
+ * @param {number} now current epoch
+ * @returns {{bypassed:boolean,reason:string}} bypass status
  */
 function checkBypass(root, scope, capability, requiresHumanApproval, now) {
   const bypass = readBypass(root, scope.taskId, capability);
   if (!bypass) return { bypassed: false, reason: 'no bypass on disk' };
-  const ctx = { capability, taskId: scope.taskId, branch: scope.branch, requiresHumanApproval };
-  const { valid, reason } = isBypassValid(bypass, ctx, now);
+  const context = { capability, taskId: scope.taskId, branch: scope.branch, requiresHumanApproval };
+  const { valid, reason } = isBypassValid(bypass, context, now);
   return { bypassed: valid, reason };
 }
 
 /**
- * Translates (mode, moment, missing) into the final allow/warn/deny decision.
- *
- * @param {'advisory'|'guarded'|'strict'} mode
- * @param {string} moment
- * @param {string[]} missing
- * @returns {'allow'|'warn'|'deny'}
+ * @param {'shadow'|'canary'|'guarded'} mode canonical mode
+ * @param {string|null} gateId gate id
+ * @param {string} moment lifecycle moment
+ * @param {string[]} missing missing capabilities
+ * @param {object} violation deterministic evidence facts
+ * @returns {'allow'|'warn'|'deny'} decision
  */
-function resolveDecision(mode, moment, missing) {
+function resolveDecision(mode, gateId, moment, missing, violation) {
   if (missing.length === 0) return 'allow';
-  switch (mode) {
-    case 'advisory':
-      // Never deny in advisory mode - this is the non-blocking observation layer.
-      return 'warn';
-    case 'guarded':
-      // Block only at critical moments (writes and completions); warn at exploration.
-      return GUARDED_BLOCKING_MOMENTS.has(moment) ? 'deny' : 'warn';
-    case 'strict':
-      // Block at every moment - zero tolerance for missing capabilities.
-      return 'deny';
-    default:
-      // Unknown modes fall back to advisory behavior (safe default).
-      return 'warn';
-  }
+  if (mode === 'shadow') return 'allow';
+  if (mode === 'guarded' && canGateDeny(gateId, moment, violation)) return 'deny';
+  return 'warn';
 }

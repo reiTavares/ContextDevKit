@@ -149,6 +149,10 @@ try {
   const doc = script('doctor.mjs');
   /ContextDevKit doctor/i.test(doc.stdout || '') && !/level.*out of range/i.test(doc.stdout || '')
     ? ok('doctor runs + accepts L7 as a valid level') : bad(`doctor failed/flagged level: ${doc.stdout || doc.stderr}`);
+  /governance gates: failurePolicy=continue; guarded=qa-signoff, ddd-invariants, technical-debt/i.test(doc.stdout || '')
+    && /governance defaults: architecture-debt=canary; privacy-lgpd=shadow; graph-first=canary/i.test(doc.stdout || '')
+    ? ok('doctor reports the canonical governance matrix')
+    : bad(`doctor governance matrix missing/drifted: ${doc.stdout || doc.stderr}`);
 
   // L5/L6 scanners run and produce JSON.
   const debt = script('tech-debt-scan.mjs', '--json');
