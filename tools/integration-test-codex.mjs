@@ -58,8 +58,8 @@ try {
     : bad('Codex subagent model projection is wrong');
 
   const codexModel = run([join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'resolve', '--agent', 'qa-unit', '--task', 'execute', '--host', 'codex', '--complexity', 'low', '--risk', 'low'], { cwd: proj });
-  (() => { try { const dispatch = JSON.parse(codexModel.stdout); return dispatch.decision === 'dispatch' && dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low'; } catch { return false; } })()
-    ? ok('Codex model policy resolves classified low-risk work to gpt-5.6-luna@low')
+  (() => { try { const dispatch = JSON.parse(codexModel.stdout); return dispatch.decision === 'recommend' && dispatch.recommendedModel === 'gpt-5.6-luna' && dispatch.recommendedEffort === 'low' && dispatch.continuation?.allowed === true; } catch { return false; } })()
+    ? ok('Codex model policy recommends gpt-5.6-luna@low without dispatch authority')
     : bad(`Codex model policy did not resolve: ${(codexModel.stdout + codexModel.stderr).slice(0, 200)}`);
   const codexSearch = run([
     join(proj, 'contextkit', 'tools', 'scripts', 'model-policy.mjs'), 'tier', 'powerful',
@@ -68,7 +68,7 @@ try {
   (() => {
     try {
       const dispatch = JSON.parse(codexSearch.stdout);
-      return dispatch.decision === 'dispatch' && dispatch.model === 'gpt-5.6-luna' && dispatch.effort === 'low' && dispatch.ruleId === 'codex-low-low-luna-low';
+      return dispatch.decision === 'recommend' && dispatch.recommendedModel === 'gpt-5.6-luna' && dispatch.recommendedEffort === 'low' && dispatch.ruleId === 'codex-low-low-luna-low';
     } catch { return false; }
   })()
     ? ok('Codex complete dimensions outrank research task kind')

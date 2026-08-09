@@ -269,9 +269,9 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['/ship runs the hardened quorum with a deterministic voice + security veto at grade 4 (ADR-0045 §2)', 'templates/claude/commands/pipeline/ship.md', /deterministic voice[\s\S]*veto, not a/],
     ['/ship re-consults the resolver per step — yield/kill-switch (ADR-0045 §5)', 'templates/claude/commands/pipeline/ship.md', /start of every step[\s\S]*next step boundary/],
     ['/autonomy documents the gated, session-default grade 4 (ADR-0045)', 'templates/claude/commands/setup/autonomy.md', /--persist --confirm/],
-    // ADR-0045 F4 — security-review hardenings (evidence floor, fail-closed, freshness).
-    ['the grade-4 eligibility evidence is a floored path — an agent cannot forge its own bar (ADR-0045 review)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /path\.includes\('memory\/autonomy\/'\)\) return 'floor:autonomy-evidence-self-edit'/],
-    ['resolver fails closed — grade 4 needs deliberations.active === true, absent is not assumed-on (ADR-0045)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /\(grade === 4 \|\| mode === 'debate'\) && config\?\.deliberations\?\.active !== true/],
+    // ADR-0158 — autonomy is advisory; real safety remains explicit and external.
+    ['autonomy grades are migration metadata, never authorization authority (ADR-0158)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /mode: 'advisory'[\s\S]*binding: false[\s\S]*blocking: false/],
+    ['real destructive, force-push, and secret risks retain acknowledgement metadata (ADR-0158)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /'destructive-production'[\s\S]*'force-push'[\s\S]*'secret-rotation'/],
     ['a stale readiness stamp is not evidence — coverage/attribution require freshness (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /readinessFresh = Number\.isFinite\(stampMs\)[\s\S]*coverageGreen = readiness\.coverageGreen === true && readinessFresh/],
     ['only genuine stage transitions (from ≠ to) count toward the bar (ADR-0045 review)', 'templates/contextkit/runtime/config/autonomy-eligibility.mjs', /filter\(\(e\) => e && e\.from !== e\.to\)/],
     // Workflow Navigator — token-efficient phase guidance for ADR-0057 workflows.

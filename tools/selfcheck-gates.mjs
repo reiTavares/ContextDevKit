@@ -133,68 +133,44 @@ export async function runGateChecks({ ok, bad }, { KIT, RT, mods }) {
     ? ok('matchSecret built-ins hold with extras present (extend, never replace)')
     : bad('matchSecret extras replaced the built-ins — floor must be additive');
 
-  // Resolver contract matrix (ADR-0042, task 106) — floor pinned at EVERY grade.
+  // Resolver contract matrix (ADR-0158) — grades are migration metadata only.
   const resolver = mods['config/resolve-autonomy.mjs'];
   if (typeof resolver?.resolveAutonomy !== 'function') {
     bad('resolveAutonomy not exported (ADR-0042, task 106)');
     return;
   }
   const { resolveAutonomy } = resolver;
-  // Grade 4 fails closed unless deliberations are explicitly active (ADR-0045) — a
-  // valid merged config always carries it; the contradiction case sets it false below.
   const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });
-  const floorCells = [];
+  const advisoryCells = [];
   for (let grade = 1; grade <= 4; grade++) {
-    floorCells.push(['adr', resolveAutonomy('adr', at(grade)).mode]);
-    floorCells.push(['grade-change', resolveAutonomy('grade-change', at(grade)).mode]);
-    floorCells.push(['secret edit', resolveAutonomy('edit', at(grade), null, { path: 'config/.env.prod' }).mode]);
-    floorCells.push(['gate self-edit', resolveAutonomy('edit', at(grade), null, { path: 'contextkit/runtime/hooks/x.mjs' }).mode]);
-    floorCells.push(['autonomy-evidence self-edit', resolveAutonomy('edit', at(grade), null, { path: 'contextkit/memory/autonomy/readiness.json' }).mode]);
-    floorCells.push(['force-push', resolveAutonomy('push', at(grade), null, { force: true }).mode]);
+    advisoryCells.push(resolveAutonomy('edit', at(grade)));
+    advisoryCells.push(resolveAutonomy('swarm-dispatch', at(grade)));
+    advisoryCells.push(resolveAutonomy('feature-deliberation', at(grade)));
   }
-  floorCells.every(([, mode]) => mode === 'manual')
-    ? ok(`resolver floor holds at every grade (${floorCells.length} cells → manual, ADR-0042)`)
-    : bad(`resolver floor broken: ${floorCells.filter(([, m]) => m !== 'manual').map(([n]) => n).join(', ')}`);
-  const expectedModes = [
-    [resolveAutonomy('edit', {}).mode, 'auto', 'default grade 3 → auto (ADR-0058)'],
-    [resolveAutonomy('edit', {}).source, 'default', 'missing config → source default'],
-    [resolveAutonomy('edit', at('weird')).grade, 1, 'unparseable grade resolves to 1'],
+  advisoryCells.every((posture) => posture.mode === 'advisory' && posture.binding === false && posture.blocking === false)
+    ? ok(`resolver is advisory at every legacy grade (${advisoryCells.length} cells)`)
+    : bad('a legacy grade retained authorization authority');
+  const expectedMetadata = [
+    [resolveAutonomy('edit', {}).grade, null, 'missing grade stays absent'],
+    [resolveAutonomy('edit', at('weird')).legacy.diagnostics.includes('legacy-grade-invalid'), true, 'invalid legacy grade is diagnosed'],
     [resolveAutonomy('edit', at(1), 3).grade, 3, 'session override beats config'],
     [resolveAutonomy('edit', at(1), 3, { flagGrade: 2 }).grade, 2, 'per-run flag beats session override'],
-    [resolveAutonomy('ship-checkpoint', at(4)).mode, 'debate', 'grade-4 checkpoint → debate'],
-    [resolveAutonomy('ship-checkpoint', at(3)).mode, 'debate', 'grade-3 checkpoint → debate'],
-    // ADR-0070 — feature/decision deliberation gates mirror ship-checkpoint (debate at grade ≥ 3).
-    [resolveAutonomy('feature-deliberation', at(3)).mode, 'debate', 'grade-3 feature-deliberation → debate'],
-    [resolveAutonomy('feature-deliberation', at(2)).mode, 'manual', 'grade-2 feature-deliberation → manual'],
-    [resolveAutonomy('decision-deliberation', at(3)).mode, 'debate', 'grade-3 decision-deliberation → debate'],
-    [resolveAutonomy('decision-deliberation', at(1)).mode, 'manual', 'grade-1 decision-deliberation → manual'],
-    [resolveAutonomy('push', at(4), null, { targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'auto', 'grade-4 push to a branch → auto'],
-    [resolveAutonomy('push', at(4), null, { targetRef: 'main', defaultBranch: 'main' }).mode, 'manual', 'grade-4 push to default branch → manual'],
-    [resolveAutonomy('session-log', at(2)).mode, 'auto', 'grade-2 session-log → auto'],
-    // ADR-0044 D3 — at grade 4 an exhausted budget downgrades to grade-2 behaviour (never blocks).
-    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true }).mode, 'suggest', 'grade-4 + budget-exhausted → suggest (D3 downgrade, not block)'],
-    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true }).reason, 'budget-exhausted', 'grade-4 budget downgrade carries reason'],
-    [resolveAutonomy('push', at(4), null, { budgetExhausted: true, targetRef: 'feat/x', defaultBranch: 'main' }).mode, 'manual', 'grade-4 budget-exhausted push → manual (grade-2 behaviour)'],
-    [resolveAutonomy('edit', at(3), null, { budgetExhausted: true }).mode, 'auto', 'budget-exhausted only bites at grade 4 (grade 3 unaffected)'],
-    [resolveAutonomy('edit', at(4), null, { budgetExhausted: true, path: 'config/.env' }).mode, 'manual', 'floor still wins over the budget downgrade (secret path)'],
   ];
-  const wrong = expectedModes.filter(([got, want]) => got !== want);
+  const wrong = expectedMetadata.filter(([got, want]) => got !== want);
   wrong.length === 0
-    ? ok(`resolver precedence + mode table hold (${expectedModes.length} cells, ADR-0042)`)
-    : bad(`resolver cells wrong: ${wrong.map(([, , name]) => name).join('; ')}`);
-  let threwOnContradiction = false;
-  try {
-    resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: false } });
-  } catch {
-    threwOnContradiction = true;
-  }
-  let threwOnUnknownArea = false;
-  try {
-    resolveAutonomy('deploy-to-prod', {});
-  } catch {
-    threwOnUnknownArea = true;
-  }
-  threwOnContradiction && threwOnUnknownArea
-    ? ok('resolver throws on contradiction (grade 4 sans deliberations) and unknown area (closed enum)')
-    : bad(`resolver failed to refuse: contradiction=${threwOnContradiction} unknownArea=${threwOnUnknownArea}`);
+    ? ok(`resolver retains ${expectedMetadata.length} auditable legacy metadata cells`)
+    : bad(`resolver metadata wrong: ${wrong.map(([, , name]) => name).join('; ')}`);
+  const secret = resolveAutonomy('edit', {}, null, { path: 'config/.env.prod' });
+  const forcePush = resolveAutonomy('push', {}, null, { force: true });
+  const destructive = resolveAutonomy('destructive-production', {});
+  secret.riskAcknowledgement.kind === 'secret-rotation'
+    && forcePush.riskAcknowledgement.kind === 'force-push'
+    && destructive.riskAcknowledgement.kind === 'destructive-production'
+    && [secret, forcePush, destructive].every((posture) => posture.riskAcknowledgement.required && posture.mode === 'advisory')
+    ? ok('real safety surfaces require acknowledgement metadata without project blocking')
+    : bad('risk acknowledgement mapping is incomplete');
+  const unknown = resolveAutonomy('deploy-to-prod', { autonomy: { grade: 4 }, deliberations: { active: false } });
+  unknown.mode === 'advisory' && unknown.legacy.diagnostics.includes('unknown-area:deploy-to-prod')
+    ? ok('unknown areas and legacy contradictions are observable and non-blocking')
+    : bad('unknown area or contradiction became hidden authority');
 }

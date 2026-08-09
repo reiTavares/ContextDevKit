@@ -134,8 +134,9 @@ try {
     ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
   const codexMissingDimensions = aliasForTier('powerful', { host: 'codex' });
   const codexClassified = aliasForTier('powerful', { host: 'codex', complexity: 'high', risk: 'high' });
-  codexMissingDimensions.decision === 'refuse' && codexClassified.model === 'gpt-5.6-sol' && codexClassified.effort === 'high'
-    ? ok('Codex swarm refuses missing dimensions and applies the classified matrix') : bad('Codex swarm classification gate is wrong');
+  codexMissingDimensions.decision === 'recommend' && codexMissingDimensions.continuation?.allowed === true
+    && codexClassified.recommendedModel === 'gpt-5.6-sol' && codexClassified.recommendedEffort === 'high'
+    ? ok('Codex swarm continues on missing dimensions and exposes a classified recommendation') : bad('Codex swarm advisory recommendation is wrong');
   updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
   updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model, effort: 'high', ruleId: 'test-escalation' });
   const mix = byModel(readRun(root, 'run-tiers'));
@@ -154,11 +155,11 @@ try {
 
   // ── consent area + event attribution ────────────────────────────────────
   const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });
-  const dispatchModes = [1, 2, 3, 4].map((g) => resolveAutonomy('swarm-dispatch', at(g)).mode);
-  JSON.stringify(dispatchModes) === JSON.stringify(['manual', 'manual', 'suggest', 'auto'])
-    ? ok('swarm-dispatch area row is [manual,manual,suggest,auto] (ADR-0051 §4)') : bad(`area row wrong: ${dispatchModes.join(',')}`);
-  resolveAutonomy('swarm-dispatch', at(4), null, { budgetExhausted: true }).mode === 'manual'
-    ? ok('grade-4 swarm-dispatch + budget-exhausted → grade-2 behaviour (manual)') : bad('budget downgrade missing on swarm-dispatch');
+  const dispatchPostures = [1, 2, 3, 4].map((grade) => resolveAutonomy('swarm-dispatch', at(grade)));
+  dispatchPostures.every((posture) => posture.mode === 'advisory' && posture.binding === false)
+    ? ok('swarm-dispatch is advisory at every legacy grade') : bad(`area row wrong: ${dispatchPostures.map((entry) => entry.mode).join(',')}`);
+  resolveAutonomy('swarm-dispatch', at(4), null, { budgetExhausted: true }).mode === 'advisory'
+    ? ok('budget state does not turn swarm dispatch into an authorization gate') : bad('budget unexpectedly changed swarm authority');
 
   const pipeDir = join(root, 'pipe');
   appendEvent(pipeDir, '77', { from: 'backlog', to: 'working', actor: 'auto', by: { runId: 'run-a', workstream: 'ws-5', agent: 'qa-unit', forged: 'dropped' } });

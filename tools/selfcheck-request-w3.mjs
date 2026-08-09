@@ -50,7 +50,7 @@ export async function runRequestW3Checks({ ok, bad }, { KIT }) {
   const { renderDirective, comparePlannedActual } = dir;
   const { orchestrate } = orchMod;
 
-  // ── 2. material directive ────────────────────────────────────────────────
+  // ── 2. material work does not force a directive/council ─────────────────
   const bizSignals = {
     tier: 'architectural', domain: 'general', needsAdr: true, work: { nature: 'business' },
     decisionNeed: { materialityScore: 0.86, needVerdict: 'NEEDS_DECISION', triple: { primaryContext: { type: 'business' } } },
@@ -58,8 +58,8 @@ export async function runRequestW3Checks({ ok, bad }, { KIT }) {
   const cfg4 = { autonomy: { grade: 4 }, deliberations: { active: true, council: { min: 3, max: 6 } }, routing: { mode: 'shadow' }, orchestration: { playbooks: { maxContextTokens: 3000 } } };
   const bizEnv = orchestrate({ requestId: 'req-b', requestText: 'Should this be a standalone paid product?', signals: bizSignals, context: { businessId: 'BIZ-0001' } }, { root: KIT, config: cfg4 });
   const dirOut = renderDirective(bizEnv);
-  dirOut.includes('DELIBERATION REQUIRED') && /council:/.test(dirOut) && dirOut.includes('CONTEXTKIT-ORCHESTRATION')
-    ? ok('renderDirective: material business → DELIBERATION REQUIRED + council')
+  dirOut === ''
+    ? ok('renderDirective: material business stays silent when no council was requested')
     : bad(`renderDirective material wrong: ${dirOut.slice(0, 80)}`);
 
   // ── 3. trivial silent ────────────────────────────────────────────────────

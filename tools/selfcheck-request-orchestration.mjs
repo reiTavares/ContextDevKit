@@ -128,10 +128,10 @@ export async function runRequestOrchestrationChecks({ ok, bad }, { KIT }) {
     ? ok('orchestrate: trivial → direct execution, no debate')
     : bad(`orchestrate trivial wrong: direct=${oTrivial.routing.directExecutionAllowed} debate=${oTrivial.deliberation?.required}`);
 
-  // ── 9. orchestrate material business at grade 4 ──────────────────────────
+  // ── 9. material business remains owner-directed at every legacy grade ────
   const oBiz = orchestrate({ requestId: 'req-b', requestText: 'Should this become a standalone paid product?', signals: bizSignals, context: { businessId: 'BIZ-0001' } }, { config: cfg4, level: 7 });
-  oBiz.deliberation?.required === true && oBiz.autonomy.effectiveGrade === 4
-    ? ok('orchestrate: material business @grade4 → deliberation required')
+  oBiz.deliberation?.required === false && oBiz.autonomy.effectiveGrade === 4
+    ? ok('orchestrate: material business @grade4 keeps deliberation optional')
     : bad(`orchestrate business wrong: debate=${oBiz.deliberation?.required} grade=${oBiz.autonomy.effectiveGrade}`);
 
   // ── 10. grade-2 material → propose-only ──────────────────────────────────

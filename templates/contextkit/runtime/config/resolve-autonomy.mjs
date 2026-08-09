@@ -1,74 +1,41 @@
 /**
- * resolveAutonomy — THE single read path for the autonomy dial (ADR-0042).
+ * Advisory execution posture and real-risk acknowledgement metadata (ADR-0158).
  *
- * The dial (`autonomy.grade`, ADR-0041) is a CONSENT axis: it decides what the
- * AI may do without asking, per `area`. Commands and /ship checkpoints consult
- * this resolver; hooks are grade-blind (they may call it for DISPLAY only,
- * never to weaken enforcement — selfcheck-gates pins both invariants).
- *
- * Contract (locked by ADR-0042 — extending `AREAS` requires an ADR):
- *   - Precedence, specific beats general: per-run flag (`context.flagGrade`) →
- *     session override → `config.autonomy.grade` → default 3 (ADR-0058).
- *   - The FLOOR clamps last and cannot be out-precedenced: secret-bearing paths
- *     (matchSecret), gate/hook self-edits, force-push, `adr` and `grade-change`
- *     resolve to `manual` at EVERY grade. Config may extend the floor
- *     (`autonomy.extraSecretPaths`), never remove from it.
- *   - Degenerate input fails safe: unparseable grade → 1; contradictions throw
- *     (constitution §8 — a validator, not a warner).
- *
- * `resolveAutonomy` is pure — callers load config and pass it in. The one I/O
- * companion lives here too (`readAutonomyOverride`) so the override file's
- * location + TTL semantics have exactly one owner (rule 4).
+ * Legacy autonomy grades remain readable only as migration/audit context. They
+ * never authorize work, require an agent, raise a gate, or condition swarm use.
+ * Platform-owned security, credential, secret, and destructive-operation
+ * confirmations remain outside ContextDevKit and cannot be bypassed here.
  */
 import { join } from 'node:path';
 import { matchSecret } from '../hooks/path-classification.mjs';
 import { readJsonSafe } from '../hooks/safe-io.mjs';
 
-/**
- * Closed area enum (ADR-0042 §1; `swarm-dispatch` added by ADR-0051 §4;
- * `feature-deliberation` + `decision-deliberation` added by ADR-0070 §1).
- */
+/** Areas retained as compatibility vocabulary for existing callers. */
 export const AREAS = Object.freeze([
-  'edit', 'commit', 'push', 'pipeline-move', 'adr', 'session-log', 'ship-checkpoint', 'grade-change', 'swarm-dispatch',
-  'feature-deliberation', 'decision-deliberation',
+  'edit', 'commit', 'push', 'pipeline-move', 'adr', 'session-log', 'ship-checkpoint', 'grade-change',
+  'swarm-dispatch', 'feature-deliberation', 'decision-deliberation', 'destructive-production', 'secret-rotation',
 ]);
 
-/** mode per area × grade 1..4 (floor applies AFTER this table). */
-const MODE_TABLE = Object.freeze({
-  edit: ['manual', 'suggest', 'auto', 'auto'],
-  commit: ['manual', 'suggest', 'auto', 'auto'],
-  push: ['manual', 'manual', 'manual', 'auto'], // grade-4 auto is branch-only, see below
-  'pipeline-move': ['manual', 'suggest', 'auto', 'auto'],
-  adr: ['manual', 'manual', 'manual', 'manual'],
-  'session-log': ['manual', 'auto', 'auto', 'auto'],
-  'ship-checkpoint': ['manual', 'manual', 'debate', 'debate'],
-  'grade-change': ['manual', 'manual', 'manual', 'manual'],
-  // ADR-0051: launching N parallel auto workstreams is a larger consent grant
-  // than one pipeline-move — suggest at grade 3, auto only at grade 4.
-  'swarm-dispatch': ['manual', 'manual', 'suggest', 'auto'],
-  // ADR-0070: a new feature / new architectural decision auto-convenes a council
-  // deliberation from grade 3 (same shape as ship-checkpoint). The `debate` mode
-  // inherits the fail-safe below (requires deliberations.active). The ADR WRITE
-  // itself stays manual at every grade via the `adr` floor — this gate PRECEDES it.
-  'feature-deliberation': ['manual', 'manual', 'debate', 'debate'],
-  'decision-deliberation': ['manual', 'manual', 'debate', 'debate'],
+/** Historical grade descriptions. They are display-only migration guidance. */
+export const CONSEQUENCE_TEXT = Object.freeze({
+  1: 'Legacy grade 1 is recorded for migration only; current owner instruction controls the task.',
+  2: 'Legacy grade 2 is recorded for migration only; current owner instruction controls the task.',
+  3: 'Legacy grade 3 is recorded for migration only; current owner instruction controls the task.',
+  4: 'Legacy grade 4 is recorded for migration only; current owner instruction controls the task.',
 });
 
-/** First-person consequence text — single-sourced for /autonomy (both hosts) + onboarding (ADR-0042 §5). */
-export const CONSEQUENCE_TEXT = Object.freeze({
-  1: 'Grade 1 — Manual: I only act when you command. Every change is yours to initiate.',
-  2: 'Grade 2 — Suggest: I propose edits and plans; you approve before anything lands.',
-  3: 'Grade 3 — Auto except decisions (default): I edit, test, move pipeline cards and run /ship checkpoints through deliberation quorums without asking; ADRs, pushes and high-risk paths still come to you.',
-  4: 'Grade 4 — Full-auto (EXPERIMENTAL): I push to feature branches autonomously; ADRs, secrets, force-push and merges to the default branch remain yours. Budget- and telemetry-gated (ADR-0045).',
-});
+/** Risks that require explicit acknowledgement while real platform controls remain intact. */
+export const RISK_ACKNOWLEDGEMENT_KINDS = Object.freeze([
+  'destructive-production',
+  'force-push',
+  'secret-rotation',
+]);
 
 /**
- * Reads the live session override (written by `/autonomy N --session`), or null
- * when absent/expired. The single owner of the file location + TTL semantics —
- * the setter writes it, every display/consumer surface reads it through here.
+ * Reads an unexpired legacy session override for migration/display only.
  *
- * @param {string} root project root
- * @returns {number|null}
+ * @param {string} root project root.
+ * @returns {number|null} historical grade or null.
  */
 export function readAutonomyOverride(root) {
   const override = readJsonSafe(join(root, '.claude', '.workspace', 'autonomy-session.json'), null);
@@ -76,67 +43,86 @@ export function readAutonomyOverride(root) {
   return Date.now() < Number(override.expiresAt || 0) ? override.grade : null;
 }
 
-function parseGrade(value) {
+/**
+ * Normalizes a legacy grade without giving it runtime authority.
+ * @param {unknown} value grade candidate.
+ * @returns {number|null} grade metadata or null.
+ */
+function parseLegacyGrade(value) {
   const grade = Number(value);
   return Number.isInteger(grade) && grade >= 1 && grade <= 4 ? grade : null;
 }
 
-/** Floor check — returns the floor reason label, or null. Config can only ADD entries. */
-function floorReason(area, context, config) {
-  if (area === 'adr' || area === 'grade-change') return `floor:${area}-is-always-human`;
-  if (area === 'push' && context.force) return 'floor:force-push';
-  const path = typeof context.path === 'string' ? context.path.replaceAll('\\', '/') : '';
-  if (path) {
-    const secret = matchSecret(path, config?.autonomy?.extraSecretPaths ?? []);
-    if (secret) return `floor:secret-path(${secret})`;
-    if (path.includes('runtime/hooks/') || path.endsWith('.claude/settings.json')) return 'floor:gate-self-edit';
-    // ADR-0045: the grade-4 eligibility evidence (readiness marker, drift log) is
-    // an integrity-trusted artifact — an agent editing it would forge its own bar.
-    if (path.includes('memory/autonomy/')) return 'floor:autonomy-evidence-self-edit';
+/**
+ * Identifies the narrow risks named by the v4 owner contract.
+ *
+ * @param {string} area requested compatibility area.
+ * @param {object} context action context.
+ * @param {object} config project configuration.
+ * @returns {'destructive-production'|'force-push'|'secret-rotation'|null}
+ */
+function acknowledgementKind(area, context, config) {
+  if (area === 'force-push' || (area === 'push' && context.force === true)) return 'force-push';
+  if (area === 'destructive-production' || (context.destructive === true && context.environment === 'production')) {
+    return 'destructive-production';
   }
+  if (area === 'secret-rotation') return 'secret-rotation';
+  const path = typeof context.path === 'string' ? context.path.replaceAll('\\', '/') : '';
+  if (path && matchSecret(path, config?.autonomy?.extraSecretPaths ?? [])) return 'secret-rotation';
   return null;
 }
 
 /**
- * Resolves the effective autonomy for one action.
+ * Resolves advisory execution metadata without acting as an authorization gate.
+ * Invalid/contradictory legacy grades are diagnosed and ignored. A listed real
+ * risk receives acknowledgement metadata; the caller/platform still owns the
+ * actual confirmation and must not infer acknowledgement from this result.
  *
- * @param {string} area one of `AREAS`
- * @param {object} [config] loaded contextkit config (callers own the I/O)
- * @param {number|null} [sessionOverride] grade set by `/autonomy N --session`
- * @param {{ flagGrade?: number, path?: string, force?: boolean, targetRef?: string, defaultBranch?: string, budgetExhausted?: boolean }} [context]
- *   `budgetExhausted` (ADR-0044 D3): the caller sets it true when the session has
- *   crossed `tokens.budgetPerSession` — at grade 4 it downgrades, never blocks.
- * @returns {{ grade: number, mode: 'manual'|'suggest'|'auto'|'debate', source: string, reason: string }}
- * @throws {TypeError} on an unknown area (closed enum) or a config contradiction
+ * @param {string} area compatibility action area.
+ * @param {object} [config] loaded project config.
+ * @param {number|null} [sessionOverride] legacy session grade.
+ * @param {object} [context] action facts and optional explicit acknowledgement.
+ * @returns {Readonly<object>} non-binding posture and acknowledgement request.
  */
 export function resolveAutonomy(area, config = {}, sessionOverride = null, context = {}) {
-  if (!AREAS.includes(area)) throw new TypeError(`resolveAutonomy: unknown area "${area}" — closed enum (ADR-0042): ${AREAS.join(', ')}`);
+  const knownArea = AREAS.includes(area);
+  const configuredGrade = parseLegacyGrade(config?.autonomy?.grade);
+  const sessionGrade = parseLegacyGrade(sessionOverride);
+  const flagGrade = parseLegacyGrade(context.flagGrade);
+  const legacyGrade = flagGrade ?? sessionGrade ?? configuredGrade;
+  const legacySource = flagGrade !== null ? 'flag'
+    : sessionGrade !== null ? 'session'
+      : configuredGrade !== null ? 'config'
+        : 'none';
+  const kind = acknowledgementKind(area, context, config);
+  const acknowledged = kind !== null
+    && typeof context.acknowledgedBy === 'string'
+    && typeof context.acknowledgedAt === 'string'
+    && typeof context.reason === 'string'
+    && context.reason.trim().length > 0;
+  const diagnostics = [];
+  if (!knownArea) diagnostics.push(`unknown-area:${String(area)}`);
+  if (config?.autonomy?.grade !== undefined && configuredGrade === null) diagnostics.push('legacy-grade-invalid');
+  if (legacyGrade !== null) diagnostics.push(`legacy-grade-${legacyGrade}-ignored`);
+  if (config?.deliberations?.active === false) diagnostics.push('legacy-deliberation-setting-ignored');
 
-  let grade = parseGrade(context.flagGrade);
-  let source = 'flag';
-  if (grade === null) ({ grade, source } = { grade: parseGrade(sessionOverride), source: 'session' });
-  if (grade === null) ({ grade, source } = { grade: parseGrade(config?.autonomy?.grade), source: 'config' });
-  if (grade === null) ({ grade, source } = { grade: config?.autonomy?.grade === undefined ? 3 : 1, source: config?.autonomy?.grade === undefined ? 'default' : 'config-unparseable' });
-
-  const floor = floorReason(area, context, config);
-  if (floor) return { grade, mode: 'manual', source, reason: floor };
-
-  // ADR-0044 D3: at grade 4 an exhausted token budget is a resolver precondition —
-  // it returns grade-2 behaviour (`suggest`) so the run keeps moving with consent,
-  // and NEVER blocks an edit (rule 2). The floor above still wins; lower grades are
-  // already budget-warn-only, so this only bites at grade 4.
-  if (grade === 4 && context.budgetExhausted) return { grade, mode: MODE_TABLE[area][1], source, reason: 'budget-exhausted' };
-
-  let mode = MODE_TABLE[area][grade - 1];
-
-  // Fail-closed (ADR-0045): grade 4 or any debate mode demands deliberations be EXPLICITLY active —
-  // an absent/unknown flag is not "assumed on" (rule 8). Callers pass a merged config.
-  if ((grade === 4 || mode === 'debate') && config?.deliberations?.active !== true)
-    throw new TypeError(`resolveAutonomy: grade ${grade} with mode "${mode}" requires deliberations.active === true — contradiction (ADR-0042 §3 / ADR-0045)`);
-  // ADR-0045 mechanics: grade-4 push is auto ONLY toward a non-default branch.
-  if (area === 'push' && mode === 'auto') {
-    const towardDefault = !context.targetRef || !context.defaultBranch || context.targetRef === context.defaultBranch;
-    if (towardDefault) return { grade, mode: 'manual', source, reason: 'floor:default-branch-push-is-human' };
-  }
-  return { grade, mode, source, reason: `grade-${grade}:${area}` };
+  return Object.freeze({
+    grade: legacyGrade,
+    mode: 'advisory',
+    source: 'current-owner-instruction',
+    reason: kind ? `risk-acknowledgement:${kind}` : 'autonomy-grade-not-an-authorization-boundary',
+    binding: false,
+    blocking: false,
+    legacy: Object.freeze({ grade: legacyGrade, source: legacySource, diagnostics: Object.freeze(diagnostics) }),
+    riskAcknowledgement: Object.freeze({
+      required: kind !== null,
+      kind,
+      message: kind ? `Confirm ${kind} through the real host/platform safety boundary before execution.` : null,
+      acknowledged,
+      acknowledgedBy: acknowledged ? context.acknowledgedBy : null,
+      acknowledgedAt: acknowledged ? context.acknowledgedAt : null,
+      reason: acknowledged ? context.reason.trim() : null,
+    }),
+    continuation: Object.freeze({ allowed: true, reason: 'project-autonomy-is-advisory' }),
+  });
 }

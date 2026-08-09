@@ -131,17 +131,16 @@ const cfg = (delib = {}) => ({
   areasOk ? ok('AREAS: feature-deliberation + decision-deliberation registered (closed enum, ADR-0070)') : bad('AREAS missing the new deliberation areas');
   const active = { autonomy: { grade: 3 }, deliberations: { active: true } };
   const cells = [
-    [resolveAutonomy('feature-deliberation', active).mode, 'debate', 'grade-3 feature-deliberation → debate'],
-    [resolveAutonomy('decision-deliberation', active).mode, 'debate', 'grade-3 decision-deliberation → debate'],
-    [resolveAutonomy('feature-deliberation', { autonomy: { grade: 2 }, deliberations: { active: true } }).mode, 'manual', 'grade-2 → manual'],
+    resolveAutonomy('feature-deliberation', active),
+    resolveAutonomy('decision-deliberation', active),
+    resolveAutonomy('feature-deliberation', { autonomy: { grade: 2 }, deliberations: { active: true } }),
   ];
-  const wrong = cells.filter(([got, want]) => got !== want);
-  wrong.length === 0 ? ok('resolver: deliberation gates resolve to debate at grade ≥ 3') : bad(`gate cells wrong: ${wrong.map((c) => c[2]).join('; ')}`);
+  cells.every((posture) => posture.mode === 'advisory' && posture.binding === false)
+    ? ok('resolver: deliberation is optional guidance at every legacy grade') : bad('deliberation unexpectedly became an authorization gate');
 
-  // debate mode inherits the fail-safe: requires deliberations.active.
-  let threw = false;
-  try { resolveAutonomy('feature-deliberation', { autonomy: { grade: 3 }, deliberations: { active: false } }); } catch { threw = true; }
-  threw ? ok('resolver: feature-deliberation at grade 3 without active deliberations throws (ADR-0045 fail-safe)') : bad('resolver did not fail closed for an inactive-deliberations gate');
+  const inactive = resolveAutonomy('feature-deliberation', { autonomy: { grade: 3 }, deliberations: { active: false } });
+  inactive.mode === 'advisory' && inactive.legacy.diagnostics.includes('legacy-deliberation-setting-ignored')
+    ? ok('resolver: inactive legacy deliberation config is observable and non-blocking') : bad('inactive legacy deliberation handling is wrong');
 }
 
 // ---------------------------------------------------------------- real install (CLI + nudge)

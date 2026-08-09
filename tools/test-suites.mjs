@@ -100,6 +100,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/runtime/hooks/commit-msg', 'templates/contextkit/runtime/hooks/pre-push', 'templates/contextkit/runtime/config/load'] },
   { id: 'autonomy', file: it('autonomy'), tier: 'integration:core',
     touches: ['templates/contextkit/runtime/config/resolve-autonomy', 'templates/contextkit/commands/autonomy'] },
+  { id: 'advisory-policy', file: it('advisory-policy'), tier: 'integration:core',
+    touches: ['templates/contextkit/tools/scripts/model-policy', 'templates/contextkit/policy/routing-policy', 'templates/contextkit/runtime/execution/routing-runtime', 'templates/contextkit/runtime/config/resolve-autonomy', 'templates/contextkit/runtime/hooks/subagent-gate', 'templates/contextkit/runtime/execution/agent-orchestration-guard', 'templates/contextkit/runtime/preferences/', 'templates/claude/agents/privacy-lgpd'] },
   { id: 'compozy', file: it('compozy'), tier: 'integration:ecosystem',
     touches: ['templates/contextkit/squads/', 'templates/contextkit/tools/scripts/'] },
   { id: 'migrate', file: it('migrate'), tier: 'integration:installer',

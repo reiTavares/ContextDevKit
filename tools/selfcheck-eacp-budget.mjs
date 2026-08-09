@@ -266,7 +266,7 @@ export async function runEacpBudgetChecks({ ok, bad }, { KIT }) {
     ? ok('evaluateBudget: non-object spend → skipped (fail-open, constitution §8)')
     : bad('evaluateBudget: invalid spend should skip');
 
-  // 25. Resolver integration (ADR-0044 D3): grade4+budgetExhausted→edit='suggest', swarm='manual'
+  // 25. Resolver integration (ADR-0158): budget and grades cannot authorize or deny.
   const raPath = resolve(KIT, 'templates/contextkit/runtime/config/resolve-autonomy.mjs');
   let raLib;
   try { raLib = await import(pathToFileURL(raPath).href); }
@@ -274,12 +274,12 @@ export async function runEacpBudgetChecks({ ok, bad }, { KIT }) {
   if (raLib) {
     const cfg4 = { autonomy: { grade: 4 }, deliberations: { active: true } };
     const editRes = raLib.resolveAutonomy('edit', cfg4, null, { budgetExhausted: true });
-    editRes.mode === 'suggest'
-      ? ok('resolver: grade4+budgetExhausted → edit="suggest" (never blocks, ADR-0044 D3)')
+    editRes.mode === 'advisory' && editRes.binding === false
+      ? ok('resolver: grade4+budgetExhausted edit remains advisory')
       : bad(`resolver: grade4+budgetExhausted edit wrong: "${editRes.mode}"`);
     const swarmRes = raLib.resolveAutonomy('swarm-dispatch', cfg4, null, { budgetExhausted: true });
-    swarmRes.mode === 'manual'
-      ? ok('resolver: grade4+budgetExhausted → swarm-dispatch="manual" (fan-out blocked)')
+    swarmRes.mode === 'advisory' && swarmRes.binding === false
+      ? ok('resolver: grade4+budgetExhausted swarm remains optional')
       : bad(`resolver: grade4+budgetExhausted swarm-dispatch wrong: "${swarmRes.mode}"`);
   }
 

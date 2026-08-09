@@ -59,19 +59,20 @@ export async function runRequestW6Checks({ ok, bad }, { KIT }) {
   try { plan = await import(pathToFileURL(planPath).href); ok('dispatch-plan imports cleanly'); }
   catch (err) { bad(`dispatch-plan import failed: ${err?.message ?? err}`); return; }
 
-  // ── 2-3. per-tier guard ───────────────────────────────────────────────────
+  // ── 2-3. per-tier recommendation ──────────────────────────────────────────
   const heavy = () => ({ lead: 'architect', supporting: ['s1', 's2'], scouts: ['c1', 'c2'], reviewers: ['r1', 'r2'], council: ['v1', 'v2'], synthesizer: 'syn', reasonCodes: [] });
   const cfg = { orchestration: { overOrchestrationGuard: {}, specialists: { autoDispatch: true }, executeDispatchPlan: true }, deliberations: { council: { min: 3 } } };
   const triv = guard.applyOverOrchestrationGuard(heavy(), { complexity: 'trivial', needsDebate: false }, cfg);
   const feat = guard.applyOverOrchestrationGuard(heavy(), { complexity: 'feature', needsDebate: false }, cfg);
   const arch = guard.applyOverOrchestrationGuard(heavy(), { complexity: 'architectural', needsDebate: false }, cfg);
-  subAgentCount(triv) === 0 && subAgentCount(feat) <= 3 && subAgentCount(arch) <= 5
-    ? ok(`guard caps by tier: trivial=${subAgentCount(triv)} feature=${subAgentCount(feat)} architectural=${subAgentCount(arch)}`)
-    : bad(`guard caps wrong: trivial=${subAgentCount(triv)} feature=${subAgentCount(feat)} architectural=${subAgentCount(arch)}`);
+  subAgentCount(triv) === 8 && subAgentCount(feat) === 8 && subAgentCount(arch) === 8
+    && [triv, feat, arch].every((result) => result.guard?.enforced === false && result.guard?.blocking === false)
+    ? ok('orchestration tier caps are recommendations and never trim the plan')
+    : bad(`orchestration recommendation changed the plan: trivial=${subAgentCount(triv)} feature=${subAgentCount(feat)} architectural=${subAgentCount(arch)}`);
 
   const original = heavy();
   guard.applyOverOrchestrationGuard(original, { complexity: 'trivial', needsDebate: false }, cfg);
-  subAgentCount(original) === 8 && Array.isArray(feat.reasonCodes) && feat.guard && feat.guard.plannedAfter <= 3
+  subAgentCount(original) === 8 && Array.isArray(feat.reasonCodes) && feat.guard && feat.guard.plannedAfter === feat.guard.plannedBefore
     ? ok('guard: input not mutated; reasonCodes + guard meta present')
     : bad('guard mutated input or missing meta');
 
