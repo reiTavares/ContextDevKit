@@ -10,9 +10,11 @@ Create a canonical Authoritative Decision Record for: **$ARGUMENTS**
    If an accepted ADR already governs the choice, use it or supersede it; never
    create a duplicate.
 
-0b. **Deliberation is optional** [ADR-0158]. `/debate` may add independent
-evidence when a decision has genuine tension, but debate, routing, and swarm are
-never readiness, council, receipt, or delivery prerequisites.
+0b. **Deliberation is conditional** [ADR-0158]. An explicit `/debate`, a
+governed `needsDebate: true` classification, or a requirement in the selected
+workflow/skill requires the council before this material decision is finalized.
+Outside those triggers, deliberation is optional. Routing recommends the
+executor; missing legacy receipt fields never cancel an activated council.
 
 1. Resolve the fleet-safe next ADR id with
    `node contextkit/tools/scripts/intake-collision-gate.mjs --json`; use the
@@ -44,9 +46,11 @@ never readiness, council, receipt, or delivery prerequisites.
    Acceptance stamps the deterministic decision hash; never hand-edit it.
 
 5. Link the accepted ADR to the governing Business, Operation, or Workflow JSON
-with `decision.mjs link`. If it implies implementation, add tasks only through
-the named canonical workflow/batch `pipeline/tasks.json`. ADR creation never
-seeds tasks or dispatches agents automatically.
+with `decision.mjs link`. Preview implied work with
+`node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --json`; this is
+**preview-only** and never creates task authority. If implementation is accepted,
+add tasks only through the named canonical workflow/batch `pipeline/tasks.json`.
+ADR creation never seeds tasks or dispatches agents automatically.
 
 6. To change an accepted ADR, generate a new one and use the canonical
 supersession lifecycle. Never delete or rewrite an accepted record.
