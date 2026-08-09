@@ -19,7 +19,11 @@ import { readFrontMatter } from '../templates/contextkit/runtime/work/front-matt
 import { stripBom } from '../templates/contextkit/runtime/work/enums.mjs';
 import { buildDecisionRegistry } from '../templates/contextkit/tools/scripts/registry/decision.mjs';
 import { serializeRegistry } from '../templates/contextkit/tools/scripts/registry/serialize.mjs';
-import { renderDecisionFromTemplate, DECISION_TEMPLATES } from '../templates/contextkit/tools/scripts/decision-template.mjs';
+import {
+  renderDecisionFromTemplate,
+  DECISION_TEMPLATES,
+  validateDecisionDocument,
+} from '../templates/contextkit/tools/scripts/decision-template.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SOURCE_ROOT = resolve(KIT, 'templates');
@@ -94,10 +98,17 @@ const FIELDS = {
 for (const kind of Object.keys(DECISION_TEMPLATES)) {
   // business/operation need an agreeing primaryContext id + kind; supply per-kind overrides.
   const fields = { ...FIELDS };
+  fields.CONTEXT_TYPE = kind === 'business' ? 'business' : kind === 'operation' ? 'operation' : 'platform';
+  fields.PRIMARY_CONTEXT_TYPE = fields.CONTEXT_TYPE;
   if (kind === 'business') { fields.PRIMARY_CONTEXT_ID = 'BIZ-0001'; fields.APPROVAL_ID = 'BIZ-0001'; fields.DECISION_KIND = 'BUSINESS_AUTHORIZATION'; }
   if (kind === 'operation') { fields.PRIMARY_CONTEXT_ID = 'OP-0001'; fields.APPROVAL_ID = 'OP-0001'; fields.DECISION_KIND = 'OPERATION_AUTHORIZATION'; }
   const first = renderDecisionFromTemplate({ kind, fields, root: SOURCE_ROOT });
-  const valid = first.ok && !/\{\{\w+\}\}/.test(first.text) && validateDecision(readFrontMatter(first.text).data).ok;
+  const parsed = readFrontMatter(first.text);
+  const valid = first.ok
+    && !/\{\{\w+\}\}/.test(first.text)
+    && validateDecision(parsed.data).ok
+    && parsed.data?.documentVersion === 1
+    && validateDecisionDocument(first.text).ok;
   const deterministic = first.text === renderDecisionFromTemplate({ kind, fields, root: SOURCE_ROOT }).text;
   check(`template ${kind}: renders schema-valid + deterministic`, valid && deterministic);
 }

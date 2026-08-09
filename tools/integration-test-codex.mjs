@@ -10,6 +10,10 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join, relative } from 'node:path';
 import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
 import { isSkippedForCodex } from '../templates/contextkit/runtime/codex/convert-core.mjs';
+import {
+  cleanupLegacyGlobalCodexRouting,
+  removeLegacyProjectRoutingSection,
+} from './install/codex.mjs';
 
 /** Recursively lists Markdown files so host parity never depends on a stale count. */
 function listMarkdownFiles(directory) {
@@ -94,11 +98,77 @@ try {
     ? ok('Codex complete dimensions outrank research task kind')
     : bad(`Codex effort policy did not resolve research: ${(codexSearch.stdout + codexSearch.stderr).slice(0, 300)}`);
   const installedSwarmSkill = readFileSync(join(proj, '.agents', 'skills', 'source-command-pipeline-swarm', 'SKILL.md'), 'utf-8');
-  /suggestions are advisory/.test(installedSwarmSkill)
-    && /unavailable agents do not deny the work/.test(installedSwarmSkill)
+  /current work contract/.test(installedSwarmSkill)
+    && /do not cancel a swarm/.test(installedSwarmSkill)
     && !/decision:\"dispatch\"/.test(installedSwarmSkill)
-    ? ok('Codex swarm skill keeps model routing advisory')
-    : bad('Codex swarm skill still treats model routing as dispatch authority');
+    ? ok('Codex swarm is conditionally required without routing admission control')
+    : bad('Codex swarm lost its conditional trigger or still treats routing as dispatch authority');
+  const installedDebateSkill = readFileSync(join(proj, '.agents', 'skills', 'source-command-debate', 'SKILL.md'), 'utf-8');
+  /needsDebate: true/.test(installedDebateSkill)
+    && /does not block the council or make the requirement disappear/.test(installedDebateSkill)
+    ? ok('Codex debate preserves governed requirements across routing degradation')
+    : bad('Codex debate no longer honors the governed conditional requirement');
+  const installedHostContract = readFileSync(join(proj, 'AGENTS.md'), 'utf-8');
+  /conditional-coordination/.test(installedHostContract)
+    && /never authorizes or denies the invocation/.test(installedHostContract)
+    && /become required when/.test(installedHostContract)
+    && /legacy\s+`decision`, `model`, `effort`, or `ruleId` fields/.test(installedHostContract)
+    ? ok('Codex host contract separates conditional coordination from legacy routing receipts')
+    : bad('Codex host contract collapses conditional coordination into optional routing');
+
+  const legacyProjectInstructions = [
+    '# Project instructions',
+    '',
+    '### Codex-only mandatory subagent routing',
+    '',
+    'Spawn only when the JSON receipt contains decision:"dispatch".',
+    '',
+    '## Project rules',
+    '',
+    'Keep this user rule.',
+    '',
+  ].join('\n');
+  const cleanedProjectInstructions = removeLegacyProjectRoutingSection(legacyProjectInstructions);
+  cleanedProjectInstructions.changed
+    && !/mandatory subagent routing|decision:"dispatch"/.test(cleanedProjectInstructions.text)
+    && /Keep this user rule\./.test(cleanedProjectInstructions.text)
+    ? ok('Codex update removes only the legacy project routing gate')
+    : bad('Codex project routing cleanup removed user content or kept the old gate');
+  const cleanedTrailingGate = removeLegacyProjectRoutingSection([
+    '# User instructions',
+    '',
+    '### Codex-only mandatory subagent routing',
+    '',
+    'Old gate at end of file.',
+    '',
+  ].join('\n'));
+  cleanedTrailingGate.changed && cleanedTrailingGate.text.trim() === '# User instructions'
+    ? ok('Codex project routing cleanup also handles a trailing legacy gate')
+    : bad('Codex project routing cleanup left a trailing legacy gate');
+
+  const legacyCodexHome = join(proj, '.legacy-codex-home');
+  mkdirSync(join(legacyCodexHome, 'harness'), { recursive: true });
+  writeFileSync(join(legacyCodexHome, 'AGENTS.md'), [
+    '# User global instruction',
+    '',
+    '<!-- contextdevkit:codex-global-routing:start -->',
+    '# Global Codex subagent routing',
+    'Spawn only with decision: dispatch.',
+    '<!-- contextdevkit:codex-global-routing:end -->',
+    '',
+  ].join('\n'));
+  for (const filename of ['resolve-subagent-route.mjs', 'resolve-subagent-route.selftest.mjs', 'subagent-routing-policy.json']) {
+    writeFileSync(join(legacyCodexHome, 'harness', filename), 'legacy');
+  }
+  const cleanupReceipt = await cleanupLegacyGlobalCodexRouting(legacyCodexHome, []);
+  const cleanedGlobalInstructions = readFileSync(join(legacyCodexHome, 'AGENTS.md'), 'utf-8');
+  cleanupReceipt.removedBlock
+    && cleanupReceipt.removedHarnessFiles === 3
+    && /User global instruction/.test(cleanedGlobalInstructions)
+    && !/Global Codex subagent routing/.test(cleanedGlobalInstructions)
+    && !existsSync(join(legacyCodexHome, 'harness'))
+    ? ok('Codex update removes the managed global v3 routing harness and preserves user prose')
+    : bad('Codex global routing cleanup is incomplete or destructive');
 
   const hooks = JSON.parse(readFileSync(join(proj, '.codex', 'hooks.json'), 'utf-8'));
   const expectedHook = {
@@ -174,7 +244,9 @@ try {
     : bad(`doctor missing Codex checks: ${doctor.stdout.slice(-500)}`);
 
   writeFileSync(join(proj, 'AGENTS.md'), '# Custom Codex instructions\n');
-  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
+  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update'], {
+    env: { ...process.env, CODEX_HOME: join(proj, '.update-codex-home') },
+  });
   const refreshedAgents = readFileSync(join(proj, 'AGENTS.contextdevkit.md'), 'utf-8');
   update.status === 0 && /contextdevkit:host-contract:start/.test(refreshedAgents)
     ? ok('--update preserves AGENTS.md and writes refreshed AGENTS.contextdevkit.md')

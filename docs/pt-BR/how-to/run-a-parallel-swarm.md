@@ -1,6 +1,8 @@
 # Executar trabalho paralelo com swarm
 
-Use swarm quando existem workstreams realmente independentes e o host oferece paralelismo útil.
+Use swarm quando o owner pede agentes paralelos ou quando o workflow/skill
+selecionado exige workstreams independentes e o host oferece paralelismo útil.
+Fora desses gatilhos, swarm permanece opcional.
 
 ## Quando usar
 
@@ -17,7 +19,11 @@ Use swarm quando existem workstreams realmente independentes e o host oferece pa
 
 ## Contrato 4.x
 
-Swarm é advisory. Não existe cap metodológico que autorize ou negue trabalho; apenas limites técnicos reais do host importam.
+O routing do swarm é advisory: recomenda o executor, mas não autoriza o
+dispatch. Quando o contrato atual ativa swarm, a ausência de campos legados
+`decision`, `model`, `effort` ou `ruleId` não cancela a coordenação. Não existe
+cap metodológico que autorize ou negue trabalho; apenas limites técnicos reais
+do host importam.
 
 Cada workstream deve receber scope explícito e contexto suficiente. O controller consolida resultados, findings e evidência.
 

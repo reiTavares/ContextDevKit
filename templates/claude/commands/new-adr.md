@@ -1,44 +1,56 @@
 ---
-description: Create a new ADR (Architecture Decision Record). Use BEFORE implementing a big decision.
+description: Generate, validate, and explicitly accept a canonical ContextDevKit ADR.
 argument-hint: <ADR title>
 ---
 
-Create a new Architecture Decision Record for: **$ARGUMENTS**
+Create a canonical Authoritative Decision Record for: **$ARGUMENTS**
 
-0. **Check for an existing decision first** [ADR-0027]: run
-   `node contextkit/tools/scripts/adr-digest.mjs --search "<key terms from the title>"`.
-   If an ADR already covers this, extend or supersede it rather than create a duplicate.
+0. **Search before creating** [ADR-0027]: run
+   `node contextkit/tools/scripts/decision.mjs search --objective "<key terms from the title>" --json`.
+   If an accepted ADR already governs the choice, use it or supersede it; never
+   create a duplicate.
 
-0b. **Optional deliberation** [ADR-0158]: when a strategic decision has genuine
-   tension, `/debate "<the decision question>"` can supply independent evidence
-   for Context. It is never a readiness, grade, council, or receipt prerequisite;
-   the current owner instruction controls whether to use it.
+0b. **Deliberation is conditional** [ADR-0158]. An explicit `/debate`, a
+governed `needsDebate: true` classification, or a requirement in the selected
+workflow/skill requires the council before this material decision is finalized.
+Outside those triggers, deliberation is optional. Routing recommends the
+executor; missing legacy receipt fields never cancel an activated council.
 
-1. Find the next ADR number: list `contextkit/memory/decisions/`, take the highest `NNNN` + 1
-   (zero-padded to 4 digits). The `0000` meta-ADR and `_TEMPLATE.md` do not count as the latest
-   numbered decision beyond their own number.
+1. Resolve the fleet-safe next ADR id with
+   `node contextkit/tools/scripts/intake-collision-gate.mjs --json`; use the
+   `ADR` row's `fleet` value. Do not infer the id from one directory.
 
-2. Copy the structure from `contextkit/memory/decisions/_TEMPLATE.md` into a new file
-   `contextkit/memory/decisions/<NNNN>-<kebab-slug>.md`.
+2. Classify the owner and decision before writing:
 
-3. Fill in:
-   - **Status**: `Proposed` (the user accepts it later).
-   - **Context**: the forces at play — why a decision is needed now.
-   - **Decision**: what we will do, stated plainly.
-   - **Consequences**: trade-offs, what becomes easier/harder, follow-ups.
-   - If this supersedes an earlier ADR, note `Supersedes ADR-XXXX` and update the old one's status
-     to `Superseded by ADR-<NNNN>`.
+   - `--context-type business` + `--primary-context BIZ-####` for a Business decision;
+   - `--context-type operation` + `--primary-context OP-####` for an Operation decision;
+   - `--context-type platform` for standing platform governance.
 
-4. Show the user the draft and ask for confirmation before marking it `Accepted`.
+   Choose one closed `--kind` and, when relevant, one closed `--value-intent`.
 
-5. **Preview work implied by the decision** [ADR-0034]. Once `Accepted`, inspect the
-   proposal without creating a second task authority:
+3. Preview, then create only through the canonical generator:
+
+   ```shell
+   node contextkit/tools/scripts/decision.mjs create --id ADR-#### --kind ARCHITECTURE --context-type operation --primary-context OP-#### --title "$ARGUMENTS" --json
+   node contextkit/tools/scripts/decision.mjs create --id ADR-#### --kind ARCHITECTURE --context-type operation --primary-context OP-#### --title "$ARGUMENTS" --apply --json
    ```
-   node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --json
-   ```
-   The command is preview-only. Review, prune, or merge the proposal, then add each
-   accepted item through `pipeline.mjs add --tasks <scope> --title "..."`; the scoped
-   `tasks.json` remains the only authority.
 
-ADRs are immutable once `Accepted` — to change a decision, write a new ADR that supersedes it.
-Never delete or rewrite an accepted ADR.
+   Never copy `contextkit/memory/decisions/_TEMPLATE.md`, hand-build front matter,
+   or create a new legacy ADR. Fill the generated guidance without changing its
+   machine schema, `documentVersion`, or required headings.
+
+4. Validate the exact file with
+   `node contextkit/tools/scripts/decision.mjs validate --file <path> --json`.
+   Show the proposed ADR to the user. Only an explicit human decision authorizes:
+   `node contextkit/tools/scripts/decision.mjs accept --id ADR-#### --actor human --apply --json`.
+   Acceptance stamps the deterministic decision hash; never hand-edit it.
+
+5. Link the accepted ADR to the governing Business, Operation, or Workflow JSON
+with `decision.mjs link`. Preview implied work with
+`node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --json`; this is
+**preview-only** and never creates task authority. If implementation is accepted,
+add tasks only through the named canonical workflow/batch `pipeline/tasks.json`.
+ADR creation never seeds tasks or dispatches agents automatically.
+
+6. To change an accepted ADR, generate a new one and use the canonical
+supersession lifecycle. Never delete or rewrite an accepted record.

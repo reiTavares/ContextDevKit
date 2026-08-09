@@ -61,6 +61,8 @@ try {
   check(created.dir.endsWith(join('workflows', 'WF-0042-portable-flow')), 'canonical path uses WF id and platform separators');
   const neutralDoneRoot = join(root, 'contextkit', 'memory', 'workflows', 'done');
   check(existsSync(neutralDoneRoot), 'neutral workflow creation guarantees the done directory');
+  const continuationPath = join(created.dir, 'CONTINUATION-PROMPT.md');
+  check(existsSync(continuationPath), 'creation emits the mandatory continuation prompt without a flag');
 
   for (const artifact of requiredWorkflowArtifacts()) {
     check(existsSync(join(created.dir, artifact.filename)), `create emits required ${artifact.kind}: ${artifact.filename}`);
@@ -72,16 +74,32 @@ try {
   check(creationVerdict.pack.definition.schemaVersion === 2, 'workflow.json uses schemaVersion 2');
   check(creationVerdict.pack.state.schemaVersion === 2 && creationVerdict.pack.state.revision === 0, 'workflow-state.json starts complete at revision 0');
   check(creationVerdict.pack.tasks.schemaVersion === 2 && creationVerdict.pack.tasks.scopeRef === 'WF-0042', 'tasks.json comes from the W06 v2 contract');
+  check(
+    creationVerdict.pack.manifest.schemaVersion === 2
+      && creationVerdict.pack.manifest.required.includes('CONTINUATION-PROMPT.md')
+      && !creationVerdict.pack.manifest.optional.includes('CONTINUATION-PROMPT.md'),
+    'context manifest v2 requires the continuation prompt',
+  );
   check(creationVerdict.pack.definition.owner.kind === 'none' && creationVerdict.pack.definition.owner.id === null, 'none is an explicit valid owner');
   check(!Object.hasOwn(creationVerdict.pack.definition, 'status') && !Object.hasOwn(creationVerdict.pack.state, 'taskStates'), 'definition, aggregate state, and task authority remain separate');
 
+  const initialContinuation = existsSync(continuationPath) ? readFileSync(continuationPath, 'utf8') : '';
+  check(
+    initialContinuation.includes('node cdx.mjs workflow validate WF-0042')
+      && initialContinuation.includes('node cdx.mjs workflow load WF-0042')
+      && initialContinuation.includes('Prove the Workflow v2 package contract')
+      && initialContinuation.includes('Generated projection'),
+    'continuation is copy/paste-ready and grounded in canonical workflow inputs',
+  );
+
   const firstRender = renderWorkflowPack(created.dir);
-  check(!firstRender.tasksChanged && !firstRender.indexChanged, 'first re-render is byte-idempotent');
+  check(!firstRender.tasksChanged && !firstRender.indexChanged && !firstRender.continuationChanged, 'first re-render is byte-idempotent');
   const secondRender = renderWorkflowPack(created.dir);
-  check(!secondRender.tasksChanged && !secondRender.indexChanged, 'second re-render remains a no-op');
+  check(!secondRender.tasksChanged && !secondRender.indexChanged && !secondRender.continuationChanged, 'second re-render remains a no-op');
 
   writeFileSync(join(created.dir, 'reports', '0001.md'), '# Report\n\nTests passed.\n', 'utf8');
   const loaded = loadWorkflowPack(root, 'WF-0042');
+  check(typeof loaded.documents.continuation === 'string' && loaded.documents.continuation === initialContinuation, 'read-only loader requires and returns the generated continuation prompt');
   check(loaded.definition.id === loaded.state.workflowId && loaded.tasks.scopeRef === loaded.definition.id, 'create → read preserves cross-file identity');
   check(loaded.documents.prd.includes('# PRD/PDR') && loaded.documents.spec.includes('# SPEC') && loaded.documents.decisions.includes('# Decisions'), 'read-only loader includes governed document contents');
   check(loaded.reports.length === 1 && loaded.reports[0].content.includes('Tests passed.'), 'read-only loader includes ordered report contents');
@@ -98,6 +116,14 @@ try {
   check(readFileSync(join(created.dir, 'pipeline', 'tasks.json'), 'utf8') === canonicalTasks, 'projection repair never mutates tasks.json');
   check(!renderWorkflowPack(created.dir).tasksChanged, 'projection repair is idempotent');
 
+  writeFileSync(continuationPath, '# hand-edited continuation\n', 'utf8');
+  check(
+    validatePack(created.dir).errors.some((error) => error.code === 'projection-drift' && error.path === 'CONTINUATION-PROMPT.md'),
+    'validator detects continuation projection drift',
+  );
+  check(renderWorkflowPack(created.dir).continuationChanged, 'renderer repairs continuation from canonical JSON');
+  check(readFileSync(continuationPath, 'utf8') === initialContinuation, 'continuation repair restores byte-identical output');
+
   const absenceRoot = join(tempBase, 'absence-fixtures');
   mkdirSync(absenceRoot, { recursive: true });
   for (const artifact of requiredWorkflowArtifacts()) {
@@ -107,6 +133,32 @@ try {
     const verdict = validatePack(fixture);
     check(!verdict.valid && verdict.errors.some((error) => error.path === artifact.filename), `validatePack detects missing ${artifact.filename}`);
   }
+
+  const priorV2Fixture = join(absenceRoot, 'manifest-v1-without-continuation');
+  cpSync(created.dir, priorV2Fixture, { recursive: true });
+  const priorManifestPath = join(priorV2Fixture, 'context-manifest.json');
+  const priorManifest = JSON.parse(readFileSync(priorManifestPath, 'utf8'));
+  priorManifest.schemaVersion = 1;
+  priorManifest.required = priorManifest.required.filter((ref) => ref !== 'CONTINUATION-PROMPT.md');
+  priorManifest.optional = [...new Set([...priorManifest.optional, 'CONTINUATION-PROMPT.md'])];
+  writeFileSync(priorManifestPath, `${JSON.stringify(priorManifest, null, 2)}\n`, 'utf8');
+  rmSync(join(priorV2Fixture, 'CONTINUATION-PROMPT.md'));
+  const priorDryRun = repairWorkflowScaffold(priorV2Fixture, { write: false, now: NOW });
+  check(
+    priorDryRun.status === 'repair-required'
+      && priorDryRun.missing.includes('context-manifest.json')
+      && priorDryRun.missing.includes('CONTINUATION-PROMPT.md'),
+    'repair dry-run identifies the manifest-v1 continuation upgrade without writing',
+  );
+  const priorRepaired = repairWorkflowScaffold(priorV2Fixture, { write: true, now: NOW });
+  const upgradedManifest = JSON.parse(readFileSync(priorManifestPath, 'utf8'));
+  check(
+    priorRepaired.status === 'repaired'
+      && upgradedManifest.schemaVersion === 2
+      && upgradedManifest.required.includes('CONTINUATION-PROMPT.md')
+      && validatePack(priorV2Fixture).valid,
+    'explicit scaffold repair upgrades manifest v1 and creates the mandatory continuation',
+  );
 
   rmSync(join(created.dir, 'workflow-state.json'));
   const dryRun = repairWorkflowScaffold(created.dir, { write: false, now: NOW });

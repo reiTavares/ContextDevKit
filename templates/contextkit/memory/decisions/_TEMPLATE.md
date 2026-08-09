@@ -1,25 +1,24 @@
-# ADR-NNNN: <Short decision title>
+# ADR reference template — do not copy
 
-- **Status**: Proposed <!-- Proposed | Accepted | Superseded by ADR-XXXX -->
-- **Date**: YYYY-MM-DD
-- **Deciders**: <who>
+> Compatibility/reference document only. Create every new ADR with
+> `node contextkit/tools/scripts/decision.mjs create ...`; the generator owns
+> schema-v2 front matter, document-versioning, required sections, and validation.
+>
+> Documento apenas de referência/compatibilidade. Não copie este arquivo. Use o
+> gerador canônico para criar uma ADR nova.
 
 ## Context
 
-What is the situation and the forces at play? Why is a decision needed now?
-State the constraints (technical, business, team, time) honestly. This section
-should let a future reader understand the problem WITHOUT already knowing the answer.
+The generator creates a proposed record under the owning Business, Operation,
+or Platform context. It refuses legacy creation and incomplete classifications.
 
 ## Decision
 
-What we will do, stated plainly and in the active voice. "We will use X because Y."
+Use the canonical Decision CLI and the contract documented in `README.md`.
+Human acceptance is explicit and stamps a deterministic decision hash.
 
 ## Consequences
 
-- **Positive**: what becomes easier / safer / faster.
-- **Negative / trade-offs**: what becomes harder, what we give up, the risks.
-- **Follow-ups**: anything this decision obligates us to do next.
-
-<!-- If this supersedes an earlier ADR, add:
-     Supersedes [ADR-XXXX](XXXX-...md). And set that ADR's status to
-     "Superseded by ADR-NNNN". ADRs are immutable once Accepted. -->
+- Generated ADRs share one machine and human-readable standard.
+- Accepted records remain immutable and are changed through supersession.
+- This compatibility template is not a second authoring path.

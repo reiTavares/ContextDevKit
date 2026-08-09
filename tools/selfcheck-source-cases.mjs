@@ -210,7 +210,7 @@ export const SOURCE_INVARIANT_CASES = [
     ['adr-digest supports keyword search (ADR-0027)', 'templates/contextkit/tools/scripts/adr-digest.mjs', /--search/],
     ['adr-digest excludes the ADR template (ADR-0027)', 'templates/contextkit/tools/scripts/adr-digest.mjs', /_TEMPLATE\.md/],
     ['/ship scopes via the ADR catalog (ADR-0027)', 'templates/claude/commands/pipeline/ship.md', /adr-digest\.mjs/],
-    ['/new-adr checks for an existing decision first (ADR-0027)', 'templates/claude/commands/new-adr.md', /adr-digest\.mjs/],
+    ['/new-adr checks for an existing decision first (ADR-0027)', 'templates/claude/commands/new-adr.md', /decision\.mjs search/],
     ['/deep-analysis scans existing ADRs before drafting (ADR-0027)', 'templates/claude/commands/audit/deep-analysis.md', /adr-digest\.mjs/],
     // ADR-0030 — per-task complexity rubric (EVO-METHOD/BMAD-derived, MIT). Graduated from the recent shard.
     ['complexity-rubric loader exports classify (ADR-0030)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classify/],

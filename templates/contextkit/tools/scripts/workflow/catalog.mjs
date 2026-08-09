@@ -8,7 +8,7 @@
 
 export const WORKFLOW_SCHEMA_VERSION = 2;
 export const WORKFLOW_STATE_SCHEMA_VERSION = 2;
-export const CONTEXT_MANIFEST_SCHEMA_VERSION = 1;
+export const CONTEXT_MANIFEST_SCHEMA_VERSION = 2;
 
 export const WORKFLOW_STATUSES = Object.freeze([
   'backlog', 'working', 'blocked', 'testing', 'done', 'cancelled',
@@ -66,8 +66,10 @@ const ARTIFACTS = Object.freeze({
     purpose: 'Idempotent human summary of workflow identity and aggregate state.',
   },
   continuation: {
-    id: 'continuation', filename: 'CONTINUATION-PROMPT.md', kind: 'file', required: false,
-    authorship: 'generated', sourceOfTruth: 'workflow context manifest', purpose: 'Optional host-neutral continuation guidance.',
+    id: 'continuation', filename: 'CONTINUATION-PROMPT.md', kind: 'file', required: true,
+    authorship: 'generated',
+    sourceOfTruth: 'projection of workflow.json, workflow-state.json, pipeline/tasks.json, and context-manifest.json',
+    purpose: 'Mandatory host-neutral and copy/paste-ready workflow resumption contract.',
   },
 });
 
@@ -105,18 +107,19 @@ export function requiredWorkflowArtifacts() {
 }
 
 /**
- * Required file references for context loading. Generated Markdown projections
- * are intentionally excluded because their canonical JSON inputs are loaded.
+ * Required file references for context loading. The continuation prompt is the
+ * one generated Markdown exception because every resumed host must receive the
+ * same human handoff contract in addition to the canonical JSON authorities.
  * @returns {string[]}
  */
 export function requiredContextFiles() {
   return [
     'workflow.json', 'workflow-state.json', 'prd.md', 'spec.md', 'decisions.md',
-    'pipeline/tasks.json',
+    'pipeline/tasks.json', 'CONTINUATION-PROMPT.md',
   ];
 }
 
 /** @returns {string[]} optional context references in stable order. */
 export function optionalContextFiles() {
-  return ['CONTINUATION-PROMPT.md', 'reports/'];
+  return ['reports/'];
 }

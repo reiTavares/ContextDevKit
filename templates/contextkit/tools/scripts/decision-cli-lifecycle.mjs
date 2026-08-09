@@ -14,9 +14,13 @@ import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { stripBom } from '../../runtime/work/enums.mjs';
 import { DECISION_ID_PATTERN } from '../../runtime/work/decision-enums.mjs';
+import { readFrontMatter } from '../../runtime/work/front-matter.mjs';
+import { validateDecision } from '../../runtime/work/schema-decision.mjs';
 import { supersede } from './work-decision-supersede.mjs';
+import { computeDecisionHash, extractCanonicalFields } from './work-decision-hash.mjs';
 import { makeReceipt, writeFileEnsured } from './work-io.mjs';
 import { alreadyStamped, readField, splitFrontmatter, stampFrontmatter } from './decision-frontmatter.mjs';
+import { DECISION_DOCUMENT_VERSION, validateDecisionDocument } from './decision-template.mjs';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -126,11 +130,17 @@ export function handleAccept({ flags, apply, root }) {
     || readField(split.block, 'primaryContext.id')
     || adrId,
   );
+  const parsedOriginal = readFrontMatter(original);
+  if (!parsedOriginal.ok || !parsedOriginal.hasFrontMatter) {
+    throw new Error(`decision accept: refused — ${adrId} has invalid YAML front matter`);
+  }
+  const acceptedRecord = { ...parsedOriginal.data, status: 'accepted' };
+  const decisionHash = computeDecisionHash(extractCanonicalFields(acceptedRecord));
   const approvalSource = {
     type: 'human',
     id: approvalId,
     revision: 1,
-    decisionHash: null,
+    decisionHash,
     approvedAt: today,
     actor: 'human',
   };
@@ -138,6 +148,18 @@ export function handleAccept({ flags, apply, root }) {
 
   const idempotentNoop = alreadyStamped(split.block, patch);
   const stamped = idempotentNoop ? { text: original, changes: {} } : stampFrontmatter(original, patch);
+
+  const parsedStamped = readFrontMatter(stamped.text);
+  const schemaVerdict = parsedStamped.ok
+    ? validateDecision(parsedStamped.data)
+    : { ok: false, errors: ['invalid YAML front matter after acceptance stamp'] };
+  const documentVerdict = parsedStamped.data?.documentVersion === DECISION_DOCUMENT_VERSION
+    ? validateDecisionDocument(stamped.text)
+    : { ok: true, errors: [] };
+  const validationErrors = [...schemaVerdict.errors, ...documentVerdict.errors];
+  if (validationErrors.length > 0) {
+    throw new Error(`decision accept: refused — stamped ADR is invalid: ${validationErrors.join('; ')}`);
+  }
 
   const applied = apply && !idempotentNoop;
   if (applied) writeFileEnsured(adrPath, stamped.text);

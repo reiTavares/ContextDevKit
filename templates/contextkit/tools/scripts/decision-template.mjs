@@ -25,7 +25,56 @@ export const DECISION_TEMPLATES = Object.freeze({
   'emergency-governance': 'adr-emergency-governance.template.md',
 });
 
+/** Versioned Markdown-body contract for every newly generated ADR. */
+export const DECISION_DOCUMENT_VERSION = 1;
+
+/** Required level-two headings in stable canonical order. */
+export const REQUIRED_DECISION_SECTIONS = Object.freeze([
+  'Decision',
+  'Decision authority',
+  'Scope',
+  'Context references',
+  'Decision drivers',
+  'Alternatives considered',
+  'Consequences',
+  'Constraints and invariants',
+  'Verification',
+  'Supersession conditions',
+]);
+
 const TOKEN_RE = /\{\{(\w+)\}\}/g;
+
+/**
+ * Validate the human-readable ADR body contract without interpreting its prose.
+ * Existing schema-v2 records opt into this rule through `documentVersion: 1`;
+ * accepted records without that marker remain immutable compatibility inputs.
+ *
+ * @param {unknown} markdown complete ADR Markdown
+ * @returns {{ok:boolean,errors:string[]}}
+ */
+export function validateDecisionDocument(markdown) {
+  if (typeof markdown !== 'string' || markdown.trim() === '') {
+    return { ok: false, errors: ['decision document must be a non-empty string'] };
+  }
+  const errors = [];
+  const sectionPositions = [];
+  for (const section of REQUIRED_DECISION_SECTIONS) {
+    const escaped = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const matches = [...markdown.matchAll(new RegExp(`^## ${escaped}\\s*$`, 'gm'))];
+    if (matches.length === 0) {
+      errors.push(`missing required section "## ${section}"`);
+    } else {
+      sectionPositions.push(matches[0].index);
+      if (matches.length > 1) errors.push(`duplicate required section "## ${section}"`);
+    }
+  }
+  if (sectionPositions.length === REQUIRED_DECISION_SECTIONS.length
+    && sectionPositions.some((position, index) => index > 0 && position <= sectionPositions[index - 1])) {
+    errors.push('required sections are not in canonical order');
+  }
+  if (/\{\{\w+\}\}/.test(markdown)) errors.push('unresolved template token remains');
+  return { ok: errors.length === 0, errors };
+}
 
 /** Absolute path to the `_templates` dir (single-sourced via paths.decisions). */
 function templatesDir(root) {

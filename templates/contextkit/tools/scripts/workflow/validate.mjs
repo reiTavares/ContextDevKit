@@ -10,6 +10,7 @@ import { isAbsolute, join, normalize, relative } from 'node:path';
 import { validateTasksDocument } from '../tasks-validate.mjs';
 import {
   CONTEXT_MANIFEST_SCHEMA_VERSION,
+  optionalContextFiles,
   requiredContextFiles,
   requiredWorkflowArtifacts,
   WORKFLOW_PHASES,
@@ -17,7 +18,11 @@ import {
   WORKFLOW_STATE_SCHEMA_VERSION,
   WORKFLOW_STATUSES,
 } from './catalog.mjs';
-import { renderIndexMarkdown, renderTasksMarkdown } from './render.mjs';
+import {
+  renderContinuationMarkdown,
+  renderIndexMarkdown,
+  renderTasksMarkdown,
+} from './render.mjs';
 
 const WORKFLOW_ID_RE = /^WF-\d{4,}$/;
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
@@ -218,6 +223,12 @@ export function validateContextManifest(manifest) {
   for (const requiredRef of requiredContextFiles()) {
     if (!manifest.required?.includes(requiredRef)) errors.push(fail('missing-context-reference', `context manifest must require ${requiredRef}`, 'context-manifest.json.required'));
   }
+  if (JSON.stringify(manifest.required) !== JSON.stringify(requiredContextFiles())) {
+    errors.push(fail('invalid-context-contract', 'context manifest required refs must match the canonical ordered set', 'context-manifest.json.required'));
+  }
+  if (JSON.stringify(manifest.optional) !== JSON.stringify(optionalContextFiles())) {
+    errors.push(fail('invalid-context-contract', 'context manifest optional refs must match the canonical ordered set', 'context-manifest.json.optional'));
+  }
   return { valid: errors.length === 0, errors };
 }
 
@@ -273,11 +284,12 @@ function validateCrossReferences(packDirectory, definition, state, tasks, manife
 }
 
 /** Verify that generated Markdown equals the pure renderer output. */
-function validateProjections(packDirectory, definition, state, tasks, errors) {
-  if (!definition || !state || !tasks) return;
+function validateProjections(packDirectory, definition, state, tasks, manifest, errors) {
+  if (!definition || !state || !tasks || !manifest) return;
   const projections = [
     ['index.md', renderIndexMarkdown(definition, state, tasks)],
     ['pipeline/tasks.md', renderTasksMarkdown(definition, tasks)],
+    ['CONTINUATION-PROMPT.md', renderContinuationMarkdown(definition, state, tasks, manifest)],
   ];
   for (const [relativePath, expected] of projections) {
     const path = join(packDirectory, relativePath);
@@ -313,7 +325,7 @@ export function validatePack(packDirectory) {
   }
   if (manifest) collect(errors, validateContextManifest(manifest));
   validateCrossReferences(packDirectory, definition, state, tasks, manifest, errors);
-  validateProjections(packDirectory, definition, state, tasks, errors);
+  validateProjections(packDirectory, definition, state, tasks, manifest, errors);
   return { valid: errors.length === 0, errors, pack: { definition, state, tasks, manifest } };
 }
 

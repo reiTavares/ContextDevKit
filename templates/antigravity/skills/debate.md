@@ -9,10 +9,12 @@ independent SPECIALIST voices argues a hard question, a separate synthesizer
 converges, and the result feeds an ADR's Context. It is NOT the canonical record of
 the *why* — the ADR is. This is a strategic, intelligent debate, not an essay.
 
-0. **Explicit intent.** An explicit `/debate` always runs. The
-   `deliberations` config may control optional automatic suggestions, but it
-   cannot contradict the current owner request or become a prerequisite for an
-   ADR, workflow, or ship step.
+0. **Conditional requirement.** An explicit `/debate` always runs. A governed
+   `needsDebate: true` classification or a debate requirement in the selected
+   workflow/skill also requires the council before the affected material
+   decision is finalized. Outside those triggers, `deliberations` config may
+   control optional suggestions. Routing output recommends the model; it never
+   authorizes the council or turns legacy receipt fields into prerequisites.
 
 1. **Frame the question.** Restate `<user-specified argument>` as a single decision question with
    just enough context for an independent reader to take a side. If it's too vague
@@ -40,7 +42,8 @@ the *why* — the ADR is. This is a strategic, intelligent debate, not an essay.
 4. **Fan out to the council (reasoning voices).** Dispatch one sub-agent **per
    council member** with the Task tool, IN PARALLEL, each at the `research.voices`
    recommended voice model when available. Missing or incompatible routing
-   output does not block the council; use the current agent/model and
+   output does not block the council or make the requirement disappear; use the
+   current agent/model and
    **blind to the others' arguments** — independence is the whole point (ADR-0035). Embed the
    context-pack + the evidence pack at the top of every voice prompt. Each voice
    argues from its **specialist lens** (the `agent`/`lane` from the plan), takes ONE

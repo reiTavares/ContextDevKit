@@ -62,7 +62,7 @@ _80 slash commands across 8 domains._
 | `/landing-page` | Landing-page architect + conversion squad — interview-first, anti-cookie-cutter, deterministic scaffold (lp-scaffold/lp-build), LGPD by default. (ADR-0023 + ADR-0050) |
 | `/log-session` | Register the current session (creates a session file + updates CHANGELOG). Use at the end. |
 | `/media-gen` | Generate images (Nano Banana) or video (Veo) via Google AI Studio. Refuses cleanly without credentials. (ADR-0024) |
-| `/new-adr` | Create a new ADR (Architecture Decision Record). Use BEFORE implementing a big decision. |
+| `/new-adr` | Generate, validate, and explicitly accept a canonical ContextDevKit ADR. |
 | `/playbook` | Playbook registry + runner — list/show/run/track the reusable procedures in contextkit/workflows/playbooks/. |
 | `/predictions-review` | Close the predicted-vs-actual loop from the current Git diff. |
 | `/project-map` | Deterministic, stack-agnostic structural map of the project (modules, frontend/backend, symbol inventory) — durable memory the agent reads instead of re-exploring. |
@@ -90,7 +90,7 @@ _80 slash commands across 8 domains._
 | `/retro` | Read-only learning review that proposes governance improvements from durable evidence. |
 | `/runs` | List recent task transitions + pipeline runs from the state.json substrate (ADR-0015 Part C). Read-only, token-light. |
 | `/ship` | L6 — autonomous feature pipeline. Drives the full squad: design → implement → review → test → log. Checkpoints can be manual or automatic. |
-| `/swarm` | Coordinate optional parallel work over explicit, disjoint task scopes. |
+| `/swarm` | Coordinate conditionally required parallel work over explicit, disjoint task scopes. |
 | `/work` | Business-driven methodology entry point — classify (intake), create/advance an Operation or Business work context, and drive the intake → operation → nested-workflow flow. Host-neutral; dry-run by default. |
 | `/workflow` | Create, load, validate, render, and advance a canonical Workflow v2 package. |
 | `/workflow-assist` | Workflow Navigator — shows the current phase, deliverables, and next commands for an ADR-0057 workflow. Read-only; never mutates state. |

@@ -1,11 +1,12 @@
 ---
 schemaVersion: 2
+documentVersion: 1
 id: {{ID}}
 title: {{TITLE}}
 status: {{STATUS}}
-contextType: business
+contextType: {{CONTEXT_TYPE}}
 primaryContext:
-  type: business
+  type: {{PRIMARY_CONTEXT_TYPE}}
   id: {{PRIMARY_CONTEXT_ID}}
 relatedContexts: []
 decisionKind: {{DECISION_KIND}}
@@ -18,7 +19,7 @@ product:
   area: {{PRODUCT_AREA}}
   capability: {{PRODUCT_CAPABILITY}}
 approvalSource:
-  type: business
+  type: {{CONTEXT_TYPE}}
   id: {{APPROVAL_ID}}
   revision: {{APPROVAL_REVISION}}
   decisionHash: {{DECISION_HASH}}
@@ -44,9 +45,8 @@ _State the decision in one or two sentences._
 
 ## Decision authority
 
-- Primary context: {{PRIMARY_CONTEXT_ID}} (business)
-- Approval source: {{APPROVAL_ID}} revision {{APPROVAL_REVISION}}, decisionHash `{{DECISION_HASH}}`
-- Status: {{STATUS}} (mirrors the approved Business — no second approval ceremony).
+- Primary context: {{PRIMARY_CONTEXT_ID}} ({{PRIMARY_CONTEXT_TYPE}})
+- Lifecycle status and approval metadata are authoritative in YAML front matter.
 
 ## Scope
 
