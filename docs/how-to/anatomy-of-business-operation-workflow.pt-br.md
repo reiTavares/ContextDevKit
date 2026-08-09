@@ -1,109 +1,161 @@
 # Anatomia de um Business, Operation e Workflow
 
-Objetivo: entender a memória de governança do ContextDevKit numa leitura só — o
-que é um **Business**, uma **Operation** e um **Workflow**, como se relacionam,
-onde vivem no disco e quais arquivos cada um carrega. Use ao abrir o
-`contextkit/memory/` de um projeto e precisar se orientar rápido.
+Objetivo: entender a memória durável de governança do ContextDevKit em uma leitura — o que são **Business**, **Operation** e **Workflow**, como se relacionam, onde vivem e quais arquivos são autoridade.
 
 > English: see [anatomy-of-business-operation-workflow.md](anatomy-of-business-operation-workflow.md).
 
-## As três unidades
+## As três unidades duráveis
 
 | Unidade | Id | O que é |
 | --- | --- | --- |
-| **Business** | `BIZ-####` | Uma capacidade estratégica ou valor durável que o projeto protege. Longevo; é o dono do *porquê* o trabalho acontece. **`BIZ-0001` é o Root Business** que governa o intake em todo projeto. |
-| **Operation** | `OP-####` | Um lote de trabalho relacionado sob um Business (ou sem vínculo, para manutenção pura). É dona do *o quê* está sendo feito e agrupa seus workflows. |
-| **Workflow** | `WF-####` | Uma unidade de entrega spec-pack — uma única feature/mudança conduzida do intake à conclusão. É dona do *como* um incremento é entregue. |
+| **Business** | `BIZ-####` | Capacidade estratégica, produto, iniciativa ou decisão durável. Guarda um **porquê** de longo prazo. |
+| **Operation** | `OP-####` | Contexto durável de operação, manutenção, recuperação, incidente ou melhoria. Guarda uma **razão operacional** de longo prazo. |
+| **Workflow** | `WF-####` | Agregado de entrega coordenada usado quando existem dependências reais, waves, ordem obrigatória, múltiplas sessões ou cutover/rollback. |
 
-Elas se aninham por posse: um **Business** possui **Operations**, e uma
-**Operation** (ou um Business diretamente) possui **Workflows**. A pasta de um
-workflow possuído **fica sob seu pai** — nunca num pool central.
+Nem toda mudança precisa de qualquer uma dessas unidades.
 
-## Onde vivem no disco
+Uma feature focada, bug localizado, edição de docs ou mudança técnica pode ter natureza `none` e continuar como trabalho direct/batch sem criar Business ou Operation.
 
-Toda a memória de governança fica sob `contextkit/memory/`:
+## Business e Operation são contextos separados
+
+Business e Operation vivem em raízes diferentes.
+
+Uma Operation pode contribuir para ou proteger um outcome de Business, mas esse relacionamento é um vínculo — não uma exigência de que toda Operation fique fisicamente dentro de um Business.
+
+O matcher determinístico pode **sugerir** um Business relacionado a uma Operation. Ele nunca confirma ownership estratégico sozinho.
+
+## Ownership é separado da forma de execução
+
+Business e Operation podem possuir trabalho direct/batch ou um ou mais Workflows.
+
+Workflow é escolhido pela topologia real da execução, não porque o owner é Business ou Operation.
+
+Use Workflow quando houver dependências, waves, ordem obrigatória, execução multi-session, integração coordenada ou cutover/rollback.
+
+## Onde vivem
+
+A memória durável fica sob `contextkit/memory/` — ou sob a geração ativa indicada pelo authority marker v4:
 
 ```text
 contextkit/memory/
 ├── business/
-│   └── BIZ-0001-business-driven-development/
-│       ├── business.json          # registro de máquina (id, status, vínculos)
-│       ├── business-case.md        # o valor/porquê
-│       ├── growth.md · investment-decision.md
-│       ├── architecture/           # notas de design no nível de negócio
-│       ├── workflows/              # workflows possuídos direto pelo Business
-│       └── done/                   # workflows concluídos, arquivados
+│   └── BIZ-####-slug/
+│       ├── business.json
+│       ├── business-case.md
+│       ├── growth.md
+│       ├── investment-decision.md
+│       ├── workflows/
+│       └── done/
 ├── operations/
-│   └── OP-0008-.../
-│       ├── operation.json          # registro de máquina
-│       ├── reason.md               # por que a Operation existe + achados + escopo
-│       ├── batch/tasks.json         # estado canônico de tasks diretas/batch
-│       ├── workflows/              # workflows ativos do owner
-│       │   └── WF-0070-memory-accessibility-and-governance-digest/
-│       │       ├── workflow.json · workflow-state.json
-│       │       ├── pipeline/tasks.json · pipeline/tasks.md
-│       │       ├── prd.md · spec.md · decisions.md · index.md
-│       │       └── reports/
-│       └── done/                   # pacotes completos após conclusão JSON-first
-├── decisions/                      # ADRs — o "porquê" das escolhas arquiteturais
-│   ├── ADR-0000-...md              # ADR-####-<slug>.md (formato canônico)
-│   ├── business/ · operations/ · legacy/
-│   └── _templates/
-├── sessions/                       # um arquivo por sessão de trabalho ("o que aconteceu")
-├── deliberations/                  # artefatos de /debate que alimentam ADRs
-├── GLOSSARY.md                     # nomenclatura UI ↔ código
-├── SESSIONS.md · WORKSPACE.md · DELIBERATIONS.md   # índices regenerados
+│   └── OP-####-slug/
+│       ├── operation.json
+│       ├── reason.md
+│       ├── batch/
+│       │   ├── tasks.json
+│       │   └── tasks.md
+│       ├── workflows/
+│       └── done/
+├── workflows/
+│   ├── WF-####-slug/          # Workflow neutro ativo
+│   └── done/                  # colocação de Workflow neutro concluído
+├── decisions/
+├── sessions/
+├── preferences/
+└── runs/
 ```
 
-**Exemplo real (este repo):** `OP-0008` agrupa o trabalho de acessibilidade de
-linguagem; seu workflow `WF-0070` fica em
-`operations/OP-0008-language-aware-intent-classification-and-memory-accessibility/workflows/WF-0070-memory-accessibility-and-governance-digest/`,
-governado por `decisions/operations/ADR-0132-*.md`.
+Após migração 3.x→4.x, a raiz ativa pode estar fora da pasta original; consumidores usam o resolver canônico em vez de hard-code de caminho.
 
-## Arquivos que cada unidade deve ter
+## Arquivos de Business
 
-- **Business** — `business.json` (registro) + `business-case.md` (o valor).
-  `growth.md` / `investment-decision.md` são os documentos de apoio padrão.
-- **Operation** — `operation.json` + `reason.md` (por que existe, achados,
-  escopo). `batch/tasks.json` guarda tasks diretas/batch; `workflows/` e `done/`
-  organizam pacotes de workflow ativos e concluídos.
-- **Workflow (spec-pack v2)** — `workflow.json`, `workflow-state.json`,
-  `pipeline/tasks.json`, `pipeline/tasks.md` gerado, `index.md`, `prd.md`,
-  `spec.md`, `decisions.md`, `context-manifest.json` e `reports/`.
-- **ADR** — `decisions/ADR-####-<slug>.md`. ADRs de business/operation ficam nas
-  subpastas `business/` e `operations/`; os históricos em `legacy/`.
+Business mantém contexto estratégico durável:
 
-## Convenções de nomenclatura
+- `business.json` — registro de máquina;
+- `business-case.md` — valor/outcome;
+- `growth.md` — contexto de crescimento/valor quando aplicável;
+- `investment-decision.md` — contexto de investimento/decisão quando aplicável;
+- `workflows/` / `done/` — Workflows possuídos diretamente pelo Business.
 
-- Businesses: `BIZ-####`; Operations: `OP-####`; Workflows: `WF-####`.
-- Diretórios de workflows possuídos carregam o **prefixo `WF-`** (`WF-0070-<slug>`)
-  e ficam sob `workflows/` enquanto ativos. O diretório completo vai para
-  `done/` do pai após a conclusão; o JSON, não a posição, continua sendo a
-  autoridade do ciclo de vida.
-- Arquivos de ADR: `ADR-####-<slug>.md`.
-- Números são alocados de **uma sequência global única** entre BIZ/OP/WF/ADR —
-  nunca reutilizados ou por-diretório.
+Business não é pai obrigatório de todo trabalho.
 
-## O fluxo de fases de um workflow
+## Arquivos de Operation
 
-Um workflow avança por fases, cada uma barrada por seu entregável:
+Operation mantém contexto operacional durável:
+
+- `operation.json` — registro de máquina;
+- `reason.md` — motivo, escopo, findings e contexto operacional;
+- `batch/tasks.json` — autoridade canônica das tasks direct/batch quando pertencem à Operation;
+- `batch/tasks.md` — projeção humana gerada;
+- `workflows/` / `done/` — Workflows ativos/concluídos da Operation.
+
+## Pacote Workflow v2
 
 ```text
-intake → prd → spec → adr → roadmap → pipeline → ship → testing → conclusion
+WF-####-slug/
+├── workflow.json
+├── workflow-state.json
+├── context-manifest.json
+├── prd.md
+├── spec.md
+├── decisions.md
+├── index.md                    # gerado
+├── CONTINUATION-PROMPT.md      # guidance opcional gerado
+├── pipeline/
+│   ├── tasks.json
+│   └── tasks.md                # gerado
+└── reports/
 ```
 
-Veja o status a qualquer momento com `/workflow status <slug>` (ou
-`node contextkit/tools/scripts/workflow.mjs status <slug>`), e avance com
-`/workflow advance <slug>`.
+### Autoridades
 
-## A memória é versionada no seu clone
+- `workflow.json` possui definição/topologia;
+- `workflow-state.json` possui lifecycle;
+- `pipeline/tasks.json` possui tasks/status/events/evidência;
+- `tasks.md` e `index.md` são projeções;
+- reports são evidência/contexto factual, não autoridade de lifecycle.
 
-Uma **instalação não-dogfood versiona sua memória de governança** por padrão — o
-registro durável (business/operations/workflows/sessions/decisões) é commitado
-para que o clone de um colega carregue a memória do projeto, enquanto o estado
-descartável de runtime (pipeline state, caches, índices regenerados) permanece
-ignorado. Você pode regenerar uma projeção consultável de tudo isso com:
+## Colocação de concluídos
 
-```bash
-node contextkit/tools/scripts/governance-digest.mjs --write
+Depois da conclusão JSON-first, um pacote validado pode ser movido para `done/` do owner — ou para `memory/workflows/done/` quando neutro — apenas para navegação humana.
+
+A posição da pasta **não** é autoridade de status.
+
+Um Workflow pode ser reaberto quando QA posterior rejeita uma task concluída. O lifecycle JSON muda primeiro e o pacote retorna à raiz ativa.
+
+## Novos ciclos de QA
+
+Uma task pode voltar de `testing` ou `done` para `backlog` via `qa-reject`:
+
+```text
+testing / done
+      ↓
+  qa-reject
+      ↓
+    backlog
+      ↓
+    working
+      ↓
+    testing
+      ↓
+ evidência nova
+      ↓
+     done
 ```
+
+A evidência do ciclo atual é limpa quando a rodada reinicia. Eventos históricos permanecem para auditoria.
+
+## ADRs e decisões
+
+ADRs preservam decisões materiais em `memory/decisions/`.
+
+Contextos Business/Operation/Workflow podem referenciar ADRs relevantes, mas um ADR não força Workflow nem classificação Business/Operation por si só.
+
+## Memória é inteligência do projeto
+
+Essas estruturas não existem para maximizar artefatos.
+
+Elas existem para preservar informação que vale a pena sobreviver à troca de sessão, modelo ou host.
+
+> **Contexto durável deve existir quando esquecê-lo prejudicaria o projeto.**
+
+Veja [Business-Driven Development](../explanation/business-driven-development.md), [Evidence-Driven Loop Engineering](../explanation/loop-engineering.md) e [Work and governance domain model](../explanation/domain-model.md).
