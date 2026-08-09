@@ -29,8 +29,8 @@ this project follows [Semantic Versioning](https://semver.org/).
 > installation; 4.0 intentionally has no automatic 3.x runtime fallback.
 
 This release implements the complete governance-first contract recorded by
-ADR-0158 / OP-0015 / WF-0111. Across the source tree it changes 976 files:
-40,280 insertions, 74,842 deletions, 68 new files, and 306 removed files. The
+ADR-0158 / OP-0015 / WF-0111. Across the source tree it changes 977 files:
+40,368 insertions, 74,858 deletions, 68 new files, and 306 removed files. The
 net deletion is deliberate: replaced executable governance was removed instead
 of being retained as a second authority.
 
@@ -196,6 +196,11 @@ of being retained as a second authority.
 - **`fix(hosts)` — projection-count regression.** Host integration tests derive
   the expected Codex command count from the canonical Claude source and skip
   policy instead of freezing a stale numeric total.
+- **`fix(ci)` — source-only architecture gate.** Clean GitHub checkouts execute
+  the complete architecture-debt analysis and enforce its verdict in memory
+  without trying to persist into an absent, gitignored dogfood memory tree.
+  Installed projects still write the single canonical findings store, and an
+  invalid v4 authority marker still refuses execution.
 - **`fix(release)` — complete GitHub Release notes.** Tag publication extracts
   this exact version section from the authoritative root changelog and passes it
   through `--notes-file`. Missing, duplicate, empty, or package-mismatched notes

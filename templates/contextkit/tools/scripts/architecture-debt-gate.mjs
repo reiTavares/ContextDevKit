@@ -29,7 +29,7 @@
  * Defensive I/O, fail-closed to REVIEW (never a false PASS) on missing evidence.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { loadConfigSync } from '../../runtime/config/load.mjs';
@@ -50,6 +50,29 @@ import { gradedGraphSignals } from './arch-debt/signal-collector.mjs';
 import { collectGradedSignals } from './graph-graded-signals.mjs';
 import { collectChangeEvidence } from './arch-debt/change-evidence.mjs';
 import { applyEnforcementPosture } from './arch-debt/enforcement-posture.mjs';
+
+/**
+ * Resolve the canonical findings store only when an installed memory authority
+ * is present. Source-only checkouts still execute the full gate in memory and
+ * must not fabricate an ignored dogfood tree merely to persist CI diagnostics.
+ * Authority-marker validation remains delegated to `pathsFor` and therefore
+ * still fails fast when a present v4 marker is malformed or unsafe.
+ *
+ * @param {string} [root] project root.
+ * @returns {string|null} absolute findings-store path, or null without an installed memory root.
+ */
+export function resolveFindingsStorePath(root = process.cwd()) {
+  const memoryRoot = pathsFor(root).memory;
+  try {
+    if (!statSync(memoryRoot).isDirectory()) {
+      throw new Error(`Architecture-debt memory authority is not a directory: ${memoryRoot}`);
+    }
+  } catch (error) {
+    if (error?.code === 'ENOENT') return null;
+    throw error;
+  }
+  return resolve(memoryRoot, 'tech-debt-findings.json');
+}
 
 /**
  * Count the lines of a source file, fail-soft to 0 on any read error so a single
@@ -355,17 +378,11 @@ async function main() {
   if (resolved.deprecationNotice) {
     process.stderr.write(`[arch-debt] ${resolved.deprecationNotice}\n`);
   }
-  // Persist into the ONE findings store (decisions.md Fork-1). The CLI previously
-  // omitted `storePath`, so step 5 of this engine's contract never ran: the store
-  // and board were never updated by a gate run, AND the ratchet had no prior
-  // findings to compare against (making DEBT_REDUCED unreachable). Fail-soft: a
-  // memory dir that cannot be resolved degrades to in-memory only.
-  let storePath = null;
-  try {
-    storePath = resolve(pathsFor(root).memory, 'tech-debt-findings.json');
-  } catch {
-    storePath = null;
-  }
+  // Persist into the ONE findings store (decisions.md Fork-1) when the installed
+  // memory authority exists. A source-only checkout has no dogfood memory tree,
+  // so CI keeps the exact same analysis and verdict in memory without creating a
+  // second or ignored authority on disk.
+  const storePath = resolveFindingsStorePath(root);
   // `conformanceBaseline` is null until the project wires layerRules/ownership —
   // then F1/F2/F3 EVALUATE against it (empty by default: the current tree is the
   // conformant baseline, so a regression blocks and nothing pre-existing is faked
