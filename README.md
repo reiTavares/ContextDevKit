@@ -12,7 +12,7 @@ It sits around them as the durable engineering layer of the project.
 
 ContextDevKit is designed to help projects move from vibe coding to disciplined AI-native software engineering without turning methodology into bureaucracy.
 
-Portuguese documentation: [instrucoes.md](instrucoes.md).
+**Português (Brasil): [docs/pt-BR/README.md](docs/pt-BR/README.md).**
 
 ## Why ContextDevKit exists
 
@@ -480,6 +480,7 @@ The suite runner is bounded, emits progress and heartbeats, and terminates timed
 Start with:
 
 - [Documentation index](docs/README.md)
+- [Português (Brasil)](docs/pt-BR/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Business-Driven Development](docs/explanation/business-driven-development.md)
 - [Evidence-Driven Loop Engineering](docs/explanation/loop-engineering.md)
