@@ -255,8 +255,11 @@ export async function patchGitattributes(target, tplDir) {
  * @param {string} tplDir - templates dir
  * @param {number} level - active level (git hooks only at L≥3)
  * @param {string[]} report - mutated with progress lines
+ * @returns {Promise<{available:boolean}>} optional Git capability status
  */
 export async function installVcsIntegration(target, tplDir, level, args, report) {
+  const gitDir = await resolveGitDir(join(target, '.git'), target);
+  const available = Boolean(gitDir);
   // Dogfood by default [ADR-0054]: install artifacts stay out of the user's git
   // history. Safe unconditionally — info/exclude only affects UNTRACKED paths.
   //
@@ -310,7 +313,8 @@ export async function installVcsIntegration(target, tplDir, level, args, report)
     } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
   }
   // Version-control hint: suggest connecting a remote if there isn't one.
-  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
+  if (available && !(await read(join(gitDir, 'config')).catch(() => '')).includes('[remote "origin"]')) {
     report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
   }
+  return { available };
 }

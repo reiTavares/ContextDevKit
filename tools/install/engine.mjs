@@ -31,7 +31,12 @@ const ECONOMY_NOTICE =
 // not user data: each is schema-coupled to the runtime module that reads it, so they
 // ship always-overwrite in lockstep with the engine. Per-project tuning lives in
 // `config.json`, never in these files.
-const POLICY_TABLES = ['journey.json', 'work-classification.json', 'decision-intelligence.json'];
+const POLICY_TABLES = [
+  'journey.json',
+  'work-classification.json',
+  'decision-intelligence.json',
+  'host-projections.json',
+];
 
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [

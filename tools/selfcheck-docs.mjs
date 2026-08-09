@@ -22,10 +22,9 @@
  * Standalone: node tools/selfcheck-docs.mjs
  */
 
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -191,97 +190,64 @@ function assertStructuralCompleteness(reindexMod, committedIndex, indexPath) {
 }
 
 // ---------------------------------------------------------------------------
-// Assertion (f): the generated index does not depend on the ambient git env
+// Assertion (f): explicit rules are deterministic in a non-Git directory
 // ---------------------------------------------------------------------------
 
 /**
- * Regression seal (WF-0086): `reindexDocs` decides whether to index a doc by asking
- * `git check-ignore`. Git hooks export GIT_DIR/GIT_INDEX_FILE, and in a LINKED
- * WORKTREE those point at `.git/worktrees/<name>/`, which carries no `info/exclude`
- * — that rule lives in the common git dir. Inherited, the same file read as ignored
- * from a shell and NOT ignored from a hook, so `docs/README.md` differed depending on
- * who regenerated it: the pre-commit hook kept re-adding an entry the selfcheck then
- * rejected as non-idempotent. The generated index must be a function of the tree, not
- * of the caller's environment.
- *
- * SELF-CONTAINED BY NECESSITY. An earlier cut of this check ran against the real
- * `KIT/docs` and relied on `docs/CHANGELOG.md` being present-and-ignored. That file is
- * untracked and ignored only through this repo's local `.git/info/exclude`, so on a
- * clean clone it does not exist — no `META_FILES` member is ignored, both renders come
- * out identical, and the check went GREEN ON THE DEFECT. That is a false negative, the
- * one direction constitution §8 forbids. The fixture below therefore builds the
- * discriminating condition itself and asserts it is discriminating before judging.
+ * Regression seal: docs generation must not consult Git. The fixture has no `.git`,
+ * uses a path containing spaces, and proves explicit meta include/exclude rules are
+ * honored and idempotent even when misleading Git environment variables are set.
  *
  * @param {object} reindexMod
+ * @returns {void}
  */
 function assertIndexIgnoresAmbientGitEnv(reindexMod) {
-  console.log('(f) generated index is invariant to the ambient git env...');
+  console.log('(f) non-Git explicit include/exclude rules...');
   const saved = { GIT_DIR: process.env.GIT_DIR, GIT_INDEX_FILE: process.env.GIT_INDEX_FILE };
-  const clean = { ...process.env };
-  for (const key of ['GIT_DIR', 'GIT_INDEX_FILE', 'GIT_WORK_TREE', 'GIT_PREFIX']) delete clean[key];
-  // `tree` owns the docs + the exclude rule; `other` is a VALID but unrelated gitdir —
-  // the linked-worktree shape (`.git/worktrees/<name>/` inherits no common excludes), so
-  // `check-ignore` exits 1 cleanly rather than 128 "not a git repository".
-  let tree; let other;
+  let tree;
   try {
-    tree = mkdtempSync(join(tmpdir(), 'ctxkit-docs-env-tree-'));
-    other = mkdtempSync(join(tmpdir(), 'ctxkit-docs-env-other-'));
-    for (const dir of [tree, other]) {
-      const init = spawnSync('git', ['init', '--quiet', dir], { encoding: 'utf-8' });
-      if (init.status !== 0) {
-        bad(`(f) fixture repo could not be created — check SKIPPED, never passed: ${init.stderr?.trim() || init.error?.message || `exit ${init.status}`}`);
-        return;
-      }
-    }
+    tree = mkdtempSync(join(tmpdir(), 'ctxkit docs non git '));
     mkdirSync(join(tree, 'docs', 'reference'), { recursive: true });
     writeFileSync(join(tree, 'docs', 'CHANGELOG.md'), '# Changelog\n\nLocal-only release chronology.\n');
+    writeFileSync(join(tree, 'docs', 'roadmap.md'), '# Roadmap\n\nPlanned work.\n');
     writeFileSync(join(tree, 'docs', 'reference', 'thing.md'), '# Thing\n\nA reference doc.\n');
-    appendFileSync(join(tree, '.git', 'info', 'exclude'), '\n/docs/CHANGELOG.md\n');
+    writeFileSync(join(tree, 'docs', '.diataxis.json'), JSON.stringify({
+      _metaFiles: { include: ['roadmap.md'], exclude: ['CHANGELOG.md'] },
+    }, null, 2));
   } catch (err) {
     bad(`(f) fixture setup threw — check SKIPPED, never passed: ${err?.message ?? err}`);
     if (tree) rmSync(tree, { recursive: true, force: true });
-    if (other) rmSync(other, { recursive: true, force: true });
     return;
   }
 
   const docsDir = join(tree, 'docs');
   const indexPath = join(docsDir, 'README.md');
-  const pollution = { ...clean, GIT_DIR: join(other, '.git'), GIT_INDEX_FILE: join(other, '.git', 'index') };
-  let plain; let polluted;
+  let first; let second;
   try {
-    // Prove the fixture can actually tell the two readings apart. If it cannot, the
-    // comparison below would pass on broken and fixed code alike — report, never pass.
-    const changelog = join(docsDir, 'CHANGELOG.md');
-    const ignoredClean = spawnSync('git', ['check-ignore', '-q', changelog], { cwd: docsDir, env: clean }).status === 0;
-    const ignoredPolluted = spawnSync('git', ['check-ignore', '-q', changelog], { cwd: docsDir, env: pollution }).status === 0;
-    if (!ignoredClean || ignoredPolluted) {
-      bad(`(f) fixture is NOT discriminating (clean=${ignoredClean} polluted=${ignoredPolluted}) — check SKIPPED, never passed`);
-      return;
-    }
     reindexMod.reindexDocs(tree);
-    plain = readFileSync(indexPath);
-    process.env.GIT_DIR = pollution.GIT_DIR;
-    // `check-ignore` also consults the index (a tracked file is never reported ignored),
-    // so a hook's alternate index is part of the inherited state under test.
-    process.env.GIT_INDEX_FILE = pollution.GIT_INDEX_FILE;
+    first = readFileSync(indexPath, 'utf-8');
+    process.env.GIT_DIR = join(tree, 'missing git metadata');
+    process.env.GIT_INDEX_FILE = join(tree, 'missing git index');
     reindexMod.reindexDocs(tree);
-    polluted = readFileSync(indexPath);
+    second = readFileSync(indexPath, 'utf-8');
   } catch (err) {
-    bad(`reindexDocs threw during git-env invariance check: ${err?.message ?? err}`);
+    bad(`reindexDocs threw in a non-Git fixture: ${err?.message ?? err}`);
     return;
   } finally {
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
     rmSync(tree, { recursive: true, force: true });
-    rmSync(other, { recursive: true, force: true });
   }
-  if (plain.equals(polluted)) {
-    ok('generated index identical with and without an inherited GIT_DIR (hook-safe)');
-  } else {
-    bad('generated index CHANGES when GIT_DIR is inherited — a hook and a shell would disagree');
-    console.error(`       plain length: ${plain.length}, with inherited GIT_DIR: ${polluted.length}`);
-  }
+  first === second
+    ? ok('non-Git index is idempotent and independent of ambient Git variables')
+    : bad('non-Git index changed between identical runs');
+  first.includes('[Roadmap](roadmap.md)')
+    ? ok('explicit meta include is rendered')
+    : bad('explicit meta include was not rendered');
+  !first.includes('[Changelog](CHANGELOG.md)')
+    ? ok('explicit meta exclude is honored')
+    : bad('explicit meta exclude was rendered');
 }
 
 // ---------------------------------------------------------------------------

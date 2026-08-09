@@ -174,7 +174,9 @@ async function main() {
       return;
     }
     const updateId = newUpdateId();
-    const snap = await snapshotCriticalState(target, updateId);
+    const snap = await snapshotCriticalState(target, updateId, {
+      root: process.env.CONTEXTKIT_BACKUP_ROOT || undefined,
+    });
     if (!snap.ok) {
       console.error(`\n❌ ContextDevKit update ABORTED: ${FAILED_SNAPSHOT} — external critical-state snapshot failed to verify. No changes were made.`);
       return;
@@ -225,7 +227,7 @@ async function main() {
   await wireClaudeSettings(target, level, report);
 
   // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
-  await installVcsIntegration(target, TPL, level, args, report);
+  const vcs = await installVcsIntegration(target, TPL, level, args, report);
 
   // 7. Context bridges for non-native tools — opt-in per tool via config
   //    `bridges.enabled`; context only, no enforcement [ADR-0068].
@@ -257,7 +259,10 @@ async function main() {
   // switch, WITHOUT changing the default. Default is LOCAL-ONLY [ADR-0054];
   // --tracked opts into committing the kit. Switching is non-destructive (re-run
   // with the other flag) -- it only toggles .git/info/exclude, never the index/edits.
-  if (args.tracked) {
+  if (!vcs.available) {
+    console.log('\n📦 Install mode: NON-GIT — ContextDevKit installed without repository metadata.');
+    console.log('   Git integration is optional; initialize Git and re-run later to add hooks and local excludes.');
+  } else if (args.tracked) {
     console.log('\n📦 Install mode: TRACKED — kit artifacts are committable (visible to teammates, other machines, CI).');
     console.log('   Switch to local-only later: re-run without --tracked (writes a .git/info/exclude block; your files stay).');
   } else {

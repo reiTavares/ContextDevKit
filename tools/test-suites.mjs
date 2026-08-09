@@ -144,6 +144,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/runtime/capabilities/', 'templates/contextkit/runtime/config/'] },
   { id: 'install-cycle', file: it('install-cycle'), tier: 'smoke',
     touches: ['install.mjs'] },
+  { id: 'fleet-portability', file: it('fleet'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'templates/contextkit/tools/scripts/registry/fleet.mjs'] },
   { id: 'execution', file: it('execution'), tier: 'smoke',
     touches: ['templates/contextkit/runtime/execution/', 'templates/contextkit/runtime/hooks/'] },
   { id: 'execution-persistence', file: it('execution-persistence'), tier: 'smoke',
