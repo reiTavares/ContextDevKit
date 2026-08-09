@@ -1,25 +1,28 @@
 /**
  * Operation creation command (BIZ-0001 / WF-0036, A1-T2). Produces a canonical
- * Operation package — `operation.json` + `reason.md` + `tasks.md` — under the
+ * Operation definition (`operation.json` + `reason.md`) under the
  * Operations root resolved from `paths.mjs` (never hardcoded; immutable rule 4).
+ * Batch mode also creates `batch/tasks.json`, its generated projection, and the
+ * reports directory. Direct mode creates no speculative task store.
  *
  * Posture (constitution §8): DRY-RUN BY DEFAULT. Without `--apply` the command
  * computes and returns the full plan and writes NOTHING. With `--apply` it
- * validates the built `operation.json` and writes all three files atomically
+ * validates the complete plan before atomically writing its files
  * (tmp + rename via `writeFileEnsured`). Validation runs at the boundary so a
  * refused (schema-invalid) operation never wastes a write.
  *
  * Zero runtime dependencies — `node:*` + sibling/runtime modules only.
  */
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { EXECUTION_MODES, VALUE_INTENTS, isNonEmptyString } from '../../runtime/work/enums.mjs';
 import { validateOperation, OPERATION_ID_PATTERN } from '../../runtime/work/schema-operation.mjs';
 import { nextOperationId } from './registry/ids.mjs';
 import { makeReceipt, slugify, writeFileEnsured } from './work-io.mjs';
-import { buildOperationJson, buildReasonMd, buildTasksMd } from './work-templates.mjs';
-import { operationTasksMarkers } from './work-render.mjs';
+import { buildOperationJson, buildReasonMd } from './work-templates.mjs';
+import { createTasksDocument } from './tasks-schema.mjs';
+import { repairTasksProjection, writeTasksDocumentAtomic } from './tasks-store.mjs';
 
 /** Default execution mode when `--mode` is omitted. */
 const DEFAULT_MODE = 'direct';
@@ -102,14 +105,14 @@ export function resolveCreateInputs({ positionals, flags }, root = process.cwd()
 }
 
 /**
- * Computes the package plan: the target directory + the three file contents.
+ * Computes the package plan: required directories and file contents.
  * Pure — performs no writes. Validation of `operation.json` happens here so a
  * refused operation never reaches the apply path.
  *
  * @param {object} inputs - resolved create inputs.
  * @param {string} root - project root (for the Operations path).
  * @param {string} createdAt - injected ISO date.
- * @returns {{ dir, files: Array<{path, content}>, operation }}
+ * @returns {{ dir, directories:string[], files: Array<{path, content}>, operation, taskStore:object|null }}
  * @throws {Error} when the built `operation.json` is schema-invalid.
  */
 export function planOperationPackage(inputs, root, createdAt) {
@@ -119,13 +122,23 @@ export function planOperationPackage(inputs, root, createdAt) {
 
   const operationsRoot = pathsFor(root).operations;
   const dir = join(operationsRoot, `${inputs.id}-${inputs.slug}`);
-  const markers = operationTasksMarkers();
   const files = [
     { path: join(dir, 'operation.json'), content: `${JSON.stringify(operation, null, 2)}\n` },
     { path: join(dir, 'reason.md'), content: buildReasonMd(operation, createdAt) },
-    { path: join(dir, 'tasks.md'), content: buildTasksMd(operation, markers) },
   ];
-  return { dir, files, operation };
+  const directories = [dir];
+  let taskStore = null;
+  if (inputs.executionMode === 'batch') {
+    const tasksDocument = createTasksDocument(inputs.id);
+    const batchDir = join(dir, 'batch');
+    directories.push(join(batchDir, 'reports'));
+    taskStore = {
+      path: join(batchDir, 'tasks.json'),
+      projectionPath: join(batchDir, 'tasks.md'),
+      document: tasksDocument,
+    };
+  }
+  return { dir, directories, files, operation, taskStore };
 }
 
 /**
@@ -143,13 +156,29 @@ export function runOperationCreate(ctx) {
   const plan = planOperationPackage(inputs, root, createdAt);
 
   if (apply) {
+    for (const directory of plan.directories) mkdirSync(directory, { recursive: true });
     for (const file of plan.files) writeFileEnsured(file.path, file.content);
+    if (plan.taskStore) {
+      writeTasksDocumentAtomic(plan.taskStore.path, plan.taskStore.document);
+      repairTasksProjection(plan.taskStore.path);
+    }
   }
+
+  const plannedWrites = [
+    ...plan.files.map((file) => file.path),
+    ...(plan.taskStore ? [plan.taskStore.path, plan.taskStore.projectionPath] : []),
+  ];
 
   return makeReceipt({
     command: 'operation',
     applied: apply,
-    writes: plan.files.map((file) => file.path),
-    detail: { id: inputs.id, slug: inputs.slug, executionMode: inputs.executionMode, dir: plan.dir },
+    writes: plannedWrites,
+    detail: {
+      id: inputs.id,
+      slug: inputs.slug,
+      executionMode: inputs.executionMode,
+      dir: plan.dir,
+      taskStore: inputs.executionMode === 'batch' ? join(plan.dir, 'batch', 'tasks.json') : null,
+    },
   });
 }

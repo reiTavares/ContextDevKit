@@ -130,4 +130,16 @@ export const WF0059_SUITES = Object.freeze([
       `${SCRIPTS}/workflow-state-checksum-manifest.mjs`,
     ],
   },
+  {
+    id: 'wf0111-v4-pipeline-cli-cutover',
+    file: `${SCRIPTS}/pipeline-cutover.selftest.mjs`,
+    tier: 'selfcheck',
+    touches: [
+      `${SCRIPTS}/pipeline.mjs`, `${SCRIPTS}/pipeline-add.mjs`,
+      `${SCRIPTS}/pipeline-board.mjs`, `${SCRIPTS}/pipeline-session.mjs`,
+      `${SCRIPTS}/pipeline-transitions.mjs`, `${SCRIPTS}/work.mjs`,
+      `${SCRIPTS}/work-operation.mjs`, `${SCRIPTS}/work-business-dispatch.mjs`,
+      `${SCRIPTS}/tasks-store.mjs`, `${SCRIPTS}/tasks-render.mjs`,
+    ],
+  },
 ]);

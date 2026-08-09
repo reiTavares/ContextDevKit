@@ -22,7 +22,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     // ADR-0047 A3 — DevPipeline board digest (task 130).
     ['pipeline-board exports the token-light digest (ADR-0047 A3)', 'templates/contextkit/tools/scripts/pipeline-board.mjs', /export function renderDigest/],
     ['the digest is bounded — backlog capped, titles clipped (ADR-0027 posture)', 'templates/contextkit/tools/scripts/pipeline-board.mjs', /backlogCap = 8/],
-    ['pipeline.mjs wires the board --digest verb (ADR-0047 A3)', 'templates/contextkit/tools/scripts/pipeline.mjs', /cmd === 'board'/],
+    ['pipeline.mjs wires the board --digest verb', 'templates/contextkit/tools/scripts/pipeline.mjs', /command === 'board'/],
     ['/pipeline show starts from the digest, not N task files (ADR-0047 A3)', 'templates/claude/commands/pipeline/pipeline.md', /board --digest/],
     ['/plan-week points at the digest for lane context (ADR-0047 A3)', 'templates/claude/commands/pipeline/plan-week.md', /board --digest/],
     // ADR-0047 A4 — scheduled alert-sync in the scaffolded security.yml (task 131).

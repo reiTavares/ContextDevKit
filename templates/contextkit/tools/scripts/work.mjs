@@ -6,23 +6,20 @@
  *
  * THIN DISPATCHER ONLY (constitution §2): this file parses argv and routes to a
  * command handler in a `work-*` helper module. Logic lives in those modules.
- * Commands are introduced wave-by-wave; the seam below lists the full surface
- * (spec §"Interfaces / contracts") but only wires the commands that EXIST today
- * (A1-T2: `operation`, `render`). Unimplemented commands are NOT stubbed
- * (constitution §9) — they report a clear "not yet wired in this wave" message.
+ * The `render` alias repairs `tasks.md` only from the canonical JSON store; it
+ * never discovers or parses status directories or Markdown cards.
  *
  * Zero runtime dependencies — `node:*` + sibling modules only (immutable rule 1).
  *
  * @example node work.mjs operation "Rotate the staging API key" --mode direct --apply
  * @example node work.mjs render --operation OP-0001
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { parseArgs, resolvePosture, formatReceipt, makeReceipt } from './work-io.mjs';
 import { runOperationCreate } from './work-operation.mjs';
-import { renderTasksFile } from './work-render.mjs';
-import { parseFrontmatter, listTasks } from './pipeline-tasks.mjs';
+import { repairTasksProjection, resolveTasksDocumentPath } from './tasks-store.mjs';
 import {
   handleBusinessCreate,
   handleBusinessTransition,
@@ -36,63 +33,51 @@ import { handleValidate } from './work-validate.mjs';
 import { handleNext, handleMap } from './work-next.mjs';
 
 /**
- * Selects the DevPipeline cards that belong to one Operation. A card is matched
- * when its frontmatter `operation` field equals `opId` (case-insensitive). Pure
- * read; a missing pipeline directory yields an empty projection (never throws).
+ * Resolves the canonical batch task-store path for one Operation.
  *
- * @param {string} root - project root.
- * @param {string} opId - the `OP-####` id whose cards to collect.
- * @returns {Array<object>} normalized cards for the projection.
+ * @param {string} root project root
+ * @param {string} idOrDir OP id or full directory name
+ * @returns {string}
  */
-function cardsForOperation(root, opId) {
-  const pipeDir = pathsFor(root).pipeline;
-  if (!existsSync(pipeDir)) return [];
-  const wanted = String(opId).toLowerCase();
-  const cards = listTasks(pipeDir).filter((card) => {
-    const file = join(pipeDir, card.stage, card.file);
-    const frontmatter = parseFrontmatter(readFileSync(file, 'utf-8'));
-    return String(frontmatter.operation || '').toLowerCase() === wanted;
-  });
-  return cards;
-}
-
-/**
- * Handles `render` — projects an Operation's DevPipeline cards into its
- * `tasks.md` managed block. Idempotent + atomic; preserves human notes.
- *
- * @param {object} ctx - `{ flags, root }`.
- * @returns {ReturnType<typeof makeReceipt>}
- * @throws {Error} when `--operation` (the OP-#### id) is missing.
- */
-function handleRender({ flags, root }) {
-  const opId = flags.operation || flags.id;
-  if (typeof opId !== 'string' || !opId) throw new Error('render: --operation OP-#### is required');
-  const tasksPath = resolveTasksPath(root, String(opId));
-  const renderOutcome = renderTasksFile(tasksPath, cardsForOperation(root, opId));
-  return makeReceipt({
-    command: 'render',
-    applied: renderOutcome.changed,
-    writes: renderOutcome.changed ? [tasksPath] : [],
-    detail: { operation: opId, idempotentNoop: !renderOutcome.changed, path: tasksPath },
-  });
-}
-
-/**
- * Resolves an Operation's `tasks.md` path from an id or full folder name, so
- * `render` works with either `OP-0001` or `OP-0001-rotate-key`. When only the
- * bare id is given, the first matching `OP-####-*` folder is used.
- *
- * @param {string} root - project root.
- * @param {string} idOrDir - `OP-####` id or full folder name.
- * @returns {string} absolute path to the Operation's `tasks.md`.
- */
-function resolveTasksPath(root, idOrDir) {
+function batchScopeForOperation(root, idOrDir) {
   const operationsRoot = pathsFor(root).operations;
-  const direct = join(operationsRoot, idOrDir, 'tasks.md');
-  if (existsSync(direct) || !existsSync(operationsRoot)) return direct;
+  const direct = join(operationsRoot, idOrDir);
+  if (existsSync(direct) || !existsSync(operationsRoot)) return join(direct, 'batch', 'tasks.json');
   const prefix = `${idOrDir}-`;
   const match = readdirSync(operationsRoot).find((name) => name === idOrDir || name.startsWith(prefix));
-  return match ? join(operationsRoot, match, 'tasks.md') : direct;
+  return join(match ? join(operationsRoot, match) : direct, 'batch', 'tasks.json');
+}
+
+/**
+ * Repairs `tasks.md` solely from the canonical JSON authority.
+ *
+ * @param {{flags:object,root:string,apply:boolean}} context
+ * @returns {ReturnType<typeof makeReceipt>}
+ */
+function handleRender({ flags, root, apply }) {
+  const explicitTarget = flags.tasks || flags.scope;
+  const operationId = flags.operation || flags.id;
+  if (!explicitTarget && (typeof operationId !== 'string' || !operationId)) {
+    throw new Error('render: --tasks <scope> or --operation OP-#### is required');
+  }
+  const target = explicitTarget || batchScopeForOperation(root, String(operationId));
+  const tasksPath = resolveTasksDocumentPath(target);
+  const projectionPath = join(tasksPath, '..', 'tasks.md');
+  const outcome = apply
+    ? repairTasksProjection(target)
+    : { path: projectionPath, status: 'planned' };
+  return makeReceipt({
+    command: 'render',
+    applied: apply,
+    writes: apply ? [outcome.path] : [],
+    detail: {
+      operation: operationId || null,
+      tasksPath,
+      projectionPath: outcome.path,
+      dryRun: !apply,
+      status: outcome.status,
+    },
+  });
 }
 
 /**
@@ -109,7 +94,7 @@ export function dispatch(parsed, env = {}) {
     case 'operation':
       return runOperationCreate({ ...parsed, apply, root });
     case 'render':
-      return handleRender({ flags: parsed.flags, root });
+      return handleRender({ flags: parsed.flags, root, apply });
     case 'business':
       return handleBusinessCreate({ positionals: parsed.positionals, flags: parsed.flags, apply, root });
     case 'approve':

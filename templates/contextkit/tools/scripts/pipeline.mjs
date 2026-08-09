@@ -1,139 +1,145 @@
 #!/usr/bin/env node
 /**
- * DevPipeline engine — execution board (≠ roadmap). Stages: backlog → working
- * (ADR-0015 §B) → testing → conclusion. Renderer in pipeline-board.mjs,
- * scoring in pipeline-prioritize.mjs, session-coupled start/stop in
- * pipeline-session.mjs, schema-v2 validators in pipeline-validate.mjs.
+ * ContextDevKit 4 task CLI.
+ *
+ * Command names are semantic aliases only. Every read and mutation is delegated
+ * to the canonical `tasks-*` APIs; this entry point has no alternate authority.
  */
-import { resolve } from 'node:path';
-import { readFileSync, readdirSync } from 'node:fs';
-import { loadConfigSync } from '../../runtime/config/load.mjs';
-import { pathsFor } from '../../runtime/config/paths.mjs';
-import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { wsjfScore, wsjfToPriority, slaDue, DEFAULTS } from './pipeline-prioritize.mjs';
-import { renderBoard, renderDigest, renderKnownBugs } from './pipeline-board.mjs';
-import { runValidate } from './pipeline-validate.mjs';
-import { listTasks } from './pipeline-tasks.mjs';
-import { add, ingest, ensureDirs } from './pipeline-add.mjs';
-import { migrateStateLayout } from '../../runtime/state/state-io.mjs';
+import { pathToFileURL } from 'node:url';
+import { add } from './pipeline-add.mjs';
+import { renderBoard, renderDigest } from './pipeline-board.mjs';
+import { startTask, stopTask } from './pipeline-session.mjs';
 import { autoTransition, move, qaApprove, qaReject } from './pipeline-transitions.mjs';
+import {
+  listTasks,
+  readTasksDocument,
+  repairTasksProjection,
+} from './tasks-store.mjs';
+import { assertTasksDocument } from './tasks-validate.mjs';
 
-const ROOT = process.cwd();
-const PIPE = pathsFor(ROOT).pipeline;
-const CFG = loadConfigSync(ROOT).pipeline || {};
-const BANDS = CFG.wsjfBands || DEFAULTS.wsjfBands;
-const SEVMAP = CFG.severityPriority || DEFAULTS.severityPriority;
-const SLADAYS = CFG.slaDays || DEFAULTS.slaDays;
+const USAGE = 'Usage: pipeline.mjs <add|list|board|move|start|stop|validate|sync|qa-reject|qa-approve|auto-transition> --tasks <scope-or-tasks.json>';
 
-const tasks = () => listTasks(PIPE);
+/** @param {object} receipt @param {(text:string)=>void} output @returns {void} */
+function reportProjectionFailure(receipt, output) {
+  if (receipt?.projection?.status === 'failed') {
+    output(`Warning: canonical JSON committed, but tasks.md repair failed: ${receipt.projection.error?.message ?? 'unknown error'}`);
+  }
+}
 
 /**
- * Build an ownerMap for renderBoard from workspace heartbeat files.
- * Returns a map of { [sessionId]: { startedAt, lastHeartbeat } }.
- * Defensive: returns {} if the workspace dir is absent or unreadable.
+ * Removes one named option and its value from argv.
+ *
+ * @param {string[]} argv
+ * @param {string} optionName
+ * @returns {{value:string|undefined,argv:string[]}}
  */
-function buildOwnerMap() {
-  const wsDir = pathsFor(ROOT).workspaceStateDir;
+function extractOption(argv, optionName) {
+  const option = `--${optionName}`;
+  const index = argv.indexOf(option);
+  if (index < 0) return { value: undefined, argv: [...argv] };
+  return {
+    value: argv[index + 1],
+    argv: [...argv.slice(0, index), ...argv.slice(index + 2)],
+  };
+}
+
+/**
+ * Parses the CLI boundary and requires an explicit canonical scope.
+ *
+ * @param {string[]} argv
+ * @param {NodeJS.ProcessEnv|Record<string,string|undefined>} [environment]
+ * @returns {{command:string,target:string,args:string[]}}
+ * @throws {Error} when no canonical scope is supplied
+ */
+export function parsePipelineInvocation(argv, environment = process.env) {
+  const [command = '', ...rawArgs] = argv;
+  const tasksOption = extractOption(rawArgs, 'tasks');
+  const scopeOption = extractOption(tasksOption.argv, 'scope');
+  const target = tasksOption.value ?? scopeOption.value ?? environment.CONTEXTKIT_TASKS_SCOPE;
+  if (!target) {
+    throw new Error(`pipeline: --tasks <scope-or-tasks.json> is required; no global writable task store exists\n${USAGE}`);
+  }
+  return { command, target, args: scopeOption.argv };
+}
+
+/**
+ * Dispatches one parsed invocation. Injectable handlers make the CLI testable
+ * without replacing the canonical store implementation.
+ *
+ * @param {{command:string,target:string,args:string[]}} invocation
+ * @param {{out?:(text:string)=>void,now?:string,session?:object}} [environment]
+ * @returns {Promise<object>}
+ */
+export async function dispatchPipelineCommand(invocation, environment = {}) {
+  const output = environment.out ?? ((message) => process.stdout.write(`${message}\n`));
+  const { command, target, args } = invocation;
+  if (command === 'add') {
+    const receipt = add({ target, argv: args, now: environment.now });
+    output(`Added ${receipt.task.id} to ${receipt.task.status}`);
+    reportProjectionFailure(receipt, output);
+    return receipt;
+  }
+  if (command === 'list') {
+    const document = readTasksDocument(target);
+    const tasks = listTasks(document);
+    if (args.includes('--json')) output(JSON.stringify(tasks, null, 2));
+    else for (const task of tasks) output(`[${task.status}] ${task.id} ${task.priority} - ${task.title}`);
+    return { document, tasks };
+  }
+  if (command === 'board') {
+    const tasks = listTasks(readTasksDocument(target));
+    output(args.includes('--digest') ? renderDigest(tasks) : renderBoard(tasks));
+    return { tasks };
+  }
+  if (command === 'move') {
+    const receipt = move({ target, argv: args });
+    output(`Moved ${receipt.task.id} -> ${receipt.task.status}`);
+    reportProjectionFailure(receipt, output);
+    return receipt;
+  }
+  if (command === 'start' || command === 'stop') {
+    const taskId = args[0];
+    if (!taskId) throw new Error(`Usage: pipeline.mjs ${command} <id> --tasks <scope>`);
+    const handler = command === 'start' ? startTask : stopTask;
+    const receipt = await handler(target, taskId, environment.session ?? {});
+    output(`${command === 'start' ? 'Started' : 'Stopped'} ${receipt.task.id} -> ${receipt.task.status}`);
+    if (receipt.workspaceWarning) output(`Warning: ${receipt.workspaceWarning}`);
+    reportProjectionFailure(receipt, output);
+    return receipt;
+  }
+  if (command === 'validate') {
+    const document = assertTasksDocument(readTasksDocument(target));
+    output(`Validated ${document.tasks.length} canonical tasks at revision ${document.revision}.`);
+    return { document };
+  }
+  if (command === 'sync') {
+    const receipt = repairTasksProjection(target);
+    output(`Repaired ${receipt.path}`);
+    return receipt;
+  }
+  if (command === 'qa-reject' || command === 'qa-approve' || command === 'auto-transition') {
+    const handler = command === 'qa-reject'
+      ? qaReject
+      : command === 'qa-approve' ? qaApprove : autoTransition;
+    const receipt = handler({ target, argv: args });
+    output(`${command} ${receipt.task.id} -> ${receipt.task.status}`);
+    reportProjectionFailure(receipt, output);
+    return receipt;
+  }
+  throw new Error(USAGE);
+}
+
+/** @returns {Promise<void>} */
+export async function main() {
   try {
-    const map = {};
-    for (const f of readdirSync(wsDir)) {
-      if (!f.endsWith('.json')) continue;
-      try {
-        const ws = JSON.parse(readFileSync(resolve(wsDir, f), 'utf-8'));
-        if (ws.sessionId) map[ws.sessionId] = { startedAt: ws.startedAt ?? null, lastHeartbeat: ws.lastHeartbeat ?? null };
-      } catch { /* skip unreadable file */ }
-    }
-    return map;
-  } catch {
-    return {};
+    const invocation = parsePipelineInvocation(process.argv.slice(2));
+    await dispatchPipelineCommand(invocation);
+  } catch (error) {
+    process.stderr.write(`${error?.message ?? error}\n`);
+    process.exitCode = 1;
   }
 }
 
-function prioritize() {
-  const id = process.argv[3];
-  const priority = process.argv[4];
-  if (!id || !/^P[0-3]$/.test(priority || '')) {
-    console.error('Usage: pipeline.mjs prioritize <id> <P0|P1|P2|P3>');
-    process.exit(1);
-  }
-  const task = tasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
-  if (!task) { console.error(`No task with id ${id}.`); process.exit(1); }
-  const p = resolve(PIPE, task.stage, task.file);
-  writeFileAtomicSync(p, readFileSync(p, 'utf-8').replace(/^priority:.*$/m, `priority: ${priority}`));
-  sync();
-  console.log(`✅ ${task.id} priority → ${priority}`);
-}
-
-function setWsjf() {
-  const id = process.argv[3];
-  const [uv, tc, rr, js] = process.argv.slice(4).map(Number);
-  if (!id || [uv, tc, rr, js].some((n) => Number.isNaN(n))) {
-    console.error('Usage: pipeline.mjs wsjf <id> <userValue> <timeCriticality> <riskReduction> <jobSize>  (each 1-10)');
-    process.exit(1);
-  }
-  const task = tasks().find((t) => t.id === id.padStart(3, '0') || t.id === id);
-  if (!task) { console.error(`No task with id ${id}.`); process.exit(1); }
-  const score = wsjfScore({ userValue: uv, timeCriticality: tc, riskReduction: rr, jobSize: js });
-  const pr = wsjfToPriority(score, BANDS);
-  const due = slaDue(pr, task.created, SLADAYS);
-  const p = resolve(PIPE, task.stage, task.file);
-  writeFileAtomicSync(p, readFileSync(p, 'utf-8')
-    .replace(/^priority:.*$/m, `priority: ${pr}`)
-    .replace(/^wsjf:.*$/m, `wsjf: ${score}`)
-    .replace(/^sla:.*$/m, `sla: ${due}`));
-  sync();
-  console.log(`✅ ${task.id} WSJF ${score} → ${pr} (SLA ${due})`);
-}
-
-async function sessionCli(verb, marker, dest) {
-  const id = process.argv[3];
-  if (!id) { console.error(`Usage: pipeline.mjs ${verb} <id>`); process.exit(1); }
-  const sess = await import('./pipeline-session.mjs');
-  try {
-    const result = await (verb === 'start' ? sess.startTask : sess.stopTask)(PIPE, id, sync);
-    console.log(`${marker}  ${result.id} → ${dest}`);
-  } catch (err) { console.error(err.message); process.exit(1); }
-}
-
-function sync() {
-  ensureDirs(PIPE);
-  migrateStateLayout(PIPE); // ADR-0053: self-heal any legacy flat state dirs into state/
-  const all = tasks();
-  writeFileAtomicSync(resolve(PIPE, 'devpipeline.md'), renderBoard(all, buildOwnerMap()));
-  writeFileAtomicSync(resolve(PIPE, 'known-bugs.md'), renderKnownBugs(all));
-}
-
-function bugs() {
-  sync();
-  const open = tasks().filter((t) => t.type === 'bug' && t.stage !== 'conclusion');
-  console.log(`🐞 Known bugs: ${open.length} open. Map → contextkit/pipeline/known-bugs.md`);
-  for (const b of open) console.log(`   ${b.severity || '—'} ${b.priority} ${b.id} ${b.bugType || ''} — ${b.title}`);
-}
-
-const cmd = process.argv[2];
-if (cmd === 'add') add({ ROOT, PIPE, sync, BANDS, SEVMAP, SLADAYS });
-else if (cmd === 'ingest') ingest({ ROOT, PIPE, sync });
-else if (cmd === 'prioritize') prioritize();
-else if (cmd === 'wsjf') setWsjf();
-else if (cmd === 'bugs') bugs();
-else if (cmd === 'move') move({ PIPE, sync });
-else if (cmd === 'start') await sessionCli('start', '▶', 'working/ (owner: this session)');
-else if (cmd === 'stop') await sessionCli('stop', '⏸', 'backlog/ (released)');
-else if (cmd === 'validate') { const t = tasks(); const e = runValidate(t); e.length ? (e.forEach((m) => console.error(`✗ ${m}`)), process.exit(1)) : console.log(`✅ ${t.length} tickets validated.`); }
-else if (cmd === 'sync') { sync(); console.log('✅ devpipeline.md regenerated.'); }
-else if (cmd === 'board') {
-  // --digest: token-light lane summary (ADR-0047 A3); default: the full board.
-  if (process.argv.includes('--digest')) console.log(renderDigest(tasks()));
-  else { sync(); console.log(readFileSync(resolve(PIPE, 'devpipeline.md'), 'utf-8')); }
-}
-else if (cmd === 'list') {
-  const all = tasks();
-  if (process.argv.includes('--json')) console.log(JSON.stringify(all, null, 2));
-  else for (const t of all) console.log(`[${t.stage}] ${t.id} ${t.priority} ${t.type} — ${t.title}`);
-} else if (cmd === 'qa-reject') qaReject({ PIPE, sync });
-else if (cmd === 'qa-approve') qaApprove({ PIPE, sync });
-else if (cmd === 'auto-transition') autoTransition({ ROOT, PIPE, sync });
-else {
-  console.error('Usage: pipeline.mjs <add|ingest|prioritize|wsjf|bugs|move|start|stop|validate|sync|list|board|qa-reject|qa-approve|auto-transition>');
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
 }

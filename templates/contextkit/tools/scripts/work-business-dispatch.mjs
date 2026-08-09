@@ -42,9 +42,7 @@ export { handleBusinessCreate } from './work-business-create.mjs';
  */
 function resolveBizJsonPath(root, bizId) {
   const paths = pathsFor(root);
-  // `pathsFor` may not yet define a `business` key — fall back defensively.
-  const bizRoot = paths.business
-    || join(root, 'contextkit', 'memory', 'business');
+  const bizRoot = paths.business;
 
   const direct = join(bizRoot, bizId, 'business.json');
   if (existsSync(direct)) return direct;

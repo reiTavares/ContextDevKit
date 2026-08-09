@@ -22,13 +22,13 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
     // ADR-0032 — connect the substrate: classification + closed loops.
     ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],
-    ['pipeline add auto-classifies via the rubric (ADR-0032; split: pipeline-add)', 'templates/contextkit/tools/scripts/pipeline-add.mjs', /classifyTask\(title/],
+    ['pipeline add uses canonical CAS task creation', 'templates/contextkit/tools/scripts/pipeline-add.mjs', /addTask\(target, taskInput, document\.revision/],
     ['session-draft drafts the Done section from the ledger (ADR-0032)', 'templates/contextkit/tools/scripts/session-draft.mjs', /export async function draftSession/],
     ['/log-session pre-fills from session-draft (ADR-0032)', 'templates/claude/commands/log-session.md', /session-draft\.mjs/],
     ['advise-review computes per-lane hit-rate (ADR-0032)', 'templates/contextkit/tools/scripts/advise-review.mjs', /export function reviewAdvice/],
     ['/retro consumes advise-review (ADR-0032)', 'templates/claude/commands/pipeline/retro.md', /advise-review\.mjs/],
     ['/tune-agents consumes advise-review (ADR-0032)', 'templates/claude/commands/tune-agents.md', /advise-review\.mjs/],
-    ['pipeline start enforces the ADR gate (ADR-0032)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ADR-0032 gate/],
+    ['pipeline start delegates lifecycle validation to the canonical store', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /transitionTask\(tasksTarget/],
     ['check-registration emits a diff-aware signal (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /function diffSignal/],
     ['check-registration nudge points at the ledger auto-draft (ADR-0032)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /session-draft\.mjs/],
     // ADR-0033 — boot as a budget.
@@ -44,9 +44,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['adr-tasks is dry-run by default; --write creates (rule 8)', 'templates/contextkit/tools/scripts/adr-tasks.mjs', /pass --write to create/],
     ['/new-adr generates the backlog from the decision (ADR-0034)', 'templates/claude/commands/new-adr.md', /adr-tasks\.mjs/],
     ['track-edits renews per-task heartbeat (ADR-0034)', 'templates/contextkit/runtime/hooks/track-edits.mjs', /claimRecord\.tasks/],
-    ['pipeline-session auto-advances owned working tasks (ADR-0034)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /export function autoAdvanceSessionTasks/],
-    ['auto-advance requires ALL acceptance boxes checked (rule 8)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /allChecked/],
-    ['Stop hook auto-advances session tasks (ADR-0034)', 'templates/contextkit/runtime/hooks/check-registration.mjs', /autoAdvanceSessionTasks/],
+    ['pipeline-session never auto-completes tasks', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /status !== 'working'/],
     ['boot-signals exposes openBugsDue (ADR-0034)', 'templates/contextkit/runtime/hooks/boot-signals.mjs', /export function openBugsDue/],
     ['session-start surfaces open bugs (ADR-0034)', 'templates/contextkit/runtime/hooks/session-start.mjs', /openBugsDue\(ROOT\)/],
     ['/dev-start auto-starts a referenced task (ADR-0034)', 'templates/claude/commands/pipeline/dev-start.md', /pipeline\.mjs start <id>/],
@@ -75,17 +73,16 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['deliberation-nudge debounces once per session (ADR-0035)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /deliberation-nudged/],
     ['deliberation-nudge sanitizes the session id (path safety)', 'templates/contextkit/runtime/hooks/deliberation-nudge.mjs', /sanitizeSid/],
     ['settings wire the deliberation nudge at L5 (ADR-0035)', 'templates/contextkit/runtime/config/settings-compose.mjs', /deliberation-nudge\.mjs/],
-    // Backlog-zero batch — shared task I/O seam (extracted from pipeline.mjs).
-    ['pipeline task I/O is single-sourced in pipeline-tasks', 'templates/contextkit/tools/scripts/pipeline-tasks.mjs', /export function listTasks/],
-    ['pipeline.mjs consumes the shared task lister', 'templates/contextkit/tools/scripts/pipeline.mjs', /from '\.\/pipeline-tasks\.mjs'/],
+    // WF-0111 W08 - canonical JSON task I/O seam.
+    ['pipeline task I/O is single-sourced in tasks-store', 'templates/contextkit/tools/scripts/tasks-store.mjs', /export const listTasks/],
+    ['pipeline.mjs consumes the canonical task store', 'templates/contextkit/tools/scripts/pipeline.mjs', /from '\.\/tasks-store\.mjs'/],
     // Ticket 073 — /plan-week deterministic backlog ranking.
     ['plan-next exports rankBacklog (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /export function rankBacklog/],
     ['plan-next scores by priority/SLA/lane (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /export function planScore/],
     ['plan-next sinks blocked tickets below actionable (ticket 073)', 'templates/contextkit/tools/scripts/plan-next.mjs', /BLOCKED_PENALTY/],
     ['/plan-week command briefing ships (ticket 073)', 'templates/claude/commands/pipeline/plan-week.md', /plan-next\.mjs/],
     // Ticket 072 — DevPipeline dependency enforcement (board edge already covered above).
-    ['pipeline start refuses on open dependencies (ticket 072)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /ticket 072 dependency gate/],
-    ['pipeline-session computes open blockers (ticket 072)', 'templates/contextkit/tools/scripts/pipeline-session.mjs', /function openBlockers/],
+    ['canonical validator checks dependency references', 'templates/contextkit/tools/scripts/tasks-validate.mjs', /dependsOn references unknown task/],
     // Ticket 074 — /ship resume from a stamped current stage.
     ['ship-state declares the 9 ship stages (ticket 074)', 'templates/contextkit/tools/scripts/ship-state.mjs', /export const SHIP_STAGES/],
     ['ship-state surfaces in-flight runs for resume (ticket 074)', 'templates/contextkit/tools/scripts/ship-state.mjs', /export function inflightRuns/],
@@ -217,12 +214,12 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['override read has one owner — readAutonomyOverride in the dial module (task 108, rule 4)', 'templates/contextkit/runtime/config/resolve-autonomy.mjs', /export function readAutonomyOverride/],
     ['statusline badge derives from the resolver, not raw config (task 108, ADR-0042)', 'templates/contextkit/runtime/statusline.mjs', /resolveAutonomy\('edit'/],
     ['boot banner header carries the dial badge, display-only (task 108)', 'templates/contextkit/runtime/hooks/session-start.mjs', /autonomyBadge\(ROOT\)/],
-    ['qa-reject is the only testing→working path (task 110, ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /qa-reject is the testing→working bounce only/],
-    ['auto transitions exist only on the event log (ADR-0043)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /exists ONLY on top of the append-only/],
+    ['qa-reject is the testing-to-working semantic alias', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /to: 'working',[\s\S]*actor: 'qa'/],
+    ['canonical task store pairs status and audit event atomically', 'templates/contextkit/tools/scripts/tasks-store.mjs', /status\/event pairing in one atomic JSON commit/],
     // ADR-0043 F2 — observable substrate (task 111).
     ['appendEvent is the only events writer (task 111, ADR-0043)', 'templates/contextkit/runtime/state/state-io.mjs', /export function appendEvent/],
     ['writeState can never rewrite past events (append-only, ADR-0043)', 'templates/contextkit/runtime/state/state-io.mjs', /a patch can never rewrite or drop them/],
-    ['auto-transition is consent-gated through the resolver (task 111)', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /resolveAutonomy\('pipeline-move'/],
+    ['auto-transition is bounded to explicit forward edges', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC_EDGES/],
     ['stats telemetry derives only from state events (ADR-0043/0045)', 'templates/contextkit/tools/scripts/stats.mjs', /function collectAutonomy/],
     ['runs exposes the per-item transition log (task 111)', 'templates/contextkit/tools/scripts/runs.mjs', /function showEvents/],
     // ADR-0043 F2 — trust signals (task 112).
