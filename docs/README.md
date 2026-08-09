@@ -82,8 +82,8 @@ _Background and rationale — the why behind the decisions._
 - [Host parity without duplicated authority](explanation/contextkit-parity.md) — ContextDevKit supports Claude Code, Codex, Antigravity, and Grok through one
 - [Deliberation is advisory](explanation/deliberation-council.md) — ContextDevKit can convene several specialist viewpoints when a decision benefits
 - [Work and governance domain model](explanation/domain-model.md) — ContextDevKit 4 keeps authorities small and explicit.
-- [Evidence-Driven Loop Engineering](explanation/loop-engineering.md) — ContextDevKit supports software engineering as an iterative evidence loop rather than a one-shot generation event.
 - [Governance and enforcement](explanation/governance-and-enforcement.md) — ContextDevKit 4 separates deterministic quality floors from advisory engineering guidance.
+- [Evidence-Driven Loop Engineering](explanation/loop-engineering.md) — ContextDevKit supports software engineering as an iterative evidence loop rather than a one-shot generation event.
 - [Quality model](explanation/quality-model.md) — ContextDevKit 4 separates observations from authority. A useful warning may be heuristic; a denial must be determinis…
 - [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why an AI-assisted development platform tracks three separate resource
 - [Value and impact](explanation/value-and-impact.md) — ContextDevKit turns project context into durable, inspectable engineering state without making ceremony the permissio…
