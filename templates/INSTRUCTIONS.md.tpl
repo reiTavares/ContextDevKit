@@ -1,196 +1,94 @@
-# {{PROJECT_NAME}} — Instructions for Antigravity
+# {{PROJECT_NAME}} - Boot Context for Antigravity
 
-> This file replaces `CLAUDE.md` for Antigravity sessions. It provides the same
-> boot context and coding constitution, adapted for Antigravity's architecture.
+> Auto-loaded in Antigravity sessions for this project.
 > Scaffolded by ContextDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
-> The Knowledge Items (KIs) in `<appDataDir>/knowledge/contextdevkit-*` contain
-> the detailed reference material.
 
-## Mandatory Execution Protocol
+## Canonical Host Contract
 
-> The engine computes which capabilities your task needs and asks for deterministic
-> **receipts** — script output, not your claims — before key transitions. In
-> `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
-> it. Run capabilities through the Antigravity runner (`agy <command>`). [→ ADR-0072]
+<!-- contextdevkit:host-contract:start -->
+This contract is identical for Claude, Codex, and Antigravity. Host syntax may
+differ, but no host may add a second authority or a stronger private ceremony.
 
-1. **Intake** — a new request is classified (trivial / feature / architectural) and an
-   execution contract is recorded. Trivial tasks skip the ceremony.
-2. **Map before broad exploration** — for non-trivial work, consult `agy project-map`
-   before wide text/file sweeps.
-3. **Workflow before the first source write** — feature/architectural work needs an
-   active workflow at the permitted phase; architectural also needs an ADR.
-4. **Tests + QA before completion** — not done until the suite and `agy qa-signoff`
-   leave receipts. "Tests passed" as prose does not count.
-5. **Receipts, not assertions** — only a script-emitted receipt satisfies a gate; a
-   stale, wrong-branch, or bypassed receipt does not.
+- `mutation-only-intake`: conversation and exploration create no durable task,
+  contract, workflow, graph receipt, or completion obligation. An unclassified
+  request asks one short clarification and persists nothing.
+- `single-governance-dispatch`: a confirmed mutation invokes one governance
+  dispatcher once. Modes are `off | shadow | canary | guarded`; missing, invalid,
+  or failed resolution becomes `canary` with continue-on-failure. Only QA at done,
+  proven DDD Class A invariants, and new deterministic high-severity technical
+  debt are guarded by default.
+- `workflow-context-before-write`: before a workflow-linked mutation, load its
+  PRD, SPEC, decisions/ADR, tasks, state, and relevant reports. Missing graph,
+  agent, telemetry, or optional context is reported and never blocks fallback.
+- `canonical-json-state`: `workflow.json` defines the workflow,
+  `workflow-state.json` stores aggregate execution state, and
+  `pipeline/tasks.json` owns task definition/status. Markdown, reports,
+  dashboards, statuslines, and physical folders are projections only.
+- `advisory-agent-routing`: agent/model selection, economy, risk guidance, simulation,
+  architecture guidance, and deliberation are advisory. Resolver failure never
+  denies spawn or delivery; current explicit human direction wins within platform
+  security, secret, credential, and destructive-action boundaries.
+<!-- contextdevkit:host-contract:end -->
 
-## Economy Operating Rules
+## Project
 
-Economy mode is the default posture for non-trivial work. Prefer deterministic
-receipts and bounded packets; when a lever lacks its prerequisite, report
-`skipped: <reason>` instead of treating it as applied.
+<!-- Replace with a concise description of the product and its users. -->
+_Describe {{PROJECT_NAME}} in 2-3 sentences._
 
-- Before broad search, run `agy project-map --find <symbol-or-path>` and use Task
-  Compiler only on exact Project Map matches.
-- Before dispatching subagents, resolve
-  `node contextkit/tools/scripts/economy/subagent-profile.mjs` and pass the
-  bounded profile/packet to the orchestrator or agent package.
-- Use the economy lean-loop for `/ship` and `/swarm`, and `run-compact` for noisy
-  builds/tests when available.
-- Verify applied/skipped levers with `agy token-report --json`; missing quota data
-  is `skipped`, never a pass.
-- Never auto-select paid benchmarks, Fable, or model upgrades without explicit
-  user instruction or accepted project config.
+## Stack
 
-## Canonical Work Journey
+_Document the project stack here when it becomes relevant._
 
-For non-trivial code work, follow this host-neutral order from
-`contextkit/policy/journey.json`:
+## Operating Guidance
 
-1. **Graph** — run `agy project-map` before broad exploration; owner projection: `architect`.
-2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
-3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
-4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.
-5. **QA** — run tests, selected review, QA sign-off, and receipt/session closure; owners: `test-engineer`/`qa-orchestrator`.
+- Keep conversation and read-only exploration inert. Do not create project
+  artifacts until the user requests a mutation or an actual write begins.
+- For governed workflow mutation, use the context supplied by the dispatcher.
+  Do not reconstruct a second lifecycle from Markdown placement or old lanes.
+- Prefer Project Map/graph for bounded orientation. If it is stale, partial, or
+  unavailable, say so briefly and continue with ordinary file/search tools.
+- Treat gate output as evidence. `shadow` and `canary` guide; only a proven
+  `guarded` violation denies the governed transition.
+- Tests must cover every behavior added or changed. Report skipped or unavailable
+  evidence honestly; a timeout is not a pass.
+- Coordinate through current workflow/task state and workspace claims. Preserve
+  unrelated edits and never overwrite another active owner.
 
-Economy may reduce context/output cost, but it cannot reorder stages, satisfy
-evidence, lower agent quality, or bypass tests/QA. Trivial and no-code work stay
-proportional; unknown evidence remains pending/skipped rather than passing.
+## Immutable Rules
 
-## Quick Orientation
+<!-- Add project-specific invariants and link their accepted ADRs. -->
 
-You are working on **{{PROJECT_NAME}}**.
-<!-- One paragraph: what the product/project does and for whom. Replace this. -->
-_Describe {{PROJECT_NAME}} in 2–3 sentences._
+1. _Add the first project-specific immutable rule here._
 
----
+## Coding Constitution
 
-## 🔄 Complete Session Workflow (Antigravity)
+- Act as a Staff/Principal engineer. Architecture, readability, testability, and
+  operability outrank delivery speed.
+- File size is an investigation signal, never a verdict. Split only at a real
+  responsibility or architecture boundary; merge artificial fragmentation.
+- Keep dependencies inward. Entry points dispatch, domain/services own behavior,
+  and adapters translate transport, persistence, or vendor shapes at one seam.
+- Use descriptive English identifiers. Validate inputs at trust boundaries, fail
+  fast with useful errors, and never expose stack traces or secrets to users.
+- Document non-trivial behavior with its purpose, parameters, returns, and thrown
+  errors. Comments explain why, not the syntax.
+- Default unproved states to refused or skipped, never to an assumed pass. Mutators
+  are dry-run-first unless the current explicit user instruction authorizes apply.
+- Make the smallest change that satisfies the request. Do not add speculative
+  wrappers, aliases, compatibility readers, or a second source of truth.
 
-### 1. Booting the Session (SessionStart)
-At the start of the session, run the Session Manager:
-```bash
-node ctx.mjs session start
-```
-*(`agy session start` also works if you installed `contextdevkit` globally; otherwise use `node ctx.mjs`.)*
-This runs the hook that fetches upstream git status, detects workspace claims, identifies prior unregistered sessions (drift), and injects the boot context.
+## Antigravity Host Surface
 
-### 🤖 Autonomous Execution Guidelines (For AI Agents)
-- As an AI agent (Antigravity), you have direct access to run shell commands in this workspace and are expected to operate proactively.
-- **You should execute the following actions autonomously**:
-  - Run `node ctx.mjs session start` as your very first action at the beginning of a session.
-  - Use `node ctx.mjs workflow status` to check active workflows. For non-trivial work, start a workflow (`node ctx.mjs workflow new <slug>`) and complete the PRD/SPEC phases before editing source code.
-  - Use `node ctx.mjs dev-start` to lock branch scopes.
-  - Run `node ctx.mjs guard <path>` BEFORE editing any sensitive file (config `l5.highRiskPaths`) — exit 1 means run the `simulate-impact` skill first.
-  - Check `node ctx.mjs autonomy` to resolve your consent grade. At Grade 3, auto-run edits, tests, and card moves. At Grade 4, run `node ctx.mjs ship --auto` and push feature branches autonomously, resolving checks via deliberation quorums (`node ctx.mjs debate`).
-  - Proactively create test plans (`node ctx.mjs test-plan`), scaffold tests (`node ctx.mjs scaffold-tests`), run suites, and perform `node ctx.mjs qa-signoff` before finishing a task.
-  - Run `node ctx.mjs session end` followed by `node ctx.mjs log-session` at the end of the session to register your work and update `CHANGELOG.md`.
+Antigravity loads `INSTRUCTIONS.md`, `.agents/hooks.json`, and generated skills,
+agents, workflows, and playbooks under `.agents/`. Use only commands currently
+present in that generated surface; removed 3.x commands are not implicit
+compatibility aliases.
 
-### 2. Adopting a Posture (Squad Sub-agents)
-If your task requires specialized knowledge, check the agent definitions in `.agents/agents/` and adopt that posture. The personas are organized into specialized squads:
-- **devteam**: `architect`, `domain-modeler`, `implementation-engineer`, `code-reviewer`, `context-keeper`, `test-engineer`
-- **qa-team**: `qa-orchestrator`, `qa-unit`, `qa-integration`, `qa-fuzzer`, `qa-perf`, `qa-e2e`
-- **design-team**: `ui-designer`, `ux-designer`, `accessibility`, `seo-specialist`, `landing-architect`, `conversion-strategist`, `tracking-integrator`
-- **security-team**: `security`, `code-security`, `infra-security`
-- **compliance-team**: `privacy-lgpd`, `governance-officer`
-- **ops-team**: `devops`
-- **agent-forge** (L6+): `forge-orchestrator`, `model-router`, `prompt-engineer`, `tool-designer`, `eval-designer`, `packager`, `rag-designer`, `agent-architect`
-- **growth-team**: `growth`, `retention`
-- **product-team**: `product-owner`
-
-### 3. Executing a Task (DevPipeline & Playbooks)
-- Run the `pipeline` skill to list outstanding backlog cards.
-- Adopt the `dev-start` skill (`.agents/skills/pipeline/dev-start.md`) to checkout a branch and lock scope.
-- If performing a specific routine procedure, reference and follow the playbooks in `.agents/playbooks/`:
-  - `distillation-cycle.md` (distillation cycles)
-  - `landing-page.md` (landing page design and audits)
-  - `security-batch.md` (security audits and batch checks)
-  - `seo-aiso.md` (SEO optimization checklists)
-  - `simulate-impact.md` (pre-edit impact simulation)
-  - `tanstack.md` (TanStack framework practices)
-  - `tech-debt-sweep.md` (tech debt sweeps and remediation)
-- To understand the architectural activation tier of the target workspace, refer to the workflows in `.agents/workflows/`:
-  - `L1-static-loading.md`, `L2-session-ledger.md`, `L3-multi-session.md`, `L4-squads.md`, `L5-proactive.md`
-
-### 4. Ending the Session (Stop Hook & Registration)
-Before finishing:
-1. Run the session status check:
-   ```bash
-   node ctx.mjs session status
-   ```
-2. If there are unregistered edits on important files, run the session end check:
-   ```bash
-   node ctx.mjs session end
-   ```
-3. Use the `log-session` command (`node ctx.mjs log-session`) to log your work, update `CHANGELOG.md`, and clear the ledger.
+ContextDevKit memory lives under `contextkit/memory/`. It may be intentionally
+gitignored and still be authoritative local documentation. Read the relevant
+current workflow/decision context for mutation; do not load historical or
+superseded memory by default.
 
 ---
 
-## ⛔ Immutable Rules
-
-1. **Zero runtime dependencies on the hot path** — no npm packages in hooks/config loader.
-2. **Hooks never break real work** — every hook exits 0 on error.
-3. **Every addition ships with a test** — `npm test` green before any push.
-4. **Stay portable & single-sourced** — no bash-isms, forward-slash paths.
-5. **Conventional Commits** — enforced by the commit-msg hook.
-
----
-
-## 🏛️ Coding Constitution
-
-- **Posture**: Staff/Principal Engineer — architecture before syntax.
-- **File size**: no line limit — size only prompts a structural review; split on a real responsibility boundary, never to satisfy a number [→ ADR-0122].
-- **Single Responsibility**: no "And"/"Or" function names.
-- **Dependencies point inward**: the core defines the port, infrastructure implements it, the edge injects it. A DB row, vendor SDK type, or generated DTO is never the domain model — translate at the seam, in one place.
-- **One word, one meaning, inside one boundary**: the same word in two contexts is two models, not one type with optional fields. Use the business's vocabulary (`GLOSSARY.md`).
-- **Invariants live with the state they constrain**: enforced by the owner, in one transaction — not in a controller, the UI, or three handlers. No invariant → no aggregate.
-- **Proportionality**: simple CRUD gets a validated input and a repository call; full modeling ceremony is for work with real domain weight (`node ctx.mjs domain "<objective>"` resolves which). Rubric: `contextkit/best-practices.md` §S1–S7.
-- **Lean**: the smallest reversible step; abstract on the **second** real case, not the first; reach for deletion before addition. Duplicated *business rules* are the waste, not two similar code paths.
-- **Clean naming**: no `data`, `temp`, `obj`, `val`, `x`, `arr`, `result`.
-- **Fail fast**: validate at boundaries, typed errors, never swallow exceptions.
-- **Language**: code in English; docs bilingual (English + pt-BR).
-- **Self-audit**: before emitting code check structure (layers, inward dependencies, no foreign shape in the domain), domain (one meaning, invariants placed right), waste (single-consumer abstraction, pass-through wrapper, rule written twice), then hygiene. Say what you deliberately did *not* add.
-
----
-
-## 📋 Available Skills Index (`.agents/skills/`)
-
-Every Claude Code slash command has been adapted into a skill (same relative path). The most common ones are:
-
-| Pack | Skill Path | Description |
-|---|---|---|
-| **Root** | `state.md` | Quick project state overview |
-| | `log-session.md` | Register work at session end |
-| | `new-adr.md` | Create a new Architecture Decision Record |
-| | `roadmap.md` | View or edit the project roadmap |
-| | `simulate-impact.md` | Run pre-edit simulations on high-risk files |
-| | `predictions-review.md` | Review actual changes vs impact predictions |
-| **Pipeline** | `pipeline/pipeline.md` | View/manage DevPipeline boards and tasks |
-| | `pipeline/dev-start.md` | Start a focused, scope-locked branch lane |
-| | `pipeline/ship.md` | Run test suites, compile, and ship the lane |
-| **Audit** | `audit/audit.md` | Run consolidated health audit (doctor + tech-debt) |
-| | `audit/deep-analysis.md` | Deep scans + dependency audit + security sweep |
-| | `audit/analyze-code-ia-practices.md` | Checks separation of concerns and file limits |
-| **QA** | `qa/qa-signoff.md` | Final QA target and coverage verification |
-| | `qa/scaffold-tests.md` | Plans stack-aware QA and scaffolds starter harness tests with explicit write intent |
-| **VCS** | `vcs/claim.md` / `release.md` | Reserve/free file paths for parallel work |
-| | `vcs/gh-triage.md` | Import GitHub issues to DevPipeline backlog |
-| **Forge** | `forge/forge-new.md` | Create new custom sub-agent definitions |
-| | `forge/forge-eval.md` | Benchmark prompt performances and routes |
-
-*For the complete list and documentation of every skill, refer to the [Skills README](.agents/skills/README.md) or load the `contextdevkit-skills-index` Knowledge Item.*
-
----
-
-## 🛠️ Key CLI Scripts
-
-You can execute any of these scripts via the central runner:
-```bash
-node ctx.mjs <command>
-```
-
-Key commands:
-- **`doctor`**: Diagnose installation health
-- **`stats`**: Display project size, session counts, and metrics
-- **`pipeline`**: Manage DevPipeline task cards
-- **`tech-debt`**: Scan codebase for TODO/FIXME markers
+_Keep this file lean. Put detailed policy in canonical ContextDevKit sources._

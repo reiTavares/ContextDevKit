@@ -266,21 +266,20 @@ export async function runEacpBudgetChecks({ ok, bad }, { KIT }) {
     ? ok('evaluateBudget: non-object spend → skipped (fail-open, constitution §8)')
     : bad('evaluateBudget: invalid spend should skip');
 
-  // 25. Resolver integration (ADR-0044 D3): grade4+budgetExhausted→edit='suggest', swarm='manual'
-  const raPath = resolve(KIT, 'templates/contextkit/runtime/config/resolve-autonomy.mjs');
-  let raLib;
-  try { raLib = await import(pathToFileURL(raPath).href); }
-  catch (err) { bad(`resolve-autonomy import failed: ${err?.message ?? err}`); raLib = null; }
-  if (raLib) {
-    const cfg4 = { autonomy: { grade: 4 }, deliberations: { active: true } };
-    const editRes = raLib.resolveAutonomy('edit', cfg4, null, { budgetExhausted: true });
-    editRes.mode === 'suggest'
-      ? ok('resolver: grade4+budgetExhausted → edit="suggest" (never blocks, ADR-0044 D3)')
-      : bad(`resolver: grade4+budgetExhausted edit wrong: "${editRes.mode}"`);
-    const swarmRes = raLib.resolveAutonomy('swarm-dispatch', cfg4, null, { budgetExhausted: true });
-    swarmRes.mode === 'manual'
-      ? ok('resolver: grade4+budgetExhausted → swarm-dispatch="manual" (fan-out blocked)')
-      : bad(`resolver: grade4+budgetExhausted swarm-dispatch wrong: "${swarmRes.mode}"`);
+  // 25. Risk acknowledgement integration: budgets never become authorization.
+  const riskPath = resolve(KIT, 'templates/contextkit/runtime/governance/risk-acknowledgement.mjs');
+  let riskLib;
+  try { riskLib = await import(pathToFileURL(riskPath).href); }
+  catch (err) { bad(`risk acknowledgement import failed: ${err?.message ?? err}`); riskLib = null; }
+  if (riskLib) {
+    const editRisk = riskLib.resolveRiskAcknowledgement('edit', { budgetExhausted: true });
+    editRisk.required === false && editRisk.continuation.allowed === true
+      ? ok('budgetExhausted edit remains advisory')
+      : bad('budgetExhausted edit unexpectedly requires authorization');
+    const forcePushRisk = riskLib.resolveRiskAcknowledgement('push', { force: true, budgetExhausted: true });
+    forcePushRisk.kind === 'force-push' && forcePushRisk.blocking === false
+      ? ok('concrete force-push risk remains explicit without a grade floor')
+      : bad('force-push risk acknowledgement is wrong');
   }
 
   // ── Zero-dep invariant ────────────────────────────────────────────────────

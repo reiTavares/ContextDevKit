@@ -1,40 +1,17 @@
 ---
-description: L6 — propose outcome-driven refinements to agent briefings (writes a proposal, applies nothing). Mirrors /distill-sessions.
+description: Propose evidence-backed refinements to agent briefings without applying them.
 ---
 
-# 🎯 Tune agents (propose)
+# Tune agents
 
-Refine the squad's **agent briefings** from how they actually performed — but
-**apply nothing**. This is the review step (like `/distill-sessions` for `CLAUDE.md`);
-you apply the edits with your own OK.
+Generate a review proposal from current roster data and authored session memory:
 
-1. **Signals** (deterministic):
-   ```
-   node contextkit/tools/scripts/agent-tuning.mjs --json
-   ```
-   Gives the roster, tier-2 briefing coverage, and per-agent mention counts across
-   the session history (a usage proxy). Then add the **outcome** signal [ADR-0032]:
-   ```
-   node contextkit/tools/scripts/advise-review.mjs --json
-   ```
-   per-lane hit-rate of that owner's `/advise` findings — a low hit-rate with high
-   volume is evidence the owner is noisy (dampen it), not just a hunch.
+```text
+node contextkit/tools/scripts/agent-tuning.mjs --json
+```
 
-2. **Outcomes** (judgment): read the recent session files + the DevPipeline
-   (`/pipeline`, the known-bugs map, ingested findings) and look, per agent, for:
-   - **false positives** it keeps raising → add a "don't flag X" note to dampen them,
-   - **blind spots** — real issues it missed that sit squarely in its lane → add an
-     anti-pattern row,
-   - **routing friction** — work that landed on the wrong agent → sharpen the
-     `description` (that's what routing keys on).
-
-3. **Draft** concrete briefing edits to `contextkit/squads/<team>/<agent>.md` (scaffold
-   a missing briefing first: `node contextkit/tools/scripts/squad.mjs brief <agent>`).
-   Prefer small, high-signal additions — briefings stay sharp, not bloated.
-
-4. **Write the proposal** to `.agent-tuning-proposal.md` (gitignored): the evidence
-   (which sessions/findings, what pattern), per-agent **before/after** edits, and any
-   agent that needs a new briefing. **Apply nothing in this command.**
-
-5. Summarize to the user and tell them to review it, then apply the edits with their
-   OK (or re-run after a batch of work). Do not edit agent briefings here.
+Use concrete outcomes to identify false positives, blind spots, and unclear role
+descriptions. Draft small before/after briefing edits in
+`.agent-tuning-proposal.md`; apply nothing. Routing remains a recommendation, so
+the proposal must not introduce required-agent floors, dispatch receipts, or
+blocking behavior. A later user-approved application is a separate mutation.

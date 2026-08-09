@@ -5,7 +5,7 @@
  * CDK-013 (quality gates, autoformat, bridges, advisor, pipeline, QA, tokens,
  * security mode, predictions review, L3, small toggles) plus the forward slot.
  * Split out of `schema.mjs` only to keep that file under the 280-line budget;
- * the pre-existing sections (ledger, l5, deliberations, autonomy, projectMap,
+ * the pre-existing sections (l5, deliberations, risk acknowledgement, projectMap,
  * swarm, deps) stay in schema.mjs where their ADR-traced definitions live. The
  * two files are read together; keep this one declarations-only.
  *
@@ -87,27 +87,12 @@ const AdvisorLane = z
 export const AdvisorSchema = z
   .object({
     active: z.boolean().default(true),
-    nudgeOnStop: z.boolean().default(true),
     lanes: z.record(z.string(), AdvisorLane).default({}),
   })
   .passthrough()
   .default({});
 
-// -- Pipeline / QA (ADR-0015 / squads) ---------------------------------------
-
-export const PipelineSchema = z
-  .object({
-    framework: z.string().min(1).default('wsjf'),
-    wsjfBands: z.record(z.string(), z.number()).default({}),
-    severityPriority: z.record(z.string(), z.string()).default({}),
-    slaDays: z.record(z.string(), z.number().int().positive()).default({}),
-    bugTypes: z.array(z.string()).default([]),
-    workingStaleAfterMinutes: z.number().int().positive().default(90),
-    commitBoard: z.boolean().default(true),
-  })
-  .passthrough()
-  .default({});
-
+// -- QA ----------------------------------------------------------------------
 export const QaSchema = z
   .object({
     criticalPaths: z.array(PathString).default([]),

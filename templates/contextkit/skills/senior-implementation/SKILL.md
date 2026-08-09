@@ -1,36 +1,28 @@
-# Skill — Senior implementation discipline
+# Skill - Senior implementation discipline
 
-> Trigger (§11): CMIS ≥ 50 OR a real write attempt — always active for code work.
-> Registered in `policy/devteam/skills-registry.json`; applied-sections are
-> recorded via the §18 skill-application receipt.
+This is optional implementation guidance, not an execution prerequisite.
 
-## discipline
+## Discipline
 
-- Implement the **smallest safe diff** for the approved use case — nothing
-  speculative, no unrequested options (constitution §9, behaviors §2).
-- Respect the owner, the governing Decision and the implementation packet: if
-  the packet is missing or stale, STOP and say so — never write blind.
-- Preserve dependency direction (S1) and declared invariants; infrastructure
-  stays out of the domain.
-- Match the surrounding style; every changed line traces to the request.
+- Implement the smallest safe diff for the owner-authorized use case.
+- Use an explicitly linked workflow and governing decision when present; do not
+  invent or require an implementation packet.
+- Preserve dependency direction, declared invariants, trust boundaries, and one
+  state authority.
+- Match the surrounding style and trace each changed line to the request.
 
-## tests-with-code
+## Tests and evidence
 
-- Tests ship in the same diff as the behavior they cover (rule 3). For a fix,
-  the reproducing test comes first.
-- Test behavior and contracts, not internals (H7).
+- Ship tests with the behavior they cover. For a fix, reproduce first when
+  practical.
+- Test behavior and contracts rather than private implementation details.
+- Report exact commands and outcomes. Skill selection or agent presence is not
+  proof and is never required for completion.
 
-## evidence
+## Boundaries
 
-- Record deviations from the packet explicitly — a silent deviation is a
-  governance violation.
-- Done means a receipt: suite output, QA sign-off, skill-application record.
-  "Tests passed" as prose does not count.
-
-## refusals
-
-- Refuse to write before knowing the packet.
-- Refuse to break a public contract silently.
-- Refuse to put business rules in a controller/route/component.
-- Refuse speculative abstraction (a second real consumer earns it).
-- Refuse to mark done without a receipt.
+- Do not silently break a public contract.
+- Do not place business rules in a transport or UI boundary.
+- Do not add speculative abstractions.
+- Stop for real authorization, missing required product input, or an applicable
+  guarded gate - not for missing routing, packet, receipt, or specialist.

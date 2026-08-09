@@ -17,6 +17,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
+import { readAuthoritySnapshot } from '../../runtime/authority-reader.mjs';
 import { digestLatestSession, extractUnreleased, digestUnreleased, readChangelog } from '../../runtime/hooks/boot-context-readers.mjs';
 import { section } from '../../runtime/hooks/md-extract.mjs';
 import { ADR_FILENAME_RE, parseAdr, renderCatalogLine } from './adr-digest-core.mjs';
@@ -59,26 +60,20 @@ async function recentAdrs(limit = 5) {
   return lines.length ? lines.join('\n') : null;
 }
 
-const FM = (raw, key) => (new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(raw)?.[1] || '').replace(/^["']|["']$/g, '').trim();
 const PRIORITY_ORDER = { P0: 0, P1: 1, P2: 2, P3: 3 };
 
 /** Open backlog tasks (id · priority · title), highest priority first, capped. */
 async function openBacklog(cap = 8) {
-  let files = [];
-  try {
-    files = await readdir(resolve(P.pipeline, 'backlog'));
-  } catch {
-    return null;
-  }
-  const tasks = [];
-  for (const name of files.filter((f) => /^\d+-.*\.md$/.test(f))) {
-    const text = await readSafe(resolve(P.pipeline, 'backlog', name));
-    if (text === null) continue;
-    tasks.push({ id: FM(text, 'id') || name.split('-')[0], priority: FM(text, 'priority') || 'P3', title: FM(text, 'title') || name });
-  }
+  const tasks = readAuthoritySnapshot(ROOT).tasks
+    .filter((task) => task.status === 'backlog')
+    .map((task) => ({
+      id: task.id,
+      priority: task.priority ?? 'P3',
+      title: task.title,
+    }));
   if (tasks.length === 0) return null;
   tasks.sort((a, b) => (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9) || String(a.id).localeCompare(String(b.id)));
-  return tasks.slice(0, cap).map((t) => `- **${t.priority}** · #${t.id} · ${t.title}`).join('\n');
+  return tasks.slice(0, cap).map((task) => `- **${task.priority}** · ${task.id} · ${task.title}`).join('\n');
 }
 
 async function build() {

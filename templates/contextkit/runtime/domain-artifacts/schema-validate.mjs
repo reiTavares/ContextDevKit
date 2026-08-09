@@ -43,23 +43,23 @@ export function validateArtifact(kind, doc, artifactSchemasTable) {
 }
 
 /**
- * Checks whether an artifact kind is required, forbidden, or optional for a
+ * Checks whether an artifact kind is recommended, forbidden, or optional for a
  * resolved profile — the proportionality guarantee (ADR-0128 §31) read
  * directly from the table's requiredForProfiles/neverForProfiles.
  *
  * @param {string} kind artifact kind.
  * @param {string} profile resolved Implementation Profile name.
  * @param {object} artifactSchemasTable the loaded artifact-schemas.json table.
- * @returns {{ status: 'required'|'forbidden'|'optional'|'unknown', reasonCode: string }}
+ * @returns {{ status: 'recommended'|'forbidden'|'optional'|'unknown', reasonCode: string }}
  */
 export function checkProportionality(kind, profile, artifactSchemasTable) {
   const table = artifactSchemasTable && typeof artifactSchemasTable === 'object' ? artifactSchemasTable.artifacts : null;
   const contract = table && typeof table === 'object' ? table[kind] : null;
   if (!contract) return { status: 'unknown', reasonCode: 'ARTIFACT_UNKNOWN_KIND' };
   const never = Array.isArray(contract.neverForProfiles) ? contract.neverForProfiles : [];
-  const required = Array.isArray(contract.requiredForProfiles) ? contract.requiredForProfiles : [];
+  const recommended = Array.isArray(contract.recommendedForProfiles) ? contract.recommendedForProfiles : [];
   if (never.includes(profile)) return { status: 'forbidden', reasonCode: 'ARTIFACT_NEVER_FOR_PROFILE' };
-  if (required.includes(profile)) return { status: 'required', reasonCode: 'ARTIFACT_REQUIRED_FOR_PROFILE' };
+  if (recommended.includes(profile)) return { status: 'recommended', reasonCode: 'ARTIFACT_RECOMMENDED_FOR_PROFILE' };
   return { status: 'optional', reasonCode: 'ARTIFACT_NOT_REQUIRED' };
 }
 

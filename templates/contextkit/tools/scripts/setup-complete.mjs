@@ -102,15 +102,13 @@ function main() {
     const report = detect ? runDetector() : readJson(resolve(ROOT, process.argv[applyIdx + 1] ?? ''), null);
     const suggested = report?.suggested;
     if (suggested) {
-      cfg.ledger = cfg.ledger || {};
-      if (Array.isArray(suggested.ledger?.important)) cfg.ledger.important = suggested.ledger.important;
-      if (Array.isArray(suggested.ledger?.irrelevant)) cfg.ledger.irrelevant = suggested.ledger.irrelevant;
-      if (!Array.isArray(cfg.ledger.registration)) cfg.ledger.registration = ['contextkit/memory/SESSIONS.md', 'docs/CHANGELOG.md'];
+      cfg.analysis = cfg.analysis || {};
+      if (Array.isArray(suggested.analysis?.excludePaths)) cfg.analysis.excludePaths = suggested.analysis.excludePaths;
       cfg.l5 = cfg.l5 || {};
       if (Array.isArray(suggested.highRiskPaths)) cfg.l5.highRiskPaths = suggested.highRiskPaths;
       cfg.qa = cfg.qa || {};
       if (Array.isArray(suggested.qaCriticalPaths)) cfg.qa.criticalPaths = suggested.qaCriticalPaths;
-      console.log(`Applied suggestions: ${cfg.ledger.important.length} important paths, ${cfg.l5.highRiskPaths.length} high-risk paths, ${(cfg.qa.criticalPaths || []).length} qa-critical paths.`);
+      console.log(`Applied suggestions: ${(cfg.analysis.excludePaths || []).length} analysis exclusions, ${cfg.l5.highRiskPaths.length} high-risk paths, ${(cfg.qa.criticalPaths || []).length} qa-critical paths.`);
     } else {
       console.log('No report supplied or report had no suggestions -- only flipping setup flag.');
     }

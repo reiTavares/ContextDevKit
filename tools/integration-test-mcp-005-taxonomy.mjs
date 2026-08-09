@@ -20,8 +20,8 @@ import {
 
 const { ok, bad, finish } = reporter();
 const { evaluateServer, CLASS_DEFAULTS, RISK_CLASSES, classDefault,
-  isHumanApprovalClass, resolveAutonomy } = await loadModules();
-const evalWith = makeEvalWith(evaluateServer, resolveAutonomy);
+  isHumanApprovalClass } = await loadModules();
+const evalWith = makeEvalWith(evaluateServer);
 
 // ---------------------------------------------------------------------------
 // [Suite 1] AC#1 — R0..R5 canonical defaults

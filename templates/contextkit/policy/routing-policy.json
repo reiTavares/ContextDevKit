@@ -1,10 +1,16 @@
 {
-  "_note": "Materializes the ADR-0052 cost-tier table for the kit's own agents. The resolver (contextkit/tools/scripts/model-policy.mjs) reads THIS file; tools/selfcheck-model-policy.mjs asserts it agrees, agent-by-agent, with the host-enforced `model:` frontmatter under templates/claude/agents/. Changing an agent's tier means amending ADR-0052 AND this file AND the frontmatter — the selfcheck refuses any drift between the three. Aliases only; concrete model IDs + prices live in the dated capability-matrix.json (supply side).",
-  "adr": "ADR-0052",
-  "_hostNote": "hostModels maps the demand tiers to the model override each host can enforce; Codex uses the current GPT-5.6 Sol/Terra/Luna model ids, while Antigravity remains an explicit host gap.",
+  "schemaVersion": 2,
+  "decision": "recommend",
+  "binding": false,
+  "failurePolicy": "continue-current-agent",
+  "humanAuthority": "owner-wins",
+  "safetyBoundaries": ["platform-security", "secrets", "credentials", "destructive-external-actions"],
+  "_note": "Advisory model and effort catalog. It ranks optional executors but never authorizes, denies, or replaces the active agent. Missing, invalid, or disagreeing policy continues with the active agent and records an honest diagnostic.",
+  "adr": "ADR-0158",
+  "_hostNote": "hostModels maps demand tiers to host-specific recommendations. A host or active agent may ignore them; Antigravity remains an explicit unavailable recommendation without blocking.",
   "_codexModelReference": "https://developers.openai.com/codex/models",
   "_codexModelNote": "Codex recommended models: gpt-5.6-sol for flagship reasoning, gpt-5.6-terra for balanced work, and gpt-5.6-luna for fast/affordable work.",
-  "updated": "2026-08-01",
+  "updated": "2026-08-08",
   "tiers": {
     "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
     "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
@@ -56,13 +62,11 @@
       { "complexity": "critical", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "max", "ruleId": "codex-critical-xhigh-sol-max" },
       { "complexity": "critical", "risk": "critical", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "ultra", "ruleId": "codex-critical-critical-sol-ultra" }
     ],
-    "criticalRiskPolicy": "refuse-noncritical-complexity",
+    "criticalRiskPolicy": "continue-current-agent-when-unmatched",
     "ultraPolicy": "critical-complexity-and-critical-risk-only",
-    "unmatched": "refuse-dispatch"
+    "unmatched": "continue-current-agent"
   },
   "ladder": ["fast", "powerful", "reasoning"],
-  "floorTier": "powerful",
-  "floorAgents": ["security", "code-security", "infra-security", "privacy-lgpd"],
   "inheritAgents": ["qa-orchestrator", "forge-orchestrator"],
   "taskClasses": {
     "think":     { "rule": "agent-tier", "note": "design / review / security / root-cause / planning — keep the agent's tier (orchestrator may bump one above for genuinely hard design)." },

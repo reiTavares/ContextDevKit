@@ -29,15 +29,12 @@ import { routingSummary, presentRouting, analyzeDecisionRecords } from './econom
 import { loadRegistry } from './economics/pricing/pricing-registry.mjs';
 import { readSnapshots, quotaSummary, presentQuota } from './economics/quota-snapshots.mjs';
 import { multiplierSummary, presentAutonomy } from './economics/autonomy-multiplier.mjs';
-import { deriveOutcomes } from './economics/autonomy-outcomes.mjs';
 import { presentPilot } from './economics/benchmark-pilot.mjs';
 import { readSavingsSync, savingsSummary, presentSavings, observedSavingsReport, savingsFile } from './economy/economy-savings.mjs';
 import { readEconomyEventsSync, summarizeEconomyEvents, presentEconomyEvents, economyEventsFile } from './economy/economy-events.mjs';
 import { estimatedLane, presentEstimatedLane } from './economy/kill-criterion.mjs';
 import { readGovernanceTokenSeries, countConcludedContexts, evaluateGovernanceTokenGuardrail, northStarReading, presentGovernanceNorthStar } from './economics/governance-north-star.mjs';
 import { readDecisions, routingTelemetrySummary, presentRoutingTelemetry } from './routing/routing-telemetry.mjs';
-import { pathsFor } from '../../runtime/config/paths.mjs';
-import { listStates } from '../../runtime/state/state-io.mjs';
 
 const ROOT = process.cwd();
 const norm = (p) => String(p || '').replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
@@ -217,8 +214,7 @@ function main() {
     // from the append-only state substrate (actor:'qa' transitions — ADR-0105).
     // The useful count is now measured; the ratio still degrades to skipped until
     // a baseline arm-A (#176) exists — honest, claim null throughout.
-    const autonomyTasks = deriveOutcomes(listStates(pathsFor(ROOT).pipeline, { kind: 'task' }));
-    autonomy = multiplierSummary({ tasks: autonomyTasks, quotaObservable: false, availableUnits: ['effective-mtok'] });
+    autonomy = multiplierSummary({ tasks: [], quotaObservable: false, availableUnits: ['effective-mtok'] });
     // ADR-0094 — routing decision telemetry (kit routing only, not provider cache).
     const routingLogFile = join(ROOT, 'contextkit', 'memory', 'routing-decisions.jsonl');
     const routingRecords = readDecisions(routingLogFile);
@@ -226,9 +222,8 @@ function main() {
     savings = savingsSummary(readSavingsSync(savingsFile(ROOT)));
     observedSavings = observedSavingsReport(savings);
     economyLifecycle = summarizeEconomyEvents(readEconomyEventsSync(economyEventsFile(ROOT)));
-    // WF-0086 IN2 (ADR-0148 §13) — the methodology plane's north-star + the HARD
-    // governance-token guardrail. Read-only and honest-or-absent: an unmeasured
-    // reading is `skipped` with a reason, never a pass and never a flattering zero.
+    // Workflow throughput and governance-token telemetry are read-only canary
+    // observations. Missing measurements stay skipped and never become a pass.
     const governanceSeries = readGovernanceTokenSeries(ROOT);
     governanceGuardrail = evaluateGovernanceTokenGuardrail(governanceSeries);
     northStar = northStarReading(governanceSeries, countConcludedContexts(ROOT));

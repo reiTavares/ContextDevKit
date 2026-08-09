@@ -168,7 +168,7 @@ export function handleAccept({ flags, apply, root }) {
 
 /**
  * Handles the `link` verb: append `adrId` to `entity.decisionRefs.governing[]`
- * in a business.json / operation.json / workflow-plan.json.
+ * in a business.json / operation.json / workflow.json.
  * Idempotent: re-adding an existing ref is a no-op (no second write).
  *
  * @param {object} args

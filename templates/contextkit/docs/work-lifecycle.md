@@ -1,75 +1,118 @@
-# Canonical Work Lifecycle
+# Canonical work lifecycle
 
-This is the authoritative human-readable lifecycle projection. Machine truth
-remains in `policy/journey.json`, the ceremony-shape mapping in
-`methodology/templates/manifest.json`, and the current entity/workflow state.
+ContextDevKit 4 governs mutation, not conversation.
 
-The lifecycle is:
+```text
+interaction
+├── conversation  -> no-op
+├── exploration   -> no-op
+├── unclassified  -> one short clarification, no persistence
+└── mutation
+    -> resolve existing work
+    -> classify nature
+    -> select direct | batch | workflow
+    -> load governed context when linked
+    -> implement
+    -> test
+    -> QA when applicable
+    -> complete
+```
 
-`intake -> owner context -> governance/workflow -> tasks when plural -> implementation -> tests -> QA when material -> conclude/close and move to done -> session log`
+## Intake
 
-The five branches are:
+Conversation and read-only exploration create no task id, contract, Business,
+Operation, workflow, batch, run, receipt, or memory record. A request that is
+still ambiguous gets at most one short question in the user's language.
 
-| Ceremony shape | Journey branch | `tasks.json` authoring |
-| --- | --- | --- |
-| `quick-fix` | `operation-direct` | absent |
-| `batch-operation` | `operation-batch` | advisory until populated |
-| `single-workflow-operation` | `operation-workflow` | advisory until populated |
-| `decision-only` | `business-decision` | absent |
-| `multi-workflow-program` | `business-workflow` | advisory until populated |
+A real Edit, Write, or other governed-state mutation is authoritative evidence
+of mutation and promotes the interaction once. Documentation, configuration,
+and memory writes are not exempt.
 
-Every governed branch ends at `done-move`. `log-session` is post-terminal
-bookkeeping, so the complete human lifecycle remains `done -> log` without
-weakening `done-move` as the terminal state transition. Use the exact `conclude` or `close` command
-reported by `node contextkit/tools/scripts/work.mjs next`; never hand-move an
-entity or workflow. `work map` renders a 100% derived Lifecycle Map and rejects
-stored content that diverges from `journey + manifest + state`.
+## Existing work first
 
-Pure questions and read-only investigations are exempt from this write
-lifecycle. Missing or unreadable journey/state inputs are skipped silently and
-never fail-close real work.
+Mutation intake resolves existing work before creating a durable context:
 
-When a request **cites an existing work context** (a `BIZ-`/`OP-`/`WF-` id, or a
-recognizable title), intake resolves the *reference-intent* before treating the
-work as new (ADR-0152): `new-context` (the citation is only context for something
-new), `work-within` (continue inside the cited context), `new-child-in-context`
-(a new task/increment inside it), or `new-workflow-in-owner` (a new workflow under
-it) — asking when ambiguous. A strong explicit citation is **advisory**: it
-reframes the intake line and downgrades a would-be create-new action so a
-continuation prompt is not turned into a duplicate context; it never blocks.
+- an explicit active id resumes that work;
+- one strong inferred match asks one short confirmation unless the owner
+  explicitly requested auto-resume;
+- multiple matches ask which one;
+- completed work stays closed unless the owner explicitly requests reopening;
+- only a `new` result reaches a creator.
 
-The read-only `work next` / `work map` surfaces can be disabled without
-removing the journey or its commands by setting `CONTEXTKIT_WORK_DISCOVERY=0`.
+Business, Operation, Workflow, and Task identities come from their canonical
+stores. Intake never builds a second registry by scanning Markdown.
+
+## Nature and shape
+
+Nature is one of `business`, `operation`, `none`, or `unclassified`:
+
+- `business` requires a durable strategic capability or decision with outcome,
+  sponsor, measure, and horizon;
+- `operation` requires durable maintenance, incident, refactoring, or operating
+  capability inside an existing system;
+- `none` is normal for a focused feature, bug fix, document, or technical edit;
+- low confidence or classifier error is `unclassified`, never a default
+  Operation.
+
+Execution shape follows topology:
+
+- `direct`: one to three cohesive tasks;
+- `batch`: four to twelve related tasks without strong ordering;
+- `workflow`: dependencies, waves, required ordering, multiple sessions,
+  cutover, rollback, or an explicit workflow request.
+
+Business, architecture vocabulary, ADRs, and compliance words do not by
+themselves force a workflow.
+
+## Governed context
+
+Before the first write of a linked workflow, the loader reads the complete
+canonical pack: `workflow.json`, `workflow-state.json`, PRD, SPEC, decisions,
+`pipeline/tasks.json`, referenced reports, and optional continuation guidance.
+The loader runs on start, resume, and handoff/compaction. It never asks the model
+to create a manual “I read it” receipt.
+
+Invalid JSON is surfaced for repair. Missing required scaffold is repaired only
+through the explicit v2 repair command; runtime has no automatic reader for
+retired plans, frontmatter state, physical stages, or path-based completion.
+
+## State transitions
+
+Task state lives only in scoped `pipeline/tasks.json`. Workflow aggregate state
+lives only in `workflow-state.json`. Markdown is a derived projection.
+
+Task transitions use validation, an exclusive lock, compare-and-swap revision,
+and atomic replace. A status change and its audit event commit together. QA may
+deny only the `testing -> done` completion when an applicable deterministic
+violation is evidenced. A scoped owner override is sufficient; no autonomy
+grade, agent receipt, council, or quorum is required.
+
+`log-session` is optional post-work bookkeeping for productive mutation. It is
+not part of conversation/exploration and does not authorize implementation.
 
 ## Ciclo canônico de trabalho (pt-BR)
 
-Esta é a projeção humana autoritativa do ciclo. A verdade de máquina permanece
-em `policy/journey.json`, no mapeamento de formas em
-`methodology/templates/manifest.json` e no estado atual da entidade/workflow.
+O ContextDevKit 4 governa mutação, não conversa. Conversa e exploração somente
+leitura não criam task, contrato, Business, Operation, workflow, batch, run,
+recibo ou memória. Intenção ambígua recebe no máximo uma pergunta curta no
+idioma do usuário.
 
-O ciclo é:
+Uma tentativa real de escrita promove a interação para mutação uma vez. Antes
+de criar contexto durável, o intake procura trabalho existente: id ativo
+explícito retoma; um match forte pede confirmação curta; vários matches pedem a
+escolha; trabalho concluído não reabre sem pedido explícito; somente `new` chega
+ao creator.
 
-`intake -> contexto proprietário -> governança/workflow -> tarefas quando houver pluralidade -> implementação -> testes -> QA quando material -> concluir/fechar e mover para done -> registrar a sessão`
+A natureza é `business`, `operation`, `none` ou `unclassified`. `none` é comum.
+A forma é `direct` para uma a três tarefas coesas, `batch` para quatro a doze
+tarefas relacionadas sem ordem forte e `workflow` para dependências, waves,
+multissessão, cutover, rollback ou pedido explícito.
 
-As formas `batch-operation`, `single-workflow-operation` e
-`multi-workflow-program` incluem a autoria de `tasks.json`, em modo consultivo
-até existir conteúdo. `quick-fix` e `decision-only` não incluem essa etapa.
+Antes da primeira escrita de workflow, o loader entrega `workflow.json`,
+`workflow-state.json`, PRD, SPEC, decisões, `pipeline/tasks.json` e reports
+relevantes. Não há fallback para plano v1, frontmatter, lanes ou `done/`.
 
-Todos os ramos governados terminam em `done-move`; `log-session` é o registro
-pós-terminal, preservando o fluxo humano `done -> log`. Execute o comando exato indicado por
-`work next`; nunca mova arquivos manualmente. Perguntas puras e investigações
-somente-leitura são isentas. Entradas ausentes ou ilegíveis são ignoradas sem
-bloquear o trabalho.
-
-As superfícies somente-leitura `work next` / `work map` podem ser desativadas
-sem remover a jornada ou seus comandos com `CONTEXTKIT_WORK_DISCOVERY=0`.
-
-Quando um pedido **cita um contexto de trabalho existente** (um id `BIZ-`/`OP-`/
-`WF-`, ou um título reconhecível), o intake resolve a *intenção-da-citação* antes
-de tratar o trabalho como novo (ADR-0152): `new-context` (a citação é só contexto
-para algo novo), `work-within` (continuar dentro do contexto citado),
-`new-child-in-context` (uma nova tarefa/incremento dentro dele) ou
-`new-workflow-in-owner` (um novo workflow sob ele) — perguntando quando ambíguo.
-Uma citação explícita forte é **consultiva**: reformula a linha do intake e rebaixa
-uma ação de criar-novo, para que um prompt de continuação não vire um contexto
-duplicado; nunca bloqueia.
+Tasks vivem somente em `pipeline/tasks.json`; estado agregado do workflow vive
+somente em `workflow-state.json`; Markdown é projeção. Transições usam lock,
+CAS e replace atômico. `log-session` é registro opcional depois de mutação
+produtiva, não uma pré-condição de autorização.

@@ -70,9 +70,9 @@ function policyVersionFor(config) {
 }
 
 /**
- * Whether the host can switch the current session's model from a hook. No host
- * supports this today (ADR-0094 §Decision) — this is the documented seam for a
- * future executor (subagent / separate command) that does.
+ * Whether project routing may switch the current session's model. Under
+ * ADR-0158 this is always false: only the active agent/host may choose whether
+ * to adopt a recommendation.
  * @param {string} _host
  * @returns {boolean}
  */
@@ -92,11 +92,7 @@ function resolveOutcome(mode, decision, host) {
   if (mode === 'shadow') return { reason: 'shadow_mode', selectedTier: null, directed: false };
   const policyWouldApply = decision.policyWouldApply === true;
   if (policyWouldApply) {
-    // Policy selected a route, but the host cannot enact it from a hook.
-    if (!hostCanSwitchModel(host)) {
-      return { reason: 'host_does_not_support_in_session_model_switch', selectedTier: decision.executor, directed: false };
-    }
-    return { reason: `${mode}_directed`, selectedTier: decision.executor, directed: true };
+    return { reason: 'routing_recommendation_available', selectedTier: decision.executor, directed: false };
   }
   return {
     reason: mode === 'canary' ? 'canary_not_sampled_or_ineligible' : 'active_no_net_benefit',
@@ -155,14 +151,17 @@ function isDisabled(projectRouting, session) {
  * @param {string|null} [input.at] ISO timestamp (caller-supplied; null-safe)
  * @returns {object} `{ active, mode?, reason, decisionId?, recommendedTier?, applied, record?, summary?, logged?, duplicate? }`
  */
-export function routePrompt(input = {}) {
+function routePromptUnsafe(input = {}) {
   const {
     promptText, intakeSignals, sessionId, taskId, host = 'claude', level,
     projectRouting, session, commandFacts, logFile = null, at = null, executionAck = null,
   } = input;
 
   if (isDisabled(projectRouting, session)) return { active: false, mode: 'disabled', reason: 'routing_disabled', applied: false };
-  const resolved = resolveRoutingConfig({ project: projectRouting, session, level });
+  const routingConfigResolver = typeof input.routingConfigResolver === 'function'
+    ? input.routingConfigResolver
+    : resolveRoutingConfig;
+  const resolved = routingConfigResolver({ project: projectRouting, session, level });
   if (!resolved.active) return { active: false, mode: resolved.mode, reason: resolved.reason, applied: false };
   if (!promptText || typeof promptText !== 'string') return { active: false, mode: resolved.mode, reason: 'no_prompt', applied: false };
 
@@ -283,4 +282,39 @@ export function routePrompt(input = {}) {
       decisionId,
     },
   };
+}
+
+/**
+ * Produces a non-binding route recommendation. Any resolver/classifier/
+ * telemetry failure is reported as unavailable while delivery remains allowed.
+ * Platform security, credentials, secrets, and destructive confirmations are
+ * intentionally outside this advisory runtime.
+ *
+ * @param {object} input route request.
+ * @returns {object} advisory route result.
+ */
+export function routePrompt(input = {}) {
+  try {
+    const recommendation = routePromptUnsafe(input);
+    return Object.freeze({
+      ...recommendation,
+      decision: 'recommend',
+      binding: false,
+      blocking: false,
+      continuation: Object.freeze({ allowed: true, executor: 'current-agent', reason: 'routing-is-advisory' }),
+    });
+  } catch (error) {
+    return Object.freeze({
+      active: false,
+      mode: 'canary',
+      reason: `routing-resolver-error:${error?.message || String(error)}`,
+      decision: 'recommend',
+      binding: false,
+      blocking: false,
+      applied: false,
+      status: 'unavailable',
+      recommendedTier: null,
+      continuation: Object.freeze({ allowed: true, executor: 'current-agent', reason: 'routing-resolver-unavailable' }),
+    });
+  }
 }

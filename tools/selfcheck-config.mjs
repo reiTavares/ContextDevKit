@@ -67,8 +67,23 @@ async function checkSchema(rep, mods, RT) {
   const { bad } = rep;
   const schema = await import('file://' + resolve(RT, 'config/schema.mjs').replaceAll('\\', '/'));
   const good = schema.validateConfig(defaults);
-  good.ok && good.config.qa && good.config.pipeline
+  const missingDefaultSections = good.ok
+    ? Object.keys(defaults).filter((section) => !(section in good.config))
+    : Object.keys(defaults);
+  good.ok && good.config.qa && missingDefaultSections.length === 0
     ? ok('schema validates DEFAULT_CONFIG + passthrough keeps every section') : bad('schema rejected defaults / dropped sections');
+  good.ok && good.config.governance?.defaultMode === 'canary'
+    && good.config.governance?.failurePolicy === 'continue'
+    ? ok('schema validates canonical governance defaults') : bad('schema rejected/dropped governance defaults');
+  !schema.validateConfig({
+    ...defaults,
+    governance: {
+      ...defaults.governance,
+      gates: { ...defaults.governance.gates, 'privacy-lgpd': 'guarded' },
+    },
+  }).ok
+    ? ok('schema rejects guarded outside the blocking allowlist')
+    : bad('schema accepted guarded privacy-lgpd');
   schema.validateConfig({ ...defaults, level: 7 }).ok ? ok('schema accepts level 7') : bad('schema rejects level 7');
   !schema.validateConfig({ ...defaults, level: 9 }).ok ? ok('schema rejects an out-of-range level') : bad('schema accepted level 9');
 }
@@ -76,7 +91,7 @@ async function checkSchema(rep, mods, RT) {
 /**
  * CDK-013 — per-section strict validation. Asserts the schema (a) keeps unknown
  * keys (top-level + nested), (b) actionably refuses malformed / unsupported
- * sections, (c) accepts a partial config, (d) preserves legacy keys, and (e)
+ * sections, (c) accepts a partial config, and (d)
  * warns when a fallback reduces security. Skipped silently when zod is absent.
  */
 async function checkSectionSchemas(rep, mods, RT) {
@@ -109,10 +124,7 @@ async function checkSectionSchemas(rep, mods, RT) {
   fwd.ok && fwd.config.forward?.plannedToggle === true ? ok('schema forward slot retains a future-extension key') : bad('forward slot dropped extension key');
   // (c) partial config validates (legacy/minimal install).
   validateConfig({ level: 3 }).ok ? ok('schema accepts a partial config (level only)') : bad('schema rejected a partial config');
-  // (d-legacy) a legacy section key survives (migratable, not refused).
-  const legacy = validateConfig({ level: 2, autonomy: { level: 1 } });
-  legacy.ok && legacy.config.autonomy?.level === 1 ? ok('schema keeps a legacy section key (migratable)') : bad('schema dropped/refused a legacy key');
-  // (e) security fallback warns; a no-op edit is silent.
+  // (d) security fallback warns; a no-op edit is silent.
   securityWarnings({ securityMode: { active: true } }, { securityMode: { active: false } }).length === 1 &&
   securityWarnings(defaults, defaults).length === 0
     ? ok('securityWarnings flags a security-reducing fallback, silent otherwise') : bad('securityWarnings missed a fallback / false-positived');

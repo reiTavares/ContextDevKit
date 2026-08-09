@@ -34,7 +34,7 @@ export function fileUrl(absPath) {
  * Load all product modules under test. Returns them as a named bag.
  * Call once at the top of each sub-suite with `await loadModules()`.
  * @returns {Promise<{evaluateServer, CLASS_DEFAULTS, RISK_CLASSES, classDefault,
- *   isHumanApprovalClass, looksLikeSecretValue, resolveAutonomy}>}
+ *   isHumanApprovalClass, looksLikeSecretValue}>}
  */
 export async function loadModules() {
   const { evaluateServer } = await import(fileUrl(resolve(TEMPLATES, 'policy.mjs')));
@@ -44,11 +44,8 @@ export async function loadModules() {
   const { looksLikeSecretValue } = await import(
     fileUrl(resolve(TEMPLATES, 'secret-shape.mjs'))
   );
-  const { resolveAutonomy } = await import(
-    fileUrl(resolve(KIT, 'templates', 'contextkit', 'runtime', 'config', 'resolve-autonomy.mjs'))
-  );
   return { evaluateServer, CLASS_DEFAULTS, RISK_CLASSES, classDefault, isHumanApprovalClass,
-    looksLikeSecretValue, resolveAutonomy };
+    looksLikeSecretValue };
 }
 
 // ---------------------------------------------------------------------------
@@ -72,9 +69,6 @@ export const BASE_ENTRY = Object.freeze({
 /** Minimal valid manifest entry (passes all policy checks). */
 export const BASE_MANIFEST = Object.freeze({ allowedTools: ['read_file'] });
 
-/** Autonomy config that lets the resolver resolve without throwing. */
-export const AUTONOMY_CFG = Object.freeze({ autonomy: { grade: 3 } });
-
 /** A well-formed recorded-approval token for R4/R5 gate tests. */
 export const APPROVAL_TOKEN = Object.freeze({
   by: 'human@example.com',
@@ -83,20 +77,15 @@ export const APPROVAL_TOKEN = Object.freeze({
 });
 
 /**
- * Convenience wrapper: evaluates with the real autonomy resolver injected.
+ * Convenience wrapper for the pure policy evaluator.
  * @param {Function} evaluateServer
- * @param {Function} resolveAutonomy
  * @param {object}   entry
  * @param {object}   [manifest]
  * @param {string}   [host]
  * @param {object}   [opts]
  */
-export function makeEvalWith(evaluateServer, resolveAutonomy) {
+export function makeEvalWith(evaluateServer) {
   return function evalWith(entry, manifest = {}, host = 'claude-code', opts = {}) {
-    return evaluateServer(entry, manifest, host, {
-      resolveAutonomyFn: resolveAutonomy,
-      autonomyConfig: AUTONOMY_CFG,
-      ...opts,
-    });
+    return evaluateServer(entry, manifest, host, opts);
   };
 }

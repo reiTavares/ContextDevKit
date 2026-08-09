@@ -20,8 +20,10 @@
  *
  * Zero-dep, node:/relative only, Windows-safe. Standalone entrypoint (exit 0/1).
  */
-import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dir = resolve(fileURLToPath(import.meta.url), '..');
@@ -33,21 +35,69 @@ const bad = (m) => { failures++; console.error('  XX ' + m); };
 const GATE = 'templates/contextkit/tools/scripts/architecture-debt-gate.mjs';
 const RESOLVER = 'templates/contextkit/runtime/config/resolve-arch-debt-config.mjs';
 const LOADER = 'templates/contextkit/runtime/config/load.mjs';
+const PATHS = 'templates/contextkit/runtime/config/paths.mjs';
 
 const gatePath = resolve(KIT, GATE);
 const resolverPath = resolve(KIT, RESOLVER);
 existsSync(gatePath) ? ok('architecture-debt-gate.mjs exists') : bad('gate NOT FOUND');
 existsSync(resolverPath) ? ok('resolve-arch-debt-config.mjs exists') : bad('resolver NOT FOUND');
 
-let runGate, resolveArchDebtConfig, loadConfigSync;
+let runGate, resolveFindingsStorePath, resolveArchDebtConfig, loadConfigSync;
+let PLATFORM_DIR, AUTHORITY_MARKER_FILE;
 try {
-  ({ runGate } = await import(pathToFileURL(gatePath).href));
+  ({ runGate, resolveFindingsStorePath } = await import(pathToFileURL(gatePath).href));
   ({ resolveArchDebtConfig } = await import(pathToFileURL(resolverPath).href));
   ({ loadConfigSync } = await import(pathToFileURL(resolve(KIT, LOADER)).href));
+  ({ PLATFORM_DIR, AUTHORITY_MARKER_FILE } = await import(pathToFileURL(resolve(KIT, PATHS)).href));
 } catch (err) {
   bad('Failed to import gate/resolver/loader: ' + (err && err.message || err));
   console.error('Aborting.');
   process.exit(1);
+}
+
+// Source distributions do not install the ignored dogfood substrate. The CI
+// gate must still evaluate there without trying to persist into a missing tree,
+// while installed projects retain the single canonical findings store.
+console.log('\n#370.0 — source-only CI keeps persistence optional, never the verdict');
+const sourceOnlyRoot = mkdtempSync(join(tmpdir(), 'contextdevkit-arch-debt-'));
+try {
+  resolveFindingsStorePath(sourceOnlyRoot) === null
+    ? ok('source-only root has no findings store (gate remains in-memory)')
+    : bad('source-only root fabricated a findings-store path');
+
+  const sourceOnlyCli = spawnSync(process.execPath, [gatePath, '--ci'], {
+    cwd: sourceOnlyRoot,
+    encoding: 'utf8',
+  });
+  sourceOnlyCli.status === 0
+    ? ok('source-only CLI enforces the gate without a persistence failure')
+    : bad(`source-only CLI failed (${sourceOnlyCli.status}): ${sourceOnlyCli.stderr}`);
+  !existsSync(resolve(sourceOnlyRoot, PLATFORM_DIR))
+    ? ok('source-only CLI does not fabricate the dogfood platform tree')
+    : bad('source-only CLI fabricated the dogfood platform tree');
+
+  const installedMemoryRoot = resolve(sourceOnlyRoot, PLATFORM_DIR, 'memory');
+  mkdirSync(installedMemoryRoot, { recursive: true });
+  resolveFindingsStorePath(sourceOnlyRoot) === resolve(installedMemoryRoot, 'tech-debt-findings.json')
+    ? ok('installed memory root resolves the canonical findings store')
+    : bad('installed memory root did not resolve the canonical findings store');
+
+  writeFileSync(
+    resolve(sourceOnlyRoot, PLATFORM_DIR, AUTHORITY_MARKER_FILE),
+    '{"schemaVersion":1,"authority":"invalid"}\n',
+    'utf8',
+  );
+  let invalidMarkerRefused = false;
+  try {
+    resolveFindingsStorePath(sourceOnlyRoot);
+  } catch {
+    invalidMarkerRefused = true;
+  }
+  invalidMarkerRefused
+    ? ok('invalid v4 authority marker is refused instead of bypassed')
+    : bad('invalid v4 authority marker silently bypassed persistence authority');
+} finally {
+  rmSync(sourceOnlyRoot, { recursive: true, force: true });
 }
 
 // ── 1. Resolver passes the conformance authorities through + arms the baseline ──
@@ -131,8 +181,11 @@ const authorityRes = await runInjected({
 authorityRes.exitCode === 1 ? ok('new duplicate authority → exitCode 1 (BLOCKED)') : bad('duplicate authority did not block: ' + authorityRes.outcome);
 authorityRes.blocking.some((f) => f.ruleId === 'F3.state-authority') ? ok('F3.state-authority is the blocking finding') : bad('F3 not in blockers: ' + authorityRes.blocking.map((f) => f.ruleId).join(','));
 
-// Calibration guard: the live config must stay mode:active (never demoted).
-liveResolved.mode === 'active' ? ok('gate mode stays active') : bad('gate mode drifted: ' + liveResolved.mode);
+// Calibration guard: canonical absence/default remains canary. The live dogfood
+// config may carry an explicit project override and is already exercised above;
+// it must not redefine the product default asserted by this release check.
+const defaultResolved = resolveArchDebtConfig({});
+defaultResolved.mode === 'canary' ? ok('gate default stays canary') : bad('gate default drifted: ' + defaultResolved.mode);
 
 console.log('\n' + (passes + failures) + ' checks -- ' + passes + ' pass / ' + failures + ' fail');
 if (failures > 0) { console.error('\nFAIL'); process.exit(1); }

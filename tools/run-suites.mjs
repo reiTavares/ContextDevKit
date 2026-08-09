@@ -7,7 +7,7 @@
  * chain into one place so subsets are runnable and the list can't silently
  * drift. `npm test` === `node tools/run-suites.mjs --tier all` and MUST stay
  * behavior-identical: serial, fail-fast on first non-zero, exit with the first
- * failing suite's code (0 if all pass).
+ * failing suite's code (0 if all pass), with bounded execution and liveness.
  *
  * Flags:
  *   --tier <name|all>   run a tier (default `all` when nothing else is given).
@@ -25,6 +25,8 @@
  *                       exists as a re-measurement instrument, NOT a speedup; the
  *                       default serial path is byte-identical. The shuffle/repeat/
  *                       pool + `executeProbe` logic lives in `run-suites-pool.mjs`.
+ *   --suite-timeout-ms  terminate one suite after this many ms (default 600000).
+ *   --heartbeat-ms      print liveness while a suite is running (default 30000).
  *
  * SEAMS for later waves (we provide the optional hooks, not the impls):
  *   - Reporter seam: a present `tools/test-report.mjs` exporting `renderRun`
@@ -32,10 +34,10 @@
  *   - Selector seam: a present `tools/test-impact.mjs` exporting `selectSuites`
  *     drives `--impact`; otherwise we print a clear "not installed" notice.
  *
- * Zero runtime deps; `node:*` only. Windows-safe: array-arg spawnSync, no shell
+ * Zero runtime deps; `node:*` only. Windows-safe: array-arg spawn, no shell
  * string interpolation, forward-slash paths, tolerant of a path with a space.
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,15 +47,28 @@ import { executeProbe } from './run-suites-pool.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RUNS_DIR = join(KIT, 'runs');
+const DEFAULT_SUITE_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_HEARTBEAT_MS = 30 * 1000;
 
 /**
  * Parse argv into a normalized options object. Unknown flags are ignored
  * (forward-compatible). Last-wins for repeated value flags.
  * @param {string[]} argv - process.argv.slice(2).
- * @returns {{tier:string|null,list:string[]|null,legacy:boolean,verbose:boolean,impact:boolean}}
+ * @returns {{tier:string|null,list:string[]|null,legacy:boolean,verbose:boolean,impact:boolean,jobs:number,shuffle:boolean,repeat:number,suiteTimeoutMs:number,heartbeatMs:number}}
  */
-function parseArgs(argv) {
-  const opts = { tier: null, list: null, legacy: false, verbose: false, impact: false, jobs: 1, shuffle: false, repeat: 1 };
+export function parseArgs(argv) {
+  const opts = {
+    tier: null,
+    list: null,
+    legacy: false,
+    verbose: false,
+    impact: false,
+    jobs: 1,
+    shuffle: false,
+    repeat: 1,
+    suiteTimeoutMs: DEFAULT_SUITE_TIMEOUT_MS,
+    heartbeatMs: DEFAULT_HEARTBEAT_MS,
+  };
   const int = (raw, min) => Math.max(min, parseInt(raw ?? '', 10) || min);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
@@ -65,6 +80,8 @@ function parseArgs(argv) {
     else if (arg === '--jobs') opts.jobs = int(argv[++i], 1);
     else if (arg === '--shuffle') opts.shuffle = true;
     else if (arg === '--repeat') opts.repeat = int(argv[++i], 1);
+    else if (arg === '--suite-timeout-ms') opts.suiteTimeoutMs = int(argv[++i], 1);
+    else if (arg === '--heartbeat-ms') opts.heartbeatMs = int(argv[++i], 1);
   }
   return opts;
 }
@@ -96,23 +113,65 @@ function resolveSuites(opts) {
  * (then it inherits live). Never throws — a spawn failure becomes a non-zero
  * synthetic exit so fail-fast still triggers.
  * @param {{id:string,file:string}} suite
- * @param {boolean} verbose
- * @returns {{id:string,tier?:string,ms:number,exitCode:number,logBytes:number,stdout:string,stderr:string}}
+ * @param {{kitRoot?:string,verbose?:boolean,timeoutMs?:number,heartbeatMs?:number,onHeartbeat?:(elapsedMs:number)=>void}} [options]
+ * @returns {Promise<{id:string,tier?:string,ms:number,exitCode:number,logBytes:number,stdout:string,stderr:string,timedOut:boolean,signal:string|null}>}
  */
-function runSuite(suite, verbose) {
-  const started = Date.now();
-  const child = spawnSync(process.execPath, [resolve(KIT, suite.file)], {
-    cwd: KIT,
-    encoding: 'utf-8',
-    stdio: verbose ? 'inherit' : 'pipe',
+export function runSuite(suite, options = {}) {
+  const kitRoot = options.kitRoot ?? KIT;
+  const verbose = options.verbose === true;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_SUITE_TIMEOUT_MS;
+  const heartbeatMs = options.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+  const onHeartbeat = options.onHeartbeat ?? ((elapsedMs) => {
+    console.log(`  … ${suite.id} still running (${(elapsedMs / 1000).toFixed(0)}s)`);
   });
-  const ms = Date.now() - started;
-  const stdout = child.stdout || '';
-  const stderr = child.stderr || '';
-  // spawnSync sets status=null on a spawn error; treat that as failure (code 1).
-  const exitCode = child.status === null ? 1 : child.status;
-  const logBytes = Buffer.byteLength(stdout, 'utf-8') + Buffer.byteLength(stderr, 'utf-8');
-  return { id: suite.id, tier: suite.tier, ms, exitCode, logBytes, stdout, stderr };
+  return new Promise((resolveRecord) => {
+    const started = Date.now();
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    let timedOut = false;
+    let forceKill = null;
+    const child = spawn(process.execPath, [resolve(kitRoot, suite.file)], {
+      cwd: kitRoot,
+      stdio: verbose ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+    const heartbeat = setInterval(() => onHeartbeat(Date.now() - started), heartbeatMs);
+    heartbeat.unref?.();
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      stderr += `\nSuite timed out after ${timeoutMs}ms.\n`;
+      child.kill();
+      forceKill = setTimeout(() => child.kill('SIGKILL'), 1_000);
+      forceKill.unref?.();
+    }, timeoutMs);
+    timeout.unref?.();
+    const finish = (code, signal, error) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(heartbeat);
+      clearTimeout(timeout);
+      if (forceKill) clearTimeout(forceKill);
+      if (error) stderr += `${error.message}\n`;
+      const ms = Date.now() - started;
+      const exitCode = timedOut ? 124 : code === null ? 1 : code;
+      resolveRecord({
+        id: suite.id,
+        tier: suite.tier,
+        ms,
+        exitCode,
+        logBytes: Buffer.byteLength(stdout, 'utf-8') + Buffer.byteLength(stderr, 'utf-8'),
+        stdout,
+        stderr,
+        timedOut,
+        signal: signal ?? null,
+      });
+    };
+    child.on('close', (code, signal) => finish(code, signal));
+    child.on('error', (error) => finish(1, null, error));
+  });
 }
 
 /**
@@ -123,7 +182,7 @@ function runSuite(suite, verbose) {
  * @param {boolean} verbose - when true the child already streamed; skip echo.
  * @returns {void}
  */
-function printCompact(record, verbose) {
+export function printCompact(record, verbose) {
   const secs = (record.ms / 1000).toFixed(1);
   if (record.exitCode === 0) {
     console.log(`  ✓ ${record.id} ${secs}s`);
@@ -131,8 +190,9 @@ function printCompact(record, verbose) {
   }
   console.error(`  ✗ ${record.id} ${secs}s (exit ${record.exitCode})`);
   if (!verbose) {
-    if (record.stdout) process.stdout.write(record.stdout);
-    if (record.stderr) process.stderr.write(record.stderr);
+    const tail = (value) => value.split(/\r?\n/).slice(-40).join('\n');
+    if (record.stdout) process.stdout.write(`${tail(record.stdout)}\n`);
+    if (record.stderr) process.stderr.write(`${tail(record.stderr)}\n`);
   }
 }
 
@@ -204,7 +264,15 @@ function persistRun(records, summary) {
       totalMs: summary.totalMs,
       selection: summary.selection ?? null,
       suiteCount: records.length,
-      suites: records.map((r) => ({ id: r.id, tier: r.tier, ms: r.ms, exitCode: r.exitCode, logBytes: r.logBytes })),
+      suites: records.map((r) => ({
+        id: r.id,
+        tier: r.tier,
+        ms: r.ms,
+        exitCode: r.exitCode,
+        logBytes: r.logBytes,
+        timedOut: r.timedOut === true,
+        signal: r.signal ?? null,
+      })),
     };
     writeFileSync(join(RUNS_DIR, 'last-run.json'), `${JSON.stringify(payload, null, 2)}\n`, 'utf-8');
   } catch {
@@ -236,8 +304,13 @@ async function main() {
   const runStarted = Date.now();
   let exitCode = 0;
 
-  for (const suite of suites) {
-    const record = runSuite(suite, opts.verbose);
+  for (const [index, suite] of suites.entries()) {
+    console.log(`  ▶ ${suite.id} (${index + 1}/${suites.length})`);
+    const record = await runSuite(suite, {
+      verbose: opts.verbose,
+      timeoutMs: opts.suiteTimeoutMs,
+      heartbeatMs: opts.heartbeatMs,
+    });
     records.push(record);
     if (!reporter) printCompact(record, opts.verbose);
     if (record.exitCode !== 0) {
@@ -258,7 +331,9 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch((err) => {
-  console.error('run-suites crashed:', err?.message ?? err);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('run-suites crashed:', err?.message ?? err);
+    process.exit(1);
+  });
+}

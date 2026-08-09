@@ -40,6 +40,17 @@ function outEdges(graph, fromId, rel) {
   return (graph.edges ?? []).filter((e) => e.from === fromId && e.rel === rel);
 }
 
+/**
+ * Returns all incoming edges to a node with a specific relation.
+ * @param {Graph} graph
+ * @param {string} toId
+ * @param {string} rel
+ * @returns {object[]}
+ */
+function inEdges(graph, toId, rel) {
+  return (graph.edges ?? []).filter((edge) => edge.to === toId && edge.rel === rel);
+}
+
 // ---------------------------------------------------------------------------
 // Rule definitions
 // ---------------------------------------------------------------------------
@@ -74,78 +85,67 @@ function ruleAcceptedAdrDrivesWorkflow(graph) {
 }
 
 /**
- * R2 — concluded-card-has-passed-receipt
- * Every card in stage 'conclusion' must have an 'attests' edge to a receipt
- * whose ref.result === 'passed'.
- * Skipped when no card nodes are present.
- *
- * Join: card --attests--> receipt, then check receipt node ref.result === 'passed'.
- * A concluded card WITH a passed receipt is never an offender.
+ * R2 — done-task-has-evidence-reference
+ * Every canonical task with status `done` must retain at least one factual
+ * evidence or report reference in its own task record.
+ * Skipped when no task nodes are present or none is done.
  *
  * @param {Graph} graph
  * @returns {RuleResult}
  */
-function ruleConcludedCardHasPassedReceipt(graph) {
+function ruleDoneTaskHasEvidenceReference(graph) {
   const cardNodes = nodesOfType(graph, 'card');
   if (cardNodes.length === 0) {
     return { status: 'skipped', detail: 'No card nodes in graph.', offenders: [] };
   }
-  const concludedCards = cardNodes.filter((n) => n.ref?.stage === 'conclusion');
-  if (concludedCards.length === 0) {
-    return { status: 'skipped', detail: 'No concluded card nodes found.', offenders: [] };
+  const doneTasks = cardNodes.filter((node) => node.ref?.status === 'done');
+  if (doneTasks.length === 0) {
+    return { status: 'skipped', detail: 'No done task nodes found.', offenders: [] };
   }
 
-  const receiptNodeMap = new Map(
-    (graph.nodes ?? []).filter((n) => n.type === 'receipt').map((n) => [n.id, n]),
+  const offenders = doneTasks.filter((task) =>
+    (task.ref?.evidenceRefs?.length ?? 0) === 0 && (task.ref?.reportRefs?.length ?? 0) === 0,
   );
-
-  const offenders = concludedCards.filter((card) => {
-    const attestEdges = outEdges(graph, card.id, 'attests');
-    // Must find at least one attests edge whose target receipt has result === 'passed'
-    return !attestEdges.some((edge) => {
-      const receiptNode = receiptNodeMap.get(edge.to);
-      return receiptNode?.ref?.result === 'passed';
-    });
-  });
 
   if (offenders.length === 0) {
     return {
       status: 'pass',
-      detail: `All ${concludedCards.length} concluded card(s) have a passed receipt.`,
+      detail: `All ${doneTasks.length} done task(s) retain factual evidence or report references.`,
       offenders: [],
     };
   }
   return {
     status: 'fail',
-    detail: `${offenders.length} concluded card(s) lack a passed receipt.`,
-    offenders: offenders.map((n) => n.id),
+    detail: `${offenders.length} done task(s) lack evidenceRefs/reportRefs.`,
+    offenders: offenders.map((node) => node.id),
   };
 }
 
 /**
- * R3 — active-card-traces-to-session
- * Cards with stage in { working, testing, conclusion } must have a 'workedIn' edge.
- * Skipped when no card nodes are present.
+ * R3 — task-traces-to-workflow
+ * Every workflow task must have an incoming canonical `ships` relation.
+ * Batch tasks are excluded because the lineage graph currently models workflow
+ * definitions only.
  * @param {Graph} graph
  * @returns {RuleResult}
  */
-function ruleActiveCardTracesToSession(graph) {
+function ruleTaskTracesToWorkflow(graph) {
   const cardNodes = nodesOfType(graph, 'card');
   if (cardNodes.length === 0) {
     return { status: 'skipped', detail: 'No card nodes in graph.', offenders: [] };
   }
-  const activeCards = cardNodes.filter((n) => ['working', 'testing', 'conclusion'].includes(n.ref?.stage));
-  if (activeCards.length === 0) {
-    return { status: 'skipped', detail: 'No active (working/testing/conclusion) card nodes found.', offenders: [] };
+  const workflowTasks = cardNodes.filter((node) => /^WF-\d{4}$/.test(String(node.ref?.scopeRef ?? '')));
+  if (workflowTasks.length === 0) {
+    return { status: 'skipped', detail: 'No workflow-scoped task nodes found.', offenders: [] };
   }
-  const offenders = activeCards.filter((n) => outEdges(graph, n.id, 'workedIn').length === 0);
+  const offenders = workflowTasks.filter((node) => inEdges(graph, node.id, 'ships').length === 0);
   if (offenders.length === 0) {
-    return { status: 'pass', detail: `All ${activeCards.length} active card(s) trace to a session.`, offenders: [] };
+    return { status: 'pass', detail: `All ${workflowTasks.length} workflow task(s) trace to their workflow.`, offenders: [] };
   }
   return {
     status: 'fail',
-    detail: `${offenders.length} active card(s) have no 'workedIn' edge.`,
-    offenders: offenders.map((n) => n.id),
+    detail: `${offenders.length} workflow task(s) have no incoming 'ships' edge.`,
+    offenders: offenders.map((node) => node.id),
   };
 }
 
@@ -186,15 +186,15 @@ export const DEFAULT_RULES = [
   },
   {
     id: 'R2',
-    description: 'concluded-card-has-passed-receipt',
+    description: 'done-task-has-evidence-reference',
     severity: 'warning',
-    check: ruleConcludedCardHasPassedReceipt,
+    check: ruleDoneTaskHasEvidenceReference,
   },
   {
     id: 'R3',
-    description: 'active-card-traces-to-session',
+    description: 'task-traces-to-workflow',
     severity: 'info',
-    check: ruleActiveCardTracesToSession,
+    check: ruleTaskTracesToWorkflow,
   },
   {
     id: 'R4',

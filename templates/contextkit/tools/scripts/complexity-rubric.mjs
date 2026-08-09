@@ -4,8 +4,8 @@
  *
  * Deterministic lookup over `contextkit/policy/complexity-rubric.json`: classifies
  * a task description into a CEREMONY TIER (trivial / feature / architectural) and
- * detects a REGULATED DOMAIN (lgpd / fintech / healthcare / …) that auto-routes to
- * the owning agents and forces the architectural tier. This is NOT LLM judgment —
+ * detects a REGULATED DOMAIN (lgpd / fintech / healthcare / …) that adds
+ * advisory risk context without forcing ceremony or dispatch. This is NOT LLM judgment —
  * it is a signal-table match, so `/dev-start`, `/pipeline` and `/ship` can right-size
  * the process the same way every time.
  *
@@ -35,8 +35,8 @@ const DEFAULT_RUBRIC = Object.freeze({
   },
   defaultTier: 'feature',
   domains: {
-    lgpd: { signals: ['cpf', 'dados pessoais', 'personal data', 'lgpd', 'consent', 'pii'], complexity: 'high', requiredAgents: ['privacy-lgpd', 'security'], requiredSections: ['data-inventory', 'legal-basis', 'retention', 'data-subject-rights'] },
-    general: { signals: [], complexity: 'low', requiredAgents: [], requiredSections: [] },
+    lgpd: { signals: ['cpf', 'dados pessoais', 'personal data', 'lgpd', 'consent', 'pii'], complexity: 'high', recommendedAgents: ['privacy-lgpd', 'security'], recommendedSections: ['data-inventory', 'legal-basis', 'retention', 'data-subject-rights'], shadowOnly: true },
+    general: { signals: [], complexity: 'low', recommendedAgents: [], recommendedSections: [] },
   },
 });
 
@@ -76,12 +76,12 @@ function hasAny(text, signals) {
 
 /**
  * Pure classifier. Tier precedence is architectural → feature → trivial → default
- * (higher ceremony wins on overlap — constitution §8, refuse-low by default). A
- * high-complexity domain match FORCES the architectural tier.
+ * (higher ceremony wins on overlap). Domain matches are independent advisory
+ * observations: a risk vocabulary match cannot create an ADR or workflow.
  *
  * @param {string} input task description
  * @param {object} [rubric] loaded rubric (defaults to the embedded fallback)
- * @returns {object} classification with tier, domain, requiredAgents, needsAdr…
+ * @returns {object} classification with tier, domain, recommendedAgents, needsAdr…
  */
 export function classify(input, rubric = DEFAULT_RUBRIC) {
   const text = String(input || '').toLowerCase();
@@ -106,12 +106,8 @@ export function classify(input, rubric = DEFAULT_RUBRIC) {
     (acc, m) => (COMPLEXITY_RANK[m.def.complexity] > COMPLEXITY_RANK[acc] ? m.def.complexity : acc),
     matched.length ? 'low' : (rubric.domains?.general?.complexity || 'low'),
   );
-  const requiredAgents = [...new Set(matched.flatMap((m) => m.def.requiredAgents || []))];
-  const requiredSections = [...new Set(matched.flatMap((m) => m.def.requiredSections || []))];
-
-  // A regulated (high-complexity) domain forces the architectural tier.
-  const forcedByDomain = complexity === 'high' && tier !== 'architectural';
-  if (forcedByDomain) tier = 'architectural';
+  const recommendedAgents = [...new Set(matched.flatMap((m) => m.def.recommendedAgents || []))];
+  const recommendedSections = [...new Set(matched.flatMap((m) => m.def.recommendedSections || []))];
 
   const ceremony = tiers[tier]?.ceremony || { adr: tier === 'architectural', story: tier !== 'trivial', review: 'standard' };
   const needsAdr = tier === 'architectural' || ceremony.adr === true;
@@ -123,10 +119,10 @@ export function classify(input, rubric = DEFAULT_RUBRIC) {
     domain,
     domains: matched.map((m) => m.name),
     complexity,
-    requiredAgents,
-    requiredSections,
+    recommendedAgents,
+    recommendedSections,
     needsAdr,
-    forcedByDomain,
+    domainAdvisoryOnly: domain !== 'general',
   };
 }
 
@@ -147,8 +143,8 @@ export function classifyTask(title, root = process.cwd()) {
   // returned object (the gate re-derives it; the `add` line surfaces it).
   const complexity = { trivial: 'S', feature: 'M', architectural: 'L' }[r.tier] || 'M';
   const adr = r.needsAdr ? ' · ⚠️ architectural → /new-adr first' : '';
-  const agents = r.requiredAgents.length ? ` · route: ${r.requiredAgents.map((a) => `@${a}`).join(' ')}` : '';
-  return { complexity, tier: r.tier, needsAdr: r.needsAdr, requiredAgents: r.requiredAgents, route: `${adr}${agents}` };
+  const agents = r.recommendedAgents.length ? ` · advisory: ${r.recommendedAgents.map((a) => `@${a}`).join(' ')}` : '';
+  return { complexity, tier: r.tier, needsAdr: r.needsAdr, recommendedAgents: r.recommendedAgents, route: `${adr}${agents}` };
 }
 
 /** Human-readable report. */
@@ -157,15 +153,15 @@ function formatHuman(r) {
   lines.push(`🧭 Complexity classification`);
   lines.push('─'.repeat(56));
   lines.push(`  Task        : ${r.input || '(empty)'}`);
-  lines.push(`  Tier        : ${r.tier}${r.forcedByDomain ? '  (forced by regulated domain)' : ''}`);
+  lines.push(`  Tier        : ${r.tier}`);
   lines.push(`  Ceremony    : ADR=${r.ceremony.adr ? 'yes' : 'no'} · story=${r.ceremony.story ? 'yes' : 'no'} · review=${r.ceremony.review}`);
   lines.push(`  Domain      : ${r.domain}${r.domains.length > 1 ? ` (+ ${r.domains.slice(1).join(', ')})` : ''} · complexity=${r.complexity}`);
-  if (r.requiredAgents.length) lines.push(`  Auto-route  : ${r.requiredAgents.map((a) => `@${a}`).join(', ')}`);
-  if (r.requiredSections.length) lines.push(`  Sections    : ${r.requiredSections.join(', ')}`);
+  if (r.recommendedAgents.length) lines.push(`  Advisory    : ${r.recommendedAgents.map((a) => `@${a}`).join(', ')}`);
+  if (r.recommendedSections.length) lines.push(`  Suggestions : ${r.recommendedSections.join(', ')}`);
   lines.push('');
   if (r.needsAdr) lines.push('  ⚠️  Run /new-adr BEFORE implementing (architectural tier).');
-  if (r.requiredAgents.length) lines.push(`  ⚠️  Regulated domain — bring in ${r.requiredAgents.map((a) => `@${a}`).join(' + ')} for this work.`);
-  if (!r.needsAdr && !r.requiredAgents.length) lines.push('  ✅ No special gate — proceed at the stated ceremony.');
+  if (r.recommendedAgents.length) lines.push(`  ℹ️  Regulated-domain observation only — ${r.recommendedAgents.map((a) => `@${a}`).join(' + ')} may report risk, but no agent or gate is required.`);
+  if (!r.needsAdr && !r.recommendedAgents.length) lines.push('  ✅ No special gate — proceed at the stated ceremony.');
   return lines.join('\n');
 }
 

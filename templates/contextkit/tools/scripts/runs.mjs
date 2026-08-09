@@ -16,11 +16,11 @@
  *   node contextkit/tools/scripts/runs.mjs --events <id>            # one item's transition log (ADR-0043)
  *   node contextkit/tools/scripts/runs.mjs --events <id> --follow   # tail the log, daemon-free (COMP-003)
  */
-import { listStates, readState } from '../../runtime/state/state-io.mjs';
+import { listRunStates as listStates, readRunState as readState } from '../../runtime/state/run-state-store.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 
 const ROOT = process.cwd();
-const PIPE = pathsFor(ROOT).pipeline;
+const PIPE = pathsFor(ROOT).memory;
 const DEFAULT_LIMIT = 20;
 /** Poll interval for `--follow` mode — mirrors watch.mjs (COMP-003). */
 const FOLLOW_INTERVAL_MS = 500;
@@ -176,12 +176,12 @@ function main() {
     return showEvents(eventsId);
   }
   const kindFilter = arg('kind');
-  if (kindFilter && !['task', 'pipeline-run'].includes(kindFilter)) {
-    console.error(`Invalid --kind "${kindFilter}". Use "task" or "pipeline-run".`);
+  if (kindFilter && kindFilter !== 'pipeline-run') {
+    console.error(`Invalid --kind "${kindFilter}". ContextDevKit 4 run state supports only "pipeline-run"; tasks live in pipeline/tasks.json.`);
     process.exit(1);
   }
   const limit = flag('all') ? Infinity : Number(arg('limit')) || DEFAULT_LIMIT;
-  const all = listStates(PIPE, kindFilter ? { kind: kindFilter } : {});
+  const all = listStates(PIPE);
   const truncated = Number.isFinite(limit) ? all.slice(0, limit) : all;
 
   if (flag('json')) {
@@ -194,7 +194,7 @@ function main() {
     return;
   }
 
-  const tasks = truncated.filter((s) => s.kind === 'task');
+  const tasks = [];
   const runs = truncated.filter((s) => s.kind === 'pipeline-run');
   const sections = [renderTasks(tasks), renderPipelineRuns(runs)].filter(Boolean);
   if (sections.length === 0) {

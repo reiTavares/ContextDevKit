@@ -35,7 +35,7 @@ constitution:
   library level.
 - **Cache & invalidation as explicit primitives.** Query forces `queryKey` +
   `staleTime` to be deliberate choices, not defaults. That is the same posture
-  the kit takes for ledger paths and high-risk zones: refuse by default
+  the kit takes for explicit state paths and high-risk zones: validate by default
   (rule 8), opt in to permit.
 
 ## When to pick TanStack (and when not to)

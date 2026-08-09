@@ -2,8 +2,8 @@
  * intake-proposal-store.mjs — the ONE owner of the A2 temporary intake-proposal
  * store (BIZ-0001 / WF-0036 Wave A2, ADR-0102; design §9).
  *
- * Runtime, per-task, ephemeral proposals written by the execution-contract hook
- * after intake classifies a prompt. They live under the already-transient,
+ * Runtime, per-task, ephemeral proposals written only after mutation intake has
+ * classified a request. They live under the already-transient,
  * gitignored workspace at `.claude/.workspace/intake/proposals/<taskId>.json`,
  * alongside (but never colliding with) A0's hand-curated `BIZ-0001-proposal/`.
  *

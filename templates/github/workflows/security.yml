@@ -45,8 +45,8 @@ jobs:
     # log. INERT until the `schedule:` trigger above is uncommented (ADR-0047 A4);
     # runs in the project's CI, never on the kit hot path (rule 1). Note: reading
     # Dependabot alerts with the default GITHUB_TOKEN may be denied — the script
-    # then reports nothing and exits 0 (skip, never a fake pass). To ingest into
-    # the backlog, run locally: gh-alerts.mjs --write → pipeline.mjs ingest.
+    # then reports nothing and exits 0 (skip, never a fake pass). To retain a
+    # review artifact, run locally: gh-alerts.mjs --write.
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     continue-on-error: true

@@ -1,7 +1,0 @@
-{
-  "shape": "batch-operation",
-  "operation": "{{OPERATION_KIND}}",
-  "selector": "{{SELECTOR}}",
-  "acceptance": "{{ACCEPTANCE}}",
-  "rollback": "{{ROLLBACK}}"
-}

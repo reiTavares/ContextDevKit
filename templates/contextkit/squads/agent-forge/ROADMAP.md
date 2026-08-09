@@ -103,6 +103,6 @@ A session that touches agent-forge **updates the markers here** as work moves (�
 
 - Approval + constraints: [ADR-0012](../../memory/decisions/0012-agent-forge-squad-for-portable-agent-packages.md)
 - YAML strategy: [ADR-0013](../../memory/decisions/0013-agent-forge-yaml-via-optional-dynamic-import.md)
-- Backlog: `contextkit/pipeline/backlog/032..035-*.md` · concluded: `conclusion/030-*.md` + `conclusion/031-*.md`
+- Historical delivery tasks 030–035 are complete; current work belongs in an explicitly scoped v4 task store.
 - Sessions: 17 (Fase 0 + ADRs) · 18 (Fase 1: router engine + libs + agents + /forge-new + integration round-trip)
 - Branches: `feat/agent-forge-fase0` (PR #18) · `feat/agent-forge-fase1` (current — Fase 1 complete)

@@ -4,16 +4,15 @@
  *
  * Zero-dep checks on the manifest + lockfile + installed metadata, plus an
  * OPTIONAL native audit (`npm`/`pnpm`/`yarn audit`) when the toolchain is
- * present and online. Findings are shaped to feed `pipeline.mjs ingest`
- * (kind/severity/path/message/source), so supply-chain issues flow into the
- * DevPipeline backlog like any other finding.
+ * present and online. Findings remain review artifacts; accepted work is added
+ * explicitly to one scoped canonical task store.
  *
  * Policy lives in `contextkit/config.json` → `deps` (requireLockfile, license
  * allow/deny); see runtime/config/defaults.mjs.
  *
  *   node .../deps-audit.mjs            # console summary
  *   node .../deps-audit.mjs --json     # machine-readable { findings: [...] }
- *   node .../deps-audit.mjs --write    # → contextkit/memory/deps-findings.json (for ingest)
+ *   node .../deps-audit.mjs --write    # → contextkit/memory/deps-findings.json
  *   node .../deps-audit.mjs --sbom     # → contextkit/memory/sbom.json (CycloneDX)
  *   node .../deps-audit.mjs --registry # OPT-IN network: staleness/abandonment via the npm registry (ADR-0047)
  *
@@ -230,7 +229,7 @@ async function main() {
   if (process.argv.includes('--write')) {
     writeFileSync(resolve(P.memory, 'deps-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔐 deps-audit: ${findings.length} finding(s) → contextkit/memory/deps-findings.json`);
-    console.log('   → feed the backlog:  node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deps-findings.json --type chore');
+    console.log('   → review findings, then add accepted work with pipeline.mjs add --tasks <scope> --title "..."');
     return;
   }
   if (process.argv.includes('--json')) {

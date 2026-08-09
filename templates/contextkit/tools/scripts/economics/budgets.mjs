@@ -3,9 +3,8 @@
  *
  * Advisory-only: evaluates current spend against configured budget limits and
  * produces a mode classification (observe → warn → downgrade → split → block)
- * with an actionable recommendation. Never blocks execution; surfaces the
- * `budgetExhausted` boolean that the existing autonomy resolver (ADR-0044 D3)
- * already consumes at grade 4. This module IS NOT a new enforcement gate.
+ * with an actionable recommendation. Never blocks execution; `budgetExhausted`
+ * is telemetry only. This module is not an enforcement or authorization gate.
  *
  * Responsibility split (mirrors cost-engine.mjs → token-report-cost.mjs): this
  * file is the evaluation ENGINE (evaluate → recommend → audit). The human-facing
@@ -207,9 +206,7 @@ export function evaluateBudget(spend, budget, context = {}) {
     : 'block';
   const mode = BUDGET_MODES[Math.min(modeIndex(escalatedMode), modeIndex(ceilingMode))];
 
-  // 8. Budget exhausted signal for autonomy resolver (ADR-0044 D3).
-  // 'ask' is included: spec §13.1 says ask/downgrade map to existing `suggest` semantics,
-  // so at grade 4 the resolver returns grade-2 behaviour (suggest) — never blocks an edit.
+  // 8. Budget exhausted telemetry. It never changes execution authority.
   const budgetExhausted = ['ask', 'downgrade', 'split', 'block'].includes(mode);
 
   // 9. Floor preservation for critical tasks.
@@ -239,7 +236,7 @@ export function evaluateBudget(spend, budget, context = {}) {
     }
   } else if (mode === 'downgrade') {
     recommendation =
-      'over budget — downgrade autonomy/model' +
+      'over budget — consider a cheaper approved model' +
       (floorPreserved ? '; critical task: preserve model floor' : '');
   } else if (mode === 'split') {
     recommendation =

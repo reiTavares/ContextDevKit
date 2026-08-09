@@ -45,7 +45,7 @@ async function loadDefaults() {
 
 // ── A. Missing top-level section is added + recorded in `added` ─────────────
 async function caseA(migrateConfigSections) {
-  const cfg = { level: 2, autonomy: { grade: 3 } };
+  const cfg = { level: 2, ownerLocale: 'pt-BR' };
   const defaults = Object.freeze({ routing: { mode: 'shadow', enabled: true } });
 
   const { cfg: out, added } = migrateConfigSections(cfg, defaults);
@@ -59,7 +59,7 @@ async function caseA(migrateConfigSections) {
     : bad(`A: added section value wrong: ${JSON.stringify(out.routing)}`);
 
   // Existing keys must still be present.
-  out.level === 2 && out.autonomy?.grade === 3
+  out.level === 2 && out.ownerLocale === 'pt-BR'
     ? ok('A: pre-existing top-level keys survive alongside the addition')
     : bad('A: pre-existing keys were corrupted by the addition');
 }
@@ -126,31 +126,31 @@ async function caseC(migrateConfigSections) {
 // ── D. Arrays are leaves — missing arrays copied whole; present arrays kept ──
 async function caseD(migrateConfigSections) {
   const defaults = Object.freeze({
-    ledger: {
-      important: ['src/', 'lib/'],
-      irrelevant: ['node_modules/', 'dist/'],
+    analysis: {
+      includePaths: ['src/', 'lib/'],
+      excludePaths: ['node_modules/', 'dist/'],
     },
   });
 
-  // User has ledger.important customised; ledger.irrelevant is absent.
-  const cfg = { ledger: { important: ['my-app/', 'api/'] } };
+  // User has analysis.includePaths customised; analysis.excludePaths is absent.
+  const cfg = { analysis: { includePaths: ['my-app/', 'api/'] } };
   const { cfg: out, added } = migrateConfigSections(cfg, defaults);
 
-  JSON.stringify(out.ledger.important) === JSON.stringify(['my-app/', 'api/'])
-    ? ok('D: user ledger.important array kept intact (not merged element-wise)')
-    : bad(`D: user array was mutated; got: ${JSON.stringify(out.ledger.important)}`);
+  JSON.stringify(out.analysis.includePaths) === JSON.stringify(['my-app/', 'api/'])
+    ? ok('D: user analysis.includePaths array kept intact (not merged element-wise)')
+    : bad(`D: user array was mutated; got: ${JSON.stringify(out.analysis.includePaths)}`);
 
-  JSON.stringify(out.ledger.irrelevant) === JSON.stringify(['node_modules/', 'dist/'])
-    ? ok('D: missing ledger.irrelevant array copied whole from defaults')
-    : bad(`D: missing array not copied; got: ${JSON.stringify(out.ledger.irrelevant)}`);
+  JSON.stringify(out.analysis.excludePaths) === JSON.stringify(['node_modules/', 'dist/'])
+    ? ok('D: missing analysis.excludePaths array copied whole from defaults')
+    : bad(`D: missing array not copied; got: ${JSON.stringify(out.analysis.excludePaths)}`);
 
-  added.includes('ledger.irrelevant')
-    ? ok('D: ledger.irrelevant (missing array) recorded in added[]')
-    : bad(`D: ledger.irrelevant not in added[]; got: ${JSON.stringify(added)}`);
+  added.includes('analysis.excludePaths')
+    ? ok('D: analysis.excludePaths (missing array) recorded in added[]')
+    : bad(`D: analysis.excludePaths not in added[]; got: ${JSON.stringify(added)}`);
 
-  !added.includes('ledger.important')
-    ? ok('D: ledger.important (user-provided) NOT in added[]')
-    : bad('D: ledger.important incorrectly appeared in added[]');
+  !added.includes('analysis.includePaths')
+    ? ok('D: analysis.includePaths (user-provided) NOT in added[]')
+    : bad('D: analysis.includePaths incorrectly appeared in added[]');
 }
 
 // ── E. Inputs are not mutated — original cfg and frozen defaults unchanged ───
@@ -222,7 +222,7 @@ async function caseF(migrateConfigSections) {
 // ── G. Real DEFAULT_CONFIG smoke — round-trips against shipped defaults ───────
 async function caseG(migrateConfigSections, DEFAULT_CONFIG) {
   // A minimal project config (like a newly installed L2 project).
-  const minimalCfg = { level: 2, autonomy: { grade: 3 } };
+  const minimalCfg = { level: 2 };
   const { cfg: out, added } = migrateConfigSections(minimalCfg, DEFAULT_CONFIG);
 
   added.length > 0
@@ -233,9 +233,9 @@ async function caseG(migrateConfigSections, DEFAULT_CONFIG) {
     ? ok('G: routing block is present in the migrated output')
     : bad('G: routing block missing from migrated output');
 
-  out.autonomy?.grade === 3
-    ? ok('G: user autonomy.grade=3 survives the full DEFAULT_CONFIG merge')
-    : bad(`G: user autonomy.grade was clobbered; got: ${out.autonomy?.grade}`);
+  Array.isArray(out.riskAcknowledgement?.requiredFor) && !Object.hasOwn(out, 'autonomy')
+    ? ok('G: v4 adds concrete risk acknowledgement and no autonomy dial')
+    : bad(`G: v4 risk config is wrong: ${JSON.stringify(out.riskAcknowledgement)}`);
 
   // Second pass on the real output must be a no-op.
   const { added: added2 } = migrateConfigSections(out, DEFAULT_CONFIG);

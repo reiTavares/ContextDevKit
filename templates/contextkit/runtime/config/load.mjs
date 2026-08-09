@@ -23,7 +23,7 @@ export function configPathFor(root = process.cwd()) {
 
 /**
  * Deep-merges a partial override onto a base object. Arrays REPLACE (so a
- * project can fully redefine `ledger.important`), objects merge recursively.
+ * project can fully redefine a path list), objects merge recursively.
  *
  * @param {Record<string, any>} base
  * @param {Record<string, any>} override

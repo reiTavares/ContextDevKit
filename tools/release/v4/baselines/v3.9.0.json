@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "label": "contextdevkit-v3.9.0-before-wf-0111-w14",
+  "source": {
+    "gitRef": "v3.9.0",
+    "commit": "c88b1f81e929d6ddc8ce6ae0cdd10654e38353b6",
+    "capturedAt": null,
+    "captureTimeStatus": "not-recorded"
+  },
+  "repository": {
+    "trackedFileCount": 1910,
+    "hookModuleCount": 36,
+    "commandFileCount": 84,
+    "npmScriptCount": 26
+  },
+  "package": {
+    "command": "npm pack --dry-run --json --ignore-scripts",
+    "fileCount": 1900,
+    "compressedBytes": 3771479,
+    "installedBytes": 17072837,
+    "topLevelFileCounts": {
+      "templates": 1399,
+      "tools": 413,
+      "docs": 82,
+      "root": 6
+    },
+    "knownLeakage": {
+      "templateSelftests": 61,
+      "entireDevelopmentToolsTreeIncluded": true
+    }
+  },
+  "performance": {
+    "quickSuiteMs": null,
+    "selfcheckMs": null,
+    "integrationMs": null,
+    "coldStartMs": null,
+    "mutationPreflightColdMs": null,
+    "mutationPreflightWarmP95Ms": null,
+    "status": "not-measured-in-w14-before-snapshot"
+  },
+  "notes": [
+    "Package sizes and counts are direct npm dry-run output from v3.9.0.",
+    "Timing fields were not available at capture time and intentionally remain null."
+  ]
+}

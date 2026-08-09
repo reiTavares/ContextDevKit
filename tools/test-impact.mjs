@@ -49,9 +49,9 @@ const FULL_PREFIXES = Object.freeze([
   'tools/test-impact.mjs',
 ]);
 
-/** Installer-cluster suite ids — the install/update/migrate path + its core. */
+/** Installer-cluster suite ids — the install/update path plus its core. */
 const INSTALLER_IDS = Object.freeze([
-  'integration-test', 'tooling', 'migrate', 'update-safety', 'guards', 'install-cycle',
+  'integration-test', 'tooling', 'update-safety', 'guards', 'install-cycle',
 ]);
 
 /**
@@ -97,7 +97,7 @@ function makeMapPath(suites) {
 
 /**
  * Apply the installer broadening rule: a change under `install.mjs` or
- * `tools/install/**` selects the whole installer cluster (install/update/migrate
+ * `tools/install/**` selects the whole installer cluster (install/update
  * + its core integration suite).
  * @param {string} path - normalised changed path.
  * @returns {string[]} suite ids (possibly empty).

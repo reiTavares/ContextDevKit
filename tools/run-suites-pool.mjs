@@ -43,24 +43,50 @@ export function shuffle(array, rng = Math.random) {
  * — a spawn error becomes a synthetic exit 1 so aggregation still sees it.
  * @param {{id:string,file:string,tier?:string}} suite
  * @param {string} KIT - repo root (cwd for the child).
- * @returns {Promise<{id:string,tier?:string,ms:number,exitCode:number,logBytes:number,stdout:string,stderr:string}>}
+ * @param {{timeoutMs?:number,heartbeatMs?:number}} [options] liveness controls
+ * @returns {Promise<{id:string,tier?:string,ms:number,exitCode:number,logBytes:number,stdout:string,stderr:string,timedOut:boolean,signal:string|null}>}
  */
-export function runSuiteAsync(suite, KIT) {
+export function runSuiteAsync(suite, KIT, options = {}) {
   return new Promise((resolveP) => {
     const started = Date.now();
     let stdout = '';
     let stderr = '';
-    const child = spawn(process.execPath, [resolve(KIT, suite.file)], { cwd: KIT });
+    let settled = false;
+    let timedOut = false;
+    let forceKill = null;
+    const timeoutMs = options.timeoutMs ?? 10 * 60 * 1000;
+    const heartbeatMs = options.heartbeatMs ?? 30 * 1000;
+    const child = spawn(process.execPath, [resolve(KIT, suite.file)], { cwd: KIT, windowsHide: true });
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
-    const finish = (code) => resolveP({
-      id: suite.id, tier: suite.tier, ms: Date.now() - started,
-      exitCode: code === null ? 1 : code,
-      logBytes: Buffer.byteLength(stdout, 'utf-8') + Buffer.byteLength(stderr, 'utf-8'),
-      stdout, stderr,
-    });
-    child.on('close', finish);
-    child.on('error', () => finish(1));
+    const heartbeat = setInterval(() => {
+      console.log(`  … ${suite.id} still running (${((Date.now() - started) / 1000).toFixed(0)}s)`);
+    }, heartbeatMs);
+    heartbeat.unref?.();
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      stderr += `\nSuite timed out after ${timeoutMs}ms.\n`;
+      child.kill();
+      forceKill = setTimeout(() => child.kill('SIGKILL'), 1_000);
+      forceKill.unref?.();
+    }, timeoutMs);
+    timeout.unref?.();
+    const finish = (code, signal, error) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(heartbeat);
+      clearTimeout(timeout);
+      if (forceKill) clearTimeout(forceKill);
+      if (error) stderr += `${error.message}\n`;
+      resolveP({
+        id: suite.id, tier: suite.tier, ms: Date.now() - started,
+        exitCode: timedOut ? 124 : code === null ? 1 : code,
+        logBytes: Buffer.byteLength(stdout, 'utf-8') + Buffer.byteLength(stderr, 'utf-8'),
+        stdout, stderr, timedOut, signal: signal ?? null,
+      });
+    };
+    child.on('close', (code, signal) => finish(code, signal));
+    child.on('error', (error) => finish(1, null, error));
   });
 }
 
@@ -119,7 +145,10 @@ export async function executeProbe(opts, suites, deps) {
       if (!reporter) printCompact(rec, false);
       if (rec.exitCode !== 0) { exitCode = rec.exitCode; stopped = true; }
     };
-    await runPool(order, jobs, (suite) => runSuiteAsync(suite, KIT), onResult, () => stopped);
+    await runPool(order, jobs, (suite, index) => {
+      console.log(`  ▶ ${suite.id} (${index + 1}/${order.length})`);
+      return runSuiteAsync(suite, KIT, { timeoutMs: opts.suiteTimeoutMs, heartbeatMs: opts.heartbeatMs });
+    }, onResult, () => stopped);
   }
   const totalMs = Date.now() - runStarted;
   const mode = `${baseMode}${opts.shuffle ? '+shuffle' : ''}${opts.repeat > 1 ? `+repeat${opts.repeat}` : ''}${jobs > 1 ? `+jobs${jobs}` : ''}`;

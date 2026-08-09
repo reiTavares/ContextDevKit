@@ -17,12 +17,16 @@
  *   - advisory:true on ALL outputs — this plan is NEVER a gate; it only nudges.
  *
  * UNREGISTERED (Phase 1): not wired into any hook or gate; wiring is deferred.
+ * When a caller supplies `opts.root`, the advisory loop evaluation emits one
+ * lifecycle observation through the canonical economy telemetry seam.
  *
  * Zero runtime dependencies — node:* only (relative imports within economy/).
  *
  * Cohesion note (constitution §1): one concern (dispatch planning). Dependencies
- * on context-profiles and loop-breaker are explicit imports; no side-effects.
+ * on context-profiles, loop-breaker, and telemetry are explicit imports.
  */
+
+import { emitEconomy } from './telemetry-emit.mjs';
 
 // ---------------------------------------------------------------------------
 // Schema version
@@ -94,7 +98,7 @@ async function loadLoopBreakerSignal() {
  *
  * All other errors are swallowed (fail-open); a partial plan is always returned.
  *
- * @param {{ history?: unknown[] }} [opts={}]
+ * @param {{ history?: unknown[], root?: string, now?: number }} [opts={}]
  * @param {{ economy?: { enabled?: boolean } }} [cfg={}]
  * @returns {Promise<Readonly<DispatchPlan>>}
  */
@@ -126,6 +130,14 @@ export async function buildDispatchPlan(opts = {}, cfg = {}) {
     loopBreak = {
       loopBreaker: { detected: false, kind: null, count: 0, suggestion: 'No loop detected.', escalate: false },
     };
+  }
+  if (typeof opts.root === 'string' && opts.root.trim() !== '') {
+    emitEconomy(opts.root, 'loop-breaker', {
+      category: 'advisory',
+      action: 'fired',
+      measurement: 'none',
+      note: loopBreak.loopBreaker?.detected ? loopBreak.loopBreaker.kind : 'no-loop',
+    }, { now: opts.now });
   }
 
   return Object.freeze({

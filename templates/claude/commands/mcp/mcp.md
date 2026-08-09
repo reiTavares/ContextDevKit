@@ -1,6 +1,6 @@
 ---
 description: Manage Model Context Protocol (MCP) servers — discover, add (curated), health-check, audit, and sync host configs from the curated registry.
-argument-hint: [discover|add|profile|doctor|audit|sync|disable|receipt] [args]
+argument-hint: [discover|add|profile|doctor|audit|sync|disable] [args]
 ---
 
 Drive the MCP integration layer through its single dispatcher. Business logic
@@ -31,7 +31,6 @@ node contextkit/tools/scripts/mcp.mjs <subcommand> [options]
   (Claude / Codex / Cursor / Antigravity / Grok renderers). Marker-idempotent
   (ADR-0067): re-running is a no-op when nothing changed.
 - **`disable <id>`** — disable an enabled server.
-- **`receipt [--write]`** — write (or dry-run) an MCP execution receipt.
   Dry-run by default; `--write` performs an atomic apply.
 
 ## How to respond

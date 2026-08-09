@@ -3,7 +3,7 @@
  *
  * Owns the deeper *behavioural* checks that exercise live engine modules:
  *   - boot-context-readers (Unreleased extraction + session tie-break)
- *   - safe-io atomic primitives + sid sanitization + safe JSON read
+ *   - safe-io atomic primitives + safe JSON read
  *   - shared squad detection used by /squad + /tune-agents
  *
  * Split out of the legacy `selfcheck-checks.mjs` (ADR-0016 H1 / task 037 —
@@ -73,12 +73,12 @@ async function checkBootReaders(rep, boot) {
 }
 
 /**
- * Atomic writes round-trip + leave no temp residue; sid sanitization
- * neutralizes traversal; shared JSON read/parse work. Guards 008/011/012/027.
+ * Atomic writes round-trip and leave no temp residue; shared JSON read/parse
+ * work. Session identifiers are no longer persisted by a hot-path ledger.
  */
-async function checkConcurrencySafety(rep, safeio, ledger) {
+async function checkConcurrencySafety(rep, safeio) {
   const { ok, bad } = rep;
-  console.log('Checking atomic I/O + sid sanitization...');
+  console.log('Checking atomic I/O...');
   if (safeio?.writeFileAtomicSync && safeio?.writeFileAtomic) {
     const tmp = mkdtempSync(join(tmpdir(), 'contextkit-io-'));
     try {
@@ -92,10 +92,6 @@ async function checkConcurrencySafety(rep, safeio, ledger) {
       rmSync(tmp, { recursive: true, force: true });
     }
   } else bad('safe-io atomic writers not exported');
-  if (ledger?.sanitizeSid) {
-    const dirty = ledger.sanitizeSid('../../etc/passwd');
-    !dirty.includes('/') && !dirty.includes('.') ? ok('sanitizeSid neutralizes path traversal') : bad(`sanitizeSid leaked separators: ${dirty}`);
-  } else bad('ledger.sanitizeSid not exported');
   if (safeio?.readJsonSafe && safeio?.parseJsonSafe) {
     safeio.parseJsonSafe('{"a":1}')?.a === 1 && safeio.parseJsonSafe('not json', 'fb') === 'fb'
       ? ok('parseJsonSafe parses + falls back') : bad('parseJsonSafe wrong');
@@ -130,6 +126,6 @@ async function checkSquadMeta(rep, KIT) {
 /** Runs every runtime/behavior check in order. `ctx` = { KIT, mods }. */
 export async function runRuntimeChecks(rep, { KIT, mods }) {
   await checkBootReaders(rep, mods['hooks/boot-context-readers.mjs']);
-  await checkConcurrencySafety(rep, mods['hooks/safe-io.mjs'], mods['hooks/ledger.mjs']);
+  await checkConcurrencySafety(rep, mods['hooks/safe-io.mjs']);
   await checkSquadMeta(rep, KIT);
 }

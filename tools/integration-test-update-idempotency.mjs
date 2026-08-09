@@ -12,10 +12,9 @@
  *   - No duplicate project-map churn / no duplicate receipts (P0-10).
  *   - Second update exits 0 with no errors.
  *
- * NOTE: a fresh temp project has NO session ledger files so it always
+ * NOTE: a fresh temp project has NO active workspace claims so it always
  * proceeds without --allow-active-sessions.  The test verifies that
- * assumption at runtime and adds the flag if the installer defers anyway
- * (guard for future ledger-seeding changes).
+ * assumption at runtime and adds the flag if the installer defers anyway.
  */
 import {
   mkdtempSync,
@@ -57,7 +56,7 @@ function install(proj, extra = []) {
 /**
  * Runs --update against `proj`.  Falls back to --allow-active-sessions
  * when the first attempt defers, so the test still exercises the idempotency
- * assertions even if a ledger was unexpectedly seeded.
+ * assertions even if an active claim was unexpectedly seeded.
  * @param {string} proj
  * @returns {{ result: object, usedOverride: boolean }}
  */
@@ -93,21 +92,27 @@ try {
     ? rep.ok('fresh install exits 0')
     : rep.bad(`fresh install failed (${inst.status}): ${inst.stderr}`);
 
-  // Confirm no session ledger files were seeded (fresh project assumption).
-  const sessionsDir = join(proj, '.claude', '.sessions');
-  const ledgerCount = existsSync(sessionsDir)
-    ? readdirSync(sessionsDir).filter((f) => f.endsWith('.json')).length
+  const obsoleteEnginePath = join(proj, 'contextkit', 'runtime', 'hooks', 'removed-v3-hook.mjs');
+  writeFileSync(obsoleteEnginePath, 'export const legacy = true;\n');
+
+  // Confirm no active workspace records were seeded (fresh project assumption).
+  const workspaceDir = join(proj, '.claude', '.workspace');
+  const workspaceCount = existsSync(workspaceDir)
+    ? readdirSync(workspaceDir).filter((f) => f.endsWith('.json')).length
     : 0;
-  ledgerCount === 0
-    ? rep.ok('fresh project has no active-session ledger (no override needed)')
-    : rep.bad(`unexpected ledger(s) seeded on fresh install (${ledgerCount} file(s))`);
+  workspaceCount === 0
+    ? rep.ok('fresh project has no active workspace claim (no override needed)')
+    : rep.bad(`unexpected workspace record(s) seeded on fresh install (${workspaceCount} file(s))`);
 
   // 2. First --update
   const { result: up1, usedOverride: override1 } = runUpdate(proj);
-  if (override1) rep.bad('update 1 deferred (unexpected active-session ledger) — used --allow-active-sessions override');
+  if (override1) rep.bad('update 1 deferred (unexpected active workspace claim) — used --allow-active-sessions override');
   up1.status === 0
     ? rep.ok('update 1 exits 0')
     : rep.bad(`update 1 failed (${up1.status}): ${up1.stderr}`);
+  !existsSync(obsoleteEnginePath)
+    ? rep.ok('update removes obsolete kit-owned runtime files')
+    : rep.bad('obsolete kit-owned runtime file survived update');
 
   // P0-06: .engine-version present and correct after update 1
   const evPath = join(proj, 'contextkit', '.engine-version');
@@ -128,7 +133,7 @@ try {
 
   // 3. Second --update (the idempotency run)
   const { result: up2, usedOverride: override2 } = runUpdate(proj);
-  if (override2) rep.bad('update 2 deferred (unexpected active-session ledger) — used override');
+  if (override2) rep.bad('update 2 deferred (unexpected active workspace claim) — used override');
   up2.status === 0
     ? rep.ok('update 2 exits 0')
     : rep.bad(`update 2 failed (${up2.status}): ${up2.stderr}`);

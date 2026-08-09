@@ -1,7 +1,7 @@
 /**
  * Boot signal — project-map health (ADR-0046). Split out of `boot-signals.mjs`
- * to keep that file under the line budget; re-exported there so consumers
- * (`session-start.mjs`) keep importing `projectMapStale` from one place.
+ * to keep that file focused; re-exported there so session-context loaders keep
+ * importing `projectMapStale` from one place.
  *
  * Surfaces, from the committed `manifest.json`, what the script already computed
  * (0 tokens here): architectural-rule VIOLATIONS, dependency CYCLES, and a

@@ -1,94 +1,74 @@
-# Workflow Guide
+# Workflow guide
 
-How to use the wave engine end-to-end. See the [README](./README.md) for
-terminology and the [CLI reference](./cli-reference.md) for exact flags.
+Use a workflow only when the work has strong dependencies, waves, required
+ordering, multiple sessions, cutover, rollback, or an explicit owner request.
+One to three cohesive tasks are normally direct; four to twelve related tasks
+without strong ordering are normally batch.
 
-## When to use which profile
+## Create
 
-Pick the smallest profile that fits — the engine never forces a full program
-pack onto a one-wave change. Defaults are defaults, not hard limits.
-
-| Situation | Profile | Why |
-| --- | --- | --- |
-| Trivial chore / typo / config tweak | `pipeline-only` | **No pack** — a single DevPipeline card covers it. No waves, no JSON. |
-| A relevant bug or a small, cohesive feature | `basic` | 1 wave (`single-delivery`). Keep small work small. |
-| A non-trivial feature or a localized architecture change | `standard` | 3–4 waves (`discovery-build-validate`, W0–W3). |
-| Cross-cutting architecture with several integrations | `advanced` | 5–7 waves (`architecture-foundation-integration`). |
-| Multi-week, multi-session, parallel swarms over a DAG | `program` | Arbitrary DAG of waves/tasks/gates (`large-program`). |
-
-Full per-profile files and gates: [profile-guide.md](./profile-guide.md).
-
-## Creating a workflow
-
-The legacy journey-only workflow is still the default — `workflow new <slug>`
-creates an ADR-0057 pack and prints `Next phase: intake`. To opt into the wave
-engine, pass `--profile`:
-
-```
-workflow new <slug> --profile <profile> [--pattern <pattern>] [--addon <a>]... [--plan <file>]
+```bash
+node contextkit/tools/scripts/workflow.mjs new <slug> \
+  --title "..." --objective "..." \
+  [--operation OP-#### | --business BIZ-####] \
+  [--profile <name>] [--pattern <name>] [--continuation]
 ```
 
-- `--profile` (required to get a wave pack) — one of the five profiles.
-- `--pattern` — overrides the profile's default pattern (seeds the wave
-  skeleton, default dependencies, default gates). Omit to use the default.
-- `--addon` — repeatable; each add-on adds required files, validations, gates.
-- `--plan` — supply a hand-authored `workflow-plan.json` (the `program` path).
+Owner is optional. Absence means neutral/`none`; the command never invents an
+Operation. Profile/pattern may seed wave topology but cannot change storage
+authority or create mandatory agent/gate contracts.
 
-What creation writes: `index.md`, the profile's required human/seed files,
-`reports/`, and `workflow-plan.json`. **`workflow-state.json` is NOT created at
-this point — state is born on first execution** (e.g. the first
-`record-agent-result`). An existing target folder is never clobbered.
+The command returns only after the complete package validates. Required files
+are never promised for later creation.
 
-## Journey vs. waves — two orthogonal axes
+## Author intent
 
-These answer different questions and never replace each other:
+Edit the human-authored documents:
 
-- **Journey** (governance phase) — `intake → prd → spec → adr → roadmap →
-  pipeline → ship → testing → conclusion` (ADR-0057, unchanged). It answers
-  *"which governance phase is this workflow in?"* The authority is `index.md`
-  frontmatter + the journey gate (ADR-0071). Driven by `advance` / `check`.
-  `workflow-plan.json` carries a `journey.currentPhase` mirror for machine
-  reads, but `index.md` remains canonical.
-- **Waves** (execution topology) — answer *"how is the approved work
-  executed?"* Driven by the wave verbs (`next-run`, `record-agent-result`,
-  `check-gate`, `approve-gate`, `close-wave`, `refresh`).
+- `prd.md` for problem, goals, users, non-goals, and measures;
+- `spec.md` for design, interfaces, impact, sequence, and tests;
+- `decisions.md` for accepted ADR references.
 
-No phase is added, removed, or reordered by the wave engine.
+Edit topology and stable workflow fields in `workflow.json` through a validated
+writer. Edit tasks and statuses only through the canonical task store/CLI.
+Never hand-edit `index.md` or `pipeline/tasks.md`.
 
-## Source-of-truth matrix
+## Load before mutation
 
-No factual execution state may have multiple hand-maintained sources. JSON is
-the machine contract; Markdown is the human interface; generated Markdown is a
-**projection** wrapped in idempotent managed blocks (hand-written content
-outside the block is always preserved).
+```bash
+node contextkit/tools/scripts/workflow.mjs load <WF-ref>
+```
 
-| Information | Canonical source | Authorship |
-| --- | --- | --- |
-| Problem & value | `prd.md` | human |
-| Technical design & contracts | `spec.md` | human |
-| Local implementation decisions | `decisions.md` | human |
-| **Execution topology** | `workflow-plan.json` | machine contract (human-seeded) |
-| **Actual execution state** | `workflow-state.json` | machine-owned (never hand-edited) |
-| Human task view | generated block in `tasks.md` | **projection** of plan + state |
-| Agent / gate / wave results | `reports/{agents,gates,waves}/*.json` | machine |
-| Human evidence narrative | `reports/**/*.md` | human |
-| Cross-wave acceptance | `acceptance-matrix.md` | human |
-| Risks & mitigations | `risk-register.md` | human |
-| Activation & reversibility | `rollout-plan.md` | human |
-| Session continuation | generated `CONTINUATION-PROMPT.md` | **projection** |
+The loader validates the pack and returns authored documents, state, tasks,
+manifest, and reports. Hosts use this same loader at start/resume and before the
+first write.
 
-The full matrix is ADR-0101 §3; the per-file rules are in
-[file-catalog-guide.md](./file-catalog-guide.md).
+## Validate and render
 
-## A typical wave loop
+```bash
+node contextkit/tools/scripts/workflow.mjs validate <WF-ref>
+node contextkit/tools/scripts/workflow.mjs render <WF-ref>
+```
 
-1. Author tasks + ownership in `workflow-plan.json` for the ready wave.
-2. `workflow next-run <slug>` — read the dispatch plan (ready waves, runs, slot
-   assignments, deferred tasks, ownership conflicts, human actions).
-3. `workflow ownership-check <slug>` — confirm no two tasks write one file.
-4. Execute the tasks (orchestrator/human), then `record-agent-result` per task.
-5. `workflow check-gate <slug> <gate>` — and `approve-gate` for a human gate.
-6. `workflow close-wave <slug> <wave> --apply` once tasks are done and the gate
-   passes.
-7. `workflow refresh <slug>` — regenerate `tasks.md`, `index.md` status, and
-   `CONTINUATION-PROMPT.md` projections.
+Validation checks required paths, schemas, references, single authority, and
+renderability. Rendering is idempotent and changes projections only.
+
+## Advance
+
+```bash
+node contextkit/tools/scripts/workflow.mjs advance <WF-ref> --ref <report-ref>
+```
+
+The aggregate state revision increments by exactly one. Task status is not
+copied into workflow state.
+
+## Repair
+
+```bash
+node contextkit/tools/scripts/workflow.mjs repair-scaffold <WF-ref>
+node contextkit/tools/scripts/workflow.mjs repair-scaffold <WF-ref> --write
+```
+
+Repair is dry-run first, stages a complete v2 pack, validates, swaps, and rolls
+back on failure. It refuses a directory without `workflow.json`; use the
+offline 3.x migrator for v1 data.

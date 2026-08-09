@@ -12,7 +12,7 @@
  *
  * Each sibling installs its own fixture — the cost is one extra install;
  * the benefit is a focused, under-budget file per subsystem. Mirrors the
- * ADR-0016 H1 split that produced `integration-test-tooling-pipeline.mjs`.
+ * the focused tooling-suite pattern without sharing mutable fixtures.
  *
  * Run:  node tools/integration-test-tooling-agent-forge.mjs   (exit 0 = healthy)
  */

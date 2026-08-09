@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09T02:19:09.927Z",
+  "timeoutMs": 5000,
+  "scenarioCount": 6,
+  "scenarios": [
+    {
+      "name": "boot",
+      "entrypoint": "templates/contextkit/runtime/hooks/session-start.mjs",
+      "status": "refuse",
+      "error": null,
+      "loaded": [
+        "templates/contextkit/runtime/config/defaults-arch-debt.mjs",
+        "templates/contextkit/runtime/config/defaults-eacp.mjs",
+        "templates/contextkit/runtime/config/defaults-economy.mjs",
+        "templates/contextkit/runtime/config/defaults-ledger.mjs",
+        "templates/contextkit/runtime/config/defaults-orchestration.mjs",
+        "templates/contextkit/runtime/config/defaults-routing.mjs",
+        "templates/contextkit/runtime/config/defaults.mjs",
+        "templates/contextkit/runtime/config/levels.mjs",
+        "templates/contextkit/runtime/config/load.mjs",
+        "templates/contextkit/runtime/config/paths.mjs",
+        "templates/contextkit/runtime/config/resolve-autonomy.mjs",
+        "templates/contextkit/runtime/devteam/policy-load.mjs",
+        "templates/contextkit/runtime/domain-artifacts/policy-load.mjs",
+        "templates/contextkit/runtime/domain-engineering/config.mjs",
+        "templates/contextkit/runtime/domain-engineering/policy-load.mjs",
+        "templates/contextkit/runtime/domain-engineering/readiness.mjs",
+        "templates/contextkit/runtime/execution/bypass-store.mjs",
+        "templates/contextkit/runtime/execution/enforcement-modes.mjs",
+        "templates/contextkit/runtime/execution/receipt-store.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+        "templates/contextkit/runtime/hooks/boot-banner.mjs",
+        "templates/contextkit/runtime/hooks/boot-context-readers.mjs",
+        "templates/contextkit/runtime/hooks/boot-signals-projmap.mjs",
+        "templates/contextkit/runtime/hooks/boot-signals.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs",
+        "templates/contextkit/runtime/hooks/ledger.mjs",
+        "templates/contextkit/runtime/hooks/md-extract.mjs",
+        "templates/contextkit/runtime/hooks/path-classification.mjs",
+        "templates/contextkit/runtime/hooks/safe-io.mjs",
+        "templates/contextkit/runtime/hooks/session-digest-core.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/hooks/squad-context.mjs",
+        "templates/contextkit/runtime/state/state-io.mjs",
+        "templates/contextkit/tools/scripts/economy/boot-delta-gate.mjs",
+        "templates/contextkit/tools/scripts/economy/boot-delta.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-defaults.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-events.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-governance-core.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-governance.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-savings.mjs",
+        "templates/contextkit/tools/scripts/economy/economy-session-activation.mjs",
+        "templates/contextkit/tools/scripts/economy/registry.mjs",
+        "templates/contextkit/tools/scripts/economy/telemetry-emit.mjs",
+        "templates/contextkit/tools/scripts/routing/routing-config.mjs"
+      ],
+      "legacyLoaded": [
+        "templates/contextkit/runtime/config/resolve-autonomy.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs",
+        "templates/contextkit/runtime/hooks/ledger.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/state/state-io.mjs"
+      ],
+      "symlinks": [],
+      "elapsedSignal": null
+    },
+    {
+      "name": "no-op",
+      "entrypoint": "templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs",
+      "status": "refuse",
+      "error": "missing or symbolic-link entrypoint",
+      "loaded": [],
+      "legacyLoaded": []
+    },
+    {
+      "name": "direct",
+      "entrypoint": "templates/contextkit/runtime/hooks/governance-write-preflight.mjs",
+      "status": "refuse",
+      "error": "missing or symbolic-link entrypoint",
+      "loaded": [],
+      "legacyLoaded": []
+    },
+    {
+      "name": "batch",
+      "entrypoint": "templates/contextkit/runtime/hooks/governance-write-preflight.mjs",
+      "status": "refuse",
+      "error": "missing or symbolic-link entrypoint",
+      "loaded": [],
+      "legacyLoaded": []
+    },
+    {
+      "name": "workflow",
+      "entrypoint": "templates/contextkit/runtime/hooks/governance-write-preflight.mjs",
+      "status": "refuse",
+      "error": "missing or symbolic-link entrypoint",
+      "loaded": [],
+      "legacyLoaded": []
+    },
+    {
+      "name": "completion",
+      "entrypoint": "templates/contextkit/runtime/hooks/governance-completion.mjs",
+      "status": "refuse",
+      "error": "missing or symbolic-link entrypoint",
+      "loaded": [],
+      "legacyLoaded": []
+    }
+  ],
+  "verdict": "refuse"
+}

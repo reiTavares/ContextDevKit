@@ -1,199 +1,112 @@
 #!/usr/bin/env node
-/**
- * ContextDevKit integration test — SWARM coordinator engine (ADR-0051).
- *
- * Covers the contracts the ADR locks: planner determinism + refusals (rule 8),
- * test-home expansion (the P0 baseline finding), disjoint partition + caps,
- * manifest atomicity + append-only history, eviction via staleness, the
- * budget-park status path, the `swarm-dispatch` consent area, and the `by`
- * attribution field on state.json events.
- *
- * Run:  node tools/integration-test-swarm.mjs   (exit 0 = healthy)
- */
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+/** Acceptance coverage for the optional v4 swarm planner and result report. */
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { reporter } from './it-helpers.mjs';
-import { checkEligibility } from '../templates/contextkit/runtime/config/autonomy-eligibility.mjs';
-import { resolveAutonomy } from '../templates/contextkit/runtime/config/resolve-autonomy.mjs';
-import { appendEvent } from '../templates/contextkit/runtime/state/state-io.mjs';
-import { deriveTouchSet, expandWithTestHomes, planSwarm, HARD_MAX_WORKSTREAMS } from '../templates/contextkit/tools/scripts/swarm-plan.mjs';
-import { byDispatch, byModel, createRun, evictStale, listRuns, manifestPath, readRun, renderReport, updateWorkstream, WS_STATUSES } from '../templates/contextkit/tools/scripts/swarm-state.mjs';
-import { aliasForTier } from '../templates/contextkit/tools/scripts/model-policy.mjs';
+import {
+  deriveTouchSet,
+  expandWithTestHomes,
+  planSwarm,
+  rankCandidates,
+} from '../templates/contextkit/tools/scripts/swarm-plan.mjs';
+import {
+  WS_STATUSES,
+  byDispatch,
+  byModel,
+  createRun,
+  evictStale,
+  listRuns,
+  manifestPath,
+  readRun,
+  renderReport,
+  runTokens,
+  updateWorkstream,
+} from '../templates/contextkit/tools/scripts/swarm-state.mjs';
 
-const rep = reporter();
-const { ok, bad } = rep;
-console.log('\n🌀 ContextDevKit integration test — swarm coordinator (ADR-0051)\n');
+let checks = 0;
+const check = (condition, message) => {
+  assert.ok(condition, message);
+  checks += 1;
+  console.log(`  ok ${checks} - ${message}`);
+};
 
-const root = mkdtempSync(join(tmpdir(), 'ckit-swarm-'));
+const hinted = { id: 'T-001', title: 'Runtime change', touchHints: ['templates\\contextkit\\runtime\\x.mjs'] };
+check(
+  JSON.stringify(deriveTouchSet(hinted)) === JSON.stringify(['templates/contextkit/runtime/x.mjs']),
+  'canonical touchHints are normalized without frontmatter parsing',
+);
+check(
+  deriveTouchSet({ id: 'T-002', title: 'Change unique.mjs' }, ['src/unique.mjs']).includes('src/unique.mjs'),
+  'unambiguous title inference remains optional',
+);
+check(
+  deriveTouchSet({ id: 'T-003', title: 'No hint' }, [], [{ taskId: 'T-003', coveredPaths: ['src/a.mjs'] }])[0] === 'src/a.mjs',
+  'simulation observations can enrich conflict prediction',
+);
+check(
+  expandWithTestHomes(['templates/contextkit/runtime/x.mjs']).includes('tools/selfcheck-gates.mjs'),
+  'shared test homes expand the advisory conflict set',
+);
+check(
+  rankCandidates([{ id: 'T-2', priority: 'P4' }, { id: 'T-1', priority: 'P0' }])[0].id === 'T-1',
+  'ranking uses only canonical priority and id',
+);
 
+const tasks = [
+  { id: 'T-000', title: 'Dependency', status: 'done', priority: 'P1', dependsOn: [], touchHints: [] },
+  { id: 'T-001', title: 'First', status: 'backlog', priority: 'P1', dependsOn: [], touchHints: ['src/a.mjs'] },
+  { id: 'T-002', title: 'Second', status: 'backlog', priority: 'P2', dependsOn: ['T-000'], touchHints: ['src/b.mjs'] },
+  { id: 'T-003', title: 'Waiting', status: 'backlog', priority: 'P0', dependsOn: ['T-999'], touchHints: ['src/c.mjs'] },
+  { id: 'T-004', title: 'Already running', status: 'working', priority: 'P0', dependsOn: [], touchHints: ['src/d.mjs'] },
+  { id: 'T-005', title: 'Unknown touch', status: 'backlog', priority: 'P4', dependsOn: [], touchHints: [] },
+];
+const plan = planSwarm({ runId: 'swarm-v4', tasks, repoName: 'kit' });
+check(plan.workstreams.map((entry) => entry.taskId).join(',') === 'T-001,T-002,T-005', 'only ready canonical backlog tasks are planned');
+check(plan.deferred.includes('T-003'), 'unfinished dependencies defer a task');
+check(plan.workstreams.find((entry) => entry.taskId === 'T-005').warnings.includes('conflict-prediction-unavailable'), 'missing touch hints warn but do not deny planning');
+check(plan.workstreams.every((entry) => !('tierHint' in entry) && !('model' in entry) && !('effort' in entry)), 'plan carries no binding route or model receipt');
+check(!('refused' in plan), 'planner does not manufacture a refusal authority');
+
+const overlap = planSwarm({
+  runId: 'overlap',
+  tasks: [
+    { id: 'T-010', title: 'A', status: 'backlog', priority: 'P1', dependsOn: [], touchHints: ['src/shared.mjs'] },
+    { id: 'T-011', title: 'B', status: 'backlog', priority: 'P2', dependsOn: [], touchHints: ['src/shared.mjs'] },
+  ],
+});
+check(overlap.workstreams.length === 1 && overlap.deferred[0] === 'T-011', 'known writer overlap stays sequential');
+check(planSwarm({ runId: 'limit', tasks, hostTechnicalLimit: 1 }).workstreams.length === 1, 'only a real host limit caps concurrency');
+
+const root = mkdtempSync(join(tmpdir(), 'contextdevkit-swarm-v4-'));
 try {
-  // ── swarm-plan: pure planner ─────────────────────────────────────────────
-  const repoFiles = ['templates/ctx.mjs', 'templates/INSTRUCTIONS.md.tpl', 'src/auth/login.mjs', 'src/auth/token.mjs', 'docs/guide.md'];
-  const tasks = [
-    { id: '1', stage: 'backlog', priority: 'P1', type: 'bug', title: 'fix replacement patterns in ctx.mjs output', taskKind: 'search', complexity: 'S', risk: 'low' },
-    { id: '2', stage: 'backlog', priority: 'P2', type: 'chore', title: 'INSTRUCTIONS.md.tpl stale facts' },
-    { id: '3', stage: 'backlog', priority: 'P2', type: 'feature', title: 'something with no path tokens at all' },
-    { id: '4', stage: 'backlog', priority: 'P3', type: 'chore', title: 'rotate keys', paths: '[config/.env.prod]' },
-    { id: '5', stage: 'backlog', priority: 'P0', type: 'bug', title: 'auth bug', paths: '[src/auth/]' },
-    { id: '6', stage: 'working', priority: 'P0', type: 'bug', title: 'already working — not a candidate', paths: '[docs/guide.md]' },
-  ];
-  const input = { runId: 'run-a', tasks, repoFiles, config: { swarm: { maxWorkstreams: 3 } } };
-  const planA = planSwarm(input);
-  const planB = planSwarm(input);
-  JSON.stringify(planA) === JSON.stringify(planB)
-    ? ok('planner is deterministic (same inputs → byte-identical plan)') : bad('planner output differs across identical calls');
+  const report = createRun(root, plan, { now: 1_000 });
+  check(report.schemaVersion === 1 && report.workstreams.every((entry) => entry.status === 'planned'), 'explicit create writes an optional report');
+  check(manifestPath(root, plan.runId).includes(join('contextkit', 'memory', 'reports', 'swarm')), 'report path is host-neutral project memory');
+  check(!manifestPath(root, plan.runId).includes('.claude'), 'report does not create host-specific authority');
+  check(!('configSnapshot' in report) && !('history' in report.workstreams[0]) && !('ruleId' in report.workstreams[0]), 'report omits retired authority and ledger fields');
+  assert.throws(() => createRun(root, plan), /already exists/);
+  checks += 1;
+  console.log(`  ok ${checks} - duplicate run ids are refused atomically`);
 
-  const accepted = planA.workstreams.map((ws) => ws.taskId);
-  accepted.includes('5') && accepted.includes('1') && accepted.includes('2')
-    ? ok('planner accepts disjoint candidates ranked by priority') : bad(`unexpected acceptance set: ${accepted.join(',')}`);
-  const routedPlan = planA.workstreams.find((ws) => ws.taskId === '1');
-  routedPlan?.taskKind === 'search' && routedPlan?.complexity === 'S' && routedPlan?.risk === 'low'
-    ? ok('planner carries explicit task kind/complexity/risk routing context') : bad(`planner routing context missing: ${JSON.stringify(routedPlan)}`);
-  !accepted.includes('6')
-    ? ok('non-backlog tasks are never candidates') : bad('planner picked a task already in working/');
-  planA.refused.some((r) => r.taskId === '3' && /no derivable touch-set/.test(r.reason))
-    ? ok('no derivable touch-set → refused with the fix named (rule 8)') : bad(`task 3 not refused: ${JSON.stringify(planA.refused)}`);
-  planA.refused.some((r) => r.taskId === '4' && /secret/.test(r.reason))
-    ? ok('secret-path touch-set → refused (floor)') : bad('secret-path task was not refused');
+  updateWorkstream(root, plan.runId, 'ws-T-001', { status: 'running', now: 2_000 });
+  updateWorkstream(root, plan.runId, 'ws-T-002', { status: 'completed', model: 'observed-model', effort: 'observed-effort', tokens: 12, now: 2_100 });
+  const updated = readRun(root, plan.runId);
+  check(updated.workstreams.find((entry) => entry.id === 'ws-T-002').status === 'completed', 'explicit report updates do not mutate task authority');
+  check(runTokens(updated) === 12 && byModel(updated).some((entry) => entry.model === 'observed-model'), 'optional cost observations aggregate when supplied');
+  check(byDispatch(updated).some((entry) => entry.effort === 'observed-effort'), 'optional effort observation is report-only');
+  assert.throws(() => updateWorkstream(root, plan.runId, 'ws-T-001', { status: 'parked-testing' }), /invalid status/);
+  checks += 1;
+  console.log(`  ok ${checks} - physical-lane workstream status is rejected`);
+  check(evictStale(root, plan.runId, 1, { now: 100_000 }).includes('ws-T-001'), 'stale optional report is marked failed without cleanup');
+  check(listRuns(root).length === 1, 'host-neutral reports are listable');
+  check(renderReport(readRun(root, plan.runId)).includes('Swarm report swarm-v4'), 'human report renders current observations');
+  check(WS_STATUSES.join('|') === 'planned|running|completed|failed|cancelled', 'workstream status vocabulary is small and lane-free');
 
-  // P0 finding: ctx.mjs expands into its shared test homes.
-  const expanded = expandWithTestHomes(['templates/ctx.mjs']);
-  expanded.includes('tools/integration-test-antigravity.mjs') && expanded.includes('tools/selfcheck-source-cases-recent.mjs')
-    ? ok('touch-set expands with test-file homes (P0 baseline finding)') : bad(`test homes missing: ${expanded.join(',')}`);
-
-  // Conflict partition: two tasks sharing a test home never run together
-  // (ctx.mjs and the antigravity tree both land in integration-test-antigravity.mjs).
-  const clash = planSwarm({ runId: 'run-b', repoFiles, config: {}, tasks: [
-    { id: '7', stage: 'backlog', priority: 'P1', type: 'bug', title: 'a', paths: '[templates/ctx.mjs]' },
-    { id: '8', stage: 'backlog', priority: 'P2', type: 'bug', title: 'b', paths: '[templates/antigravity/skills/x.md]' },
-  ] });
-  clash.workstreams.length === 1 && clash.deferred.includes('8')
-    ? ok('overlapping expanded touch-sets → younger candidate deferred, never parallel') : bad(`expected a deferral: ${JSON.stringify(clash)}`);
-
-  // l5 high-risk without a receipt → refused; with a receipt → accepted.
-  const riskyTask = [{ id: '9', stage: 'backlog', priority: 'P1', type: 'chore', title: 'hook tweak', paths: '[contextkit/runtime/hooks/x.mjs]' }];
-  const riskyCfg = { l5: { highRiskPaths: ['contextkit/runtime/hooks/'] } };
-  planSwarm({ runId: 'run-c', tasks: riskyTask, repoFiles, config: riskyCfg }).refused.some((r) => r.taskId === '9' && /simulate-impact/.test(r.reason))
-    ? ok('l5 high-risk without receipt → refused, names the unlock') : bad('high-risk task not gated');
-  planSwarm({ runId: 'run-d', tasks: riskyTask, repoFiles, config: riskyCfg, simulations: [{ taskId: '9', coveredPaths: ['contextkit/runtime/hooks/x.mjs'] }] }).workstreams.length === 1
-    ? ok('l5 high-risk WITH a /simulate-impact receipt → accepted') : bad('receipt did not unlock the high-risk task');
-
-  // Hard cap is a contract above config.
-  const many = Array.from({ length: 9 }, (_, i) => ({ id: `c${i}`, stage: 'backlog', priority: 'P2', type: 'chore', title: `t${i}`, paths: `[zone${i}/]` }));
-  const capped = planSwarm({ runId: 'run-e', tasks: many, repoFiles: many.map((t, i) => `zone${i}/file.mjs`), config: { swarm: { maxWorkstreams: 99 } } });
-  capped.workstreams.length === HARD_MAX_WORKSTREAMS
-    ? ok(`config cannot exceed the hard cap (${HARD_MAX_WORKSTREAMS} workstreams)`) : bad(`cap broken: ${capped.workstreams.length}`);
-  deriveTouchSet({ id: 'x', title: 'mentions guide.md somewhere' }, repoFiles).includes('docs/guide.md')
-    ? ok('touch-set inference resolves unique basenames from the title') : bad('basename inference failed');
-
-  // ── swarm-state: manifest ────────────────────────────────────────────────
-  const run = createRun(root, { runId: 'run-a', grade: 3, workstreams: planA.workstreams });
-  run.workstreams.every((ws) => ws.status === 'planned' && ws.history.length === 1)
-    ? ok('createRun: every workstream starts planned with one history entry') : bad('createRun initial state wrong');
-  let threwOnDup = false;
-  try { createRun(root, { runId: 'run-a', grade: 3, workstreams: planA.workstreams }); } catch { threwOnDup = true; }
-  threwOnDup ? ok('runIds are single-use (duplicate createRun throws)') : bad('duplicate runId accepted');
-
-  updateWorkstream(root, 'run-a', 'ws-5', { status: 'dispatched' });
-  updateWorkstream(root, 'run-a', 'ws-5', { status: 'working', tokens: 1234 });
-  updateWorkstream(root, 'run-a', 'ws-5', { status: 'parked-budget', note: 'budget-exhausted' });
-  const after = readRun(root, 'run-a').workstreams.find((ws) => ws.id === 'ws-5');
-  after.status === 'parked-budget' && after.tokens === 1234 && after.history.length === 4 && after.history[0].status === 'planned'
-    ? ok('updateWorkstream: status path + tokens recorded, history append-only (budget-park path)') : bad(`workstream record wrong: ${JSON.stringify(after)}`);
-  let threwOnBadStatus = false;
-  try { updateWorkstream(root, 'run-a', 'ws-5', { status: 'done' }); } catch { threwOnBadStatus = true; }
-  threwOnBadStatus ? ok('unknown workstream status throws (refuse-by-default — no "done" in the swarm)') : bad('invalid status accepted');
-  !WS_STATUSES.includes('done')
-    ? ok('status vocabulary has no terminal "done" — runs finish at parked-testing (ADR-0051 §6)') : bad('WS_STATUSES contains done');
-
-  // Eviction: stale active workstream → evicted; parked ones untouched.
-  updateWorkstream(root, 'run-a', 'ws-1', { status: 'working' });
-  const manifest = readRun(root, 'run-a');
-  manifest.workstreams.find((ws) => ws.id === 'ws-1').heartbeatTs = Date.now() - 90 * 60 * 1000;
-  // Direct write to simulate silence (test-only): reuse the atomic writer through createRun's path is not exposed — patch via fs.
-  const { writeFileSync } = await import('node:fs');
-  writeFileSync(manifestPath(root, 'run-a'), JSON.stringify(manifest, null, 2));
-  const evicted = evictStale(root, 'run-a', 30);
-  evicted.includes('ws-1') && !evicted.includes('ws-5')
-    ? ok('evictStale marks silent ACTIVE workstreams only (parked untouched)') : bad(`eviction wrong: ${JSON.stringify(evicted)}`);
-  readRun(root, 'run-a').workstreams.find((ws) => ws.id === 'ws-1').status === 'evicted'
-    ? ok('evicted status persisted with a history entry') : bad('eviction not persisted');
-  listRuns(root).length === 1 && /Swarm run run-a/.test(renderReport(readRun(root, 'run-a')))
-    ? ok('listRuns + renderReport read the manifest back') : bad('list/report broken');
-
-  // ── byModel attribution: the fan-out's true tier mix (ADR-0052 Phase 2) ──
-  // The swarm plans by tierHint; the coordinator resolves it to a concrete alias
-  // and records it so "were all N agents on opus?" is answered with data.
-  const tierRun = createRun(root, { runId: 'run-tiers', grade: 3, workstreams: [
-    { id: 'ws-a', taskId: '10', branch: 'b/a', worktree: 'w/a', touchSet: ['x'], model: aliasForTier('fast').model },
-    { id: 'ws-b', taskId: '11', branch: 'b/b', worktree: 'w/b', touchSet: ['y'], model: aliasForTier('powerful').model },
-    { id: 'ws-c', taskId: '12', branch: 'b/c', worktree: 'w/c', touchSet: ['z'], model: 'gpt-5.6-luna', effort: 'low', ruleId: 'codex-low-low-luna-low' },
-  ] });
-  tierRun.workstreams.find((ws) => ws.id === 'ws-a').model === 'haiku' && tierRun.workstreams.find((ws) => ws.id === 'ws-b').model === 'sonnet'
-    ? ok('createRun records the resolved model alias per workstream (fast→haiku, powerful→sonnet)') : bad('model alias not recorded on the workstream');
-  const codexMissingDimensions = aliasForTier('powerful', { host: 'codex' });
-  const codexClassified = aliasForTier('powerful', { host: 'codex', complexity: 'high', risk: 'high' });
-  codexMissingDimensions.decision === 'refuse' && codexClassified.model === 'gpt-5.6-sol' && codexClassified.effort === 'high'
-    ? ok('Codex swarm refuses missing dimensions and applies the classified matrix') : bad('Codex swarm classification gate is wrong');
-  updateWorkstream(root, 'run-tiers', 'ws-a', { status: 'working', tokens: 500 });
-  updateWorkstream(root, 'run-tiers', 'ws-b', { status: 'working', tokens: 2000, model: aliasForTier('reasoning').model, effort: 'high', ruleId: 'test-escalation' });
-  const mix = byModel(readRun(root, 'run-tiers'));
-  const haiku = mix.find((m) => m.model === 'haiku');
-  const opus = mix.find((m) => m.model === 'opus');
-  haiku?.count === 1 && haiku?.tokens === 500 && opus?.count === 1 && opus?.tokens === 2000
-    ? ok('byModel aggregates count + tokens per tier (escalation re-stamps the alias)') : bad(`byModel wrong: ${JSON.stringify(mix)}`);
-  const dispatchMix = byDispatch(readRun(root, 'run-tiers'));
-  dispatchMix.some((entry) => entry.model === 'gpt-5.6-luna' && entry.effort === 'low' && entry.count === 1)
-    && dispatchMix.some((entry) => entry.model === 'opus' && entry.effort === 'high' && entry.count === 1)
-    ? ok('byDispatch preserves model + effort pairs and rule-backed escalation') : bad(`byDispatch wrong: ${JSON.stringify(dispatchMix)}`);
-  /models: /.test(renderReport(readRun(root, 'run-tiers')))
-    ? ok('renderReport surfaces the per-model breakdown line') : bad('report missing the models: line');
-  /dispatch: .*gpt-5\.6-luna@low/.test(renderReport(readRun(root, 'run-tiers')))
-    ? ok('renderReport surfaces the model@effort dispatch breakdown') : bad('report missing the dispatch: line');
-
-  // ── consent area + event attribution ────────────────────────────────────
-  const at = (grade) => ({ autonomy: { grade }, deliberations: { active: true } });
-  const dispatchModes = [1, 2, 3, 4].map((g) => resolveAutonomy('swarm-dispatch', at(g)).mode);
-  JSON.stringify(dispatchModes) === JSON.stringify(['manual', 'manual', 'suggest', 'auto'])
-    ? ok('swarm-dispatch area row is [manual,manual,suggest,auto] (ADR-0051 §4)') : bad(`area row wrong: ${dispatchModes.join(',')}`);
-  resolveAutonomy('swarm-dispatch', at(4), null, { budgetExhausted: true }).mode === 'manual'
-    ? ok('grade-4 swarm-dispatch + budget-exhausted → grade-2 behaviour (manual)') : bad('budget downgrade missing on swarm-dispatch');
-
-  const pipeDir = join(root, 'pipe');
-  appendEvent(pipeDir, '77', { from: 'backlog', to: 'working', actor: 'auto', by: { runId: 'run-a', workstream: 'ws-5', agent: 'qa-unit', forged: 'dropped' } });
-  appendEvent(pipeDir, '77', { from: 'working', to: 'testing', actor: 'qa' });
-  const events = JSON.parse(readFileSync(join(pipeDir, 'state', '77', 'state.json'), 'utf-8')).events;
-  events[0].by?.runId === 'run-a' && events[0].by?.workstream === 'ws-5' && events[0].by?.agent === 'qa-unit' && !('forged' in events[0].by)
-    ? ok('appendEvent records by{runId,workstream,agent}, drops unknown keys (ADR-0051 §5)') : bad(`by field wrong: ${JSON.stringify(events[0])}`);
-  events[1].by === undefined
-    ? ok('non-swarm events carry no by field (purely additive)') : bad('by leaked into a plain event');
-
-  // ── config schema pins the swarm caps (ADR-0051 §7) ─────────────────────
-  // schema.mjs needs the optional zod dep (a devDependency here) — when absent,
-  // report SKIPPED, never pass (rule 8: refused-silently-to-false-negative).
-  const schemaModule = await import('../templates/contextkit/runtime/config/schema.mjs').catch(() => null);
-  if (!schemaModule) {
-    console.log('  ⊘ schema cells SKIPPED — zod not installed (devDependency); not counted as pass');
-  } else {
-    const { validateConfig } = schemaModule;
-    const overCap = validateConfig({ swarm: { maxWorkstreams: 9 } });
-    !overCap.ok ? ok('schema refuses swarm.maxWorkstreams above the hard cap (5)') : bad('schema accepted maxWorkstreams 9');
-    // Runtime defaults live in defaults.mjs (the schema's job is refusal) — so
-    // assert valid values pass through and an absent block doesn't fail.
-    const atCap = validateConfig({ swarm: { maxWorkstreams: 5, staleMinutes: 45 } });
-    atCap.ok && atCap.config.swarm.maxWorkstreams === 5 && atCap.config.swarm.staleMinutes === 45
-      ? ok('schema passes valid swarm values through (cap boundary ok)') : bad(`valid swarm config rejected: ${JSON.stringify(atCap)}`);
-    validateConfig({}).ok
-      ? ok('schema accepts a config with no swarm block (defaults.mjs owns defaults)') : bad('schema rejected an empty config');
-  }
-
-  // ── grade-4 eligibility refuses-by-default on an empty root (ADR-0045) ──
-  const bareVerdict = checkEligibility(root);
-  bareVerdict.eligible === false && bareVerdict.criteria.every((criterion) => typeof criterion.pass === 'boolean')
-    ? ok('checkEligibility on a bare root: not eligible, every criterion explicit (rule 8)') : bad(`eligibility leaked a pass: ${JSON.stringify(bareVerdict)}`);
+  writeFileSync(manifestPath(root, plan.runId), '{broken', 'utf8');
+  check(readRun(root, plan.runId) === null, 'corrupt optional report degrades explicitly to null');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
 
-rep.finish('swarm coordinator integration');
+console.log(`\nSwarm v4 acceptance: ${checks} checks passed.`);

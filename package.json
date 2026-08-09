@@ -1,6 +1,6 @@
 {
   "name": "contextdevkit",
-  "version": "3.9.0",
+  "version": "4.0.0",
   "description": "Portable, level-based AI-assisted development platform for Claude Code, Google Antigravity, and OpenAI Codex — hooks, commands, sub-agents, and durable project memory for any stack.",
   "type": "module",
   "bin": {
@@ -28,18 +28,26 @@
     "test:integration:workflow": "node tools/run-suites.mjs --tier integration:workflow",
     "test:integration:enforcement": "node tools/run-suites.mjs --tier integration:enforcement",
     "test:integration:ecosystem": "node tools/run-suites.mjs --tier integration:ecosystem",
+    "test:release:v4": "node tools/release/release-notes.selftest.mjs && node tools/release/v4/release-fences.selftest.mjs && node tools/release/v4/package-audit.mjs --check",
     "test:impact": "node tools/run-suites.mjs --impact",
-    "ci": "npm test && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci && node templates/contextkit/tools/scripts/workflow-state-checksum-manifest.mjs --check contextkit/memory/workflow-state-checksum-manifest.json",
+    "ci": "npm test && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci",
     "ci:full": "npm run ci",
     "ci:fast": "node tools/run-suites.mjs --impact && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci",
     "dogfood:tarball": "node tools/dogfood-tarball.mjs",
-    "preflight-release": "npm run ci && node tools/preflight-version.mjs",
-    "prepublishOnly": "npm run ci"
+    "release:v4:gate": "npm run test:release:v4 && node tools/release/v4/release-gate.mjs",
+    "preflight-release": "npm run ci && npm run release:v4:gate && node tools/preflight-version.mjs",
+    "prepublishOnly": "npm run ci && npm run release:v4:gate"
   },
   "files": [
     "install.mjs",
     "templates/",
-    "tools/",
+    "!templates/**/*selftest*",
+    "!templates/**/fixtures/**",
+    "!templates/**/__fixtures__/**",
+    "!templates/**/golden/**",
+    "!templates/**/__snapshots__/**",
+    "!templates/**/.updates/**",
+    "tools/install/",
     "docs/",
     "README.md",
     "LICENSE",

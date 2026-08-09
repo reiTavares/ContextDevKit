@@ -7,10 +7,15 @@
  * (a) never run more than `jobs` workers at once, (b) run every item exactly once
  * in input-order results, and (c) soft-cancel (start no NEW work after a failure
  * flag, letting in-flight drain). `shuffle` must be a true permutation (no lost or
- * duplicated suite) or the isolation proof would silently skip suites. Pure +
- * hermetic (fake async workers, seeded rng) — no spawning. Zero-dep, node:* only.
+ * duplicated suite) or the isolation proof would silently skip suites. Hermetic:
+ * fake workers plus short child fixtures under a disposable temp directory.
+ * Zero-dep, node:* only.
  */
 import { shuffle, runPool } from './run-suites-pool.mjs';
+import { runSuite } from './run-suites.mjs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 let failures = 0;
 const ok = (msg) => console.log(`  ✓ ${msg}`);
@@ -74,11 +79,45 @@ async function poolSoftCancel() {
   started < 30 ? ok(`runPool soft-cancel stopped early (started ${started}/30, no new work after stop)`) : bad('runPool ignored shouldStop (ran all 30)');
 }
 
+/**
+ * Prove the serial runner emits heartbeats, bounds hangs, and preserves failures.
+ * @returns {Promise<void>}
+ */
+async function runnerTimeoutAndFailure() {
+  const fixture = mkdtempSync(join(tmpdir(), 'ctxkit runner '));
+  try {
+    writeFileSync(join(fixture, 'hang.mjs'), 'setInterval(() => {}, 1000);\n');
+    writeFileSync(join(fixture, 'fail.mjs'), "process.stderr.write('focused failure\\n'); process.exit(7);\n");
+    let heartbeats = 0;
+    const timed = await runSuite(
+      { id: 'hang-fixture', file: 'hang.mjs', tier: 'smoke' },
+      { kitRoot: fixture, timeoutMs: 120, heartbeatMs: 25, onHeartbeat: () => { heartbeats += 1; } },
+    );
+    timed.exitCode === 124 && timed.timedOut === true
+      ? ok('runSuite terminates a hung suite with timeout exit 124')
+      : bad(`runSuite timeout record mismatch: ${JSON.stringify(timed)}`);
+    heartbeats >= 1
+      ? ok(`runSuite emitted incremental heartbeat(s) before timeout (${heartbeats})`)
+      : bad('runSuite emitted no heartbeat before timeout');
+
+    const failed = await runSuite(
+      { id: 'failure-fixture', file: 'fail.mjs', tier: 'smoke' },
+      { kitRoot: fixture, timeoutMs: 2_000, heartbeatMs: 500, onHeartbeat: () => {} },
+    );
+    failed.exitCode === 7 && failed.stderr.includes('focused failure') && failed.timedOut === false
+      ? ok('runSuite preserves a real failure code and captured diagnostic')
+      : bad(`runSuite failure record mismatch: ${JSON.stringify(failed)}`);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   console.log('\n🌀 ContextDevKit run-suites pool self-test\n');
   shuffleIsPermutation();
   await poolRunsAllBounded();
   await poolSoftCancel();
+  await runnerTimeoutAndFailure();
   console.log(failures === 0 ? '\n✅ pool self-test passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }

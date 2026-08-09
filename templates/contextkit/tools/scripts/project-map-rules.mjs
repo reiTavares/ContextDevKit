@@ -1,7 +1,7 @@
 /**
  * Project-map RULES — architectural fitness functions over the dependency graph.
  *
- * The autonomy floor (ADR-0041) gates EDITING a secrets file; this adds the EDGE
+ * Platform secret confirmation governs EDITING a secrets file; this adds the EDGE
  * view it lacks — "who now imports auth/secrets" and "frontend → backend". Rules
  * are PATH-PREFIX based (reliable; a heuristic role must never fail CI) and
  * OPT-IN: no `rules.json` ⇒ no enforcement (refuse-by-default for a feature, §8).

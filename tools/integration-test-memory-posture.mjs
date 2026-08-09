@@ -83,7 +83,7 @@ async function checkNonSelfHost() {
     !isIgnored(proj, 'contextkit/memory/workflows/WF-0070-x/spec.md')
       ? ok('receipt: contextkit/memory/workflows/**/spec.md is NOT ignored')
       : bad('memory workflows are ignored — must be trackable');
-    isIgnored(proj, 'contextkit/runtime/hooks/session-start.mjs')
+    isIgnored(proj, 'contextkit/runtime/hooks/governance-write-preflight.mjs')
       ? ok('receipt: contextkit/runtime/** machinery IS ignored')
       : bad('machinery contextkit/runtime/** should be ignored');
     isIgnored(proj, 'contextkit/pipeline/state/board.json')

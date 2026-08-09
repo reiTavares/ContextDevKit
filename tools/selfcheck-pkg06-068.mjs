@@ -98,7 +98,7 @@ console.log('\n(b) diffWiring — unexpected scripts\n');
 console.log('\n(c) diffWiring — identical sets\n');
 
 {
-  const scripts = new Set(['session-start.mjs', 'track-edits.mjs', 'check-registration.mjs']);
+  const scripts = new Set(['governance-prompt-preflight.mjs', 'governance-write-preflight.mjs', 'governance-completion.mjs']);
   const result = diffWiring(scripts, new Set(scripts));
   assert('diffWiring(same, same) → missing:[]', arraysEqual(result.missing, []));
   assert('diffWiring(same, same) → unexpected:[]', arraysEqual(result.unexpected, []));
@@ -181,8 +181,8 @@ console.log('\n(i) diffConfigKeys — unknown keys\n');
 console.log('\n(j) diffConfigKeys — missing keys\n');
 
 {
-  const result = diffConfigKeys(new Set(['level']), new Set(['level', 'autonomy']));
-  assert('missing:[autonomy]', arraysEqual(result.missing, ['autonomy']));
+  const result = diffConfigKeys(new Set(['level']), new Set(['level', 'riskAcknowledgement']));
+  assert('missing:[riskAcknowledgement]', arraysEqual(result.missing, ['riskAcknowledgement']));
   assert('unknown:[] (level is known)', arraysEqual(result.unknown, []));
 }
 
@@ -192,7 +192,7 @@ console.log('\n(j) diffConfigKeys — missing keys\n');
 console.log('\n(k) diffConfigKeys — identical sets\n');
 
 {
-  const keys = new Set(['level', 'autonomy', 'ledger']);
+  const keys = new Set(['level', 'riskAcknowledgement', 'governance']);
   const result = diffConfigKeys(new Set(keys), new Set(keys));
   assert('identical → unknown:[]', arraysEqual(result.unknown, []));
   assert('identical → missing:[]', arraysEqual(result.missing, []));

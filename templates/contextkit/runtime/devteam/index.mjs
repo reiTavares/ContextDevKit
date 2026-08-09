@@ -4,17 +4,12 @@
  * workflows (WF-0065 lifecycle, WF-0067 enforcement) import — it defines the
  * contract and keeps the internals private (best-practices S2).
  *
- * The capability is deterministic, host-neutral and SHADOW-ONLY at this stage:
- * it resolves the required agents/skills and records receipts; it dispatches
- * nothing and grants zero blocking power.
+ * The capability is deterministic, host-neutral, and advisory. It returns
+ * recommendations only; it does not dispatch, persist counters, or grant power.
  *
  * @module devteam
  */
 export { loadDevteamPolicyBundle, loadDevteamPolicyTable, DEVTEAM_POLICY_TABLES } from './policy-load.mjs';
-export { resolveRequiredAgents } from './required-agents.mjs';
-export { resolveRequiredSkills, BASELINE_SKILLS } from './required-skills.mjs';
+export { resolveRecommendedAgents } from './recommended-agents.mjs';
+export { resolveRecommendedSkills, BASELINE_SKILLS } from './recommended-skills.mjs';
 export { playbookSteps, stepsForProfile, validatePlaybookOrder, PLAYBOOK_STEP_ORDER } from './playbook.mjs';
-export {
-  buildSkillReceipt, recordSkillApplication, loadSkillReceipts, skillContentHash,
-  skillReceiptPathFor, SKILL_RECEIPT_SCHEMA_VERSION,
-} from './skill-receipt.mjs';

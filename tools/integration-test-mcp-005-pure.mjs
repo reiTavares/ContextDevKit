@@ -1,9 +1,9 @@
 /**
- * MCP-005 integration test — Purity, autonomy resolver, and secret-shape sub-suite.
+ * MCP-005 integration test — purity, direct safety policy, and secret-shape sub-suite.
  *
  * Covers:
  *   AC#2 — evaluateServer is PURE + deterministic (same input → same output, no I/O)
- *   AC#5 — Autonomy resolver consulted; substrate absent → "skipped" never false-pass
+ *   AC#5 — no governance grade or resolver participates in MCP safety
  *   AC#3 underpinning — looksLikeSecretValue heuristic coverage (secret-shape.mjs unit)
  *
  * Run:  node tools/integration-test-mcp-005-pure.mjs
@@ -12,13 +12,13 @@
 import { reporter } from './it-helpers.mjs';
 import {
   loadModules,
-  BASE_ENTRY, BASE_MANIFEST, AUTONOMY_CFG,
+  BASE_ENTRY, BASE_MANIFEST,
   makeEvalWith,
 } from './integration-test-mcp-005-helpers.mjs';
 
 const { ok, bad, finish } = reporter();
-const { evaluateServer, looksLikeSecretValue, resolveAutonomy } = await loadModules();
-const evalWith = makeEvalWith(evaluateServer, resolveAutonomy);
+const { evaluateServer, looksLikeSecretValue } = await loadModules();
+const evalWith = makeEvalWith(evaluateServer);
 
 // ---------------------------------------------------------------------------
 // [Suite 3] AC#2 — evaluateServer pure + deterministic
@@ -60,59 +60,22 @@ threwOnString
   : bad('evaluateServer should throw when entry is a string');
 
 // ---------------------------------------------------------------------------
-// [Suite 7] AC#5 — Autonomy resolver consulted; substrate absent → skipped
+// [Suite 7] AC#5 — direct MCP safety has no governance-grade dependency
 // ---------------------------------------------------------------------------
-console.log('\n[Suite 7] Autonomy resolver (AC#5)\n');
+console.log('\n[Suite 7] Direct MCP safety, no governance grade (AC#5)\n');
 
-// With resolver: reason string recorded
-const withResolver = evalWith(BASE_ENTRY, BASE_MANIFEST);
-withResolver.reasons.some((r) => /^autonomy:grade-/.test(r))
-  ? ok('autonomy:grade-N reason recorded when resolver is present')
-  : bad(`autonomy grade reason missing | reasons: ${withResolver.reasons.join(' | ')}`);
+const directPolicy = evaluateServer(BASE_ENTRY, BASE_MANIFEST, 'claude-code', {});
+directPolicy.decision === 'allow'
+  ? ok('clean entry is decided by direct MCP safety controls')
+  : bad(`clean entry unexpectedly refused: ${directPolicy.reasons.join(' | ')}`);
+directPolicy.reasons.every((reason) => !/autonomy|grade|readiness/i.test(reason))
+  ? ok('policy emits no governance-grade or readiness reason')
+  : bad(`legacy governance reason leaked into MCP policy: ${directPolicy.reasons.join(' | ')}`);
 
-// Without resolver (substrate absent): skipped, NOT a false pass, NOT a crash
-const noSubstrate = evaluateServer(BASE_ENTRY, BASE_MANIFEST, 'claude-code', {});
-noSubstrate.reasons.some((r) => /autonomy:substrate-skipped/.test(r))
-  ? ok('absent substrate → autonomy:substrate-skipped reason recorded')
-  : bad(`substrate-skipped reason missing | reasons: ${noSubstrate.reasons.join(' | ')}`);
-
-noSubstrate.decision === 'allow'
-  ? ok('absent substrate: clean entry still allows (skipped ≠ deny)')
-  : bad(`absent substrate: expected allow, got ${noSubstrate.decision}`);
-
-// Resolver throwing must not crash policy — treated as manual (fail-closed)
-const throwingResolver = () => { throw new Error('resolver exploded'); };
-let resolverErrorResult;
-let resolverErrorCrashed = false;
-try {
-  resolverErrorResult = evaluateServer(BASE_ENTRY, BASE_MANIFEST, 'claude-code', {
-    resolveAutonomyFn: throwingResolver,
-    autonomyConfig: AUTONOMY_CFG,
-  });
-} catch {
-  resolverErrorCrashed = true;
-}
-resolverErrorCrashed
-  ? bad('policy must not propagate resolver errors (no crash allowed)')
-  : ok('resolver error does not crash evaluateServer');
-
-resolverErrorResult?.reasons?.some((r) => /autonomy:resolver-error-fail-closed/.test(r))
-  ? ok('resolver error → autonomy:resolver-error-fail-closed reason recorded')
-  : bad(`resolver-error reason missing | reasons: ${resolverErrorResult?.reasons?.join(' | ')}`);
-
-// Autonomy manual floor + otherwise-allow → warn (cannot exceed human floor)
-const manualFloorResolver = () => ({ mode: 'manual', grade: 1 });
-const manualFloor = evaluateServer(BASE_ENTRY, BASE_MANIFEST, 'claude-code', {
-  resolveAutonomyFn: manualFloorResolver,
-  autonomyConfig: AUTONOMY_CFG,
-});
-manualFloor.reasons.some((r) => /autonomy:floor-requires-human-consent/.test(r))
-  ? ok('autonomy manual floor on otherwise-allow → human-consent warn reason')
-  : bad(`autonomy floor warn missing | reasons: ${manualFloor.reasons.join(' | ')}`);
-
-manualFloor.decision !== 'deny'
-  ? ok('autonomy manual floor alone does not escalate to deny (warn only)')
-  : bad('autonomy manual floor should not be a deny by itself');
+const ignoredLegacyOptions = evaluateServer(BASE_ENTRY, BASE_MANIFEST, 'claude-code', { unusedLegacyHint: 1 });
+JSON.stringify(ignoredLegacyOptions) === JSON.stringify(directPolicy)
+  ? ok('extraneous legacy options cannot alter or gate the MCP verdict')
+  : bad('legacy options still influence MCP safety policy');
 
 // ---------------------------------------------------------------------------
 // [Suite 9] AC#3 — looksLikeSecretValue heuristic coverage (unit)

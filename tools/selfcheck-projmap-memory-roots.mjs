@@ -8,12 +8,12 @@
  * spuriously fail (the rebase-into-worktree bug this rewrite fixes).
  *
  * Asserts the ADR-named config surface (a roots ADDITION, not a walker change):
- *   (1) resolveRoots({}, fixture) includes all three contextkit/memory/{decisions,
- *       sessions,workflows} roots additively, with '.' preserved.
+ *   (1) resolveRoots({}, fixture) includes the explicit typed governance memory
+ *       root additively, with the typed '.' source root preserved.
  *   (2) `contextkit` stays a root-relative exclude — isExcluded('contextkit',
  *       'contextkit') === true (a '.' scan still skips ./contextkit/ machinery).
- *   (3) Existence-guard + fail-open: against a bare temp dir with NO memory subtree,
- *       resolveRoots does NOT add the memory roots and does not throw.
+ *   (3) Missing required roots remain typed with `available:false`, so coverage
+ *       becomes partial; discovery still returns [] and never throws.
  *   (4) Determinism: two calls return the same roots.
  *   (5) memoryRoots() honesty: returns only existing subdirs (subset of the const).
  *
@@ -44,24 +44,26 @@ try {
   process.exit(1);
 }
 
-const MEMORY = ['contextkit/memory/decisions', 'contextkit/memory/sessions', 'contextkit/memory/workflows'];
+const MEMORY = ['contextkit/memory'];
 
-/** Temp project root with the three memory subdirs materialized (caller removes it). */
+/** Temp project root with governed memory materialized (caller removes it). */
 function buildFixture() {
   const root = mkdtempSync(resolve(tmpdir(), 'ck-projmap-fix-'));
   for (const rel of MEMORY) mkdirSync(resolve(root, rel), { recursive: true });
   return root;
 }
 
-// (1) fixture roots include the three memory roots additively, '.' preserved.
+// (1) fixture roots include typed source + governance roots.
 const fixture = buildFixture();
 try {
   const { roots } = resolveRoots({}, fixture);
-  const missing = MEMORY.filter((r) => !roots.includes(r));
+  const missing = MEMORY.filter((path) => !roots.some((entry) => entry.kind === 'governance' && entry.path === path));
   missing.length === 0
-    ? ok('resolveRoots includes all three contextkit/memory roots (fixture)')
+    ? ok('resolveRoots includes the typed contextkit/memory governance root (fixture)')
     : bad(`resolveRoots missing memory root(s): ${missing.join(', ')}`);
-  roots.includes('.') ? ok("'.' base root preserved alongside memory roots") : bad("'.' base root was dropped");
+  roots.some((entry) => entry.kind === 'source' && entry.path === '.')
+    ? ok("typed '.' source root preserved alongside governance roots")
+    : bad("typed '.' source root was dropped");
 
   // (2) contextkit stays a root-relative exclude.
   const { isExcluded } = resolveRoots({}, fixture);
@@ -77,8 +79,8 @@ try {
   // (5) memoryRoots honesty — every returned path is a declared const member, and
   // the fully-populated fixture returns all three.
   const existing = memoryRoots(fixture);
-  existing.every((r) => MEMORY_SCAN_ROOTS.includes(r)) && existing.length === MEMORY.length
-    ? ok('memoryRoots returns exactly the declared MEMORY_SCAN_ROOTS members that exist')
+  existing.every((entry) => MEMORY_SCAN_ROOTS.includes(entry.path) && entry.kind === 'governance') && existing.length === MEMORY.length
+    ? ok('memoryRoots returns typed declared governance roots that exist')
     : bad(`memoryRoots wrong: ${JSON.stringify(existing)}`);
 } catch (err) {
   bad(`fixture checks threw: ${err.message}`);
@@ -91,9 +93,9 @@ try {
   const bare = mkdtempSync(resolve(tmpdir(), 'ck-projmap-bare-'));
   try {
     const { roots } = resolveRoots({}, bare);
-    MEMORY.every((r) => !roots.includes(r))
-      ? ok('bare dir: memory roots are NOT added (existence-guarded)')
-      : bad('bare dir wrongly added non-existent memory roots');
+    MEMORY.every((path) => roots.some((entry) => entry.kind === 'governance' && entry.path === path && entry.available === false))
+      ? ok('bare dir: required governance roots are explicit and unavailable')
+      : bad('bare dir failed to expose missing governance coverage');
     memoryRoots(bare).length === 0 ? ok('memoryRoots(bare) === [] (no throw)') : bad('memoryRoots(bare) not empty');
   } finally {
     rmSync(bare, { recursive: true, force: true });

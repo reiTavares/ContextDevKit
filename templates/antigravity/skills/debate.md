@@ -9,12 +9,10 @@ independent SPECIALIST voices argues a hard question, a separate synthesizer
 converges, and the result feeds an ADR's Context. It is NOT the canonical record of
 the *why* — the ADR is. This is a strategic, intelligent debate, not an essay.
 
-0. **Gate.** Read `deliberations` from `contextkit/config.json` (fall back to
-   `runtime/config/defaults.mjs`). If `active` is `false`, stop and say so. The
-   `minLevel` gate only governs the *automatic* nudge — an explicit `/debate` always
-   runs when `active`. (Auto-invocation from `/workflow`, `/new-adr` and `/ship`
-   resolves through the autonomy areas `feature-deliberation` /
-   `decision-deliberation` / `ship-checkpoint` — debate mode at grade ≥ 3, ADR-0070.)
+0. **Explicit intent.** An explicit `/debate` always runs. The
+   `deliberations` config may control optional automatic suggestions, but it
+   cannot contradict the current owner request or become a prerequisite for an
+   ADR, workflow, or ship step.
 
 1. **Frame the question.** Restate `<user-specified argument>` as a single decision question with
    just enough context for an independent reader to take a side. If it's too vague
@@ -41,7 +39,8 @@ the *why* — the ADR is. This is a strategic, intelligent debate, not an essay.
 
 4. **Fan out to the council (reasoning voices).** Dispatch one sub-agent **per
    council member** with the Task tool, IN PARALLEL, each at the `research.voices`
-   model (Opus/`reasoning` — voices are NEVER downgraded, ADR-0052) and
+   recommended voice model when available. Missing or incompatible routing
+   output does not block the council; use the current agent/model and
    **blind to the others' arguments** — independence is the whole point (ADR-0035). Embed the
    context-pack + the evidence pack at the top of every voice prompt. Each voice
    argues from its **specialist lens** (the `agent`/`lane` from the plan), takes ONE
@@ -74,13 +73,13 @@ the *why* — the ADR is. This is a strategic, intelligent debate, not an essay.
      human break it or re-run `/debate` with more context.
    - If `resolved` (default, dry-run): assemble a PRE-FILLED `/new-adr` draft
      (Context = the Synthesis, Decision = the Verdict, Consequences = the trade-offs
-     raised) and present it for approval. Write nothing without consent — the ADR
-     write is a floor area (`manual` at every grade, ADR-0042/0070), even when the
-     deliberation was auto-invoked.
+     raised) and present it for approval. Write only when the current instruction
+     or an explicit `--approve` authorizes that mutation.
    - If invoked with **`--approve`** (the opt-in apply path): create the ADR in
      sequence — `node contextkit/tools/scripts/adr-digest.mjs --search` for duplicates
-     first, then write the next ADR, then generate its backlog with
-     `adr-tasks.mjs <NNNN> --write` per [ADR-0034].
+     first, then write the next ADR, then preview its implied work with
+     `adr-tasks.mjs <NNNN> --json` per [ADR-0034]. Add accepted work only to an
+     explicit scoped `tasks.json` through `pipeline.mjs add --tasks <scope>`.
    - Either way, link the ADR back to this debate via `[[deliberation: <slug>]]` in
      its Context, and set the deliberation's `Feeds:` to the ADR id.
 

@@ -71,8 +71,8 @@ try {
     : bad('core: empty array avg should be null');
 
   const allNullAgg = aggregateFleet([
-    { path: '/repo/a', ok: false, compliance: null, scorecard: null, readiness: null },
-    { path: '/repo/b', ok: false, compliance: null, scorecard: null, readiness: null },
+    { path: '/repo/a', ok: false, compliance: null, scorecard: null },
+    { path: '/repo/b', ok: false, compliance: null, scorecard: null },
   ]);
   allNullAgg.totals.avgComplianceParityPct === null
     ? ok('core: all-null compliance avg is null (never 0)')

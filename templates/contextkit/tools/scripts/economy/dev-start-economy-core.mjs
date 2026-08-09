@@ -5,8 +5,7 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { getLevel, loadConfigSync } from '../../../runtime/config/load.mjs';
 import { pathsFor } from '../../../runtime/config/paths.mjs';
 import { intake } from '../../../runtime/execution/task-intake.mjs';
-import { orchestrate } from '../../../runtime/execution/request-orchestrator.mjs';
-import { listStates, readState } from '../../../runtime/state/state-io.mjs';
+import { listRunStates, readRunState } from '../../../runtime/state/run-state-store.mjs';
 import { scanProject } from '../project-map-core.mjs';
 import { buildDenseIndex, findSymbol } from '../project-map-dense.mjs';
 import { subgraphFor } from '../project-map-insights.mjs';
@@ -111,16 +110,16 @@ function checkpointSummary(root, state) {
 }
 export function probeResume(root, objective, taskId, enabled = true) {
   if (!enabled) return { status: 'skipped', checkpoint: null, reasonCodes: ['resume=disabled'] };
-  const pipe = pathsFor(root).pipeline;
+  const pipe = pathsFor(root).memory;
   if (taskId) {
-    const state = readState(pipe, taskId);
+    const state = readRunState(pipe, taskId);
     const checkpoint = checkpointSummary(root, state);
     return checkpoint
       ? { status: 'hit', checkpoint, reasonCodes: ['resume=task-checkpoint-hit'] }
       : { status: 'miss', checkpoint: null, reasonCodes: [state ? 'resume=task-state-without-checkpoint' : 'resume=task-state-missing'] };
   }
   const objectiveHash = hash(normalizeObjective(objective).toLowerCase());
-  const state = listStates(pipe).find((candidate) => {
+  const state = listRunStates(pipe).find((candidate) => {
     const checkpointObjective = normalizeObjective(candidate.resume?.objective).toLowerCase();
     return checkpointObjective && hash(checkpointObjective) === objectiveHash;
   });
@@ -133,19 +132,6 @@ function lever(name, { available = true, enabled = true, evaluated = false, elig
   recommended = false, attempted = false, applied = false, observed = false, status, reasonCodes = [] } = {}) {
   return { name, available, enabled, evaluated, eligible, recommended, attempted, applied, observed,
     status: status ?? (enabled ? 'available' : 'disabled'), reasonCodes };
-}
-function orchestrationSummary(envelope) {
-  if (!envelope) return null;
-  return {
-    requestId: envelope.requestId,
-    context: envelope.context,
-    classification: envelope.classification,
-    autonomy: envelope.autonomy,
-    routing: envelope.routing,
-    agents: envelope.agents,
-    playbooks: envelope.playbooks,
-    deliberation: envelope.deliberation ?? { required: false, reasons: [] },
-  };
 }
 function intakeSummary(result) {
   const signals = result?.signals ?? {};
@@ -203,16 +189,8 @@ export function buildDevStartBootstrap({ objective, root = process.cwd(), host =
       objective: normalized, taskId: hints.taskId, sessionId, host, paths: hints.path ? [hints.path] : [],
       phase: 'dev-start', level,
     }, { root, level });
-    const orchMin = Number(config?.orchestration?.minLevel ?? 7);
-    const orchEnabled = config?.orchestration?.enabled !== false && level >= orchMin;
     const correlationRequestId = requestId
       ?? (hints.taskId ? `task-${hints.taskId}` : `dev-start-${fingerprint.slice(-12)}`);
-    const envelope = orchEnabled ? orchestrate({
-      requestId: correlationRequestId,
-      requestText: normalized, sessionId, signals: intakeResult.signals,
-      context: { taskId: hints.taskId, workflowId: hints.workflowId, phase: 'dev-start' },
-    }, { root, level, config }) : null;
-    const orch = orchestrationSummary(envelope);
     const mapHit = projectMap.lookup?.status === 'hit';
     const resumeHit = resume.status === 'hit';
     const runCompactEnabled = economy.enabled !== false && config?.economy?.tools?.runCompact !== false;
@@ -223,12 +201,6 @@ export function buildDevStartBootstrap({ objective, root = process.cwd(), host =
       resumePack: lever('resume-pack', { available: resume.status !== 'skipped', enabled: resumeEnabled,
         evaluated: resume.status !== 'skipped', eligible: resumeHit, recommended: resumeHit, observed: resumeHit,
         status: resume.status, reasonCodes: resume.reasonCodes }),
-      requestOrchestration: lever('request-orchestration', { available: config?.orchestration?.enabled !== false,
-        enabled: orchEnabled, evaluated: Boolean(orch), eligible: orchEnabled, recommended: Boolean(orch),
-        status: orch ? (orch.routing?.mode === 'shadow' ? 'shadow-only' : 'evaluated') : 'skipped',
-        reasonCodes: orch
-          ? [...(orch.routing?.reasonCodes ?? []), ...(orch.routing?.mode === 'shadow' ? ['shadow_mode'] : [])]
-          : [`orchestration=min-level-${orchMin}`, `level=${level}`] }),
       contextProfile: lever('context-profile', { available: profileFor('dev-start') !== null, enabled: profileEnabled,
         eligible: profileEnabled, recommended: profileEnabled, status: 'next',
         reasonCodes: [`profile=dev-start`, `budget=${profileFor('dev-start') ?? 'unknown'}`] }),
@@ -254,20 +226,17 @@ export function buildDevStartBootstrap({ objective, root = process.cwd(), host =
         { order: 2, stage: 'resume', status: resume.status },
         { order: 3, stage: 'project-map', status: projectMap.lookup?.status ?? projectMap.status },
         { order: 4, stage: 'task-intake', status: 'evaluated' },
-        { order: 5, stage: 'request-orchestrator', status: orch ? 'evaluated' : 'skipped' },
       ],
       stages: [
         { order: 1, stage: 'objective-resolved', status: normalized ? 'evaluated' : 'skipped' },
         { order: 2, stage: 'resume-checkpoint', status: resume.status },
         { order: 3, stage: 'project-map', status: projectMap.lookup?.status ?? projectMap.status },
         { order: 4, stage: 'task-intake-classification', status: 'evaluated' },
-        { order: 5, stage: 'request-orchestration', status: orch ? 'evaluated' : 'skipped' },
-        { order: 6, stage: 'lifecycle-plan', status: 'structured' },
-        { order: 7, stage: 'context-profile-ready', status: profileEnabled ? 'ready' : 'disabled' },
+        { order: 5, stage: 'lifecycle-plan', status: 'structured' },
+        { order: 6, stage: 'context-profile-ready', status: profileEnabled ? 'ready' : 'disabled' },
       ],
       projectMap, resume,
       intake: intakeSummary(intakeResult),
-      orchestration: orch,
       levers,
       next: {
         contextPackArgv: ['node', 'contextkit/tools/scripts/context-pack.mjs', '--profile', 'dev-start'],
@@ -288,7 +257,6 @@ export function renderDevStartBootstrap(plan) {
   const internal = (plan.bootstrapStages ?? []).map((s) => `${s.stage}=${s.status}`).join(' | ');
   const map = plan.projectMap ?? {};
   const intakeSignals = plan.intake?.signals ?? {};
-  const orch = plan.orchestration;
   const lines = [
     `Dev-start economy bootstrap ${plan.ok ? 'ready' : 'degraded'} (${plan.schema})`,
     `objective: ${plan.objective?.fingerprint ?? 'unavailable'}`,
@@ -296,8 +264,7 @@ export function renderDevStartBootstrap(plan) {
     `bootstrap: ${internal || 'unavailable'}`,
     `map: manifest=${map.manifest ?? 'unknown'} lookup=${map.lookup?.status ?? 'unknown'}${map.lookup?.query ? ` query=${map.lookup.query}` : ''}`,
     `resume: ${plan.resume?.status ?? 'unknown'}${plan.resume?.checkpoint?.currentStep ? ` step=${plan.resume.checkpoint.currentStep}` : ''}`,
-    `request: tier=${intakeSignals.tier ?? 'unknown'} domain=${intakeSignals.domain ?? 'unknown'}`
-      + (orch ? ` context=${orch.context?.primaryType} risk=${orch.classification?.risk} routing=${orch.routing?.mode}` : ''),
+    `request: tier=${intakeSignals.tier ?? 'unknown'} domain=${intakeSignals.domain ?? 'unknown'}`,
   ];
   for (const state of Object.values(plan.levers ?? {})) {
     lines.push(`lever ${state.name}: status=${state.status} evaluated=${state.evaluated} recommended=${state.recommended} applied=${state.applied}`);

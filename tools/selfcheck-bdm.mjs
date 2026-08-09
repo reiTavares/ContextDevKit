@@ -43,13 +43,11 @@ const RUNTIME_FILES = [
 
 const SCRIPT_FILES = [
   'work.mjs', 'work-io.mjs', 'work-operation.mjs', 'work-render.mjs', 'work-templates.mjs',
-  'registry/serialize.mjs', 'registry/ids.mjs', 'registry/work-context.mjs', 'registry/workflow.mjs',
+  'registry/serialize.mjs', 'registry/ids.mjs', 'registry/work-context.mjs',
   // A3 (WF-0036) — Business lifecycle & Growth source modules.
   'business-growth-validator.mjs', 'business-render.mjs', 'business-templates.mjs',
   'business-template-strings.mjs', 'work-business-lifecycle.mjs', 'work-business-gate.mjs',
   'work-business-dispatch.mjs', 'work-decision-hash.mjs',
-  // A4 (WF-0036) — workflow nesting & migration planning.
-  'migration-plan.mjs',
   // B3 (WF-0037) — lifecycle integration: mirroring/supersession/coverage.
   'work-decision-mirror.mjs', 'work-decision-supersede.mjs', 'work-decision-ownership.mjs',
   'decision-coverage.mjs',
@@ -58,8 +56,6 @@ const SCRIPT_FILES = [
   'operation-recurrence-core.mjs', 'operation-recurrence.mjs',
   // B4 (WF-0037) — legacy ADR tooling: indexing, migration, anti-redundancy.
   'adr-index.mjs', 'adr-migrate.mjs', 'adr-migrate-core.mjs', 'adr-redundancy.mjs', 'adr-redundancy-core.mjs',
-  // B5 (WF-0037) — program-governance validator.
-  'program-governance.mjs',
 ].map((rel) => ({ rel, abs: resolve(SCRIPTS, rel) }));
 
 const ALL_FILES = [...RUNTIME_FILES, ...SCRIPT_FILES];
@@ -74,7 +70,7 @@ try {
   const requiredKeys = [
     'business', 'operations',
     'decisionsBusiness', 'decisionsOperations', 'decisionsLegacy',
-    'workContextRegistry', 'workflowRegistry', 'decisionRegistry',
+    'workContextRegistry', 'decisionRegistry',
   ];
   for (const key of requiredKeys) {
     typeof resolved[key] === 'string' && resolved[key].length > 0
@@ -136,8 +132,6 @@ await assertExports(resolve(SCRIPTS, 'registry/ids.mjs'), 'registry/ids',
   ['nextBusinessId', 'nextOperationId', 'nextWorkflowNumber', 'workflowRoots']);
 await assertExports(resolve(SCRIPTS, 'registry/work-context.mjs'), 'registry/work-context',
   ['WORK_CONTEXT_REGISTRY_VERSION', 'buildWorkContextRegistry', 'writeWorkContextRegistry']);
-await assertExports(resolve(SCRIPTS, 'registry/workflow.mjs'), 'registry/workflow',
-  ['WORKFLOW_REGISTRY_VERSION', 'buildWorkflowRegistry', 'resolveWorkflow', 'writeWorkflowRegistry']);
 
 // ---------------------------------------------------------------------------
 // 3. Line-budget — no A1 file breaches the hard 308-line ceiling.

@@ -24,7 +24,8 @@
  * Zero non-`node:` imports beyond the two sibling scripts (immutable rule 1).
  */
 import { loadProjection, reverseCallers, boundedReachability, godNodes, shortestPath } from './graph-query.mjs';
-import { impactReport, contractReverseConsumers, mcpGraphTool } from './graph-consumers.mjs';
+import { impactReport, contractReverseConsumers } from './graph-consumers.mjs';
+import { queryProjectGraph } from '../../runtime/graph/provider.mjs';
 
 /** Parses `--flag value` pairs and positionals from an argv slice. */
 function parseArgs(argv) {
@@ -46,10 +47,11 @@ const USAGE = 'usage: graph <callers|affected|impact|neighbors|path|god-nodes|qu
  * @param {string} root project root
  * @param {string} command subcommand
  * @param {{flags:object, positionals:string[]}} args
+ * @param {{provider?:object,fallback?:Function}} [options] provider/fallback injection for tests and external adapters
  * @returns {object}
  * @throws {Error} on an unknown subcommand or missing required argument
  */
-export function dispatch(root, command, args) {
+export function dispatch(root, command, args, options = {}) {
   const { flags, positionals } = args;
   const need = (i, label) => {
     if (!positionals[i]) throw new Error(`graph ${command}: missing <${label}>`);
@@ -69,7 +71,10 @@ export function dispatch(root, command, args) {
     case 'god-nodes':
       return godNodes(loadProjection(root), Number(flags.top) || 10);
     case 'query':
-      return mcpGraphTool(root, 'query_graph', { q: need(0, 'substr') });
+      return queryProjectGraph(
+        { root, query: need(0, 'substr') },
+        { provider: options.provider, fallback: options.fallback },
+      );
     default:
       throw new Error(`graph: unknown subcommand "${command}". ${USAGE}`);
   }
@@ -81,8 +86,9 @@ if (process.argv[1] && process.argv[1].split(/[\\/]/).pop() === 'graph.mjs') {
   try {
     const result = dispatch(process.cwd(), command, parseArgs(rest));
     process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-    // exit 3 = graph absent (distinct from a usage error), so callers can branch.
-    process.exit(result && result.available === false ? 3 : 0);
+    // Provider queries are successful non-blocking receipts even when they ask
+    // for fallback. Legacy structural commands keep exit 3 for unavailable data.
+    process.exit(result && result.available === false && result.searchAllowed !== true ? 3 : 0);
   } catch (err) {
     process.stderr.write((err && err.message ? err.message : String(err)) + '\n');
     process.exit(2);

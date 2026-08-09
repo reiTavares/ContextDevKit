@@ -1,16 +1,15 @@
 {
-  "schemaVersion": 1,
-  "policyVersion": "0.1.0",
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
   "id": "recipe-contracts",
-  "title": "Task Compiler domain-implementation recipes (ADR-0128 §21, WF-0066)",
-  "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
-  "note": "Declares the domain-implementation recipe and its four profile recipes as DATA over the existing tc-recipe-runner.mjs DAG shapes (economy/tc-recipe-runner.mjs) — no second compiler is created (ADR-0128 architecture read). Each profile recipe is a linear chain of the §12 playbook steps filtered to that profile (devteam/playbook.mjs stepsForProfile); steps are declarative here (kind='noop' contract markers) — the runtime binds each step to its real action (classify/model/decide/compile/implement/verify/review/receipt). Deterministic and versioned: identical profile input always yields the identical step sequence.",
+  "title": "Optional Task Compiler domain recipes",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "note": "Recipes are explicit planning aids. They do not dispatch agents, create receipts, or gate source writes.",
   "recipes": {
     "domain-implementation": {
-      "title": "domain-implementation (entry recipe)",
-      "version": "1.0.0",
-      "note": "Resolves owner -> classifies code intent -> classifies domain applicability -> selects profile -> resolves Decision coverage -> validates domain artifacts -> compiles packet -> injects skills -> dispatches devteam -> scaffolds allowed structures -> implements -> runs domain tests -> runs architecture gates -> reviews -> produces receipt. Dispatches to the matching profile recipe below once the profile is resolved.",
+      "title": "domain-implementation",
+      "version": "2.0.0",
       "dispatchesTo": [
         "implementation-simple",
         "implementation-modular",
@@ -20,27 +19,27 @@
     },
     "implementation-simple": {
       "title": "implementation-simple",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "profile": "simple",
-      "playbookSteps": ["classify", "compile", "implement", "verify", "receipt"]
+      "playbookSteps": ["classify", "implement", "verify"]
     },
     "implementation-modular": {
       "title": "implementation-modular",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "profile": "modular",
-      "playbookSteps": ["classify", "compile", "implement", "verify", "review", "receipt"]
+      "playbookSteps": ["classify", "implement", "verify", "review"]
     },
     "implementation-domain-driven": {
       "title": "implementation-domain-driven",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "profile": "domain-driven",
-      "playbookSteps": ["classify", "model", "decide", "compile", "implement", "verify", "review", "receipt"]
+      "playbookSteps": ["classify", "model", "decide", "implement", "verify", "review"]
     },
     "implementation-distributed-domain": {
       "title": "implementation-distributed-domain",
-      "version": "1.0.0",
+      "version": "2.0.0",
       "profile": "distributed-domain",
-      "playbookSteps": ["classify", "model", "decide", "compile", "implement", "verify", "review", "receipt"]
+      "playbookSteps": ["classify", "model", "decide", "implement", "verify", "review"]
     }
   }
 }

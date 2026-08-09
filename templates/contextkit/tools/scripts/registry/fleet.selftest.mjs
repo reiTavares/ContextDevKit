@@ -3,9 +3,9 @@
  * Pure `node:*`, zero deps; exits non-zero on the first failed assertion.
  *
  * Coverage:
- *  1. `fleetMemoryRoots` returns local-only (length 1) on a non-git temp root, and
- *     is non-empty + forward-slash normalised on the live worktree.
- *  2. `listWorktrees` finds at least the local worktree on the live tree.
+ *  1. `fleetMemoryRoots` returns local-only on a non-Git temp root.
+ *  2. Injected porcelain fixtures cover Windows-style/path-with-spaces parsing
+ *     without requiring the checkout to be a Git worktree.
  *  3. done-recursion: a WF in `workflows/done/` and in `<owner>/done/` still raises
  *     `nextWorkflowNumber` — a filed-away number is never reused.
  *  4. `localVsFleet` returns one row per kind with `local`/`fleet`/`diverges`.
@@ -39,11 +39,23 @@ try {
   assert('A1: non-git fixture → local-only (length 1)', fixtureRoots.length === 1);
   assert('A2: local root is forward-slash normalised', !fixtureRoots[0].includes('\\'));
 
-  const liveRoots = fleetMemoryRoots(process.cwd());
-  assert('A3: live tree → non-empty', liveRoots.length >= 1);
-  assert('A4: all live roots forward-slash normalised', liveRoots.every((r) => !r.includes('\\')));
-  assert('A5: listWorktrees finds ≥1 on live tree', listWorktrees(process.cwd()).length >= 1);
-  assert('A6: listWorktrees → [] on non-git temp', listWorktrees(fixtureRoot).length === 0);
+  const siblingRoot = resolve(fixtureRoot, 'sibling worktree');
+  mkdirSync(pathsFor(siblingRoot).memory, { recursive: true });
+  const porcelain = [
+    `worktree ${fixtureRoot.replace(/\\/g, '/')}`,
+    'branch refs/heads/main',
+    '',
+    `worktree ${siblingRoot.replace(/\\/g, '/')}`,
+    'branch refs/heads/feature/with-spaces',
+    '',
+  ].join('\n');
+  const executeGit = () => porcelain;
+  const injectedTrees = listWorktrees(fixtureRoot, { executeGit });
+  assert('A3: injected porcelain returns both fixture worktrees', injectedTrees.length === 2);
+  assert('A4: injected branch is parsed', injectedTrees[1]?.branch === 'refs/heads/feature/with-spaces');
+  const injectedRoots = fleetMemoryRoots(fixtureRoot, { executeGit });
+  assert('A5: fleet roots include the path-with-spaces sibling', injectedRoots.length === 2 && injectedRoots.every((r) => !r.includes('\\')));
+  assert('A6: missing Git degrades to []', listWorktrees(fixtureRoot, { executeGit: () => { throw new Error('git unavailable'); } }).length === 0);
 
   process.stdout.write('\nBlock B — done-recursion raises the workflow number\n');
   const memory = fixtureMemory;

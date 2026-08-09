@@ -28,7 +28,7 @@
  * - `missing`    = scripts the source expects but the install omits.
  * - `unexpected` = scripts present in the install but not in the source output.
  *
- * Both sides are Sets of basenames (e.g. "session-start.mjs"). Pure; no I/O.
+ * Both sides are Sets of dispatcher basenames. Pure; no I/O.
  *
  * @param {Set<string>} expectedScripts basenames from composeSettings at the project's level
  * @param {Set<string>} installedScripts basenames extracted from the installed settings.json

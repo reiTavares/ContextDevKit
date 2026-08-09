@@ -8,10 +8,12 @@ name: Release
 #   Value: an npm "Automation" / granular token with publish rights (bypass 2FA)
 #
 # To cut a release:
-#   1. bump "version" in package.json
-#   2. git commit -am "chore(release): vX.Y.Z"
-#   3. git tag vX.Y.Z && git push && git push --tags
-# The workflow runs the test suite, then `npm publish`.
+#   1. close the matching section in CHANGELOG.md and bump package.json/lock
+#   2. merge the release PR to main
+#   3. push the annotated vX.Y.Z tag from that main commit
+# This workflow is the single publication path: it validates the exact changelog
+# section, runs the gates, publishes npm with provenance, and creates the GitHub
+# Release with the same complete notes. Do not publish npm manually as well.
 
 on:
   push:
@@ -33,6 +35,14 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Render complete release notes from CHANGELOG.md
+        run: >-
+          node tools/release/release-notes.mjs
+          --version "${GITHUB_REF_NAME#v}"
+          --changelog CHANGELOG.md
+          --package package.json
+          --output "${RUNNER_TEMP}/release-notes.md"
+
       # The publish path runs the SAME gate as CI [ADR-0031] — a release can no
       # longer ship on a red gate (the v1.9.0 mistake). One source: `npm run ci`.
       - name: CI gate (npm run ci)
@@ -46,4 +56,8 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          --verify-tag
+          --title "${GITHUB_REF_NAME}"
+          --notes-file "${RUNNER_TEMP}/release-notes.md"

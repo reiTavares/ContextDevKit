@@ -1,186 +1,77 @@
-/**
- * Session-aware DevPipeline transitions — `start` / `stop`.
- *
- * Separates a distinct responsibility from `pipeline.mjs` (pure CRUD on task
- * files): these two transitions couple a task to a **session** via the
- * workspace record (`claim.mjs`), and are the only places where a task move
- * also writes session-level state. The CLI dispatch in `pipeline.mjs`
- * delegates here.
- *
- * Cohesion: both halves share the same `findTaskFile` helper + the same
- * stage-transition shape (rename + status rewrite + sync). Keeping them in one
- * file makes start/stop symmetrical and lets the next maintainer read the full
- * lifecycle in one place. See [ADR-0015 §B](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md).
- */
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, renameSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { readState, writeState } from '../../runtime/state/state-io.mjs';
-import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
+/** Session-aware aliases over canonical task transitions. */
 import { attachTask, detachTask } from './claim.mjs';
-import { classifyTask } from './complexity-rubric.mjs';
-import { parseInlineArray } from './pipeline-validate.mjs';
+import { listTasks, readTasksDocument, transitionTask } from './tasks-store.mjs';
 
 /**
- * Returns the ids of a task's dependencies that are still open (stage ≠
- * conclusion). Dangling references (a dep id that no longer exists) are ignored.
- * Pure-ish: only reads the pipeline dir via `findTaskFile`.
+ * Resolves a task from the canonical authority.
  *
- * @param {string} pipeDir
- * @param {string[]} deps — dependency ids from the ticket frontmatter
- * @returns {string[]} open blocker ids
+ * @param {object} document
+ * @param {string} taskId
+ * @returns {object}
+ * @throws {Error} when the task is absent
  */
-function openBlockers(pipeDir, deps) {
-  return deps.filter((dep) => {
-    const found = findTaskFile(pipeDir, dep);
-    return found && found.stage !== 'conclusion';
-  });
-}
-
-function gitOut(args, cwd, fallback) {
-  try {
-    return execFileSync('git', args, { cwd, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || fallback;
-  } catch {
-    return fallback;
-  }
+function requireTask(document, taskId) {
+  const task = listTasks(document).find((candidate) => candidate.id === String(taskId));
+  if (!task) throw new Error(`No task with id ${taskId}.`);
+  return task;
 }
 
 /**
- * Resolves a task id (with or without zero-padding) to its current stage + file
- * path. Returns `null` when the task isn't found — caller decides how to fail.
+ * Starts one backlog task and then associates it with the active host session.
+ * The task transition is authoritative; a workspace-association failure is
+ * returned as an honest warning and never rolls the JSON state backward.
  *
- * @param {string} pipeDir — repo-relative pipeline dir (`contextkit/pipeline/`)
- * @param {string} rawId
- * @returns {{ stage: string, file: string } | null}
+ * @param {string} tasksTarget workflow/batch directory or tasks.json path
+ * @param {string} taskId
+ * @param {{attach?:Function,at?:string,eventId?:string}} [options]
+ * @returns {Promise<object>}
  */
-function findTaskFile(pipeDir, rawId) {
-  const id = String(rawId).padStart(3, '0');
-  for (const stage of ['backlog', 'working', 'testing', 'conclusion']) {
-    const dir = resolve(pipeDir, stage);
-    if (!existsSync(dir)) continue;
-    const file = readdirSync(dir).find((f) => f.startsWith(`${id}-`) && f.endsWith('.md'));
-    if (file) return { stage, file };
+export async function startTask(tasksTarget, taskId, options = {}) {
+  const document = readTasksDocument(tasksTarget);
+  const task = requireTask(document, taskId);
+  if (task.status !== 'backlog') {
+    throw new Error(`Task ${taskId} is in "${task.status}", not "backlog".`);
   }
-  return null;
-}
-
-function moveStage(pipeDir, from, to, file, statusValue) {
-  const fromPath = resolve(pipeDir, from, file);
-  const toPath = resolve(pipeDir, to, file);
-  const text = readFileSync(fromPath, 'utf-8').replace(/^(status:).*$/m, `status: ${statusValue}`);
-  writeFileAtomicSync(fromPath, text);
-  renameSync(fromPath, toPath);
+  const transitionReceipt = transitionTask(tasksTarget, task.id, {
+    to: 'working',
+    actor: 'human',
+    at: options.at,
+    eventId: options.eventId,
+  }, document.revision);
+  let workspaceWarning = null;
+  try {
+    await (options.attach ?? attachTask)(task.id, tasksTarget);
+  } catch (error) {
+    workspaceWarning = `task transitioned, but workspace association failed: ${error?.message ?? error}`;
+  }
+  return { ...transitionReceipt, workspaceWarning };
 }
 
 /**
- * `/pipeline start <id>` — moves a backlog task to `working/` AND attaches it
- * to the current session's workspace record. Refuses when the task isn't in
- * `backlog/` so a working/testing task can't be silently re-stamped.
+ * Stops one working task by returning its canonical status to backlog.
  *
- * @param {string} pipeDir
- * @param {string} rawId
- * @param {(all: Array<object>) => void} sync — caller's sync function (renders board)
+ * @param {string} tasksTarget workflow/batch directory or tasks.json path
+ * @param {string} taskId
+ * @param {{detach?:Function,at?:string,eventId?:string}} [options]
+ * @returns {Promise<object>}
  */
-export async function startTask(pipeDir, rawId, sync) {
-  const found = findTaskFile(pipeDir, rawId);
-  if (!found) throw new Error(`No task with id ${rawId}.`);
-  if (found.stage !== 'backlog') throw new Error(`Task ${rawId} is in '${found.stage}', not backlog — refusing to start.`);
-  // ADR-0032 gate: re-classify the task title; an architectural-tier task must
-  // reference a recorded decision BEFORE it enters working/. Dry-run-safe — refuses
-  // unless an ADR is cited or `--force` is passed (constitution §8).
-  const taskText = readFileSync(resolve(pipeDir, 'backlog', found.file), 'utf-8');
-  const title = (taskText.match(/^title:\s*(.+)$/m)?.[1] || '').trim();
-  if (title && classifyTask(title).needsAdr && !/ADR-\d{4}/.test(taskText) && !process.argv.includes('--force')) {
-    throw new Error(`Task ${rawId} is architectural-tier but cites no ADR. Run /new-adr first and reference it in the task, or re-run with --force. (ADR-0032 gate)`);
+export async function stopTask(tasksTarget, taskId, options = {}) {
+  const document = readTasksDocument(tasksTarget);
+  const task = requireTask(document, taskId);
+  if (task.status !== 'working') {
+    throw new Error(`Task ${taskId} is in "${task.status}", not "working".`);
   }
-  // ADR-0022 dependency gate (ticket 072): a task with still-open dependencies
-  // can't be started — its prerequisites aren't done. The board already renders
-  // the "↘ blocked by N" edge; this turns that inert metadata into a real refusal
-  // (constitution §8). Override with --force.
-  const blockers = openBlockers(pipeDir, parseInlineArray(taskText.match(/^dependencies:\s*(.+)$/m)?.[1]));
-  if (blockers.length && !process.argv.includes('--force')) {
-    throw new Error(`Task ${rawId} is blocked by ${blockers.length} open dependenc${blockers.length === 1 ? 'y' : 'ies'} (${blockers.join(', ')}). Conclude ${blockers.length === 1 ? 'it' : 'them'} first, or re-run with --force. (ticket 072 dependency gate)`);
-  }
-  moveStage(pipeDir, 'backlog', 'working', found.file, 'working');
-  sync();
-  await attachTask(rawId);
-  const id = String(rawId).padStart(3, '0');
-  // ADR-0015 §C — stamp the canonical state.json substrate.
+  const transitionReceipt = transitionTask(tasksTarget, task.id, {
+    to: 'backlog',
+    actor: 'human',
+    at: options.at,
+    eventId: options.eventId,
+  }, document.revision);
+  let workspaceWarning = null;
   try {
-    const cwd = pipeDir.split(/[\\/]+contextkit[\\/]+/)[0] || process.cwd();
-    writeState(pipeDir, id, { kind: 'task', status: 'working', branch: gitOut(['symbolic-ref', '--short', 'HEAD'], cwd, null), ownerUser: gitOut(['config', 'user.name'], cwd, null), endedAt: null });
-  } catch { /* best-effort: state.json is observability, not the source of truth */ }
-  return { id, stage: 'working' };
-}
-
-/** Acceptance-criteria checkbox status for a task body. */
-function criteriaStatus(text) {
-  const boxes = [...text.matchAll(/^\s*-\s*\[( |x|X)\]/gm)].map((m) => m[1].toLowerCase() === 'x');
-  const done = boxes.filter(Boolean).length;
-  return { done, total: boxes.length, allChecked: boxes.length > 0 && done === boxes.length };
-}
-
-/**
- * ADR-0034 — auto-advance the session's owned working tasks. A task moves
- * `working/ → conclusion/` ONLY when every acceptance-criteria checkbox is `[x]`
- * (a verified, intentional signal — never on file activity alone, rule 8). Pure
- * sync, defensive; the Stop hook calls it and reports the result.
- *
- * @param {string} pipeDir
- * @param {string} sessionId
- * @returns {{ concluded: string[], pending: Array<{id,done,total}> }}
- */
-export function autoAdvanceSessionTasks(pipeDir, sessionId) {
-  const concluded = [];
-  const pending = [];
-  let record;
-  try {
-    const root = pipeDir.split(/[\\/]+contextkit[\\/]+/)[0] || process.cwd();
-    record = JSON.parse(readFileSync(resolve(root, '.claude', '.workspace', `${sanitizeSid(sessionId)}.json`), 'utf-8'));
-  } catch {
-    return { concluded, pending };
+    await (options.detach ?? detachTask)(task.id);
+  } catch (error) {
+    workspaceWarning = `task transitioned, but workspace release failed: ${error?.message ?? error}`;
   }
-  for (const t of Array.isArray(record.tasks) ? record.tasks : []) {
-    const found = findTaskFile(pipeDir, t.id);
-    if (!found || found.stage !== 'working') continue;
-    let text = '';
-    try {
-      text = readFileSync(resolve(pipeDir, 'working', found.file), 'utf-8');
-    } catch {
-      continue;
-    }
-    const cs = criteriaStatus(text);
-    if (cs.allChecked) {
-      try {
-        moveStage(pipeDir, 'working', 'conclusion', found.file, 'done');
-        try {
-          if (readState(pipeDir, String(t.id).padStart(3, '0'))) writeState(pipeDir, String(t.id).padStart(3, '0'), { status: 'done', endedAt: Date.now() });
-        } catch { /* state.json is observability */ }
-        concluded.push(String(t.id).padStart(3, '0'));
-      } catch { /* leave it in working on any failure */ }
-    } else {
-      pending.push({ id: String(t.id).padStart(3, '0'), done: cs.done, total: cs.total });
-    }
-  }
-  return { concluded, pending };
-}
-
-/**
- * `/pipeline stop <id>` — moves a `working/` task BACK to `backlog/` (NOT
- * testing/ — testing/ is "code done, awaiting QA", reached via explicit `move`)
- * and detaches it from the session. Mirror of start.
- */
-export async function stopTask(pipeDir, rawId, sync) {
-  const found = findTaskFile(pipeDir, rawId);
-  if (!found) throw new Error(`No task with id ${rawId}.`);
-  if (found.stage !== 'working') throw new Error(`Task ${rawId} is in '${found.stage}', not working — nothing to stop.`);
-  moveStage(pipeDir, 'working', 'backlog', found.file, 'backlog');
-  sync();
-  await detachTask(rawId);
-  const id = String(rawId).padStart(3, '0');
-  try {
-    if (readState(pipeDir, id)) writeState(pipeDir, id, { status: 'backlog', endedAt: Date.now() });
-  } catch { /* best-effort */ }
-  return { id, stage: 'backlog' };
+  return { ...transitionReceipt, workspaceWarning };
 }

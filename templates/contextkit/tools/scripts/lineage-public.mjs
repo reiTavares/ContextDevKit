@@ -51,7 +51,7 @@ export async function projectPublicLineage(root, opts) {
     process.stderr.write(
       `[lineage-public] buildLineage failed: ${buildErr?.message ?? buildErr}\n`,
     );
-    graph = { nodes: [], edges: [], stats: { byType: {}, edgeCount: 0, sources: { present: [], skipped: ['adrs', 'workflows', 'cards', 'receipts', 'sessions', 'telemetry'] } } };
+    graph = { nodes: [], edges: [], stats: { byType: {}, edgeCount: 0, sources: { present: [], skipped: ['adrs', 'workflows', 'tasks', 'sessions', 'telemetry'] } } };
   }
 
   const publicView = redactGraph(graph);

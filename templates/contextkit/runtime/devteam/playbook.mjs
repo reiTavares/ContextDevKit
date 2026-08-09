@@ -13,7 +13,7 @@
 
 /** Canonical step order (§12) — the table must match this exactly. */
 export const PLAYBOOK_STEP_ORDER = Object.freeze([
-  'classify', 'model', 'decide', 'compile', 'implement', 'verify', 'review', 'receipt',
+  'classify', 'model', 'decide', 'implement', 'verify', 'review',
 ]);
 
 /**
@@ -43,7 +43,7 @@ export function stepsForProfile(profileName, playbookTable) {
   const all = playbookSteps(playbookTable);
   const reasonCodes = [];
   const steps = all.filter((step) => {
-    if (step.requiredWhen !== 'profile') return true;
+    if (step.recommendedWhen !== 'profile') return true;
     const applies = Array.isArray(step.profileIn) && step.profileIn.includes(profileName);
     if (!applies) reasonCodes.push('PLAYBOOK_STEP_PROFILE_GATED');
     return applies;

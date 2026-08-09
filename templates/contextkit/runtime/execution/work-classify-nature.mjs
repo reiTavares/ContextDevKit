@@ -1,5 +1,5 @@
 /**
- * work-classify-nature.mjs — §17 nature (Business vs Operation) and §18 execution-mode
+ * work-classify-nature.mjs — owner nature and execution-shape classifiers
  * classifiers, extracted from work-classifier.mjs for the 280-line budget (OP-0005 / ADR-0125).
  *
  * Cohesion note: these two classifiers share the same "scoring from text signals → threshold verdict"
@@ -80,11 +80,8 @@ function scoreSignals(text, signals) {
 }
 
 /**
- * Resolves Business-vs-Operation nature using the §17 OP-0005 algorithm:
- *   B >= 8 AND B >= O + 3  → BUSINESS / high
- *   O >= 6 AND O >= B      → OPERATION / high
- *   |B-O| < 3 OR conf < 0.70 → ASK (value='operation', confidence='ask', needsClarification=true)
- *   else                   → OPERATION / low
+ * Resolves the 4.0 owner nature. `none` is the common neutral result; the
+ * classifier never invents an Operation merely to hold a technical change.
  *
  * @param {string} text - lowercased objective.
  * @param {object} natureCfg - the policy `nature` section (for custom signals; falls back to defaults).
@@ -101,7 +98,10 @@ export function classifyNature(text, natureCfg) {
   const topScore = Math.max(B, O);
   const computedConf = Math.min(1, topScore / 8);
 
-  const CLARIFY_Q = 'Is the primary objective to create or change a durable strategic capability (Business), or to fix, maintain or execute work within something that already exists (Operation)?';
+  const portuguese = /\b(?:isso|este|esta|uma|para|corrigir|criar|negocio|operação|operacao)\b/.test(text);
+  const CLARIFY_Q = portuguese
+    ? 'Isso pertence a Business, Operation ou nenhum contexto?'
+    : 'Does this belong to Business, Operation, or neither?';
 
   let value, confidence, needsClarification, clarifyQuestion, reason, evidenceMatched;
 
@@ -112,27 +112,33 @@ export function classifyNature(text, natureCfg) {
     clarifyQuestion = null;
     evidenceMatched = bizResult.matched;
     reason = `nature=business (B=${B} >= 8 and B >= O+3=${O + 3}; signals: ${bizResult.matched.map((s) => `'${s}'`).join(', ') || 'none'})`;
-  } else if (O >= 6 && O >= B) {
+  } else if (O >= 6 && O >= B && (
+    O >= 8
+    || opResult.matched.some((signal) => [
+      'incident', 'outage', 'hotfix', 'production recovery', 'incidente',
+      'queda', 'indisponibilidade', 'recuperação de produção', 'recuperacao de producao',
+    ].includes(signal))
+  )) {
     value = 'operation';
     confidence = 'high';
     needsClarification = false;
     clarifyQuestion = null;
     evidenceMatched = opResult.matched;
     reason = `nature=operation (O=${O} >= 6 and O >= B=${B}; signals: ${opResult.matched.map((s) => `'${s}'`).join(', ') || 'none'})`;
-  } else if (Math.abs(B - O) < 3 || computedConf < 0.70) {
-    value = 'operation';
+  } else if (B > 0 && O > 0 && Math.abs(B - O) < 3) {
+    value = 'unclassified';
     confidence = 'ask';
     needsClarification = true;
     clarifyQuestion = CLARIFY_Q;
     evidenceMatched = topScore === B ? bizResult.matched : opResult.matched;
-    reason = `nature=operation (ASK — B=${B}, O=${O}, conf=${computedConf.toFixed(2)} below threshold; defaulting to operation)`;
+    reason = `nature=unclassified (B=${B}, O=${O}; competing evidence)`;
   } else {
-    value = 'operation';
-    confidence = 'low';
+    value = 'none';
+    confidence = topScore === 0 ? 'high' : 'low';
     needsClarification = false;
     clarifyQuestion = null;
-    evidenceMatched = opResult.matched;
-    reason = `nature=operation (B=${B}, O=${O}; low-confidence operation default)`;
+    evidenceMatched = topScore === B ? bizResult.matched : opResult.matched;
+    reason = `nature=none (B=${B}, O=${O}; no durable owner context proven)`;
   }
 
   return {
@@ -152,11 +158,10 @@ export function classifyNature(text, natureCfg) {
 
 // ── §18 Execution-mode ceremony points (TABLE 2, OP-0005) ───────────────────
 
-/** Hard workflow triggers: any of these in the triggered set forces 'workflow'. */
+/** Structural facts that justify a durable workflow. Vocabulary alone never does. */
 const HARD_WORKFLOW_TRIGGERS = new Set([
-  'adr-required', 'data-migration', 'rollout-rollback', 'cross-cutting-architecture',
-  'multiple-waves', 'critical-compliance', 'multiple-teams', 'breakable-public-contract',
-  'complex-multi-agent-coordination', 'business-nature',
+  'multiple-waves', 'dependent-groups', 'cutover-rollback', 'ordered-integration',
+  'multiple-sessions', 'explicit-workflow',
 ]);
 
 /**
@@ -176,87 +181,61 @@ function computeCeremonyPoints(text) {
     if (trigger && !triggers.includes(trigger)) triggers.push(trigger);
   };
 
-  if (text.includes('adr') || text.includes('adrs') || text.includes('decision')) {
-    add('adrRequired', 4, 'adr-required');
+  const normalized = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/\b(?:multiple|several) waves?\b|\bwaves?\s+[1-9]\b|\b(?:varias|multiplas) ondas\b/.test(normalized)) {
+    add('multipleWaves', 8, 'multiple-waves');
   }
-  if (text.includes('data migration') || text.includes('schema migration')) {
-    add('dataMigration', 4, 'data-migration');
+  if (/\bdependenc(?:y|ies) between (?:groups|tasks|modules)\b|\bgrupos? dependentes?\b|\bdependencias? entre (?:grupos|tarefas|modulos)\b/.test(normalized)) {
+    add('dependenciesBetweenGroups', 8, 'dependent-groups');
   }
-  if (text.includes('rollout') || text.includes('rollback')) {
-    add('rolloutRollback', 4, 'rollout-rollback');
+  if (/\bcutover\b/.test(normalized) && /\brollback\b/.test(normalized)) {
+    add('cutoverRollback', 8, 'cutover-rollback');
   }
-  if (text.includes('multiple teams') || text.includes('cross-team')) {
-    add('multipleTeams', 4, 'multiple-teams');
+  if (/\b(?:required order|ordered integration|in order)\b|\b(?:ordem obrigatoria|integracao ordenada)\b/.test(normalized)) {
+    add('orderedIntegration', 8, 'ordered-integration');
   }
-  if (text.includes('architecture') || text.includes('architectural')) {
-    add('architectureChange', 4, 'cross-cutting-architecture');
+  if (/\b(?:multiple|several) sessions\b|\b(?:multiplas|varias) sessoes\b/.test(normalized)) {
+    add('multipleSessions', 8, 'multiple-sessions');
   }
-  if (text.includes('compliance') || text.includes('regulatory')) {
-    if (!triggers.includes('critical-compliance')) triggers.push('critical-compliance');
+  if (/\b(?:create|use|run) (?:a )?workflow\b|\b(?:crie|usar|use) (?:um )?workflow\b/.test(normalized)) {
+    add('explicitWorkflow', 8, 'explicit-workflow');
   }
-  if (text.includes('multiple agents') || text.includes('multi-agent')) {
-    add('multipleAgents', 2, 'complex-multi-agent-coordination');
-  }
-  if (text.includes('public api') || text.includes('public contract') || text.includes('breaking') || text.includes('compat')) {
-    add('publicContractCompatImpact', 3, 'breakable-public-contract');
-  }
-  if (text.includes('blast radius') || text.includes('high risk')) {
-    add('highRiskBlastRadius', 3, null);
-  }
-  if (text.includes('multi-step') || text.includes('several phases') || text.includes('wave') ||
-      text.includes('program') || text.includes('epic') || text.includes('milestones')) {
-    add('multipleSessionsLikely', 2, 'multiple-waves');
-    add('dependenciesBetweenGroups', 2, null);
-  }
-  if (text.includes('across modules') || text.includes('multiple modules') ||
-      text.includes('across the') || (text.includes('every ') && text.length > 20) ||
-      (text.includes('all ') && text.length > 20)) {
-    add('multipleModules', 2, null);
-  }
-  if (text.includes('sweep') || text.includes('rename all') || text.includes('bulk') ||
-      text.includes('batch') || text.includes('a few')) {
-    add('upTo3TasksOneComponent', 1, null);
-  }
-  if (text.includes('four to') || text.includes('related tasks') || text.includes('several tasks')) {
-    add('fourTo12RelatedTasks', 3, null);
+
+  const numericBatch = /\b(?:[4-9]|1[0-2])\s+(?:independent\s+|related\s+)?(?:tasks?|files?|texts?|items?|tarefas?|arquivos?|textos?|itens?)\b/.test(normalized);
+  const wordBatch = /\b(?:four|five|six|seven|eight|nine|ten|eleven|twelve|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)\s+(?:independent\s+|related\s+|independentes?\s+|relacionad[oa]s?\s+)?(?:tasks?|files?|texts?|items?|tarefas?|arquivos?|textos?|itens?)\b/.test(normalized);
+  if (numericBatch || wordBatch || /\b4\s*[-–]\s*12\s+(?:tasks?|tarefas?)\b/.test(normalized)) {
+    add('fourTo12RelatedTasks', 4, null);
   }
 
   return { points, triggers, details };
 }
 
 /**
- * Classifies execution mode using §18 point bands and hard triggers (OP-0005).
- *
- * Bands: 0–3 → direct, 4–7 → batch, 8+ → workflow.
- * Hard triggers (any): force 'workflow' regardless of points.
- * Business nature: always forces 'workflow'.
+ * Classifies execution mode using real execution topology. Four to twelve
+ * independent/related items select batch; durable sequencing facts select workflow;
+ * everything else is direct. Business nature and semantic vocabulary are ignored.
  *
  * @param {string} text - lowercased objective.
  * @param {object} _execCfg - policy executionMode section (reserved for custom config; bands/points use defaults).
  * @param {boolean} isBusiness - whether nature is 'business'.
  * @returns {{ value: string, ceremonyPoints: number, hardTriggers: string[], reason: string, evidence: object }}
  */
-export function classifyExecutionMode(text, _execCfg, isBusiness) {
+export function classifyExecutionMode(text, _execCfg, _isBusiness) {
   const { points, triggers, details } = computeCeremonyPoints(text);
   const allTriggers = [...triggers];
-  if (isBusiness && !allTriggers.includes('business-nature')) allTriggers.push('business-nature');
-
-  const hardFired = allTriggers.filter((t) => HARD_WORKFLOW_TRIGGERS.has(t));
+  const hardFired = allTriggers.filter((trigger) => HARD_WORKFLOW_TRIGGERS.has(trigger));
 
   let value;
   let reason;
   if (hardFired.length > 0) {
     value = 'workflow';
     reason = `executionMode=workflow (hard trigger(s): ${hardFired.join(', ')}; points=${points})`;
-  } else if (points >= 8) {
-    value = 'workflow';
-    reason = `executionMode=workflow (ceremony points=${points} >= 8)`;
   } else if (points >= 4) {
     value = 'batch';
-    reason = `executionMode=batch (ceremony points=${points} in 4–7 band)`;
+    reason = `executionMode=batch (4–12 related independent items; points=${points})`;
   } else {
     value = 'direct';
-    reason = `executionMode=direct (ceremony points=${points} in 0–3 band)`;
+    reason = 'executionMode=direct (no batch count or workflow topology proven)';
   }
 
   return {

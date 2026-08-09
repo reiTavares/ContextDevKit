@@ -16,17 +16,9 @@ export const HOOK_PREFIX = 'contextkit/runtime/hooks/';
 export const REPRESENTATIVE_LEVEL = 5;
 
 // ── Declared skip reasons (hook-level, not command/skill-level) ──────────────
-// One intentional category of per-host absence remains:
-//   A) agy architectural substitution (ADR-0049): agy routes SessionStart and Stop
-//      through a single session-manager.mjs wrapper rather than the two separate
-//      hooks Claude/Codex use. Both functions are present on agy; the path differs.
-export const ENFORCEMENT_HOOK_REASONS = {
-  // Category A — agy session-manager substitution (ADR-0049).
-  'session-start.mjs':
-    'agy substitution — agy uses session-manager.mjs start (antigravity/) instead of this hook (ADR-0049).',
-  'check-registration.mjs':
-    'agy substitution — agy uses session-manager.mjs end (antigravity/) for drift-check/Stop (ADR-0049).',
-};
+// ContextDevKit 4 requires the same manifest-declared dispatcher contract on
+// every host. There are no implicit host substitutions.
+export const ENFORCEMENT_HOOK_REASONS = Object.freeze({});
 
 /**
  * @typedef {'unknown' | boolean} HostPresence
@@ -54,7 +46,7 @@ export const ENFORCEMENT_HOOK_REASONS = {
  * Claude composer returns `{ hooks: { [event]: [ { hooks: [{command}] } ] } }`.
  *
  * @param {Record<string, any>} composed result of composeSettings or composeCodexHooks
- * @returns {Set<string>} script basenames like "session-start.mjs"
+ * @returns {Set<string>} script basenames like "governance-write-preflight.mjs"
  */
 export function extractClaudeOrCodexScripts(composed) {
   const scripts = new Set();

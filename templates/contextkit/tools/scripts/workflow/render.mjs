@@ -1,228 +1,122 @@
 /**
- * Markdown PROJECTIONS for the universal wave workflow engine (WF0035,
- * ADR-0067 / ADR-0101 §17). Renders the static plan (`workflow-plan.json`) +
- * machine state (`workflow-state.json`) into managed blocks inside human-authored
- * documents (`tasks.md`, `index.md`), preserving everything OUTSIDE the markers
- * byte-for-byte.
+ * Pure, idempotent Markdown projections for Workflow v2 (ADR-0158 / W05).
  *
- * Projection-only: this module computes NO status — task/wave status is read
- * straight from `state.taskStates[id].status` / `state.waveStates[id].status`;
- * human-mode tasks use their wave's passed/approved gate as the completion
- * receipt. Status is never hand-set (fallback "pending" when state is absent).
- * Output is fully
- * deterministic (waves + tasks in plan order, no timestamps generated here) so
- * re-rendering identical inputs is byte-identical and `writeIfChanged` makes it a
- * no-op — no mtime churn.
- *
- * Zero runtime dependencies — `node:*` + sibling workflow modules only (ADR-0001).
- * Timestamps are INJECTED by the caller (`now`); `Date.now()`/`Math.random()` are
- * deliberately absent.
+ * `workflow.json`, `workflow-state.json`, and `pipeline/tasks.json` are the only
+ * inputs. The generated files are replaced as whole projections and are never
+ * parsed as state authorities.
  */
-import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readManagedBlock, updateManagedBlock, writeIfChanged } from './io.mjs';
-import { normalizePlan, readPlan } from './plan.mjs';
-import { readState } from './state.mjs';
+import { readJsonSafe, writeIfChanged } from './io.mjs';
+import { renderTasksMarkdown as renderCanonicalTasksMarkdown } from '../tasks-render.mjs';
+import { readTasksDocument } from '../tasks-store.mjs';
 
-/** Default status stamped on a task/wave when state is absent or omits it. */
-const PENDING = 'pending';
-
-/** Escape a cell value so a literal pipe never breaks the Markdown table. */
+/** Escape a value for a Markdown table cell. */
 function escapeCell(value) {
   return String(value ?? '').replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').trim();
 }
 
-/**
- * Returns whether the wave gate proves a human task completed.
- * Human-mode tasks intentionally have no agent task-state entry; the explicit
- * gate result is their completion receipt.
- * @param {object|null} state the loaded `workflow-state.json` (or null)
- * @param {object} wave workflow wave containing the gate id
- * @returns {boolean}
- */
-function humanGateCompleted(state, wave) {
-  const gateId = wave && typeof wave.gate === 'string' ? wave.gate : null;
-  const gateResult = gateId && state && state.gateResults ? state.gateResults[gateId] : null;
-  const status = gateResult && typeof gateResult === 'object' ? gateResult.status : null;
-  return status === 'passed' || status === 'approved';
-}
-
-/**
- * Status of a single task from state, falling back to "pending". Human-mode
- * tasks use the wave gate as their explicit completion receipt.
- * @param {object|null} state the loaded `workflow-state.json` (or null)
- * @param {object} wave workflow wave containing the task
- * @param {object} task workflow task
- * @returns {string}
- */
-function taskStatus(state, wave, task) {
-  const taskId = task && task.id;
-  const entry = state && state.taskStates ? state.taskStates[taskId] : undefined;
-  if (entry && typeof entry.status === 'string' && entry.status) return entry.status;
-  if (task?.execution?.mode === 'human' && humanGateCompleted(state, wave)) return 'done';
-  return PENDING;
-}
-
-/**
- * Status of a single wave from state, falling back to "pending".
- * @param {object|null} state
- * @param {string} waveId e.g. "W1"
- * @returns {string}
- */
-function waveStatus(state, waveId) {
-  const entry = state && state.waveStates ? state.waveStates[waveId] : undefined;
-  return (entry && typeof entry.status === 'string' && entry.status) || PENDING;
-}
-
-/**
- * Summarize a task's acceptance list into a concise cell (Origem bar): the count
- * plus the first criterion, so the table stays scannable without losing intent.
- * @param {string[]} acceptance
- * @returns {string}
- */
-function summarizeAcceptance(acceptance) {
-  if (!Array.isArray(acceptance) || acceptance.length === 0) return '—';
-  const first = escapeCell(acceptance[0]);
-  return acceptance.length === 1 ? first : `${acceptance.length}× — ${first}`;
-}
-
-/** Join a string array into a compact cell, or an em-dash when empty. */
+/** Render a string list without introducing editable checkbox state. */
 function listCell(values) {
-  return Array.isArray(values) && values.length ? values.map(escapeCell).join(', ') : '—';
+  return Array.isArray(values) && values.length > 0
+    ? values.map(escapeCell).join('<br>')
+    : '—';
 }
 
 /**
- * Owner cell: the integration owner plus the first allowed write path, so the
- * disjoint-ownership contract is visible in the projection.
- * @param {object} task a normalized task
- * @returns {string}
+ * Render `pipeline/tasks.md` through W06's single canonical task renderer.
+ * @param {object} definition canonical workflow definition (identity only)
+ * @param {object} tasksDocument canonical tasks document
+ * @returns {string} newline-terminated Markdown
  */
-function ownerCell(task) {
-  const paths = task.ownership && Array.isArray(task.ownership.allowedPaths) ? task.ownership.allowedPaths : [];
-  if (paths.length === 0) return escapeCell((task.ownership && task.ownership.integrationOwner) || 'orchestrator');
-  const head = escapeCell(paths[0]);
-  return paths.length === 1 ? head : `${head} +${paths.length - 1}`;
+export function renderTasksMarkdown(definition, tasksDocument) {
+  void definition;
+  return renderCanonicalTasksMarkdown(tasksDocument);
 }
 
-/** Render the header + one data row per task for a single wave (Origem columns). */
-function renderWaveSection(wave, state) {
-  const lines = [];
-  const title = escapeCell(wave.title || wave.id);
-  lines.push(`### ${escapeCell(wave.id)} — ${title} · _${waveStatus(state, wave.id)}_`);
-  if (wave.description) lines.push('', escapeCell(wave.description));
-  lines.push('');
-  lines.push('| Task | P | Objective | Acceptance | Deps | Owns | Status |');
-  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
-  for (const task of wave.tasks) {
-    lines.push(
-      `| **${escapeCell(task.id)}** | ${escapeCell(task.priority)} | ${escapeCell(task.objective) || '—'}` +
-        ` | ${summarizeAcceptance(task.acceptance)} | ${listCell(task.dependsOn)}` +
-        ` | ${ownerCell(task)} | ${taskStatus(state, wave, task)} |`,
-    );
+/**
+ * Render the optional `index.md` projection from the three authorities.
+ * @param {object} definition canonical workflow definition
+ * @param {object} state canonical workflow aggregate state
+ * @param {object} tasksDocument canonical tasks document
+ * @returns {string} newline-terminated Markdown
+ */
+export function renderIndexMarkdown(definition, state, tasksDocument) {
+  const statusCounts = new Map();
+  for (const task of tasksDocument.tasks ?? []) {
+    statusCounts.set(task.status, (statusCounts.get(task.status) ?? 0) + 1);
   }
-  return lines.join('\n');
-}
-
-/**
- * Render the full tasks table (inner content of the `tasks` managed block):
- * one section per wave, grouped + ordered as the normalized plan, every status
- * sourced from state.
- * @param {object} plan a plan (normalized internally)
- * @param {object|null} state the loaded state, or null (all-pending)
- * @returns {string} Markdown — the inner block content (no markers)
- */
-export function renderTasksTable(plan, state) {
-  const normalized = normalizePlan(plan);
-  if (normalized.waves.length === 0) return '_No waves defined yet._';
-  return normalized.waves.map((wave) => renderWaveSection(wave, state)).join('\n\n');
-}
-
-/**
- * Compose a one-line wave-status summary, e.g. "W1 in-progress · W2 pending".
- * @param {object[]} waves normalized waves
- * @param {object|null} state
- * @returns {string}
- */
-function waveStatusSummary(waves, state) {
-  if (waves.length === 0) return '—';
-  return waves.map((wave) => `${wave.id} ${waveStatus(state, wave.id)}`).join(' · ');
-}
-
-/**
- * Render the index-status managed block: profile, pattern, journey phase,
- * wave-status summary, and the state revision (engine truth at a glance).
- * @param {object} plan a plan (normalized internally)
- * @param {object|null} state the loaded state, or null
- * @returns {string} Markdown — the inner block content (no markers)
- */
-export function renderIndexStatus(plan, state) {
-  const normalized = normalizePlan(plan);
-  const phase = (state && state.journeyPhase) || (normalized.journey && normalized.journey.currentPhase) || 'intake';
-  const revision = state && typeof state.revision === 'number' ? state.revision : 0;
-  const overall = (state && state.overallStatus) || 'not-started';
+  const taskSummary = [...statusCounts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([status, count]) => `${status}: ${count}`)
+    .join(' · ') || 'none';
+  const owner = definition.owner.kind === 'none'
+    ? 'none'
+    : `${definition.owner.kind}:${definition.owner.id}`;
   return [
-    `- **Profile:** ${escapeCell(normalized.profile || '—')} · **Pattern:** ${escapeCell(normalized.pattern || '—')}`,
-    `- **Journey phase:** ${escapeCell(phase)} · **Overall:** ${escapeCell(overall)}`,
-    `- **Waves:** ${waveStatusSummary(normalized.waves, state)}`,
-    `- **State revision:** ${revision}`,
+    `# Workflow — ${escapeCell(definition.title)}`,
+    '',
+    '> Generated projection. Authorities: `workflow.json`, `workflow-state.json`, and `pipeline/tasks.json`.',
+    '',
+    `- **ID:** ${escapeCell(definition.id)}`,
+    `- **Owner:** ${escapeCell(owner)}`,
+    `- **Status:** ${escapeCell(state.status)}`,
+    `- **Phase:** ${escapeCell(state.phase)}`,
+    `- **Revision:** ${state.revision}`,
+    `- **Tasks:** ${taskSummary}`,
+    `- **Blockers:** ${state.blockers.length > 0 ? listCell(state.blockers) : 'none'}`,
+    `- **Last report:** ${escapeCell(state.lastReportRef) || 'none'}`,
+    '',
   ].join('\n');
 }
 
 /**
- * Idempotently write `innerContent` into the named managed block of `filePath`,
- * preserving all human content outside the markers. Reads the existing file (or
- * treats a missing file as empty), updates the block, and writes only on change.
- * @param {string} filePath absolute path to the projection document
- * @param {string} blockId managed-block id (e.g. "tasks", "index-status")
- * @param {string} innerContent the rendered inner content (no markers)
- * @returns {{ changed: boolean }} whether a write occurred (idempotent re-render → false)
- * @throws {TypeError} when arguments are missing
+ * Read the canonical package inputs required by the projection writer.
+ * @param {string} packDirectory absolute workflow directory
+ * @returns {{definition:object,state:object,tasks:object}}
+ * @throws {Error} when a canonical JSON input is missing or invalid
  */
-export function applyRender(filePath, blockId, innerContent) {
-  if (!filePath) throw new TypeError('applyRender: filePath is required');
-  if (!blockId) throw new TypeError('applyRender: blockId is required');
-  const source = existsSync(filePath) ? readFileSync(filePath, 'utf-8') : '';
-  const next = updateManagedBlock(source, blockId, innerContent);
-  return writeIfChanged(filePath, next);
+function readProjectionInputs(packDirectory) {
+  const definition = readJsonSafe(join(packDirectory, 'workflow.json'), null);
+  const state = readJsonSafe(join(packDirectory, 'workflow-state.json'), null);
+  if (!definition) throw new Error(`Workflow definition is missing or invalid at ${join(packDirectory, 'workflow.json')}`);
+  if (!state) throw new Error(`Workflow state is missing or invalid at ${join(packDirectory, 'workflow-state.json')}`);
+  const tasks = readTasksDocument(join(packDirectory, 'pipeline', 'tasks.json'));
+  return { definition, state, tasks };
 }
 
 /**
- * Load `workflow-plan.json` + optional `workflow-state.json` from `packDir`.
- * A missing state file is not an error — it yields all-pending projections.
- * @param {string} packDir the workflow pack directory
- * @returns {{ plan: object, state: object|null }}
- * @throws {Error} when no readable plan exists in `packDir`
+ * Refresh `pipeline/tasks.md`; identical input performs no write.
+ * @param {string} packDirectory absolute workflow directory
+ * @returns {{changed:boolean}}
  */
-function loadPack(packDir) {
-  const plan = readPlan(join(packDir, 'workflow-plan.json'));
-  const state = readState(join(packDir, 'workflow-state.json'));
-  return { plan, state };
+export function refreshTasks(packDirectory) {
+  const { definition, tasks } = readProjectionInputs(packDirectory);
+  return writeIfChanged(
+    join(packDirectory, 'pipeline', 'tasks.md'),
+    renderTasksMarkdown(definition, tasks),
+  );
 }
 
 /**
- * Refresh the `tasks` managed block of `packDir/tasks.md` from plan + state.
- * @param {string} packDir the workflow pack directory
- * @param {{ now?: string }} [opts] injected timestamp (reserved; projection is timeless)
- * @returns {{ changed: boolean }}
- * @throws {Error} when no readable plan exists
+ * Refresh `index.md`; identical input performs no write.
+ * @param {string} packDirectory absolute workflow directory
+ * @returns {{changed:boolean}}
  */
-export function refreshTasks(packDir, { now } = {}) {
-  void now;
-  const { plan, state } = loadPack(packDir);
-  return applyRender(join(packDir, 'tasks.md'), 'tasks', renderTasksTable(plan, state));
+export function refreshIndex(packDirectory) {
+  const { definition, state, tasks } = readProjectionInputs(packDirectory);
+  return writeIfChanged(
+    join(packDirectory, 'index.md'),
+    renderIndexMarkdown(definition, state, tasks),
+  );
 }
 
 /**
- * Refresh the `index-status` managed block of `packDir/index.md` from plan + state.
- * @param {string} packDir the workflow pack directory
- * @param {{ now?: string }} [opts] injected timestamp (reserved; projection is timeless)
- * @returns {{ changed: boolean }}
- * @throws {Error} when no readable plan exists
+ * Refresh every Markdown projection and report whether each file changed.
+ * @param {string} packDirectory absolute workflow directory
+ * @returns {{tasksChanged:boolean,indexChanged:boolean}}
  */
-export function refreshIndex(packDir, { now } = {}) {
-  void now;
-  const { plan, state } = loadPack(packDir);
-  return applyRender(join(packDir, 'index.md'), 'index-status', renderIndexStatus(plan, state));
+export function renderWorkflowPack(packDirectory) {
+  const tasksChanged = refreshTasks(packDirectory).changed;
+  const indexChanged = refreshIndex(packDirectory).changed;
+  return { tasksChanged, indexChanged };
 }
-
-export { readManagedBlock };

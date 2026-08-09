@@ -14,7 +14,6 @@
  *   audit  [--json]    — surface flags + posture          (→ mcp-audit.mjs)
  *   sync               — push manifest → host configs     (→ mcp-discover.mjs / renderers)
  *   disable <id>       — disable a server                 (→ mcp-discover.mjs)
- *   receipt [--write]  — write an MCP execution receipt   (→ mcp-receipt.mjs)
  *
  * Exit contract:
  *   - Each subcommand handles its own exit (via the delegated module's CLI).
@@ -56,7 +55,6 @@ Subcommands:
   audit  [--json]      Surface audit flags and posture for enabled servers.
   sync                 Push manifest changes to host config files.
   disable <id>         Disable an enabled server.
-  receipt [--write]    Write (or dry-run) an MCP execution receipt.
 
 Options:
   --root <path>        Project root override (default: cwd).
@@ -68,7 +66,6 @@ Examples:
   mcp doctor --json
   mcp audit  --json --root /my/project
   mcp discover filesystem
-  mcp receipt --write '{"task":"t","run":"r","servers":[],"tools":[],"host":"claude-code","result":"passed"}'
 `.trimStart();
 
 // ---------------------------------------------------------------------------
@@ -128,7 +125,6 @@ const SUBCOMMAND_MAP = {
   audit:    'mcp-audit.mjs',
   sync:     'mcp-discover.mjs',   // handled by discover CLI with 'sync' as first arg
   disable:  'mcp-discover.mjs',   // handled by discover CLI with 'disable' as first arg
-  receipt:  'mcp-receipt.mjs',
 };
 
 // ---------------------------------------------------------------------------

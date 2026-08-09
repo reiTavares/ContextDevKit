@@ -1,143 +1,133 @@
+/** Pure lifecycle mutations for the canonical v4 task document. */
+import {
+  TASK_EVENT_TYPE,
+  TASK_STATUSES,
+  isLegalTaskTransition,
+} from './tasks-schema.mjs';
+import { assertTasksDocument } from './tasks-validate.mjs';
+
+const isNonEmptyString = (value) => typeof value === 'string' && value.trim() !== '';
+
 /**
- * WF-0059 W3 — the ONE transition engine (atomic status↔event pairing).
+ * Returns a stable union of existing and appended references.
  *
- * The single writer of a task's status. Every status change flows through here,
- * appending a reversible ADR-0043 event to the per-task journal (the authority,
- * retained in `state/<id>/`) paired with the `tasks.json` status projection. The
- * invariant `fold(events)==status` is preserved by **JOURNAL-FIRST ordering**:
- * the event is appended BEFORE the projection is written, so a crash between the
- * two can never leave a status WITHOUT its reversible event (the forbidden
- * state). A crash AFTER the event but before the projection is self-healing —
- * re-derive `status = fold(events)` (no lost history). This is the decisive
- * safety receipt the 2026-06-26 deliberation mandated.
- *
- * Split in two so the pairing is testable with crash injection:
- *   - `planTransition(...)`   — PURE. Validates the legal table + actor rules +
- *     the blocked/done predicates; returns the event to append, or THROWS.
- *   - `applyTransition(io, ...)` — orchestrates the journal-first write via an
- *     INJECTED `io` ({ readEvents, appendEvent, writeStatus }); production wires
- *     `io` to `runtime/state/state-io.mjs` (`appendEvent` is the ONLY journal
- *     writer). W5 layers CAS-on-revision + atomic write over this same io.
- *
- * Actor rules (SPEC §D3, deliberation CONSENSUS):
- *   - `auto`  — forward-only: not_started→working, working→testing. NEVER enters
- *               or exits `blocked`; never reaches `done`.
- *   - `qa`    — owns the testing edges: testing→working (qa-reject, MUST carry
- *               feedback) and testing→done (qa-approve, requires evidence).
- *   - `human` — the fenced escape hatch: any edge LEGAL in the table (it cannot
- *               re-open the machine with an illegal jump).
- *
- * Zero-dep, `node:*`-free — safe on the hot path.
+ * @param {string[]} currentRefs
+ * @param {string[]|undefined} appendedRefs
+ * @returns {string[]}
  */
-import { isLegalTransition, foldStatus, isValidBlocker } from './tasks-schema.mjs';
-
-/** Actors permitted to drive a transition (mirrors state-io's set, minus `evict`). */
-export const TRANSITION_ACTORS = Object.freeze(['human', 'auto', 'qa']);
-
-/** Edges `auto` may drive (forward-only; never blocked, never done). */
-const AUTO_EDGES = Object.freeze([['not_started', 'working'], ['working', 'testing']]);
-/** Edges `qa` may drive (the testing monopoly). */
-const QA_EDGES = Object.freeze([['testing', 'working'], ['testing', 'done']]);
-
-/** True when `edges` contains the `from→to` pair. */
-function edgeIn(edges, from, to) {
-  return edges.some(([f, t]) => f === from && t === to);
+function mergeReferences(currentRefs, appendedRefs) {
+  return [...new Set([...(currentRefs ?? []), ...(appendedRefs ?? [])])];
 }
 
 /**
- * True when `actor` is permitted to drive `from→to`. `human` may drive any edge
- * that is legal in the table (the fenced escape hatch); `auto`/`qa` are
- * restricted to their edge sets.
+ * Finds an already committed transition request for retry idempotence.
  *
- * @param {'human'|'auto'|'qa'} actor
- * @param {string} from
- * @param {string} to
- * @returns {boolean}
+ * @param {object} document
+ * @param {string|undefined} eventId
+ * @returns {object|null}
  */
-export function actorMayTransition(actor, from, to) {
-  if (actor === 'human') return isLegalTransition(from, to);
-  if (actor === 'auto') return edgeIn(AUTO_EDGES, from, to);
-  if (actor === 'qa') return edgeIn(QA_EDGES, from, to);
-  return false;
+export function findTaskEvent(document, eventId) {
+  if (!isNonEmptyString(eventId) || !Array.isArray(document?.events)) return null;
+  return document.events.find((event) => event.id === eventId) ?? null;
 }
 
 /**
- * Plans a transition: validates and returns the event to append, or throws a
- * descriptive error. PURE — no I/O.
+ * Plans one atomic status/event mutation entirely in memory.
  *
- * @param {object} args
- * @param {string} args.from — current (folded) status
- * @param {string} args.to — target status
- * @param {'human'|'auto'|'qa'} args.actor
- * @param {object} [args.blocker] — required when `to==='blocked'`
- * @param {boolean} [args.acceptanceMet] — required true when `to==='done'`
- * @param {*} [args.evidenceRef] — required non-null when `to==='done'`
- * @param {string} [args.note] — feedback/context; REQUIRED for a qa-reject
- * @returns {{ from: string, to: string, actor: string, note?: string }}
- * @throws {Error} on illegal edge, disallowed actor, or unmet predicate
+ * The returned document contains both the authoritative status and its optional
+ * audit event at the same next revision. Callers must commit the whole document
+ * with CAS; writing either part separately is unsupported.
+ *
+ * @param {object} document validated canonical tasks document
+ * @param {string} taskId
+ * @param {{to:string,actor:string,note?:string,evidenceRefs?:string[],reportRefs?:string[],at?:string,eventId?:string}} transition
+ * @returns {{document:object,task:object,event:object,idempotent:boolean}}
+ * @throws {Error} on unknown task, illegal edge, malformed actor, or missing done evidence
  */
-export function planTransition({ from, to, actor, blocker, acceptanceMet, evidenceRef, note }) {
-  if (!TRANSITION_ACTORS.includes(actor)) {
-    throw new Error(`transition: unknown actor "${actor}" — one of ${TRANSITION_ACTORS.join(', ')}`);
+export function planTaskTransition(document, taskId, transition) {
+  assertTasksDocument(document);
+  if (!isNonEmptyString(taskId)) throw new TypeError('transitionTask: taskId must be a non-empty string');
+  if (!transition || typeof transition !== 'object') {
+    throw new TypeError('transitionTask: transition must be an object');
   }
-  if (!isLegalTransition(from, to)) {
-    throw new Error(`transition: illegal edge ${from} → ${to} (not in the closed lifecycle table)`);
+  const priorEvent = findTaskEvent(document, transition.eventId);
+  if (priorEvent) {
+    if (priorEvent.taskId !== taskId || priorEvent.to !== transition.to) {
+      throw new Error(`transitionTask: eventId "${transition.eventId}" already belongs to another transition`);
+    }
+    const priorTask = document.tasks.find((task) => task.id === taskId);
+    return { document, task: priorTask, event: priorEvent, idempotent: true };
   }
-  if (!actorMayTransition(actor, from, to)) {
-    throw new Error(`transition: actor "${actor}" may not drive ${from} → ${to}`);
+
+  const taskIndex = document.tasks.findIndex((task) => task.id === taskId);
+  if (taskIndex < 0) throw new Error(`transitionTask: unknown task "${taskId}"`);
+  const currentTask = document.tasks[taskIndex];
+  if (!TASK_STATUSES.includes(transition.to)) {
+    throw new Error(`transitionTask: target status must be one of ${TASK_STATUSES.join(', ')}`);
   }
-  if (to === 'blocked' && !isValidBlocker(blocker)) {
-    throw new Error('transition: entering "blocked" requires a structured blocker { category, explanation, releaseCondition }');
+  if (!isLegalTaskTransition(currentTask.status, transition.to)) {
+    throw new Error(`transitionTask: illegal transition ${currentTask.status} -> ${transition.to}`);
   }
-  if (to === 'done' && !(acceptanceMet === true && evidenceRef != null)) {
-    throw new Error('transition: entering "done" requires acceptanceMet===true && evidenceRef!=null');
+  if (!isNonEmptyString(transition.actor)) {
+    throw new TypeError('transitionTask: actor must be a non-empty string');
   }
-  // qa-reject monopoly: testing→working by qa MUST carry feedback (SPEC §D3).
-  if (actor === 'qa' && from === 'testing' && to === 'working' && !(typeof note === 'string' && note.trim() !== '')) {
-    throw new Error('transition: qa-reject (testing→working) must carry feedback (note)');
+  if (transition.note !== undefined && !isNonEmptyString(transition.note)) {
+    throw new TypeError('transitionTask: note must be a non-empty string when present');
   }
-  const event = { from, to, actor };
-  if (note) event.note = String(note).slice(0, 300);
-  return event;
+  if (transition.evidenceRefs !== undefined && !Array.isArray(transition.evidenceRefs)) {
+    throw new TypeError('transitionTask: evidenceRefs must be an array');
+  }
+  if (transition.reportRefs !== undefined && !Array.isArray(transition.reportRefs)) {
+    throw new TypeError('transitionTask: reportRefs must be an array');
+  }
+
+  const timestamp = transition.at ?? new Date().toISOString();
+  const nextRevision = document.revision + 1;
+  const evidenceRefs = mergeReferences(currentTask.evidenceRefs, transition.evidenceRefs);
+  const reportRefs = mergeReferences(currentTask.reportRefs, transition.reportRefs);
+  if (transition.to === 'done' && evidenceRefs.length === 0) {
+    throw new Error('transitionTask: status done requires at least one evidence reference');
+  }
+  const nextTask = {
+    ...currentTask,
+    status: transition.to,
+    evidenceRefs,
+    reportRefs,
+    updatedAt: timestamp,
+  };
+  const event = {
+    id: transition.eventId ?? `${document.scopeRef}:${taskId}:r${nextRevision}`,
+    type: TASK_EVENT_TYPE,
+    taskId,
+    from: currentTask.status,
+    to: transition.to,
+    actor: transition.actor.trim(),
+    at: timestamp,
+    revision: nextRevision,
+    evidenceRefs: [...(transition.evidenceRefs ?? [])],
+    reportRefs: [...(transition.reportRefs ?? [])],
+  };
+  if (transition.note !== undefined) event.note = transition.note.trim();
+
+  const nextTasks = document.tasks.map((task, index) => (index === taskIndex ? nextTask : task));
+  const nextDocument = {
+    ...document,
+    revision: nextRevision,
+    tasks: nextTasks,
+    events: [...document.events, event],
+  };
+  assertTasksDocument(nextDocument);
+  return { document: nextDocument, task: nextTask, event, idempotent: false };
 }
 
 /**
- * Applies a transition JOURNAL-FIRST via the injected `io`. Reads the journal,
- * folds the current status, plans+validates the transition, then appends the
- * event (the authority) BEFORE writing the status projection. A crash in
- * `writeStatus` leaves the event in the journal (status re-derivable), never a
- * status without its event.
+ * Compatibility alias for callers that use a pure document transition name.
  *
- * `io` contract:
- *   - `readEvents(id)  -> Array`   the current journal (may be empty)
- *   - `appendEvent(id, event)`     append one event (the ONLY journal writer)
- *   - `writeStatus(id, status)`    write the `tasks.json` projection
- *
- * @param {{ readEvents: Function, appendEvent: Function, writeStatus: Function }} io
- * @param {object} args — { id, to, actor, blocker?, acceptanceMet?, evidenceRef?, note? }
- * @returns {{ status: string, event: object, from: string }}
+ * @param {object} document
+ * @param {string} taskId
+ * @param {object} transition
+ * @returns {object}
  */
-export function applyTransition(io, args) {
-  const { id } = args;
-  const events = io.readEvents(id) || [];
-  const from = foldStatus(events);
-  const event = planTransition({ ...args, from });
-  io.appendEvent(id, event);      // authority first
-  io.writeStatus(id, event.to);   // projection second (crash here is self-healing)
-  return { status: event.to, event, from };
-}
-
-/**
- * Re-derives the status projection from the journal — the recovery primitive
- * after a crash between `appendEvent` and `writeStatus`. Idempotent: running it
- * when already consistent is a no-op write of the same value.
- *
- * @param {{ readEvents: Function, writeStatus: Function }} io
- * @param {string} id
- * @returns {string} the folded status written back
- */
-export function reconcileStatus(io, id) {
-  const status = foldStatus(io.readEvents(id) || []);
-  io.writeStatus(id, status);
-  return status;
+export function transitionTaskDocument(document, taskId, transition) {
+  return planTaskTransition(document, taskId, transition);
 }

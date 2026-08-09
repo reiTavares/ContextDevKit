@@ -18,17 +18,14 @@ scheduled/recurring run — see below).
    `node contextkit/tools/scripts/contract-scan.mjs` — flag removed/renamed exports.
 5. **QA status** — if a test suite exists, run it (and coverage if available) and
    note whether `qa.criticalPaths` are covered vs `qa.coverageTarget`.
-6. **Drift** — note any unregistered prior sessions or stale claims from boot.
+6. **Workspace state** — note stale claims without changing task status.
 
 Output a single prioritized list: **🔴 do now / 🟡 soon / 🟢 fyi**, each with the
 file and the one-line fix — this is the audit report.
 
-**Feed the backlog so nothing is lost.** Ingest the mechanical findings (run
-`tech-debt-scan.mjs --write` first, then `node contextkit/tools/scripts/pipeline.mjs
-ingest contextkit/memory/tech-debt-findings.json --type chore`), and `pipeline.mjs
-add` the 🔴/🟡 items you raised by judgment (🔴→P0/P1, 🟡→P2). The priorities are
-**auto-assigned but always editable** by the user (`pipeline.mjs prioritize <id>
-<P>` or `/pipeline`). Offer to open a focused `/dev-start` on the top item.
+The audit is read-only unless `--write` was explicitly requested for its report.
+It never creates tasks automatically. Offer a separate, explicitly scoped
+mutation for the top finding.
 
 > Tip: to run this on a schedule, use the harness — e.g. `/loop` for an interval
 > in-session, or `/schedule` to register a recurring remote agent that runs

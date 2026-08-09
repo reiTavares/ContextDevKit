@@ -33,12 +33,11 @@ Ask the user (batch into one short round, offer inferred defaults):
 - The **target level** (use `$ARGUMENTS` if provided; else recommend based on
   the report — L2 for most, L1 for greenfield, L4/L5 if the codebase is large or
   has clear high-risk areas).
-- The **autonomy grade** (exactly ONE question, ADR-0041/0042/0058 — phrase the
-  options as consequences, not numbers; preselect grade 3): "How much may I do
-  without asking? (1) only what you command · (2) I suggest, you approve ·
-  (3) I edit and test on my own; decisions still come to you — recommended ·
-  (4) experimental full-auto." Apply with
-  `node contextkit/tools/scripts/autonomy.mjs <N>` — never preselect 4.
+- One optional **working preference**: ask whether the owner prefers direct
+  execution, a batch for several independent changes, or a workflow only for
+  real dependencies/multi-session work. Store an explicit answer in
+  `memory/preferences/owner-preferences.json`; it ranks future suggestions but
+  never overrides the current instruction.
 
 ## Phase 3 — Apply configuration
 1. Tune the ledger + high-risk paths to this stack in one step (this also flips

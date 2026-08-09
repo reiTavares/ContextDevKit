@@ -88,9 +88,9 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   }
   if (drift === 0) ok(`policy and frontmatter agree across ${allAgents.size} agents`);
 
-  const ladderIndex = (tier) => policy.ladder.indexOf(tier);
-  (policy.floorAgents ?? []).every((agent) => policy.agents?.[agent] && ladderIndex(policy.agents[agent]) >= ladderIndex(policy.floorTier))
-    ? ok('floor agents exist at or above the floor') : bad('a floor agent is missing or below the floor');
+  policy.decision === 'recommend' && policy.binding === false && policy.failurePolicy === 'continue-current-agent'
+    && !Object.hasOwn(policy, 'floorAgents') && !Object.hasOwn(policy, 'floorTier')
+    ? ok('routing policy is non-binding and declares no agent/model floors') : bad('routing policy retained hidden dispatch authority');
 
   let mod;
   try { mod = await import(pathToFileURL(modulePath).href); ok('model-policy.mjs imports cleanly'); }
@@ -99,13 +99,15 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
 
   const executed = resolveModel('devops', { task: 'execute', policy });
   executed.model === policy.tiers.fast.alias ? ok('non-Codex execute retains cheap-tier behavior') : bad(`execute routing failed: ${JSON.stringify(executed)}`);
-  const floored = resolveModel('security', { task: 'execute', budgetExhausted: true, policy });
-  ladderIndex(floored.tier) >= ladderIndex(policy.floorTier) ? ok('non-Codex security floor holds') : bad(`floor breached: ${JSON.stringify(floored)}`);
+  const securityRecommendation = resolveModel('security', { task: 'execute', budgetExhausted: true, policy });
+  securityRecommendation.decision === 'recommend' && securityRecommendation.binding === false
+    ? ok('security model choice remains a recommendation without an agent floor') : bad(`security recommendation is binding: ${JSON.stringify(securityRecommendation)}`);
   resolveModel('qa-unit', { qaFailures: 2, policy }).tier === 'powerful' ? ok('non-Codex QA escalation holds') : bad('QA escalation failed');
   aliasForTier('powerful', { policy }).model === policy.tiers.powerful.alias ? ok('non-Codex tier dispatch holds') : bad('tier dispatch failed');
 
   const missing = aliasForTier('powerful', { host: 'codex', policy });
-  missing.decision === 'refuse' && missing.model === null ? ok('Codex requires both dimensions') : bad(`missing dimensions were accepted: ${JSON.stringify(missing)}`);
+  missing.decision === 'recommend' && missing.continuation?.allowed === true
+    ? ok('Codex missing dimensions continue with non-binding guidance') : bad(`missing dimensions blocked: ${JSON.stringify(missing)}`);
   const efforts = new Set(policy.codexDispatch?.supportedEfforts ?? []);
   efforts.size === 6 && ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].every((effort) => efforts.has(effort))
     ? ok('Codex effort allowlist is complete') : bad('Codex effort allowlist is incomplete');
@@ -114,13 +116,14 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
 
   for (const [complexity, risk, model, effort, ruleId] of EXPECTED_CODEX_ROUTES) {
     const dispatch = resolveCodexDispatch({ complexity, risk, policy });
-    dispatch.decision === 'dispatch' && dispatch.model === model && dispatch.effort === effort && dispatch.ruleId === ruleId
+    dispatch.decision === 'recommend' && dispatch.recommendedModel === model && dispatch.recommendedEffort === effort && dispatch.ruleId === ruleId
       ? ok(`Codex ${complexity}+${risk} -> ${model}@${effort}`)
       : bad(`Codex route mismatch for ${complexity}+${risk}: ${JSON.stringify(dispatch)}`);
   }
   for (const complexity of ['low', 'moderate', 'high', 'xhigh']) {
-    const refused = resolveCodexDispatch({ complexity, risk: 'critical', policy });
-    refused.decision === 'refuse' && refused.model === null ? ok(`critical risk refused for ${complexity}`) : bad(`critical-risk refusal failed for ${complexity}`);
+    const unavailable = resolveCodexDispatch({ complexity, risk: 'critical', policy });
+    unavailable.decision === 'recommend' && unavailable.continuation?.allowed === true && unavailable.recommendedModel === null
+      ? ok(`critical-risk gap continues for ${complexity}`) : bad(`critical-risk gap blocked for ${complexity}`);
   }
   const taskKind = resolveCodexDispatch({ taskKind: 'research', complexity: 'high', risk: 'high', policy });
   taskKind.model === 'gpt-5.6-sol' && taskKind.effort === 'high' ? ok('dimensions outrank task kind') : bad('task kind overrode dimensions');
@@ -132,7 +135,7 @@ export async function runModelPolicyChecks({ ok, bad }, { KIT }) {
   const claude = aliasForTier('powerful', { host: 'claude', taskKind: 'search', policy });
   claude.model === 'sonnet' && claude.effort === null ? ok('Codex rules do not alter Claude') : bad('Claude routing changed');
   resolveModel('qa-unit', { host: 'agy', policy }).model === null ? ok('Antigravity host gap remains explicit') : bad('Antigravity gap changed');
-  let threw = false;
-  try { resolveModel('does-not-exist', { policy }); } catch { threw = true; }
-  threw ? ok('unknown agent is refused') : bad('unknown agent was accepted');
+  const unknown = resolveModel('does-not-exist', { policy });
+  unknown.decision === 'recommend' && unknown.status === 'unavailable' && unknown.continuation?.allowed === true
+    ? ok('unknown agent continues on the active agent') : bad('unknown agent became a blocker');
 }

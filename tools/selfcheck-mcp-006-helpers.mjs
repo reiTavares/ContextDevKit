@@ -64,7 +64,6 @@ export function makeFakeRoot() {
   const root = resolve(tmpdir(), `sc-mcp-006-${randomUUID()}`);
   const ckit = resolve(root, 'contextkit');
   const mem = resolve(ckit, 'memory');
-  const pipeline = resolve(ckit, 'pipeline');
 
   for (const dir of [
     resolve(mem, 'sessions'),
@@ -72,10 +71,6 @@ export function makeFakeRoot() {
     resolve(mem, 'project-map'),
     resolve(mem, 'workflows'),
     resolve(mem, 'business-rules'),
-    resolve(pipeline, 'backlog'),
-    resolve(pipeline, 'working'),
-    resolve(pipeline, 'testing'),
-    resolve(pipeline, 'conclusion'),
     resolve(root, '.claude', '.workspace'),
   ]) {
     mkdirSync(dir, { recursive: true });

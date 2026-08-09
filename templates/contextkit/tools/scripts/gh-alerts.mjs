@@ -3,8 +3,8 @@
  * GitHub security alerts → findings (the loop-closer).
  *
  * Pulls Dependabot + code-scanning alerts via the `gh` CLI and shapes them like
- * deps-audit findings, so `pipeline.mjs ingest` turns GitHub's alerts into
- * prioritized, owned backlog tasks. The `code-security` agent then triages them.
+ * deps-audit findings. They remain review artifacts until an owner explicitly
+ * adds accepted work to a scoped canonical task store.
  *
  *   node .../gh-alerts.mjs            # console summary
  *   node .../gh-alerts.mjs --json     # { findings: [...] }
@@ -98,7 +98,7 @@ function main() {
   if (process.argv.includes('--write')) {
     writeFileSync(resolve(P.memory, 'gh-alerts-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔐 gh-alerts: ${findings.length} alert(s) → contextkit/memory/gh-alerts-findings.json`);
-    console.log('   → feed the backlog:  node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/gh-alerts-findings.json --type chore');
+    console.log('   → review findings, then add accepted work with pipeline.mjs add --tasks <scope> --title "..."');
     return;
   }
   if (process.argv.includes('--json')) {

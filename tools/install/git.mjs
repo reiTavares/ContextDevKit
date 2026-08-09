@@ -166,7 +166,7 @@ export async function detectExistingHooksManager(target) {
 }
 
 // COMMITTED ignore lines (the shared, visible decision — ADR-0132). Machinery
-// front-end state + disposable runtime state + the REGENERABLE memory indices
+// explicit workspace claims + disposable runtime state + regenerable memory indices
 // (SESSIONS.md/WORKSPACE.md/DELIBERATIONS.md, rebuilt from the durable record) are
 // ignored, while `contextkit/memory/**` durable entries stay trackable (the
 // narrowed info/exclude no longer dir-prunes contextkit/, so no `!` negation is
@@ -175,11 +175,7 @@ const GITIGNORE_BLOCK = [
   '',
   '# ContextDevKit — local runtime state (do not commit)',
   '_contextkit/',
-  '.claude/.sessions/',
   '.claude/.workspace/',
-  '.codex/.sessions/',
-  '.codex/.workspace/',
-  'contextkit/pipeline/state/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
   '.agent-tuning-proposal.md',
@@ -255,8 +251,11 @@ export async function patchGitattributes(target, tplDir) {
  * @param {string} tplDir - templates dir
  * @param {number} level - active level (git hooks only at L≥3)
  * @param {string[]} report - mutated with progress lines
+ * @returns {Promise<{available:boolean}>} optional Git capability status
  */
 export async function installVcsIntegration(target, tplDir, level, args, report) {
+  const gitDir = await resolveGitDir(join(target, '.git'), target);
+  const available = Boolean(gitDir);
   // Dogfood by default [ADR-0054]: install artifacts stay out of the user's git
   // history. Safe unconditionally — info/exclude only affects UNTRACKED paths.
   //
@@ -310,7 +309,8 @@ export async function installVcsIntegration(target, tplDir, level, args, report)
     } else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
   }
   // Version-control hint: suggest connecting a remote if there isn't one.
-  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
+  if (available && !(await read(join(gitDir, 'config')).catch(() => '')).includes('[remote "origin"]')) {
     report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
   }
+  return { available };
 }

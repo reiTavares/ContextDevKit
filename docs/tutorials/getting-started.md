@@ -63,7 +63,7 @@ that fills in the kit's knowledge of your specific project.
 
 This runs in several phases: it reads your source tree to detect the stack,
 asks you a small batch of questions (project description, UI language, one or
-two immutable rules you want enforced, your preferred autonomy grade), then
+two immutable rules, and any high-risk actions that need acknowledgement), then
 writes those choices into `contextkit/config.json` and fills in `CLAUDE.md`.
 Follow the prompts; answer in plain language.
 

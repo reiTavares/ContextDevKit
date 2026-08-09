@@ -67,11 +67,6 @@ export const DOMAIN_FITNESS_RULES = Object.freeze([
     evidence: EvidenceClass.SCHEMA_DERIVED, dimension: Dimension.DATA_CONTRACTS,
     blocking: true, message: 'A published domain event contract changed without versioning.',
   },
-  {
-    ruleId: 'IMPLEMENTATION_PACKET_CONFORMANCE', key: 'packetConformanceViolations',
-    evidence: EvidenceClass.DETERMINISTIC, dimension: Dimension.ARCHITECTURE_CONFORMANCE,
-    blocking: true, message: 'The real diff diverges from the Implementation Packet touch-set.',
-  },
   // ---- Class B — predictive advisory (§24, ceiling guarded, never a dogmatic block) ----
   {
     ruleId: 'POSSIBLE_ANEMIC_MODEL', key: 'anemicModelSignals',

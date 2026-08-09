@@ -42,9 +42,9 @@ await test('T16  snapshotCriticalState: files verified → ok true', async () =>
 
   await mkdir(join(projectDir, '.claude'), { recursive: true });
   await writeFile(join(projectDir, '.claude', 'settings.json'), JSON.stringify({ level: 6 }));
-  const sessionsDir = join(projectDir, '.claude', '.sessions');
-  await mkdir(sessionsDir, { recursive: true });
-  await writeFile(join(sessionsDir, 'sess-016.json'), JSON.stringify({ registered: true }));
+  const workspaceDir = join(projectDir, '.claude', '.workspace');
+  await mkdir(workspaceDir, { recursive: true });
+  await writeFile(join(workspaceDir, 'sess-016.json'), JSON.stringify({ sessionId: 'sess-016', claims: [], tasks: [] }));
   const ctkDir = join(projectDir, 'contextkit');
   await mkdir(ctkDir, { recursive: true });
   await writeFile(join(ctkDir, 'config.json'), JSON.stringify({ level: 6 }));

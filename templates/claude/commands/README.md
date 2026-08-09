@@ -1,101 +1,36 @@
-# Slash commands — domain taxonomy
+# Slash commands
 
-> Closes [ticket 047](../../../contextkit/pipeline/conclusion/047-skill-packs-by-domain-subfolders.md).
-> Claude Code resolves commands by **file basename**, not by path — so
-> `/qa-signoff` finds `qa/qa-signoff.md` just as well as the flat layout.
-> Subfolders are pure human navigation: the directory listing is no longer
-> a 50-file scroll.
+Canonical Claude command sources live in this tree. Antigravity skills and
+Codex skills are generated projections declared by the host-projection
+manifest; do not edit those projections as independent authorities.
 
-## Layout
+Claude resolves commands by file basename, so basenames must remain unique
+across all folders. Folders are for human navigation only.
 
-```
-templates/claude/commands/
-├── README.md                        ← you are here
-│
-│   Daily commands at the root — discovered first when you type `/`
-├── state.md, log-session.md, new-adr.md, bug-hunt.md
-├── roadmap.md, close-version.md, context-refresh.md, docs-reindex.md
-├── claude-md.md, distill-apply.md, distill-sessions.md
-├── fleet.md, playbook.md, predictions-review.md, simulate-impact.md
-├── squad.md, token-report.md, tune-agents.md, context-stats.md
-├── dashboard.md, watch.md
-├── landing-page.md, media-gen.md   ← landing architect + media generation (ADR-0023/0024)
-├── advise.md                       ← proactive six-lane improvement engine (ADR-0028)
-├── debate.md                       ← multi-agent deliberation → feeds an ADR (ADR-0035)
-│
-├── qa/                              ← test strategy + execution
-│   ├── qa-signoff.md
-│   ├── test-plan.md
-│   ├── scaffold-tests.md
-│   └── visual-test.md
-│
-├── vcs/                             ← version control + parallel sessions
-│   ├── git.md
-│   ├── claim.md
-│   ├── release.md
-│   ├── worktree-new.md
-│   ├── draft-changelog.md           ← commits → Keep-a-Changelog skeleton (ADR-0030)
-│   ├── gh-triage.md                 ← GitHub issues → backlog, classified (ADR-0030)
-│   └── changelog-social.md          ← release → announcement copy, drafts only (ADR-0030)
-│
-├── forge/                           ← agent-forge squad lifecycle
-│   ├── forge-new.md
-│   └── forge-{list,show,doctor,policy,budget,audit,
-│              eval,redteam,route,fallback-test,
-│              refresh-matrix,killswitch,deprecate}.md
-│
-├── pipeline/                        ← DevPipeline + autonomy
-│   ├── pipeline.md
-│   ├── plan-week.md                 ← rank the backlog: WSJF × SLA × lane → top-N (ticket 073)
-│   ├── ship.md
-│   ├── dev-start.md
-│   ├── retro.md
-│   └── runs.md
-│
-├── audit/                           ← deep scans + security + policy
-│   ├── audit.md
-│   ├── deep-analysis.md
-│   ├── security-setup.md
-│   ├── deps-audit.md
-│   ├── tech-debt-sweep.md
-│   ├── analyze-code-ia-practices.md
-│   ├── contract-check.md
-│   ├── seo-audit.md                ← SEO + AISO static analysers (ADR-0025)
-│   └── validate-doc.md             ← ADR/roadmap quality rubric (ADR-0030)
-│
-└── setup/                           ← installer + diagnostics
-    ├── setupcontextdevkit.md
-    ├── aidevtool-from0.md
-    ├── context-doctor.md
-    ├── context-level.md
-    └── context-config.md
-```
+## Packs
 
-## Selection criteria for the root vs a pack
+- root: daily project state, decisions, documentation, diagnostics, and reports;
+- `pipeline/`: task scopes, workflows, focused sessions, ship, swarm, and retro;
+- `qa/`: test planning, scaffolding, visual checks, and QA sign-off;
+- `vcs/`: claims, releases, worktrees, Git, changelog, and issue triage;
+- `audit/`: code, architecture, dependency, security, SEO, and contract audits;
+- `setup/`: installation, level, configuration, and doctor commands;
+- `forge/`: portable agent-package lifecycle.
 
-A command stays at the **root** when it's a *daily* invocation that you'd
-type at the start of any session — `/state`, `/log-session`, `/new-adr`.
-Everything else moves into a pack so the root list reads as "what most
-sessions do, most days".
+Commands describe ContextDevKit 4 behavior:
 
-## Why not deeper nesting?
+- conversation and read-only exploration persist nothing;
+- mutation uses direct, batch, or workflow shape;
+- tasks live in scoped `pipeline/tasks.json`, never physical lanes;
+- model routing and swarm composition are recommendations;
+- only the three canonical guarded gates may deny.
 
-One level of subfolder is the budget. Two levels would re-create the
-50-file scroll inside each pack, and Claude Code's command discovery
-output (`/` autocomplete) flattens at one level anyway.
+## Adding or removing a command
 
-## What about basename collisions?
+1. Change the canonical Markdown source in this tree.
+2. Keep the basename unique.
+3. Update the projection manifest when the declared command set changes.
+4. Regenerate Antigravity and Codex projections.
+5. Run host parity plus the relevant command/runtime tests.
 
-Forbidden by design — Claude Code's resolver picks the first match by
-basename and the order isn't promised. A selfcheck assertion
-(`tools/selfcheck-source.mjs`, `no command basename collides across
-packs`) keeps the invariant honest.
-
-## Adding a new command
-
-1. Pick the pack (or stay at root for daily).
-2. Drop `<name>.md` into the chosen directory.
-3. Run `npm test` — the basename-collision check will catch any clash.
-
-That's it. No registry, no manifest, no `_index.md`. Discovery is the
-directory tree.
+No command registry or installed dogfood copy may preserve a removed command.

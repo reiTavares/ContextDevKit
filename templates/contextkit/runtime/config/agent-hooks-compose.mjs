@@ -1,92 +1,44 @@
 /**
- * Composes `.agents/hooks.json` — the Antigravity (agy) twin of
- * `settings-compose.mjs` [ADR-0049].
- *
- * Shared by the installer (`tools/install/antigravity.mjs`) and the in-project
- * `/context-level` helper so the two can never drift. The kit owns exactly ONE
- * named hook group (`contextdevkit`) and rewrites it wholesale on every call;
- * every other group in the file is the user's and is preserved untouched.
- *
- * Level → events (mirrors the Claude Code wiring 1:1):
- *   1  SessionStart  (session-manager start — boot context + agy session id)
- *   2  + PostToolUse (track-edits), Stop (session-manager end — drift check)
- *   3  + PreToolUse  (concurrency-guard)
- *   4  + PostToolUse (auto-format — advisory format/lint, ADR-0061)
- *   5  + PreToolUse  (simulate-gate, deliberation-nudge, execution-gate)
- *        + UserPromptSubmit (execution contract), PostToolUse (indirect writes),
- *        Stop (completion), SubagentStart/Stop, and compaction continuity
- * (Level 4 also adds personas — assets, not hooks.)
- *
- * agy matchers are exact snake_case tool names; one entry per tool (not an
- * `a|b|c` alternation) so the wiring works under both exact-match and regex
- * matcher semantics — a wrong guess about the engine degrades to an inert
- * hook, never a broken tool call.
+ * Composes the Antigravity hook group from the same v4 lifecycle contract used
+ * by Claude, Codex, and Grok. Exact tool matchers may create several groups, but
+ * a host event matches one group and starts one ContextDevKit process.
  */
-import { AGY_WRITE_TOOLS } from '../hooks/host-adapter.mjs';
 
-/** The single hooks.json group ContextDevKit owns (delete it to disable the kit). */
 export const KIT_HOOK_GROUP = 'contextdevkit';
 
-const SESSION_MANAGER = 'contextkit/runtime/antigravity/session-manager.mjs';
-const HOOKS_DIR = 'contextkit/runtime/hooks';
+const AGY_MUTATION_TOOLS = Object.freeze([
+  'write_to_file',
+  'replace_file_content',
+  'multi_replace_file_content',
+]);
 
 /**
- * Builds the `.agents/hooks.json` object for a given activation level,
- * preserving every non-kit top-level group from `existing`.
- *
- * @param {Record<string, any> | null} existing parsed hooks.json (or null)
- * @param {number} level 1–7
- * @returns {Record<string, any>}
+ * @param {Record<string, any> | null} existing parsed hooks file
+ * @param {number} level active ContextDevKit level
+ * @returns {Record<string, any>} composed hooks file
  */
 export function composeAgentHooks(existing, level) {
   const hooksFile = existing && typeof existing === 'object' ? { ...existing } : {};
-
   const group = { enabled: true };
-  const command = (cmd) => ({ hooks: [{ type: 'command', command: cmd }] });
-  const perWriteTool = (script) =>
-    AGY_WRITE_TOOLS.map((tool) => ({ matcher: tool, ...command(`node ${HOOKS_DIR}/${script} --host agy`) }));
+  const command = (script) => ({
+    hooks: [{ type: 'command', command: `node contextkit/runtime/hooks/${script} --host agy` }],
+  });
+  const perMutationTool = (script) => AGY_MUTATION_TOOLS.map((matcher) => ({
+    matcher,
+    ...command(script),
+  }));
 
-  if (level >= 1) group.SessionStart = [command(`node ${SESSION_MANAGER} start`)];
+  if (level >= 1) group.SessionStart = [command('governance-session-context.mjs')];
+
   if (level >= 2) {
-    group.PostToolUse = perWriteTool('track-edits.mjs');
-    group.Stop = [command(`node ${SESSION_MANAGER} end`)];
+    group.PostToolUse = perMutationTool('governance-postflight.mjs');
+    group.Stop = [command('governance-completion.mjs')];
   }
-  if (level >= 3) group.PreToolUse = perWriteTool('concurrency-guard.mjs');
-  if (level >= 4) {
-    group.PostToolUse.push(...perWriteTool('auto-format.mjs')); // ADR-0061 — advisory format/lint
-    // Domain Engineering gate hooks (WF-0068, ADR-0128 §16/§19/§25) — agy twin of the
-    // Claude/Codex wiring. Default-OFF + fail-open + inert below L4; agy block verb
-    // (`deny`) translated by host-adapter. Per-write-tool matchers (agy exact-match).
-    group.PreToolUse.push(...perWriteTool('domain-code-gate.mjs')); // §16 code gate
-    group.PostToolUse.push(...perWriteTool('domain-conformance.mjs')); // §19 conformance reconciler
-    // Arch-debt pre-coding law (OP-0012) — agy twin of the Claude/Codex wiring.
-    group.PreToolUse.push(...perWriteTool('arch-debt-law-gate.mjs'));
-    // Graph-first (WF-0108, ADR-0155) — agy twin of the Claude/Codex wiring. Like
-    // the L5 capability hooks below, the gate carries NO tool matcher: agy's search
-    // tool names are host-owned, and `extractSearchTerm` already returns null for
-    // any payload that is not a broad search (fail-open by shape, not by guess).
-    group.SessionStart.push(command(`node ${HOOKS_DIR}/graph-session-refresh.mjs --host agy`));
-    group.UserPromptSubmit = [command(`node ${HOOKS_DIR}/graph-first-gate.mjs --host agy`)]; // human `no-graph` bypass
-    group.PreToolUse.push(command(`node ${HOOKS_DIR}/graph-first-gate.mjs --host agy`));
-  }
+  if (level >= 3) group.PreToolUse = perMutationTool('governance-write-preflight.mjs');
   if (level >= 5) {
-    group.PreToolUse.push(...perWriteTool('simulate-gate.mjs'));
-    group.PreToolUse.push(...perWriteTool('journey-gate.mjs')); // ADR-0127 — methodology journey enforcement (guarded+fallback)
-    group.PreToolUse.push(...perWriteTool('deliberation-nudge.mjs'));
-    // Capability Enforcement parity (ADR-0072/0151). These generic event hooks
-    // deliberately use no tool matcher: Antigravity's tool catalog is host-owned,
-    // while the shared adapters already fail-open on payloads without paths.
-    // Additive, not assignment: L4 may already have registered a UserPromptSubmit
-    // entry (graph-first-gate), and overwriting it here would silently drop it.
-    group.UserPromptSubmit = [...(group.UserPromptSubmit ?? []), command(`node ${HOOKS_DIR}/execution-contract-hook.mjs --host agy`)];
-    group.PreToolUse.push(command(`node ${HOOKS_DIR}/execution-gate.mjs --host agy`));
-    group.PostToolUse.push(command(`node ${HOOKS_DIR}/indirect-write-reconcile.mjs --host agy`));
-    group.Stop.push(command(`node ${HOOKS_DIR}/completion-gate.mjs --host agy`));
-    group.SubagentStart = [command(`node ${HOOKS_DIR}/subagent-gate.mjs --host agy`)];
-    group.SubagentStop = [command(`node ${HOOKS_DIR}/subagent-gate.mjs --host agy`)];
-    group.PreCompact = [command(`node ${HOOKS_DIR}/compaction-continuity.mjs --host agy`)];
-    group.SessionStart.push(command(`node ${HOOKS_DIR}/compaction-continuity.mjs --host agy`));
-    group.Stop.push(command(`node ${HOOKS_DIR}/done-sweep.mjs --host agy`));
+    group.UserPromptSubmit = [command('governance-prompt-preflight.mjs')];
+    group.PreCompact = [command('governance-session-context.mjs')];
+    group.SubagentStart = [command('governance-session-context.mjs')];
   }
 
   hooksFile[KIT_HOOK_GROUP] = group;
@@ -94,11 +46,8 @@ export function composeAgentHooks(existing, level) {
 }
 
 /**
- * Removes the kit-owned group from a parsed hooks.json (uninstall path).
- * Returns null when nothing user-owned remains, signalling "delete the file".
- *
- * @param {Record<string, any> | null} existing parsed hooks.json (or null)
- * @returns {Record<string, any> | null}
+ * @param {Record<string, any> | null} existing parsed hooks file
+ * @returns {Record<string, any> | null} user-owned remainder
  */
 export function stripAgentHooks(existing) {
   if (!existing || typeof existing !== 'object') return null;

@@ -12,7 +12,7 @@
  * modules. Fail-open: any malformed input degrades to a conservative
  * `implementation` / medium-risk verdict with a reason code, never throws.
  *
- * Consumers: request-orchestrator.mjs (W1), request-envelope.mjs (W1).
+ * Consumer: mutation-only task intake classification.
  *
  * @module request-classify
  */
@@ -163,7 +163,7 @@ function pickContext(signals, ctx) {
     return finalize('decision', secondary, reasons);
   }
   // 5. Workflow — a REAL external workflow reference (OP-0008 Finding #7, ADR-0131).
-  //    The hook mints a per-prompt taskId (execution-contract-hook.mjs) that is ALWAYS
+  //    Historical adapters minted a per-prompt taskId that was ALWAYS
   //    present, so branching on `ctx.taskId` shunted EVERY request to `workflow` and
   //    left the conversation/documentation/research branches below as dead code. Require
   //    a genuine workflow id (or an external, non-minted task ref); a minted per-prompt
@@ -234,6 +234,27 @@ function finalize(primaryType, secondarySet, reasons) {
 export function classifyRequest(signals, ctx = {}) {
   try {
     const safeSignals = signals && typeof signals === 'object' ? signals : {};
+    const interactionIntent = safeSignals?.interaction?.intent
+      ?? safeSignals?.intent?.interaction?.intent
+      ?? null;
+    if (interactionIntent && interactionIntent !== 'mutation') {
+      const primaryType = interactionIntent === 'exploration' ? 'research' : 'conversation';
+      return {
+        primaryType,
+        secondaryTypes: [],
+        intent: interactionIntent,
+        interactionIntent,
+        complexity: 'trivial',
+        risk: 'low',
+        materialityScore: 0,
+        ambiguityScore: interactionIntent === 'unclassified' ? 1 : 0,
+        reversibility: 'high',
+        blastRadius: 'local',
+        needsAdr: false,
+        needsDebate: false,
+        reasonCodes: [`interaction=${interactionIntent} (full request classification skipped)`],
+      };
+    }
     const { primaryType, secondaryTypes, reasons: ctxReasons } = pickContext(safeSignals, ctx);
     const { risk, reasons: riskReasons } = deriveRisk(safeSignals);
     const { reversibility, blastRadius } = deriveBlast(safeSignals);
@@ -252,16 +273,17 @@ export function classifyRequest(signals, ctx = {}) {
       `complexity=${complexity}`, `needsDebate=${needsDebate}`];
 
     return {
-      primaryType, secondaryTypes, intent, complexity, risk,
+      primaryType, secondaryTypes, intent, interactionIntent: interactionIntent ?? 'mutation', complexity, risk,
       materialityScore, ambiguityScore, reversibility, blastRadius,
       needsAdr, needsDebate, reasonCodes,
     };
   } catch {
     return {
-      primaryType: 'implementation', secondaryTypes: [], intent: 'implementation',
-      complexity: 'feature', risk: 'medium', materialityScore: 0, ambiguityScore: 1,
-      reversibility: 'medium', blastRadius: 'local', needsAdr: false, needsDebate: false,
-      reasonCodes: ['fail-open: classifier degraded to conservative implementation verdict'],
+      primaryType: 'conversation', secondaryTypes: [], intent: 'unclassified',
+      interactionIntent: 'unclassified', complexity: 'trivial', risk: 'low',
+      materialityScore: 0, ambiguityScore: 1, reversibility: 'high',
+      blastRadius: 'local', needsAdr: false, needsDebate: false, degraded: true,
+      reasonCodes: ['request-classifier-degraded: no governed context assumed'],
     };
   }
 }

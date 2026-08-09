@@ -4,7 +4,7 @@
  *
  * Inspects the project root and prints a JSON report: languages, package
  * manager, frameworks, monorepo flag, likely source dirs, README summary, and
- * SUGGESTED `ledger` path lists + `l5.highRiskPaths` tuned to the detected
+ * SUGGESTED read-only analysis exclusions + `l5.highRiskPaths` tuned to the detected
  * stack. It writes nothing — the slash command decides what to apply.
  *
  * Usage:  node contextkit/tools/scripts/detect-stack.mjs   (prints JSON)
@@ -108,16 +108,12 @@ function suggestHighRiskPaths() {
   return [...out];
 }
 
-function suggestLedger(sourceDirs, languages) {
-  const important = new Set([...sourceDirs, 'contextkit/', '.claude/', '.github/', 'CLAUDE.md']);
-  for (const m of ['package.json', 'tsconfig.json', 'pyproject.toml', 'go.mod', 'Cargo.toml', 'pom.xml', 'Gemfile', 'composer.json', 'pnpm-workspace.yaml', 'turbo.json', 'wrangler.toml']) {
-    if (has(m)) important.add(m);
-  }
-  const irrelevant = new Set(['node_modules/', '.git/', '.context-snapshot.md', '.claude/.sessions/', '.claude/.workspace/']);
+function suggestAnalysisExclusions() {
+  const exclusions = new Set(['node_modules/', '.git/', '.context-snapshot.md', '.claude/.workspace/']);
   for (const d of ['dist/', 'build/', 'out/', '.next/', '.turbo/', '.expo/', '.svelte-kit/', 'coverage/', '__pycache__/', '.pytest_cache/', 'target/', 'vendor/', '.venv/', 'venv/', 'bin/', 'obj/']) {
-    if (isDir(d.replace(/\/$/, '')) || ['node_modules/', 'dist/', 'build/'].includes(d)) irrelevant.add(d);
+    if (isDir(d.replace(/\/$/, '')) || ['node_modules/', 'dist/', 'build/'].includes(d)) exclusions.add(d);
   }
-  return { important: [...important], irrelevant: [...irrelevant] };
+  return [...exclusions];
 }
 
 function readmeSummary() {
@@ -154,7 +150,7 @@ const report = {
   rootEntries: rootEntries(),
   greenfield: sourceDirs.length === 0 && languages.length === 0,
   suggested: {
-    ledger: suggestLedger(sourceDirs, languages),
+    analysis: { excludePaths: suggestAnalysisExclusions() },
     highRiskPaths: suggestHighRiskPaths(),
     qaCriticalPaths: suggestHighRiskPaths(),
     recommendedLevel: sourceDirs.length === 0 ? 1 : 2,

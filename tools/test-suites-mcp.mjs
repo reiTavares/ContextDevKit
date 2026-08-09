@@ -33,7 +33,7 @@ const TICKETS = {
   '007': { tier: 'integration:ecosystem', touches: ['templates/contextkit/mcp/profiles/github-readonly.json', 'templates/contextkit/mcp/policies/github.allow.json'], aspects: ['deny', 'policy', 'registry', 'render'] },
   '008': { tier: 'integration:ecosystem', touches: ['templates/contextkit/mcp/profiles/playwright-guarded.json', 'templates/contextkit/mcp/policies/playwright.allow.json'], aspects: ['boundary', 'consistency', 'deny', 'profile', 'registry'] },
   '009': { tier: 'integration:ecosystem', touches: ['templates/contextkit/runtime/mcp/activation.mjs'], aspects: ['happy', 'narrow', 'policy', 'shape', 'table'] },
-  '010': { tier: 'integration:ecosystem', touches: ['templates/contextkit/tools/scripts/mcp-receipt.mjs', 'templates/contextkit/tools/scripts/mcp-audit.mjs'], aspects: ['audit', 'core', 'receipt-build', 'receipt-write', 'seam'] },
+  '010': { tier: 'integration:ecosystem', touches: ['templates/contextkit/tools/scripts/mcp-audit.mjs'], aspects: ['audit', 'core'] },
   '012': { tier: 'integration:ecosystem', touches: ['templates/contextkit/tools/scripts/mcp-discover.mjs'], aspects: ['degraded', 'happy', 'normalise'] },
 };
 

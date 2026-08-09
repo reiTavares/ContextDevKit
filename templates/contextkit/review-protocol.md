@@ -173,19 +173,8 @@ How `/analyze-code-ia-practices` should behave once the scanner has run.
    it briefly and dispatch the relevant agent/command (see *Adjacent
    concerns* in `best-practices.md`). Don't expand the rubric's lane.
 
-8. **Feed the DevPipeline backlog** with the surviving items,
-   auto-prioritised by severity (BLOCKER → P0, HARD → P1, CANDIDATE → P2,
-   NIT → P3):
-
-   ```
-   node contextkit/tools/scripts/pipeline.mjs add --type chore --priority <P> \
-     --source "practices:<file>" --title "<short fix description>"
-   ```
-
-   `--source` keeps re-runs idempotent. Priorities remain editable
-   (`/pipeline` or `pipeline.mjs prioritize <id> <P>`).
-
-9. **Do not refactor in this command** — it is analysis. Offer to open a
+8. **Do not persist or refactor in this command.** It is analysis and creates no
+   task, workflow, or source edit. Offer to open a
    focused `/dev-start "refactor <file> by responsibility"` (or `/ship`)
    on the top item if the user wants to act.
 

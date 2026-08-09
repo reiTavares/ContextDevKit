@@ -18,8 +18,8 @@ import {
 } from './integration-test-mcp-005-helpers.mjs';
 
 const { ok, bad, finish } = reporter();
-const { evaluateServer, resolveAutonomy } = await loadModules();
-const evalWith = makeEvalWith(evaluateServer, resolveAutonomy);
+const { evaluateServer } = await loadModules();
+const evalWith = makeEvalWith(evaluateServer);
 
 // ---------------------------------------------------------------------------
 // [Suite 4] AC#3 — table-driven DENY reason coverage

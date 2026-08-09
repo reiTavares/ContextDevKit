@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "workflowId": "{{WORKFLOW_ID}}",
-  "slug": "{{WORKFLOW_SLUG}}",
-  "profile": "program",
-  "waves": [],
-  "gates": []
-}

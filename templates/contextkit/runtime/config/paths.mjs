@@ -10,10 +10,14 @@
  * `PLATFORM_DIR` here and run the installer's `--rewire` step. Nothing else
  * references the literal folder name.
  */
-import { resolve } from 'node:path';
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
+import { parse, resolve } from 'node:path';
 
 /** Platform bounded-context folder (everything except `.claude/`). */
 export const PLATFORM_DIR = 'contextkit';
+
+/** V4 authority pointer written only by the explicit offline migrator. */
+export const AUTHORITY_MARKER_FILE = '.contextdevkit-authority.json';
 
 /**
  * Antigravity host folder — the name is dictated by the `agy` binary, which
@@ -105,17 +109,71 @@ export const DELIBERATIONS_INDEX = `${MEMORY_DIR}/DELIBERATIONS.md`;
 /** Factual release chronology (Keep a Changelog format). */
 export const CHANGELOG = 'docs/CHANGELOG.md';
 
-/** Platform config (level, ledger overrides, L5 params). */
+/** Platform config (level, governance modes, analysis and QA hints). */
 export const CONFIG_FILE = `${PLATFORM_DIR}/config.json`;
-
-/** Per-session ledger files (gitignored runtime state). */
-export const LEDGER_DIR = '.claude/.sessions';
 
 /** Per-session workspace claim files (gitignored runtime state). */
 export const WORKSPACE_STATE_DIR = '.claude/.workspace';
 
 /** On-demand full-project snapshot (gitignored). */
 export const CONTEXT_SNAPSHOT = '.context-snapshot.md';
+
+/** Normalize a real path for case-insensitive Windows comparisons. */
+function comparablePath(path) {
+  const value = resolve(path);
+  return process.platform === 'win32' ? value.toLowerCase() : value;
+}
+
+/**
+ * Resolve the single active memory root. A valid cutover marker points every
+ * normal reader and writer at one verified v4 generation; an invalid marker is
+ * refused instead of silently falling back to the pre-cutover tree.
+ *
+ * @param {string} projectRoot
+ * @param {string} platformRoot
+ * @returns {string}
+ * @throws {Error} when a present marker is malformed or unsafe
+ */
+export function resolveActiveMemoryRoot(projectRoot, platformRoot = resolve(projectRoot, PLATFORM_DIR)) {
+  const nativeMemoryRoot = resolve(projectRoot, MEMORY_DIR);
+  const markerPath = resolve(platformRoot, AUTHORITY_MARKER_FILE);
+  if (!existsSync(markerPath)) return nativeMemoryRoot;
+
+  let marker;
+  try {
+    marker = JSON.parse(readFileSync(markerPath, 'utf8').replace(/^\uFEFF/, ''));
+  } catch (error) {
+    throw new Error(`ContextDevKit authority marker is unreadable: ${markerPath}: ${error.message}`);
+  }
+  const validHash = (value) => typeof value === 'string' && /^sha256:[a-f0-9]{64}$/i.test(value);
+  if (marker?.schemaVersion !== 1
+    || marker?.kind !== 'contextdevkit-authority'
+    || marker?.authority !== 'v4'
+    || marker?.oldWriterFence !== true
+    || !Number.isInteger(marker?.revision)
+    || marker.revision < 1
+    || typeof marker?.generationRoot !== 'string'
+    || !validHash(marker?.manifestHash)
+    || !validHash(marker?.generationDigest)) {
+    throw new Error(`ContextDevKit authority marker has an invalid v4 schema: ${markerPath}`);
+  }
+
+  const generationRoot = resolve(marker.generationRoot);
+  const activeMemoryRoot = resolve(generationRoot, 'memory');
+  if (parse(generationRoot).root.toLowerCase() !== parse(platformRoot).root.toLowerCase()) {
+    throw new Error(`ContextDevKit authority generation must remain on the platform volume: ${generationRoot}`);
+  }
+  for (const [label, candidate] of [['generation', generationRoot], ['memory', activeMemoryRoot]]) {
+    if (!existsSync(candidate) || !lstatSync(candidate).isDirectory()) {
+      throw new Error(`ContextDevKit authority ${label} directory is unavailable: ${candidate}`);
+    }
+    if (lstatSync(candidate).isSymbolicLink()
+      || comparablePath(realpathSync(candidate)) !== comparablePath(candidate)) {
+      throw new Error(`ContextDevKit authority ${label} directory must not be a reparse path: ${candidate}`);
+    }
+  }
+  return activeMemoryRoot;
+}
 
 /**
  * Resolves every canonical location to an ABSOLUTE path under `root`. This is the
@@ -127,38 +185,39 @@ export const CONTEXT_SNAPSHOT = '.context-snapshot.md';
  */
 export function pathsFor(root = process.cwd()) {
   const at = (rel) => resolve(root, rel);
+  const platform = at(PLATFORM_DIR);
+  const memory = resolveActiveMemoryRoot(root, platform);
+  const inMemory = (rel) => resolve(memory, rel);
   return {
     root,
-    platform: at(PLATFORM_DIR),
+    platform,
     antigravity: at(ANTIGRAVITY_DIR),
     codex: at(CODEX_DIR),
     grok: at(GROK_DIR),
     grokHooks: at(GROK_HOOKS_FILE),
     codexSkills: at(CODEX_SKILLS_DIR),
-    memory: at(MEMORY_DIR),
-    sessions: at(SESSIONS_DIR),
-    sessionsIndex: at(SESSIONS_INDEX),
-    workspaceIndex: at(WORKSPACE_INDEX),
-    decisions: at(DECISIONS_DIR),
-    business: at(BUSINESS_DIR),
-    operations: at(OPERATIONS_DIR),
-    decisionsBusiness: at(DECISIONS_BUSINESS_DIR),
-    decisionsOperations: at(DECISIONS_OPERATIONS_DIR),
-    decisionsLegacy: at(DECISIONS_LEGACY_DIR),
-    workContextRegistry: at(WORK_CONTEXT_REGISTRY),
-    workflowRegistry: at(WORKFLOW_REGISTRY),
-    decisionRegistry: at(DECISION_REGISTRY),
-    glossary: at(GLOSSARY),
-    predictions: at(PREDICTIONS_DIR),
-    projectMap: at(PROJECT_MAP_DIR),
-    deliberations: at(DELIBERATIONS_DIR),
-    deliberationsIndex: at(DELIBERATIONS_INDEX),
+    memory,
+    sessions: inMemory('sessions'),
+    sessionsIndex: inMemory('SESSIONS.md'),
+    workspaceIndex: inMemory('WORKSPACE.md'),
+    decisions: inMemory('decisions'),
+    business: inMemory('business'),
+    operations: inMemory('operations'),
+    decisionsBusiness: inMemory('decisions/business'),
+    decisionsOperations: inMemory('decisions/operations'),
+    decisionsLegacy: inMemory('decisions/legacy'),
+    workContextRegistry: inMemory('work-context-registry.json'),
+    workflowRegistry: inMemory('workflow-registry.json'),
+    decisionRegistry: inMemory('decision-registry.json'),
+    glossary: inMemory('GLOSSARY.md'),
+    predictions: inMemory('predictions'),
+    projectMap: inMemory('project-map'),
+    deliberations: inMemory('deliberations'),
+    deliberationsIndex: inMemory('DELIBERATIONS.md'),
     changelog: at(CHANGELOG),
     config: at(CONFIG_FILE),
-    ledgerDir: at(LEDGER_DIR),
     workspaceStateDir: at(WORKSPACE_STATE_DIR),
     contextSnapshot: at(CONTEXT_SNAPSHOT),
-    pipeline: at(`${PLATFORM_DIR}/pipeline`),
     runtime: at(`${PLATFORM_DIR}/runtime`),
     tools: at(`${PLATFORM_DIR}/tools`),
     scripts: at(`${PLATFORM_DIR}/tools/scripts`),
@@ -166,9 +225,9 @@ export function pathsFor(root = process.cwd()) {
     workflows: at(`${PLATFORM_DIR}/workflows`),
     playbooks: at(`${PLATFORM_DIR}/workflows/playbooks`),
     detectors: at(`${PLATFORM_DIR}/detectors`),
-    businessRules: at(`${MEMORY_DIR}/business-rules`),
-    roadmap: at(`${MEMORY_DIR}/roadmap.md`),
-    contractBaseline: at(`${MEMORY_DIR}/contract-baseline.json`),
+    businessRules: inMemory('business-rules'),
+    roadmap: inMemory('roadmap.md'),
+    contractBaseline: inMemory('contract-baseline.json'),
     bestPractices: at(`${PLATFORM_DIR}/best-practices.md`),
     policy: at(`${PLATFORM_DIR}/policy`),
     complexityRubric: at(`${PLATFORM_DIR}/policy/complexity-rubric.json`),

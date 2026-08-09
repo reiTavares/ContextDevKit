@@ -1,24 +1,10 @@
 /**
- * engineering-scorecard-core.mjs — PURE scoring engine for CDK-076.
+ * Pure advisory engineering scorecard for ContextDevKit 4.
  *
- * Composes signals from seven advisory CDK-07x tools into a multi-dimension
- * engineering health scorecard. Zero I/O, zero side-effects, zero runtime deps.
- * The I/O layer (engineering-scorecard.mjs) gathers inputs and calls scoreDimensions().
- *
- * §8 Safety contract (immutable):
- *   - A NULL or absent input → status:'skipped', score:null.
- *   - A skipped dimension is NEVER scored as 0 and NEVER counted in the overall mean.
- *     Silence is honest; false-pass is forbidden.
- *
- * Band thresholds: ≥80 → 'strong', ≥60 → 'fair', else 'weak'.
- * Confidence: scoredCount ≥5 → 'high', ≥3 → 'medium', ≥1 → 'low', else 'none'.
- *
- * ADR-0072 / CDK-076. ≤ 308 lines.
+ * Missing inputs are skipped with a null score and never enter the overall
+ * mean. The scorecard reads canonical task fields and graph relations; it does
+ * not recreate capability receipts or any parallel evidence store.
  */
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /** @param {number} score @returns {'strong'|'fair'|'weak'} */
 function scoreToBand(score) {
@@ -27,103 +13,76 @@ function scoreToBand(score) {
   return 'weak';
 }
 
-/** @param {number} n @returns {'high'|'medium'|'low'|'none'} */
-function countToConfidence(n) {
-  if (n >= 5) return 'high';
-  if (n >= 3) return 'medium';
-  if (n >= 1) return 'low';
+/** @param {number} count @returns {'high'|'medium'|'low'|'none'} */
+function countToConfidence(count) {
+  if (count >= 5) return 'high';
+  if (count >= 3) return 'medium';
+  if (count >= 1) return 'low';
   return 'none';
 }
 
-/** Returns a skipped dimension record (§8: score=null, never 0). */
+/** @param {string} key @param {string} reason @returns {object} */
 function skipped(key, reason) {
   return { key, score: null, band: null, status: 'skipped', detail: reason };
 }
 
-/** Returns a scored dimension record (0–100 clamped). */
+/** @param {string} key @param {number} rawScore @param {string} detail @returns {object} */
 function scored(key, rawScore, detail) {
   const score = Math.max(0, Math.min(100, rawScore));
   return { key, score, band: scoreToBand(score), status: 'scored', detail };
 }
 
-// ---------------------------------------------------------------------------
-// Dimension scorers
-// ---------------------------------------------------------------------------
+/**
+ * Scores factual evidence/report references stored on canonical done tasks.
+ *
+ * @param {object|null} graph lineage graph
+ * @returns {object}
+ */
+function scoreTaskEvidenceCoverage(graph) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const doneTasks = nodes.filter((node) => node.type === 'card' && node.ref?.status === 'done');
+  if (doneTasks.length === 0) return skipped('task-evidence-coverage', 'no done tasks in canonical authority');
+  const evidenced = doneTasks.filter((task) =>
+    (task.ref?.evidenceRefs?.length ?? 0) > 0 || (task.ref?.reportRefs?.length ?? 0) > 0,
+  ).length;
+  return scored(
+    'task-evidence-coverage',
+    (evidenced / doneTasks.length) * 100,
+    `${evidenced}/${doneTasks.length} done tasks retain evidenceRefs/reportRefs`,
+  );
+}
 
 /**
- * lineage-completeness — % of active cards (stage ∈ working/testing/conclusion)
- * that have an 'attests' edge to a receipt node.
+ * Scores workflow-scoped tasks that are linked to their canonical workflow.
  *
- * @param {object|null} graph lineage-graph output
- * @returns {object} Dimension
+ * @param {object|null} graph lineage graph
+ * @returns {object}
  */
-function scoreLineageCompleteness(graph) {
-  const ACTIVE = new Set(['working', 'testing', 'conclusion']);
+function scoreWorkflowLinkage(graph) {
   const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const edges = Array.isArray(graph?.edges) ? graph.edges : [];
-  const activeIds = nodes.filter((n) => n.type === 'card' && ACTIVE.has(n.ref?.stage)).map((n) => n.id);
-  if (activeIds.length === 0) return skipped('lineage-completeness', 'no active cards (stage ∈ working/testing/conclusion)');
-  const attested = new Set(edges.filter((e) => e.rel === 'attests').map((e) => e.from));
-  const hit = activeIds.filter((id) => attested.has(id)).length;
-  return scored('lineage-completeness', (hit / activeIds.length) * 100,
-    `${hit}/${activeIds.length} active cards have receipt attestation`);
+  const workflowTasks = nodes.filter((node) =>
+    node.type === 'card' && /^WF-\d{4}$/.test(String(node.ref?.scopeRef ?? '')),
+  );
+  if (workflowTasks.length === 0) return skipped('workflow-linkage', 'no workflow-scoped tasks in canonical authority');
+  const linkedTaskIds = new Set(edges.filter((edge) => edge.rel === 'ships').map((edge) => edge.to));
+  const linked = workflowTasks.filter((task) => linkedTaskIds.has(task.id)).length;
+  return scored('workflow-linkage', (linked / workflowTasks.length) * 100,
+    `${linked}/${workflowTasks.length} workflow tasks link to their workflow`);
 }
 
-/**
- * receipt-pass-rate — % of receipt nodes with ref.result === 'passed'.
- *
- * @param {object|null} graph lineage-graph output
- * @returns {object} Dimension
- */
-function scoreReceiptPassRate(graph) {
-  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
-  const receipts = nodes.filter((n) => n.type === 'receipt');
-  if (receipts.length === 0) return skipped('receipt-pass-rate', 'no receipt nodes in graph');
-  const passed = receipts.filter((n) => n.ref?.result === 'passed').length;
-  return scored('receipt-pass-rate', (passed / receipts.length) * 100,
-    `${passed}/${receipts.length} receipts have result='passed'`);
-}
-
-/**
- * evidence-coverage — 100*(1 - unknownKinds.length/receipts) from CDK-075.
- * Skipped when receipts === 0 (division by zero is a false-pass vector).
- *
- * @param {object|null} taxonomyResult evidenceTaxonomy() output
- * @returns {object} Dimension
- */
-function scoreEvidenceCoverage(taxonomyResult) {
-  const cov = taxonomyResult?.coverage;
-  const receiptCount = typeof cov?.receipts === 'number' ? cov.receipts : -1;
-  if (receiptCount <= 0) return skipped('evidence-coverage', 'no receipts in taxonomy coverage (CDK-075)');
-  const unknownCount = Array.isArray(cov.unknownKinds) ? cov.unknownKinds.length : 0;
-  return scored('evidence-coverage', (1 - unknownCount / receiptCount) * 100,
-    `${unknownCount} unknown kinds out of ${receiptCount} receipts`);
-}
-
-/**
- * rule-health — 100*pass/(pass+fail) from CDK-073 summary.
- * Skipped when pass+fail === 0 (no rules evaluated).
- *
- * @param {object|null} rulesResult runRules() output
- * @returns {object} Dimension
- */
+/** @param {object|null} rulesResult @returns {object} */
 function scoreRuleHealth(rulesResult) {
-  const s = rulesResult?.summary;
-  const pass = typeof s?.pass === 'number' ? s.pass : 0;
-  const fail = typeof s?.fail === 'number' ? s.fail : 0;
+  const summary = rulesResult?.summary;
+  const pass = typeof summary?.pass === 'number' ? summary.pass : 0;
+  const fail = typeof summary?.fail === 'number' ? summary.fail : 0;
   const evaluated = pass + fail;
-  if (evaluated === 0) return skipped('rule-health', 'no rules evaluated (pass+fail === 0) in CDK-073');
+  if (evaluated === 0) return skipped('rule-health', 'no lineage rules evaluated');
   return scored('rule-health', (pass / evaluated) * 100,
     `${pass} pass / ${fail} fail out of ${evaluated} rules evaluated`);
 }
 
-/**
- * capability-compliance — 100*parity/total from compliance summarize.
- * Skipped when total === 0.
- *
- * @param {object|null} complianceSummary summarize(matrix) output
- * @returns {object} Dimension
- */
+/** @param {object|null} complianceSummary @returns {object} */
 function scoreCapabilityCompliance(complianceSummary) {
   const total = typeof complianceSummary?.total === 'number' ? complianceSummary.total : 0;
   if (total === 0) return skipped('capability-compliance', 'capability registry empty or unavailable');
@@ -132,84 +91,52 @@ function scoreCapabilityCompliance(complianceSummary) {
     `${parity}/${total} capabilities at full host parity`);
 }
 
-/**
- * calibration — overall.accuracy*100 from CDK-072.
- * Skipped when accuracy is null (no reviewed predictions).
- *
- * @param {object|null} calibrationResult lineageCalibration() output
- * @returns {object} Dimension
- */
+/** @param {object|null} calibrationResult @returns {object} */
 function scoreCalibration(calibrationResult) {
   const accuracy = calibrationResult?.overall?.accuracy;
-  if (typeof accuracy !== 'number') return skipped('calibration', 'no reviewed predictions (accuracy null) in CDK-072');
-  const pct = accuracy * 100;
-  return scored('calibration', pct, `prediction calibration accuracy: ${pct.toFixed(1)}%`);
+  if (typeof accuracy !== 'number') return skipped('calibration', 'no reviewed predictions');
+  const percentage = accuracy * 100;
+  return scored('calibration', percentage, `prediction calibration accuracy: ${percentage.toFixed(1)}%`);
 }
 
-/**
- * benchmark-completion — 100*completedCount/count from CDK-065.
- * Skipped when count === 0 or ledger absent.
- *
- * @param {object|null} benchmarkSummary summarize() output from benchmark-task.mjs
- * @returns {object} Dimension
- */
+/** @param {object|null} benchmarkSummary @returns {object} */
 function scoreBenchmarkCompletion(benchmarkSummary) {
   const total = typeof benchmarkSummary?.count === 'number' ? benchmarkSummary.count : 0;
-  if (total === 0) return skipped('benchmark-completion', 'no benchmark records (count === 0 or no ledger)');
-  const done = typeof benchmarkSummary.completedCount === 'number' ? benchmarkSummary.completedCount : 0;
-  return scored('benchmark-completion', (done / total) * 100,
-    `${done}/${total} benchmark tasks completed`);
+  if (total === 0) return skipped('benchmark-completion', 'no benchmark records');
+  const completed = typeof benchmarkSummary.completedCount === 'number' ? benchmarkSummary.completedCount : 0;
+  return scored('benchmark-completion', (completed / total) * 100,
+    `${completed}/${total} benchmark tasks completed`);
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
- * Scores all dimensions from the supplied inputs object and computes an overall
- * aggregate. Missing or null inputs produce skipped dimensions — they are excluded
- * from the overall mean (§8: never scored as 0, never a false pass).
+ * Scores available advisory dimensions and computes their honest mean.
  *
- * @param {{
- *   lineageGraph?: object|null,
- *   calibration?: object|null,
- *   rules?: object|null,
- *   taxonomy?: object|null,
- *   compliance?: object|null,
- *   benchmark?: object|null
- * }} inputs plain object filled by the I/O layer; each field may be null
- * @returns {{
- *   dimensions: object[],
- *   overall: { score:number|null, band:string|null, scoredCount:number, totalCount:number, confidence:string }
- * }}
+ * @param {{lineageGraph?:object|null,calibration?:object|null,rules?:object|null,compliance?:object|null,benchmark?:object|null}} inputs
+ * @returns {{dimensions:object[],overall:{score:number|null,band:string|null,scoredCount:number,totalCount:number,confidence:string}}}
  */
 export function scoreDimensions(inputs) {
-  const inp = inputs && typeof inputs === 'object' ? inputs : {};
-
+  const source = inputs && typeof inputs === 'object' ? inputs : {};
   const dimensions = [
-    scoreLineageCompleteness(inp.lineageGraph ?? null),
-    scoreReceiptPassRate(inp.lineageGraph ?? null),
-    scoreEvidenceCoverage(inp.taxonomy ?? null),
-    scoreRuleHealth(inp.rules ?? null),
-    scoreCapabilityCompliance(inp.compliance ?? null),
-    scoreCalibration(inp.calibration ?? null),
-    scoreBenchmarkCompletion(inp.benchmark ?? null),
+    scoreTaskEvidenceCoverage(source.lineageGraph ?? null),
+    scoreWorkflowLinkage(source.lineageGraph ?? null),
+    scoreRuleHealth(source.rules ?? null),
+    scoreCapabilityCompliance(source.compliance ?? null),
+    scoreCalibration(source.calibration ?? null),
+    scoreBenchmarkCompletion(source.benchmark ?? null),
   ];
-
-  const scoredDims = dimensions.filter((d) => d.status === 'scored');
-  const scoredCount = scoredDims.length;
-  const totalCount = dimensions.length;
-
-  let overallScore = null;
-  let overallBand = null;
-  if (scoredCount > 0) {
-    const mean = scoredDims.reduce((sum, d) => sum + d.score, 0) / scoredCount;
-    overallScore = Math.round(mean * 10) / 10;
-    overallBand = scoreToBand(overallScore);
-  }
-
+  const scoredDimensions = dimensions.filter((dimension) => dimension.status === 'scored');
+  const scoredCount = scoredDimensions.length;
+  const overallScore = scoredCount === 0
+    ? null
+    : Math.round((scoredDimensions.reduce((sum, dimension) => sum + dimension.score, 0) / scoredCount) * 10) / 10;
   return {
     dimensions,
-    overall: { score: overallScore, band: overallBand, scoredCount, totalCount, confidence: countToConfidence(scoredCount) },
+    overall: {
+      score: overallScore,
+      band: overallScore === null ? null : scoreToBand(overallScore),
+      scoredCount,
+      totalCount: dimensions.length,
+      confidence: countToConfidence(scoredCount),
+    },
   };
 }

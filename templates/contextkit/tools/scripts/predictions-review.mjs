@@ -1,113 +1,120 @@
 #!/usr/bin/env node
 /**
- * Closes the predicted-vs-actual loop (ancestor parity).
- *
- * `/simulate-impact` (mark-simulation.mjs) writes a prediction file per run with
- * an empty "Actual" section. This script fills that section from the session
- * ledger: the paths actually changed (`modifications[]`) compared against what
- * the simulation predicted (`simulations[].coveredPaths`). It computes the delta
- * in both directions so a later review can see where the prediction was right or
- * wrong.
- *
- * Usage:
- *   node contextkit/tools/scripts/predictions-review.mjs            # current session
- *   node contextkit/tools/scripts/predictions-review.mjs <sessionId>
- *
- * Defensive: never throws fatally; exits 0 with a message when there is nothing
- * to review. Zero third-party deps (hot-path invariant).
+ * Compares explicit blast-radius predictions with the current Git diff. It does
+ * not read a session ledger or infer that every changed file belongs to a hidden
+ * session authority. Dry-run is the default; `--write` updates prediction files.
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { readLedger, readMostRecentLedger, toRepoRelative } from '../../runtime/hooks/ledger.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const PREDICTIONS_PREFIX = 'contextkit/memory/predictions/';
 
-/** True when a covered entry (file, or dir prefix ending in `/`) matches a path. */
-function covers(coveredEntry, actualPath) {
-  if (coveredEntry.endsWith('/')) return actualPath.startsWith(coveredEntry);
-  return actualPath === coveredEntry;
-}
-
-/** Unique repo-relative paths this session actually changed (excludes prediction files). */
-function actualChangedPaths(ledger) {
-  const seen = new Set();
-  for (const mod of ledger.modifications || []) {
-    const rel = toRepoRelative(mod?.path);
-    if (!rel || rel.startsWith(PREDICTIONS_PREFIX)) continue;
-    seen.add(rel);
+/** @param {string[]} argumentsList @returns {string[]} */
+function gitPathList(argumentsList) {
+  try {
+    const response = spawnSync('git', argumentsList, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 5000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    if (response.status !== 0) return [];
+    return String(response.stdout ?? '').split('\0').filter(Boolean);
+  } catch {
+    return [];
   }
-  return [...seen];
 }
 
-const fmt = (paths) => (paths.length ? paths.map((p) => `\`${p}\``).join(', ') : '— none');
+/** @returns {string[]} */
+export function actualChangedPaths() {
+  return [...new Set([
+    ...gitPathList(['diff', '--name-only', '-z', 'HEAD']),
+    ...gitPathList(['ls-files', '--others', '--exclude-standard', '-z']),
+  ])]
+    .map((path) => path.replaceAll('\\', '/'))
+    .filter((path) => path && !path.startsWith(PREDICTIONS_PREFIX))
+    .sort();
+}
 
-/** Builds the filled "Actual" section for one prediction vs the actual changes. */
-function actualSection(covered, actual, date) {
-  const predictedHit = covered.filter((c) => actual.some((a) => covers(c, a)));
-  const predictedMiss = covered.filter((c) => !actual.some((a) => covers(c, a)));
-  const unforeseen = actual.filter((a) => !covered.some((c) => covers(c, a)));
+/** @param {string} coveredEntry @param {string} actualPath @returns {boolean} */
+function covers(coveredEntry, actualPath) {
+  return coveredEntry.endsWith('/') ? actualPath.startsWith(coveredEntry) : actualPath === coveredEntry;
+}
+
+/** @param {string} content @returns {string[]} */
+export function readCoveredPaths(content) {
+  const raw = /^- \*\*Covered paths\*\*:\s*(.+)$/m.exec(content)?.[1] ?? '';
+  if (!raw || raw === '—') return [];
+  return raw.split(',').map((path) => path.trim()).filter(Boolean);
+}
+
+/** @param {string[]} paths @returns {string} */
+function formatPaths(paths) {
+  return paths.length ? paths.map((path) => `\`${path}\``).join(', ') : '— none';
+}
+
+/** @param {string[]} covered @param {string[]} actual @param {string} date @returns {string} */
+export function renderActualSection(covered, actual, date) {
+  const predictedHit = covered.filter((entry) => actual.some((path) => covers(entry, path)));
+  const predictedMiss = covered.filter((entry) => !actual.some((path) => covers(entry, path)));
+  const unforeseen = actual.filter((path) => !covered.some((entry) => covers(entry, path)));
   return [
     `## Actual (reviewed ${date})`,
     '',
-    `- **Paths actually changed this session**: ${fmt(actual)}`,
-    `- **Predicted ✓ and changed**: ${fmt(predictedHit)}`,
-    `- **Predicted ✗ but NOT changed**: ${fmt(predictedMiss)}`,
-    `- **Changed but NOT predicted**: ${fmt(unforeseen)}`,
-    '- **Risk accuracy**: _was the `/simulate-impact` risk level right? note it here_',
+    `- **Paths changed in the current Git diff**: ${formatPaths(actual)}`,
+    `- **Predicted and changed**: ${formatPaths(predictedHit)}`,
+    `- **Predicted but not changed**: ${formatPaths(predictedMiss)}`,
+    `- **Changed but not predicted**: ${formatPaths(unforeseen)}`,
+    '- **Risk accuracy**: _record the evidence-backed assessment here_',
     '',
   ].join('\n');
 }
 
-/** Replaces the trailing "## Actual" section (stub or prior review) in place. */
-function withActual(content, section) {
+/** @param {string} content @param {string} section @returns {string} */
+function replaceActualSection(content, section) {
   return /^## Actual/m.test(content)
     ? content.replace(/^## Actual[\s\S]*$/m, section)
     : `${content.trimEnd()}\n\n${section}`;
 }
 
-async function reviewOne(simulation, actual, date) {
-  const rel = simulation?.predictionFile;
-  if (typeof rel !== 'string' || !rel) return { skipped: true };
-  const abs = resolve(ROOT, rel);
-  let content;
-  try {
-    content = await readFile(abs, 'utf-8');
-  } catch {
-    return { skipped: true, rel };
-  }
-  const covered = Array.isArray(simulation.coveredPaths) ? simulation.coveredPaths : [];
-  await writeFile(abs, withActual(content, actualSection(covered, actual, date)), 'utf-8');
-  return { reviewed: true, rel };
-}
-
 async function main() {
-  const argSid = process.argv[2];
-  const found = argSid ? { sessionId: argSid, ledger: await readLedger(argSid) } : await readMostRecentLedger();
-  if (!found?.ledger) {
-    console.log('ℹ️  No session ledger found — nothing to review.');
+  const write = process.argv.includes('--write');
+  const requestedId = process.argv.slice(2).find((argument) => argument !== '--write') ?? null;
+  const directory = pathsFor(ROOT).predictions;
+  let filenames = [];
+  try {
+    filenames = (await readdir(directory)).filter((filename) => filename.endsWith('.md')).sort();
+  } catch {
+    console.log('No prediction files to review.');
     return;
   }
-  const simulations = (found.ledger.simulations || []).filter((s) => s?.predictionFile);
-  if (simulations.length === 0) {
-    console.log(`ℹ️  Session ${found.sessionId.slice(0, 8)} has no /simulate-impact predictions to review.`);
-    return;
-  }
-  const actual = actualChangedPaths(found.ledger);
+  if (requestedId) filenames = filenames.filter((filename) => filename === requestedId || filename === `${requestedId}.md`);
+
+  const actual = actualChangedPaths();
   const date = new Date().toISOString().slice(0, 10);
-  let reviewed = 0;
-  for (const simulation of simulations) {
-    const outcome = await reviewOne(simulation, actual, date);
-    if (outcome.reviewed) {
-      reviewed++;
-      console.log(`✅ Closed predicted-vs-actual loop: ${outcome.rel}`);
-    }
+  const reviews = [];
+  for (const filename of filenames) {
+    const absolutePath = resolve(directory, filename);
+    const content = await readFile(absolutePath, 'utf8');
+    if (!/^## Actual — fill on review$/m.test(content) && !requestedId) continue;
+    const covered = readCoveredPaths(content);
+    reviews.push({ filename, covered });
+    if (write) await writeFileAtomic(absolutePath, replaceActualSection(content, renderActualSection(covered, actual, date)));
   }
-  if (reviewed === 0) console.log('ℹ️  Prediction file(s) missing — nothing written.');
-  else console.log(`\n${reviewed} prediction(s) reviewed against ${actual.length} changed path(s).`);
+
+  if (!reviews.length) {
+    console.log('No unreviewed predictions matched.');
+    return;
+  }
+  console.log(JSON.stringify({ status: write ? 'written' : 'dry-run', actual, reviews }, null, 2));
+  if (!write) console.log('Re-run with --write to close the reviewed prediction loop.');
 }
 
-main().catch((err) => {
-  console.error('❌ predictions-review failed:', err?.message ?? err);
-  process.exit(1);
+main().catch((error) => {
+  console.error(`predictions-review failed: ${error?.message ?? error}`);
+  process.exitCode = 1;
 });

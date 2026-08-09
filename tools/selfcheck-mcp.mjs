@@ -45,14 +45,13 @@ const RUNTIME_FILES = Object.freeze([
   'render/render-antigravity.mjs', 'render/render-grok.mjs',
 ]);
 const SERVER_FILES = Object.freeze([
-  'server.mjs', 'tools.read.mjs', 'tools.write.mjs',
-  'tools.write-gate.mjs', 'resources.mjs', 'prompts.mjs',
+  'server.mjs', 'tools.read.mjs', 'resources.mjs', 'prompts.mjs',
 ]);
 const SCRIPT_FILES = Object.freeze([
   'mcp.mjs', 'mcp-discover.mjs', 'mcp-discover-core.mjs',
   'mcp-doctor.mjs', 'mcp-doctor-core.mjs', 'mcp-doctor-helpers.mjs',
   'mcp-doctor-probe-http.mjs', 'mcp-doctor-probe-stdio.mjs',
-  'mcp-audit.mjs', 'mcp-audit-core.mjs', 'mcp-receipt.mjs',
+  'mcp-audit.mjs', 'mcp-audit-core.mjs',
 ]);
 
 /** Every host that must carry a `/mcp` command surface (ADR-0036/0056/0068). */

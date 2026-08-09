@@ -44,7 +44,7 @@ const TOOL_FNS = [
   ['getProjectMap',      tools.getProjectMap],
   ['getModuleContext',   () => tools.getModuleContext({ modulePath: 'src/index.mjs' })],
   ['getWorkflowStatus',  tools.getWorkflowStatus],
-  ['getPipelineCards',   tools.getPipelineCards],
+  ['getTasks',           tools.getTasks],
   ['getActiveClaims',    tools.getActiveClaims],
   ['getLatestSession',   tools.getLatestSession],
   ['getRelevantDecisions', tools.getRelevantDecisions],

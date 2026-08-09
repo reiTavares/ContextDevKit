@@ -68,21 +68,23 @@ try {
   (() => { try { const me = JSON.parse(tr.stdout).mapEffectiveness; if (me?.schemaVersion !== 'eacp-map-effectiveness/1' || typeof me.mapConsulted !== 'boolean' || !Array.isArray(me.repeatedReads)) return false; const rr = me.repeatedReads.find((r) => r.path.endsWith('engine.mjs')); return rr && rr.count >= 2 && /^\[[0-9a-f]{8}\]\/engine\.mjs$/.test(rr.path); } catch { return false; } })()
     ? ok('economics Wave 3: mapEffectiveness schemaVersion, engine.mjs repeated+redacted') : bad(`economics Wave 3: mapEffectiveness wrong: ${JSON.stringify(JSON.parse(tr.stdout || '{}').mapEffectiveness)?.slice(0, 400)}`);
 
-  // ── Wave 4: budget→resolver + routing ROI + token-report keys ────────────────
+  // ── Wave 4: budget advisory + routing ROI + token-report keys ────────────────
   await (async () => {
     try {
       const budLib = await import('file://' + resolve(proj, 'contextkit/tools/scripts/economics/budgets.mjs').replaceAll('\\', '/'));
-      const resLib = await import('file://' + resolve(proj, 'contextkit/runtime/config/resolve-autonomy.mjs').replaceAll('\\', '/'));
+      const riskLib = await import('file://' + resolve(proj, 'contextkit/runtime/governance/risk-acknowledgement.mjs').replaceAll('\\', '/'));
       const adv = budLib.evaluateBudget({ tokens: 200 }, { scope: 'session', limit: 100, hardCap: 150 }, {});
       if (adv.budgetExhausted !== true) { bad('Wave 4 budget: budgetExhausted should be true for 200/100/150'); return; }
       ok('economics Wave 4: evaluateBudget 200/100 hardCap 150 → budgetExhausted true');
-      resLib.resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, { budgetExhausted: true }).mode === 'suggest'
-        ? ok('economics Wave 4: grade-4 + budgetExhausted → mode "suggest"') : bad('Wave 4 budget→resolver: expected mode "suggest"');
-      resLib.resolveAutonomy('edit', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, {}).mode === 'auto'
-        ? ok('economics Wave 4: grade-4 without budgetExhausted → mode "auto"') : bad('Wave 4 budget→resolver: expected "auto"');
-      resLib.resolveAutonomy('adr', { autonomy: { grade: 4 }, deliberations: { active: true } }, null, {}).mode === 'manual'
-        ? ok('economics Wave 4: area "adr" → mode "manual" (floor holds)') : bad('Wave 4 budget→resolver: adr floor broken');
-    } catch (err) { bad(`Wave 4 budget→resolver crashed: ${err?.message ?? err}`); }
+      const ordinary = riskLib.resolveRiskAcknowledgement('edit', { budgetExhausted: true });
+      ordinary.required === false && ordinary.continuation.allowed === true
+        ? ok('economics Wave 4: budget exhaustion remains advisory and cannot gate edits')
+        : bad('Wave 4 budget advisory unexpectedly gained authorization authority');
+      const forcePush = riskLib.resolveRiskAcknowledgement('push', { force: true });
+      forcePush.required === true && forcePush.blocking === false
+        ? ok('economics Wave 4: real force-push risk remains explicit and platform-bound')
+        : bad('Wave 4 concrete risk acknowledgement is wrong');
+    } catch (err) { bad(`Wave 4 budget advisory crashed: ${err?.message ?? err}`); }
   })();
   await (async () => {
     try {

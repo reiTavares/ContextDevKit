@@ -21,50 +21,23 @@ track the stages.
 The stages marked ◆ are checkpoints. Pick the mode from the arguments:
 
 - **Manual (default)** — pause and ask for the user's OK at each ◆. Safest.
-- **Automatic (`--auto` in the arguments)** — do NOT pause at ◆; instead each
-  checkpoint becomes an **automatic gate**: proceed only if its objective
-  criteria pass (design has no unresolved high-risk item; review has zero
-  blockers; tests green; coverage ≥ `qa.coverageTarget` on `qa.criticalPaths`).
-  If a gate **fails**, STOP and report — never push past a red gate. Always pause
-  for the user before an irreversible action (commit/push/PR) regardless of mode.
+- **Automatic (`--auto` in the arguments)** — do not pause at ◆. Evaluate the
+  same objective criteria and report red evidence honestly; repair it when that
+  is within scope, otherwise surface it as unresolved. These checkpoints do not
+  add guarded domains. Irreversible external actions still use the host's real
+  confirmation boundary.
 
 State which mode you're running at the start.
 
-## Grade >= 3 — hardened quorum + kill-switch (ADR-0045 / ADR-0059)
+## Optional deliberation and interruption
 
-This applies ONLY when `resolveAutonomy('ship-checkpoint', …)` returns `debate`
-(grade >= 3). At grade ≤ 2 ignore this
-section. At grade >= 3, a ◆ checkpoint may be cleared by a `/debate` quorum INSTEAD of
-a human pause — but only under all of these, or you fall back to a manual pause:
-
-1. **Blind voices** — run the deliberation per the ADR-0035 contract (voices blind
-   to each other), embedding the `--for-subagent` pack (ADR-0044 D1). Plan the
-   council + tiered research with `deliberation-council.mjs plan` (ADR-0070): the
-   `fast`-tier scouts gather the checkpoint evidence cheaply, the reasoning voices
-   judge it. The deterministic voice (below) is independent of that roster.
-2. **≥ 1 deterministic voice** — its vote is NOT an LLM opinion but the **exit
-   codes** of `npm test`, `node tools/selfcheck.mjs` and `/deps-audit`. Red exit ⇒
-   that voice votes NO; you may not synthesize it away.
-3. **Security veto** — a **Critical** from the security voice is a *veto, not a
-   vote*: stop and escalate to the human, regardless of the other voices.
-4. **`unresolved` → human** — an unresolved verdict never proceeds; it escalates.
-5. **Provenance** — stamp the deliberation artifact id into the `state.json` event
-   for the transition (`ship-state.mjs` note), so the quorum that authorized an
-   autonomous step is auditable.
-
-**Yield & kill-switch (always on at grade 4).** Re-consult `resolveAutonomy` at the
-**start of every step** — never cache a grade for the whole run. Any user message or
-interrupt cancels in-flight autonomous actions at the **next step boundary**; if the
-user runs `/autonomy 1` mid-run it takes effect on the very next step. Branch-only:
-the resolver returns `auto` for `push` only toward a non-default branch; a merge to
-the default branch is always the human's.
-
-**Budget downgrade (ADR-0044 D3).** When you re-consult the resolver, pass
-`budgetExhausted: true` if the session has crossed `tokens.budgetPerSession`
-(compare the session total from `token-report.mjs --json` against the config). At
-grade 4 the resolver then returns grade-2 behaviour (`suggest`, `reason:
-'budget-exhausted'`) — it **downgrades to consent, never blocks an edit**. Surface
-the downgrade as a one-line digest so the user knows why the autonomy dropped.
+Use `/debate` only when the decision genuinely benefits from independent
+specialist judgment or the owner explicitly requests it. Councils, quorums,
+agent receipts, and model output never authorize or deny a ship step. A user
+message or interrupt changes the active instruction at the next safe boundary.
+Token-budget telemetry may recommend a cheaper path, but it never changes
+permission. Force-push, secret rotation, and destructive production actions use
+the explicit risk acknowledgement plus the host/platform confirmation boundary.
 
 ## Resume & progress tracking (ticket 074)
 
@@ -88,10 +61,9 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    ADRs relevant to the objective [ADR-0027] — open a full ADR only when needed.
    Then **right-size the pipeline** [ADR-0030]:
    `node contextkit/tools/scripts/complexity-rubric.mjs classify "$ARGUMENTS"`. A
-   **regulated domain** (LGPD / fintech / healthcare) makes the design + review
-   stages MANDATORY and pulls the named agents (e.g. `@privacy-lgpd`, `@security`)
-   into the squad; an **architectural** tier means the ADR in step 8 is required,
-   not optional. Restate the objective; define IN/OUT-OF-SCOPE (as `/dev-start`).
+   regulated-domain signal may recommend a specialist report, but LGPD remains
+   shadow and no classifier forces a workflow, agent, or guarded gate. Restate
+   the objective and define IN/OUT-OF-SCOPE (as `/dev-start`).
 2. **Design** — delegate to `architect`: options, trade-offs, recommended path,
    blast radius. When you delegate to ANY agent in this pipeline, first run
    `node contextkit/tools/scripts/context-pack.mjs --for-subagent --objective "$ARGUMENTS"`
@@ -99,25 +71,16 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
    bounded pack carries the standing rule "do not re-read boot context", so each
    delegated agent starts cheap.
 
-   **Model tier per dispatch (ADR-0052 / ADR-0150 — resolve, don't eyeball).**
-   Classify the TASK (**think**: design, review, security, root-cause, planning →
-   keep the agent's tier; **execute**: tests from a given plan, mechanical
-   refactor, scaffold, format, summarize → cheap tier; **ambiguous**: agent
-   default), then ask the resolver for the concrete alias:
+   **Model recommendation per dispatch (ADR-0158).** Ask the resolver for an
+   optional recommendation:
    `node contextkit/tools/scripts/model-policy.mjs resolve --agent <name> --task <think|execute|ambiguous> [--task-kind kind] [--complexity value] [--risk value] [--title "objective"] [--qa-failures N] [--budget-exhausted] --host <claude|codex|agy>`
-   using the current host value (`claude`, `codex`, or `agy`), then pass its
-   `model` to the Agent tool. On Codex, the PRIMARY AGENT must classify both
-   dimensions before every invocation and may spawn only when the receipt has
-   `decision:"dispatch"`, non-null `model`, `effort`, and `ruleId`. Pass effort
-   as `reasoning_effort`; any refusal or null field blocks the invocation.
-   Complete dimensions outrank task kind, budget, QA, and role defaults;
-   `xhigh` is canonical and `ultra` is legal only for `critical × critical`.
-   The matrix is owned by `model-policy.mjs`/ADR-0150 and is not duplicated here.
-   Non-Codex routing retains the existing floor, escalation, budget, and
-   documented host-gap behavior. Report every non-default resolution.
+   A valid result says `decision:"recommend"`. Missing dimensions, an unknown
+   model, a profile conflict, or malformed output emits one warning and the
+   current agent continues. The active agent decides whether to delegate and
+   which available host model to use.
 
-   If the change crosses high-risk paths (L5), run
-   `/simulate-impact` first. ◆ Checkpoint: confirm the design with the user.
+   If the change crosses high-risk paths, `/simulate-impact` is useful evidence,
+   not a universal prerequisite. ◆ Checkpoint: present the design evidence.
 3. **Plan tests** — delegate to `qa-orchestrator` (`/test-plan`): happy / edge /
    failure for the scope.
 4. **Implement** — route to the right domain agent(s) (backend/frontend/db/…).
@@ -134,8 +97,9 @@ stage in `state.json` so a crash, context loss, or `/clear` never loses your pla
 9. **Report** — summary: what shipped, tests, debt/contract status, follow-ups.
    Offer the commit/PR (do not push without the user's OK).
 
-If any agent isn't available in this environment, do that stage yourself but keep
-the gates. Never skip the review and test stages to "save time".
+If any agent is unavailable, continue on the active agent. Run and report review
+and tests honestly; neither agent availability nor a routing receipt may block
+the requested implementation.
 
 ## Token economy (ADR-0103)
 

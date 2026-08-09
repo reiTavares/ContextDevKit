@@ -1,6 +1,6 @@
 ---
 name: "source-command-pipeline-pipeline"
-description: "The DevPipeline manager - production board for bugs, increments, chores and roadmap tasks (backlog -> testing -> conclusion)."
+description: "Manage tasks in one canonical ContextDevKit 4 JSON scope."
 ---
 
 # source-command-pipeline-pipeline
@@ -11,39 +11,40 @@ Use this skill when the user asks to run the migrated source command `pipeline`.
 
 # DevPipeline
 
-The execution control panel, distinct from the product roadmap. The roadmap
-(`contextkit/memory/roadmap.md`) is the product/business plan. The DevPipeline is
-how work actually flows: bugs, increments, chores, and roadmap items broken into
-tasks, each with priority + SLA, moving through `backlog -> working -> testing ->
-conclusion`. Tasks are files under `contextkit/pipeline/<stage>/`;
-`devpipeline.md` is the generated dashboard.
+Manage the task scope named in **$ARGUMENTS**. The scope must resolve to a
+workflow or batch directory, or directly to its `pipeline/tasks.json`.
 
-Act as the manager of this board based on **$ARGUMENTS**:
+`pipeline/tasks.json` is the only task and status authority. `tasks.md` is a
+generated projection; never edit or parse it to decide state. There is no
+global lane directory and no filesystem move on a status transition.
 
-- **show** (default): start token-light:
-  `node contextkit/tools/scripts/pipeline.mjs board --digest`. Open the full
-  `contextkit/pipeline/devpipeline.md` only when the digest is not enough.
-- **add**: create a task:
-  ```bash
-  node contextkit/tools/scripts/pipeline.mjs add --type <bug|feature|increment|chore> \
-       --priority <P0-P3> --title "..." [--sla YYYY-MM-DD] [--roadmap P2.3] \
-       [--workflow <slug>] [--spec contextkit/memory/workflows/<slug>/spec.md]
-  ```
-  First right-size the ceremony with
-  `node contextkit/tools/scripts/complexity-rubric.mjs classify "<objective>"`
-  and pass `--complexity` only when the automatic classification needs an
-  explicit override.
-  Then open the new file in `contextkit/pipeline/backlog/` and fill the context
-  and acceptance criteria. For non-trivial workflow work (ADR-0057), pass
-  `--workflow` and `--spec`; the card will include spec references,
-  implementation report, diff summary, and verification sections.
-- **move**: `node contextkit/tools/scripts/pipeline.mjs move <id> <backlog|working|testing|conclusion>`.
-  Moving a card to `testing` stamps `implemented: YYYY-MM-DD`. Moving to
-  `conclusion` stamps `concluded: YYYY-MM-DD`; QA closure should still prefer
-  `qa-approve` through `/pipetest`.
-- **from-roadmap**: read `contextkit/memory/roadmap.md`, pick the next milestone,
-  and break it into concrete backlog tasks with `--roadmap <P-ID>`.
+Use the smallest command that satisfies the request:
 
-Always run `sync` after changes so `devpipeline.md` reflects reality. Treat
-P0/SLA items as the priority. The workflow spec pack references this board; it
-does not replace it.
+```bash
+node contextkit/tools/scripts/pipeline.mjs list --tasks <scope> [--json]
+node contextkit/tools/scripts/pipeline.mjs board --tasks <scope> [--digest]
+node contextkit/tools/scripts/pipeline.mjs add --tasks <scope> --title "..." \
+  [--id T-001] [--priority P0-P4] [--depends-on T-000] \
+  [--acceptance "criterion one,criterion two"] [--touch-hints "src/a.mjs"] \
+  [--evidence-refs "gh#42"] [--report-refs "reports/triage.md"]
+node contextkit/tools/scripts/pipeline.mjs move <id> <status> --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs start <id> --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs stop <id> --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs qa-reject <id> "feedback" --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs qa-approve <id> --evidence <ref> --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs validate --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs sync --tasks <scope>
+```
+
+Canonical statuses are `backlog`, `working`, `blocked`, `testing`, `done`, and
+`cancelled`. The CLI validates legal edges and uses the document revision for
+compare-and-swap. `qa-approve` is the normal `testing -> done` path and requires
+real evidence. A simple scoped owner override may resolve a guarded QA verdict;
+it needs no autonomy grade, council, agent receipt, or quorum.
+
+`sync` repairs only the Markdown projection from JSON. A projection failure is
+reported honestly after the canonical JSON commit and never rolls task state
+back to a lane.
+
+For conversation or read-only exploration, do not call this command and do not
+create a task. If the user's intent is unclear, ask one short question first.

@@ -6,7 +6,7 @@
 
 Objective: **<user-specified argument>**
 
-Produce a **Blast Radius Report** before any Edit/Write on high-risk paths.
+Produce a **Blast Radius Report** before material changes on high-risk paths.
 
 1. **Identify what the change touches.** List the concrete files/dirs you expect to modify. Cross-
    reference `contextkit/config.json` → `l5.highRiskPaths` to see which are gated.
@@ -16,16 +16,15 @@ Produce a **Blast Radius Report** before any Edit/Write on high-risk paths.
    other modules or external consumers depend on. If agents are installed (Level 4), delegate
    focused sub-analyses to the relevant specialists in parallel and consolidate.
 
-3. **Write the report** to `contextkit/memory/predictions/<YYYY-MM-DD>-<slug>.md` with: objective,
-   files in scope, downstream risks, suggested order of changes, and a rollback note.
-
-4. **Authorize the edits** by recording the simulation on the ledger (this unblocks the L5 gate):
+3. **Materialize the reviewed prediction** with the explicit write flag:
    ```
-   node contextkit/tools/scripts/mark-simulation.mjs "<user-specified argument>" <covered-path-or-dir/> [more ...]
+   node contextkit/tools/scripts/mark-simulation.mjs --write "<user-specified argument>" <covered-path-or-dir/> [more ...]
    ```
-   Use trailing slashes for directory coverage (e.g. `src/services/`).
+   Use trailing slashes for directory coverage (e.g. `src/services/`). Then fill
+   the generated **Predicted blast radius** section with the concrete risks,
+   order of changes, rollback, and evidence from steps 1–2.
 
-5. Summarize the report to the user and proceed with the change in the suggested order.
+4. Summarize the report to the user and proceed with the change in the suggested order.
 
-For a genuinely trivial edit (typo/comment) on a gated path, record an explicit bypass instead:
-`node contextkit/tools/scripts/mark-simulation.mjs "BYPASS: <reason>" <path>`.
+This report is advisory evidence. It never grants a hidden bypass and never
+replaces host or platform safety controls.

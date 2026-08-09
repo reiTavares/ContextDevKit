@@ -8,7 +8,7 @@
  * falls back to structural checks).
  *
  * Structure (CDK-013): this file is the COMPOSITION ROOT + validators. The
- * pre-existing, ADR-traced sections (ledger, l5, deliberations, autonomy,
+ * pre-existing, ADR-traced sections (l5, deliberations,
  * projectMap, swarm, deps) are defined here; every section ADDED by CDK-013
  * (quality gates, autoformat, bridges, advisor, pipeline, qa, tokens, security
  * mode, predictions review, l3, toggles, forward slot) lives in the sibling
@@ -28,6 +28,11 @@ import { MAX_LEVEL, MIN_LEVEL } from './levels.mjs';
 import { EconomySchema } from './schema-economy.mjs';
 import { ArchitectureDebtGateSchema } from './schema-arch-debt.mjs';
 import {
+  DEFAULT_GOVERNANCE_CONFIG,
+  GATE_IDS,
+  GUARDED_GATE_IDS,
+} from '../governance/gate-registry.mjs';
+import {
   AdvisorSchema,
   AutoFormatSchema,
   BehaviorsSchema,
@@ -38,7 +43,6 @@ import {
   L3Schema,
   PracticesSchema,
   PathString,
-  PipelineSchema,
   PredictionsReviewSchema,
   QaSchema,
   QualityGateSchema,
@@ -53,16 +57,6 @@ const Profile = z.object({
   scope: z.string().min(1),
 });
 
-const LedgerSchema = z
-  .object({
-    important: z.array(PathString).min(1),
-    irrelevant: z.array(PathString),
-    registration: z.array(PathString),
-  })
-  .partial()
-  .passthrough()
-  .default({});
-
 const L5Schema = z
   .object({
     highRiskPaths: z.array(PathString).default([]),
@@ -70,7 +64,7 @@ const L5Schema = z
       .object({
         observeWindow: z.number().int().positive().default(10),
         proposeAfterSessions: z.number().int().positive().default(30),
-        archiveLedgersOlderThanDays: z.number().int().positive().default(7),
+        archiveRunsOlderThanDays: z.number().int().positive().default(7),
       })
       .passthrough()
       .default({}),
@@ -94,13 +88,49 @@ const DeliberationsSchema = z
   .passthrough()
   .default({});
 
-const AutonomySchema = z
+const RiskAcknowledgementSchema = z
   .object({
-    grade: z.number().int().min(1).max(4).default(3), // ADR-0058 - grade 3 is the default posture
-    extraSecretPaths: z.array(z.string()).default([]),
+    requiredFor: z.array(z.enum(['destructive-production', 'force-push', 'secret-rotation']))
+      .default(['destructive-production', 'force-push', 'secret-rotation']),
+    message: z.string().min(1).default('Confirm this high-risk action through the real host/platform safety boundary.'),
+    extraSecretPaths: z.array(z.string().min(1)).default([]),
   })
   .passthrough()
   .default({});
+
+const GovernanceModeSchema = z.enum(['off', 'shadow', 'canary', 'guarded']);
+const GovernanceGatesSchema = z
+  .object(Object.fromEntries(GATE_IDS.map((gateId) => [gateId, GovernanceModeSchema.optional()])))
+  .passthrough()
+  .default({});
+
+const GovernanceSchema = z
+  .object({
+    defaultMode: GovernanceModeSchema.default('canary'),
+    failurePolicy: z.literal('continue').default('continue'),
+    humanAuthority: z.literal('owner-wins').default('owner-wins'),
+    gates: GovernanceGatesSchema,
+  })
+  .passthrough()
+  .superRefine((governance, context) => {
+    if (governance.defaultMode === 'guarded') {
+      context.addIssue({
+        code: 'custom',
+        path: ['defaultMode'],
+        message: 'governance.defaultMode cannot guard gates outside the explicit allowlist',
+      });
+    }
+    for (const [gateId, mode] of Object.entries(governance.gates)) {
+      if (mode === 'guarded' && !GUARDED_GATE_IDS.includes(gateId)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['gates', gateId],
+          message: `${gateId} cannot use guarded outside the blocking allowlist`,
+        });
+      }
+    }
+  })
+  .default(DEFAULT_GOVERNANCE_CONFIG);
 
 // ADR-0134 / ADR-0155 - structural knowledge graph. `mode` is the activation
 // ladder (resolveGraphActivation clamps a blocking mode without `humanFlip`);
@@ -131,12 +161,10 @@ const ProjectMapSchema = z
   .passthrough()
   .default({});
 
-// ADR-0051 - swarm coordinator caps. maxWorkstreams is hard-capped at 5 by
-// contract (the planner refuses more regardless of config).
+// ADR-0158 — only a real host scheduler limit may cap parallelism.
 const SwarmSchema = z
   .object({
-    maxWorkstreams: z.number().int().min(1).max(5).default(3),
-    maxWavesPerRun: z.number().int().min(1).max(10).default(2),
+    hostTechnicalLimit: z.number().int().positive().nullable().default(null),
     tokenBudgetPerRun: z.number().int().min(0).default(0),
     staleMinutes: z.number().int().positive().default(30),
   })
@@ -162,16 +190,15 @@ const DepsSchema = z
 export const ConfigSchema = z
   .object({
     level: z.number().int().min(MIN_LEVEL).max(MAX_LEVEL).default(2),
-    ledger: LedgerSchema,
+    governance: GovernanceSchema,
     l3: L3Schema,
     l5: L5Schema,
     deps: DepsSchema,
     deliberations: DeliberationsSchema,
-    autonomy: AutonomySchema,
+    riskAcknowledgement: RiskAcknowledgementSchema,
     projectMap: ProjectMapSchema,
     swarm: SwarmSchema,
     qa: QaSchema,
-    pipeline: PipelineSchema,
     advisor: AdvisorSchema,
     qualityGate: QualityGateSchema,
     autoFormat: AutoFormatSchema,

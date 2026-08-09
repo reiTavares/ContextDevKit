@@ -3,14 +3,13 @@
  *
  * Zero-dependency, runs under plain `node`. Proves the two acceptance criteria:
  *   (a) operation create dry-run prints a plan and writes NOTHING;
- *   (b) `--apply` writes a schema-valid operation.json + reason.md + tasks.md
- *       atomically (all three present, operation.json validates);
- *   (c) re-render is byte-idempotent AND preserves out-of-block human notes.
+ *   (b) batch `--apply` writes a schema-valid operation plus canonical task store;
+ *   (c) render repairs `tasks.md` exactly and byte-idempotently from JSON.
  *
  * Uses a throwaway temp root (os.tmpdir) so it never touches the real tree.
  * Exit 0 = all assertions held; exit 1 = at least one failed.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { stripBom } from '../../runtime/work/enums.mjs';
@@ -18,7 +17,8 @@ import { validateOperation } from '../../runtime/work/schema-operation.mjs';
 import { PLATFORM_DIR } from '../../runtime/config/paths.mjs';
 import { parseArgs } from './work-io.mjs';
 import { dispatch } from './work.mjs';
-import { renderTasksFile } from './work-render.mjs';
+import { renderTasksMarkdown } from './tasks-render.mjs';
+import { readTasksDocument } from './tasks-store.mjs';
 
 const failures = [];
 /** Records a named assertion. @param {string} label @param {boolean} cond */
@@ -35,45 +35,37 @@ try {
   const dryArgs = parseArgs(['operation', 'Rotate staging API key', '--mode', 'direct']);
   const dryReceipt = dispatch(dryArgs, { root: ROOT });
   assert('dry-run mode is dry-run', dryReceipt.applied === false && dryReceipt.mode === 'dry-run');
-  assert('dry-run plans 3 files', dryReceipt.writes.length === 3);
+  assert('direct dry-run plans definition and reason only', dryReceipt.writes.length === 2);
   assert('dry-run writes nothing to disk', !existsSync(opsRoot));
 
-  // (b) --apply: atomic write of all three artifacts, schema-valid operation.json.
+  // (b) --apply: batch package includes canonical store + projection + reports.
   const applyArgs = parseArgs(['operation', 'Rotate staging API key', '--mode', 'batch', '--apply']);
   const applyReceipt = dispatch(applyArgs, { root: ROOT });
   assert('apply mode is apply', applyReceipt.applied === true && applyReceipt.mode === 'apply');
   const dir = applyReceipt.detail.dir;
   assert('package dir exists', existsSync(dir));
-  for (const name of ['operation.json', 'reason.md', 'tasks.md']) {
+  for (const name of ['operation.json', 'reason.md']) {
     assert(`${name} written`, existsSync(join(dir, name)));
   }
+  assert('canonical tasks.json written', existsSync(join(dir, 'batch', 'tasks.json')));
+  assert('generated tasks.md written', existsSync(join(dir, 'batch', 'tasks.md')));
+  assert('batch reports directory written', existsSync(join(dir, 'batch', 'reports')));
   const opJson = JSON.parse(stripBom(readFileSync(join(dir, 'operation.json'), 'utf8')));
   const verdict = validateOperation(opJson);
   assert('written operation.json is schema-valid', verdict.ok === true);
   if (!verdict.ok) process.stdout.write(`       errors: ${verdict.errors.join('; ')}\n`);
   assert('executionMode persisted as batch', opJson.executionMode === 'batch');
 
-  // (c) render idempotency + human-note preservation.
-  // Seed a DevPipeline card linked to OP-0001, plus a human note in tasks.md.
-  const backlog = join(ROOT, PLATFORM_DIR, 'pipeline', 'backlog');
-  mkdirSync(backlog, { recursive: true });
-  writeFileSync(
-    join(backlog, '500-rotate.md'),
-    '---\nid: 500\ntitle: Rotate key\ntype: chore\npriority: P1\noperation: OP-0001\n---\nbody\n',
-    'utf8',
-  );
-  const tasksPath = join(dir, 'tasks.md');
-  const withNote = `${readFileSync(tasksPath, 'utf8')}\nHUMAN-NOTE-SENTINEL outside the block.\n`;
-  writeFileSync(tasksPath, withNote, 'utf8');
-
-  const first = dispatch(parseArgs(['render', '--operation', 'OP-0001']), { root: ROOT });
-  assert('first render changed', first.applied === true);
+  // (c) render is dry-run by default, then repairs solely from JSON.
+  const tasksPath = join(dir, 'batch', 'tasks.md');
+  writeFileSync(tasksPath, 'corrupt projection\n', 'utf8');
+  const dryRender = dispatch(parseArgs(['render', '--operation', 'OP-0001']), { root: ROOT });
+  assert('render is dry-run by default', dryRender.applied === false && readFileSync(tasksPath, 'utf8') === 'corrupt projection\n');
+  const first = dispatch(parseArgs(['render', '--operation', 'OP-0001', '--apply']), { root: ROOT });
+  assert('applied render repairs projection', first.applied === true);
   const afterFirst = readFileSync(tasksPath, 'utf8');
-  assert('card projected into block', afterFirst.includes('Rotate key') && afterFirst.includes('| 500 |'));
-  assert('human note preserved', afterFirst.includes('HUMAN-NOTE-SENTINEL outside the block.'));
-
-  const second = renderTasksFile(tasksPath, [{ id: '500', title: 'Rotate key', type: 'chore', priority: 'P1', stage: 'backlog' }]);
-  assert('second render is a no-op (idempotent)', second.changed === false);
+  assert('projection equals canonical renderer', afterFirst === renderTasksMarkdown(readTasksDocument(join(dir, 'batch', 'tasks.json'))));
+  dispatch(parseArgs(['render', '--operation', 'OP-0001', '--apply']), { root: ROOT });
   assert('bytes identical after re-render', readFileSync(tasksPath, 'utf8') === afterFirst);
 } finally {
   rmSync(ROOT, { recursive: true, force: true });

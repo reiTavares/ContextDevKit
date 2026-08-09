@@ -43,7 +43,6 @@ const FIXTURES = Object.freeze([
   { id: 'only-b', file: 'tools/it-b.mjs', tier: 'smoke', touches: ['templates/contextkit/runtime/beta/'] },
   { id: 'integration-test', file: 'tools/integration-test.mjs', tier: 'integration:core', touches: ['x/core/'] },
   { id: 'tooling', file: 'tools/it-tooling.mjs', tier: 'integration:installer', touches: ['x/tooling/'] },
-  { id: 'migrate', file: 'tools/it-migrate.mjs', tier: 'integration:installer', touches: ['x/migrate/'] },
   { id: 'update-safety', file: 'tools/it-update.mjs', tier: 'integration:installer', touches: ['x/update/'] },
   { id: 'guards', file: 'tools/it-guards.mjs', tier: 'integration:installer', touches: ['x/guards/'] },
   { id: 'install-cycle', file: 'tools/it-cycle.mjs', tier: 'smoke', touches: ['x/cycle/'] },
@@ -67,9 +66,9 @@ function unitTable() {
 
   // Broadening: installer rule (install.mjs / tools/install/**) → installer cluster.
   assertIds('rule:installer (install.mjs)', sel(['install.mjs']),
-    ['integration-test', 'tooling', 'migrate', 'update-safety', 'guards', 'install-cycle']);
+    ['integration-test', 'tooling', 'update-safety', 'guards', 'install-cycle']);
   assertIds('rule:installer (tools/install/**)', sel(['tools/install/engine.mjs']),
-    ['integration-test', 'tooling', 'migrate', 'update-safety', 'guards', 'install-cycle']);
+    ['integration-test', 'tooling', 'update-safety', 'guards', 'install-cycle']);
 
   // Broadening: hosts rule (host/bridge template) → every hosts-tier suite.
   assertIds('rule:hosts (codex template)', sel(['templates/contextkit/runtime/codex/x.mjs']),
@@ -119,18 +118,18 @@ function noEmptyGuard() {
 }
 
 /**
- * Regression lock for the WF0025 split (ADR-0113): editing a `runtime/execution/*`
- * source file MUST select the fast `selfcheck-request` shard and MUST NOT select
- * the `selfcheck` monolith — and must not escalate to full. A mistyped `touches[]`
- * (e.g. dropping the shard's execution prefix) would route to FULL: still green,
- * but the speed win silently regresses. This positive assertion catches that.
+ * Regression lock for the v4 mutation-only classifier: editing its canonical
+ * source must select the focused interaction-classification suite, must not
+ * select the selfcheck monolith, and must not escalate to a full run.
  */
 function splitRegressionLock() {
-  const changed = ['templates/contextkit/runtime/execution/active-context-resolver.mjs'];
+  const changed = ['templates/contextkit/runtime/execution/task-intake.mjs'];
   const report = explainSelection({ changed, suites: SUITES, projectMapPresent: true });
   const ids = new Set(report.selected.map((s) => s.id));
   report.full === false ? ok('execution edit → not a full run (split active)') : bad('execution edit escalated to full (shard touches broken?)');
-  ids.has('selfcheck-request') ? ok('execution edit → selects selfcheck-request shard') : bad('execution edit did NOT select selfcheck-request (shard touches broken?)');
+  ids.has('wf0111-interaction-classification')
+    ? ok('intake edit selects the focused v4 interaction-classification suite')
+    : bad('intake edit did not select the v4 interaction-classification suite');
   !ids.has('selfcheck') ? ok('execution edit → does NOT select the selfcheck monolith') : bad('execution edit still drags in the selfcheck monolith (touches not narrowed?)');
 }
 

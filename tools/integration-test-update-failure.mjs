@@ -17,7 +17,7 @@
  *   skipped entry), never an unhandled throw.
  *
  * DEFER-ZERO-WRITES (P0-04)
- *   A project with an ACTIVE ledger (unregistered + modifications) causes
+ *   A project with an explicit active workspace claim causes
  *   --update to exit 0 with DEFERRED message AND leaves the project tree
  *   fingerprint completely unchanged (zero writes).
  *
@@ -211,17 +211,15 @@ await (async () => {
       ? rep.ok('DEFER-ZERO-WRITES: fresh install exits 0')
       : rep.bad(`DEFER-ZERO-WRITES: install failed (${inst.status}): ${inst.stderr}`);
 
-    // Inject an ACTIVE ledger: unregistered + non-empty modifications array.
-    // The installer does NOT create .sessions; seed the directory explicitly.
-    const sessionsDir = join(proj, '.claude', '.sessions');
-    mkdirSync(sessionsDir, { recursive: true });
-    const activeLedger = JSON.stringify({
+    // Inject an explicit active workspace claim.
+    const workspaceDir = join(proj, '.claude', '.workspace');
+    mkdirSync(workspaceDir, { recursive: true });
+    const activeWorkspace = JSON.stringify({
       sessionId: 'test-active-session',
-      registered: false,
-      modifications: ['some-file.md'],
-      activeTask: null,
+      claims: [{ path: 'some-file.md', claimedAt: Date.now() }],
+      tasks: [],
     }, null, 2);
-    writeFileSync(join(sessionsDir, 'test-active-session.json'), activeLedger, 'utf-8');
+    writeFileSync(join(workspaceDir, 'test-active-session.json'), activeWorkspace, 'utf-8');
 
     // Capture project tree fingerprint BEFORE the deferred --update.
     const fp1 = fingerprint(proj);

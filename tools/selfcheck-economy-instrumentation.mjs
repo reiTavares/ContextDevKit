@@ -8,11 +8,9 @@
  * ledger with the right honesty routing (advisory/lifecycle → events ledger,
  * never the observed-savings ledger). No spies: we read the JSONL back.
  *
- * Three guarantees:
+ * Two guarantees:
  *   A) a real CLI end-to-end (context-pack) emits when invoked;
- *   B) the wired hook path (loop-breaker via gate-advisory) emits ONLY when an
- *      injected finite `now` is present (so the pure selfcheck never writes), and
- *   C) per-resource seam routing: advisory/lifecycle payloads land in events, not
+ *   B) per-resource seam routing: advisory/lifecycle payloads land in events, not
  *      savings (the honesty fence).
  *
  * Zero runtime deps — node:* only. Exit 1 on any failure.
@@ -31,7 +29,6 @@ const NOW = 1750000000000;
 const { economyEventsFile } = await import(pathToFileURL(resolve(ECON, 'economy-events.mjs')).href);
 const { savingsFile } = await import(pathToFileURL(resolve(ECON, 'economy-savings.mjs')).href);
 const { emitEconomy } = await import(pathToFileURL(resolve(ECON, 'telemetry-emit.mjs')).href);
-const { buildEconomyAdvisory } = await import(pathToFileURL(resolve(ECON, 'gate-advisory.mjs')).href);
 
 const readJsonl = (path) => (existsSync(path)
   ? readFileSync(path, 'utf-8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l))
@@ -57,29 +54,7 @@ console.log('\n── Economy instrumentation behavioral check (ADR-0117) ──
   } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
 }
 
-// B) Wired hook path: loop-breaker fires with finite `now`, stays silent without.
-{
-  const base = tmpRoot();
-  const fakeLedger = async () => ({ modifications: [
-    { tool: 'Write', path: 'a.mjs' }, { tool: 'Write', path: 'a.mjs' }, { tool: 'Write', path: 'a.mjs' },
-  ] });
-  const call = (now) => buildEconomyAdvisory({
-    config: {}, payload: { tool_input: { file_path: 'a.mjs' } }, toolName: 'Edit',
-    root: base, sessionId: 'sid', readLedger: fakeLedger, now,
-  });
-  try {
-    await call(undefined);
-    const afterPure = readJsonl(economyEventsFile(base)).filter((r) => r.lever === 'loop-breaker').length;
-    await call(NOW);
-    const afterWired = readJsonl(economyEventsFile(base)).filter((r) => r.lever === 'loop-breaker').length;
-    afterPure === 0 ? ok('loop-breaker: pure call (no `now`) writes no ledger row')
-                    : bad(`loop-breaker: pure call wrote ${afterPure} row(s) — selfcheck pollution`);
-    afterWired === 1 ? ok('loop-breaker: wired call (finite `now`) writes exactly one events row')
-                     : bad(`loop-breaker: wired call wrote ${afterWired} row(s), expected 1`);
-  } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
-}
-
-// C) Per-resource seam routing: advisory/lifecycle land in events, never savings.
+// B) Per-resource seam routing: advisory/lifecycle land in events, never savings.
 const ROUTED = [
   ['resume-pack', 'lifecycle', 'applied'],
   ['findings', 'advisory', 'applied'],
@@ -97,7 +72,7 @@ for (const [resource, category, action] of ROUTED) {
   } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
 }
 
-// D) Phase-1 runnable surfaces (option-1 wiring): each emits when invoked, with
+// C) Phase-1 runnable surfaces (option-1 wiring): each emits when invoked, with
 // NO auto-hook. tc-packet fires even on an uncompilable symbol (attempted); the
 // downstream ladder fires over a hand-built valid work-packet.
 {
@@ -123,7 +98,7 @@ for (const [resource, category, action] of ROUTED) {
   } finally { try { rmSync(base, { recursive: true, force: true }); } catch { /* advisory */ } }
 }
 
-// E) agent-contract CLI (spawned) emits on a real drift-audit run.
+// D) agent-contract CLI (spawned) emits on a real drift-audit run.
 {
   const base = tmpRoot();
   try {

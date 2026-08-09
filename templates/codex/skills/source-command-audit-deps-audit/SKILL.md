@@ -1,6 +1,6 @@
 ---
 name: "source-command-audit-deps-audit"
-description: "Dependency & supply-chain audit (security-team) — lockfile, pinning, CVEs → backlog."
+description: "Read-only dependency and supply-chain audit with optional explicit report output."
 ---
 
 # source-command-audit-deps-audit
@@ -11,9 +11,9 @@ Use this skill when the user asks to run the migrated source command `deps-audit
 
 # 🔐 Deps Audit (security-team)
 
-Run the **security-team's** dependency / supply-chain check, then feed the backlog.
+Run the dependency and supply-chain check and report actionable evidence.
 
-1. **Audit** (writes findings for ingestion):
+1. **Audit** (pass `--write` only when the user requested a durable report):
    ```
    node contextkit/tools/scripts/deps-audit.mjs --write
    ```
@@ -37,29 +37,24 @@ Run the **security-team's** dependency / supply-chain check, then feed the backl
    unreachable registry shows up as a `registry-skipped` finding — a skip,
    never a pass.
 
-2. **Feed the DevPipeline backlog** — each issue becomes an auto-prioritized task:
-   ```
-   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deps-findings.json --type chore
-   ```
-   Idempotent (re-runs don't duplicate). Priorities are **always editable**
-   (`pipeline.mjs prioritize <id> <P>` or `/pipeline`).
-
-3. **Interpret with judgment** (delegate to the `security` agent): which advisories
+2. **Interpret with judgment** (consult the `security` agent when useful): which advisories
    are actually reachable/exploitable in THIS app vs transitive noise? Recommend the
-   fix (upgrade · pin · replace · accept-with-reason). On a Critical/High, the
-   security-team can block the release.
+   fix (upgrade · pin · replace · accept-with-reason). Security advice is
+   explicit and serious, but agent presence is not a runtime gate.
 
-4. **Report**: counts by severity + the top items + what was ingested.
+3. **Report**: counts by severity, reachability, the top items, and skipped checks.
 
-5. **GitHub-native (optional, loop-closer)** — if the repo is on GitHub, pull its
-   **Dependabot + code-scanning alerts** into the same backlog (needs the `gh` CLI,
+4. **GitHub-native (optional)** — if the repo is on GitHub, inspect its
+   **Dependabot + code-scanning alerts** (needs the `gh` CLI,
    authenticated):
    ```
    node contextkit/tools/scripts/gh-alerts.mjs --write
-   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/gh-alerts-findings.json --type chore
    ```
    Set up the scaffolding (`.github/dependabot.yml` + the security workflow) with
    `/security-setup`.
 
 Stack note: Node is audited deterministically. For Python (`requirements.txt` /
 `pyproject.toml`) the command flags that `pip-audit` / `safety` should run.
+
+The audit creates no task or workflow. Offer an explicitly scoped follow-up
+mutation for accepted findings.

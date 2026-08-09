@@ -11,24 +11,14 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
 import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
+import { sanitizeSid, sessionId } from './claim.mjs';
 
 const ROOT = process.cwd();
 const WS_DIR = resolve(ROOT, '.claude/.workspace');
-const LAST_TOUCHED = resolve(ROOT, '.claude/.sessions/.last-touched');
-
-async function sessionId() {
-  try {
-    return JSON.parse(await readFile(LAST_TOUCHED, 'utf-8')).sessionId;
-  } catch {
-    return `local_${process.pid}`;
-  }
-}
-
 async function main() {
   const target = process.argv[2]?.replaceAll('\\', '/');
-  const sid = sanitizeSid(await sessionId());
+  const sid = sanitizeSid(sessionId());
   const file = resolve(WS_DIR, `${sid}.json`);
 
   if (!existsSync(file)) {

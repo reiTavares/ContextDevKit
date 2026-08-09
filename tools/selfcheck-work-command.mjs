@@ -1,20 +1,16 @@
 #!/usr/bin/env node
 /**
- * Selfcheck — native /work Claude command + host-neutral seeded README
- * (BIZ-0001 methodology; ADR-0126 follow-up).
+ * Selfcheck — native host-neutral `/work` Claude command.
  *
  * Guards the fix for "Claude reaches for ctx.mjs (the Antigravity runner) to start
  * a methodology operation":
  *   1. The native /work command exists, is well-formed, and drives the host-neutral
  *      script `contextkit/tools/scripts/work.mjs` — never `ctx`/`cdx` as a command.
- *   2. The installer-seeded work-context READMEs point at the host-neutral path too
- *      (a fresh install must not teach `node ctx.mjs ...`).
  *
  * Run:  node tools/selfcheck-work-command.mjs
  */
-import { readFileSync, mkdtempSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { reporter } from './it-helpers.mjs';
 
@@ -55,33 +51,6 @@ function checkCommand() {
     : bad('work.md does not warn against ctx/cdx misuse');
 }
 
-// ── 2. The seeded READMEs are host-neutral ───────────────────────────────────
-async function checkSeededReadme() {
-  const mod = await import('file:///' + resolve(KIT, 'tools/install/seed-methodology.mjs').replaceAll('\\', '/'));
-  const dir = mkdtempSync(join(tmpdir(), 'workcmd-sc-'));
-  mkdirSync(join(dir, 'contextkit'), { recursive: true });
-  try {
-    await mod.maybeSeedMethodology(dir, { name: 'Acme Platform' });
-    const roots = ['business', 'operations'];
-    let neutral = true;
-    let leaks = false;
-    for (const root of roots) {
-      const readmePath = join(dir, 'contextkit', 'memory', root, 'README.md');
-      let text = '';
-      try { text = readFileSync(readmePath, 'utf8'); } catch { neutral = false; continue; }
-      if (!text.includes(HOST_NEUTRAL)) neutral = false;
-      if (/node\s+ctx\.mjs\s+work|node\s+cdx\.mjs\s+work/.test(text)) leaks = true;
-    }
-    neutral ? ok('seeded root READMEs reference the host-neutral work.mjs path') : bad('a seeded README is missing the host-neutral path');
-    !leaks ? ok('seeded READMEs never teach `node ctx.mjs work` (no wrong-host leak)') : bad('a seeded README still teaches the ctx/cdx runner');
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-(async () => {
-  console.log('\n🌀 Selfcheck — native /work command + host-neutral seeded READMEs\n');
-  checkCommand();
-  await checkSeededReadme();
-  rep.finish('native /work command + host-neutral READMEs');
-})();
+console.log('\n🌀 Selfcheck — native host-neutral /work command\n');
+checkCommand();
+rep.finish('native host-neutral /work command');

@@ -5,11 +5,11 @@
  * `rename(2)` is atomic on the same filesystem, so a concurrent reader always
  * sees either the previous file or the complete new one — never a half-written,
  * truncated, or interleaved file. This is the safe replacement for the bare
- * `writeFile` calls in the ledger, workspace and pipeline writers, which could
+ * `writeFile` calls in shared state writers, which could
  * corrupt state when two sessions wrote the same artifact at once.
  *
- * Lives in `runtime/hooks/` alongside the other internal libs (ledger.mjs,
- * path-classification.mjs) so both the runtime hooks and the tool scripts share
+ * Lives in `runtime/hooks/` alongside the other internal libraries so runtime
+ * hooks and tool scripts share
  * one source. Sync variant for the scripts, async for the hot-path hooks.
  */
 import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';

@@ -6,32 +6,22 @@
  * It is the thin, PURE orchestration that turns a `signals.work` classification
  * (already computed by intake, A2-T1) into:
  *   - a Business-match suggestion (operation-nature only — propose-not-auto),
- *   - the autonomy-per-grade proposed action, and
+ *   - a non-authoritative action recommendation, and
  *   - the persisted intake proposal,
  * plus one advisory checklist line. Extracting it from the hook keeps the hook a
- * minimal, fail-open superset (immutable rule 2) and makes the autonomy mapping
+ * minimal, fail-open superset (immutable rule 2) and makes the recommendation
  * unit-testable without spawning a process.
  *
- * Autonomy-per-grade (design §6.4) — NO new gate, reuses `resolveAutonomy`:
- *   - Business creation/approval is ALWAYS human at EVERY grade (the `adr` floor
- *     guarantees it). The classifier may only ever PROPOSE a Business.
- *   - Operations are auto-actionable from grade 3 via the existing `edit` area.
- *   - A `nature` near-tie (`confidence: low`) downgrades the action one notch so
- *     an uncertain guess never auto-acts.
+ * ContextDevKit 4 has no autonomy grade or execution floor. This module only
+ * describes the proposed work; explicit owner intent remains authoritative.
  *
- * Zero runtime dependencies — only the matcher, the proposal store, and the
- * autonomy resolver (all `node:*`-only themselves).
+ * Zero runtime dependencies — only the matcher and proposal store.
  */
-import { resolveAutonomy, readAutonomyOverride } from '../config/resolve-autonomy.mjs';
-import { loadConfigSync } from '../config/load.mjs';
 import { matchBusiness } from './business-matcher.mjs';
 import { buildIntakeProposal, saveIntakeProposal } from './intake-proposal-store.mjs';
 import { scanCitations, resolveReferenceIntent } from './reference-intent.mjs';
 import { buildWorkContextRegistry } from '../../tools/scripts/registry/work-context.mjs';
-import { buildWorkflowRegistry } from '../../tools/scripts/registry/workflow.mjs';
-
-/** One notch down the consent ladder, used by the low-confidence downgrade. */
-const DOWNGRADE = Object.freeze({ auto: 'suggest', suggest: 'manual', manual: 'manual', debate: 'suggest' });
+import { readAuthoritySnapshot } from '../authority-reader.mjs';
 
 /**
  * Reference-intents that mean "work inside an existing context" rather than
@@ -68,8 +58,8 @@ function readCitationRegistries(root, objective = '') {
   } catch { /* fail-open — empty work-context list */ }
   if (WF_ID_RE.test(String(objective || ''))) {
     try {
-      const wf = buildWorkflowRegistry(root);
-      if (wf && Array.isArray(wf.workflows)) registries.workflows = wf.workflows;
+      const snapshot = readAuthoritySnapshot(root);
+      if (Array.isArray(snapshot.workflows)) registries.workflows = snapshot.workflows;
     } catch { /* fail-open — empty workflow list */ }
   }
   return registries;
@@ -85,42 +75,24 @@ function isStrongContinuation(referenceIntent) {
 }
 
 /**
- * Resolves the proposed action mode for a classification at a given grade.
+ * Resolves the non-binding action recommendation for a classification.
  *
- * Business → always `manual` (human consent floor; map onto the `adr` area which
- * is `manual` at every grade). Operation → the `edit` area mode (auto from grade
- * 3). A low-confidence near-tie downgrades one notch so an uncertain Business
- * guess never auto-acts.
+ * Owner intent and external platform/security controls decide whether an action
+ * proceeds. No runtime compatibility fields preserve the legacy grade model.
  *
  * @param {object} work - the `signals.work` classification.
- * @param {object} config - loaded contextkit config (caller owns the I/O).
- * @param {number|null} sessionOverride - live `/autonomy --session` grade or null.
- * @returns {{ nature, kind, grade, mode, area, reason, downgraded: boolean }}
+ * @returns {{ nature, kind, mode:'advisory', area, reason, downgraded: false }}
  */
-export function resolveProposedAction(work, config = {}, sessionOverride = null) {
+export function resolveProposedAction(work) {
   const isBusiness = work?.nature === 'business';
   const area = isBusiness ? 'adr' : 'edit';
-  let resolved;
-  try {
-    resolved = resolveAutonomy(area, config, sessionOverride);
-  } catch {
-    resolved = { grade: 1, mode: 'manual', reason: 'resolve-failed-fail-safe' };
-  }
-  let mode = resolved.mode;
-  let downgraded = false;
-  // Low-confidence near-tie: never let an uncertain guess auto-act (design §6.4).
-  if (work?.confidence === 'low' && mode !== 'manual') {
-    mode = DOWNGRADE[mode] || 'manual';
-    downgraded = true;
-  }
   return {
     nature: work?.nature ?? null,
     kind: work?.kind ?? null,
-    grade: resolved.grade,
-    mode,
+    mode: 'advisory',
     area,
-    reason: resolved.reason,
-    downgraded,
+    reason: 'Owner intent controls execution; ContextDevKit recommendations are non-binding.',
+    downgraded: false,
   };
 }
 
@@ -178,27 +150,21 @@ export function renderMethodologyLine(work, match, action, referenceIntent = nul
 /**
  * The full best-effort methodology pass the hook invokes after intake. Runs the
  * matcher for operation-nature only (Business is propose-not-auto, no matcher),
- * resolves the autonomy-per-grade action, persists the proposal, and returns the
+ * resolves the advisory action, persists the proposal, and returns the
  * advisory line + the structured result. Fail-OPEN: any error returns null so the
  * legacy contract path proceeds byte-identically (immutable rule 2).
  *
- * `config` / `sessionOverride` are loaded defensively from `root` when omitted,
- * so the hot-path caller (the hook) stays a one-line invocation.
- *
- * @param {object} params - `{ root, taskId, objective, work, config?, sessionOverride?, createdAt? }`.
+ * @param {object} params - `{ root, taskId, objective, work, createdAt? }`.
  * @returns {{ match, action, proposal, line }|null}
  */
 export function runMethodology(params) {
   try {
     const { root, taskId, objective, work, createdAt } = params;
     if (!work || typeof work !== 'object') return null;
-    const config = params.config ?? loadConfigSync(root);
-    const sessionOverride = params.sessionOverride ?? readAutonomyOverride(root);
-
     const match = work.nature === 'operation'
       ? matchBusiness(work, { root, objective })
       : null;
-    const action = resolveProposedAction(work, config, sessionOverride);
+    const action = resolveProposedAction(work);
 
     // ADR-0152 / WF-0094 — resolve what a citation of an existing context MEANS.
     // Isolated + fail-open: a failure here degrades to the legacy framing (a null
@@ -207,18 +173,14 @@ export function runMethodology(params) {
     try {
       const citations = scanCitations(objective, readCitationRegistries(root, objective));
       referenceIntent = resolveReferenceIntent(work, citations, { objective });
-      // A strong continuation must never auto-create a redundant context: downgrade
-      // the create-new action to `suggest` (advisory — never blocks; ADR-0125).
-      if (isStrongContinuation(referenceIntent) && action.mode === 'auto') {
-        action.mode = 'suggest';
-        action.downgraded = true;
-        action.reason = `${action.reason}; downgraded — ${referenceIntent.intent} of ${referenceIntent.target?.id}`;
+      if (isStrongContinuation(referenceIntent)) {
+        action.reason = `${action.reason} Continue ${referenceIntent.target?.id}; do not create a duplicate context.`;
       }
     } catch { referenceIntent = null; /* fail-open — legacy framing stands */ }
 
     const proposal = buildIntakeProposal(taskId, work, match, {
       objective,
-      action: { nature: action.nature, kind: action.kind, autonomyMode: action.mode, grade: action.grade },
+      action: { nature: action.nature, kind: action.kind, mode: action.mode },
       createdAt: createdAt ?? new Date().toISOString(),
     });
     saveIntakeProposal(root, taskId, proposal); // atomic, fail-open

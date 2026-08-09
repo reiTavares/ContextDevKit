@@ -9,21 +9,20 @@
  *
  * The defaults describe a *generic* repository; the installer tunes them per
  * detected stack. Split note: `routing` defaults live in defaults-routing.mjs,
- * `eacp` in defaults-eacp.mjs, `economy` in defaults-economy.mjs, `ledger` in
- * defaults-ledger.mjs — keeping this file within the 308-line budget.
+ * `eacp` in defaults-eacp.mjs and `economy` in defaults-economy.mjs.
  */
 import { ROUTING_DEFAULTS } from './defaults-routing.mjs';
 import { ORCHESTRATION_DEFAULTS } from './defaults-orchestration.mjs';
 import { EACP_DEFAULTS } from './defaults-eacp.mjs';
 import { ECONOMY_CONFIG_DEFAULTS } from './defaults-economy.mjs';
-import { LEDGER_DEFAULTS } from './defaults-ledger.mjs';
 import { ARCH_DEBT_GATE_DEFAULTS } from './defaults-arch-debt.mjs';
+import { DEFAULT_GOVERNANCE_CONFIG } from '../governance/gate-registry.mjs';
 /**
  * `level` (1–7) gates which subsystems are active. 1–5 add Claude hooks; 6–7 are
  * capability tiers (no new hook — commands/tooling on top of the L5 gates):
- *   1 Memory      — boot context + session log + ADRs + changelog
- *   2 Ledger      — drift detection (PostToolUse + Stop nudge)
- *   3 Multi       — claims, worktrees, derived indices, git hooks
+ *   1 Memory      — read-only context + explicit session logs + ADRs
+ *   2 Governance  — one bounded dispatcher per lifecycle event
+ *   3 Multi       — explicit claims, worktrees, derived indices, git hooks
  *   4 Squads      — specialized sub-agents
  *   5 Proactive   — simulate-impact gate, tech-debt sweep, contract drift
  *   6 Autonomy    — /ship pipeline, /retro, metrics (capability tier)
@@ -33,19 +32,19 @@ import { ARCH_DEBT_GATE_DEFAULTS } from './defaults-arch-debt.mjs';
 export const DEFAULT_CONFIG = Object.freeze({
   level: 2,
 
-  /**
-   * Autonomy dial (ADR-0041/0042) — a CONSENT axis orthogonal to `level` (L1–L7
-   * capability): `grade` says what the AI may do without asking, never what it
-   * can do. 1 manual · 2 suggest+supervise · 3 auto-except-ADR (default,
-   * ADR-0058) · 4 full-auto (experimental, ADR-0045). Read ONLY through the
-   * resolver (ADR-0042); hooks are grade-blind by invariant — no hook consults
-   * this key. The non-negotiable floor lives in code, not in config.
-   */
-  autonomy: { grade: 3 },
+  /** ContextDevKit 4 canonical gate matrix (ADR-0158). */
+  governance: DEFAULT_GOVERNANCE_CONFIG,
+
+  /** Real-risk acknowledgement is metadata; host/platform controls stay authoritative. */
+  riskAcknowledgement: {
+    requiredFor: ['destructive-production', 'force-push', 'secret-rotation'],
+    message: 'Confirm this high-risk action through the real host/platform safety boundary.',
+    extraSecretPaths: [],
+  },
 
   /**
    * project-map (ADR-0046). `autoRefresh`: the pre-commit hook regenerates the
-   * committed map when source is staged (grade-blind derived doc — never blocks).
+   * committed map when source is staged (derived doc — never blocks).
    * `enforce`: when `rules.json` declares architectural-fitness rules, a violation
    * fails `--check --strict` (the CI gate). Both inert until a map / rules exist.
    * `roots`/`excludes` (CDK-050): configurable scan scope — `roots` defaults to
@@ -68,12 +67,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     enforce: true,
     roots: ['.'],
     excludes: [],
-    graph: { enabled: true, mode: 'guarded', humanFlip: true, autoIndex: true, maxAgeMinutes: 60 },
-  },
-
-  /** WF-0084 invariant guard: shadow-first, explicitly promotable, killable. */
-  workflowIntegrity: {
-    invariantGuard: { enabled: true, mode: 'shadow', phase: 'in-flight' },
+    graph: { enabled: true, mode: 'advisory', humanFlip: false, autoIndex: true, maxAgeMinutes: 60 },
   },
 
   /**
@@ -119,12 +113,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   boot: { valueLine: true },
 
   /**
-   * Path classification for the L2 ledger. Override per stack via config.
-   *   - `important`: an edit here can trigger the Stop drift nudge.
-   *   - `irrelevant`: never tracked (build output, caches, runtime state).
-   *   - `registration`: an edit here counts AS registering the session.
+   * Analysis exclusions are read-only scan inputs. They never track mutations,
+   * create session state, or participate in a completion decision.
    */
-  ledger: LEDGER_DEFAULTS,            // see defaults-ledger.mjs (path classification)
+  /** Read-only analysis exclusions. This list never drives mutation tracking. */
+  analysis: {
+    excludePaths: ['node_modules/', 'dist/', 'build/', 'out/', '.next/', '.turbo/', '.expo/', '.svelte-kit/', 'coverage/', '__pycache__/', 'target/', 'vendor/'],
+  },
 
   /** L3 — Multi-session. `mainBranch` is the upstream the pre-push conflict check compares against. */
   l3: { mainBranch: 'main' },
@@ -140,39 +135,13 @@ export const DEFAULT_CONFIG = Object.freeze({
   },
 
   /**
-   * DevPipeline prioritization (WSJF / SAFe) + bug severity + SLA + WIP eviction.
-   *   - `wsjfBands`: WSJF score ≥ value → priority (P0/P1/P2, else P3).
-   *   - `severityPriority`: ITIL bug severity S1–S4 → priority.
-   *   - `slaDays`: resolution target (days) per priority → the task's SLA due date.
-   *   - `bugTypes`: the bug taxonomy used to classify bug tasks.
-   *   - `workingStaleAfterMinutes`: ADR-0015 §B — a task auto-evicts from `working/`
-   *     back to `backlog/` when its owning session is silent past this threshold.
+   * Optional swarm runtime facts. `hostTechnicalLimit` is null until the host
+   * exposes a real scheduler limit; it is never inferred from complexity/tier.
    */
-  pipeline: {
-    framework: 'wsjf',
-    wsjfBands: { p0: 8, p1: 5, p2: 2 },
-    severityPriority: { S1: 'P0', S2: 'P1', S3: 'P2', S4: 'P3' },
-    slaDays: { P0: 1, P1: 3, P2: 14, P3: 60 },
-    bugTypes: ['functional', 'regression', 'security', 'performance', 'data', 'integration', 'ui', 'build', 'flaky', 'other'],
-    workingStaleAfterMinutes: 90,
-    commitBoard: true,
-  },
+  swarm: { hostTechnicalLimit: null, tokenBudgetPerRun: 0, staleMinutes: 30 },
 
   /**
-   * Swarm coordinator (ADR-0051). `/swarm` runs N parallel workstreams, each in
-   * its own worktree. Caps are CONTRACTS, not tuning knobs:
-   *   - `maxWorkstreams`: parallel workstreams per run (hard cap 5 in the planner).
-   *   - `maxWavesPerRun`: waves before the run parks for human review.
-   *   - `tokenBudgetPerRun`: subagent-token sub-budget (0 = off); exhausted →
-   *     no new waves, in-flight steps finish and park (ADR-0044 §3 semantics).
-   *   - `staleMinutes`: a silent workstream is marked `evicted` past this.
-   */
-  swarm: { maxWorkstreams: 5, maxWavesPerRun: 4, tokenBudgetPerRun: 0, staleMinutes: 30 },
-
-  /**
-   * Security mode — proactive analysis cadence. When `active`, the SessionStart
-   * hook reminds you to run `/deep-analysis` every `everyNSessions` sessions.
-   * ACTIVE by default; set `active: false` to disable.
+   * Security mode — advisory cadence consumed by explicit status/context reads.
    */
   securityMode: { active: true, everyNSessions: 10 },
 
@@ -186,9 +155,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   tokens: { budgetPerSession: 0, warnAtPct: 80 },
 
   /**
-   * Predictions-review cadence (L5/L6). When `active`, the SessionStart hook reminds you
-   * to run `/predictions-review` every `everyNSessions` sessions — but ONLY when there are
-   * unreviewed `/simulate-impact` predictions, so it stays silent otherwise.
+   * Predictions-review cadence (L5/L6), surfaced only by explicit context reads.
    */
   predictionsReview: { active: true, everyNSessions: 10 },
   /** Automatic model routing for STANDARD sessions (ADR-0094). See defaults-routing.mjs. */
@@ -209,7 +176,7 @@ export const DEFAULT_CONFIG = Object.freeze({
    *   - `council` (ADR-0070): dynamic specialist roster. `autoSelect` picks the
    *     relevant advisor-lane owners by question; the count scales to
    *     `clamp(matchedLanes, min, max)`. Off → fall back to the flat `voices` count.
-   *   - `autoInvoke` (ADR-0070): the gates that auto-run a council at grade ≥ 3
+   *   - `autoInvoke` (ADR-0070): advisory surfaces that may suggest a council
    *     (`debate` mode via the resolver) — `newFeature` (`/workflow` intake) and
    *     `decision` (`/new-adr`, architectural tier). The ADR WRITE still stays manual.
    *   - `research` (ADR-0070): tiered economy. When `tiered`, cheap `scoutTier`
@@ -227,21 +194,15 @@ export const DEFAULT_CONFIG = Object.freeze({
     research: { tiered: true, scoutTier: 'fast', verifyTier: 'powerful' },
   },
 
-  /**
-   * Automatic Request Orchestration (L7, ADR-0107, WF0038). Additive + gated —
-   * see defaults-orchestration.mjs. Reuses `routing`/`advisor`/`deliberations`;
-   * never duplicates them. Real dispatch is honored only in active routing under
-   * the over-orchestration guard; the routing-default flip stays human-gated.
-   */
+  /** Optional, recommendation-only orchestration-size guidance. */
   orchestration: ORCHESTRATION_DEFAULTS,
 
   /**
    * Proactive Advisor (L6, ADR-0028) — the six-lane improvement engine. When
    * `active`, `/advise` fans out to the owning agent per lane and emits ONE
-   * classified digest (`--before` = opportunities/risks, `--after` = improvements)
-   * whose findings flow into the DevPipeline backlog. `nudgeOnStop` makes the Stop
-   * hook suggest `/advise` after a productive session (≥ 2 important paths touched,
-   * debounced 24h). Each lane is `{ owner }` — the agent/command that owns it, or
+   * classified digest (`--before` = opportunities/risks, `--after` = improvements).
+   * The interaction is read-only and never creates tasks. Each lane is `{ owner }`
+   * — the agent/command that owns it, or
    * `null` to mute a lane. All six ship with an owner; a muted lane is reported as
    * *skipped*, never faked (rule 8/9). `growth` is the growth-team lead (pairs with
    * `retention` + `seo-specialist` for acquisition); `deepen` is product-owner's
@@ -249,7 +210,6 @@ export const DEFAULT_CONFIG = Object.freeze({
    */
   advisor: {
     active: true,
-    nudgeOnStop: true,
     lanes: {
       architecture: { owner: 'architect' },
       features: { owner: 'product-owner' },
@@ -309,7 +269,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     distill: {
       observeWindow: 10,
       proposeAfterSessions: 30,
-      archiveLedgersOlderThanDays: 7,
+      archiveRunsOlderThanDays: 7,
     },
     techDebtSweep: {
       default: 'full',
@@ -323,10 +283,10 @@ export const DEFAULT_CONFIG = Object.freeze({
   economy: ECONOMY_CONFIG_DEFAULTS,   // ADR-0103 go-live; see defaults-economy.mjs (per-module toggles)
 
   /**
-   * Architecture & Technical-Debt Governance Gate (WF-0057, ADR-0122) — the SOLE
-   * config authority for the gate. `mode:'active'` + `lineSignals.blocking:false`
-   * are hard invariants. The legacy `l5.lineBudget` is a deprecated alias the
-   * migration preserves as advisory-only. See defaults-arch-debt.mjs.
+   * Architecture & Technical-Debt Governance Gate (WF-0057, ADR-0158) — the SOLE
+   * config authority for the gate. `mode:'canary'` + `lineSignals.blocking:false`
+   * keep architecture heuristics non-blocking. The legacy `l5.lineBudget` is a
+   * migration-only advisory alias. See defaults-arch-debt.mjs.
    */
   architectureDebtGate: ARCH_DEBT_GATE_DEFAULTS,
 });

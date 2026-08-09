@@ -3,7 +3,7 @@
   "_note": "A2 methodology classifiers (BIZ-0001/WF-0036, governed by ADR-0102, OP-0005/ADR-0125). Deterministic substring scoring — NOT LLM. ADDITIVE to complexity-rubric.json: this file owns Business-vs-Operation, kind, value-intent, growth-lever, execution-mode. Editing a row is an ADR act (constitution §9). Enums marked PROPOSED are minimal/grounded and may be ratified by a follow-up ADR. growthLever vocabulary is fixed by growth.md — do NOT invent levers. value-intent + execution-mode map to runtime/work/enums.mjs (imported, never forked).",
 
   "nature": {
-    "default": "operation",
+    "default": "none",
     "businessFloor": 8,
     "businessMargin": 3,
     "operationFloor": 6,

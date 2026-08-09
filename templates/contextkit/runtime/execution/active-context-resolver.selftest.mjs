@@ -82,11 +82,13 @@ writeJson(join(OP_DIR, 'operation.json'), {
 // ── Active workflow WF-9001 under BIZ-9001 ───────────────────────────────
 const WF_STATE_DIR = dir('contextkit', 'memory', 'business', 'BIZ-9001-fixture-platform', 'workflows', 'WF-9001-shadow-resolver');
 writeJson(join(WF_STATE_DIR, 'workflow-state.json'), {
-  schemaVersion: 1, id: 'WF-9001',
-  overallStatus: 'active', currentWave: 'A7', currentTask: 'T1',
+  schemaVersion: 2, workflowId: 'WF-9001', status: 'working', phase: 'ship',
+  revision: 1, activeTaskIds: ['T-001'], blockers: [],
+  qa: { status: 'pending', evidenceRefs: [] }, lastReportRef: null,
+  startedAt: '2026-08-08T12:00:00.000Z', updatedAt: '2026-08-08T12:00:00.000Z', completedAt: null,
 });
-writeJson(join(WF_STATE_DIR, 'workflow-plan.json'), {
-  schemaVersion: 1, id: 'WF-9001', slug: 'shadow-resolver', title: 'Shadow Resolver',
+writeJson(join(WF_STATE_DIR, 'workflow.json'), {
+  schemaVersion: 2, id: 'WF-9001', slug: 'shadow-resolver', title: 'Shadow Resolver',
 });
 
 // ── Top-level workflows dir (required by workflowRoots) ──────────────────
@@ -127,8 +129,8 @@ assert('engine-state: state is confirmed',  r2.state    === 'confirmed',    `got
 assert('engine-state: source is engine-state', r2.source === 'engine-state', `got ${r2.source}`);
 assert('engine-state: business is BIZ-9001', r2.business === 'BIZ-9001',   `got ${r2.business}`);
 assert('engine-state: workflow is WF-9001',  r2.workflow === 'WF-9001',     `got ${r2.workflow}`);
-assert('engine-state: wave is A7',           r2.wave     === 'A7',          `got ${r2.wave}`);
-assert('engine-state: task is T1',           r2.task     === 'T1',          `got ${r2.task}`);
+assert('engine-state: v2 has no duplicate current-wave state', r2.wave === null, `got ${r2.wave}`);
+assert('engine-state: active task comes from activeTaskIds', r2.task === 'T-001', `got ${r2.task}`);
 
 // ─── Test 3: branch-name resolution ───────────────────────────────────────────
 

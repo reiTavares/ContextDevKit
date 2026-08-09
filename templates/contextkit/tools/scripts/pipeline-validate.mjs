@@ -2,26 +2,20 @@
  * DevPipeline metadata v2 validators (ticket 040, ADR-0022 follow-through).
  *
  * Two concerns kept together because they share a single mental model — the
- * `dependencies: []` DAG over ticket ids:
+ * `dependsOn: []` DAG over canonical task ids:
  *
  *   1. `detectCycles(tasks)` — DFS-based cycle detector. Returns the offending
  *      cycle (array of ids in order) or `null`. Pure; no I/O.
- *   2. `blockedBy(task, tasks)` — counts how many of `task.dependencies` are
- *      *still open* (stage ≠ conclusion). Used by the board renderer to show
- *      the "↘ blocked by N" hint.
+ *   2. `blockedBy(task, tasks)` — counts how many of `task.dependsOn` are
+ *      *still open* (status ≠ done/cancelled). Used by read-only planners to
+ *      produce the "blocked by N" hint.
  *
- * Also exports the valid enums (`VALID_TYPES`, `VALID_COMPLEXITY`) so the CLI
- * + selfcheck + render layer single-source them.
- *
- * Pure ESM, zero-dep. See [ADR-0022](../../memory/decisions/0022-run-dispatcher-task-dependencies.md)
- * for the DAG semantics this ships even though no dispatcher reads it yet.
+ * Pure ESM, zero-dep. Canonical status and field validation remains in
+ * `tasks-validate.mjs`; this module only holds shared dependency helpers.
  */
 
-export const VALID_TYPES = new Set(['bug', 'chore', 'feature', 'increment', 'spike', 'docs', 'task']);
-export const VALID_COMPLEXITY = new Set(['S', 'M', 'L', 'XL']);
-
 /**
- * Parses a YAML inline array — `[040, 041, 042]` — into a string array.
+ * Parses a compact CLI list — `[T-001, T-002]` — into a string array.
  * Trims, drops empty entries, returns `[]` for absent / empty / malformed.
  *
  * @param {string | undefined | null} raw
@@ -36,23 +30,6 @@ export function parseInlineArray(raw) {
 }
 
 /**
- * Validates a single ticket's metadata v2 fields. Returns `{ ok, errors }`.
- * Permissive: missing fields are accepted (backward-compat with v1 tickets).
- *
- * @param {object} task — shape from `listTasks()` (id, type, complexity, dependencies)
- * @returns {{ ok: boolean, errors: string[] }}
- */
-export function validateTaskV2(task) {
-  const errors = [];
-  if (task.type && !VALID_TYPES.has(task.type)) errors.push(`${task.id}: unknown type "${task.type}"`);
-  if (task.complexity && !VALID_COMPLEXITY.has(task.complexity)) errors.push(`${task.id}: complexity must be S | M | L | XL (got "${task.complexity}")`);
-  if (Array.isArray(task.dependencies)) {
-    for (const dep of task.dependencies) if (dep === task.id) errors.push(`${task.id}: self-dependency`);
-  }
-  return { ok: errors.length === 0, errors };
-}
-
-/**
  * DFS cycle detector over the task graph.
  *
  * Returns the offending cycle as an ordered array of ids (`['040', '041', '040']`)
@@ -61,12 +38,12 @@ export function validateTaskV2(task) {
  * dangling reference, not a cycle. The validator should surface those
  * separately if/when it grows.
  *
- * @param {Array<{ id: string, dependencies?: string[] }>} tasks
+ * @param {Array<{ id: string, dependsOn?: string[] }>} tasks
  * @returns {string[] | null}
  */
 export function detectCycles(tasks) {
   const graph = new Map();
-  for (const t of tasks) graph.set(String(t.id), (t.dependencies || []).map(String));
+  for (const task of tasks) graph.set(String(task.id), (task.dependsOn || []).map(String));
   const WHITE = 0, GRAY = 1, BLACK = 2;
   const colour = new Map();
   for (const id of graph.keys()) colour.set(id, WHITE);
@@ -100,37 +77,22 @@ export function detectCycles(tasks) {
 }
 
 /**
- * Lints every task's type / complexity / dependencies and refuses on cycles.
- * Returns the list of error strings (empty when clean). Pure; the CLI prints +
- * exits. Lives here (not in pipeline.mjs) so pipeline.mjs stays under budget.
- *
- * @param {Array<{ id: string, type?: string, complexity?: string, dependencies?: string[] }>} tasks
- * @returns {string[]}
- */
-export function runValidate(tasks) {
-  const errors = tasks.flatMap((t) => validateTaskV2(t).errors);
-  const cycle = detectCycles(tasks);
-  if (cycle) errors.push(`dependency cycle: ${cycle.join(' → ')}`);
-  return errors;
-}
-
-/**
- * Counts how many of `task.dependencies` are still open — stage is `backlog`,
- * `working`, or `testing`. Used by the board renderer to show "↘ blocked by N".
+ * Counts how many of `task.dependsOn` are still open. `done` and `cancelled`
+ * dependencies are terminal; every other canonical status remains blocking.
  * Dangling references (deps that don't exist in the task set) are silently
  * ignored.
  *
- * @param {{ dependencies?: string[] }} task
- * @param {Array<{ id: string, stage: string }>} allTasks
+ * @param {{ dependsOn?: string[] }} task
+ * @param {Array<{ id: string, status: string }>} allTasks
  * @returns {number}
  */
 export function blockedBy(task, allTasks) {
-  if (!Array.isArray(task.dependencies) || task.dependencies.length === 0) return 0;
-  const byId = new Map(allTasks.map((t) => [String(t.id), t.stage]));
+  if (!Array.isArray(task.dependsOn) || task.dependsOn.length === 0) return 0;
+  const statusById = new Map(allTasks.map((candidate) => [String(candidate.id), candidate.status]));
   let blocked = 0;
-  for (const dep of task.dependencies) {
-    const stage = byId.get(String(dep));
-    if (stage && stage !== 'conclusion') blocked += 1;
+  for (const dependencyId of task.dependsOn) {
+    const status = statusById.get(String(dependencyId));
+    if (status && status !== 'done' && status !== 'cancelled') blocked += 1;
   }
   return blocked;
 }

@@ -1,124 +1,155 @@
 /**
- * WF-0059 W2 — per-owner `tasks.json` schema (the contextual-ownership surface).
+ * Canonical ContextDevKit 4 task document schema primitives.
  *
- * This is the SHAPE + the pure lifecycle primitives for the reform's canonical
- * authoring surface (SPEC §D1–D5, ratified in the 2026-06-26 deliberation). A
- * task lives inside exactly one owner's `tasks.json`; status authority stays in
- * the ADR-0043 event journal (`state/<id>/`), and `tasks.json.status` is a
- * re-derivable projection of `fold(events)` — NOT a second source of truth.
- *
- * This module is pure DATA + tiny pure FUNCTIONS (no I/O). The transition ENGINE
- * that appends journal events atomically paired with the status write is W3; it
- * imports these constants + `foldStatus`/`isLegalTransition` so the table is
- * single-sourced between the engine and the validators (`tasks-validate.mjs`).
- *
- * Zero-dep, `node:*`-free (no imports needed). Safe on the hot path.
+ * `pipeline/tasks.json` is the only authority for task definitions and status.
+ * Audit events, when retained, live in the same atomically replaced document and
+ * never participate in status derivation.
  */
 
-/** The closed 5-state lifecycle (deliberation CONSENSUS; SPEC §D3). */
-export const TASK_STATES = Object.freeze(['not_started', 'working', 'blocked', 'testing', 'done']);
+export const TASKS_SCHEMA_VERSION = 2;
 
-/** Owner kinds — a task belongs to exactly one structural owner (SPEC §D1). */
-export const OWNER_KINDS = Object.freeze(['WF', 'OP', 'BIZ']);
-
-/** Owner-level execution policy (SPEC §D5) — lives on the owner, not the task. */
-export const EXECUTION_MODES = Object.freeze(['workflow', 'direct', 'batch']);
-
-/** Closed blocker taxonomy (SPEC §D4) — `blocker.category` must be one of these. */
-export const BLOCKER_CATEGORIES = Object.freeze([
-  'dependency_unmet', 'approval_required', 'missing_input', 'decision_required',
-  'contract_unavailable', 'environment_failure', 'test_infrastructure_failure',
-  'resource_unavailable', 'conflicting_change', 'security_or_compliance',
-  'governance_required', 'external_condition', 'technical_failure',
+export const TASK_STATUSES = Object.freeze([
+  'backlog',
+  'working',
+  'blocked',
+  'testing',
+  'done',
+  'cancelled',
 ]);
 
-/**
- * Deterministic release-condition predicate kinds (SPEC §D4). `manual` still
- * resolves to a recorded verdict — never free text — so auto-unblock is decidable.
- */
-export const RELEASE_CONDITION_KINDS = Object.freeze([
-  'task_done', 'gate_approved', 'adr_accepted', 'file_present', 'manual',
-]);
+export const TASK_PRIORITIES = Object.freeze(['P0', 'P1', 'P2', 'P3', 'P4']);
 
-/**
- * The closed legal transition table (SPEC §D3): `from → allowed to[]`.
- * `blocked` enters from `working` ONLY and exits to `working` ONLY. The
- * `testing→working` edge is the qa-reject monopoly; `testing→done` is qa-approve.
- * `done` is terminal. The ACTOR rules (auto never enters/exits blocked; qa owns
- * the testing edges) are enforced by the W3 engine, not this data table.
- */
-export const LEGAL_TRANSITIONS = Object.freeze({
-  not_started: Object.freeze(['working']),
-  working: Object.freeze(['testing', 'blocked']),
-  blocked: Object.freeze(['working']),
-  testing: Object.freeze(['working', 'done']),
+export const TASK_TRANSITIONS = Object.freeze({
+  backlog: Object.freeze(['working', 'cancelled']),
+  working: Object.freeze(['backlog', 'blocked', 'testing', 'cancelled']),
+  blocked: Object.freeze(['backlog', 'working', 'cancelled']),
+  testing: Object.freeze(['working', 'blocked', 'done', 'cancelled']),
   done: Object.freeze([]),
+  cancelled: Object.freeze([]),
 });
 
-/** The status a task starts in before any transition event exists. */
-export const INITIAL_STATE = 'not_started';
+export const TASK_EVENT_TYPE = 'task.transitioned';
+
+/** Compatibility vocabulary used only by the explicit v3 migrator. */
+export const OWNER_KINDS = Object.freeze(['WF', 'OP', 'BIZ']);
+export const EXECUTION_MODES = Object.freeze(['workflow', 'direct', 'batch']);
+export const INITIAL_STATE = 'backlog';
+export const TASK_STATES = TASK_STATUSES;
+export const LEGAL_TRANSITIONS = TASK_TRANSITIONS;
 
 /**
- * Derives a task's status from its ADR-0043 event journal — the current status
- * is the `to` of the last event (`fold`). An empty/absent journal ⇒ the initial
- * state. This is the primitive behind the `fold(events)==status` fence.
+ * Tests whether a lifecycle edge belongs to the closed v4 transition table.
  *
- * @param {Array<{from?: string, to?: string}>} events — the per-task journal
- * @param {string} [initial] — status before any event (default `not_started`)
- * @returns {string} the folded (current) status
+ * @param {string} fromStatus
+ * @param {string} toStatus
+ * @returns {boolean}
  */
-export function foldStatus(events, initial = INITIAL_STATE) {
-  if (!Array.isArray(events) || events.length === 0) return initial;
-  const last = events[events.length - 1];
-  return last && typeof last.to === 'string' && last.to !== '' ? last.to : initial;
+export function isLegalTaskTransition(fromStatus, toStatus) {
+  return Array.isArray(TASK_TRANSITIONS[fromStatus])
+    && TASK_TRANSITIONS[fromStatus].includes(toStatus);
+}
+
+export const isLegalTransition = isLegalTaskTransition;
+
+/**
+ * Creates a complete v4 task record for CLI and workflow-pack callers.
+ *
+ * @param {{id:string,title:string,batchId?:string|null,status?:string,priority?:string,dependsOn?:string[],acceptance?:string[],touchHints?:string[],evidenceRefs?:string[],reportRefs?:string[],createdAt?:string,updatedAt?:string}} input
+ * @param {{now?: string}} [options]
+ * @returns {object}
+ * @throws {TypeError} when required identity fields are absent
+ */
+export function createTaskRecord(input, options = {}) {
+  if (!input || typeof input !== 'object') {
+    throw new TypeError('createTaskRecord: input must be an object');
+  }
+  if (typeof input.id !== 'string' || input.id.trim() === '') {
+    throw new TypeError('createTaskRecord: id must be a non-empty string');
+  }
+  if (typeof input.title !== 'string' || input.title.trim() === '') {
+    throw new TypeError('createTaskRecord: title must be a non-empty string');
+  }
+  for (const fieldName of ['dependsOn', 'acceptance', 'touchHints', 'evidenceRefs', 'reportRefs']) {
+    if (input[fieldName] !== undefined && !Array.isArray(input[fieldName])) {
+      throw new TypeError(`createTaskRecord: ${fieldName} must be an array`);
+    }
+  }
+  const timestamp = options.now ?? input.createdAt ?? new Date().toISOString();
+  return {
+    id: input.id.trim(),
+    batchId: input.batchId ?? null,
+    title: input.title.trim(),
+    status: input.status ?? 'backlog',
+    priority: input.priority ?? 'P2',
+    dependsOn: [...(input.dependsOn ?? [])],
+    acceptance: [...(input.acceptance ?? [])],
+    touchHints: [...(input.touchHints ?? [])],
+    evidenceRefs: [...(input.evidenceRefs ?? [])],
+    reportRefs: [...(input.reportRefs ?? [])],
+    createdAt: input.createdAt ?? timestamp,
+    updatedAt: input.updatedAt ?? timestamp,
+  };
 }
 
 /**
- * True when `from → to` is a legal edge in the closed lifecycle table.
+ * Creates the canonical v4 task document without reading the clock or disk.
+ * Callers must supply complete task records when `tasks` is non-empty.
  *
- * @param {string} from
- * @param {string} to
- * @returns {boolean}
+ * @param {string} scopeRef stable workflow or batch reference
+ * @param {{tasks?: object[], revision?: number, events?: object[]}} [options]
+ * @returns {{schemaVersion: 2, scopeRef: string, revision: number, tasks: object[], events: object[]}}
+ * @throws {TypeError} when the constructor inputs are structurally invalid
  */
-export function isLegalTransition(from, to) {
-  return Array.isArray(LEGAL_TRANSITIONS[from]) && LEGAL_TRANSITIONS[from].includes(to);
+export function createTasksDocument(scopeRef, options = {}) {
+  if (typeof scopeRef !== 'string' || scopeRef.trim() === '') {
+    throw new TypeError('createTasksDocument: scopeRef must be a non-empty string');
+  }
+  const revision = options.revision ?? 0;
+  if (!Number.isInteger(revision) || revision < 0) {
+    throw new TypeError('createTasksDocument: revision must be a non-negative integer');
+  }
+  if (options.tasks !== undefined && !Array.isArray(options.tasks)) {
+    throw new TypeError('createTasksDocument: tasks must be an array');
+  }
+  if (options.events !== undefined && !Array.isArray(options.events)) {
+    throw new TypeError('createTasksDocument: events must be an array');
+  }
+  return {
+    schemaVersion: TASKS_SCHEMA_VERSION,
+    scopeRef: scopeRef.trim(),
+    revision,
+    tasks: (options.tasks ?? []).map((task) => structuredClone(task)),
+    events: (options.events ?? []).map((event) => structuredClone(event)),
+  };
 }
 
 /**
- * True when the event chain is contiguous (each event's `from` equals the prior
- * event's `to`, starting at `initial`) AND every edge is legal. A broken chain
- * means the journal cannot be trusted to fold to the recorded status.
+ * Folds audit events for explicit migration diagnostics only.
+ * Runtime status authority remains `tasks[].status`.
  *
- * @param {Array<{from?: string, to?: string}>} events
- * @param {string} [initial]
+ * @param {Array<{to?: string}>} events
+ * @param {string} [initialStatus]
+ * @returns {string}
+ */
+export function foldStatus(events, initialStatus = INITIAL_STATE) {
+  if (!Array.isArray(events) || events.length === 0) return initialStatus;
+  const finalEvent = events[events.length - 1];
+  return TASK_STATUSES.includes(finalEvent?.to) ? finalEvent.to : initialStatus;
+}
+
+/**
+ * Checks a migration event chain without making it a runtime authority.
+ *
+ * @param {Array<{from?: string,to?: string}>} events
+ * @param {string} [initialStatus]
  * @returns {boolean}
  */
-export function eventsContiguous(events, initial = INITIAL_STATE) {
+export function eventsContiguous(events, initialStatus = INITIAL_STATE) {
   if (!Array.isArray(events)) return false;
-  let cursor = initial;
+  let currentStatus = initialStatus;
   for (const event of events) {
-    if (!event || event.from !== cursor) return false;
-    if (!isLegalTransition(event.from, event.to)) return false;
-    cursor = event.to;
+    if (event?.from !== currentStatus || !isLegalTaskTransition(event.from, event.to)) return false;
+    currentStatus = event.to;
   }
   return true;
-}
-
-/**
- * Pure predicate for a structured `blocker` (SPEC §D4): a closed `category`, a
- * non-empty `explanation`, and a deterministic `releaseCondition.kind`. Single-
- * sourced here so the validator (`tasks-validate.mjs`) and the transition engine
- * (`tasks-transition.mjs`) agree on what "blocked" requires.
- *
- * @param {object|null|undefined} blocker
- * @returns {boolean}
- */
-export function isValidBlocker(blocker) {
-  return Boolean(
-    blocker && typeof blocker === 'object'
-    && BLOCKER_CATEGORIES.includes(blocker.category)
-    && typeof blocker.explanation === 'string' && blocker.explanation.trim() !== ''
-    && blocker.releaseCondition && typeof blocker.releaseCondition === 'object'
-    && RELEASE_CONDITION_KINDS.includes(blocker.releaseCondition.kind),
-  );
 }

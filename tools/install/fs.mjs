@@ -6,7 +6,7 @@
  * `{{var}}` template rendering. Zero third-party deps — the installer must run
  * via `npx` on a machine with nothing else installed.
  */
-import { cp, mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, rename, copyFile, rm } from 'node:fs/promises';
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -94,6 +94,43 @@ export async function backup(path) {
 export async function copyTree(src, dest) {
   if (!existsSync(src)) return;
   await cp(src, dest, { recursive: true, force: true });
+}
+
+/**
+ * Remove entries from one kit-owned destination tree when they no longer exist
+ * in the source tree. Reparse entries are removed as links and never traversed.
+ *
+ * @param {string} src authoritative template directory
+ * @param {string} dest installed kit-owned directory
+ * @param {{preserveRelativePaths?:string[]}} [options] project-owned paths to retain
+ * @returns {Promise<{removedFiles:number,removedDirectories:number}>}
+ */
+export async function pruneTreeToSource(src, dest, options = {}) {
+  const removed = { removedFiles: 0, removedDirectories: 0 };
+  if (!existsSync(src) || !existsSync(dest)) return removed;
+  const preservedPaths = new Set((options.preserveRelativePaths ?? []).map((path) => String(path).replaceAll('\\', '/')));
+  const visit = async (sourceDirectory, destinationDirectory, relativeDirectory = '') => {
+    const sourceEntries = new Map(readdirSync(sourceDirectory, { withFileTypes: true }).map((entry) => [entry.name, entry]));
+    for (const destinationEntry of readdirSync(destinationDirectory, { withFileTypes: true })) {
+      const relativePath = relativeDirectory
+        ? `${relativeDirectory}/${destinationEntry.name}`
+        : destinationEntry.name;
+      if (preservedPaths.has(relativePath)) continue;
+      const sourceEntry = sourceEntries.get(destinationEntry.name);
+      const destinationPath = join(destinationDirectory, destinationEntry.name);
+      if (!sourceEntry || destinationEntry.isSymbolicLink()
+        || sourceEntry.isDirectory() !== destinationEntry.isDirectory()) {
+        await rm(destinationPath, { recursive: destinationEntry.isDirectory(), force: true });
+        if (destinationEntry.isDirectory()) removed.removedDirectories += 1;
+        else removed.removedFiles += 1;
+        continue;
+      }
+      if (!destinationEntry.isDirectory()) continue;
+      await visit(join(sourceDirectory, destinationEntry.name), destinationPath, relativePath);
+    }
+  };
+  await visit(src, dest);
+  return removed;
 }
 
 /** Recursively copies `src` into `dest`, writing each file ONLY if absent. */

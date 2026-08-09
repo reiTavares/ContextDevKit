@@ -14,7 +14,5 @@ export {
   loadDomainArtifactsPolicyBundle, loadDomainArtifactsPolicyTable, DOMAIN_ARTIFACTS_POLICY_TABLES,
 } from './policy-load.mjs';
 export { validateArtifact, checkProportionality } from './schema-validate.mjs';
-export { compileImplementationPacket, IMPLEMENTATION_PACKET_SCHEMA_VERSION } from './packet-compile.mjs';
-export { buildImplementationReceipt, IMPLEMENTATION_RECEIPT_SCHEMA_VERSION } from './receipt-compile.mjs';
 export { resolveRecipeForProfile, buildLinearRecipe } from './recipe-resolve.mjs';
 export { scaffold } from './scaffold.mjs';

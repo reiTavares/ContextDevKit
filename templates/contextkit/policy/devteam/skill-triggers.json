@@ -4,7 +4,7 @@
   "id": "skill-triggers",
   "title": "Skill trigger truth-table — ADR-0128 §11 (WF-0064)",
   "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
+  "maximumAutomaticLevel": "advisory",
   "note": "Deterministic trigger rows per skill. A row matches when ALL of its declared conditions hold (AND); a skill is selected when ANY of its rows matches (OR). Recognized conditions: cmisMin/cmisMax, dasMin/dasMax, profileIn[], flagsAll[] (declared boolean flags), riskIn[], blastRadiusIn[], complexityNotIn[]. Domain skills carry dasMin/profileIn floors so simple work NEVER gets domain ceremony (proportionality invariant). Recorded deviation from the §11 prose: all non-write-attempt flag/DAS rows carry an explicit cmisMin=50 code-work floor (conservative tightening — implementation skills only fire on confirmed code intent).",
   "flagsCatalog": {
     "writeAttempt": "a real write tool call is in flight (Class A deterministic).",

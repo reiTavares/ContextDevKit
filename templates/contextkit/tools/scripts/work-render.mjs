@@ -29,7 +29,7 @@ function escapeCell(value) {
  * yields a neutral placeholder (never an empty block).
  *
  * @param {Array<{id?:string,title?:string,type?:string,priority?:string,stage?:string}>} cards
- *   normalized DevPipeline cards (see `pipeline-tasks.mjs#listTasks`).
+ *   canonical task records from `pipeline/tasks.json`.
  * @returns {string} markdown — the inner block content (no markers).
  */
 export function renderOperationTasks(cards) {

@@ -15,9 +15,8 @@
  *   3. `approvalSource.decisionHash` is reused from the Business approval block
  *      (computed by A3 `work-business-lifecycle.mjs`) — it is NOT re-computed
  *      here.  B3 only mirrors; A3 is the canonical hash authority.
- *   4. `adr` floor in `resolve-autonomy.mjs` is NOT touched — acceptance stays
- *      manual at every grade.  This module PREPARES the artifact; a human still
- *      accepts the ADR (pressing "apply" or equivalent).
+ *   4. This module PREPARES the artifact; the Business approval record remains
+ *      the authority. No governance grade participates in acceptance.
  *
  * Zero runtime deps — `node:crypto` ok; rest is sibling imports (immutable rule 1).
  *
@@ -250,7 +249,7 @@ export function mirrorBusinessApproval(business, ctx = {}) {
     return refusal(
       'NON_HUMAN_ACTOR',
       `ADR acceptance requires ctx.actor === 'human'; got "${ctx && ctx.actor !== undefined ? ctx.actor : '(absent)'}"` +
-      ' — AI cannot self-accept an ADR at any autonomy grade (resolve-autonomy.mjs §adr floor).',
+      ' — the Business approval contract requires the recorded human actor.',
       ctx,
     );
   }

@@ -73,7 +73,7 @@ function classifyRole(dirName, extCounts) {
 }
 
 /** Recursively collect source files under a module dir (bounded). */
-function walkModule(root, absDir, acc, isExcluded) {
+function walkModule(root, absDir, acc, scanRoot, isExcluded) {
   if (acc.files.length >= CAP_FILES_PER_MODULE) return;
   let entries;
   try {
@@ -87,8 +87,8 @@ function walkModule(root, absDir, acc, isExcluded) {
     const full = resolve(absDir, e.name);
     if (e.isDirectory()) {
       const rel = relative(root, full).replaceAll('\\', '/');
-      if (isExcluded(rel, e.name)) continue;
-      walkModule(root, full, acc, isExcluded);
+      if (isExcluded(scanRoot, rel, e.name)) continue;
+      walkModule(root, full, acc, scanRoot, isExcluded);
     } else {
       const ext = extname(e.name).toLowerCase();
       if (!EXT_LANG[ext]) continue;
@@ -109,9 +109,9 @@ function walkModule(root, absDir, acc, isExcluded) {
  * walked file for imports (top-of-file, cheap on-demand); symbols stay sampled to
  * the first CAP_SAMPLE_FILES to keep the inventory bounded.
  */
-function buildModule(root, absDir, relPath, isExcluded) {
+function buildModule(root, absDir, relPath, scanRoot, isExcluded) {
   const acc = { files: [], extCounts: {}, bytes: 0 };
-  walkModule(root, absDir, acc, isExcluded);
+  walkModule(root, absDir, acc, scanRoot, isExcluded);
   if (acc.files.length === 0) return null;
   const languages = [...new Set(acc.files.map((f) => EXT_LANG[extname(f).toLowerCase()]))].sort();
   const symbols = [];
@@ -126,7 +126,7 @@ function buildModule(root, absDir, relPath, isExcluded) {
     }
     if (DEP_EXTS.has(ext)) for (const spec of extractImports(text)) imports.push({ dir: dirname(file), spec });
     if (i < CAP_SAMPLE_FILES && symbols.length < CAP_SYMBOLS_PER_MODULE) {
-      const rel = file.slice(root.length + 1).replaceAll('\\', '/');
+      const rel = relative(root, file).replaceAll('\\', '/');
       symbols.push(...extractSymbols(text, EXT_LANG[ext], rel, CAP_SYMBOLS_PER_MODULE - symbols.length));
     }
   });
@@ -145,29 +145,39 @@ function buildModule(root, absDir, relPath, isExcluded) {
 const MONOREPO_PARENTS = ['apps', 'packages', 'services', 'modules'];
 
 /** Top-level (and one-level-deep for monorepos) module directories to map. */
-function moduleDirs(root, isExcluded) {
+function moduleDirs(root, scanRoot, isExcluded) {
   const dirs = [];
+  const scanPath = scanRoot.path;
+  const absoluteScanRoot = resolve(root, scanPath);
   let top;
   try {
-    top = readdirSync(root, { withFileTypes: true });
+    top = readdirSync(absoluteScanRoot, { withFileTypes: true });
   } catch {
     return dirs;
   }
+  if (scanPath !== '.') {
+    if (!MONOREPO_PARENTS.includes(basename(scanPath))) return [scanPath];
+    return top
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => `${scanPath}/${entry.name}`)
+      .filter((rel) => !isExcluded(scanRoot, rel, basename(rel)));
+  }
   for (const e of top) {
-    if (!e.isDirectory() || isExcluded(e.name, e.name) || e.name.startsWith('.')) continue;
+    const rel = scanPath === '.' ? e.name : `${scanPath}/${e.name}`;
+    if (!e.isDirectory() || isExcluded(scanRoot, rel, e.name) || e.name.startsWith('.')) continue;
     if (MONOREPO_PARENTS.includes(e.name)) {
       let kids = [];
       try {
-        kids = readdirSync(resolve(root, e.name), { withFileTypes: true });
+        kids = readdirSync(resolve(root, rel), { withFileTypes: true });
       } catch {
         /* ignore */
       }
       for (const k of kids) {
-        const rel = `${e.name}/${k.name}`;
-        if (k.isDirectory() && !isExcluded(rel, k.name)) dirs.push(rel);
+        const childRel = `${rel}/${k.name}`;
+        if (k.isDirectory() && !isExcluded(scanRoot, childRel, k.name)) dirs.push(childRel);
       }
     } else {
-      dirs.push(e.name);
+      dirs.push(rel);
     }
   }
   return dirs;
@@ -237,13 +247,26 @@ function projectName(root) {
  * @returns {object} the project-map model
  */
 export function scanProject(root, nowMs = Date.now(), config = null) {
-  const { isExcluded } = resolveRoots(config, root);
+  const { sourceRoots, isExcluded } = resolveRoots(config, root);
   const modules = [];
-  for (const rel of moduleDirs(root, isExcluded)) {
-    const mod = buildModule(root, resolve(root, rel), rel, isExcluded);
-    if (mod) modules.push(mod);
+  const pendingPaths = [];
+  const seenModules = new Set();
+  for (const scanRoot of sourceRoots) {
+    let sourceRootAvailable = false;
+    try { sourceRootAvailable = statSync(resolve(root, scanRoot.path)).isDirectory(); } catch { /* unavailable */ }
+    if (!sourceRootAvailable) {
+      pendingPaths.push(scanRoot.path);
+      continue;
+    }
+    for (const rel of moduleDirs(root, scanRoot, isExcluded)) {
+      if (seenModules.has(rel)) continue;
+      seenModules.add(rel);
+      const mod = buildModule(root, resolve(root, rel), rel, scanRoot, isExcluded);
+      if (mod) modules.push(mod);
+    }
   }
   modules.sort((a, b) => b.files - a.files);
+  for (const module of modules) if (module.capped) pendingPaths.push(module.path);
   linkDeps(root, modules); // resolve raw imports → sorted `deps` edges (ADR-0040)
   const fileCount = modules.reduce((n, m) => n + m.files, 0);
   return {
@@ -254,6 +277,11 @@ export function scanProject(root, nowMs = Date.now(), config = null) {
     dataLayer: detectDataLayer(root),
     modules,
     fileCount,
+    coverage: {
+      status: pendingPaths.length > 0 ? 'partial' : 'complete',
+      roots: sourceRoots.map(({ kind, path, entryType, available }) => ({ kind, path, entryType, available })),
+      pendingPaths: [...new Set(pendingPaths)].sort(),
+    },
     signature: structuralSignature(modules),
   };
 }

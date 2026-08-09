@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * model-policy — the deterministic tier → concrete model resolver (ADR-0052 Phase 2).
+ * model-policy — optional model/effort recommendations (ADR-0158).
  *
- * Layer-3 of cost-tiered routing made executable: every dispatching skill
- * (`/ship`, `/swarm`, `/advise`, `/debate`, QA) calls this BEFORE spawning a
- * subagent so the `model:` it passes to the Agent tool is decided by policy, not
- * by the orchestrator's goodwill. Without it, an omitted `model` silently
- * inherits the (premium) session model — the most expensive path is the default.
+ * The catalog helps an active agent choose a model; it is never an authorization
+ * boundary. Missing policy, incomplete dimensions, unknown agents, host gaps,
+ * and profile disagreement all return an honest non-binding recommendation that
+ * explicitly permits the active agent to continue.
  *
  * Pure + zero-dep on the hot path (rule 1): the core resolver reads only
  * `policy/routing-policy.json`. Price enrichment reuses `loadMatrix` from the
@@ -43,7 +42,7 @@ function selectorToken(value) {
 
 /**
  * Normalizes a Codex task kind. Unknown values return null so the caller can
- * refuse an effort override instead of guessing a route.
+ * report an unavailable recommendation instead of guessing a route.
  *
  * @param {unknown} value raw task-kind/card/title value.
  * @returns {'search'|'research'|'exploration'|'simple-action'|'simple-code'|null}
@@ -164,6 +163,83 @@ export function loadPolicy(path = DEFAULT_POLICY) {
   return policy;
 }
 
+/**
+ * Loads policy for an advisory decision. Resolver failure is evidence about the
+ * recommendation only; it cannot become authority over dispatch or delivery.
+ *
+ * @param {object} options resolver options.
+ * @returns {{ policy: object|null, error: string|null }}
+ */
+function policyForRecommendation(options = {}) {
+  if (options.policy && typeof options.policy === 'object') {
+    try {
+      validateCodexPolicy(options.policy);
+      if (!options.policy.tiers || !options.policy.hostModels || !Array.isArray(options.policy.ladder) || !options.policy.agents) {
+        throw new Error('routing-policy.json is malformed');
+      }
+      return { policy: options.policy, error: null };
+    } catch (error) {
+      return { policy: null, error: error?.message || String(error) };
+    }
+  }
+  try {
+    return { policy: loadPolicy(options.policyPath ?? DEFAULT_POLICY), error: null };
+  } catch (error) {
+    return { policy: null, error: error?.message || String(error) };
+  }
+}
+
+/**
+ * Canonical non-binding result shared by every host.
+ * Compatibility aliases (`model`, `effort`, `tier`) remain readable while v4
+ * consumers move to the explicit `recommended*` fields.
+ *
+ * @param {object} input recommendation fields.
+ * @returns {Readonly<object>}
+ */
+function recommendationResult(input = {}) {
+  const recommendedModel = input.recommendedModel ?? null;
+  const recommendedEffort = input.recommendedEffort ?? null;
+  const recommendedTier = input.recommendedTier ?? null;
+  const currentModel = input.currentModel ?? null;
+  const reasons = Array.isArray(input.reasons) ? input.reasons : [];
+  return Object.freeze({
+    decision: 'recommend',
+    binding: false,
+    blocking: false,
+    status: input.status ?? (recommendedModel ? 'available' : 'unavailable'),
+    recommendedModel,
+    recommendedEffort,
+    recommendedTier,
+    alternatives: Array.isArray(input.alternatives) ? input.alternatives : [],
+    reason: input.reason ?? reasons[0] ?? 'routing-recommendation',
+    reasons,
+    ruleId: input.ruleId ?? null,
+    context: input.context ?? null,
+    agent: input.agent ?? null,
+    currentModel,
+    disagreement: Boolean(currentModel && recommendedModel && currentModel !== recommendedModel),
+    continuation: Object.freeze({
+      allowed: true,
+      executor: 'current-agent',
+      reason: input.continuationReason ?? 'routing-is-advisory',
+    }),
+    model: recommendedModel,
+    effort: recommendedEffort,
+    tier: recommendedTier,
+  });
+}
+
+/** Returns a fail-honest recommendation when the catalog cannot answer. */
+function unavailableRecommendation(reason, input = {}) {
+  return recommendationResult({
+    ...input,
+    status: 'unavailable',
+    reason,
+    reasons: [reason, ...(input.reasons ?? [])],
+  });
+}
+
 /** Clamps `index + delta` into the ladder bounds — escalation caps at the top, de-escalation at the bottom. */
 function shift(ladder, tier, delta) {
   const at = ladder.indexOf(tier);
@@ -181,78 +257,93 @@ function modelForTier(policy, tier, host) {
   return policy.hostModels?.[host]?.[tier] ?? policy.tiers?.[tier]?.alias ?? null;
 }
 
-/** Returns the legacy tier/model when Codex effort context cannot be resolved. */
-function refusedCodexDispatch(policy, tierHint, context, reason) {
-  return {
-    decision: 'refuse',
-    model: null,
-    tier: null,
-    effort: null,
-    ruleId: null,
+/** Returns a non-binding Codex recommendation when dimensions cannot resolve. */
+function unavailableCodexRecommendation(policy, tierHint, context, reason, options = {}) {
+  return unavailableRecommendation(reason, {
+    agent: options.agent,
+    currentModel: options.currentModel,
+    recommendedModel: tierHint ? modelForTier(policy ?? {}, tierHint, 'codex') : null,
+    recommendedTier: tierHint,
     context,
-    reasons: [reason],
-  };
+  });
 }
 
 /**
- * Resolves the mandatory Codex complexity-risk contract. Task kind is retained
- * only as audit metadata and never overrides complete dimensions.
+ * Resolves the advisory Codex complexity-risk recommendation. Task kind is
+ * retained only as audit metadata and never overrides complete dimensions.
  *
  * @param {{ taskKind?: unknown, complexity?: unknown, risk?: unknown, title?: unknown, tierHint?: string|null, policy?: object }} options raw context and legacy tier.
- * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, context: object, reasons: string[] }}
+ * @returns {{ decision:'recommend', recommendedModel:string|null, recommendedTier:string|null, recommendedEffort:string|null, binding:false, continuation:object }}
  */
 export function resolveCodexDispatch(options = {}) {
-  const policy = options.policy ?? loadPolicy();
+  const loaded = policyForRecommendation(options);
+  if (!loaded.policy) {
+    return unavailableCodexRecommendation(null, null, normalizeCodexContext(options), `routing-policy-unavailable:${loaded.error}`, options);
+  }
+  const policy = loaded.policy;
   const normalizedContext = normalizeCodexContext(options);
   const tierHint = policy.tiers?.[options.tierHint] ? options.tierHint : null;
   const codexDispatch = policy.codexDispatch;
-  if (!codexDispatch) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-policy-missing');
+  if (!codexDispatch) return unavailableCodexRecommendation(policy, tierHint, normalizedContext, 'codex-effort-policy-missing', options);
 
   const suppliedFields = [options.complexity, options.risk].filter((field) => field != null && String(field).trim() !== '');
-  if (suppliedFields.length === 0) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-context-missing');
+  if (suppliedFields.length === 0) return unavailableCodexRecommendation(policy, tierHint, normalizedContext, 'codex-effort-context-missing', options);
   if (!normalizedContext.complexity || !normalizedContext.risk) {
-    return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-context-incomplete-or-invalid');
+    return unavailableCodexRecommendation(policy, tierHint, normalizedContext, 'codex-effort-context-incomplete-or-invalid', options);
   }
 
   const matches = (codexDispatch.matrixRules ?? []).filter((rule) =>
     rule.complexity === normalizedContext.complexity && rule.risk === normalizedContext.risk);
-  if (matches.length === 0) return refusedCodexDispatch(policy, tierHint, normalizedContext, 'codex-effort-no-explicit-rule');
-  if (matches.length > 1) throw new Error(`model-policy: duplicate normalized Codex dispatch rule for ${normalizedContext.complexity}|${normalizedContext.risk}`);
+  if (matches.length === 0) return unavailableCodexRecommendation(policy, tierHint, normalizedContext, 'codex-effort-no-explicit-rule', options);
+  if (matches.length > 1) {
+    return unavailableCodexRecommendation(policy, tierHint, normalizedContext, 'codex-effort-ambiguous-rule', options);
+  }
   const matrixRule = matches[0];
-  return {
-    decision: 'dispatch',
-    model: matrixRule.model,
-    tier: matrixRule.tier,
-    effort: matrixRule.effort,
+  return recommendationResult({
+    recommendedModel: matrixRule.model,
+    recommendedTier: matrixRule.tier,
+    recommendedEffort: matrixRule.effort,
     ruleId: matrixRule.ruleId,
     context: normalizedContext,
+    currentModel: options.currentModel,
+    agent: options.agent,
     reasons: [`codex-rule(${matrixRule.ruleId})`],
-  };
+  });
 }
 
 /**
- * Resolves one dispatch to a concrete model alias. Deterministic — same inputs,
- * same answer; no LLM-judge (ADR-0012 §5). Order is contractual: task class →
- * escalation → de-escalation → FLOOR LAST, so the floor beats a budget downgrade
- * (ADR-0052 §5 "floor beats de-escalation").
+ * Resolves one non-binding recommendation to a concrete model alias.
+ * Deterministic: same inputs, same recommendation; no LLM judge.
  *
  * @param {string} agent agent archetype name (e.g. "qa-unit")
  * @param {{ task?: 'think'|'execute'|'ambiguous', taskKind?: string, complexity?: string, risk?: string, title?: string, budgetExhausted?: boolean, qaFailures?: number, host?: string, policy?: object }} opts
- * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, reasons: string[], agent: string }}
+ * @returns {{ decision:'recommend', recommendedModel:string|null, recommendedTier:string|null, recommendedEffort:string|null, binding:false, continuation:object }}
  */
 export function resolveModel(agent, opts = {}) {
-  const policy = opts.policy ?? loadPolicy();
+  const loaded = policyForRecommendation(opts);
+  if (!loaded.policy) {
+    return unavailableRecommendation(`routing-policy-unavailable:${loaded.error}`, {
+      agent,
+      currentModel: opts.currentModel,
+    });
+  }
+  const policy = loaded.policy;
   const host = opts.host ?? 'claude';
   const hostGap = hostGapReason(policy, host);
   if (hostGap) {
-    return { model: null, tier: null, effort: null, ruleId: null, reasons: [hostGap], agent };
+    return unavailableRecommendation(hostGap, { agent, currentModel: opts.currentModel });
   }
   if ((policy.inheritAgents ?? []).includes(agent)) {
-    return { model: modelForTier(policy, 'inherit', host), tier: null, effort: null, ruleId: null, reasons: ['dispatcher-inherits-session'], agent };
+    return recommendationResult({
+      recommendedModel: modelForTier(policy, 'inherit', host),
+      currentModel: opts.currentModel,
+      reasons: ['dispatcher-inherits-session'],
+      agent,
+    });
   }
   const baseTier = policy.agents?.[agent];
   if (!baseTier) {
-    throw new Error(`model-policy: unknown agent "${agent}" — not in routing-policy.json (refuse-by-default; add it to the ADR-0052 table first)`);
+    return unavailableRecommendation(`unknown-agent(${agent})`, { agent, currentModel: opts.currentModel });
   }
   const ladder = policy.ladder;
   const reasons = [];
@@ -271,24 +362,27 @@ export function resolveModel(agent, opts = {}) {
     const down = shift(ladder, tier, -1);
     if (down !== tier) { tier = down; reasons.push('budget-downgrade(-1)'); }
   }
-  // Floor LAST — security/privacy never resolve below the floor tier, even under budget pressure.
-  if ((policy.floorAgents ?? []).includes(agent)) {
-    const floor = policy.floorTier;
-    if (ladder.indexOf(tier) < ladder.indexOf(floor)) { tier = floor; reasons.push(`floor(${floor})`); }
-  }
-  const legacy = { model: modelForTier(policy, tier, host), tier, effort: null, ruleId: null, reasons, agent };
-  if (host !== 'codex') return legacy;
+  const hostRecommendation = recommendationResult({
+    recommendedModel: modelForTier(policy, tier, host),
+    recommendedTier: tier,
+    currentModel: opts.currentModel,
+    reasons,
+    agent,
+  });
+  if (host !== 'codex') return hostRecommendation;
 
-  const codexDispatch = resolveCodexDispatch({ ...opts, tierHint: tier, policy });
-  return {
-    decision: codexDispatch.decision,
-    model: codexDispatch.model,
-    tier: codexDispatch.tier,
-    effort: codexDispatch.effort,
+  const codexDispatch = resolveCodexDispatch({ ...opts, agent, tierHint: tier, policy });
+  return recommendationResult({
+    recommendedModel: codexDispatch.recommendedModel,
+    recommendedTier: codexDispatch.recommendedTier,
+    recommendedEffort: codexDispatch.recommendedEffort,
     ruleId: codexDispatch.ruleId,
+    status: codexDispatch.status,
+    reason: codexDispatch.reason,
+    currentModel: opts.currentModel,
     reasons: [...reasons, ...codexDispatch.reasons],
     agent,
-  };
+  });
 }
 
 /**
@@ -315,36 +409,49 @@ export async function priceForTier(tier, policy) {
 /**
  * Tier → model alias, the bridge for tier-based dispatchers (the swarm plans by
  * `tierHint`, not by a named agent). Applies budget de-escalation when asked;
- * floors don't apply here (a tier carries no agent identity). Returns null for a
- * host gap or an unknown tier (refuse-by-default).
+ * no agent floor applies. Host gaps and unknown tiers return an unavailable
+ * recommendation and explicitly continue with the active agent.
  *
  * @param {string} tier one of the demand tiers (fast|powerful|reasoning)
  * @param {{ taskKind?: string, complexity?: string, risk?: string, title?: string, budgetExhausted?: boolean, host?: string, policy?: object }} opts
- * @returns {{ model: string|null, tier: string|null, effort: string|null, ruleId: string|null, reasons: string[] }}
+ * @returns {{ decision:'recommend', recommendedModel:string|null, recommendedTier:string|null, recommendedEffort:string|null, binding:false, continuation:object }}
  */
 export function aliasForTier(tier, opts = {}) {
-  const policy = opts.policy ?? loadPolicy();
+  const loaded = policyForRecommendation(opts);
+  if (!loaded.policy) {
+    return unavailableRecommendation(`routing-policy-unavailable:${loaded.error}`, {
+      currentModel: opts.currentModel,
+    });
+  }
+  const policy = loaded.policy;
   const host = opts.host ?? 'claude';
   const hostGap = hostGapReason(policy, host);
-  if (hostGap) return { model: null, tier: null, effort: null, ruleId: null, reasons: [hostGap] };
-  if (!policy.tiers?.[tier]) return { model: null, tier: null, effort: null, ruleId: null, reasons: [`unknown-tier(${tier})`] };
+  if (hostGap) return unavailableRecommendation(hostGap, { currentModel: opts.currentModel });
+  if (!policy.tiers?.[tier]) return unavailableRecommendation(`unknown-tier(${tier})`, { currentModel: opts.currentModel });
   const reasons = [`tier(${tier})`];
   let resolved = tier;
   if (opts.budgetExhausted) {
     const down = shift(policy.ladder, resolved, -1);
     if (down !== resolved) { resolved = down; reasons.push('budget-downgrade(-1)'); }
   }
-  const legacy = { model: modelForTier(policy, resolved, host), tier: resolved, effort: null, ruleId: null, reasons };
-  if (host !== 'codex') return legacy;
+  const hostRecommendation = recommendationResult({
+    recommendedModel: modelForTier(policy, resolved, host),
+    recommendedTier: resolved,
+    currentModel: opts.currentModel,
+    reasons,
+  });
+  if (host !== 'codex') return hostRecommendation;
   const codexDispatch = resolveCodexDispatch({ ...opts, tierHint: resolved, policy });
-  return {
-    decision: codexDispatch.decision,
-    model: codexDispatch.model,
-    tier: codexDispatch.tier,
-    effort: codexDispatch.effort,
+  return recommendationResult({
+    recommendedModel: codexDispatch.recommendedModel,
+    recommendedTier: codexDispatch.recommendedTier,
+    recommendedEffort: codexDispatch.recommendedEffort,
     ruleId: codexDispatch.ruleId,
+    status: codexDispatch.status,
+    reason: codexDispatch.reason,
+    currentModel: opts.currentModel,
     reasons: [...reasons, ...codexDispatch.reasons],
-  };
+  });
 }
 
 /** Builds the full resolved roster (every agent at its static default) — the audit view. */
@@ -377,7 +484,6 @@ if (isMain) {
         host: flag('host') ?? 'claude',
       });
       console.log(JSON.stringify(out));
-      if (out.decision === 'refuse') process.exitCode = 2;
     } else if (verb === 'tier') {
       const tier = argv[1] && !argv[1].startsWith('--') ? argv[1] : flag('tier');
       if (!tier) { console.error('Usage: model-policy.mjs tier <fast|powerful|reasoning> [--task-kind kind] [--complexity value] [--risk value] [--title text] [--budget-exhausted] [--host claude|codex|agy]'); process.exit(1); }
@@ -390,7 +496,6 @@ if (isMain) {
         host: flag('host') ?? 'claude',
       });
       console.log(JSON.stringify(out));
-      if (out.decision === 'refuse') process.exitCode = 2;
     } else if (verb === 'table') {
       const roster = resolveRoster();
       if (has('json')) { console.log(JSON.stringify(roster, null, 2)); }

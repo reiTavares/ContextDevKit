@@ -5,7 +5,7 @@
  * request's objective through the deterministic complexity rubric classifier.
  * No LLM, no Math.random — same input always produces the same output.
  *
- * Consumers: execution-contract.mjs, slash commands, the pre-write governance gate.
+ * Consumers: mutation-only intake commands and the v4 governance dispatcher.
  * NOT consumed by hooks directly — hooks call load.mjs; this module stays out of
  * that chain to avoid circular imports (ADR-0001 / immutable rule 1).
  *
@@ -22,6 +22,7 @@ import { classify, loadRubric } from '../../tools/scripts/complexity-rubric.mjs'
 import { classifyWork, loadWorkPolicy } from './work-classifier.mjs';
 import { classifyDecisionNeed } from './decision-need-classifier.mjs';
 import { classifyIntentLangAware } from './intent-language.mjs';
+import { classifyInteraction, detectInteractionLanguage } from './interaction-classify.mjs';
 import { pathsFor } from '../config/paths.mjs';
 
 // Attempt to import B2-T2's searchDecisions at module init — degrade silently
@@ -33,6 +34,53 @@ try {
   const _mod = await import('../../tools/scripts/decision-search-match.mjs');
   if (typeof _mod?.searchDecisions === 'function') _searchDecisions = _mod.searchDecisions;
 } catch { /* B2-T2 not yet present — degrade silently */ }
+
+/**
+ * Normalize an already-computed existing-work resolver verdict. This function
+ * never searches storage itself: callers must run the resolver only after the
+ * interaction is known to be a mutation.
+ *
+ * @param {string|object|null} resolution resolver output
+ * @param {{ prompt?: string, explicitReopen?: boolean }} [context]
+ * @returns {{ state: 'explicit'|'inferred'|'ambiguous'|'new'|'none',
+ *   canResume: boolean, canCreate: boolean, requiresExplicitReopen: boolean,
+ *   clarification: string|null, degraded?: boolean }}
+ */
+export function normalizeExistingWorkResolution(resolution, context = {}) {
+  try {
+    const rawState = typeof resolution === 'string'
+      ? resolution
+      : resolution?.state ?? resolution?.status ?? resolution?.verdict ?? 'none';
+    const validState = ['explicit', 'inferred', 'ambiguous', 'new', 'none'].includes(rawState);
+    const resolverFailed = resolution?.error || resolution?.unavailable || !validState;
+    const state = validState ? rawState : 'none';
+    const itemStatus = typeof resolution === 'object' ? resolution?.itemStatus ?? resolution?.workStatus : null;
+    const doneWithoutOrder = itemStatus === 'done' && context.explicitReopen !== true;
+    const language = detectInteractionLanguage(context.prompt ?? '');
+    const clarification = ['inferred', 'ambiguous'].includes(state)
+      ? (language === 'pt' ? 'Qual trabalho existente devo usar?' : 'Which existing work should I use?')
+      : null;
+
+    const normalized = {
+      state,
+      canResume: state === 'explicit' && !doneWithoutOrder,
+      canCreate: state === 'new',
+      requiresExplicitReopen: doneWithoutOrder,
+      clarification,
+    };
+    if (resolverFailed) normalized.degraded = true;
+    return normalized;
+  } catch {
+    return {
+      state: 'none',
+      canResume: false,
+      canCreate: false,
+      requiresExplicitReopen: false,
+      clarification: null,
+      degraded: true,
+    };
+  }
+}
 
 /**
  * Converts a task request into canonical, deterministic signals plus a human-
@@ -56,40 +104,64 @@ try {
  * // signals.tier === 'trivial'
  */
 export function intake(request, env = {}) {
-  if (!request || typeof request !== 'object') {
-    throw new TypeError('intake: request must be a non-null object');
+  const safeRequest = request && typeof request === 'object' ? request : {};
+  const safeEnv = env && typeof env === 'object' ? env : {};
+  const objective = String(safeRequest.objective ?? '').trim();
+  const interaction = classifyInteraction(objective, safeEnv.interactionContext ?? {});
+
+  // Mutation-only governance: conversation, exploration, and uncertainty stop
+  // here. In particular, do not load rubrics, policies, registries, task ids, or
+  // governed context on this path. The returned object is an ephemeral signal.
+  if (interaction.intent !== 'mutation') {
+    return {
+      signals: {
+        interaction,
+        intent: classifyIntentLangAware(objective, {
+          interactionContext: safeEnv.interactionContext ?? {},
+        }),
+      },
+      reasons: [`interaction=${interaction.intent} (${interaction.reasonCodes.join(', ')})`],
+    };
   }
 
-  const objective = String(request.objective ?? '').trim();
-  const rubric = loadRubric(env.root);
+  const rubric = loadRubric(safeEnv.root);
   const classification = classify(objective, rubric);
 
   const tier = classification.tier;
   const domain = classification.domain;
   const needsAdr = classification.needsAdr;
-  const level = request.level ?? env.level ?? 7;
+  const level = safeRequest.level ?? safeEnv.level ?? 7;
 
   // Build the reasons array — records the rationale for each key decision.
   const reasons = buildReasons(classification, tier, domain);
 
   const signals = {
-    taskId: request.taskId ?? null,
-    sessionId: request.sessionId ?? null,
-    branch: request.branch ?? null,
-    host: request.host ?? null,
+    taskId: safeRequest.taskId ?? null,
+    sessionId: safeRequest.sessionId ?? null,
+    branch: safeRequest.branch ?? null,
+    host: safeRequest.host ?? null,
     tier,
     domain,
     needsAdr,
-    paths: Array.isArray(request.paths) ? request.paths : [],
-    phase: request.phase ?? '*',
+    paths: Array.isArray(safeRequest.paths) ? safeRequest.paths : [],
+    phase: safeRequest.phase ?? '*',
     level,
+    interaction,
   };
+
+  signals.existingWork = normalizeExistingWorkResolution(
+    safeEnv.existingWorkResolution ?? safeRequest.existingWorkResolution ?? null,
+    {
+      prompt: objective,
+      explicitReopen: safeEnv.explicitReopen === true || safeRequest.explicitReopen === true,
+    },
+  );
 
   // ADDITIVE (A2, BIZ-0001/WF-0036, ADR-0102): attach the deterministic
   // methodology classification under a NEW namespace. The legacy tier keys above
   // are untouched — `signals.work` is a pure superset, so existing consumers
-  // (execution-contract.mjs, the gate) are unaffected (design §6.1).
-  signals.work = classifyWork(objective, loadWorkPolicy(env.root));
+  // Existing public signal keys remain stable (design §6.1).
+  signals.work = classifyWork(objective, loadWorkPolicy(safeEnv.root));
 
   // ADDITIVE (B2, BIZ-0001/WF-0037, ADR-0102): enrich with decision-need
   // classification + registry match. Wrapped in try/catch — fail-open always.
@@ -98,8 +170,8 @@ export function intake(request, env = {}) {
   // `_searchDecisions` is B2-T2's export resolved at module init; null until B2-T2
   // ships (parallel wave) — this block degrades silently in that case.
   try {
-    const registry = loadDecisionRegistry(env.root);
-    const needInput = { signals: { ...signals, objective }, decisionRegistry: registry, platformRoot: env.root };
+    const registry = loadDecisionRegistry(safeEnv.root);
+    const needInput = { signals: { ...signals, objective }, decisionRegistry: registry, platformRoot: safeEnv.root };
     signals.decisionNeed = classifyDecisionNeed(needInput);
 
     if (typeof _searchDecisions === 'function' && registry) {
@@ -116,7 +188,9 @@ export function intake(request, env = {}) {
   // the tier/domain/work flow (rule 2). Detection + pt/en fast-path only; translation
   // of other languages is delegated to the model via the hook directive (never here).
   try {
-    signals.intent = classifyIntentLangAware(objective);
+    signals.intent = classifyIntentLangAware(objective, {
+      interactionContext: safeEnv.interactionContext ?? {},
+    });
   } catch {
     // intent enrichment is advisory — never break the existing intake contract.
   }
@@ -169,17 +243,11 @@ function buildReasons(classification, tier, domain) {
 
   // Tier reason — identify which rubric signal triggered the tier.
   const rubricSignalHint = inferTierSignalHint(classification);
-  if (classification.forcedByDomain) {
-    reasons.push(
-      `tier=${tier} (forced by regulated domain '${domain}' — complexity=high overrides rubric signal)`,
-    );
-  } else {
-    reasons.push(`tier=${tier}${rubricSignalHint ? ` (rubric signal: '${rubricSignalHint}')` : ' (default tier)'}`);
-  }
+  reasons.push(`tier=${tier}${rubricSignalHint ? ` (rubric signal: '${rubricSignalHint}')` : ' (default tier)'}`);
 
   // Domain reason.
   if (domain !== 'general') {
-    reasons.push(`domain=${domain} (regulated domain detected; requiredAgents=[${classification.requiredAgents.join(', ')}])`);
+    reasons.push(`domain=${domain} (advisory risk context; recommendedAgents=[${classification.recommendedAgents.join(', ')}])`);
   } else {
     reasons.push('domain=general (no regulated domain signals matched)');
   }

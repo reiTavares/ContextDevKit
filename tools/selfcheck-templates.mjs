@@ -9,7 +9,6 @@
 import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 /** Model-alias whitelist for agent frontmatter (ADR-0052 — aliases only, never versioned IDs). */
 const VALID_MODEL_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
@@ -41,7 +40,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   for (const c of ['setupcontextdevkit.md', 'distill-sessions.md', 'distill-apply.md', 'context-doctor.md', 'context-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'context-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
     'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
     'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
-    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md', 'autonomy.md', 'swarm.md', 'pipetest.md', 'fable.md']) {
+    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md', 'swarm.md', 'pipetest.md', 'fable.md']) {
     cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
   }
   const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
@@ -65,7 +64,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   if (modelTierFailures === 0) ok(`all agents declare a valid model: tier alias (ADR-0052)`);
   existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
   const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
-  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-prioritize.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'scaffold-tests.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'resume.mjs', 'distill-detect.mjs', 'workflow.mjs', 'workflow-pack.mjs', 'workflow-doc-check.mjs', 'workflow-gate.mjs', 'workflow-number.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'autonomy.mjs', 'autonomy-readiness.mjs', 'lp-scaffold.mjs', 'lp-build.mjs', 'swarm-plan.mjs', 'swarm-state.mjs', 'squad-director.mjs', 'squad-audit.mjs',
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'scaffold-tests.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'distill-detect.mjs', 'workflow.mjs', 'workflow-pack.mjs', 'workflow-doc-check.mjs', 'workflow-gate.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'lp-scaffold.mjs', 'lp-build.mjs', 'swarm-plan.mjs', 'swarm-state.mjs', 'squad-director.mjs',
     'project-map-roots.mjs', 'project-map-coverage.mjs', 'context-manifest.mjs', 'context-manifest-readers.mjs',
     'playbook-scope.mjs', 'memory-score.mjs', 'rule-archive.mjs', 'host-parity.mjs', 'host-parity-core.mjs',
     'skill-runner.mjs', 'capability-compliance.mjs', 'benchmark-task.mjs',
@@ -74,8 +73,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'lineage-graph.mjs', 'lineage-graph-core.mjs',
     'lineage-public.mjs', 'lineage-public-core.mjs', 'lineage-calibration.mjs', 'lineage-calibration-core.mjs',
     'lineage-rules.mjs', 'lineage-rules-core.mjs', 'policy-registry.mjs',
-    'evidence-taxonomy.mjs', 'evidence-taxonomy-core.mjs', 'engineering-scorecard.mjs', 'engineering-scorecard-core.mjs',
-    'autonomy-readiness-v2.mjs', 'autonomy-readiness-v2-core.mjs',
+    'engineering-scorecard.mjs', 'engineering-scorecard-core.mjs',
     'fleet-compliance.mjs', 'fleet-compliance-core.mjs', 'agent-registry.mjs', 'agent-registry-core.mjs',
     'policy-distribution.mjs', 'policy-distribution-core.mjs']) {
     scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
@@ -90,9 +88,14 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
     'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
     '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
-    'templates/contextkit/runtime/hooks/concurrency-guard.mjs', 'templates/contextkit/runtime/git-hooks/pre-push.mjs',
+    'templates/contextkit/runtime/git-hooks/pre-push.mjs',
     'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
-    'templates/contextkit/runtime/hooks/auto-format.mjs', // F1 / ADR-0061
+    'templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-write-preflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-postflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-completion.mjs',
+    'templates/contextkit/runtime/hooks/governance-session-context.mjs',
+    'templates/contextkit/runtime/governance/event-runtime.mjs',
     'templates/contextkit/runtime/git-hooks/quality-gates.mjs', // F2 / ADR-0062
     'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
     'templates/github-optional/workflows/squad-issue.yml', // F5 / ADR-0064 (opt-in CI Squad action)
@@ -105,12 +108,10 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/runtime/codex/convert-all.mjs',
     'templates/contextkit/runtime/codex/convert-core.mjs',
     'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/config/presets.mjs',
-    'templates/contextkit/best-practices.md', 'templates/contextkit/pipeline/devpipeline.md',
-    'templates/contextkit/pipeline/working/.gitkeep',
-    'templates/contextkit/runtime/state/state-io.mjs',
+    'templates/contextkit/best-practices.md',
+    'templates/contextkit/runtime/state/run-state-store.mjs',
     'templates/contextkit/tools/scripts/telemetry/normalize.mjs', // PKG-06 CDK-062
     'templates/contextkit/tools/scripts/telemetry/adapters/codex.mjs', // PKG-06 CDK-062
-    'templates/contextkit/runtime/config/autonomy-eligibility.mjs',
     'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
     'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',
     'templates/contextkit/squads/README.md', 'templates/contextkit/squads/_BRIEFING.md.tpl',
@@ -153,13 +154,9 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/contextkit/memory/business-rules/_TEMPLATE.md',
     'templates/contextkit/memory/predictions/.gitkeep',
     'templates/contextkit/memory/workflows/.gitkeep',
-    'templates/contextkit/memory/workflows/_TEMPLATE/index.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/prd.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/spec.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/decisions.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/tasks.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/memory.md',
-    'templates/contextkit/memory/workflows/_TEMPLATE/reports/.gitkeep',
+    'templates/contextkit/tools/scripts/workflow/create.mjs',
+    'templates/contextkit/tools/scripts/workflow/validate.mjs',
+    'templates/contextkit/tools/scripts/tasks-store.mjs',
     'templates/contextkit/starters/landing/shell.html',
     'templates/contextkit/starters/landing/lp.config.json',
     'templates/contextkit/starters/landing/content/copy.json',
@@ -188,7 +185,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
   }
   // F8 / ADR-0068: every bridge host in the registry must have a matching installer.
   try {
-    const { BRIDGE_HOSTS } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/hooks/host-adapter.mjs')).href);
+    const { BRIDGE_HOSTS } = await import('./install/bridges/index.mjs');
     const missing = BRIDGE_HOSTS.filter((h) => !existsSync(resolve(KIT, `tools/install/bridges/${h.key}.mjs`)));
     const unenforced = BRIDGE_HOSTS.every((h) => h.enforced === false);
     missing.length === 0 ? ok(`bridge registry: all ${BRIDGE_HOSTS.length} hosts have an installer (F8)`) : bad(`bridge installers missing: ${missing.map((h) => h.key).join(', ')}`);
@@ -197,7 +194,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     bad(`bridge registry check failed: ${err?.message ?? err}`);
   }
   const wf = await readdir(resolve(KIT, 'templates/contextkit/workflows')).catch(() => []);
-  for (const f of ['README.md', 'L1-static-loading.md', 'L2-session-ledger.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
+  for (const f of ['README.md', 'L1-static-loading.md', 'L2-governance-dispatch.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
     wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
   }
   const playbooks = await readdir(resolve(KIT, 'templates/contextkit/workflows/playbooks')).catch(() => []);
@@ -225,16 +222,16 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
     : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
 
-  // WF-0092 / ADR-0151: the Antigravity roster is a checked projection of the
-  // canonical agent registry, not a hand-maintained partial list.
+  // WF-0111 W12: host projection inventory is declared in one manifest. Boot
+  // templates stay lean and do not duplicate the full agent registry.
   try {
     const registry = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/agent-capability-registry.json'), 'utf-8'));
     const registeredAgents = registry.agents.map((entry) => entry.agent);
-    const mentionedAgents = new Set([...instructions.matchAll(/`([a-z][a-z0-9-]+)`/g)].map((match) => match[1]));
-    const missingRoster = registeredAgents.filter((agent) => !mentionedAgents.has(agent));
-    missingRoster.length === 0
-      ? ok(`Antigravity boot roster covers all registered agents (${registeredAgents.length})`)
-      : bad(`Antigravity boot roster missing registered agents: ${missingRoster.join(', ')}`);
+    const projectionManifest = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/host-projections.json'), 'utf-8'));
+    Object.keys(projectionManifest.hosts ?? {}).sort().join(',') === 'antigravity,claude,codex' &&
+      projectionManifest.hosts.antigravity.projections.some((projection) => projection.id === 'antigravity-agents')
+      ? ok('host projection manifest declares Antigravity agent generation')
+      : bad('host projection manifest does not declare Antigravity agent generation');
 
     const claudeAgents = (await readdir(resolve(KIT, 'templates/claude/agents')))
       .filter((file) => file.endsWith('.md') && file !== '_TEMPLATE.md')
@@ -247,37 +244,21 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     bad(`agent roster parity check failed: ${err?.message ?? err}`);
   }
 
-  // WF-0092: all hosts expose the same five stage labels; only runner syntax
-  // differs between the projections.
-  const journeyLabels = ['**Graph**', '**Economy**', '**DDD/governance**', '**Implementation**', '**QA**'];
+  // WF-0111 W12: all hosts expose the same five v4 contract labels; runner
+  // syntax lives outside the byte-identical block.
+  const contractLabels = [
+    '`mutation-only-intake`',
+    '`single-governance-dispatch`',
+    '`workflow-context-before-write`',
+    '`canonical-json-state`',
+    '`advisory-agent-routing`',
+  ];
   const bootTemplates = ['templates/AGENTS.md.tpl', 'templates/CLAUDE.md.tpl', 'templates/INSTRUCTIONS.md.tpl'];
   for (const template of bootTemplates) {
     const text = await readFile(resolve(KIT, template), 'utf-8').catch(() => '');
-    journeyLabels.every((label) => text.includes(label))
-      ? ok(`${template} exposes the five-stage Canonical Work Journey`)
-      : bad(`${template} is missing a Canonical Work Journey stage label`);
+    contractLabels.every((label) => text.includes(label))
+      ? ok(`${template} exposes the five-part canonical host contract`)
+      : bad(`${template} is missing a canonical host contract label`);
   }
 
-  // WF-0083: validate every source skeleton against the single manifest and
-  // scrub the synthetic exemplar. Skeleton placeholders are intentional; the
-  // leak guard runs on rendered output in the integration suite.
-  try {
-    const methodology = resolve(KIT, 'templates/contextkit/methodology');
-    const { loadCeremonyManifest } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/workflow/ceremony-manifest.mjs')).href);
-    const { validateStructure } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/methodology/validate-structure.mjs')).href);
-    const { leakScrub } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/methodology/leak-scrub.mjs')).href);
-    const manifest = loadCeremonyManifest();
-    const structureFailures = Object.entries(manifest.shapes)
-      .map(([shape, row]) => validateStructure(resolve(methodology, row.skeleton), shape))
-      .filter((verdict) => !verdict.ok);
-    structureFailures.length === 0
-      ? ok('WF-0083 methodology skeletons satisfy the manifest structure')
-      : bad('WF-0083 methodology structure failures: ' + JSON.stringify(structureFailures));
-    const exemplar = leakScrub(resolve(methodology, 'exemplars/synthetic-single-case'));
-    exemplar.ok
-      ? ok('WF-0083 synthetic exemplar passes leak scrub')
-      : bad('WF-0083 synthetic exemplar leaked: ' + JSON.stringify(exemplar.violations));
-  } catch (err) {
-    bad('WF-0083 methodology selfcheck failed: ' + (err?.message ?? err));
-  }
 }

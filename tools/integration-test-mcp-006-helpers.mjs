@@ -29,7 +29,7 @@ export const SERVER_PATH = resolve(MCP_SERVER_DIR, 'server.mjs');
 /** The 10 camelCase tool exports required by AC-1. */
 export const EXPECTED_TOOLS = [
   'getProjectState', 'getProjectMap', 'getModuleContext', 'getWorkflowStatus',
-  'getPipelineCards', 'getActiveClaims', 'getLatestSession', 'getRelevantDecisions',
+  'getTasks', 'getActiveClaims', 'getLatestSession', 'getRelevantDecisions',
   'getContextPack', 'getQualityStatus',
 ];
 
@@ -37,7 +37,7 @@ export const EXPECTED_TOOLS = [
 export const EXPECTED_RESOURCE_URIS = [
   'contextdevkit://project/map',
   'contextdevkit://workflow/current',
-  'contextdevkit://pipeline/working',
+  'contextdevkit://tasks/working',
   'contextdevkit://memory/latest-session',
   'contextdevkit://decisions/catalog',
   'contextdevkit://business-rules',
@@ -64,10 +64,6 @@ export function makeFakeRoot() {
     resolve(mem, 'project-map'),
     resolve(mem, 'workflows'),
     resolve(mem, 'business-rules'),
-    resolve(ckit, 'pipeline', 'backlog'),
-    resolve(ckit, 'pipeline', 'working'),
-    resolve(ckit, 'pipeline', 'testing'),
-    resolve(ckit, 'pipeline', 'conclusion'),
     resolve(ckit, 'state', 'receipts'),
     resolve(root, '.claude', '.workspace'),
   ]) {

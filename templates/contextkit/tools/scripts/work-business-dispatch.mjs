@@ -20,7 +20,6 @@ import { pathsFor } from '../../runtime/config/paths.mjs';
 import { makeReceipt, writeFileEnsured } from './work-io.mjs';
 import { transition } from './work-business-lifecycle.mjs';
 import { evaluateBusinessGate, generateAuthorizedWorkflows } from './work-business-gate.mjs';
-import { emitBusinessGovernanceContract } from './emit-business-contract.mjs';
 
 // Creation is implemented in its own aggregate adapter to keep this module's
 // lifecycle/status responsibility cohesive; the public Business dispatch surface
@@ -42,9 +41,7 @@ export { handleBusinessCreate } from './work-business-create.mjs';
  */
 function resolveBizJsonPath(root, bizId) {
   const paths = pathsFor(root);
-  // `pathsFor` may not yet define a `business` key — fall back defensively.
-  const bizRoot = paths.business
-    || join(root, 'contextkit', 'memory', 'business');
+  const bizRoot = paths.business;
 
   const direct = join(bizRoot, bizId, 'business.json');
   if (existsSync(direct)) return direct;
@@ -123,21 +120,8 @@ export function handleBusinessTransition({ command, flags, apply, root }) {
     { actor, note, primaryAdr, now: flags.now },
   );
 
-  let contractEmit = { emitted: false, reason: 'not-applied' };
   if (apply) {
     writeFileEnsured(bizJsonPath, `${JSON.stringify(updated, null, 2)}\n`);
-
-    // WF-0088 SHADOW emit: re-serialize the governance contract on a lifecycle
-    // transition. Fail-open — a skipped/failed emit never affects the transition
-    // result; the contract is written but read by no gate at this stage.
-    const paths = pathsFor(root);
-    contractEmit = emitBusinessGovernanceContract({
-      business: updated,
-      contextDir: dirname(bizJsonPath),
-      decisionsBusinessDir: paths.decisionsBusiness,
-      emittedBy: 'transition',
-      now: typeof flags.now === 'string' ? flags.now : new Date().toISOString(),
-    });
   }
 
   return makeReceipt({
@@ -150,7 +134,6 @@ export function handleBusinessTransition({ command, flags, apply, root }) {
       toStatus: txReceipt.toStatus,
       actor: txReceipt.actor,
       decisionHash: txReceipt.decisionHash,
-      governanceContract: contractEmit,
     },
   });
 }

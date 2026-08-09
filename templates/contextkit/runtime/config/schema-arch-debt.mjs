@@ -60,7 +60,7 @@ export const ArchitectureDebtGateSchema = z
     enabled: z.boolean().default(true),
     mode: z
       .enum(GATE_MODES, { error: () => 'architectureDebtGate.mode must be one of: ' + GATE_MODES.join(', ') })
-      .default('active'),
+      .default('canary'),
     // Enforcement POSTURE for the twelve dimensions (OP-0012). `guarded` is the
     // default: a deterministic VIOLATION on a changed line BLOCKS. Line count is
     // never affected — it stays advisory in every posture (ADR-0143).
@@ -68,7 +68,7 @@ export const ArchitectureDebtGateSchema = z
       .enum(ENFORCEMENT_POSTURES, {
         error: () => 'architectureDebtGate.enforcement must be one of: ' + ENFORCEMENT_POSTURES.join(', '),
       })
-      .default('guarded'),
+      .default('advisory'),
     baseline: z
       .object({
         strategy: z.string().min(1).default('ratchet'),
@@ -80,9 +80,9 @@ export const ArchitectureDebtGateSchema = z
     lineSignals: ArchDebtLineSignalsSchema,
     floors: z
       .object({
-        security: FloorAuthority.default('BLOCKING'),
-        reliability: FloorAuthority.default('BLOCKING'),
-        testability: FloorAuthority.default('BLOCKING'),
+        security: FloorAuthority.default('ADVISORY'),
+        reliability: FloorAuthority.default('ADVISORY'),
+        testability: FloorAuthority.default('ADVISORY'),
       })
       .passthrough()
       .default({}),

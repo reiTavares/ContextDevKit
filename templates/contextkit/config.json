@@ -1,32 +1,36 @@
 {
   "level": 2,
+  "governance": {
+    "defaultMode": "canary",
+    "failurePolicy": "continue",
+    "humanAuthority": "owner-wins",
+    "gates": {
+      "qa-signoff": "guarded",
+      "ddd-invariants": "guarded",
+      "technical-debt": "guarded",
+      "architecture-debt": "canary",
+      "privacy-lgpd": "shadow",
+      "graph-first": "canary",
+      "intake": "canary",
+      "journey": "canary",
+      "workflow-presence": "canary",
+      "simulation": "canary",
+      "deliberation": "canary",
+      "agent-routing": "canary",
+      "subagent-scope": "canary",
+      "economy": "canary",
+      "context-pack": "canary",
+      "completion": "canary"
+    }
+  },
   "setup": {
     "completed": false
   },
   "practices": {
     "active": false
   },
-  "ledger": {
-    "important": [
-      "src/",
-      "lib/",
-      "app/",
-      "apps/",
-      "packages/",
-      "components/",
-      "pages/",
-      "server/",
-      "contextkit/",
-      ".claude/",
-      ".github/",
-      "CLAUDE.md",
-      "package.json",
-      "tsconfig.json",
-      "pyproject.toml",
-      "go.mod",
-      "Cargo.toml"
-    ],
-    "irrelevant": [
+  "analysis": {
+    "excludePaths": [
       "node_modules/",
       "dist/",
       "build/",
@@ -38,14 +42,7 @@
       "coverage/",
       "__pycache__/",
       "target/",
-      "vendor/",
-      ".context-snapshot.md",
-      ".claude/.sessions/",
-      ".claude/.workspace/"
-    ],
-    "registration": [
-      "contextkit/memory/SESSIONS.md",
-      "docs/CHANGELOG.md"
+      "vendor/"
     ]
   },
   "l3": {
@@ -80,21 +77,10 @@
       "branches": 70
     }
   },
-  "domainEngineering": {
-    "enabled": true,
-    "classifyEveryRequest": true,
-    "sessionStartReadiness": true,
-    "requireDevteamForCode": true,
-    "requireImplementationPacket": true,
-    "persistImplementationReceipt": true,
-    "enforcement": {
-      "rolloutStage": "guarded"
-    }
-  },
   "architectureDebtGate": {
     "enabled": true,
-    "mode": "active",
-    "enforcement": "guarded",
+    "mode": "canary",
+    "enforcement": "advisory",
     "baseline": {
       "strategy": "ratchet",
       "blockUnchangedLegacyDebt": false
@@ -107,9 +93,9 @@
       "elevated": 308
     },
     "floors": {
-      "security": "BLOCKING",
-      "reliability": "BLOCKING",
-      "testability": "BLOCKING"
+      "security": "ADVISORY",
+      "reliability": "ADVISORY",
+      "testability": "ADVISORY"
     },
     "intentionalDebt": {
       "requireOwner": true,
@@ -187,7 +173,7 @@
     "distill": {
       "observeWindow": 10,
       "proposeAfterSessions": 30,
-      "archiveLedgersOlderThanDays": 7
+      "archiveRunsOlderThanDays": 7
     },
     "techDebtSweep": {
       "default": "full",
@@ -205,7 +191,7 @@
   },
   "economy": {
     "enabled": true,
-    "mode": "guarded",
+    "mode": "advisory",
     "outputContract": {
       "enabled": true
     },
@@ -222,7 +208,7 @@
       "enabled": true
     },
     "bootDelta": {
-      "enabled": true
+      "enabled": false
     },
     "resumePack": {
       "enabled": true
@@ -243,17 +229,10 @@
   "projectMap": {
     "graph": {
       "enabled": true,
-      "mode": "guarded",
-      "humanFlip": true,
+      "mode": "advisory",
+      "humanFlip": false,
       "autoIndex": true,
       "maxAgeMinutes": 60
-    }
-  },
-  "workflowIntegrity": {
-    "invariantGuard": {
-      "enabled": true,
-      "mode": "shadow",
-      "phase": "in-flight"
     }
   }
 }

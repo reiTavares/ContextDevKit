@@ -11,7 +11,6 @@ export const CATEGORIES = [
   {
     name: '⚙️  Configuration & Diagnostics',
     scripts: {
-      'autonomy': 'Show/set the autonomy dial — consent grade 1-4 (ADR-0041)',
       'context-level': 'Query or set current project level (L1–L7)',
       'context-config': 'Query or modify configuration parameters in config.json',
       'doctor': 'Diagnose installation health (git hooks, configs, paths, directories)',
@@ -22,29 +21,25 @@ export const CATEGORIES = [
     name: '🧠 Memory & Sessions',
     scripts: {
       'log-session': 'Create a new session log and record details of recent work',
-      'session': 'Start, check status, or conclude active work sessions',
-      'guard': 'Explicit pre-edit checkpoint for high-risk paths (L5 governance parity)',
       'new-adr': 'Generate a new Architecture Decision Record (ADR) file',
       'session-reindex': 'Rebuild the master sessions index (SESSIONS.md)',
       'session-digest': 'Generates a summarized digest of a session\'s changes',
       'adr-digest': 'Build and search indices of existing ADR records',
       'distill-sessions': 'Condense past session records into high-level summaries',
       'distill-apply': 'Apply distilled memory back to the boot context',
-      'clean-drive': 'Cleans the registry ledger of registered/temporary paths',
-      'draft-changelog': 'Drafts a changelog based on unregistered ledger logs'
+      'clean-drive': 'Cleans explicitly selected generated bookkeeping paths',
+      'draft-changelog': 'Drafts a changelog from Git history'
     }
   },
   {
     name: '📋 DevPipeline & Workflows',
     scripts: {
-      'pipeline': 'CLI board to manage lanes (backlog, working, testing, conclusion)',
-      'pipeline-board': 'Formats and displays the DevPipeline task board',
-      'pipeline-session': 'Integrates session lifecycle with DevPipeline tasks',
-      'pipeline-prioritize': 'Automates backlog card prioritization (WSJF/due-dates)',
-      'pipeline-validate': 'Validates task backlog directory integrity',
-      'dev-start': 'Bootstraps a focused task lane, checking branch rules',
+      'pipeline': 'CLI for the canonical JSON task store',
+      'pipeline-board': 'Renders a derived task board from canonical JSON',
+      'pipeline-session': 'Binds explicit host work to canonical task scopes',
+      'pipeline-validate': 'Provides canonical task dependency helpers',
+      'dev-start': 'Bootstraps a focused canonical task scope',
       'ship': 'Orchestrates squad verification, runs test suites, pushes and cleans up',
-      'resume': 'Resumes a paused lane or branch',
       'runs': 'Log or list active execution runs',
       'roadmap': 'Manage roadmap features and business requirements',
       'complexity-rubric': 'Computes complexity category of a task to determine lane checks',
@@ -93,7 +88,6 @@ export const CATEGORIES = [
       'sync-check': 'Verifies workspace directories alignment',
       'workspace-sync': 'Syncs workspaces across local setups',
       'worktree-new': 'Scaffold git worktrees',
-      'watch': 'Watch workspace for modifications',
       'fleet': 'Orchestrate control commands across multi-repo fleets',
       'gh-alerts': 'Integrates GitHub notifications and issues triage'
     }

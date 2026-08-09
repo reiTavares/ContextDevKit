@@ -20,28 +20,12 @@ import { pathsFor } from '../../../runtime/config/paths.mjs';
 const norm = (value) => String(value).replace(/\\/g, '/');
 
 /**
- * Parses `git worktree list --porcelain` into `[{ path, branch }]`.
- *
- * Uses `execFileSync` with an argv array (no shell) so nothing can be injected,
- * and returns `[]` on any failure (not a git repo, git missing, parse error) —
- * callers treat an empty fleet as "local only".
- *
- * @param {string} [root] - directory to run git in (default cwd).
- * @returns {{path: string, branch: string|null}[]} one entry per worktree.
+ * Parse Git's porcelain worktree output without consulting the environment.
+ * @param {string} out porcelain output
+ * @returns {{path:string,branch:string|null}[]} parsed worktrees
  */
-export function listWorktrees(root = process.cwd()) {
-  let out;
-  try {
-    out = execFileSync('git', ['worktree', 'list', '--porcelain'], {
-      cwd: root,
-      encoding: 'utf-8',
-      // Swallow git's stderr ("not a git repository") — the catch handles failure;
-      // we never want the diagnostic to leak into a caller's clean output.
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-  } catch {
-    return [];
-  }
+function parseWorktreeList(out) {
+  if (typeof out !== 'string') return [];
   const trees = [];
   let current = null;
   for (const rawLine of out.split('\n')) {
@@ -61,6 +45,41 @@ export function listWorktrees(root = process.cwd()) {
 }
 
 /**
+ * Parses `git worktree list --porcelain` into `[{ path, branch }]`.
+ *
+ * Uses `execFileSync` with an argv array (no shell) so nothing can be injected,
+ * and returns `[]` on any failure (not a git repo, git missing, parse error) —
+ * callers treat an empty fleet as "local only".
+ *
+ * @param {string} [root] - directory to run git in (default cwd).
+ * @param {{executeGit?:(root:string)=>string}} [options] optional executor seam
+ * @returns {{path: string, branch: string|null}[]} one entry per worktree.
+ */
+export function listWorktrees(root = process.cwd(), options = {}) {
+  if (typeof options.executeGit === 'function') {
+    try {
+      return parseWorktreeList(options.executeGit(root));
+    } catch {
+      return [];
+    }
+  }
+  let out;
+  try {
+    out = execFileSync('git', ['worktree', 'list', '--porcelain'], {
+      cwd: root,
+      encoding: 'utf-8',
+      // Swallow git's stderr ("not a git repository") — the catch handles failure;
+      // we never want the diagnostic to leak into a caller's clean output.
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 10_000,
+    });
+  } catch {
+    return [];
+  }
+  return parseWorktreeList(out);
+}
+
+/**
  * Every worktree's `memory/` root that exists on disk, local-first and deduped.
  *
  * The local memory root is ALWAYS included (even before it exists on disk) so an
@@ -69,9 +88,10 @@ export function listWorktrees(root = process.cwd()) {
  * nothing rather than a phantom path.
  *
  * @param {string} [root] - project root (default cwd).
+ * @param {{executeGit?:(root:string)=>string}} [options] optional executor seam
  * @returns {string[]} absolute `memory/` directories, forward-slash normalised.
  */
-export function fleetMemoryRoots(root = process.cwd()) {
+export function fleetMemoryRoots(root = process.cwd(), options = {}) {
   const localMemory = norm(pathsFor(root).memory);
   const seen = new Set();
   const roots = [];
@@ -82,7 +102,7 @@ export function fleetMemoryRoots(root = process.cwd()) {
     roots.push(memory);
   };
   add(localMemory, false); // local root first, always present
-  for (const worktree of listWorktrees(root)) {
+  for (const worktree of listWorktrees(root, options)) {
     try {
       add(norm(pathsFor(worktree.path).memory), true);
     } catch {

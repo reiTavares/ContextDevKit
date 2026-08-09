@@ -7,10 +7,9 @@
  * the real record instead of hunting files.
  *
  * REUSE OVER REBUILD (ADR-0132, constitution rule 9): this is a PROJECTION, not a
- * new store. Business/Operations/Workflows/ADRs come from the three canonical
- * registries (`registry/{work-context,workflow,decision}.mjs`); Sessions and
- * Deliberations are read from their memory dirs. Nothing here re-parses what a
- * registry already models.
+ * new store. Business/Operations and ADRs use their derived registries; workflows
+ * come only from the canonical v4 JSON authority reader. Sessions and
+ * deliberations are read from their memory dirs.
  *
  * Deterministic (stable id sort, no clock in the body) and FAIL-OPEN (constitution
  * §8 / immutable rule 2): a missing or unreadable registry/dir degrades that
@@ -25,7 +24,7 @@ import { readdirSync, statSync, writeFileSync, renameSync, mkdirSync } from 'nod
 import { join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { buildWorkContextRegistry } from './registry/work-context.mjs';
-import { buildWorkflowRegistry } from './registry/workflow.mjs';
+import { readAuthoritySnapshot } from '../../runtime/authority-reader.mjs';
 import { buildDecisionRegistry } from './registry/decision.mjs';
 
 /** How many of the most-recent sessions to surface (the digest is an aid, not a dump). */
@@ -87,7 +86,7 @@ export function buildDigestModel(root = process.cwd()) {
   const contexts = safeRows(() => buildWorkContextRegistry(root), 'contexts');
   const business = contexts.filter((c) => c.type === 'business').sort(byId);
   const operations = contexts.filter((c) => c.type === 'operation').sort(byId);
-  const workflows = safeRows(() => buildWorkflowRegistry(root), 'workflows').slice().sort(byId);
+  const workflows = readAuthoritySnapshot(root).workflows.slice().sort(byId);
   const adrs = safeRows(() => buildDecisionRegistry(root), 'decisions').slice().sort(byId);
   const sessions = recentEntries(paths.sessions, RECENT_SESSIONS);
   const deliberations = recentEntries(paths.deliberations);

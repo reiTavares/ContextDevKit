@@ -53,7 +53,7 @@ console.log('\nSuite 2 — catalog completeness');
 const EXPECTED_RESOURCE_URIS = [
   'contextdevkit://project/map',
   'contextdevkit://workflow/current',
-  'contextdevkit://pipeline/working',
+  'contextdevkit://tasks/working',
   'contextdevkit://memory/latest-session',
   'contextdevkit://decisions/catalog',
   'contextdevkit://business-rules',

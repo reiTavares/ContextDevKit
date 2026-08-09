@@ -86,7 +86,7 @@ export function writeIfChanged(path, content) {
 
 /**
  * Stable-stringify `obj` and write it only if changed. The canonical way to
- * persist a machine contract (`workflow-plan.json`, result objects).
+ * persist a stable JSON contract or generated Markdown projection.
  * @param {string} path
  * @param {object} obj
  * @returns {{ changed: boolean }}

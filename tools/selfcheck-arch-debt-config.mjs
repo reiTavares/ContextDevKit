@@ -4,8 +4,7 @@
  * Governance Gate CONFIG block + the legacy line-budget MIGRATION (§31).
  *
  * Asserts:
- *   - defaults carry `mode:'active'` + `lineSignals.blocking:false` (hard
- *     ADR-0122 invariants);
+ *   - defaults carry `mode:'canary'` + `lineSignals.blocking:false` (ADR-0158);
  *   - the resolver maps `architectureDebtGate.lineSignals` → `lineBands` and
  *     forces blocking false regardless of config;
  *   - a legacy config with ONLY `l5.lineBudget {yellow, red}` migrates to the
@@ -53,16 +52,16 @@ const { DEFAULT_CONFIG } = fullDefaults;
 const { resolveArchDebtConfig, lineBudgetDeprecationNotice, hasLegacyLineBudget } = resolver;
 
 // 1. Hard invariants on the standalone defaults block.
-ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.mode === 'active'
-  ? ok("defaults: mode === 'active'") : bad("defaults: mode is NOT 'active'");
+ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.mode === 'canary'
+  ? ok("defaults: mode === 'canary'") : bad("defaults: mode is NOT 'canary'");
 ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.lineSignals
   && ARCH_DEBT_GATE_DEFAULTS.lineSignals.blocking === false
   ? ok('defaults: lineSignals.blocking === false') : bad('defaults: lineSignals.blocking is NOT false');
 
 // 2. The block is wired into DEFAULT_CONFIG (single source for the loader).
 DEFAULT_CONFIG && DEFAULT_CONFIG.architectureDebtGate
-  && DEFAULT_CONFIG.architectureDebtGate.mode === 'active'
-  ? ok('DEFAULT_CONFIG.architectureDebtGate present + active') : bad('DEFAULT_CONFIG missing/inactive architectureDebtGate');
+  && DEFAULT_CONFIG.architectureDebtGate.mode === 'canary'
+  ? ok('DEFAULT_CONFIG.architectureDebtGate present + canary') : bad('DEFAULT_CONFIG missing/non-canary architectureDebtGate');
 
 // 3. Resolver maps lineSignals → lineBands and forces blocking false.
 const fromGate = resolveArchDebtConfig({
@@ -98,11 +97,12 @@ const bothSet = resolveArchDebtConfig({
 bothSet.lineBands.yellow === 240 && bothSet.lineBands.elevated === 308 && bothSet.legacyMigrated === false
   ? ok('resolver: gate lineSignals win over stale l5.lineBudget') : bad('resolver: stale legacy dragged the bands: ' + JSON.stringify(bothSet.lineBands));
 
-// 6. Empty config → safe defaults (active, advisory bands, REVIEW_REQUIRED).
+// 6. Empty config → safe defaults (canary, advisory bands, REVIEW_REQUIRED).
 const empty = resolveArchDebtConfig({});
-empty.mode === 'active' && empty.lineBands.yellow === 240 && empty.lineBands.elevated === 308
+empty.mode === 'canary' && empty.enforcement === 'advisory'
+  && empty.lineBands.yellow === 240 && empty.lineBands.elevated === 308
   && empty.unknownEvidence === 'REVIEW_REQUIRED' && empty.lineSignalsBlocking === false
-  ? ok('resolver: empty config → active/advisory defaults') : bad('resolver: empty-config defaults wrong: ' + JSON.stringify(empty));
+  ? ok('resolver: empty config → canary/advisory defaults') : bad('resolver: empty-config defaults wrong: ' + JSON.stringify(empty));
 
 // 7. Optional zod schema — accept the valid block, reject blocking:non-boolean.
 let zod = null;

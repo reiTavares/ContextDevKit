@@ -25,13 +25,15 @@
  * No clock in the body: the only randomness source is the seeded `mulberry32`.
  * Zero non-`node:` imports beyond the sibling scripts (constitution rule 1).
  */
-import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { extractSymbols } from './graph-extract.mjs';
 import { resolveGraph } from './project-map-resolve.mjs';
 import { buildRationaleLayer } from './rationale-nodes.mjs';
+import { buildGovernanceLayer } from '../../runtime/graph/governance-index.mjs';
+import { buildDenseIndex } from './project-map-dense.mjs';
 
 /**
  * Deterministic seeded PRNG (mulberry32) - floats in `[0, 1)`. Defined for the
@@ -83,7 +85,19 @@ function layersOf(edges) {
   if (relations.has('calls')) layers.push('calls');
   if (relations.has('inherits') || relations.has('implements') || relations.has('extends')) layers.push('inheritance');
   if (relations.has('cites')) layers.push('rationale');
+  if ([...relations].some((relation) => ['documented_by', 'owns', 'tracks', 'governed_by', 'has_report'].includes(relation))) layers.push('governance');
   return layers.sort();
+}
+
+/** @param {string} root @returns {string|null} */
+function readProjectMapSignature(root) {
+  try {
+    const raw = readFileSync(join(pathsFor(root).projectMap, 'manifest.json'), 'utf-8');
+    const parsed = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
+    return typeof parsed.signature === 'string' ? parsed.signature : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -118,23 +132,50 @@ export function graphSignature(nodes, edges) {
  * and makes `reverseCallers` return a false-negative `[]`.
  *
  * @param {string} root project root
- * @returns {Promise<{nodes:Array<object>, edges:Array<object>, layers:string[], grammarVersions:Record<string,string>}>}
+ * @returns {Promise<{nodes:Array<object>, edges:Array<object>, layers:string[], grammarVersions:Record<string,string>,
+ *   coverage:object,projectMapSignature:string|null}>}
  */
 export async function buildFullProjection(root) {
   const resolved = await resolveGraph(root);
   let rationale = { nodes: [], edges: [] };
   try { rationale = buildRationaleLayer(root); } catch { /* rationale is best-effort; absence != failure */ }
+  const governance = buildGovernanceLayer(root);
+  const sourceCoverage = buildDenseIndex(root).coverage;
 
   const nodeById = new Map();
-  for (const node of resolved.nodes) nodeById.set(node.id, node);
+  for (const node of resolved.nodes) {
+    nodeById.set(node.id, node.id?.startsWith('sym:') ? { ...node, nodeType: 'source-symbol' } : node);
+  }
   for (const node of rationale.nodes) if (!nodeById.has(node.id)) nodeById.set(node.id, node);
+  // The complete recursive governance layer supersedes the old shallow ADR
+  // label when both describe the same `adr:` identity.
+  for (const node of governance.nodes) nodeById.set(node.id, node);
 
   const edgeByKey = new Map();
   for (const edge of resolved.edges) edgeByKey.set(edgeSortKey(edge), edge);
   for (const edge of rationale.edges) if (!edgeByKey.has(edgeSortKey(edge))) edgeByKey.set(edgeSortKey(edge), edge);
+  for (const edge of governance.edges) if (!edgeByKey.has(edgeSortKey(edge))) edgeByKey.set(edgeSortKey(edge), edge);
 
   const edges = [...edgeByKey.values()];
-  return { nodes: [...nodeById.values()], edges, layers: layersOf(edges), grammarVersions: resolved.grammarVersions || {} };
+  const pendingPaths = [...new Set([
+    ...(sourceCoverage?.pendingPaths ?? []),
+    ...(governance.coverage.pendingPaths ?? []),
+  ])].sort();
+  return {
+    nodes: [...nodeById.values()],
+    edges,
+    layers: layersOf(edges),
+    grammarVersions: resolved.grammarVersions || {},
+    coverage: {
+      status: pendingPaths.length > 0 ? 'partial' : 'complete',
+      roots: [...(sourceCoverage?.roots ?? []), ...(governance.coverage.roots ?? [])],
+      indexedPaths: governance.coverage.indexedPaths,
+      pendingPaths,
+      source: sourceCoverage,
+      governance: governance.coverage,
+    },
+    projectMapSignature: readProjectMapSignature(root),
+  };
 }
 
 /**
@@ -152,7 +193,8 @@ export async function buildFullProjection(root) {
  * @param {string} root project root
  * @param {{nodes:Array<object>, edges:Array<object>, layers?:string[], grammarVersions?:Record<string,string>}} graph raw build output
  * @param {{apply?: boolean}} [options]
- * @returns {{schemaVersion:1, graphSignature:string, layers:string[], grammarVersions:Record<string,string>, nodes:Array<object>, edges:Array<object>}}
+ * @returns {{schemaVersion:1, graphSignature:string, projectMapSignature:string|null, layers:string[],
+ *   grammarVersions:Record<string,string>, coverage:object, nodes:Array<object>, edges:Array<object>}}
  */
 export function writeCommittedProjection(root, graph, { apply = false } = {}) {
   const nodes = [...graph.nodes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -163,7 +205,11 @@ export function writeCommittedProjection(root, graph, { apply = false } = {}) {
   });
   const layers = Array.isArray(graph.layers) ? [...graph.layers].sort() : layersOf(edges);
   const grammarVersions = graph.grammarVersions && typeof graph.grammarVersions === 'object' ? graph.grammarVersions : {};
-  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), layers, grammarVersions, nodes, edges };
+  const coverage = graph.coverage && typeof graph.coverage === 'object'
+    ? graph.coverage
+    : { status: 'partial', roots: [], indexedPaths: [], pendingPaths: ['governance coverage unavailable'] };
+  const projectMapSignature = typeof graph.projectMapSignature === 'string' ? graph.projectMapSignature : null;
+  const projection = { schemaVersion: 1, graphSignature: graphSignature(nodes, edges), projectMapSignature, layers, grammarVersions, coverage, nodes, edges };
 
   if (apply) {
     const graphDir = join(pathsFor(root).projectMap, 'graph');

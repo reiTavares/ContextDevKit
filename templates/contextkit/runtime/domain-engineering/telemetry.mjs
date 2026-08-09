@@ -77,7 +77,7 @@ export function buildSample(params) {
 
 /** Absolute path of the shadow telemetry log (co-located with execution state). */
 export function telemetryPathFor(root) {
-  return join(pathsFor(root).pipeline, 'state', 'domain-engineering', 'shadow-telemetry.json');
+  return join(pathsFor(root).memory, 'economics', 'domain-engineering', 'shadow-telemetry.json');
 }
 
 /**
@@ -92,7 +92,7 @@ export function telemetryPathFor(root) {
 export function appendSample(root, sample, maxSamples = 5000) {
   try {
     const file = telemetryPathFor(root);
-    mkdirSync(join(pathsFor(root).pipeline, 'state', 'domain-engineering'), { recursive: true });
+    mkdirSync(join(pathsFor(root).memory, 'economics', 'domain-engineering'), { recursive: true });
     const existing = readJsonSafe(file, { schemaVersion: TELEMETRY_SCHEMA_VERSION, samples: [] });
     const samples = Array.isArray(existing.samples) ? existing.samples : [];
     samples.push(sample);

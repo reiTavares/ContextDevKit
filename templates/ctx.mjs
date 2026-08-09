@@ -220,13 +220,6 @@ async function main() {
     process.exit(1);
   }
 
-  if (cmd === 'session') {
-    const sessionManagerPath = resolve(ROOT, 'context' + 'kit/runtime/antigravity/session-manager.mjs');
-    const child = spawn('node', [sessionManagerPath, ...args.slice(1)], { cwd: ROOT, stdio: 'inherit' });
-    child.on('exit', (code) => process.exit(code ?? 0));
-    return;
-  }
-
   const scriptPath = await findScript(cmd);
   if (scriptPath) {
     const child = spawn('node', [scriptPath, ...args.slice(1)], { cwd: ROOT, stdio: 'inherit' });
