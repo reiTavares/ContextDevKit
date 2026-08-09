@@ -1,7 +1,7 @@
 {
   "name": "contextdevkit",
   "version": "4.0.2",
-  "description": "Portable, level-based AI-assisted development platform for Claude Code, Google Antigravity, and OpenAI Codex — hooks, commands, sub-agents, and durable project memory for any stack.",
+  "description": "Host-agnostic AI software engineering governance harness for persistent project intelligence, memory, context orchestration, work lifecycle, and policy across coding agents.",
   "type": "module",
   "bin": {
     "contextdevkit": "install.mjs",
@@ -74,6 +74,10 @@
     "agy",
     "dual-host",
     "ai",
+    "harness",
+    "ai-software-engineering",
+    "governance",
+    "project-memory",
     "hooks",
     "agents",
     "scaffold",

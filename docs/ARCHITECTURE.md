@@ -1,8 +1,18 @@
 # Architecture
 
-ContextDevKit is a source-distributed, host-neutral governance and project
-memory layer. Its runtime hot path is plain ESM on Node.js 18+ with zero package
-dependencies.
+ContextDevKit is a source-distributed, host-neutral **AI Software Engineering
+Governance Harness**. Its runtime hot path is plain ESM on Node.js 18+ with zero
+package dependencies.
+
+The harness does not own the LLM execution loop. Claude Code, OpenAI Codex,
+Google Antigravity, Grok, or another supported host remains responsible for
+model execution, tool calls, shell/filesystem access, MCP transport, and its own
+platform safety boundary. ContextDevKit provides the durable layer around those
+hosts: project intelligence, long-term memory, context orchestration, governed
+work lifecycle, policy evaluation, evidence, and execution continuity.
+
+This boundary is intentional: execution hosts are replaceable, while the
+project's governed intelligence and operational memory remain portable.
 
 ## Source and projection boundaries
 

@@ -1,15 +1,43 @@
 # ContextDevKit
 
-O ContextDevKit é uma camada portátil de governança e memória de projeto para
-desenvolvimento assistido por IA. Ele oferece suporte a Claude Code, OpenAI
-Codex, Google Antigravity e Grok sem adicionar framework de aplicação nem
-dependência de pacote ao hot path dos hooks.
+**O ContextDevKit é um AI Software Engineering Governance Harness host-agnostic.**
+Ele fornece inteligência persistente do projeto, memória de longa duração,
+orquestração de contexto, gestão do ciclo de trabalho, governança e continuidade
+de execução entre agentes como Claude Code, OpenAI Codex, Google Antigravity e
+Grok.
+
+O ContextDevKit não substitui o coding agent, o provedor de modelo, o runtime de
+ferramentas nem o agent loop. Esses hosts executam modelos e ferramentas; o
+ContextDevKit opera ao redor e acima deles para manter estado, contexto, memória,
+governança e histórico de trabalho portáveis entre hosts, sem adicionar
+framework de aplicação nem dependência de pacote ao hot path dos hooks.
 
 O modelo 4.0 é deliberadamente silencioso: a governança começa quando a
 interação vai alterar arquivos ou estado governado. Conversa e exploração
 somente leitura não criam tarefa, workflow, ledger, recibo ou contexto durável.
 
 Documentação principal em inglês: [README.md](README.md).
+
+## Limite do harness
+
+ContextDevKit é um harness de governança e inteligência de projeto, não um
+runtime de execução de LLM. O host continua responsável pelo loop do modelo,
+chamadas de ferramentas, shell/filesystem, transporte MCP e limites de segurança
+da própria plataforma. O ContextDevKit é responsável pelo ambiente de engenharia
+durável que sobrevive à troca desses hosts:
+
+- classificação de intenção e de mutação;
+- grafo do projeto e inteligência baseada também no filesystem;
+- memória de longa duração e preferências do owner;
+- ciclo de vida de direct, batch, workflow, tasks, reports e continuidade;
+- governança limitada, evidências e avaliação de políticas;
+- montagem de contexto e continuidade entre sessões;
+- recomendações host-neutral para routing, especialistas e swarms;
+- adapters que permitem ao mesmo projeto governado funcionar em diferentes
+  coding agents suportados.
+
+Essa separação torna o agente de execução substituível enquanto a inteligência
+governada e a memória operacional do projeto permanecem duráveis.
 
 ## Contrato operacional
 
