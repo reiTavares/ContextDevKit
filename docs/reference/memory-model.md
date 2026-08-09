@@ -12,14 +12,18 @@ memory/
   business/BIZ-####-<slug>/business.json
   operations/OP-####-<slug>/operation.json
   workflows/WF-####-<slug>/
+  workflows/done/WF-####-<slug>/
   decisions/{business,operations,legacy}/ADR-####-<slug>.md
   sessions/<date>-<sequence>-<slug>.md
   deliberations/
   preferences/owner-preferences.json
 ```
 
-An owned workflow lives below its Business or Operation. An unowned workflow may
-live under `memory/workflows/`. Its path is stable for its whole lifetime.
+An owned active workflow lives under its Business or Operation's `workflows/`
+directory and moves as a complete package to that owner's `done/` directory
+after JSON-first completion. A neutral workflow uses `memory/workflows/` and
+`memory/workflows/done/`. Placement is a human projection; status comes only
+from `workflow-state.json`.
 
 Each v4 workflow package contains:
 
@@ -29,9 +33,9 @@ Each v4 workflow package contains:
 | `workflow-state.json` | Workflow lifecycle status and revision |
 | `pipeline/tasks.json` | Task status, dependencies, events, revision, and evidence refs |
 | `context-manifest.json` | Declared context bundle |
-| `prd.md`, `spec.md`, `decisions.md`, `continuation.md` | Authored planning context |
+| `prd.md`, `spec.md`, `decisions.md`, `CONTINUATION-PROMPT.md` | Authored/generated planning context |
 | `reports/` | Factual evidence and closeout reports |
-| `tasks.md` | Derived task projection; never an inbound authority |
+| `pipeline/tasks.md`, `index.md` | Derived projections; never inbound authority |
 
 The explicit 3.x-to-4.0 migrator is the only reader of retired layouts. Normal
 runtime code does not fall back to physical lanes or path-based status.
@@ -53,6 +57,8 @@ second task store.
 ## Reading and writing
 
 - Read a workflow with `workflow.mjs status|load <ref>`.
+- Preview or repair a completed 4.0.0 package placement with
+  `workflow.mjs done-move <ref> [--apply]`.
 - Read tasks with `pipeline.mjs list|board --tasks <scope>`.
 - Mutate tasks only through the canonical task writer with an expected revision.
 - Repair projections with `pipeline.mjs sync --tasks <scope>`.

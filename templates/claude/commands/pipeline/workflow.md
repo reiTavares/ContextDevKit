@@ -5,7 +5,9 @@ allowed-tools: Bash(node:*)
 ---
 
 `/workflow` manages the ContextDevKit 4 workflow package. It never reads a
-legacy plan, Markdown frontmatter, physical status lane, or `done/` directory.
+legacy plan, Markdown frontmatter, or physical task-status lane. It may locate
+a complete package under the bounded `done/` projection, but lifecycle state is
+always read from JSON and never inferred from that path.
 
 Canonical authorities:
 
@@ -24,8 +26,11 @@ Canonical authorities:
     tasks.md               # generated projection
 ```
 
-The root is `memory/workflows/` for owner `none`, or the `workflows/` child of
-the owning Business/Operation. A completed workflow stays at the same path.
+The active root is `memory/workflows/` for owner `none`, or the `workflows/`
+child of the owning Business/Operation. Creation also guarantees the matching
+`done/` root. Completion commits JSON first and then moves the complete package
+to that human-facing archive; explicit QA rejection reopens JSON first and
+returns the package to its active root.
 The three JSON authorities are `workflow.json`, `workflow-state.json`, and
 `pipeline/tasks.json`; none may duplicate another's state.
 
@@ -43,6 +48,7 @@ node contextkit/tools/scripts/workflow.mjs validate <ref>
 node contextkit/tools/scripts/workflow.mjs render <ref>
 node contextkit/tools/scripts/workflow.mjs advance <ref> [--ref <evidence>]
 node contextkit/tools/scripts/workflow.mjs repair-scaffold <ref> [--write]
+node contextkit/tools/scripts/workflow.mjs done-move <ref> [--apply]
 ```
 
 Creation is atomic and emits the complete package. `repair-scaffold` is dry-run

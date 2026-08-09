@@ -14,14 +14,18 @@ rollback. Smaller work should remain direct or batch.
 - `context-manifest.json`: required/optional context-loading contract.
 
 `index.md` and `pipeline/tasks.md` are generated projections. The runtime does
-not read `workflow-plan.json`, frontmatter, a physical status lane, or `done/`.
+not read `workflow-plan.json`, frontmatter, or a physical task-status lane. It
+does scan bounded active and `done/` roots to locate complete packages, while
+deriving lifecycle state exclusively from JSON.
 
 ## Package creation
 
 The creator allocates an id, materializes every required artifact in a sibling
 staging directory, renders projections, validates the complete pack, and
 renames it into place atomically. A failure removes staging and leaves no
-partial workflow.
+partial workflow. Creation guarantees the matching human-facing `done/` root;
+completion commits JSON first and atomically moves the whole validated package
+there. Explicit QA rejection reverses that projection after reopening JSON.
 
 ## Runtime flow
 

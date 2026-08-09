@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -14,6 +15,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { reporter } from './it-helpers.mjs';
+import {
+  dispatchPipelineCommand,
+  parsePipelineInvocation,
+} from '../templates/contextkit/tools/scripts/pipeline.mjs';
+import { createTaskRecord } from '../templates/contextkit/tools/scripts/tasks-schema.mjs';
 import {
   createWaveWorkflow,
   repairWorkflowScaffold,
@@ -23,6 +29,8 @@ import {
   completeWorkflow,
   listWorkflows,
   loadWorkflowPack,
+  moveCompletedWorkflow,
+  planWorkflowDonePlacement,
   readWorkflow,
 } from '../templates/contextkit/tools/scripts/workflow-pack.mjs';
 import { requiredWorkflowArtifacts } from '../templates/contextkit/tools/scripts/workflow/catalog.mjs';
@@ -51,6 +59,8 @@ try {
   });
   check(created.dir.includes('non git windows path'), 'creation works in a non-Git path containing spaces');
   check(created.dir.endsWith(join('workflows', 'WF-0042-portable-flow')), 'canonical path uses WF id and platform separators');
+  const neutralDoneRoot = join(root, 'contextkit', 'memory', 'workflows', 'done');
+  check(existsSync(neutralDoneRoot), 'neutral workflow creation guarantees the done directory');
 
   for (const artifact of requiredWorkflowArtifacts()) {
     check(existsSync(join(created.dir, artifact.filename)), `create emits required ${artifact.kind}: ${artifact.filename}`);
@@ -142,13 +152,164 @@ try {
   check(completed.status === 'done' && completed.currentPhase === 'conclusion', 'explicit completion transitions conclusion to done');
   check(completed.state.qa.status === 'passed' && completed.state.qa.evidenceRefs[0] === 'runs/final-suite.json', 'completion persists explicit QA evidence');
   check(completed.state.activeTaskIds.length === 0 && completed.state.lastReportRef === 'reports/0001.md', 'completion clears active tasks and binds the factual report');
-  check(validatePack(created.dir).valid, 'completed package remains fully valid');
-  const idempotentCompletion = completeWorkflow(root, 'WF-0042', completionInput, { expectedRevision: completed.revision });
-  check(idempotentCompletion.revision === completed.revision, 'repeating the same completion receipt is idempotent');
+  check(completed.dir === join(neutralDoneRoot, 'WF-0042-portable-flow'), 'neutral completion moves the whole package under workflows/done');
+  check(!existsSync(created.dir) && existsSync(completed.dir), 'completion removes the active placement and publishes the completed placement');
+  for (const artifact of requiredWorkflowArtifacts()) {
+    check(existsSync(join(completed.dir, artifact.filename)), `completed package retains required ${artifact.kind}: ${artifact.filename}`);
+  }
+  check(validatePack(completed.dir).valid, 'completed package remains fully valid');
+  check(readdirSync(join(completed.dir, 'pipeline')).sort().join(',') === 'tasks.json,tasks.md', 'completed tasks retain JSON authority and Markdown projection without status directories');
+  check(readWorkflow(root, 'WF-0042').dir === completed.dir, 'reader resolves the completed package from done');
+  check(listWorkflows(root).some((workflow) => workflow.id === 'WF-0042' && workflow.dir === completed.dir), 'catalog lists completed workflows from done');
 
-  writeFileSync(join(created.dir, 'workflow-plan.json'), '{}\n', 'utf8');
-  check(validatePack(created.dir).errors.some((error) => error.code === 'duplicate-authority'), 'validator rejects workflow-plan.json as a duplicate runtime authority');
-  rmSync(join(created.dir, 'workflow-plan.json'));
+  renameSync(completed.dir, created.dir);
+  const recoveryPlan = planWorkflowDonePlacement(root, 'WF-0042');
+  check(recoveryPlan.status === 'dry-run' && recoveryPlan.stateStatus === 'done', 'placement planner detects a JSON-done 4.0.0 package left active');
+  const recoveryDryRun = moveCompletedWorkflow(root, 'WF-0042');
+  check(recoveryDryRun.status === 'dry-run' && existsSync(created.dir) && !existsSync(completed.dir), 'done-move is dry-run by default and writes nothing');
+
+  const cli = join(process.cwd(), 'templates', 'contextkit', 'tools', 'scripts', 'workflow.mjs');
+  const cliMove = spawnSync(process.execPath, [cli, 'done-move', 'WF-0042', '--apply'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  check(cliMove.status === 0 && cliMove.stdout.includes('"status": "applied"') && existsSync(completed.dir), 'v2 CLI applies JSON-only done placement recovery');
+  const recoveryNoop = moveCompletedWorkflow(root, 'WF-0042', { apply: true });
+  check(recoveryNoop.status === 'noop' && recoveryNoop.target === completed.dir, 'done placement recovery is idempotent');
+
+  const idempotentCompletion = completeWorkflow(root, 'WF-0042', completionInput, { expectedRevision: completed.revision });
+  check(idempotentCompletion.revision === completed.revision && idempotentCompletion.dir === completed.dir, 'repeating the same completion receipt is idempotent');
+
+  writeFileSync(join(completed.dir, 'workflow-plan.json'), '{}\n', 'utf8');
+  check(validatePack(completed.dir).errors.some((error) => error.code === 'duplicate-authority'), 'validator rejects workflow-plan.json as a duplicate runtime authority');
+  rmSync(join(completed.dir, 'workflow-plan.json'));
+
+  let duplicateDoneRefused = false;
+  try {
+    createWaveWorkflow(root, 'portable-flow', { id: 'WF-0098', objective: 'Duplicate done slug', now: NOW });
+  } catch (error) {
+    duplicateDoneRefused = /already exists/.test(error.message);
+  }
+  check(duplicateDoneRefused, 'creation detects duplicate slugs in completed roots');
+
+  const allocatedAfterDone = createWaveWorkflow(root, 'allocated-after-done', {
+    objective: 'Prove completed workflows participate in id allocation',
+    now: NOW,
+  });
+  check(allocatedAfterDone.id === 'WF-0043', 'workflow id allocation scans completed roots');
+
+  const collision = createWaveWorkflow(root, 'collision', {
+    id: 'WF-0044',
+    objective: 'Prove target collision is preflighted',
+    now: NOW,
+  });
+  writeFileSync(join(collision.dir, 'reports', '0001.md'), '# Collision report\n', 'utf8');
+  let collisionCursor = readWorkflow(root, collision.id);
+  while (collisionCursor.currentPhase !== 'conclusion') {
+    collisionCursor = advanceWorkflow(root, collision.id, '', {
+      now: '2026-08-08T12:05:00.000Z',
+      expectedRevision: collisionCursor.revision,
+    });
+  }
+  const collisionTarget = join(neutralDoneRoot, 'WF-0044-collision');
+  mkdirSync(collisionTarget);
+  const collisionStateBefore = readFileSync(join(collision.dir, 'workflow-state.json'), 'utf8');
+  let collisionRefused = false;
+  try {
+    completeWorkflow(root, collision.dir, completionInput, {
+      now: '2026-08-08T12:06:00.000Z',
+      expectedRevision: collisionCursor.revision,
+    });
+  } catch (error) {
+    collisionRefused = /target collision/.test(error.message);
+  }
+  check(collisionRefused, 'done target collision refuses completion');
+  check(readFileSync(join(collision.dir, 'workflow-state.json'), 'utf8') === collisionStateBefore, 'collision refusal leaves workflow JSON and revision untouched');
+  rmSync(collisionTarget, { recursive: true, force: true });
+
+  const operationDirectory = join(root, 'contextkit', 'memory', 'operations', 'OP-0001-demo');
+  mkdirSync(operationDirectory, { recursive: true });
+  const owned = createWaveWorkflow(root, 'owned-flow', {
+    id: 'WF-0045',
+    owner: 'OP-0001',
+    objective: 'Prove owner-scoped completed placement',
+    now: NOW,
+    tasks: [createTaskRecord({
+      id: 'T-001',
+      title: 'Owner workflow QA cycle',
+      status: 'done',
+      evidenceRefs: ['suite:initial-green'],
+    }, { now: NOW })],
+  });
+  const ownerDoneRoot = join(operationDirectory, 'done');
+  check(existsSync(ownerDoneRoot), 'owner-scoped workflow creation guarantees the owner done directory');
+  writeFileSync(join(owned.dir, 'reports', '0001.md'), '# Owner report\n', 'utf8');
+  let ownerCursor = readWorkflow(root, owned.id);
+  while (ownerCursor.currentPhase !== 'conclusion') {
+    ownerCursor = advanceWorkflow(root, owned.id, '', {
+      now: '2026-08-08T12:07:00.000Z',
+      expectedRevision: ownerCursor.revision,
+    });
+  }
+  const ownedCompleted = completeWorkflow(root, owned.id, completionInput, {
+    now: '2026-08-08T12:08:00.000Z',
+    expectedRevision: ownerCursor.revision,
+  });
+  check(ownedCompleted.dir === join(ownerDoneRoot, 'WF-0045-owned-flow') && !existsSync(owned.dir), 'owner-scoped completion moves the whole package under owner done');
+  check(requiredWorkflowArtifacts().every((artifact) => existsSync(join(ownedCompleted.dir, artifact.filename))), 'owner completed package retains every required v2 artifact');
+
+  const pipelineEnvironment = {
+    root,
+    out: () => {},
+    session: { attach: async () => {}, detach: async () => {} },
+  };
+  const pipelineInvocation = (scope, commandArgs) => parsePipelineInvocation([
+    ...commandArgs,
+    '--tasks', scope,
+  ], {});
+  mkdirSync(owned.dir);
+  const completedOwnerStateBeforeCollision = readFileSync(join(ownedCompleted.dir, 'workflow-state.json'), 'utf8');
+  let reopenCollisionRefused = false;
+  try {
+    await dispatchPipelineCommand(
+      pipelineInvocation(ownedCompleted.dir, ['qa-reject', 'T-001', 'Collision probe']),
+      pipelineEnvironment,
+    );
+  } catch (error) {
+    reopenCollisionRefused = /active target collision/.test(error.message);
+  }
+  check(reopenCollisionRefused, 'active target collision refuses workflow reopen before aggregate mutation');
+  check(readFileSync(join(ownedCompleted.dir, 'workflow-state.json'), 'utf8') === completedOwnerStateBeforeCollision, 'reopen collision leaves completed workflow JSON untouched');
+  rmSync(owned.dir, { recursive: true, force: true });
+  await dispatchPipelineCommand(
+    pipelineInvocation(ownedCompleted.dir, ['qa-reject', 'T-001', 'Human requested an adjustment']),
+    pipelineEnvironment,
+  );
+  const reopenedOwned = readWorkflow(root, owned.id);
+  const reopenedTask = reopenedOwned.tasks.tasks.find((task) => task.id === 'T-001');
+  check(reopenedOwned.dir === owned.dir && reopenedOwned.status === 'working' && reopenedOwned.currentPhase === 'ship', 'human feedback reopens a completed workflow and returns its package to workflows');
+  check(reopenedOwned.state.qa.status === 'pending' && reopenedOwned.state.completedAt === null, 'workflow reopen resets aggregate completion evidence without resetting revision history');
+  check(reopenedTask.status === 'backlog' && reopenedTask.evidenceRefs.length === 0, 'human feedback restarts the done task at backlog with stale current evidence cleared');
+  await dispatchPipelineCommand(pipelineInvocation(reopenedOwned.dir, ['start', 'T-001']), pipelineEnvironment);
+  await dispatchPipelineCommand(pipelineInvocation(reopenedOwned.dir, ['auto-transition', 'T-001', 'testing']), pipelineEnvironment);
+  await dispatchPipelineCommand(pipelineInvocation(reopenedOwned.dir, ['auto-transition', 'T-001', 'done', '--evidence', 'suite:retest-green']), pipelineEnvironment);
+  const retestedOwned = readWorkflow(root, owned.id);
+  check(retestedOwned.tasks.tasks[0].status === 'done' && retestedOwned.tasks.tasks[0].evidenceRefs.join(',') === 'suite:retest-green', 'automated retest completes the reopened task with fresh evidence');
+  let recloseCursor = retestedOwned;
+  while (recloseCursor.currentPhase !== 'conclusion') {
+    recloseCursor = advanceWorkflow(root, owned.id, '', {
+      now: '2026-08-08T12:09:00.000Z',
+      expectedRevision: recloseCursor.revision,
+    });
+  }
+  const reclosedOwned = completeWorkflow(root, owned.id, {
+    ...completionInput,
+    qaEvidenceRefs: ['runs/retest-suite.json'],
+  }, {
+    now: '2026-08-08T12:10:00.000Z',
+    expectedRevision: recloseCursor.revision,
+  });
+  check(reclosedOwned.status === 'done' && reclosedOwned.dir === ownedCompleted.dir, 'retested workflow completes again and returns to owner done');
 
   let creationFailed = false;
   try {
@@ -165,7 +326,6 @@ try {
   check(!existsSync(join(root, 'contextkit', 'memory', 'workflows', 'WF-0099-invalid-task')), 'failed creation publishes no partial target');
   check(!readdirSync(join(root, 'contextkit', 'memory', 'workflows')).some((name) => name.startsWith('.workflow-create-')), 'failed creation removes its staging directory');
 
-  const cli = join(process.cwd(), 'templates', 'contextkit', 'tools', 'scripts', 'workflow.mjs');
   const removedPlanHash = spawnSync(process.execPath, [cli, 'conclude', 'WF-0042', '--adopt-plan-hash'], {
     cwd: root,
     encoding: 'utf8',

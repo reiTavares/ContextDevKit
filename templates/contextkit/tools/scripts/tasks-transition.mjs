@@ -83,7 +83,11 @@ export function planTaskTransition(document, taskId, transition) {
 
   const timestamp = transition.at ?? new Date().toISOString();
   const nextRevision = document.revision + 1;
-  const evidenceRefs = mergeReferences(currentTask.evidenceRefs, transition.evidenceRefs);
+  const restartsQaCycle = transition.to === 'backlog'
+    && ['testing', 'done'].includes(currentTask.status);
+  const evidenceRefs = restartsQaCycle
+    ? mergeReferences([], transition.evidenceRefs)
+    : mergeReferences(currentTask.evidenceRefs, transition.evidenceRefs);
   const reportRefs = mergeReferences(currentTask.reportRefs, transition.reportRefs);
   if (transition.to === 'done' && evidenceRefs.length === 0) {
     throw new Error('transitionTask: status done requires at least one evidence reference');

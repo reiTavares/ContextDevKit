@@ -214,8 +214,8 @@ processos em timeout. O empacotamento usa allowlist e recusa runtime legado
 alcançável, drift de projeções de host, fixtures no tarball ou rollback de
 migração não exercitado.
 
-A versão `4.0.0` só é gravada depois que todos os gates de release estiverem
-verdes.
+Uma versão de release só é gravada depois que todos os gates de release
+estiverem verdes.
 
 ## Documentação
 

@@ -90,11 +90,24 @@ function buildWorkflowMappings(inventory) {
     });
 }
 
+/** Return the authoritative normalized legacy workflow status. */
+function legacyWorkflowStatus(workflow) {
+  if (workflow.archivedDone) return 'done';
+  const legacyState = workflow.state || {};
+  return normalizeLegacyStatus(legacyState.overallStatus || legacyState.status || 'backlog') || 'backlog';
+}
+
 /** @param {object} workflow @param {string} workflowId @returns {string} */
 function canonicalWorkflowDirectory(workflow, workflowId = workflow.workflowId) {
   const segments = toPortablePath(workflow.directoryPath).split('/').filter(Boolean);
   const doneIndex = segments.indexOf('done');
-  if (doneIndex >= 0) {
+  const completed = legacyWorkflowStatus(workflow) === 'done';
+  if (completed && doneIndex < 0) {
+    const workflowsIndex = segments.lastIndexOf('workflows');
+    const ownerScoped = segments.includes('operations') || segments.includes('business');
+    if (workflowsIndex >= 0 && ownerScoped) segments.splice(workflowsIndex, 1, 'done');
+    else if (workflowsIndex >= 0) segments.splice(workflowsIndex + 1, 0, 'done');
+  } else if (!completed && doneIndex >= 0) {
     if (segments[doneIndex - 1] === 'workflows') segments.splice(doneIndex, 1);
     else segments.splice(doneIndex, 1, 'workflows');
   }
@@ -246,9 +259,7 @@ function workflowFiles(workflow, activeTaskIds, workflowId) {
   const directory = canonicalWorkflowDirectory(workflow, workflowId);
   const legacyPlan = workflow.plan || {};
   const legacyState = workflow.state || {};
-  const workflowStatus = workflow.archivedDone
-    ? 'done'
-    : normalizeLegacyStatus(legacyState.overallStatus || legacyState.status || 'backlog') || 'backlog';
+  const workflowStatus = legacyWorkflowStatus(workflow);
   const owner = ['business', 'operation'].includes(workflow.ownerEvidence.kind)
     ? { kind: workflow.ownerEvidence.kind, id: workflow.ownerEvidence.id }
     : { kind: 'none', id: null };

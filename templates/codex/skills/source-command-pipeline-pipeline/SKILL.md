@@ -32,6 +32,7 @@ node contextkit/tools/scripts/pipeline.mjs start <id> --tasks <scope>
 node contextkit/tools/scripts/pipeline.mjs stop <id> --tasks <scope>
 node contextkit/tools/scripts/pipeline.mjs qa-reject <id> "feedback" --tasks <scope>
 node contextkit/tools/scripts/pipeline.mjs qa-approve <id> --evidence <ref> --tasks <scope>
+node contextkit/tools/scripts/pipeline.mjs auto-transition <id> done --evidence <automated-test-ref> --tasks <scope>
 node contextkit/tools/scripts/pipeline.mjs validate --tasks <scope>
 node contextkit/tools/scripts/pipeline.mjs sync --tasks <scope>
 ```
@@ -39,8 +40,13 @@ node contextkit/tools/scripts/pipeline.mjs sync --tasks <scope>
 Canonical statuses are `backlog`, `working`, `blocked`, `testing`, `done`, and
 `cancelled`. The CLI validates legal edges and uses the document revision for
 compare-and-swap. `qa-approve` is the normal `testing -> done` path and requires
-real evidence. A simple scoped owner override may resolve a guarded QA verdict;
-it needs no autonomy grade, council, agent receipt, or quorum.
+real evidence. A successful automated suite uses the evidence-bound
+`auto-transition testing -> done` edge immediately; it does not wait for a
+second human test. `qa-reject` accepts `testing` or `done`, requires feedback,
+clears stale current-cycle evidence, and returns the task to `backlog`. If its
+Workflow was complete, that aggregate/package reopens first. A simple scoped
+owner override may resolve a guarded QA verdict; it needs no autonomy grade,
+council, agent receipt, or quorum.
 
 `sync` repairs only the Markdown projection from JSON. A projection failure is
 reported honestly after the canonical JSON commit and never rolls task state

@@ -179,11 +179,11 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['risk acknowledgement names exactly the three owner-contract classes', 'templates/contextkit/runtime/governance/risk-acknowledgement.mjs', /'destructive-production'[\s\S]*'force-push'[\s\S]*'secret-rotation'/],
     ['legacy autonomy keys are read only by the explicit v3-to-v4 migrator', 'templates/contextkit/tools/migrations/v3-to-v4/autonomy.mjs', /planLegacyAutonomyMigration/],
     ['statusline governance segment derives from the v4 matrix resolver', 'templates/contextkit/runtime/statusline.mjs', /resolveGovernanceMatrix\(config\)/],
-    ['qa-reject is the testing-to-working semantic alias', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /to: 'working',[\s\S]*actor: 'qa'/],
+    ['qa-reject restarts testing or done tasks from backlog', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /\['testing', 'done'\][\s\S]*to: 'backlog'/],
     ['canonical task store pairs status and audit event atomically', 'templates/contextkit/tools/scripts/tasks-store.mjs', /status\/event pairing in one atomic JSON commit/],
     // ADR-0043 F2 — observable substrate (task 111).
     ['appendRunEvent is the only pipeline-run event writer', 'templates/contextkit/runtime/state/run-state-store.mjs', /export function appendRunEvent/],
-    ['auto-transition is bounded to explicit forward edges', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC_EDGES/],
+    ['auto-transition is bounded and requires evidence for testing to done', 'templates/contextkit/tools/scripts/pipeline-transitions.mjs', /AUTOMATIC_EDGES[\s\S]*testing -> done requires --evidence/],
     ['runs exposes the per-item transition log (task 111)', 'templates/contextkit/tools/scripts/runs.mjs', /function showEvents/],
     // ADR-0046 — project-map active architectural-fitness substrate.
     ['project-map-insights exports computeInsights + manifestDelta + subgraphFor (ADR-0046)', 'templates/contextkit/tools/scripts/project-map-insights.mjs', /export function computeInsights[\s\S]*export function manifestDelta[\s\S]*export function subgraphFor/],
