@@ -207,6 +207,8 @@ export const SUITES = Object.freeze([
     touches: ['tools/install/update-preflight.mjs', 'tools/install/update-status.mjs'] },
   { id: 'update-snapshot', file: it('update-snapshot'), tier: 'integration:installer',
     touches: ['tools/install/update-snapshot.mjs', 'tools/install/update-status.mjs'] },
+  { id: 'project-personalization', file: it('project-personalization'), tier: 'integration:installer',
+    touches: ['install.mjs', 'tools/install/personalization.mjs', 'tools/install/lib/marker-inject.mjs', 'tools/install/engine.mjs', 'tools/install/update-snapshot.mjs', 'templates/contextkit/runtime/preferences/owner-preferences.mjs'] },
   { id: 'projmap-defer', file: it('projmap-defer'), tier: 'integration:installer',
     touches: ['tools/install/project-map-baseline.mjs'] },
   // 3.1.2 RUN 2 hardening — non-TTY conflict honesty, idempotency, and failure boundaries.

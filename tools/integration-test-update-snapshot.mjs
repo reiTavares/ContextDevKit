@@ -45,16 +45,35 @@ await test('T16  snapshotCriticalState: files verified → ok true', async () =>
   const workspaceDir = join(projectDir, '.claude', '.workspace');
   await mkdir(workspaceDir, { recursive: true });
   await writeFile(join(workspaceDir, 'sess-016.json'), JSON.stringify({ sessionId: 'sess-016', claims: [], tasks: [] }));
+  await writeFile(join(projectDir, 'CLAUDE.md'), '# Claude user prose\n');
+  await writeFile(join(projectDir, 'AGENTS.md'), '# Codex user prose\n');
+  await writeFile(join(projectDir, 'INSTRUCTIONS.md'), '# Antigravity user prose\n');
   const ctkDir = join(projectDir, 'contextkit');
   await mkdir(ctkDir, { recursive: true });
   await writeFile(join(ctkDir, 'config.json'), JSON.stringify({ level: 6 }));
   await writeFile(join(ctkDir, '.install-manifest.json'), JSON.stringify({ schema: 1, files: {} }));
   await writeFile(join(ctkDir, '.engine-version'), '3.1.2\n');
+  const preferencesDir = join(ctkDir, 'memory', 'preferences');
+  await mkdir(preferencesDir, { recursive: true });
+  await writeFile(join(preferencesDir, 'personalization.md'), '# Personal instructions\n');
+  await writeFile(join(preferencesDir, 'owner-preferences.json'), '{"schemaVersion":1,"revision":0,"preferences":[]}\n');
+  await writeFile(join(preferencesDir, 'owner-preferences.audit.jsonl'), '{"action":"edit"}\n');
 
   const result = await snapshotCriticalState(projectDir, newUpdateId(), { root: backupRoot });
   assert.equal(result.ok, true, `snapshot ok must be true; skipped: ${JSON.stringify(result.skipped)}`);
-  assert.ok(result.files.length >= 5, `expected ≥5 files, got ${result.files.length}`);
+  assert.ok(result.files.length >= 11, `expected at least 11 files, got ${result.files.length}`);
   assert.ok(result.dir.startsWith(backupRoot), 'backup dir must be under the test root');
+  const snapshotPaths = new Set(result.files.map((file) => file.rel));
+  for (const requiredPath of [
+    'CLAUDE.md',
+    'AGENTS.md',
+    'INSTRUCTIONS.md',
+    'contextkit/memory/preferences/personalization.md',
+    'contextkit/memory/preferences/owner-preferences.json',
+    'contextkit/memory/preferences/owner-preferences.audit.jsonl',
+  ]) {
+    assert.ok(snapshotPaths.has(requiredPath), `missing personalization snapshot: ${requiredPath}`);
+  }
   for (const f of result.files) {
     assert.ok(typeof f.sha256 === 'string' && f.sha256.length === 64, `bad sha256 for ${f.rel}`);
   }

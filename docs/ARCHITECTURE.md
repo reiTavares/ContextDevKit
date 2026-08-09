@@ -67,7 +67,7 @@ State is separated by aggregate:
 | Workflow lifecycle | `workflow-state.json` | `index.md` |
 | Tasks/status/events | `pipeline/tasks.json` | `pipeline/tasks.md` |
 | Pipeline execution run | `memory/runs/<id>/state.json` | status/dashboard views |
-| Owner recommendations | owner-preference store | routing/display hints |
+| Owner recommendations | `memory/preferences/owner-preferences.json` | routing/display hints |
 
 Task updates validate the complete document, acquire a sibling lock, compare
 the expected revision, pair status and audit event, write a temporary file, and
@@ -127,6 +127,11 @@ Model routing, agent selection, swarms, economy hints, and owner preferences are
 recommendations. They have no write authority. LGPD is shadow. High-risk real
 actions emit acknowledgement metadata and remain subject to the host/platform
 confirmation boundary.
+
+Explicit project-specific guidance lives separately in the user-owned
+`memory/preferences/personalization.md`. Native host roots contain only one
+atomic managed pointer to that Markdown and the recommendation-only JSON; the
+installer never copies personalized prose into regenerated base instructions.
 
 ## Installation and portability
 

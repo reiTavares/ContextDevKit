@@ -4,8 +4,9 @@
  *
  * Bootstraps the AI-assisted development platform into ANY project (greenfield
  * or existing, any stack). Idempotent: re-run it to change level or pull engine
- * updates. It never clobbers your own content (CLAUDE.md, memory, config
- * overrides); it only overwrites the kit's own engine code and slash commands.
+ * updates. It never clobbers user-authored content: native host roots only
+ * receive an atomic, marker-bounded personalization reference; project memory
+ * and config overrides remain owner-controlled.
  *
  * This file is a THIN ORCHESTRATOR [ADR-0037]: it resolves the install context
  * (level / name / mode / --update), then calls the focused installers under
@@ -32,6 +33,7 @@ import { installAntigravityHost } from './tools/install/antigravity.mjs';
 import { installCodexHost } from './tools/install/codex.mjs';
 import { installGrokHost, wireGrokHooks } from './tools/install/grok.mjs';
 import { installBridges } from './tools/install/bridges/index.mjs';
+import { installProjectPersonalization } from './tools/install/personalization.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
 import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
 import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
@@ -185,6 +187,10 @@ async function main() {
   // 5. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
   await installClaudeHost(target, TPL, ctx, report);
 
+  // 5a. Shared user-owned personalization pointers. Native host roots remain
+  // user files; only the dedicated marker block may change on update.
+  await installProjectPersonalization(target, report);
+
   // 5b. Resolve personalization conflicts (user decides on a TTY; "keep both" otherwise)
   // and persist the manifest baseline for the next update [ADR-0054].
   report.push(...(await resolveConflicts(target, sync, version)));
@@ -258,10 +264,10 @@ async function main() {
       console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
     }
     console.log('   Refreshed: engine + host assets + hook wiring.');
-    console.log('   Never modifies user-authored memory (ADRs, sessions, roadmap, business rules, project');
-    console.log('   docs), CLAUDE.md, AGENTS.md, config, or pipeline tasks. Every agent/command/workflow');
-    console.log('   YOU personalized is kept (conflicts: see ⚠️ lines above). Derived artifacts (project-map)');
-    console.log('   may be regenerated transactionally when safe.');
+    console.log('   Never overwrites user-authored memory, config, pipeline tasks, or project personalization.');
+    console.log('   Native host roots preserve all owner prose; only the dedicated personalization reference');
+    console.log('   block may be refreshed atomically. Every agent/command/workflow YOU personalized is kept');
+    console.log('   (conflicts: see ⚠️ lines above). Derived artifacts may be regenerated when safe.');
     console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
     // Honest version-delta notice: only shown when a real version change occurred.
     // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).

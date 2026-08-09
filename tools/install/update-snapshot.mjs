@@ -21,6 +21,7 @@ import { copyFile, mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { projectId } from './update-preflight.mjs';
+import { PLATFORM_DIR } from '../../templates/contextkit/runtime/config/paths.mjs';
 
 // ---------------------------------------------------------------------------
 // Critical surfaces to snapshot (relative to target root)
@@ -32,9 +33,15 @@ import { projectId } from './update-preflight.mjs';
  */
 const SINGLE_FILES = [
   '.claude/settings.json',
-  'contextkit/config.json',
-  'contextkit/.install-manifest.json',
-  'contextkit/.engine-version',
+  'CLAUDE.md',
+  'AGENTS.md',
+  'INSTRUCTIONS.md',
+  `${PLATFORM_DIR}/config.json`,
+  `${PLATFORM_DIR}/.install-manifest.json`,
+  `${PLATFORM_DIR}/.engine-version`,
+  `${PLATFORM_DIR}/memory/preferences/personalization.md`,
+  `${PLATFORM_DIR}/memory/preferences/owner-preferences.json`,
+  `${PLATFORM_DIR}/memory/preferences/owner-preferences.audit.jsonl`,
 ];
 
 /**
@@ -128,9 +135,9 @@ export function newUpdateId() {
  * Included surfaces (when present):
  *   - `.claude/settings.json`
  *   - `.claude/.workspace/**`
- *   - `contextkit/config.json`
- *   - `contextkit/.install-manifest.json`
- *   - `contextkit/.engine-version`
+ *   - native host root instructions
+ *   - platform config, install manifest, and engine version
+ *   - user-owned personalization Markdown, JSON, and audit log
  *
  * After copying each file the destination is re-read and its sha256 is compared
  * to the source. Any mismatch sets `ok: false` so the orchestrator can abort.

@@ -83,10 +83,16 @@ for the full taxonomy.
 
 ## 5. Write your project's constitution
 
-The installed `CLAUDE.md` ships a generic coding constitution (file-size limit,
-SRP, naming, language policy, self-audit). **Edit it** to match your project:
-fill in the immutable rules (and link the ADR that justifies each), set the
-language policy, adjust the line limit. Keep it short — push detail into ADRs.
+Put durable project-specific instructions in
+`contextkit/memory/preferences/personalization.md`. The installer creates it
+once, never overwrites it, and keeps `CLAUDE.md`, `AGENTS.md`, and
+`INSTRUCTIONS.md` pointed at it through one managed reference block. Keep the
+host roots focused on portable base instructions; keep the owner-authored
+constitution, language policy, and ADR links in the personalization Markdown.
+
+Use the existing `contextkit/memory/preferences/owner-preferences.json` only for
+bounded structured recommendations. Do not create another preference JSON, and
+do not put secrets or temporary task instructions in either file.
 
 ## 6. Add a provider adapter (review, media)
 
@@ -179,10 +185,12 @@ else references the literal name.
 
 ## 9. Updating the engine later
 
-Re-run the installer over the project. It overwrites only the engine and slash
-commands. It never modifies user-authored memory (ADRs, executed workflows,
-sessions, roadmap, business rules, project docs), `CLAUDE.md`, or your config
-overrides:
+Re-run the installer over the project. It refreshes the engine, host assets, and
+hook wiring. It never overwrites user-authored memory (ADRs, executed workflows,
+sessions, roadmap, business rules, project docs), project personalization, or
+your config overrides. In native host roots, only the dedicated
+personalization-reference block may be refreshed atomically; all other owner
+prose remains byte-preserved:
 
 ```bash
 node /path/to/contextdevkit/install.mjs --target . --level <N> --yes
@@ -196,10 +204,12 @@ npx contextdevkit@latest --target . --update
 
 This refreshes engine + slash commands + hook wiring for your **current** level.
 It never modifies user-authored memory (ADRs, executed workflows, sessions,
-roadmap, business rules, project docs), `CLAUDE.md`, `contextkit/config.json`,
-pipeline tasks, scoped module `CLAUDE.md`, or your `contextkit/.env`. Derived
-artifacts such as the project-map may be generated or refreshed transactionally
-when safe (deferred if active sessions or a self-update are detected).
+roadmap, business rules, project docs), `contextkit/config.json`, pipeline tasks,
+scoped module `CLAUDE.md`, either file under `contextkit/memory/preferences/`,
+or your `contextkit/.env`. The three native host roots may receive only the
+managed references described above. Derived artifacts such as the project-map
+may be generated or refreshed transactionally when safe (deferred if active
+sessions or a self-update are detected).
 
 **Safety flags (v3.1.2+):**
 

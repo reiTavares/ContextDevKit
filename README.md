@@ -85,7 +85,7 @@ There is one writable authority for each kind of state:
 | Workflow lifecycle | `workflow-state.json` |
 | Tasks and task status | `pipeline/tasks.json` |
 | Transient pipeline execution | `memory/runs/<run-id>/state.json` |
-| Owner preferences | the canonical owner-preference store |
+| Owner preferences | `contextkit/memory/preferences/owner-preferences.json` |
 
 Task statuses are `backlog`, `working`, `blocked`, `testing`, `done`, and
 `cancelled`. Writes use validation, compare-and-swap revisions, a lock, and
@@ -115,6 +115,24 @@ WF-####-slug/
 Direct and batch work use the same task document contract under their owning
 context. A workflow is created as a complete sibling staging directory,
 validated, and renamed into place atomically.
+
+## Project personalization
+
+ContextDevKit keeps durable project-specific guidance outside regenerated host
+instructions:
+
+- `contextkit/memory/preferences/personalization.md` contains explicit,
+  user-owned project instructions;
+- `contextkit/memory/preferences/owner-preferences.json` is the existing
+  structured, recommendation-only preference store.
+
+The installer creates both files only when absent and never overwrites them,
+including under `--force`. `CLAUDE.md`, `AGENTS.md`, and `INSTRUCTIONS.md` each
+receive one marker-bounded reference to both files. Updates replace only that
+reference block atomically and preserve every byte of owner prose outside it.
+The Markdown guidance is explicit project context, while the JSON can only
+guide recommendations; neither outranks current system, developer, user, or
+platform-safety instructions.
 
 ## Graph, routing, and agents
 
