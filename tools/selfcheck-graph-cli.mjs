@@ -5,8 +5,9 @@
  *
  * Asserts the dispatcher routes each subcommand to the right query over a real
  * fixture projection, throws on an unknown subcommand / missing arg, and (via a
- * real child-process run) returns exit 3 when the graph is absent, exit 2 on a
- * usage error, exit 0 on a resolved query.
+ * real child-process run) keeps legacy structural commands at exit 3 when the
+ * graph is absent, returns a non-blocking exit 0 fallback receipt for `query`,
+ * exits 2 on usage errors, and exits 0 on resolved queries.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -83,6 +84,11 @@ export async function runGraphCliChecks() {
     const absentRun = runCli(empty, ['callers', 'sym:x#f']);
     record('CLI exit 3 when graph absent (distinct from usage error)', absentRun.code === 3 && absentRun.stdout.includes('available'),
       'code=' + absentRun.code);
+    const fallbackRun = runCli(empty, ['query', 'missing']);
+    const fallbackReceipt = JSON.parse(fallbackRun.stdout || '{}');
+    record('CLI query exits 0 with immediate ordinary-search fallback when graph absent', fallbackRun.code === 0
+      && fallbackReceipt.searchAllowed === true && fallbackReceipt.denied === false
+      && fallbackReceipt.fallback?.required === true, 'code=' + fallbackRun.code);
   } finally {
     rmSync(empty, { recursive: true, force: true });
   }

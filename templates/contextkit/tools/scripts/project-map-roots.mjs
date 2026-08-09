@@ -1,241 +1,211 @@
 #!/usr/bin/env node
 /**
- * project-map-roots — configurable roots and exclude resolution for the
- * project-map scanner (CDK-050, PKG-05).
+ * Typed, portable Project Map root resolution.
  *
- * WHY this module exists: `project-map-core.mjs` used a flat `IGNORE_DIRS` Set
- * that matched directory ENTRIES by bare basename at EVERY depth. That caused a
- * correctness bug in the ContextDevKit dogfood self-map: scanning
- * `templates/contextkit/…` was skipped because the entry named `contextkit`
- * matched the exclude set, even though the developer only wanted to skip the
- * INSTALLED top-level `./contextkit/` platform folder. The fix is a two-tier
- * exclude model: "deep" excludes match any depth (node_modules, .git, …),
- * while "root-relative" excludes are anchored to the project root so that
- * `contextkit` only excludes `<root>/contextkit/`, never a deeper path whose
- * final segment happens to share the name.
- *
- * Public API (three pure exports + CLI):
- *   defaultExcludes()    — the canonical hardcoded exclude catalogue
- *   resolveRoots(config, root) — merges defaults + config overrides; fail-open
- *   isExcluded(relPath, name) — predicate consumed by the walker
+ * Source and governance memory are different scan domains. Source exclusions
+ * must not make an explicitly selected governance root disappear, even when
+ * the platform directory is gitignored or excluded from the source walk.
  */
+import { existsSync, statSync } from 'node:fs';
+import { isAbsolute, posix, resolve, win32 } from 'node:path';
+import { MEMORY_DIR, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
 
-import { resolve, relative, sep } from 'node:path';
-import { readdirSync, statSync } from 'node:fs';
-
-// ---------------------------------------------------------------------------
-// Canonical exclude catalogue (exact copy of IGNORE_DIRS from core, CDK-050)
-// ---------------------------------------------------------------------------
-
+/** @typedef {'source'|'governance'} ProjectMapRootKind */
+/** @typedef {'tree'|'file'} ProjectMapRootEntryType */
 /**
- * Dirs matched at ANY depth — build output, VCS, runtime caches, package
- * stores. These should never appear anywhere useful in a source tree.
- *
- * @returns {{ deep: Set<string>, rootRelative: Set<string> }}
+ * @typedef {object} ProjectMapRoot
+ * @property {ProjectMapRootKind} kind
+ * @property {string} path Project-relative, forward-slashed path.
+ * @property {ProjectMapRootEntryType} entryType
+ * @property {boolean} available
+ * @property {{deep:string[], rootRelative:string[]}} excludes
  */
+
+/** Governance inputs outside the generated project-map projection itself. */
+export const GOVERNANCE_SCAN_ROOTS = Object.freeze([
+  MEMORY_DIR,
+  `${PLATFORM_DIR}/pipeline/tasks.json`,
+]);
+
+/** Backward-compatible name for callers that only need the memory root list. */
+export const MEMORY_SCAN_ROOTS = GOVERNANCE_SCAN_ROOTS;
+
+/** @returns {{deep:Set<string>, rootRelative:Set<string>}} */
 export function defaultExcludes() {
   return {
-    /**
-     * Bare-name excludes that apply at every depth in the tree.
-     * Kept in sync with IGNORE_DIRS in project-map-core.mjs.
-     */
     deep: new Set([
-      'node_modules', '.git', '.hg', '.svn',
-      'dist', 'build', 'out', '.next', '.nuxt',
-      '.turbo', '.expo', '.svelte-kit', 'coverage',
-      '__pycache__', '.pytest_cache',
-      'target', 'vendor', '.venv', 'venv',
-      'bin', 'obj',
-      '.cache', '.idea', '.vscode',
+      'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out', '.next', '.nuxt',
+      '.turbo', '.expo', '.svelte-kit', 'coverage', '__pycache__', '.pytest_cache',
+      'target', 'vendor', '.venv', 'venv', 'bin', 'obj', '.cache', '.idea', '.vscode',
       '.claude', '.agents', '.antigravity', '.tmp',
     ]),
-    /**
-     * Bare-name excludes anchored to the SCAN ROOT — only a top-level entry
-     * whose name appears here is excluded.  Nested directories sharing the same
-     * name are NOT excluded.
-     *
-     * `contextkit` lives here so that `./contextkit/` (the installed platform
-     * folder) is skipped while `templates/contextkit/` (the source tree) is
-     * still mapped in the dogfood self-scan.
-     */
-    rootRelative: new Set([
-      'contextkit',
-    ]),
+    rootRelative: new Set([PLATFORM_DIR]),
   };
 }
 
 /**
- * Governance-memory scan roots (ADR-0132 / WF-0070, Finding #6). The three durable
- * memory subtrees a query should reach — surfaced explicitly WHILE `contextkit`
- * stays root-excluded (so `./contextkit/` machinery is still skipped from a `.`
- * scan). Root-relative, forward-slashed.
- *
- * NOTE (honest limitation): the general project-map walker (`scanProject` in
- * project-map-core.mjs) consumes only `resolveRoots().isExcluded` today, not the
- * `roots` array — so listing these here does NOT make the source-code scanner
- * descend into memory (that would pollute the code map, and is an out-of-scope
- * walker change per ADR-0132). They are the ADR-named config surface + a clean
- * seam; the ACTIVE query path over memory is the governance digest
- * (`governance-digest.mjs`), which reads the registries directly.
- * @type {readonly string[]}
+ * Normalizes a configured project-relative path and rejects escapes/absolute
+ * paths. Windows separators are accepted on every host and never leak into the
+ * returned portable contract.
+ * @param {unknown} candidate
+ * @returns {string|null}
  */
-export const MEMORY_SCAN_ROOTS = Object.freeze([
-  'contextkit/memory/decisions',
-  'contextkit/memory/sessions',
-  'contextkit/memory/workflows',
-]);
-
-/**
- * The memory scan roots that actually EXIST under `root` (existence-guarded,
- * fail-open: a project with no committed memory yields []; an unreadable path is
- * silently skipped, never throws).
- * @param {string} root - absolute project root.
- * @returns {string[]} the existing memory roots (subset of MEMORY_SCAN_ROOTS).
- */
-export function memoryRoots(root) {
-  const out = [];
-  for (const rel of MEMORY_SCAN_ROOTS) {
-    try {
-      if (statSync(resolve(root, rel)).isDirectory()) out.push(rel);
-    } catch {
-      /* absent/unreadable — skip (fail-open) */
-    }
-  }
-  return out;
+export function normalizeRootPath(candidate) {
+  if (typeof candidate !== 'string' || candidate.trim() === '') return null;
+  const portable = candidate.trim().replaceAll('\\', '/');
+  if (isAbsolute(portable) || win32.isAbsolute(candidate)) return null;
+  const normalized = posix.normalize(portable).replace(/^\.\//, '');
+  if (normalized === '..' || normalized.startsWith('../')) return null;
+  return normalized === '' ? '.' : normalized;
 }
 
-// ---------------------------------------------------------------------------
-// Config-merging (CDK-050 core deliverable)
-// ---------------------------------------------------------------------------
+/** @param {Set<string>} values @returns {string[]} */
+function sorted(values) {
+  return [...values].sort();
+}
 
 /**
- * Merge hardcoded defaults with optional `config.projectMap` overrides.
- *
- * Config shape (all keys optional, additive, not replacive):
- *   config.projectMap.roots    — string[] of root-relative dir paths to scan
- *                                (default: ['.'] → the whole project root)
- *   config.projectMap.excludes — string[] of additional bare-name excludes.
- *                                A bare name (no slash) → added to `deep`.
- *                                A root-anchored path ending in '/' → rootRelative.
- *
- * Malformed config (any unexpected shape) is silently ignored — the call
- * degrades to pure defaults (fail-open, constitution rule 2).
- *
- * @param {object|null|undefined} config - loaded contextkit config object
- * @param {string} root - absolute project root (needed for CLI preview)
- * @returns {{
- *   roots: string[],
- *   excludes: { deep: Set<string>, rootRelative: Set<string> },
- *   isExcluded(relPath: string, entryName: string): boolean
- * }}
+ * Creates a serializable root descriptor. Absolute machine paths are resolved
+ * only by consumers, never persisted in the root contract.
+ * @param {ProjectMapRootKind} kind
+ * @param {string} path
+ * @param {ProjectMapRootEntryType} entryType
+ * @param {{deep:Set<string>,rootRelative:Set<string>}} excludes
+ * @returns {ProjectMapRoot}
+ */
+function rootDescriptor(kind, path, entryType, excludes, available = true) {
+  return Object.freeze({
+    kind,
+    path,
+    entryType,
+    available,
+    excludes: Object.freeze({
+      deep: Object.freeze(sorted(excludes.deep)),
+      rootRelative: Object.freeze(sorted(excludes.rootRelative)),
+    }),
+  });
+}
+
+/**
+ * Returns existing governance roots. No Git command is consulted: explicit
+ * filesystem roots remain visible in ZIP/tarball/non-Git installations.
+ * @param {string} root
+ * @returns {ProjectMapRoot[]}
+ */
+export function governanceRoots(root) {
+  const governanceExcludes = {
+    deep: new Set(['node_modules', '.git', '.hg', '.svn', '.tmp']),
+    // Avoid indexing the graph into itself. All other governed memory is walked.
+    rootRelative: new Set([`${MEMORY_DIR}/project-map`]),
+  };
+  const roots = [];
+  for (const candidate of GOVERNANCE_SCAN_ROOTS) {
+    let available = false;
+    let entryType = candidate.endsWith('.json') ? 'file' : 'tree';
+    try {
+      const absolute = resolve(root, candidate);
+      available = existsSync(absolute);
+      if (available) entryType = statSync(absolute).isDirectory() ? 'tree' : 'file';
+    } catch {
+      available = false;
+    }
+    roots.push(rootDescriptor('governance', candidate, entryType, governanceExcludes, available));
+  }
+  return roots;
+}
+
+/**
+ * Existing governance roots only, retained for discovery callers.
+ * @param {string} root
+ * @returns {ProjectMapRoot[]}
+ */
+export function memoryRoots(root) {
+  return governanceRoots(root).filter((entry) => entry.available);
+}
+
+/**
+ * Resolves typed source/governance roots plus a per-root exclusion predicate.
+ * Malformed configuration degrades to the default source root without throwing.
+ * @param {object|null|undefined} config
+ * @param {string} root
+ * @returns {{roots:ProjectMapRoot[],sourceRoots:ProjectMapRoot[],governanceRoots:ProjectMapRoot[],
+ *   excludes:{deep:Set<string>,rootRelative:Set<string>},
+ *   isExcluded(scanRoot:ProjectMapRoot|string, relPath?:string, entryName?:string):boolean}}
  */
 export function resolveRoots(config, root) {
-  const defaults = defaultExcludes();
-
-  // --- roots ----------------------------------------------------------------
-  let roots = ['.'];
+  const sourceExcludes = defaultExcludes();
   try {
-    const cfgRoots = config?.projectMap?.roots;
-    if (Array.isArray(cfgRoots) && cfgRoots.length > 0 && cfgRoots.every((r) => typeof r === 'string')) {
-      roots = cfgRoots;
-    }
-  } catch {
-    /* malformed config — keep defaults */
-  }
-
-  // --- extra excludes -------------------------------------------------------
-  const deep = new Set(defaults.deep);
-  const rootRelative = new Set(defaults.rootRelative);
-  try {
-    const cfgExcludes = config?.projectMap?.excludes;
-    if (Array.isArray(cfgExcludes)) {
-      for (const entry of cfgExcludes) {
-        if (typeof entry !== 'string' || !entry) continue;
-        // A path that ends with '/' is treated as root-relative.
-        // A bare name (no path separator) is deep.
-        // Anything else is normalised to bare name and added as deep.
-        if (entry.endsWith('/')) {
-          // Strip trailing slash; if it still contains separators only take
-          // the last segment (belt-and-suspenders: config should be simple names).
-          const trimmed = entry.replace(/\/+$/, '');
-          const segments = trimmed.split('/').filter(Boolean);
-          if (segments.length === 1) {
-            // e.g. "contextkit/" → rootRelative "contextkit"
-            rootRelative.add(segments[0]);
-          } else {
-            // Multi-segment root-relative path; store the whole normalised string
-            // so isExcluded can match it against the relative path.
-            rootRelative.add(trimmed);
-          }
+    const configuredExcludes = config?.projectMap?.excludes;
+    if (Array.isArray(configuredExcludes)) {
+      for (const entry of configuredExcludes) {
+        if (typeof entry !== 'string' || entry.length === 0) continue;
+        const portable = entry.replaceAll('\\', '/');
+        if (portable.endsWith('/')) {
+          const normalized = portable.replace(/\/+$/, '');
+          if (normalized) sourceExcludes.rootRelative.add(normalized);
         } else {
-          // Bare name or relative path without trailing slash → deep exclude.
-          const bare = entry.split('/').filter(Boolean).pop() ?? entry;
-          deep.add(bare);
+          const bare = portable.split('/').filter(Boolean).at(-1);
+          if (bare) sourceExcludes.deep.add(bare);
         }
       }
     }
   } catch {
-    /* malformed config — keep defaults */
+    // Defaults remain authoritative when config cannot be read.
   }
 
-  // Governance memory roots (ADR-0132 / WF-0070): append the memory subtrees that
-  // exist, additively + deduped, WITHOUT dropping '.' or config-supplied roots.
-  // `contextkit` stays in rootRelative excludes below, so a '.' scan still skips
-  // ./contextkit/ machinery — these roots name the durable memory the digest reads.
-  for (const rel of memoryRoots(root)) {
-    if (!roots.includes(rel)) roots.push(rel);
+  let configuredPaths = ['.'];
+  try {
+    const configured = config?.projectMap?.roots;
+    if (Array.isArray(configured) && configured.length > 0) {
+      const valid = [...new Set(configured.map(normalizeRootPath).filter(Boolean))];
+      if (valid.length === configured.length) configuredPaths = valid;
+    }
+  } catch {
+    // Defaults remain authoritative when config cannot be read.
   }
 
-  const excludes = { deep, rootRelative };
+  const sourceRoots = configuredPaths.map((path) => {
+    let available = false;
+    try { available = statSync(resolve(root, path)).isDirectory(); } catch { /* recorded on descriptor */ }
+    return rootDescriptor('source', path, 'tree', sourceExcludes, available);
+  });
+  const governedRoots = governanceRoots(root);
+  const roots = Object.freeze([...sourceRoots, ...governedRoots]);
 
   /**
-   * Predicate for the walker — returns true when this directory entry should
-   * be skipped.
-   *
-   * @param {string} relPath - path of the entry relative to the SCAN root
-   *   (e.g. 'templates/contextkit' or 'contextkit'). Forward-slash normalised.
-   * @param {string} entryName - bare directory entry name (e.g. 'contextkit')
+   * @param {ProjectMapRoot|string} scanRootOrRel
+   * @param {string} [relPathOrName]
+   * @param {string} [entryName]
    * @returns {boolean}
    */
-  function isExcluded(relPath, entryName) {
-    // Deep excludes: match the bare entry name at any depth.
-    if (deep.has(entryName)) return true;
-
-    // Root-relative excludes: only match when the entry sits at depth-1
-    // (i.e. relPath has no path separator — it IS the entry name).
-    const normalised = relPath.replaceAll('\\', '/');
-    if (rootRelative.has(normalised)) return true;
-
-    // Multi-segment root-relative excludes (full relPath comparison).
-    for (const rr of rootRelative) {
-      if (rr.includes('/') && normalised === rr) return true;
-    }
-
-    return false;
+  function isExcluded(scanRootOrRel, relPathOrName, entryName) {
+    // Two-argument compatibility: isExcluded(relPath, entryName).
+    const descriptor = typeof scanRootOrRel === 'object' && scanRootOrRel !== null
+      ? scanRootOrRel
+      : sourceRoots[0];
+    const relPath = typeof scanRootOrRel === 'object' && scanRootOrRel !== null
+      ? String(relPathOrName ?? '')
+      : String(scanRootOrRel ?? '');
+    const bareName = typeof scanRootOrRel === 'object' && scanRootOrRel !== null
+      ? String(entryName ?? '')
+      : String(relPathOrName ?? '');
+    const portable = relPath.replaceAll('\\', '/');
+    if (descriptor.excludes.deep.includes(bareName)) return true;
+    return descriptor.excludes.rootRelative.some((excluded) => portable === excluded || portable.startsWith(`${excluded}/`));
   }
 
-  return { roots, excludes, isExcluded };
+  return { roots, sourceRoots, governanceRoots: governedRoots, excludes: sourceExcludes, isExcluded };
 }
 
-// ---------------------------------------------------------------------------
-// CLI (self-diagnostic: node project-map-roots.mjs)
-// ---------------------------------------------------------------------------
-
-if (import.meta.url === new URL(import.meta.url).href &&
-    process.argv[1] &&
-    import.meta.url.endsWith(process.argv[1].replaceAll('\\', '/').split('/').pop())) {
-  const cwd = process.cwd();
+if (process.argv[1]?.split(/[\\/]/).pop() === 'project-map-roots.mjs') {
   let config = null;
   try {
     const { readFileSync } = await import('node:fs');
-    const { resolve: res } = await import('node:path');
-    const raw = readFileSync(res(cwd, 'contextkit/config.json'), 'utf-8');
-    config = JSON.parse(raw);
+    const raw = readFileSync(resolve(process.cwd(), PLATFORM_DIR, 'config.json'), 'utf-8');
+    config = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
   } catch {
-    /* no config — use defaults */
+    // A missing config is a supported non-Git/package state.
   }
-  const { roots, excludes } = resolveRoots(config, cwd);
-  console.log('Resolved roots:', roots);
-  console.log('Deep excludes (%d):', excludes.deep.size, [...excludes.deep].sort().join(', '));
-  console.log('Root-relative excludes (%d):', excludes.rootRelative.size, [...excludes.rootRelative].sort().join(', '));
+  const resolved = resolveRoots(config, process.cwd());
+  process.stdout.write(JSON.stringify({ roots: resolved.roots }, null, 2) + '\n');
 }

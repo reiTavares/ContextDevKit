@@ -71,9 +71,10 @@ defExcludes.deep.has('contextkit')
 
 // Default resolveRoots with no config → root '[.'], isExcluded('.git', '.git') = true
 const defResolved = resolveRoots(null, '/fake/root');
-Array.isArray(defResolved.roots) && defResolved.roots.length === 1 && defResolved.roots[0] === '.'
-  ? ok("default roots = ['.']")
-  : bad(`default roots should be ['.'], got ${JSON.stringify(defResolved.roots)}`);
+Array.isArray(defResolved.sourceRoots) && defResolved.sourceRoots.length === 1
+  && defResolved.sourceRoots[0].kind === 'source' && defResolved.sourceRoots[0].path === '.'
+  ? ok("default typed source root = '.'")
+  : bad(`default source root should be typed '.', got ${JSON.stringify(defResolved.sourceRoots)}`);
 
 // Spot-check: deep excludes work at any depth
 defResolved.isExcluded('node_modules', 'node_modules')
@@ -96,9 +97,10 @@ const cfgOverride = {
 };
 const overrideResolved = resolveRoots(cfgOverride, '/fake/root');
 
-JSON.stringify(overrideResolved.roots) === JSON.stringify(['src', 'packages'])
-  ? ok("roots overridden to ['src', 'packages']")
-  : bad(`roots not overridden correctly, got ${JSON.stringify(overrideResolved.roots)}`);
+JSON.stringify(overrideResolved.sourceRoots.map((entry) => entry.path)) === JSON.stringify(['src', 'packages'])
+  && overrideResolved.sourceRoots.every((entry) => entry.kind === 'source')
+  ? ok("typed source roots overridden to ['src', 'packages']")
+  : bad(`source roots not overridden correctly, got ${JSON.stringify(overrideResolved.sourceRoots)}`);
 
 // '__generated__' is bare-name → deep
 overrideResolved.excludes.deep.has('__generated__')
@@ -161,7 +163,8 @@ const malformedInputs = [
 for (const [cfg, label] of malformedInputs) {
   try {
     const result = resolveRoots(cfg, '/fake/root');
-    const rootsOk = Array.isArray(result.roots) && result.roots.length > 0;
+    const rootsOk = Array.isArray(result.sourceRoots) && result.sourceRoots.length > 0
+      && result.sourceRoots.every((entry) => entry.kind === 'source' && typeof entry.path === 'string');
     const isExcFn = typeof result.isExcluded === 'function';
     const deepHas = result.excludes?.deep?.has('node_modules');
     const noThrow = true; // we got here

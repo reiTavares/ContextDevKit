@@ -16,6 +16,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { resolveRoots } from './project-map-roots.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
 
 /** Per-file symbol cap — high enough to be effectively complete for real files. */
 const DENSE_CAP_PER_FILE = 400;
@@ -84,16 +85,19 @@ const EXT_LANG = {
  * dogfood bug `project-map-roots.mjs` already fixed for the base map's
  * walker, never propagated here.
  */
-function walk(root, absDir, acc, isExcluded) {
+function walk(root, absDir, acc, scanRoot, isExcluded, pendingPaths) {
   let entries;
-  try { entries = readdirSync(absDir, { withFileTypes: true }); } catch { return; }
+  try { entries = readdirSync(absDir, { withFileTypes: true }); } catch {
+    pendingPaths.add(relative(root, absDir).replaceAll('\\', '/') || scanRoot.path);
+    return;
+  }
   for (const ent of entries) {
     const full = join(absDir, ent.name);
     const rel = relative(root, full).replaceAll('\\', '/');
-    if (ent.name.startsWith('.') && ent.name !== '.github') { if (isExcluded(rel, ent.name)) continue; }
+    if (ent.name.startsWith('.') && ent.name !== '.github') { if (isExcluded(scanRoot, rel, ent.name)) continue; }
     if (ent.isDirectory()) {
-      if (isExcluded(rel, ent.name)) continue;
-      walk(root, full, acc, isExcluded);
+      if (isExcluded(scanRoot, rel, ent.name)) continue;
+      walk(root, full, acc, scanRoot, isExcluded, pendingPaths);
     } else if (EXT_LANG[extname(ent.name).toLowerCase()]) {
       acc.push(rel);
     }
@@ -104,15 +108,35 @@ function walk(root, absDir, acc, isExcluded) {
  * Builds the dense symbol index by walking the repo (scanProject keeps only
  * counts, not file paths — so this does its own bounded walk over the same scope).
  * @param {string} root - repo root
- * @param {object|null} [config] - loaded contextkit config (`config.projectMap.{roots,excludes}`)
+ * @param {object|null} [config] - loaded config; when omitted, the target's
+ *   canonical config is read so graph/project-map callers share the same roots.
  * @returns {{ byModule: Array<{module:string, files:Array<{file:string,symbols:string[]}>}>,
- *   bySymbol: Record<string,string[]>, fileCount: number, symbolCount: number }}
+ *   bySymbol: Record<string,string[]>, fileCount: number, symbolCount: number,
+ *   coverage:{status:string,roots:object[],pendingPaths:string[]} }}
  */
-export function buildDenseIndex(root, config = null) {
-  const { isExcluded } = resolveRoots(config, root);
+export function buildDenseIndex(root, config = undefined) {
+  let resolvedConfig = config;
+  if (resolvedConfig === undefined) {
+    try {
+      const raw = readFileSync(pathsFor(root).config, 'utf-8');
+      resolvedConfig = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
+    } catch {
+      resolvedConfig = null;
+    }
+  }
+  const { sourceRoots, isExcluded } = resolveRoots(resolvedConfig, root);
   const files = [];
-  try { if (statSync(root).isDirectory()) walk(root, root, files, isExcluded); } catch { /* best-effort */ }
-  files.sort();
+  const pendingPaths = new Set();
+  for (const scanRoot of sourceRoots) {
+    const absoluteRoot = join(root, scanRoot.path);
+    try {
+      if (statSync(absoluteRoot).isDirectory()) walk(root, absoluteRoot, files, scanRoot, isExcluded, pendingPaths);
+      else pendingPaths.add(scanRoot.path);
+    } catch {
+      pendingPaths.add(scanRoot.path);
+    }
+  }
+  const uniqueFiles = [...new Set(files)].sort();
 
   // Object.create(null) — a real symbol/module name can collide with an
   // inherited Object.prototype member (`valueOf`, `constructor`, `toString`,
@@ -124,12 +148,13 @@ export function buildDenseIndex(root, config = null) {
   const bySymbol = Object.create(null);
   let fileCount = 0, symbolCount = 0;
 
-  for (const rel of files) {
+  for (const rel of uniqueFiles) {
     const lang = EXT_LANG[extname(rel).toLowerCase()];
     if (!lang) continue;
     let text = '';
-    try { text = readFileSync(join(root, rel), 'utf-8'); } catch { continue; }
+    try { text = readFileSync(join(root, rel), 'utf-8'); } catch { pendingPaths.add(rel); continue; }
     const names = extractDense(text, lang, DENSE_CAP_PER_FILE);
+    if (names.length >= DENSE_CAP_PER_FILE) pendingPaths.add(rel);
     if (names.length === 0) continue;
     const unique = [...new Set(names)];
     const module = rel.split('/').slice(0, 2).join('/') || rel;
@@ -143,7 +168,17 @@ export function buildDenseIndex(root, config = null) {
     bySymbol[name].sort((a, b) => (isTestFile(a) ? 1 : 0) - (isTestFile(b) ? 1 : 0));
   }
   const byModule = Object.keys(groups).sort().map((module) => ({ module, files: groups[module] }));
-  return { byModule, bySymbol, fileCount, symbolCount };
+  return {
+    byModule,
+    bySymbol,
+    fileCount,
+    symbolCount,
+    coverage: {
+      status: pendingPaths.size > 0 ? 'partial' : 'complete',
+      roots: sourceRoots.map(({ kind, path, entryType, available }) => ({ kind, path, entryType, available })),
+      pendingPaths: [...pendingPaths].sort(),
+    },
+  };
 }
 
 /**
