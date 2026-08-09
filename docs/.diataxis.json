@@ -17,5 +17,6 @@
   "GROK.md": "reference",
   "token-economy-plan.md": "explanation",
   "architecture/README.md": "explanation",
-  "workflow-engine/README.md": "explanation"
+  "workflow-engine/README.md": "explanation",
+  "explanation/loop-engineering.md": "explanation"
 }
