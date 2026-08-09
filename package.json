@@ -51,8 +51,7 @@
     "docs/",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md",
-    "instrucoes.md"
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=18"
