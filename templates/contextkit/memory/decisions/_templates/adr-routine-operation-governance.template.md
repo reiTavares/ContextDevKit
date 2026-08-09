@@ -1,5 +1,6 @@
 ---
 schemaVersion: 2
+documentVersion: 1
 id: {{ID}}
 title: {{TITLE}}
 status: {{STATUS}}
@@ -60,8 +61,7 @@ keep it routine._
 ## Decision authority
 
 - Primary context: {{PRIMARY_CONTEXT_ID}} (platform)
-- Approval source: {{APPROVAL_ID}} revision {{APPROVAL_REVISION}}, decisionHash `{{DECISION_HASH}}`
-- Status: {{STATUS}}. Acceptance records the owner's explicit decision; no extra gate is created.
+- Lifecycle status and approval metadata are authoritative in YAML front matter.
 
 ## Scope
 
@@ -72,6 +72,29 @@ per-instance ADR is required while the instance stays inside the class envelope.
 ### Does not apply to
 Any operation outside a registered class (→ `NEEDS_DECISION`), material decisions,
 emergency actions, and all legacy artifacts (unchanged).
+
+## Context references
+
+_Link the platform policy, governed operations, workflows, and prior decisions._
+
+## Decision drivers
+
+_Why the standing routine class is needed and which value intent it serves._
+
+## Alternatives considered
+
+_Options weighed and why per-instance ADRs or another mechanism were rejected._
+
+## Consequences
+
+### Positive
+_What becomes simpler while the routine envelope holds._
+
+### Negative
+_What maintaining the routine registry costs._
+
+### Trade-offs
+_The balance between pre-authorization and bounded materiality._
 
 ## Constraints and invariants
 

@@ -1,5 +1,6 @@
 ---
 schemaVersion: 2
+documentVersion: 1
 id: {{ID}}
 title: {{TITLE}}
 status: {{STATUS}}
@@ -59,9 +60,7 @@ the standing policy it derives from, and the mandatory post-hoc recording step._
 ## Decision authority
 
 - Primary context: {{PRIMARY_CONTEXT_ID}} (platform)
-- Approval source: {{APPROVAL_ID}} revision {{APPROVAL_REVISION}}, decisionHash `{{DECISION_HASH}}`
-- Status: {{STATUS}}. Acceptance stays manual; the emergency path is a recording
-  discipline, not a new autonomy gate.
+- Lifecycle status and approval metadata are authoritative in YAML front matter.
 
 ## Scope
 
@@ -71,6 +70,29 @@ Incidents matching a registered emergency envelope entry.
 ### Does not apply to
 Any action outside a registered envelope (→ obtain a decision normally), and all
 legacy artifacts (unchanged).
+
+## Context references
+
+_Link the standing policy, incident scope, governed operations, and prior decisions._
+
+## Decision drivers
+
+_Why the emergency envelope is required and which value intent it protects._
+
+## Alternatives considered
+
+_Options weighed and why ordinary pre-approval is insufficient for this envelope._
+
+## Consequences
+
+### Positive
+_What becomes safer or faster during a qualifying incident._
+
+### Negative
+_What post-hoc recording and review cost._
+
+### Trade-offs
+_The balance between response speed and explicit accountability._
 
 ## Constraints and invariants
 

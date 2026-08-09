@@ -139,11 +139,74 @@ try {
     assert('create --apply: writes contains a path', r1.writes.length > 0);
     const created = r1.writes[0];
     assert('create --apply: file exists on disk', existsSync(created));
+    const createdText = readFileSync(created, 'utf-8');
+    assert('create --apply: generated ADR declares documentVersion 1', /^documentVersion: 1$/m.test(createdText));
+    assert('create --apply: canonical value-intent default is valid', /^  primary: IMPROVE$/m.test(createdText));
+    const createdValidation = dispatch({
+      command: 'validate',
+      positionals: [],
+      flags: { file: created },
+    }, { root });
+    assert('create --apply: generated ADR passes schema and document validation', createdValidation.detail?.ok === true);
 
     // Idempotent: second apply should be a no-op.
     const r2 = dispatch({ command: 'create', positionals: [], flags: { ...createFlags, apply: true } }, { root });
     assert('create --apply idempotent: second run applied=false', r2.applied === false);
     assert('create --apply idempotent: no mutation', r2.detail?.idempotentNoop === true);
+  }
+
+  assertThrows(
+    'create: refuses an invalid value intent before writing',
+    () => dispatch({
+      command: 'create',
+      positionals: [],
+      flags: {
+        id: 'ADR-0201',
+        kind: 'ARCHITECTURE',
+        title: 'Invalid intent',
+        'context-type': 'business',
+        'primary-context': 'BIZ-0001',
+        'value-intent': 'EFFICIENCY',
+      },
+    }, { root }),
+    'value-intent',
+  );
+
+  assertThrows(
+    'create: refuses legacy context because legacy records are read-only compatibility',
+    () => dispatch({
+      command: 'create',
+      positionals: [],
+      flags: {
+        id: 'ADR-0201',
+        kind: 'ARCHITECTURE',
+        title: 'Legacy creation',
+        'context-type': 'legacy',
+      },
+    }, { root }),
+    'legacy',
+  );
+
+  {
+    const operation = dispatch({
+      command: 'create',
+      positionals: [],
+      flags: {
+        id: 'ADR-0201',
+        kind: 'ARCHITECTURE',
+        title: 'Operation architecture',
+        'context-type': 'operation',
+        'primary-context': 'OP-0001',
+        apply: true,
+      },
+    }, { root });
+    const operationText = readFileSync(operation.writes[0], 'utf-8');
+    assert(
+      'create: context type selects an agreeing operation template',
+      /^contextType: operation$/m.test(operationText)
+        && /^  type: operation$/m.test(operationText)
+        && /^  id: OP-0001$/m.test(operationText),
+    );
   }
 
   // --- 11. `accept` refuses non-human actor ---
@@ -189,11 +252,18 @@ try {
     assert('accept --apply: status is accepted on DISK', /^status: accepted$/m.test(text));
     assert('accept --apply: approvalSource.actor is human on disk', /^ {2}actor: human$/m.test(text));
     assert('accept --apply: approvalSource.revision is 1 on disk', /^ {2}revision: 1$/m.test(text));
+    assert('accept --apply: decisionHash is a deterministic SHA-256', /^ {2}decisionHash: [a-f0-9]{64}$/m.test(text));
     // Scope check: no TBD survives in the FRONT-MATTER. The template also prints
     // the approval facts as body prose ("Approval source: … decisionHash `TBD`"),
     // which this verb deliberately does not rewrite — body content is the author's.
     assert('accept --apply: no TBD placeholder left in the front-matter', !text.split('---')[1].includes('TBD'));
     assert('accept --apply: body survives the surgery', text.includes('# ADR-0200'));
+    const acceptedValidation = dispatch({
+      command: 'validate',
+      positionals: [],
+      flags: { file: adrPath },
+    }, { root });
+    assert('accept --apply: accepted ADR remains valid', acceptedValidation.detail?.ok === true);
 
     // Idempotent: re-accepting is a no-op, not a second write.
     const again = dispatch({

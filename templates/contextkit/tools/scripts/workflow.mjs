@@ -84,7 +84,6 @@ function run() {
       owner: ownerArg(),
       title: arg('title') || slug,
       objective: arg('objective') || `${kind}: ${slug}`,
-      continuation: process.argv.includes('--continuation'),
       now: new Date().toISOString(),
     });
     console.log(`Workflow "${created.id}" created atomically at ${created.dir}`);

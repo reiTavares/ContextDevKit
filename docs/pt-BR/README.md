@@ -248,13 +248,21 @@ A configuração padrão usa `humanAuthority: owner-wins` dentro da governança,
 
 O harness pode mostrar evidência, aplicar quality floors configurados, preservar decisões, recomendar especialistas, recusar PASS fabricado e registrar override explícito.
 
-Ele não deve transformar score de modelo, agent routing, swarm, graph, councils ou metodologia opcional em permissão para trabalhar.
+Ele não deve transformar score de modelo, agent routing, swarm, graph, councils
+ou metodologia opcional em permissão para trabalhar. Uma instrução atual do
+owner ou um workflow/skill/classificação governada pode exigir debate, review ou
+coordenação paralela; essa exigência não depende de campos legados do routing.
 
 ## Especialistas são ferramentas
 
 ContextDevKit possui agentes especializados em arquitetura, implementação, code review, domain modeling, QA, security, accessibility, DevOps, product, design, growth e outros domínios.
 
-Routing é advisory.
+Routing é advisory: recomenda o executor, mas nunca autoriza a chamada.
+
+A coordenação é condicional. Pedido explícito do owner ou um
+workflow/skill/classificação governada pode tornar debate ou swarm obrigatório;
+fora desses gatilhos, eles permanecem opcionais. Recomendação ausente ou
+incompleta nunca cancela uma exigência ativada em outro contrato atual.
 
 `code-reviewer`, por exemplo, é fortemente recomendado para diffs materiais e aparece explicitamente no pipeline `/ship`. Se o host não conseguir delegar, o agente ativo continua e executa a responsabilidade. A presença do subagente não é a evidência de qualidade.
 

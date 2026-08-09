@@ -80,7 +80,7 @@ try {
   const reqFiles = run([cli, 'required-files', '--profile', 'basic'], { cwd: fix.proj });
   let reqArray = null;
   try { reqArray = JSON.parse(reqFiles.stdout); } catch { /* reported below */ }
-  reqFiles.status === 0 && Array.isArray(reqArray) && reqArray.includes('workflow') && reqArray.includes('workflow-state') && reqArray.includes('tasks-json')
+  reqFiles.status === 0 && Array.isArray(reqArray) && reqArray.includes('workflow') && reqArray.includes('workflow-state') && reqArray.includes('tasks-json') && reqArray.includes('continuation')
     ? ok('installed CLI: required-files --profile basic returns a sane file list')
     : bad(`installed required-files failed (status ${reqFiles.status}): ${reqFiles.stdout}${reqFiles.stderr}`);
 
@@ -103,6 +103,16 @@ try {
   existsSync(join(fix.proj, 'contextkit', 'memory', 'workflows', 'done'))
     ? ok('installed CLI: workflow creation guarantees the neutral done directory')
     : bad('installed CLI: workflow creation did not create the neutral done directory');
+  const installedContinuation = join(packPath, 'CONTINUATION-PROMPT.md');
+  const installedManifestPath = join(packPath, 'context-manifest.json');
+  let installedManifest = null;
+  try { installedManifest = JSON.parse(readFileSync(installedManifestPath, 'utf-8').replace(/^ï»¿/, '')); } catch { /* reported below */ }
+  existsSync(installedContinuation)
+    && readFileSync(installedContinuation, 'utf8').includes('node cdx.mjs workflow validate WF-0001')
+    && installedManifest?.schemaVersion === 2
+    && installedManifest.required?.includes('CONTINUATION-PROMPT.md')
+    ? ok('installed CLI: new workflow includes the mandatory deterministic continuation contract')
+    : bad('installed CLI: mandatory continuation or manifest-v2 requirement is missing');
 
   // Validate the freshly-created package THROUGH the installed engine's own
   // validator — proves the shipped validate.mjs loads and runs in-project.

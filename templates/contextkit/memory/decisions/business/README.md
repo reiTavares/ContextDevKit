@@ -4,6 +4,8 @@ Authoritative Decision Records (schema v2) owned by a **Business** work context
 (`BIZ-####`). One Markdown file per decision: typed YAML front matter + body.
 
 - Filename: `ADR-####-<slug>.md`.
+- Authoring: use `decision.mjs create --context-type business`; never copy a
+  template or write front matter by hand.
 - Front matter: validated by `contextkit/runtime/work/schema-decision.mjs`
   (`schemaVersion: 2`, `contextType: business`, `primaryContext: { type:
   business, id: BIZ-#### }`, …).

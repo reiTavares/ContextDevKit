@@ -13,7 +13,7 @@ Squad pipelines descrevem procedimentos reutilizáveis de coordenação entre es
 
 ## O que ele não significa
 
-A existência de um squad não torna seus agentes obrigatórios para todo trabalho. Na 4.x, routing é advisory e o agente ativo pode assumir a responsabilidade quando delegação não existe ou não agrega valor.
+A existência de um squad não torna seus agentes obrigatórios para todo trabalho. Na 4.x, routing recomenda o executor, mas não autoriza o dispatch. Debate ou swarm tornam-se obrigatórios quando a instrução atual do owner, o workflow/skill selecionado ou a classificação governada os ativa; fora desses gatilhos, permanecem opcionais.
 
 Use pipeline de squad para processos especializados, como Agent Forge, e não para transformar cada mudança simples em orquestração multiagente.
 

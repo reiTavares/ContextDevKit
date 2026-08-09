@@ -31,11 +31,15 @@ assert.equal(recommendation.guard.hostTechnicalLimit, 4);
 assert.equal(recommendation.guard.enforced, false);
 assert.equal(recommendation.guard.blocking, false);
 assert.equal(recommendation.guard.authority, 'recommendation-only');
+assert.equal(recommendation.coordination.debate, 'required');
+assert.equal(recommendation.coordination.trigger, 'needsDebate');
+assert.equal(recommendation.coordination.routingAuthority, 'recommendation-only');
 assert.ok(recommendation.reasonCodes.some((code) => code.startsWith('orchestration-size-recommendation:')));
-assert.ok(recommendation.reasonCodes.includes('council-is-optional-owner-guidance'));
+assert.ok(recommendation.reasonCodes.includes('council-required-by-governed-classification'));
 assert.ok(recommendation.reasonCodes.some((code) => code.startsWith('host-technical-limit-observed:')));
 assert.equal(Object.values(recommendation.guard.trimmed).every((count) => count === 0), true);
 assert.equal(Object.isFrozen(recommendation), true);
+assert.equal(Object.isFrozen(recommendation.coordination), true);
 assert.equal(Object.isFrozen(recommendation.guard), true);
 assert.equal(
   JSON.stringify(recommendation),
@@ -48,4 +52,4 @@ assert.equal(
   'recommendation must be deterministic',
 );
 
-console.log('agent-orchestration-guard: PASS (advisory only, unchanged selection, host limit observable)');
+console.log('agent-orchestration-guard: PASS (advisory routing, conditional debate, unchanged selection)');

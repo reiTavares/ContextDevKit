@@ -219,7 +219,9 @@ The Workflow loader reads required authored and canonical content plus reports b
 
 ## Specialists and adaptive depth
 
-Model routing, agent selection, swarms, economy hints, and owner preferences are recommendations.
+Model routing, agent selection, economy hints, and owner preferences are recommendations. Routing chooses an executor but is not dispatch authorization.
+
+Debate and swarm are conditionally required when the current owner instruction, selected workflow/skill, or governed classification activates them. Outside those triggers they are optional. Legacy routing receipt fields cannot create, satisfy, or veto that requirement.
 
 A material diff can justify `code-reviewer`; domain-heavy work can justify `domain-modeler`; security-sensitive work can justify security specialists; full QA can fan out to unit, integration, fuzz, E2E, or performance roles.
 

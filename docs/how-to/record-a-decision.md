@@ -8,7 +8,7 @@ help, but it is advisory and never authorizes the write.
 ## 1. Check for an existing decision
 
 ```shell
-node contextkit/tools/scripts/adr-digest.mjs --search "decision topic"
+node contextkit/tools/scripts/decision.mjs search --objective "decision topic" --json
 ```
 
 If an accepted record already governs the choice, supersede it rather than
@@ -27,13 +27,20 @@ node contextkit/tools/scripts/decision.mjs create \
   --id ADR-0001 \
   --kind ARCHITECTURE \
   --title "Decision title" \
+  --context-type operation \
   --primary-context OP-0001 \
   --apply
 ```
 
-Fill Context, Decision, Alternatives, Consequences, rollback, and validation.
-Keep unknown external facts explicit. Mark the record accepted only with the
-owner's actual decision.
+Resolve the fleet-safe id with `intake-collision-gate.mjs --json`. Never copy
+`memory/decisions/_TEMPLATE.md`; the generator owns schema-v2 front matter and
+the document-v1 section contract. Fill the generated guidance, validate the
+exact file, and mark it accepted only with the owner's actual decision:
+
+```shell
+node contextkit/tools/scripts/decision.mjs validate --file <ADR path> --json
+node contextkit/tools/scripts/decision.mjs accept --id ADR-0001 --actor human --apply --json
+```
 
 ## 4. Link execution explicitly
 

@@ -3,7 +3,9 @@
 <!-- GENRE: How-to (task-oriented) -->
 
 Use parallel agents when ready tasks are independent and the host can execute
-them concurrently. A swarm is optional execution, not a permission mechanism.
+them concurrently. A swarm is required when the owner explicitly requests it or
+the selected workflow/skill requires concurrent independent workstreams; it is
+optional otherwise. It is never a permission mechanism.
 
 ## 1. Choose one canonical scope
 
@@ -34,7 +36,8 @@ to resolve, not a reason to invent permission or refuse unrelated work.
 ```
 
 The coordinator may create isolated branches/worktrees up to the host's reported
-concurrency limit. Model and specialist recommendations are non-binding. Each
+concurrency limit. Model and specialist recommendations are non-binding and
+missing legacy routing receipt fields do not cancel an activated swarm. Each
 worker returns its owned diff, tests, deviations, and remaining risks.
 
 An explicit run request covers the reversible local plan. Pushes, default-branch

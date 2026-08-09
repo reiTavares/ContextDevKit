@@ -4,7 +4,9 @@ ContextDevKit disponibiliza especialistas para ampliar a capacidade do agente at
 
 ## Regra de roteamento
 
-O routing de agentes é advisory. O agente ativo escolhe especialistas com base em escopo, risco, complexidade, domínio, blast radius e evidência disponível.
+O routing de agentes é advisory: recomenda o executor, mas nunca autoriza ou veta a chamada. Antes de uma delegação real, o agente consulta a recomendação v4 quando ela está disponível; campos legados como `decision`, `model`, `effort` e `ruleId` não são pré-condições.
+
+Debate e swarm são condicionais. Tornam-se obrigatórios por pedido atual do owner ou por um workflow/skill/classificação governada; fora desses gatilhos, permanecem opcionais.
 
 Para um diff material, `code-reviewer` é fortemente recomendado e aparece como etapa explícita do pipeline completo `/ship`. Se o host não puder criar o subagente, a responsabilidade de revisão permanece com o agente ativo.
 

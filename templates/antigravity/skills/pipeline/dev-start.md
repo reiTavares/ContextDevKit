@@ -40,10 +40,14 @@ Use **<user-specified argument>** as the single objective for this session.
    `workflow-state.json`, PRD, SPEC, decisions, `pipeline/tasks.json`, and the
    relevant reports. Never substitute the retired 3.x plan artifact, Markdown
    frontmatter, a physical lane, or `done/` discovery.
-8. Keep routing and specialist selection advisory. Continue with the active
-   agent when a model recommendation, receipt, specialist, or swarm is absent.
-   LGPD observations are shadow-only. Use a swarm only when parallel work is
-   genuinely useful; only a real host technical limit constrains it.
+8. Resolve routing guidance before a real subagent call when the host exposes
+   the v4 resolver, but treat its result as a recommendation rather than spawn
+   authorization. A current owner request, the selected skill/workflow, or a
+   governed `needsDebate` classification makes the applicable debate or swarm
+   mandatory; otherwise coordination remains optional. Missing legacy
+   `decision`, `model`, `effort`, or `ruleId` fields never cancel required
+   coordination. LGPD observations are shadow-only, and only a real host
+   technical limit constrains parallelism.
 9. Implement the minimum complete change, run focused tests first, then the
    appropriate broader suite and QA sign-off. Only the deterministic guarded
    domains may deny: QA at `done`, an applicable Class A DDD invariant, or new

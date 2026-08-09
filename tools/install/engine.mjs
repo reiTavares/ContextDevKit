@@ -49,7 +49,7 @@ const POLICY_TABLES = [
 // Memory/substrate files seeded write-if-missing so the user's edits survive a re-install.
 const MEMORY_SEEDS = [
   'memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md',
-  'memory/DELIBERATIONS.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md',
+  'memory/DELIBERATIONS.md', 'memory/decisions/README.md', 'memory/decisions/_TEMPLATE.md',
   // BIZ-0001 / WF-0037 — new decision subtree (business/operation/legacy guides + ADR templates),
   // seeded write-if-missing so a fresh install gains them and user edits survive --update.
   'memory/decisions/business/README.md', 'memory/decisions/operations/README.md', 'memory/decisions/legacy/README.md',

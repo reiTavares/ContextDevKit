@@ -11,7 +11,11 @@
  * Exit 0 = all assertions held; exit 1 = a failure.
  */
 import { resolve } from 'node:path';
-import { renderDecisionFromTemplate, DECISION_TEMPLATES } from './decision-template.mjs';
+import {
+  renderDecisionFromTemplate,
+  DECISION_TEMPLATES,
+  validateDecisionDocument,
+} from './decision-template.mjs';
 import { readFrontMatter } from '../../runtime/work/front-matter.mjs';
 import { validateDecision } from '../../runtime/work/schema-decision.mjs';
 
@@ -29,10 +33,15 @@ function assert(label, cond) {
 
 /** Field map per template kind — sample values that yield a valid v2 record. */
 function fieldsFor(kind) {
+  const contextType = kind === 'business'
+    ? 'business'
+    : kind === 'operation' ? 'operation' : 'platform';
   const base = {
     ID: 'ADR-0900',
     TITLE: 'Template render self-test',
     STATUS: 'accepted',
+    CONTEXT_TYPE: contextType,
+    PRIMARY_CONTEXT_TYPE: contextType,
     PRIMARY_CONTEXT_ID: kind === 'business' ? 'BIZ-0001' : kind === 'operation' ? 'OP-0001' : 'contextdevkit',
     DECISION_KIND: kind === 'business' ? 'BUSINESS_AUTHORIZATION' : kind === 'operation' ? 'OPERATION_AUTHORIZATION' : 'POLICY',
     DECISION_SCOPE: 'operation',
@@ -59,6 +68,8 @@ for (const kind of Object.keys(DECISION_TEMPLATES)) {
   assert(`${kind}: front matter parses`, parsed.ok && parsed.hasFrontMatter);
   const verdict = validateDecision(parsed.data);
   assert(`${kind}: rendered ADR is schema-v2-valid`, verdict.ok === true);
+  assert(`${kind}: declares documentVersion 1`, parsed.data?.documentVersion === 1);
+  assert(`${kind}: follows the canonical ADR body standard`, validateDecisionDocument(first.text).ok === true);
   if (!verdict.ok) process.stdout.write(`       errors: ${verdict.errors.join('; ')}\n`);
   const second = renderDecisionFromTemplate({ kind, fields: fieldsFor(kind), root: SOURCE_ROOT });
   assert(`${kind}: deterministic (byte-identical re-render)`, first.text === second.text);
@@ -70,6 +81,15 @@ assert('dry-run by default (applied:false)', dry.applied === false);
 // missing token → refuse (ok:false), no write.
 const partial = renderDecisionFromTemplate({ kind: 'business', fields: { ID: 'ADR-0901' }, root: SOURCE_ROOT });
 assert('missing tokens refuse (ok:false)', partial.ok === false && partial.missing.length > 0);
+
+const canonical = renderDecisionFromTemplate({ kind: 'business', fields: fieldsFor('business'), root: SOURCE_ROOT }).text;
+const reordered = canonical
+  .replace('## Decision\n', '## __DECISION__\n')
+  .replace('## Decision authority\n', '## Decision\n')
+  .replace('## __DECISION__\n', '## Decision authority\n');
+assert('out-of-order required sections refuse', validateDecisionDocument(reordered).ok === false);
+const duplicated = `${canonical}\n## Verification\n\nDuplicate.\n`;
+assert('duplicate required sections refuse', validateDecisionDocument(duplicated).ok === false);
 
 process.stdout.write(failures.length ? `\nFAILED (${failures.length})\n` : '\nPASSED\n');
 process.exit(failures.length ? 1 : 0);

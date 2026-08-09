@@ -299,13 +299,15 @@ The stock runtime uses `humanAuthority: owner-wins` for governance decisions whi
 
 The harness can surface evidence, enforce configured quality floors, preserve decisions, recommend specialists, refuse to fabricate a pass, and record explicit overrides.
 
-It should not infer permission from a model score, require a specific subagent before useful work can happen, turn a swarm recommendation into authorization, or make optional methodology a hidden prerequisite.
+It should not infer permission from a model score, turn a routing recommendation into dispatch authorization, or make optional methodology a hidden prerequisite. A current owner instruction or governed workflow/classification may still require debate, review, or parallel coordination; that requirement must not depend on legacy routing receipt fields.
 
 ## Specialists are tools, not bureaucracy
 
 ContextDevKit ships specialized agents for architecture, implementation, code review, domain modelling, QA, security, accessibility, DevOps, product, design, growth, and other domains.
 
-Routing is advisory.
+Routing is advisory: it recommends the executor but never authorizes the call.
+
+Coordination is conditional. An explicit owner request or a governed workflow/classification can require a debate or swarm; otherwise they remain optional. A missing or incomplete routing recommendation never cancels a requirement that was activated elsewhere.
 
 For example, `code-reviewer` is a strong recommendation for a material diff and is an explicit stage of the full `/ship` pipeline. If a specialist is unavailable, the active agent continues and performs the responsibility itself. Agent presence is not proof of quality.
 

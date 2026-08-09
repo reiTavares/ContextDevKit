@@ -69,7 +69,9 @@ export function installFixture(rep) {
   git(['init', '-b', 'main'], proj);
   git(['config', 'user.email', 'it@example.com'], proj);
   git(['config', 'user.name', 'IT'], proj);
-  const inst = run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'IT App', '--yes']);
+  const inst = run([join(KIT, 'install.mjs'), '--target', proj, '--level', '5', '--name', 'IT App', '--yes'], {
+    env: { ...process.env, CODEX_HOME: join(proj, '.codex-home') },
+  });
   inst.status === 0 ? rep.ok('install at Level 5') : rep.bad(`install failed (status ${inst.status}): ${inst.stderr}`);
   return {
     proj,
