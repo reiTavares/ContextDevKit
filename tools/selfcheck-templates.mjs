@@ -225,16 +225,16 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
     : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
 
-  // WF-0092 / ADR-0151: the Antigravity roster is a checked projection of the
-  // canonical agent registry, not a hand-maintained partial list.
+  // WF-0111 W12: host projection inventory is declared in one manifest. Boot
+  // templates stay lean and do not duplicate the full agent registry.
   try {
     const registry = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/agent-capability-registry.json'), 'utf-8'));
     const registeredAgents = registry.agents.map((entry) => entry.agent);
-    const mentionedAgents = new Set([...instructions.matchAll(/`([a-z][a-z0-9-]+)`/g)].map((match) => match[1]));
-    const missingRoster = registeredAgents.filter((agent) => !mentionedAgents.has(agent));
-    missingRoster.length === 0
-      ? ok(`Antigravity boot roster covers all registered agents (${registeredAgents.length})`)
-      : bad(`Antigravity boot roster missing registered agents: ${missingRoster.join(', ')}`);
+    const projectionManifest = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/host-projections.json'), 'utf-8'));
+    Object.keys(projectionManifest.hosts ?? {}).sort().join(',') === 'antigravity,claude,codex' &&
+      projectionManifest.hosts.antigravity.projections.some((projection) => projection.id === 'antigravity-agents')
+      ? ok('host projection manifest declares Antigravity agent generation')
+      : bad('host projection manifest does not declare Antigravity agent generation');
 
     const claudeAgents = (await readdir(resolve(KIT, 'templates/claude/agents')))
       .filter((file) => file.endsWith('.md') && file !== '_TEMPLATE.md')
@@ -247,15 +247,21 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     bad(`agent roster parity check failed: ${err?.message ?? err}`);
   }
 
-  // WF-0092: all hosts expose the same five stage labels; only runner syntax
-  // differs between the projections.
-  const journeyLabels = ['**Graph**', '**Economy**', '**DDD/governance**', '**Implementation**', '**QA**'];
+  // WF-0111 W12: all hosts expose the same five v4 contract labels; runner
+  // syntax lives outside the byte-identical block.
+  const contractLabels = [
+    '`mutation-only-intake`',
+    '`single-governance-dispatch`',
+    '`workflow-context-before-write`',
+    '`canonical-json-state`',
+    '`advisory-agent-routing`',
+  ];
   const bootTemplates = ['templates/AGENTS.md.tpl', 'templates/CLAUDE.md.tpl', 'templates/INSTRUCTIONS.md.tpl'];
   for (const template of bootTemplates) {
     const text = await readFile(resolve(KIT, template), 'utf-8').catch(() => '');
-    journeyLabels.every((label) => text.includes(label))
-      ? ok(`${template} exposes the five-stage Canonical Work Journey`)
-      : bad(`${template} is missing a Canonical Work Journey stage label`);
+    contractLabels.every((label) => text.includes(label))
+      ? ok(`${template} exposes the five-part canonical host contract`)
+      : bad(`${template} is missing a canonical host contract label`);
   }
 
   // WF-0083: validate every source skeleton against the single manifest and

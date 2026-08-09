@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "canonicalHost": "claude",
+  "requiredContracts": [
+    "mutation-only-intake",
+    "single-governance-dispatch",
+    "workflow-context-before-write",
+    "canonical-json-state",
+    "advisory-agent-routing"
+  ],
+  "hosts": {
+    "claude": {
+      "contractSource": "templates/CLAUDE.md.tpl",
+      "projections": [
+        {
+          "id": "claude-boot",
+          "generator": "installer",
+          "source": {
+            "templates": "templates/CLAUDE.md.tpl",
+            "installed": "CLAUDE.md"
+          },
+          "target": {
+            "templates": "templates/CLAUDE.md.tpl",
+            "installed": "CLAUDE.md"
+          },
+          "transform": "render-template",
+          "managed": "single-file",
+          "retain": []
+        },
+        {
+          "id": "claude-commands",
+          "generator": "installer",
+          "source": {
+            "templates": "templates/claude/commands",
+            "installed": ".claude/commands"
+          },
+          "target": {
+            "templates": "templates/claude/commands",
+            "installed": ".claude/commands"
+          },
+          "transform": "copy-tree",
+          "managed": "markdown-files",
+          "retain": ["README.md"]
+        },
+        {
+          "id": "claude-agents",
+          "generator": "installer",
+          "source": {
+            "templates": "templates/claude/agents",
+            "installed": ".claude/agents"
+          },
+          "target": {
+            "templates": "templates/claude/agents",
+            "installed": ".claude/agents"
+          },
+          "transform": "copy-tree",
+          "managed": "markdown-files",
+          "retain": []
+        }
+      ]
+    },
+    "codex": {
+      "contractSource": "templates/AGENTS.md.tpl",
+      "projections": [
+        {
+          "id": "codex-boot",
+          "generator": "installer",
+          "source": {
+            "templates": "templates/AGENTS.md.tpl",
+            "installed": "AGENTS.md"
+          },
+          "target": {
+            "templates": "templates/AGENTS.md.tpl",
+            "installed": "AGENTS.md"
+          },
+          "transform": "render-template",
+          "managed": "single-file",
+          "retain": []
+        },
+        {
+          "id": "codex-skills",
+          "generator": "codex-converter",
+          "source": {
+            "templates": "templates/claude/commands",
+            "installed": ".claude/commands"
+          },
+          "target": {
+            "templates": "templates/codex/skills",
+            "installed": ".agents/skills"
+          },
+          "transform": "codex-command-skill",
+          "managed": "source-command-directories",
+          "retain": []
+        },
+        {
+          "id": "codex-agents",
+          "generator": "codex-converter",
+          "source": {
+            "templates": "templates/claude/agents",
+            "installed": ".claude/agents"
+          },
+          "target": {
+            "templates": "templates/codex/agents",
+            "installed": ".codex/agents"
+          },
+          "transform": "codex-agent-toml",
+          "managed": "toml-files",
+          "retain": []
+        }
+      ]
+    },
+    "antigravity": {
+      "contractSource": "templates/INSTRUCTIONS.md.tpl",
+      "projections": [
+        {
+          "id": "antigravity-boot",
+          "generator": "installer",
+          "source": {
+            "templates": "templates/INSTRUCTIONS.md.tpl",
+            "installed": "INSTRUCTIONS.md"
+          },
+          "target": {
+            "templates": "templates/INSTRUCTIONS.md.tpl",
+            "installed": "INSTRUCTIONS.md"
+          },
+          "transform": "render-template",
+          "managed": "single-file",
+          "retain": []
+        },
+        {
+          "id": "antigravity-skills",
+          "generator": "antigravity-converter",
+          "source": {
+            "templates": "templates/claude/commands",
+            "installed": ".claude/commands"
+          },
+          "target": {
+            "templates": "templates/antigravity/skills",
+            "installed": ".agents/skills"
+          },
+          "transform": "antigravity-command-skill",
+          "managed": "antigravity-skill-markdown",
+          "retain": ["README.md"]
+        },
+        {
+          "id": "antigravity-agents",
+          "generator": "antigravity-converter",
+          "source": {
+            "templates": "templates/claude/agents",
+            "installed": ".claude/agents"
+          },
+          "target": {
+            "templates": "templates/antigravity/agents",
+            "installed": ".agents/agents"
+          },
+          "transform": "antigravity-agent-persona",
+          "managed": "markdown-files",
+          "retain": []
+        },
+        {
+          "id": "antigravity-playbooks",
+          "generator": "antigravity-converter",
+          "source": {
+            "templates": "templates/contextkit/workflows/playbooks",
+            "installed": "contextkit/workflows/playbooks"
+          },
+          "target": {
+            "templates": "templates/antigravity/playbooks",
+            "installed": ".agents/playbooks"
+          },
+          "transform": "antigravity-playbook",
+          "managed": "markdown-files",
+          "retain": []
+        },
+        {
+          "id": "antigravity-workflows",
+          "generator": "antigravity-converter",
+          "source": {
+            "templates": "templates/contextkit/workflows",
+            "installed": "contextkit/workflows"
+          },
+          "target": {
+            "templates": "templates/antigravity/workflows",
+            "installed": ".agents/workflows"
+          },
+          "transform": "antigravity-workflow",
+          "managed": "top-level-markdown",
+          "retain": []
+        }
+      ]
+    }
+  }
+}

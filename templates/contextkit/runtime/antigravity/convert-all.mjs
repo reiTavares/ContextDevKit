@@ -1,187 +1,231 @@
 #!/usr/bin/env node
 /**
- * Batch converter: Claude Code commands/agents → Antigravity skills/personas.
+ * Manifest-driven Claude -> Antigravity projection generator.
  *
- * Reads every .md file from the source command/agent directories, strips the
- * frontmatter, adapts Claude-specific references, and writes the Antigravity
- * equivalent preserving directory structure.
- *
- * Two modes (ticket 085):
- *   - default — INSTALLED project: .claude/ + contextkit/workflows → .agents/ [ADR-0048].
- *     For users converting their own custom commands.
- *   - --templates — KIT build step: templates/claude/ + templates/contextkit/workflows
- *     → templates/antigravity/. Run via `npm run build:antigravity` whenever a
- *     command/agent/playbook changes; NEVER part of the user install/--update path
- *     (the installer just copies templates/antigravity). Destinations are cleaned
- *     first (a top-level README.md is preserved) so renamed sources leave no orphans.
- *
- * Usage: node contextkit/runtime/antigravity/convert-all.mjs [--templates] [--dry-run]
+ * Sources are validated before mutation. Normal generation repairs declared
+ * outputs and removes managed orphans; `--check` is read-only and exits nonzero
+ * for missing-source, content drift, or orphan drift. Git is never consulted.
  */
-import { readdir, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
-import { resolve, join, relative, dirname, basename } from 'node:path';
-import { existsSync } from 'node:fs';
-import { PLATFORM_DIR, ANTIGRAVITY_DIR } from '../config/paths.mjs';
+import { readFile, writeFile, mkdir, readdir, rm, rmdir } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { PLATFORM_DIR } from '../config/paths.mjs';
+import {
+  selectHostProjectionRules,
+  validateHostProjectionManifest,
+} from '../../methodology/projections.mjs';
 import { adaptContent, convertCommandToSkill, convertAgentToPersona } from './convert-core.mjs';
 
-const ROOT = process.cwd();
-const DRY_RUN = process.argv.includes('--dry-run');
-const TEMPLATES_MODE = process.argv.includes('--templates');
+const GENERATOR = 'antigravity-converter';
 
-const SRC_BASE = TEMPLATES_MODE ? 'templates/claude' : '.claude';
-const WF_BASE = TEMPLATES_MODE ? `templates/${PLATFORM_DIR}` : PLATFORM_DIR;
-const DST_BASE = TEMPLATES_MODE ? 'templates/antigravity' : ANTIGRAVITY_DIR;
+/** Resolves a manifest-declared relative path and proves containment. */
+function resolveDeclaredPath(root, declaredPath, label) {
+  const absolute = resolve(root, declaredPath);
+  const fromRoot = relative(root, absolute);
+  if (fromRoot.startsWith('..') || isAbsolute(fromRoot)) {
+    throw new TypeError(`${label} escapes the project root: ${declaredPath}`);
+  }
+  return absolute;
+}
 
-const COMMANDS_SRC = resolve(ROOT, SRC_BASE, 'commands');
-const AGENTS_SRC = resolve(ROOT, SRC_BASE, 'agents');
-const SKILLS_DST = resolve(ROOT, DST_BASE, 'skills');
-const AGENTS_DST = resolve(ROOT, DST_BASE, 'agents');
-const PLAYBOOKS_SRC = resolve(ROOT, WF_BASE, 'workflows/playbooks');
-const PLAYBOOKS_DST = resolve(ROOT, DST_BASE, 'playbooks');
-const WORKFLOWS_SRC = resolve(ROOT, WF_BASE, 'workflows');
-const WORKFLOWS_DST = resolve(ROOT, DST_BASE, 'workflows');
-
-/**
- * Recursively lists all .md files in a directory.
- */
-async function listMdFiles(dir, base = dir) {
-  const results = [];
+/** Recursively lists regular files in stable path order. */
+async function listFiles(directory, { required = false } = {}) {
   let entries;
-  try { entries = await readdir(dir, { withFileTypes: true }); } catch { return results; }
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...await listMdFiles(full, base));
-    } else if (entry.name.endsWith('.md')) {
-      results.push({ absolute: full, relative: relative(base, full) });
-    }
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (!required && error?.code === 'ENOENT') return [];
+    throw new Error(`projection source is unavailable: ${directory}`, { cause: error });
   }
-  return results;
+  const files = [];
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await listFiles(entryPath, { required: true }));
+    else if (entry.isFile()) files.push(entryPath);
+  }
+  return files;
 }
 
-async function writeOutput(path, content) {
-  if (DRY_RUN) {
-    console.log(`  [dry-run] would write: ${relative(ROOT, path)}`);
-    return;
+/** Loads the canonical manifest for kit-build or installed-project mode. */
+async function loadManifest(root, mode) {
+  const manifestPath = mode === 'templates'
+    ? resolve(root, 'templates', PLATFORM_DIR, 'policy', 'host-projections.json')
+    : resolve(root, PLATFORM_DIR, 'policy', 'host-projections.json');
+  let raw;
+  try {
+    raw = await readFile(manifestPath, 'utf8');
+  } catch (error) {
+    throw new Error(`host projection manifest is unavailable: ${manifestPath}`, { cause: error });
   }
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content, 'utf-8');
+  return validateHostProjectionManifest(JSON.parse(raw.replace(/^\uFEFF/, '')));
+}
+
+/** Adds one expected file and refuses two sources targeting the same path. */
+function declareExpected(expected, targetPath, content, sourcePath) {
+  const prior = expected.get(targetPath);
+  if (prior) {
+    throw new Error(`ambiguous projection target ${targetPath}: ${prior.sourcePath} and ${sourcePath}`);
+  }
+  expected.set(targetPath, { content, sourcePath });
+}
+
+/** Builds skill projections plus deterministic non-recursive aliases. */
+async function buildSkillOutputs(expected, sourceRoot, targetRoot, sourceFiles) {
+  const markdownFiles = sourceFiles.filter((path) => path.endsWith('.md'));
+  const nestedByBasename = new Map();
+  for (const sourcePath of markdownFiles) {
+    const sourceRelative = relative(sourceRoot, sourcePath);
+    if (sourceRelative === 'README.md') continue;
+    const content = convertCommandToSkill(await readFile(sourcePath, 'utf8'), sourceRelative);
+    declareExpected(expected, join(targetRoot, sourceRelative), content, sourcePath);
+    if (!sourceRelative.includes('/') && !sourceRelative.includes('\\')) continue;
+    const name = basename(sourceRelative);
+    const aliases = nestedByBasename.get(name) ?? [];
+    aliases.push({ sourcePath, sourceRelative, content });
+    nestedByBasename.set(name, aliases);
+  }
+  for (const [name, aliases] of [...nestedByBasename].sort(([left], [right]) => left.localeCompare(right))) {
+    const flatTarget = join(targetRoot, name);
+    if (expected.has(flatTarget)) continue;
+    if (aliases.length > 1) continue;
+    const alias = aliases[0];
+    declareExpected(expected, flatTarget, alias.content, alias.sourcePath);
+  }
+}
+
+/** Builds every declared Antigravity output in memory before any mutation. */
+async function buildExpected(root, rules) {
+  const expected = new Map();
+  for (const rule of rules) {
+    const sourceRoot = resolveDeclaredPath(root, rule.sourcePath, `${rule.id}.source`);
+    const targetRoot = resolveDeclaredPath(root, rule.targetPath, `${rule.id}.target`);
+    const sourceFiles = await listFiles(sourceRoot, { required: true });
+    if (rule.transform === 'antigravity-command-skill') {
+      await buildSkillOutputs(expected, sourceRoot, targetRoot, sourceFiles);
+      continue;
+    }
+    for (const sourcePath of sourceFiles.filter((path) => path.endsWith('.md'))) {
+      const sourceRelative = relative(sourceRoot, sourcePath);
+      if (rule.transform === 'antigravity-agent-persona') {
+        declareExpected(expected, join(targetRoot, sourceRelative), convertAgentToPersona(await readFile(sourcePath, 'utf8'), sourceRelative), sourcePath);
+      } else if (rule.transform === 'antigravity-playbook') {
+        const header = `# Playbook: ${basename(sourceRelative, '.md')}\n\n> Reusable procedure. Follow the steps below when invoked.\n\n`;
+        declareExpected(expected, join(targetRoot, sourceRelative), header + adaptContent(await readFile(sourcePath, 'utf8')), sourcePath);
+      } else if (rule.transform === 'antigravity-workflow') {
+        if (sourceRelative.includes('/') || sourceRelative.includes('\\')) continue;
+        declareExpected(expected, join(targetRoot, sourceRelative), adaptContent(await readFile(sourcePath, 'utf8')), sourcePath);
+      } else {
+        throw new TypeError(`unsupported Antigravity projection transform: ${rule.transform}`);
+      }
+    }
+  }
+  return expected;
+}
+
+/** True when a file is owned by a declared Antigravity projection rule. */
+function isManagedFile(rule, relativePath) {
+  const normalized = relativePath.replaceAll('\\', '/');
+  if (rule.retain.includes(normalized)) return false;
+  if (rule.managed === 'antigravity-skill-markdown') {
+    return normalized.endsWith('.md') && !normalized.split('/')[0]?.startsWith('source-command-');
+  }
+  if (rule.managed === 'markdown-files') return normalized.endsWith('.md');
+  if (rule.managed === 'top-level-markdown') return !normalized.includes('/') && normalized.endsWith('.md');
+  throw new TypeError(`unsupported Antigravity managed selector: ${rule.managed}`);
+}
+
+/** Finds declared-output drift and stale generated files. */
+async function inspectProjectionState(root, rules, expected) {
+  const drift = [];
+  for (const [targetPath, projection] of expected) {
+    const actual = await readFile(targetPath, 'utf8').catch(() => null);
+    if (actual === null) drift.push({ path: relative(root, targetPath), reason: 'missing', ...projection });
+    else if (actual !== projection.content) drift.push({ path: relative(root, targetPath), reason: 'content', ...projection });
+  }
+  const orphans = [];
+  for (const rule of rules) {
+    const targetRoot = resolveDeclaredPath(root, rule.targetPath, `${rule.id}.target`);
+    for (const candidate of await listFiles(targetRoot)) {
+      const candidateRelative = relative(targetRoot, candidate);
+      if (isManagedFile(rule, candidateRelative) && !expected.has(candidate)) orphans.push(candidate);
+    }
+  }
+  return { drift, orphans: [...new Set(orphans)].sort() };
+}
+
+/** Removes now-empty generated directories without crossing the declared target root. */
+async function removeEmptyParents(filePath, targetRoot) {
+  let current = dirname(filePath);
+  while (current !== targetRoot) {
+    const fromTarget = relative(targetRoot, current);
+    if (fromTarget.startsWith('..') || isAbsolute(fromTarget)) return;
+    try {
+      await rmdir(current);
+    } catch {
+      return;
+    }
+    current = dirname(current);
+  }
 }
 
 /**
- * Empties a generated destination tree, preserving a top-level README.md
- * (hand-written index, e.g. skills/README.md). Templates mode only — the
- * trees are fully generated there, so a clean build is what prevents
- * renamed/removed sources from leaving stale orphans behind (ticket 085).
+ * Executes or checks the complete Antigravity projection set.
+ *
+ * @param {{root?:string, mode?:'templates'|'installed', check?:boolean, dryRun?:boolean}} [options]
+ * @returns {Promise<{ok:boolean, generated:number, drift:Array<object>, orphans:string[], mode:string}>}
  */
-async function cleanDst(dir) {
-  if (DRY_RUN || !existsSync(dir)) return;
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    if (!entry.isDirectory() && entry.name === 'README.md') continue;
-    await rm(join(dir, entry.name), { recursive: true, force: true });
+export async function runAntigravityProjectionGeneration(options = {}) {
+  const root = resolve(options.root ?? process.cwd());
+  const mode = options.mode ?? 'installed';
+  const manifest = await loadManifest(root, mode);
+  const rules = selectHostProjectionRules(manifest, 'antigravity', mode, GENERATOR);
+  const expected = await buildExpected(root, rules);
+  const inspection = await inspectProjectionState(root, rules, expected);
+  const report = {
+    ok: inspection.drift.length === 0 && inspection.orphans.length === 0,
+    generated: expected.size,
+    drift: inspection.drift,
+    orphans: inspection.orphans.map((path) => relative(root, path)),
+    mode,
+  };
+  if (options.check || options.dryRun) return report;
+
+  for (const [targetPath, projection] of expected) {
+    const actual = await readFile(targetPath, 'utf8').catch(() => null);
+    if (actual === projection.content) continue;
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, projection.content, 'utf8');
   }
+  for (const orphanPath of inspection.orphans) {
+    const matchingRule = rules.find((rule) => {
+      const targetRoot = resolveDeclaredPath(root, rule.targetPath, `${rule.id}.target`);
+      const fromTarget = relative(targetRoot, orphanPath);
+      return !fromTarget.startsWith('..') && !isAbsolute(fromTarget);
+    });
+    if (!matchingRule) throw new Error(`refusing to remove undeclared orphan: ${orphanPath}`);
+    const targetRoot = resolveDeclaredPath(root, matchingRule.targetPath, `${matchingRule.id}.target`);
+    await rm(orphanPath, { force: true });
+    await removeEmptyParents(orphanPath, targetRoot);
+  }
+  return { ...report, ok: true };
 }
 
-// ── main ──
-
+/** CLI adapter. */
 async function main() {
-  const report = { skills: 0, agents: 0, playbooks: 0, workflows: 0, errors: [] };
-
-  if (TEMPLATES_MODE) {
-    console.log('\n🧹 Templates mode: cleaning generated trees (top-level README.md kept)...');
-    for (const d of [SKILLS_DST, AGENTS_DST, PLAYBOOKS_DST, WORKFLOWS_DST]) await cleanDst(d);
-  }
-
-  // 1. Convert slash commands → skills
-  console.log('\n🔄 Converting slash commands → skills...');
-  const commands = await listMdFiles(COMMANDS_SRC);
-  for (const cmd of commands) {
-    if (cmd.relative === 'README.md') continue; // skip the index
-    try {
-      const raw = await readFile(cmd.absolute, 'utf-8');
-      const dst = join(SKILLS_DST, cmd.relative);
-      await writeOutput(dst, convertCommandToSkill(raw, cmd.relative));
-      
-      // Duplicate to root to support non-recursive slash command lookup in the Antigravity IDE
-      if (cmd.relative.includes('/') || cmd.relative.includes('\\')) {
-        const dstRoot = join(SKILLS_DST, basename(cmd.relative));
-        await writeOutput(dstRoot, convertCommandToSkill(raw, cmd.relative));
-      }
-
-      console.log(`  ✓ ${cmd.relative}`);
-      report.skills++;
-    } catch (err) {
-      console.log(`  ✗ ${cmd.relative}: ${err.message}`);
-      report.errors.push(`skill:${cmd.relative}: ${err.message}`);
-    }
-  }
-
-  // 2. Convert agents → personas
-  console.log('\n🔄 Converting agents → personas...');
-  const agents = await listMdFiles(AGENTS_SRC);
-  for (const agent of agents) {
-    try {
-      const raw = await readFile(agent.absolute, 'utf-8');
-      const dst = join(AGENTS_DST, agent.relative);
-      await writeOutput(dst, convertAgentToPersona(raw, agent.relative));
-      console.log(`  ✓ ${agent.relative}`);
-      report.agents++;
-    } catch (err) {
-      console.log(`  ✗ ${agent.relative}: ${err.message}`);
-      report.errors.push(`agent:${agent.relative}: ${err.message}`);
-    }
-  }
-
-  // 3. Copy playbooks
-  console.log('\n🔄 Copying playbooks...');
-  const playbooks = await listMdFiles(PLAYBOOKS_SRC);
-  for (const pb of playbooks) {
-    try {
-      const raw = await readFile(pb.absolute, 'utf-8');
-      const adapted = adaptContent(raw);
-      const header = `# Playbook: ${basename(pb.relative, '.md')}\n\n> Reusable procedure. Follow the steps below when invoked.\n\n`;
-      const dst = join(PLAYBOOKS_DST, pb.relative);
-      await writeOutput(dst, header + adapted);
-      console.log(`  ✓ ${pb.relative}`);
-      report.playbooks++;
-    } catch (err) {
-      console.log(`  ✗ ${pb.relative}: ${err.message}`);
-      report.errors.push(`playbook:${pb.relative}: ${err.message}`);
-    }
-  }
-
-  // 4. Copy workflow guides (only .md files, not subdirs)
-  console.log('\n🔄 Copying workflow guides...');
-  try {
-    const wfEntries = await readdir(WORKFLOWS_SRC);
-    for (const f of wfEntries) {
-      if (!f.endsWith('.md')) continue;
-      try {
-        const raw = await readFile(join(WORKFLOWS_SRC, f), 'utf-8');
-        const adapted = adaptContent(raw);
-        const dst = join(WORKFLOWS_DST, f);
-        await writeOutput(dst, adapted);
-        console.log(`  ✓ ${f}`);
-        report.workflows++;
-      } catch (err) {
-        console.log(`  ✗ ${f}: ${err.message}`);
-        report.errors.push(`workflow:${f}: ${err.message}`);
-      }
-    }
-  } catch { /* no workflows dir */ }
-
-  // ── summary ──
-  console.log('\n' + '─'.repeat(50));
-  console.log(`✅ Conversion complete${DRY_RUN ? ' (DRY RUN)' : ''}:`);
-  console.log(`   Skills:    ${report.skills}`);
-  console.log(`   Agents:    ${report.agents}`);
-  console.log(`   Playbooks: ${report.playbooks}`);
-  console.log(`   Workflows: ${report.workflows}`);
-  console.log(`   TOTAL:     ${report.skills + report.agents + report.playbooks + report.workflows}`);
-  if (report.errors.length > 0) {
-    console.log(`   Errors:    ${report.errors.length}`);
-    for (const e of report.errors) console.log(`     - ${e}`);
-  }
-  console.log('');
+  const check = process.argv.includes('--check');
+  const dryRun = process.argv.includes('--dry-run');
+  const mode = process.argv.includes('--templates') ? 'templates' : 'installed';
+  const report = await runAntigravityProjectionGeneration({ mode, check, dryRun });
+  const suffix = check ? ' (CHECK)' : dryRun ? ' (DRY RUN)' : '';
+  console.log(`Antigravity conversion complete${suffix}: ${report.generated} declared projections`);
+  for (const item of report.drift) console.error(`  drift:${item.reason}: ${item.path}`);
+  for (const path of report.orphans) console.error(`  orphan: ${path}`);
+  if (check && !report.ok) process.exitCode = 1;
 }
 
-main().catch(err => { console.error('❌ Conversion failed:', err); process.exit(1); });
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error) => {
+    console.error(`Antigravity conversion failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+}

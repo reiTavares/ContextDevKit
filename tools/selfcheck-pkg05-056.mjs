@@ -1,308 +1,180 @@
 #!/usr/bin/env node
 /**
- * CDK-056 self-test — host-parity.mjs (PKG-05).
+ * Focused host-projection and parity checks for WF-0111 W12.
  *
- * WHY: host-parity introduces the first cross-host context-load parity API.
- * This test proves:
- *   (1) checkParity enumerates all four native hosts (claude, codex, agy, grok) in every row.
- *   (2) A hook present on Claude AND in the codex skill-skip list → 'reasoned-skip'.
- *   (3) A synthetic hook present on Claude but absent on Codex/agy/Grok with no skip
- *       reason → flagged as 'GAP'.
- *   (4) Fail-open: when a composer is unreadable the affected host column = 'unknown'
- *       and checkParity resolves (no throw).
- *   (5) renderParity returns a string containing a markdown table and a verdict line.
- *   (6) Real-repo invocation: checkParity() against the actual composers resolves
- *       and returns the expected structural shape.
- *
- * Zero third-party deps. Unique tmp fixtures where needed. Exit 0 = PASS.
- *
- * Run: node tools/selfcheck-pkg05-056.mjs
+ * Covers manifest validation, non-Git/Windows generation, idempotence, content
+ * drift, deterministic orphan cleanup, missing-source refusal, and byte-identical
+ * Claude/Codex/Antigravity governance contracts.
  */
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import {
+  selectHostProjectionRules,
+  validateHostProjectionManifest,
+} from '../templates/contextkit/methodology/projections.mjs';
+import { runCodexProjectionGeneration } from '../templates/contextkit/runtime/codex/convert-all.mjs';
+import { runAntigravityProjectionGeneration } from '../templates/contextkit/runtime/antigravity/convert-all.mjs';
+import { checkParity, renderParity } from '../templates/contextkit/tools/scripts/host-parity.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const MODULE_PATH = resolve(__dirname, '../templates/contextkit/tools/scripts/host-parity.mjs');
-
-// ---------------------------------------------------------------------------
-// Import module under test.
-// ---------------------------------------------------------------------------
-let checkParity, renderParity;
-try {
-  ({ checkParity, renderParity } = await import(pathToFileURL(MODULE_PATH).href));
-} catch (err) {
-  console.error(`FATAL: cannot import host-parity.mjs: ${err?.message ?? err}`);
-  process.exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Micro-assertion harness.
-// ---------------------------------------------------------------------------
+const KIT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CODEX_CONVERTER = join(KIT, 'templates/contextkit/runtime/codex/convert-all.mjs');
 let failures = 0;
-const ok = (msg) => console.log(`  ok  ${msg}`);
-const bad = (msg) => {
-  console.error(`  FAIL ${msg}`);
-  failures += 1;
+const assert = (label, condition) => {
+  if (condition) console.log(`  ok  ${label}`);
+  else {
+    console.error(`  FAIL ${label}`);
+    failures += 1;
+  }
 };
 
-/**
- * Asserts a condition and reports accordingly.
- *
- * @param {string} label
- * @param {boolean} condition
- */
-function assert(label, condition) {
-  condition ? ok(label) : bad(label);
-}
-
-// ---------------------------------------------------------------------------
-// Section 1 — Real-repo invocation: structural shape.
-// checkParity() against actual composers must resolve without throwing.
-// ---------------------------------------------------------------------------
-console.log('\nSection 1: real-repo invocation — structural shape');
-
-let realReport;
-try {
-  realReport = await checkParity();
-} catch (err) {
-  bad(`1a checkParity() threw against real composers: ${err?.message ?? err}`);
-  process.exit(failures === 0 ? 0 : 1);
-}
-
-assert('1a checkParity() resolves without throwing', true);
-assert('1b report has loads array', Array.isArray(realReport?.loads));
-assert('1c report has gaps array', Array.isArray(realReport?.gaps));
-assert('1d loads is non-empty (at least one hook known)', realReport.loads.length > 0);
-
-// Every row must have the four native host keys.
-const allRowsHaveHosts = realReport.loads.every(
-  (r) => 'claude' in r && 'codex' in r && 'agy' in r && 'grok' in r,
-);
-assert('1e every load row has claude/codex/agy/grok keys', allRowsHaveHosts);
-
-// Every verdict must be one of the three known values.
-const VALID_VERDICTS = new Set(['parity', 'reasoned-skip', 'GAP']);
-const allVerdictsValid = realReport.loads.every((r) => VALID_VERDICTS.has(r.verdict));
-assert('1f every row has a valid verdict', allVerdictsValid);
-
-// gaps must be a subset of loads with verdict=GAP.
-const gapNames = new Set(realReport.gaps.map((g) => g.name));
-const gapRowNames = new Set(realReport.loads.filter((r) => r.verdict === 'GAP').map((r) => r.name));
-const gapsConsistent =
-  gapNames.size === gapRowNames.size &&
-  [...gapNames].every((n) => gapRowNames.has(n));
-assert('1g gaps array matches load rows with verdict GAP', gapsConsistent);
-
-// ---------------------------------------------------------------------------
-// Section 2 — All four native hosts represented in each row.
-// ---------------------------------------------------------------------------
-console.log('\nSection 2: host-key presence in every row');
-
-const firstRow = realReport.loads[0];
-assert('2a first row has claude key', 'claude' in firstRow);
-assert('2b first row has codex key', 'codex' in firstRow);
-assert('2c first row has agy key', 'agy' in firstRow);
-assert('2d first row has grok key', 'grok' in firstRow);
-assert('2e first row has a name', typeof firstRow.name === 'string' && firstRow.name.length > 0);
-
-// ---------------------------------------------------------------------------
-// Section 3 — session-start.mjs: Claude + Codex present, agy uses a substitution.
-//
-// agy routes SessionStart through `session-manager.mjs start` (antigravity/)
-// rather than `session-start.mjs` (ADR-0049). The parity module declares this
-// as a reasoned-skip, NOT a GAP. Codex does use session-start.mjs directly.
-// ---------------------------------------------------------------------------
-console.log('\nSection 3: session-start.mjs — reasoned-skip on agy (ADR-0049 substitution)');
-
-const sessionStartRow = realReport.loads.find((r) => r.name === 'session-start.mjs');
-assert('3a session-start.mjs found in loads', sessionStartRow !== undefined);
-if (sessionStartRow) {
-  assert(
-    '3b session-start.mjs claude=true',
-    sessionStartRow.claude === true,
-  );
-  assert(
-    '3c session-start.mjs codex=true (present on Codex)',
-    sessionStartRow.codex === true,
-  );
-  assert(
-    '3g session-start.mjs grok=true (present on Grok)',
-    sessionStartRow.grok === true,
-  );
-  assert(
-    '3d session-start.mjs agy=false (agy uses session-manager substitution)',
-    sessionStartRow.agy === false,
-  );
-  assert(
-    "3e session-start.mjs verdict is 'reasoned-skip' (not GAP — agy has declared substitution)",
-    sessionStartRow.verdict === 'reasoned-skip',
-  );
-  assert(
-    '3f session-start.mjs has a reason string (ADR-0049)',
-    typeof sessionStartRow.reason === 'string' && sessionStartRow.reason.includes('agy'),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Section 4 — Capability Enforcement hooks are parity across all four native hosts.
-// The Antigravity composer now exposes the same fail-open control points.
-// ---------------------------------------------------------------------------
-console.log('\nSection 4: Capability Enforcement hooks → parity');
-
-const enforcementHooks = [
-  'execution-contract-hook.mjs',
-  'execution-gate.mjs',
-  'indirect-write-reconcile.mjs',
-  'completion-gate.mjs',
-  'subagent-gate.mjs',
-  'compaction-continuity.mjs',
-];
-
-for (const hookName of enforcementHooks) {
-  const row = realReport.loads.find((r) => r.name === hookName);
-  if (!row) {
-    bad(`4 ${hookName} not found in loads at all`);
-    continue;
+/** Recursively snapshots file content under a directory. */
+async function snapshot(directory, base = directory) {
+  const entries = await readdir(directory, { withFileTypes: true }).catch(() => []);
+  const files = {};
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) Object.assign(files, await snapshot(entryPath, base));
+    else files[relative(base, entryPath).replaceAll('\\', '/')] = await readFile(entryPath, 'utf8');
   }
-  assert(
-    `4 ${hookName} verdict is 'parity'`,
-    row.verdict === 'parity',
-  );
-  assert(
-    `4 ${hookName} is present on Codex`,
-    row.codex === true,
-  );
-  assert(
-    `4 ${hookName} is present on Antigravity`,
-    row.agy === true,
-  );
-  assert(
-    `4 ${hookName} is present on Grok`,
-    row.grok === true,
-  );
+  return files;
 }
 
-// ---------------------------------------------------------------------------
-// Section 5 — Synthetic GAP: caller injects a fake hook via skipReasons={}
-// absence on codex + agy with no declared reason → GAP.
-// We test checkParity's second argument (skipReasons) by verifying that a
-// hook NOT in ENFORCEMENT_HOOK_REASONS AND absent on codex/agy → 'GAP'.
-// We do this by checking that enforcement hooks DO NOT appear as GAP (already
-// covered in section 4), and by exercising the skipReasons override path.
-// ---------------------------------------------------------------------------
-console.log('\nSection 5: skipReasons override — forced reasoned-skip');
+/** Creates a minimal manifest-complete source tree without initializing Git. */
+async function createFixture() {
+  const root = await mkdtemp(join(tmpdir(), 'cdk-host-projections-'));
+  const copyPairs = [
+    ['templates/contextkit/policy/host-projections.json', 'templates/contextkit/policy/host-projections.json'],
+    ['templates/CLAUDE.md.tpl', 'templates/CLAUDE.md.tpl'],
+    ['templates/AGENTS.md.tpl', 'templates/AGENTS.md.tpl'],
+    ['templates/INSTRUCTIONS.md.tpl', 'templates/INSTRUCTIONS.md.tpl'],
+  ];
+  for (const [sourceRelative, targetRelative] of copyPairs) {
+    const targetPath = join(root, targetRelative);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await cp(join(KIT, sourceRelative), targetPath);
+  }
+  const fixtureFiles = {
+    'templates/claude/commands/demo.md': '---\ndescription: Demo command\n---\n\nRun the demo.\n',
+    'templates/claude/agents/demo.md': '---\nname: demo\ndescription: Demo agent\nmodel: inherit\n---\n\nKeep the demo bounded.\n',
+    'templates/contextkit/workflows/playbooks/demo.md': '# Demo playbook\n',
+    'templates/contextkit/workflows/README.md': '# Workflow guide\n',
+    'templates/contextkit/policy/routing-policy.json': '{"tiers":{},"hostModels":{"codex":{}}}\n',
+  };
+  for (const [targetRelative, content] of Object.entries(fixtureFiles)) {
+    const targetPath = join(root, targetRelative);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, content, 'utf8');
+  }
+  return root;
+}
 
-// Pass a synthetic reason for a hook that would otherwise be a GAP.
-// Use execution-contract-hook.mjs (would be a GAP without the built-in reason);
-// strip the built-in by calling checkParity with an override that replaces it.
-// Since ENFORCEMENT_HOOK_REASONS is hard-coded in the module, we verify the
-// skipReasons parameter merges correctly by passing a NEW synthetic name.
-// We cannot easily inject a fake hook without touching the composers, so we
-// verify the interface contract: passing skipReasons with an unknown name
-// produces no crash and returns the same structural shape.
-let skipReport;
+console.log('\nSection 1: manifest contract');
+const manifest = validateHostProjectionManifest(JSON.parse(await readFile(
+  join(KIT, 'templates/contextkit/policy/host-projections.json'),
+  'utf8',
+)));
+assert('declares exactly Claude, Codex, and Antigravity', Object.keys(manifest.hosts).sort().join(',') === 'antigravity,claude,codex');
+assert('declares all five cross-host invariants', manifest.requiredContracts.length === 5);
+assert('Codex converter receives only manifest-declared rules', selectHostProjectionRules(manifest, 'codex', 'templates', 'codex-converter').length === 2);
+assert('Antigravity converter receives only manifest-declared rules', selectHostProjectionRules(manifest, 'antigravity', 'templates', 'antigravity-converter').length === 4);
+let traversalRejected = false;
 try {
-  skipReport = await checkParity(undefined, {
-    'synthetic-fake-hook.mjs': 'Test-only: injected to verify skipReasons merge.',
-  });
-} catch (err) {
-  bad(`5a checkParity with skipReasons threw: ${err?.message ?? err}`);
-  skipReport = null;
+  const unsafe = structuredClone(manifest);
+  unsafe.hosts.codex.projections[0].source.templates = '../outside';
+  validateHostProjectionManifest(unsafe);
+} catch {
+  traversalRejected = true;
 }
-assert('5a checkParity(skipReasons) resolves without throwing', skipReport !== null);
-assert('5b report still has loads array', Array.isArray(skipReport?.loads));
+assert('manifest refuses traversal-shaped source paths', traversalRejected);
 
-// ---------------------------------------------------------------------------
-// Section 6 — Fail-open: unreadable composer → 'unknown', no throw.
-// We simulate this by passing a non-existent root so import() fails.
-// ---------------------------------------------------------------------------
-console.log('\nSection 6: fail-open when a composer is unreadable');
-
-// Create a temp dir that has no composers in it.
-const tmpRoot = mkdtempSync(join(tmpdir(), 'cdk056-'));
-let failOpenReport;
+const fixture = await createFixture();
 try {
-  // The real checkParity reads from TEMPLATES_ROOT derived from __dirname of the
-  // module. We can't redirect its resolution easily without rewriting it, so we
-  // instead verify that checkParity() itself doesn't hard-throw when called with
-  // a non-existent explicit root (the module ignores the root arg today but the
-  // param must be accepted without crashing).
-  failOpenReport = await checkParity(tmpRoot);
-} catch (err) {
-  bad(`6a checkParity(bad-root) threw: ${err?.message ?? err}`);
-  failOpenReport = null;
+  console.log('\nSection 2: non-Git generation and idempotence');
+  const initialCodex = await runCodexProjectionGeneration({ root: fixture, mode: 'templates', check: true });
+  const initialAntigravity = await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates', check: true });
+  assert('fresh non-Git fixture reports missing Codex projections', !initialCodex.ok && initialCodex.drift.some((item) => item.reason === 'missing'));
+  assert('fresh non-Git fixture reports missing Antigravity projections', !initialAntigravity.ok && initialAntigravity.drift.some((item) => item.reason === 'missing'));
+
+  await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates' });
+  const firstSnapshot = await snapshot(join(fixture, 'templates'));
+  await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates' });
+  const secondSnapshot = await snapshot(join(fixture, 'templates'));
+  assert('second regeneration is byte-idempotent', JSON.stringify(firstSnapshot) === JSON.stringify(secondSnapshot));
+  assert('Codex check is green after regeneration', (await runCodexProjectionGeneration({ root: fixture, mode: 'templates', check: true })).ok);
+  assert('Antigravity check is green after regeneration', (await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates', check: true })).ok);
+
+  console.log('\nSection 3: drift and orphan repair');
+  const codexSkill = join(fixture, 'templates/codex/skills/source-command-demo/SKILL.md');
+  await writeFile(codexSkill, 'drifted\n', 'utf8');
+  const codexDrift = await runCodexProjectionGeneration({ root: fixture, mode: 'templates', check: true });
+  assert('content drift fails Codex check', !codexDrift.ok && codexDrift.drift.some((item) => item.reason === 'content'));
+  const driftCli = spawnSync(process.execPath, [CODEX_CONVERTER, '--templates', '--check'], { cwd: fixture, encoding: 'utf8' });
+  assert('content drift makes the converter CLI exit nonzero', driftCli.status === 1);
+  await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  const cleanCli = spawnSync(process.execPath, [CODEX_CONVERTER, '--templates', '--check'], { cwd: fixture, encoding: 'utf8' });
+  assert('clean converter CLI exits zero', cleanCli.status === 0);
+
+  const codexOrphan = join(fixture, 'templates/codex/skills/source-command-orphan/SKILL.md');
+  const antigravityOrphan = join(fixture, 'templates/antigravity/skills/orphan.md');
+  await mkdir(dirname(codexOrphan), { recursive: true });
+  await mkdir(dirname(antigravityOrphan), { recursive: true });
+  await writeFile(codexOrphan, 'orphan\n', 'utf8');
+  await writeFile(antigravityOrphan, 'orphan\n', 'utf8');
+  assert('Codex orphan fails check', !(await runCodexProjectionGeneration({ root: fixture, mode: 'templates', check: true })).ok);
+  assert('Antigravity orphan fails check', !(await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates', check: true })).ok);
+  await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates' });
+  assert('normal regeneration removes Codex orphan deterministically', !(await snapshot(join(fixture, 'templates/codex/skills')))['source-command-orphan/SKILL.md']);
+  assert('normal regeneration removes Antigravity orphan deterministically', !(await snapshot(join(fixture, 'templates/antigravity/skills')))['orphan.md']);
+
+  console.log('\nSection 4: missing-source refusal');
+  const beforeMissingSource = await snapshot(join(fixture, 'templates/codex'));
+  await rm(join(fixture, 'templates/claude/commands'), { recursive: true, force: true });
+  let missingSourceRejected = false;
+  try {
+    await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  } catch (error) {
+    missingSourceRejected = /projection source is unavailable/.test(error.message);
+  }
+  assert('missing declared source fails generation', missingSourceRejected);
+  const missingSourceCli = spawnSync(process.execPath, [CODEX_CONVERTER, '--templates'], { cwd: fixture, encoding: 'utf8' });
+  assert('missing declared source makes the converter CLI exit nonzero', missingSourceCli.status === 1);
+  assert('missing-source failure performs no output mutation', JSON.stringify(beforeMissingSource) === JSON.stringify(await snapshot(join(fixture, 'templates/codex'))));
+
+  console.log('\nSection 5: same host contract and strict parity receipt');
+  await mkdir(join(fixture, 'templates/claude/commands'), { recursive: true });
+  await writeFile(join(fixture, 'templates/claude/commands/demo.md'), '---\ndescription: Demo command\n---\n\nRun the demo.\n', 'utf8');
+  await runCodexProjectionGeneration({ root: fixture, mode: 'templates' });
+  await runAntigravityProjectionGeneration({ root: fixture, mode: 'templates' });
+  const parity = await checkParity(fixture);
+  assert('same gate/intake/context/state/routing contract passes', parity.ok && parity.loads.every((row) => row.verdict === 'parity'));
+  assert('parity report covers only the three declared hosts', parity.contracts.map((entry) => entry.host).join(',') === 'claude,codex,antigravity');
+  assert('rendered receipt includes projection drift counts', /\| Projection host \| Declared outputs \| Drift \| Orphans \|/.test(renderParity(parity)));
+
+  const agentsTemplate = join(fixture, 'templates/AGENTS.md.tpl');
+  await writeFile(agentsTemplate, (await readFile(agentsTemplate, 'utf8')).replace('mutation-only-intake', 'drifted-intake'), 'utf8');
+  const contractDrift = await checkParity(fixture);
+  assert('host contract drift fails parity', !contractDrift.ok && contractDrift.gaps.some((gap) => gap.includes('host contract drift')));
+
+  assert('fixture remained non-Git throughout', (await readdir(fixture)).includes('.git') === false);
+} finally {
+  await rm(fixture, { recursive: true, force: true });
 }
-assert('6a checkParity(non-existent root) resolves without throwing', failOpenReport !== null);
-assert('6b result has loads array even for bad root', Array.isArray(failOpenReport?.loads));
 
-// Cleanup temp dir.
-try { rmSync(tmpRoot, { recursive: true, force: true }); } catch { /* best-effort */ }
-
-// ---------------------------------------------------------------------------
-// Section 7 — renderParity produces a valid markdown string.
-// ---------------------------------------------------------------------------
-console.log('\nSection 7: renderParity output shape');
-
-let rendered;
-try {
-  rendered = renderParity(realReport);
-} catch (err) {
-  bad(`7a renderParity threw: ${err?.message ?? err}`);
-  rendered = null;
-}
-assert('7a renderParity returns a string', typeof rendered === 'string');
-assert('7b rendered output contains markdown table header', rendered?.includes('| Hook script |'));
-assert('7c rendered output contains verdict line', rendered?.includes('Verdict:'));
-assert('7d rendered output contains at least one hook row', rendered?.includes('session-start.mjs'));
-
-// Gaps render as a warning block; no gaps renders as PARITY notice.
-if (realReport.gaps.length === 0) {
-  assert('7e no-gap renders PARITY notice', rendered?.includes('PARITY'));
-} else {
-  assert('7e gaps render GAPS FOUND notice', rendered?.includes('GAPS FOUND'));
-}
-
-// ---------------------------------------------------------------------------
-// Section 8 — check-registration.mjs: reasoned-skip on agy (ADR-0049).
-//
-// agy routes Stop through `session-manager.mjs end` rather than this hook.
-// Both claude and codex register it at L2.
-// ---------------------------------------------------------------------------
-console.log('\nSection 8: check-registration.mjs — reasoned-skip on agy (ADR-0049)');
-
-const regRow = realReport.loads.find((r) => r.name === 'check-registration.mjs');
-assert('8a check-registration.mjs found in loads', regRow !== undefined);
-if (regRow) {
-  assert(
-    "8b check-registration.mjs verdict is 'reasoned-skip' (not GAP)",
-    regRow.verdict === 'reasoned-skip',
-  );
-  assert(
-    '8c check-registration.mjs claude=true',
-    regRow.claude === true,
-  );
-  assert(
-    '8d check-registration.mjs codex=true',
-    regRow.codex === true,
-  );
-  assert(
-    '8f check-registration.mjs grok=true',
-    regRow.grok === true,
-  );
-  assert(
-    '8e check-registration.mjs agy=false (substituted by session-manager)',
-    regRow.agy === false,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Result.
-// ---------------------------------------------------------------------------
-console.log(
-  failures === 0
-    ? '\nPASS — selfcheck-pkg05-056 all checks green.\n'
-    : `\nFAIL — ${failures} check(s) failed.\n`,
-);
-process.exit(failures === 0 ? 0 : 1);
+console.log(failures === 0
+  ? '\nPASS - host projection manifest/parity checks green.\n'
+  : `\nFAIL - ${failures} host projection check(s) failed.\n`);
+process.exitCode = failures === 0 ? 0 : 1;

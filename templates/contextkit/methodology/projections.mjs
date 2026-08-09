@@ -47,6 +47,128 @@ export const DERIVED_FIELD_KEYS = Object.freeze([
   'kpi',
 ]);
 
+/** Supported hosts for the v4 generated-projection contract. */
+export const HOST_PROJECTION_HOSTS = Object.freeze(['claude', 'codex', 'antigravity']);
+
+/** Supported generation modes. Template mode builds the kit; installed mode updates one project. */
+export const HOST_PROJECTION_MODES = Object.freeze(['templates', 'installed']);
+
+/**
+ * Validates and normalizes the explicit host-projection manifest.
+ *
+ * The function is intentionally pure: converters own filesystem discovery and
+ * mutation, while this module owns the declarative contract shared by every
+ * host. Unknown hosts, undeclared paths, and ambiguous targets are rejected
+ * before a converter can touch an output tree.
+ *
+ * @param {unknown} candidate parsed JSON value
+ * @returns {object} the validated manifest
+ * @throws {TypeError} when the manifest is incomplete or ambiguous
+ */
+export function validateHostProjectionManifest(candidate) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new TypeError('host projection manifest must be an object');
+  }
+  if (candidate.schemaVersion !== 1) {
+    throw new TypeError(`unsupported host projection manifest schemaVersion: ${String(candidate.schemaVersion)}`);
+  }
+  if (candidate.canonicalHost !== 'claude') {
+    throw new TypeError('host projection manifest canonicalHost must be "claude"');
+  }
+  if (!Array.isArray(candidate.requiredContracts) || candidate.requiredContracts.length === 0) {
+    throw new TypeError('host projection manifest requiredContracts must be a non-empty array');
+  }
+  const contractNames = new Set();
+  for (const contractName of candidate.requiredContracts) {
+    if (typeof contractName !== 'string' || !/^[a-z][a-z0-9-]+$/.test(contractName)) {
+      throw new TypeError(`invalid host contract name: ${String(contractName)}`);
+    }
+    if (contractNames.has(contractName)) throw new TypeError(`duplicate host contract: ${contractName}`);
+    contractNames.add(contractName);
+  }
+
+  const declaredHosts = Object.keys(candidate.hosts ?? {}).sort();
+  const expectedHosts = [...HOST_PROJECTION_HOSTS].sort();
+  if (JSON.stringify(declaredHosts) !== JSON.stringify(expectedHosts)) {
+    throw new TypeError(`host projection manifest must declare exactly: ${expectedHosts.join(', ')}`);
+  }
+
+  const projectionIds = new Set();
+  for (const hostName of HOST_PROJECTION_HOSTS) {
+    const host = candidate.hosts[hostName];
+    if (!host || typeof host !== 'object' || Array.isArray(host)) {
+      throw new TypeError(`host projection manifest entry missing for ${hostName}`);
+    }
+    assertRelativeProjectionPath(host.contractSource, `${hostName}.contractSource`);
+    if (!Array.isArray(host.projections)) {
+      throw new TypeError(`${hostName}.projections must be an array`);
+    }
+    for (const projection of host.projections) {
+      if (!projection || typeof projection !== 'object' || Array.isArray(projection)) {
+        throw new TypeError(`${hostName} projection must be an object`);
+      }
+      if (typeof projection.id !== 'string' || !/^[a-z][a-z0-9-]+$/.test(projection.id)) {
+        throw new TypeError(`invalid ${hostName} projection id: ${String(projection.id)}`);
+      }
+      if (projectionIds.has(projection.id)) throw new TypeError(`duplicate projection id: ${projection.id}`);
+      projectionIds.add(projection.id);
+      if (typeof projection.generator !== 'string' || projection.generator.length === 0) {
+        throw new TypeError(`${projection.id}.generator must be a non-empty string`);
+      }
+      for (const mode of HOST_PROJECTION_MODES) {
+        assertRelativeProjectionPath(projection.source?.[mode], `${projection.id}.source.${mode}`);
+        assertRelativeProjectionPath(projection.target?.[mode], `${projection.id}.target.${mode}`);
+      }
+      if (!Array.isArray(projection.retain) || projection.retain.some((path) => typeof path !== 'string')) {
+        throw new TypeError(`${projection.id}.retain must be a string array`);
+      }
+    }
+  }
+  return candidate;
+}
+
+/**
+ * Returns the rules a named generator is allowed to execute for one host/mode.
+ * Paths are copied into a small immutable-like envelope so callers cannot
+ * accidentally use another mode's destination.
+ *
+ * @param {object} manifest validated host projection manifest
+ * @param {'claude'|'codex'|'antigravity'} hostName
+ * @param {'templates'|'installed'} mode
+ * @param {string} generator
+ * @returns {Array<object>}
+ * @throws {TypeError} for an unknown host, mode, or empty rule set
+ */
+export function selectHostProjectionRules(manifest, hostName, mode, generator) {
+  validateHostProjectionManifest(manifest);
+  if (!HOST_PROJECTION_HOSTS.includes(hostName)) throw new TypeError(`unknown projection host: ${hostName}`);
+  if (!HOST_PROJECTION_MODES.includes(mode)) throw new TypeError(`unknown projection mode: ${mode}`);
+  const rules = manifest.hosts[hostName].projections
+    .filter((projection) => projection.generator === generator)
+    .map((projection) => ({
+      ...projection,
+      sourcePath: projection.source[mode],
+      targetPath: projection.target[mode],
+      retain: [...projection.retain],
+    }));
+  if (rules.length === 0) throw new TypeError(`no ${generator} projections declared for ${hostName}`);
+  return rules;
+}
+
+/** Rejects absolute or traversal-shaped projection paths. */
+function assertRelativeProjectionPath(path, label) {
+  if (typeof path !== 'string' || path.length === 0) {
+    throw new TypeError(`${label} must be a non-empty relative path`);
+  }
+  const normalized = path.replaceAll('\\', '/');
+  if (normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized)) {
+    throw new TypeError(`${label} must be relative: ${path}`);
+  }
+  if (normalized.split('/').some((segment) => segment === '..')) {
+    throw new TypeError(`${label} must not traverse outside the project root: ${path}`);
+  }
+}
+
 /** Returns a deterministic, de-duplicated, sorted list of non-empty entry-symbol strings. */
 function normalizeEntrySymbols(entrySymbols) {
   if (!Array.isArray(entrySymbols)) return [];

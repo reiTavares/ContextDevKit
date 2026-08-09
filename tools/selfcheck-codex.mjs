@@ -248,11 +248,12 @@ async function checkCodexInventory(rep, KIT) {
     existsSync(resolve(KIT, rel)) ? ok(rel) : bad(`missing ${rel}`);
   }
   const agentsTemplate = await readFile(resolve(KIT, 'templates/AGENTS.md.tpl'), 'utf-8');
-  /Complete Session Workflow \(Codex\)/.test(agentsTemplate) &&
-  /node cdx\.mjs log-session/.test(agentsTemplate) &&
-  /Collaborate across hosts/.test(agentsTemplate)
-    ? ok('AGENTS.md.tpl carries the Codex workflow and cooperation contract')
-    : bad('AGENTS.md.tpl missing Codex workflow/cooperation instructions');
+  /contextdevkit:host-contract:start/.test(agentsTemplate) &&
+  /mutation-only-intake/.test(agentsTemplate) &&
+  /canonical-json-state/.test(agentsTemplate) &&
+  /identical for Claude, Codex, and Antigravity/.test(agentsTemplate)
+    ? ok('AGENTS.md.tpl carries the canonical v4 Codex host contract')
+    : bad('AGENTS.md.tpl missing the canonical v4 host contract');
 }
 
 export async function runCodexChecks(rep, { KIT }) {

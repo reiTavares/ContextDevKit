@@ -121,7 +121,7 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['paths.mjs single-sources the agy host dir as .agents (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /export const ANTIGRAVITY_DIR = '\.agents'/],
     ['pathsFor exposes the antigravity host dir (ADR-0048, rule 4)', 'templates/contextkit/runtime/config/paths.mjs', /antigravity:\s*at\(ANTIGRAVITY_DIR\)/],
     ['uninstall --purge removes the agy host dirs, new + legacy (ADR-0048)', 'tools/install/uninstall.mjs', /ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR/],
-    ['convert-all installed mode targets ANTIGRAVITY_DIR (ADR-0048)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE \? 'templates\/antigravity' : ANTIGRAVITY_DIR/],
+    ['convert-all resolves installed Antigravity targets from the canonical manifest', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /rule\.targetPath/],
     ['doctor flags a leftover legacy .antigravity tree (ADR-0048)', 'templates/contextkit/tools/scripts/doctor.mjs', /ANTIGRAVITY_LEGACY_DIR/],
     ['.agents README ships the host-coexistence rule (ADR-0048)', 'templates/antigravity/README.md', /Host-coexistence rule/],
     // ADR-0049 — native agy lifecycle hooks: one composer, one host-adapter seam, no forked hook logic.
@@ -151,14 +151,14 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['guard.mjs exists as the explicit pre-edit checkpoint (ticket 095)', 'templates/contextkit/tools/scripts/guard.mjs', /governance parity/],
     ['guard.mjs and simulate-gate share matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/path-classification.mjs', /export function matchHighRisk/],
     ['simulate-gate imports the shared matchHighRisk (ticket 095)', 'templates/contextkit/runtime/hooks/simulate-gate.mjs', /matchHighRisk.*from '\.\/path-classification\.mjs'/],
-    ['INSTRUCTIONS.md.tpl tells the agent to run the guard before high-risk edits (ticket 095)', 'templates/INSTRUCTIONS.md.tpl', /ctx\.mjs guard <path>/],
+    ['INSTRUCTIONS.md.tpl exposes the v4 guarded allowlist instead of a host-specific guard command', 'templates/INSTRUCTIONS.md.tpl', /Only QA at done,[\s\S]*proven DDD Class A invariants,[\s\S]*high-severity technical/],
     // Ticket 092 — single drift predicate: session-manager consumes the Stop hook's ledger module.
     ['session-manager reuses the canonical drift predicate (ticket 092)', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /pendingImportantPaths.*from '\.\.\/hooks\/ledger\.mjs'/],
     ['session-manager replaces the Claude Code hook lifecycle', 'templates/contextkit/runtime/antigravity/session-manager.mjs', /Antigravity Session Manager/],
-    ['convert-all builds the skills tree from the mode-resolved base (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /resolve\(ROOT, DST_BASE, 'skills'\)/],
-    ['convert-all has the --templates kit-build mode (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /TEMPLATES_MODE/],
+    ['convert-all selects Antigravity outputs from the canonical projection manifest', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /selectHostProjectionRules\(manifest, 'antigravity', mode, GENERATOR\)/],
+    ['convert-all has the --templates kit-build mode (ticket 085)', 'templates/contextkit/runtime/antigravity/convert-all.mjs', /process\.argv\.includes\('--templates'\)/],
     ['package.json wires the antigravity build step (ticket 085)', 'package.json', /"build:antigravity":\s*"node templates\/contextkit\/runtime\/antigravity\/convert-all\.mjs --templates"/],
-    ['INSTRUCTIONS.md.tpl is the Antigravity boot context (replaces CLAUDE.md)', 'templates/INSTRUCTIONS.md.tpl', /Instructions for Antigravity/],
+    ['INSTRUCTIONS.md.tpl is the Antigravity boot context', 'templates/INSTRUCTIONS.md.tpl', /Boot Context for Antigravity/],
     // ADR-0037 — host-modular installer: install.mjs orchestrates, hosts/engine in tools/install/.
     ['install.mjs wires the host-neutral engine installer (ADR-0037)', 'install.mjs', /installEngine\(target, TPL,/],
     ['install.mjs wires the Claude host installer (ADR-0037)', 'install.mjs', /installClaudeHost\(target, TPL,/],

@@ -55,8 +55,8 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['package.json ships the cdx bin target', 'package.json', /"cdx":\s*"templates\/cdx\.mjs"/],
     ['Codex hooks carry an explicit host flag', 'templates/contextkit/runtime/config/codex-hooks-compose.mjs', /--host codex/],
     ['Codex hook adapter persists a stable local session marker', 'templates/contextkit/runtime/hooks/host-adapter.mjs', /CODEX_SESSION_MARKER[\s\S]*rememberHookSessionId/],
-    ['AGENTS.md.tpl documents the full Codex session workflow', 'templates/AGENTS.md.tpl', /Complete Session Workflow \(Codex\)[\s\S]*node cdx\.mjs log-session/],
-    ['AGENTS.md.tpl requires cooperation across hosts', 'templates/AGENTS.md.tpl', /Codex, Claude Code, and Antigravity are peers/],
+    ['AGENTS.md.tpl carries the canonical v4 host contract', 'templates/AGENTS.md.tpl', /contextdevkit:host-contract:start[\s\S]*canonical-json-state[\s\S]*contextdevkit:host-contract:end/],
+    ['AGENTS.md.tpl requires cross-host contract identity', 'templates/AGENTS.md.tpl', /identical for Claude, Codex, and Antigravity/],
     // ADR-0057 regression — WS-D spawnSync timeout hygiene (task 158).
     ['session-draft times out its git call — no silent hang (ADR-0057, rule 2)', 'templates/contextkit/tools/scripts/session-draft.mjs', /spawnSync\('git'[\s\S]*timeout:\s*\d/],
     // ADR-0056 follow-up — WS-E installed-mode converter wire-or-retire doc (task 159).

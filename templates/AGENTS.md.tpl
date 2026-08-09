@@ -1,327 +1,94 @@
 # {{PROJECT_NAME}} - Boot Context for Codex
 
-> Auto-loaded in every Codex session opened in this directory. Keep it
-> **short**: reference other docs instead of duplicating content.
+> Auto-loaded in Codex sessions for this project.
 > Scaffolded by ContextDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
 
-## Mandatory Execution Protocol
+## Canonical Host Contract
 
-> The engine computes which capabilities your task needs and asks for deterministic
-> **receipts** - script output, not your claims - before key transitions. In
-> `advisory` mode (default) this is guidance; in `guarded`/`strict` the gate enforces
-> it. Run capabilities through your host runner (`cdx <command>`). [-> ADR-0072]
+<!-- contextdevkit:host-contract:start -->
+This contract is identical for Claude, Codex, and Antigravity. Host syntax may
+differ, but no host may add a second authority or a stronger private ceremony.
 
-1. **Intake** - a new request is classified (trivial / feature / architectural) and an
-   execution contract is recorded. Trivial tasks skip the ceremony.
-2. **Graph before ANY exploration - mandatory, enforced.** Locate code through the
-   structural graph, never by a broad text sweep. Broad search tools are **blocked**
-   by `graph-first-gate.mjs` when the graph can answer the term (ADR-0155):
-   `node contextkit/tools/scripts/graph.mjs query "<symbol>"` to find it,
-   `... callers <id>` for who calls it, `... impact <id>` for blast radius. The graph
-   re-indexes itself every session; a stale one is rebuilt on demand. If the graph
-   genuinely cannot answer, the gate says so out loud and the fallback search
-   proceeds - treat that as "graph incomplete here", not "the symbol is absent".
-   Reading one named file is never gated. Only a **human** can waive the gate, by
-   putting `no-graph` / `sem-grafo` in the prompt.
-3. **Workflow before the first source write** - feature/architectural work needs an
-   active workflow at the permitted phase; architectural also needs an ADR.
-4. **Tests + QA before completion** - not done until the suite and `cdx qa-signoff`
-   leave receipts. "Tests passed" as prose does not count.
-5. **Receipts, not assertions** - only a script-emitted receipt satisfies a gate; a
-   stale, wrong-branch, or bypassed receipt does not.
+- `mutation-only-intake`: conversation and exploration create no durable task,
+  contract, workflow, graph receipt, or completion obligation. An unclassified
+  request asks one short clarification and persists nothing.
+- `single-governance-dispatch`: a confirmed mutation invokes one governance
+  dispatcher once. Modes are `off | shadow | canary | guarded`; missing, invalid,
+  or failed resolution becomes `canary` with continue-on-failure. Only QA at done,
+  proven DDD Class A invariants, and new deterministic high-severity technical
+  debt are guarded by default.
+- `workflow-context-before-write`: before a workflow-linked mutation, load its
+  PRD, SPEC, decisions/ADR, tasks, state, and relevant reports. Missing graph,
+  agent, telemetry, or optional context is reported and never blocks fallback.
+- `canonical-json-state`: `workflow.json` defines the workflow,
+  `workflow-state.json` stores aggregate execution state, and
+  `pipeline/tasks.json` owns task definition/status. Markdown, reports,
+  dashboards, statuslines, and physical folders are projections only.
+- `advisory-agent-routing`: agent/model selection, economy, autonomy, simulation,
+  architecture guidance, and deliberation are advisory. Resolver failure never
+  denies spawn or delivery; current explicit human direction wins within platform
+  security, secret, credential, and destructive-action boundaries.
+<!-- contextdevkit:host-contract:end -->
 
-## What this is
+## Project
 
-<!-- One paragraph: what the product/project does and for whom. Replace this. -->
+<!-- Replace with a concise description of the product and its users. -->
 _Describe {{PROJECT_NAME}} in 2-3 sentences._
 
 ## Stack
 
 {{STACK_NOTES}}
 
-<!-- Fill in concretely as the project takes shape. The first real architectural
-     decision (language, framework, datastore) deserves an ADR: run
-     `node cdx.mjs new-adr <title>`. -->
+## Operating Guidance
 
-## Economy Operating Rules
-
-Economy mode is the default posture for non-trivial work. Prefer deterministic
-receipts and bounded packets; when a lever lacks its prerequisite, report
-`skipped: <reason>` instead of treating it as applied.
-
-- Locate code with `node contextkit/tools/scripts/graph.mjs query "<symbol>"` FIRST
-  (mandatory, gate-enforced - ADR-0155); `node cdx.mjs project-map --find <symbol-or-path>`
-  is the module-level companion, not a substitute.
-  Use Task Compiler only on exact Project Map matches:
-  `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <symbol> --objective "<objective>"`.
-- During `/dev-start` or `node cdx.mjs dev-start`, render
-  `node contextkit/tools/scripts/economy/resume-pack.mjs <runId>` when a prior
-  checkpoint/run id exists.
-- Before dispatching subagents, resolve
-  `node contextkit/tools/scripts/economy/subagent-profile.mjs` and pass the
-  bounded profile/packet to the orchestrator or agent package.
-- In `/ship` and `/swarm`, use controller-scoped lean-loop planning:
-  `node contextkit/tools/scripts/economy/lean-loop-cli.mjs --controller ship|swarm --touch <paths>`.
-- Run noisy builds/tests through `node contextkit/tools/scripts/economy/run-compact.mjs`
-  when available, then verify applied/skipped levers with `node cdx.mjs token-report --json`.
-- When host quota data is visible, record it with
-  `node contextkit/tools/scripts/economics/quota-snapshot.mjs --write`; missing
-  quota data is `skipped`, never a pass.
-- Never auto-select Fable, paid benchmarks, or model upgrades without explicit
-  user instruction or accepted project config.
-
-### Codex-only mandatory subagent routing
-
-Before every Codex subagent invocation, the primary agent MUST classify both
-`complexity` and `risk` as `low|moderate|high|xhigh|critical`, then run:
-
-`node contextkit/tools/scripts/model-policy.mjs resolve --agent <role> --host codex --complexity <value> --risk <value>`
-
-Spawn only when the JSON receipt contains `decision:"dispatch"`, a non-null
-`model`, `effort`, and `ruleId`; pass the exact model and reasoning effort.
-Missing/invalid dimensions, refusal, malformed output, or policy drift blocks
-the invocation. If a static agent profile conflicts, use the neutral `default`
-profile and carry the role in its prompt.
-
-Complete dimensions outrank task kind, role defaults, budget downgrade, QA
-escalation, session model, and global defaults. The canonical high-end name is
-`xhigh`, not `very-high` (accepted only as an input alias). Critical risk with
-non-critical complexity is refused. `ultra` is legal only for
-`critical × critical` on `gpt-5.6-sol`. When ContextKit is absent, the personal
-global harness installed by `install-codex-global-routing.mjs` applies the same
-matrix; when ContextKit is present, exact parity is mandatory. [-> ADR-0150]
-
-## Canonical Work Journey
-
-Authoritative lifecycle details: `contextkit/docs/work-lifecycle.md`.
-
-For non-trivial code work, follow this host-neutral order from
-`contextkit/policy/journey.json`:
-
-1. **Graph** - query the structural graph (`graph.mjs query`) before ANY exploration;
-   gate-enforced, not advisory (ADR-0155); owner projection: `architect`.
-2. **Economy** — resolve `subagent-profile`, context, routing, and compaction; owner projection: engine/`model-router`.
-3. **DDD/governance** — resolve the implementation profile, domain model, and accepted Decision/ADR when material; owner projection: `domain-modeler`, `architect`, `governance-officer`.
-4. **Implementation** — use the permitted workflow phase and implementation packet; owner: `implementation-engineer`.
-5. **QA** — run tests, selected review, QA sign-off, and receipt/session closure; owners: `test-engineer`/`qa-orchestrator`.
-
-Economy may reduce context/output cost, but it cannot reorder stages, satisfy
-evidence, lower agent quality, or bypass tests/QA. Trivial and no-code work stay
-proportional; unknown evidence remains pending/skipped rather than passing.
-
-## Complete Session Workflow (Codex)
-
-### 1. Boot the session
-
-Codex should load `AGENTS.md` and `.codex/hooks.json` automatically. At
-`SessionStart`, ContextDevKit runs the same boot-context hook used by Claude
-Code: it creates/refreshes the session ledger, checks drift, reads the latest
-session, scans active workspace claims, and prints process rules.
-
-If hooks are unavailable in this Codex surface, run the deterministic fallback
-before editing:
-
-```bash
-node cdx.mjs state
-```
-
-### 2. Work the same project loop
-
-- Read the latest `contextkit/memory/SESSIONS.md` entry and the relevant ADR
-  before non-trivial changes.
-- Check `contextkit/memory/GLOSSARY.md` before coining domain names.
-- For architectural decisions, create the ADR before implementation:
-  `node cdx.mjs new-adr <title>`.
-- For parallel work, reserve scope with `node cdx.mjs claim <path>` and release
-  it with `node cdx.mjs release`.
-- For high-risk paths, let the L5 hook enforce `simulate-impact`; if hooks are
-  unavailable, run `node cdx.mjs simulate-impact "<objective>"` before editing.
-- End productive work with `node cdx.mjs log-session`.
-
-### 🤖 Autonomous Execution Guidelines (For AI Agents)
-- As an AI agent (Codex), you are expected to operate proactively and drive the development lifecycle autonomously.
-- **You should execute the following actions autonomously**:
-  - Run `node cdx.mjs state` at the start of a session.
-  - Use `node cdx.mjs workflow status` to check active workflows. For non-trivial work, start a workflow (`node cdx.mjs workflow new <slug>`) and complete the PRD/SPEC phases before editing source code.
-  - Use `node cdx.mjs dev-start` to lock branch scopes.
-  - Check `node cdx.mjs autonomy` to resolve your consent grade. At Grade 3, auto-run edits, tests, and card moves. At Grade 4, run `node cdx.mjs ship --auto` and push feature branches autonomously, resolving checks via deliberation quorums (`node cdx.mjs debate`).
-  - Proactively create test plans (`node cdx.mjs test-plan`), scaffold tests (`node cdx.mjs scaffold-tests`), run suites, and perform `node cdx.mjs qa-signoff` before finishing a task.
-  - Run `node cdx.mjs log-session` at the end of the session to register your work and update `CHANGELOG.md`.
-
-### 3. Use Codex skills and the runner
-
-The generated Codex skills under `.agents/skills/source-command-*` mirror the
-Claude Code slash commands. When you need a deterministic script, use:
-
-```bash
-node cdx.mjs <command> [...args]
-```
-
-Daily commands: `state`, `log-session`, `new-adr`, `context-refresh`,
-`dev-start`, `pipeline`, `ship`, `qa-signoff`, `context-doctor`, `audit`.
-
-### 4. Collaborate across hosts
-
-Codex, Claude Code, and Antigravity are peers over the same ContextDevKit
-substrate. Do not compete with another host or overwrite its work. Coordinate
-through the shared ledger, workspace claims, DevPipeline cards, ADRs, sessions,
-and changelog. If another active session owns a file or task, stop and choose a
-non-overlapping task unless the user explicitly coordinates the handoff.
+- Keep conversation and read-only exploration inert. Do not create project
+  artifacts until the user requests a mutation or an actual write begins.
+- For governed workflow mutation, use the context supplied by the dispatcher.
+  Do not reconstruct a second lifecycle from Markdown placement or old lanes.
+- Prefer Project Map/graph for bounded orientation. If it is stale, partial, or
+  unavailable, say so briefly and continue with ordinary file/search tools.
+- Treat gate output as evidence. `shadow` and `canary` guide; only a proven
+  `guarded` violation denies the governed transition.
+- Tests must cover every behavior added or changed. Report skipped or unavailable
+  evidence honestly; a timeout is not a pass.
+- Coordinate through current workflow/task state and workspace claims. Preserve
+  unrelated edits and never overwrite another active owner.
 
 ## Immutable Rules
 
-<!-- The decisions you never want Codex to silently undo. Examples:
-     1. Never introduce <forbidden tech>. Target is <X>. [-> ADR-0001]
-     2. All persistence goes through <layer>; never raw <thing>.
-     3. <invariant that protects your architecture>.
-     Start with 1-3. Grow them as you make decisions. -->
+<!-- Add project-specific invariants and link their accepted ADRs. -->
 
-1. _Add your first immutable rule here (and link the ADR that justifies it)._
+1. _Add the first project-specific immutable rule here._
 
 ## Coding Constitution
 
-> This section has absolute priority over the agent's internal defaults. Applies
-> to all new or modified code. You are the **guardian** of this constitution.
+- Act as a Staff/Principal engineer. Architecture, readability, testability, and
+  operability outrank delivery speed.
+- File size is an investigation signal, never a verdict. Split only at a real
+  responsibility or architecture boundary; merge artificial fragmentation.
+- Keep dependencies inward. Entry points dispatch, domain/services own behavior,
+  and adapters translate transport, persistence, or vendor shapes at one seam.
+- Use descriptive English identifiers. Validate inputs at trust boundaries, fail
+  fast with useful errors, and never expose stack traces or secrets to users.
+- Document non-trivial behavior with its purpose, parameters, returns, and thrown
+  errors. Comments explain why, not the syntax.
+- Default unproved states to refused or skipped, never to an assumed pass. Mutators
+  are dry-run-first unless the current explicit user instruction authorizes apply.
+- Make the smallest change that satisfies the request. Do not add speculative
+  wrappers, aliases, compatibility readers, or a second source of truth.
 
-### 0. Posture: Staff/Principal Engineer
+## Codex Host Surface
 
-Act as a **Staff/Principal Software Engineer**, not a code generator. Think
-**architecture before syntax**. Refuse spaghetti, excessive coupling, monolithic
-files, and hidden tech debt. Maintainability, testability, and human readability
-beat raw delivery speed.
+Codex loads `AGENTS.md`, `.codex/hooks.json`, generated skills under
+`.agents/skills/source-command-*`, and generated subagents under `.codex/agents`.
+Use only commands currently exposed by those generated surfaces; removed 3.x
+commands are not implicit compatibility aliases.
 
-### 1. File size: an advisory signal, never a blocker [-> ADR-0122]
-
-- **There is no line limit, and file size is not technical debt.** A small file
-  is not automatically well designed; a large file is not automatically a
-  monolith. Size may prompt a structural REVIEW; it **cannot independently
-  block CI, completion, or merge**, and it is never a verdict on its own.
-- **Real debt is judged by the Architecture & Technical Debt Governance Gate**
-  (`arch-debt/`, ADR-0122) across 12 dimensions: architecture conformance,
-  modularity, complexity, testability, reliability, security, observability,
-  performance, operations, dependencies, contracts, and cognitive coherence. A
-  big file that scores clean there is fine; a small file that scores badly is
-  debt.
-- **Split only when a real responsibility/architecture boundary exists;
-  merge/simplify when a journey is artificially fragmented** -- fragmentation is
-  ALSO debt. Never split just to satisfy a number; never preserve mixed
-  responsibilities just to avoid multiple files. Every extraction must justify
-  its cost.
-
-### 2. Single Responsibility, layering & domain boundaries
-
-- Each function/module does **one** thing. If the name needs "And"/"Or"
-  (`validateAndSave`, `fetchAndTransform`), split it.
-- Keep layers honest: entry points dispatch; business logic lives in a
-  service/domain layer; that layer never imports the transport framework. UI
-  components stay "dumb"; non-trivial state/effects go into helpers/hooks.
-- **Dependencies point inward.** The domain does not know how it is stored or
-  transported: the core defines the port, infrastructure implements it, the edge
-  injects it. A persistence row, a vendor SDK type, or a generated DTO is
-  **never** the domain model; translate at the seam, in one place.
-- **One word, one meaning, inside one boundary.** Name where a model ends; the
-  same word in two contexts is two models, not one type with optional fields.
-  Use the business's own vocabulary in identifiers (record it in `GLOSSARY.md`).
-- **Invariants live with the state they constrain.** A rule that must always
-  hold is enforced by the owner of that state, in one transaction; not in a
-  controller, not in the UI, not in three handlers. No invariant -> no
-  aggregate; ceremony that protects nothing is waste.
-- **Proportionality is part of the rule.** Simple CRUD gets a validated input
-  and a repository call; full modeling ceremony is for work that carries real
-  domain weight (`node cdx.mjs domain "<objective>"` resolves which). Rubric
-  detail: `contextkit/best-practices.md` §S1-S7.
-
-### 3. Clean naming
-
-Descriptive, explicit names. **Banned without a qualifier**: `data`, `temp`,
-`obj`, `val`, `x`, `arr`, `result`. Readability beats clever/compact code.
-
-### 4. Fail fast & error handling
-
-Validate input at the boundary. Throw descriptive, typed errors early. Never
-swallow exceptions silently. Never leak stack traces to end users; show a
-friendly message and log details with a request/correlation id.
-
-### 5. Language policy
-
-| Layer | Language |
-| --- | --- |
-| Code: identifiers, functions, types, API/DB names, JSON keys | **English** |
-| Comments, doc comments, logs, commit messages | **English** |
-| CLI/tooling output | **English** |
-| User-facing docs | English primary + pt-BR mirror where applicable |
-
-### 6. Documentation
-
-Doc-comment every non-trivial function, hook, and route with `@param`,
-`@returns`, and `@throws`. Comments explain the **why**, never the obvious
-**what**. A good name is the first layer of documentation.
-
-### 7. Self-audit before code
-
-Before emitting code, mentally run:
-
-- **Structure**: layers clean? do dependencies point inward? does any foreign
-  shape (DB row, vendor type) leak into the domain?
-- **Domain** (when the work carries domain weight): one word, one meaning? is
-  every invariant enforced by the owner of the state, in one transaction?
-- **Waste**: would this still be needed if I deleted it? any abstraction with a
-  single consumer, pass-through wrapper, or business rule now written twice?
-- **Hygiene**: names descriptive? no "And"/"Or" functions? errors typed and
-  handled? language policy respected? docs on non-trivial logic?
-
-Fix any failure before showing the code. Note what you deliberately did *not*
-add; deferring is a decision worth stating, not a gap to hide.
-
-### 8. Behavioral discipline
-
-Honor `contextkit/behaviors.md` and `contextkit/behaviors-examples.md`:
-
-- **Think before coding**: surface assumptions, ask when ambiguous, and push
-  back on worse approaches.
-- **Simplicity first (lean)**: the minimum that solves the problem; the
-  smallest reversible step; no speculative abstraction or unrequested options.
-  Abstract on the **second** real case, not the first; a wrong guess costs more
-  than the duplication it avoided. Reach for deletion before addition.
-- **Surgical changes**: touch only what the task needs, match surrounding style,
-  and never refactor unrelated code as a side effect.
-- **Goal-driven**: define a verifiable success criterion; for fixes, reproduce
-  with a test first and loop to green.
-- **Local Workflow Alignment**: For non-trivial architectural or feature changes,
-  do NOT rely on generic IDE/system planning formats alone. You MUST create and
-  advance a local workflow (`node cdx.mjs workflow new <slug>`) and complete the
-  PRD/SPEC/ADR phases before making code edits. The local workflow files are the
-  source of truth for planning and design.
-
-## ContextDevKit - The Context System (Level L{{LEVEL}})
-
-This project uses ContextDevKit to survive across sessions.
-
-- **AGENTS.md** (this file) + `.codex/hooks.json` load context automatically at
-  session start for Codex.
-- **`.codex/agents/*.toml`** are Codex subagents generated from the canonical
-  Claude Code agent source.
-- **`.agents/skills/source-command-*`** are Codex skills generated from the
-  canonical Claude Code command briefings.
-- **`contextkit/memory/`** contains ADRs, sessions, glossary, roadmap, workspace
-  index, business rules, predictions, and workflow memory.
-- **`docs/CHANGELOG.md`** is the factual release chronology.
-- **Hooks** (`.codex/hooks.json` -> `contextkit/runtime/hooks/`) inject boot
-  context, track edits, guard high-risk paths, and nudge session registration.
-
-### Command Equivalents
-
-Setup: `aidevtool-from0`, `setupcontextdevkit`. Daily: `state`, `log-session`,
-`new-adr`, `close-version`, `context-refresh`, `dev-start`, `bug-hunt`, `audit`.
-Multi-session: `claim`, `release`, `worktree-new`. Quality:
-`simulate-impact`, `tech-debt-sweep`, `analyze-code-ia-practices`,
-`contract-check`, `deps-audit`, `deep-analysis`, `validate-doc`, `test-plan`,
-`scaffold-tests`, `qa-signoff`. Product and execution: `roadmap`, `pipeline`,
-`plan-week`, `ship`, `retro`, `context-stats`, `distill-sessions`,
-`distill-apply`. Structure and platform: `squad`, `git`, `draft-changelog`,
-`gh-triage`, `changelog-social`, `claude-md`, `docs-reindex`, `context-level`,
-`context-config`, `context-doctor`.
+ContextDevKit memory lives under `contextkit/memory/`. It may be intentionally
+gitignored and still be authoritative local documentation. Read the relevant
+current workflow/decision context for mutation; do not load historical or
+superseded memory by default.
 
 ---
 
-_Keep this file lean. When it grows past ~200 lines, push detail into ADRs/docs._
+_Keep this file lean. Put detailed policy in canonical ContextDevKit sources._

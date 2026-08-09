@@ -90,11 +90,12 @@ try {
     : bad('.codex/hooks.json is missing modern Codex L5 lifecycle hooks');
 
   const agentsMd = readFileSync(join(proj, 'AGENTS.md'), 'utf-8');
-  /Complete Session Workflow \(Codex\)/.test(agentsMd) &&
-  /node cdx\.mjs log-session/.test(agentsMd) &&
-  /Collaborate across hosts/.test(agentsMd)
-    ? ok('AGENTS.md carries Codex workflow and cross-host cooperation rules')
-    : bad('AGENTS.md missing Codex workflow/cooperation rules');
+  /contextdevkit:host-contract:start/.test(agentsMd) &&
+  /mutation-only-intake/.test(agentsMd) &&
+  /canonical-json-state/.test(agentsMd) &&
+  /identical for Claude, Codex, and Antigravity/.test(agentsMd)
+    ? ok('AGENTS.md carries the canonical v4 cross-host contract')
+    : bad('AGENTS.md missing the canonical v4 cross-host contract');
 
   const boot = run([join(proj, 'contextkit', 'runtime', 'hooks', 'session-start.mjs'), '--host', 'codex'], { cwd: proj, input: '{}' });
   /Boot context.*\(codex\)/s.test(boot.stdout) && /node cdx\.mjs/.test(boot.stdout)
@@ -173,7 +174,7 @@ try {
   // 3.1.2 active-session guard (ADR-0099 P0-02) — this tests AGENTS.md handling.
   const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions', '--allow-self-update']);
   const refreshedAgents = readFileSync(join(proj, 'AGENTS.contextdevkit.md'), 'utf-8');
-  update.status === 0 && /Complete Session Workflow \(Codex\)/.test(refreshedAgents)
+  update.status === 0 && /contextdevkit:host-contract:start/.test(refreshedAgents)
     ? ok('--update preserves AGENTS.md and writes refreshed AGENTS.contextdevkit.md')
     : bad(`Codex update sidecar missing: ${(update.stdout + update.stderr).slice(-500)}`);
 
