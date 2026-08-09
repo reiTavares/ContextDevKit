@@ -100,14 +100,12 @@ export const WF0059_SUITES = Object.freeze([
   },
   {
     id: 'wf0059-w9-e2e',
-    file: 'tools/integration-test-wf0059-e2e.mjs',
+    file: 'tools/migrations/v3-to-v4/v3-to-v4.selftest.mjs',
     tier: 'integration:workflow',
     touches: [
-      `${SCRIPTS}/pipeline-inventory.mjs`, `${SCRIPTS}/tasks-schema.mjs`,
-      `${SCRIPTS}/tasks-validate.mjs`, `${SCRIPTS}/tasks-transition.mjs`,
-      `${SCRIPTS}/tasks-derive.mjs`, `${SCRIPTS}/tasks-cas.mjs`,
-      `${SCRIPTS}/tasks-compat.mjs`, `${SCRIPTS}/tasks-migrate.mjs`,
-      `${SCRIPTS}/tasks-cutover.mjs`,
+      'templates/contextkit/tools/migrations/v3-to-v4/',
+      'tools/migrations/v3-to-v4/',
+      `${SCRIPTS}/tasks-migrate.mjs`, `${SCRIPTS}/tasks-cutover.mjs`,
     ],
   },
   {
