@@ -87,7 +87,7 @@ export async function runTemplateChecks({ ok, bad }, { KIT }) {
     'templates/CLAUDE.md.tpl', 'templates/AGENTS.md.tpl', 'templates/cdx.mjs',
     'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
     'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
-    '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
+    '.github/workflows/ci.yml', 'CHANGELOG.md', 'docs/pt-BR/README.md', 'docs/locales.json', 'docs/LANGUAGES.md', 'docs/ROADMAP.md',
     'templates/contextkit/runtime/git-hooks/pre-push.mjs',
     'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
     'templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs',

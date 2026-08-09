@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "canonicalLocale": "en",
+  "fallbackLocale": "en",
+  "locales": [
+    {
+      "tag": "en",
+      "name": "English",
+      "nativeName": "English",
+      "path": "docs",
+      "direction": "ltr",
+      "status": "canonical",
+      "coverage": "full"
+    },
+    {
+      "tag": "pt-BR",
+      "name": "Portuguese (Brazil)",
+      "nativeName": "Português (Brasil)",
+      "path": "docs/pt-BR",
+      "direction": "ltr",
+      "status": "active",
+      "coverage": "extended-v4"
+    },
+    {
+      "tag": "ru-RU",
+      "name": "Russian (Russia)",
+      "nativeName": "Русский",
+      "path": "docs/ru-RU",
+      "direction": "ltr",
+      "status": "active",
+      "coverage": "core-v4"
+    },
+    {
+      "tag": "hi-IN",
+      "name": "Hindi (India)",
+      "nativeName": "हिन्दी",
+      "path": "docs/hi-IN",
+      "direction": "ltr",
+      "status": "active",
+      "coverage": "core-v4"
+    },
+    {
+      "tag": "es-ES",
+      "name": "Spanish (Spain)",
+      "nativeName": "Español",
+      "path": "docs/es-ES",
+      "direction": "ltr",
+      "status": "active",
+      "coverage": "core-v4"
+    },
+    {
+      "tag": "zh-CN",
+      "name": "Chinese (Simplified, China)",
+      "nativeName": "简体中文",
+      "path": "docs/zh-CN",
+      "direction": "ltr",
+      "status": "active",
+      "coverage": "core-v4"
+    },
+    {
+      "tag": "ar",
+      "name": "Arabic (Modern Standard Arabic)",
+      "nativeName": "العربية",
+      "path": "docs/ar",
+      "direction": "rtl",
+      "status": "active",
+      "coverage": "core-v4"
+    },
+    {
+      "tag": "he-IL",
+      "name": "Hebrew (Israel)",
+      "nativeName": "עברית",
+      "path": "docs/he-IL",
+      "direction": "rtl",
+      "status": "active",
+      "coverage": "core-v4"
+    }
+  ]
+}

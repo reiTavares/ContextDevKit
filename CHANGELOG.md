@@ -20,6 +20,83 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+
+## [4.0.3] - 2026-08-09
+
+> **Governance Harness documentation and internationalization.** ContextDevKit
+> 4.0.3 aligns the public product model with the implemented 4.x runtime: a
+> host-agnostic AI Software Engineering Governance Harness that preserves
+> project intelligence and runs proportional, evidence-driven engineering loops
+> without turning methodology into permission. The release also establishes a
+> first-class multilingual documentation contract.
+
+### Changed (`docs` / `refactor`)
+
+- **`docs(readme)` — document the complete 4.x operating model.** The root guide
+  now explains the harness boundary, mutation-only intake, transient Intake
+  Envelope, Business/Operation/none ownership, direct/batch/workflow execution
+  shape, evidence-driven engineering loops, adaptive engineering depth, owner
+  sovereignty, specialist routing, state authorities, Project Map fallback, and
+  long-session continuity from vibe coder through senior engineer.
+- **`docs(business)` — make Business-Driven Development proportional.** Business
+  and Operation are documented as durable ownership contexts rather than
+  mandatory hierarchy. `none` is first-class; existing work is resolved before
+  new work; a Business matcher may suggest but never confirm ownership; and
+  execution topology remains independent from work nature.
+- **`docs(governance)` — clarify quality floors and evaluator authority.** QA
+  sign-off, applicable deterministic DDD Class A invariants, and new high/
+  critical Technical Debt remain the three guarded quality floors. Architecture
+  Debt stays canary, Privacy/LGPD shadow, and routing/graph/swarm/economy/
+  deliberation remain recommendation surfaces.
+- **`docs(loop-engineering)` — document the project-level engineering loop.** A
+  new explanation defines implement → evaluate → findings → correct → fresh
+  evaluation → evidence-backed completion, including fresh QA cycles, stale
+  evidence invalidation, Workflow reopen, adaptive evaluator depth, and
+  convergence/escalation behavior.
+
+### Added (`docs` / `i18n`)
+
+- **`docs(i18n)` — add a machine-readable locale contract.** `docs/locales.json`
+  defines BCP 47 locale tags, native names, LTR/RTL direction, fallback, status,
+  and coverage. `docs/LANGUAGES.md` provides the human navigation surface.
+- **`docs(pt-BR)` — promote Brazilian Portuguese to an extended v4 tree.** The
+  former root `instrucoes.md` and isolated `*.pt-br.md` page are retired in favor
+  of `docs/pt-BR/`, with architecture, tutorials, how-tos, hosts, governance,
+  Business-Driven Development, Loop Engineering, workflow-engine guidance,
+  configuration, memory, release, troubleshooting, graph, swarm, QA, and other
+  principal operational documentation.
+- **`docs(i18n)` — add translated core-v4 documentation in six more locales.**
+  `es-ES`, `ru-RU`, `hi-IN`, `zh-CN`, `ar`, and `he-IL` each ship localized
+  architecture, Business-Driven Development/intake, Loop Engineering,
+  governance/enforcement, quality model, governance contract, glossary, and
+  Business-case operation guide. Arabic and Hebrew are declared RTL while
+  commands, paths, ids, JSON keys, status enums, and code symbols stay canonical.
+
+### Fixed (`docs` / `tooling`)
+
+- **`fix(docs-reindex)` — keep localized trees out of the canonical English
+  Diátaxis index.** `docs-reindex.mjs` now reads `docs/locales.json`, excludes
+  non-canonical locale roots from English classification, reports the excluded
+  roots, and preserves deterministic/idempotent index generation instead of
+  listing translated pages as English `Unclassified` documents.
+- **`fix(docs)` — remove surviving pre-4.x guidance and duplicate pt-BR paths.**
+  Business/Operation/Workflow anatomy and business-case guidance now reflect
+  `none`, honest clarification, independent execution shape, JSON authorities,
+  and the current 4.x memory model. Links now target the locale tree rather than
+  the removed legacy pt-BR file.
+
+### Release engineering (`ci` / `chore`)
+
+- **`chore(release)` — bump package metadata to 4.0.3.** `package.json` and both
+  root version fields in `package-lock.json` now agree on `4.0.3`; the npm
+  description/keywords include governance harness, Loop Engineering,
+  Business-Driven Development, and project intelligence.
+- **`ci(release)` — validate tag/package/lock parity before publishing.** The
+  tag-triggered release workflow now refuses when the `vX.Y.Z` tag differs from
+  `package.json`, top-level `package-lock.json`, or the lockfile root package
+  version, before changelog rendering, CI, npm provenance publication, and the
+  GitHub Release.
+
 ## [4.0.2] - 2026-08-09
 
 > **Update-safe project personalization.** ContextDevKit 4.0.2 separates

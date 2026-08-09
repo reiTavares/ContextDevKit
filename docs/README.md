@@ -17,8 +17,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 
 - [Customizing ContextDevKit](CUSTOMIZING.md) — The kit works out of the box, but a few tweaks make it fit your project well.
 - [How to <accomplish a specific real-world goal>](how-to/_TEMPLATE.md) — Goal: reader completes a specific, real-world task they already know they need.
-- [Anatomy of a Business, Operation & Workflow](how-to/anatomy-of-business-operation-workflow.md) — Goal: understand ContextDevKit's governance memory in one read — what a
-- [Anatomia de um Business, Operation e Workflow](how-to/anatomy-of-business-operation-workflow.pt-br.md) — Objetivo: entender a memória de governança do ContextDevKit numa leitura só — o
+- [Anatomy of a Business, Operation & Workflow](how-to/anatomy-of-business-operation-workflow.md) — Goal: understand ContextDevKit's durable governance memory in one read — what a **Business**, an **Operation**, and a…
 - [Audit and test a change](how-to/audit-and-test.md) — Use audits to collect evidence, then decide explicitly whether any finding should
 - [How to choose the right documentation altitude](how-to/authoring-docs.md) — You are adding or updating documentation and need to decide which folder to put
 - [How to configure ContextDevKit](how-to/configure-contextkit.md) — Goal: reader makes a specific configuration change safely, by area.
@@ -28,7 +27,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 - [How to install ContextDevKit and choose a level](how-to/install-and-choose-a-level.md) — Goal: reader installs the kit into a real project and lands on the right level.
 - [Record a decision](how-to/record-a-decision.md) — Create an ADR when a material choice needs durable rationale. Deliberation can
 - [How to reduce token cost](how-to/reduce-token-cost.md) — Goal: reader applies the economy levers deliberately, highest-effect first.
-- [How to run a business case from intent to an active workflow](how-to/run-a-business-case.md) — You have a goal — a capability to build, a problem to fix — and you want it to enter
+- [Run a governed business or operation case](how-to/run-a-business-case.md) — Use this guide when a confirmed mutation needs durable Business or Operation memory. Most code changes do not.
 - [Run a parallel swarm](how-to/run-a-parallel-swarm.md) — Use parallel agents when ready tasks are independent and the host can execute
 - [Run a Workflow v2 package](how-to/run-a-workflow.md) — Use a workflow for real dependencies, waves, multi-session execution, cutover,
 - [Start focused work](how-to/start-a-focused-session.md) — Conversation and exploration are read-only. For a mutation:
@@ -48,6 +47,7 @@ _Recipes that solve a specific real-world problem for someone who already knows 
 _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not read._
 
 - [Grok Build Integration](GROK.md) — Grok Build is a first-class native ContextDevKit host. It is an operation-owned
+- [Documentation languages](LANGUAGES.md) — English is the canonical technical documentation. Localized trees preserve command names, paths, ids, JSON keys, code…
 - [Privacy and data posture](PRIVACY.md) — ContextDevKit is local-first. Normal hooks and read-only context commands do not
 - [agent-forge — the factory squad](SQUADS/agent-forge.md) — Add `agent-forge` when a project's purpose includes shipping production AI
 - [Squad — design-team](SQUADS/design-team.md) — The kit's "make it usable, make it beautiful, make it findable" squad. Five
@@ -59,7 +59,7 @@ _Dry, accurate technical descriptions — formats, options, APIs. Consulted, not
 - [Runtime data posture](reference/data-posture.md) — This table describes the stock 4.0 hot path.
 - [Reference: economy configuration and levers](reference/economy.md) — The `economy` block in `contextkit/config.json` governs the token-economy
 - [Installed footprint](reference/footprint.md) — AGENTS.md / CLAUDE.md / INSTRUCTIONS.md
-- [Glossary](reference/glossary.md) — `backlog`, `working`, `blocked`, `testing`, `done`, and `cancelled` are task
+- [Glossary](reference/glossary.md) — `backlog`, `working`, `blocked`, `testing`, `done`, and `cancelled` are task status values, not directory names.
 - [Governance contract](reference/governance-contract.md) — This page is the public contract of the ContextDevKit 4 governance runtime.
 - [Reference: structural knowledge graph](reference/graph.md) — A committed, deterministic projection of the project's structure — files, modules,
 - [Reference: Native hosts](reference/hosts.md) — The editor/agent hosts the platform runs on natively. Generated from the shipped host set.
@@ -72,20 +72,21 @@ _Background and rationale — the why behind the decisions._
 
 - [Agent Package Format (APF) v1](AGENT-PACKAGE-FORMAT.md) — agent-packages/
 - [Antigravity host integration](ANTIGRAVITY.md) — Antigravity uses `INSTRUCTIONS.md` plus generated assets under `.agents/`.
-- [Architecture](ARCHITECTURE.md) — ContextDevKit is a source-distributed, host-neutral governance and project
+- [Architecture](ARCHITECTURE.md) — ContextDevKit is a source-distributed, host-neutral **AI Software Engineering Governance Harness**. Its runtime hot p…
 - [Codex host integration](CODEX.md) — ContextDevKit projects expose Codex through generated files. Canonical sources
 - [Capability levels](LEVELS.md) — Levels select which ContextDevKit capabilities are installed or surfaced. They
 - [Squad Pipeline Format v1](SQUAD-PIPELINE-FORMAT.md) — templates/contextkit/squads/<squad>/pipeline.yaml
 - [architecture — system-shape and design](architecture/README.md) — How ContextDevKit is structured — the decisions behind the engine's shape, the
 - [Explanation: <Topic — the concept, not the task>](explanation/_TEMPLATE.md) — Goal: build a mental model — the WHY, the history, the trade-offs.
-- [Business-driven development](explanation/business-driven-development.md) — ContextDevKit preserves durable business and operation contexts when the work
+- [Business-Driven Development](explanation/business-driven-development.md) — ContextDevKit treats software engineering as work performed in service of durable outcomes — without forcing every co…
 - [Host parity without duplicated authority](explanation/contextkit-parity.md) — ContextDevKit supports Claude Code, Codex, Antigravity, and Grok through one
 - [Deliberation is advisory](explanation/deliberation-council.md) — ContextDevKit can convene several specialist viewpoints when a decision benefits
-- [Work and governance domain model](explanation/domain-model.md) — ContextDevKit 4 keeps authorities small and explicit:
-- [Governance and enforcement](explanation/governance-and-enforcement.md) — ContextDevKit 4 separates deterministic safety checks from advisory engineering
-- [Quality model](explanation/quality-model.md) — ContextDevKit 4 separates observations from authority. A useful warning may be
+- [Work and governance domain model](explanation/domain-model.md) — ContextDevKit 4 keeps authorities small and explicit.
+- [Governance and enforcement](explanation/governance-and-enforcement.md) — ContextDevKit 4 separates deterministic quality floors from advisory engineering guidance.
+- [Evidence-Driven Loop Engineering](explanation/loop-engineering.md) — ContextDevKit supports software engineering as an iterative evidence loop rather than a one-shot generation event.
+- [Quality model](explanation/quality-model.md) — ContextDevKit 4 separates observations from authority. A useful warning may be heuristic; a denial must be determinis…
 - [The three economies: token, cost, and autonomy](explanation/the-three-economies.md) — _Why an AI-assisted development platform tracks three separate resource
-- [Value and impact](explanation/value-and-impact.md) — ContextDevKit turns project context into durable, inspectable engineering state
+- [Value and impact](explanation/value-and-impact.md) — ContextDevKit turns project context into durable, inspectable engineering state without making ceremony the permissio…
 - [Workflow engine](workflow-engine/README.md) — ContextDevKit 4 workflows are atomic JSON-backed packages for work whose
 
 ## 🗂️ Planning & meta
