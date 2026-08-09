@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "authority": "ContextDevKit 4 release package allowlist",
+  "rootFiles": [
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "install.mjs",
+    "instrucoes.md",
+    "package.json"
+  ],
+  "trees": [
+    {
+      "path": "docs/",
+      "purpose": "public product and migration documentation"
+    },
+    {
+      "path": "templates/",
+      "purpose": "installable runtime, host projections, user templates, and explicit migration tools"
+    },
+    {
+      "path": "tools/install/",
+      "purpose": "installer and updater implementation imported by install.mjs"
+    }
+  ],
+  "requiredFiles": [
+    "install.mjs",
+    "templates/ctx.mjs",
+    "templates/cdx.mjs",
+    "templates/contextkit/package-files.json",
+    "templates/contextkit/runtime/config/paths.mjs",
+    "tools/install/engine.mjs",
+    "tools/install/fs.mjs"
+  ],
+  "forbidden": {
+    "pathSegments": [
+      ".updates",
+      "__fixtures__",
+      "__snapshots__",
+      "fixtures",
+      "golden"
+    ],
+    "suffixes": [
+      ".bak",
+      ".selftest.mjs",
+      ".snapshot"
+    ],
+    "nameContains": [
+      "selftest"
+    ],
+    "basenames": [
+      ".env",
+      ".DS_Store"
+    ],
+    "prefixes": [
+      "contextkit/",
+      "tools/release/",
+      "tools/selfcheck",
+      "tools/integration-test",
+      "tools/fixtures/"
+    ]
+  },
+  "security": {
+    "allowSymlinks": false,
+    "allowPathTraversal": false,
+    "maxSingleFileBytes": 8388608
+  }
+}

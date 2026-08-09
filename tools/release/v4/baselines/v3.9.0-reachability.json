@@ -1,0 +1,1662 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-09T02:19:02.569Z",
+  "entrypoints": [
+    "install.mjs",
+    "templates/ctx.mjs",
+    "templates/cdx.mjs",
+    "templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs",
+    "templates/contextkit/runtime/hooks/governance-write-preflight.mjs",
+    "templates/contextkit/runtime/hooks/governance-postflight.mjs",
+    "templates/contextkit/runtime/hooks/governance-completion.mjs"
+  ],
+  "missingEntrypoints": [
+    {
+      "path": "templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs",
+      "reason": "missing or symbolic-link entrypoint"
+    },
+    {
+      "path": "templates/contextkit/runtime/hooks/governance-write-preflight.mjs",
+      "reason": "missing or symbolic-link entrypoint"
+    },
+    {
+      "path": "templates/contextkit/runtime/hooks/governance-postflight.mjs",
+      "reason": "missing or symbolic-link entrypoint"
+    },
+    {
+      "path": "templates/contextkit/runtime/hooks/governance-completion.mjs",
+      "reason": "missing or symbolic-link entrypoint"
+    }
+  ],
+  "legacyModuleCount": 160,
+  "reachable": [
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/antigravity/session-manager.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/codex.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/grok-hooks-compose.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/grok.mjs",
+        "templates/contextkit/runtime/config/grok-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/resolve-autonomy.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs",
+        "templates/contextkit/runtime/config/resolve-autonomy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/settings-compose.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/code-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/spawn-record.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/spawn-record.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/auto-deliberation.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/auto-deliberation.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intake-methodology.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/intake-methodology.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intent-language.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/task-intake.mjs",
+        "templates/contextkit/runtime/execution/intent-language.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-classify.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/request-classify.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/check-registration.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/compaction-continuity.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/compaction-continuity.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/completion-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/completion-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/concurrency-guard.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/concurrency-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/deliberation-nudge.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/deliberation-nudge.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-conformance.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-conformance.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/done-sweep.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/graph-first-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/graph-first-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/host-adapter.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/bridges/index.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/journey-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/journey-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/ledger.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/bridges/index.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs",
+        "templates/contextkit/runtime/hooks/ledger.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/session-start.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/simulate-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/simulate-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/subagent-gate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/subagent-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/track-edits.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/track-edits.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/state/state-io.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+        "templates/contextkit/runtime/state/state-io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/runtime/statusline.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/business-template-strings.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/seed-methodology.mjs",
+        "templates/contextkit/tools/scripts/business-templates.mjs",
+        "templates/contextkit/tools/scripts/business-template-strings.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/complexity-rubric.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/complexity-rubric.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/economy/gate-advisory.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs",
+        "templates/contextkit/tools/scripts/economy/gate-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/model-policy.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/routing-runtime.mjs",
+        "templates/contextkit/tools/scripts/routing/routing-decision.mjs",
+        "templates/contextkit/tools/scripts/model-policy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/pipeline-session.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/pipeline-session.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/registry/workflow.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/simulate-gate.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/registry/workflow.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/io.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/seed-methodology.mjs",
+        "templates/contextkit/tools/scripts/work-io.mjs",
+        "templates/contextkit/tools/scripts/workflow/io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/plan.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/state.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/antigravity.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/simulate-gate.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/workflow/state.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/validate.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/claude.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs",
+        "templates/contextkit/tools/scripts/workflow/validate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "install.mjs",
+      "legacyPath": "tools/install/engine.mjs",
+      "chain": [
+        "install.mjs",
+        "tools/install/engine.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/antigravity/session-manager.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/grok-hooks-compose.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/grok-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/resolve-autonomy.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs",
+        "templates/contextkit/runtime/config/resolve-autonomy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/settings-compose.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/code-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/spawn-record.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/spawn-record.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/auto-deliberation.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/auto-deliberation.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intake-methodology.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/intake-methodology.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intent-language.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/task-intake.mjs",
+        "templates/contextkit/runtime/execution/intent-language.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-classify.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/request-classify.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/check-registration.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/compaction-continuity.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/compaction-continuity.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/completion-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/completion-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/concurrency-guard.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/concurrency-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/deliberation-nudge.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/deliberation-nudge.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-conformance.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-conformance.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/done-sweep.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/graph-first-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/graph-first-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/host-adapter.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/journey-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/journey-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/ledger.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/hooks/ledger.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/session-start.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/simulate-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/simulate-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/subagent-gate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/subagent-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/track-edits.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/track-edits.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/state/state-io.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+        "templates/contextkit/runtime/state/state-io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/runtime/statusline.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/complexity-rubric.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/complexity-rubric.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/economy/gate-advisory.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs",
+        "templates/contextkit/tools/scripts/economy/gate-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/model-policy.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/routing-runtime.mjs",
+        "templates/contextkit/tools/scripts/routing/routing-decision.mjs",
+        "templates/contextkit/tools/scripts/model-policy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/pipeline-session.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/pipeline-session.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/registry/workflow.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/registry/workflow.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/io.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/workflow/ceremony-manifest.mjs",
+        "templates/contextkit/tools/scripts/workflow/io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/plan.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/state.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/workflow/state.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/ctx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/validate.mjs",
+      "chain": [
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs",
+        "templates/contextkit/tools/scripts/workflow/validate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/antigravity/session-manager.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/grok-hooks-compose.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/grok-hooks-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/resolve-autonomy.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs",
+        "templates/contextkit/runtime/config/resolve-autonomy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/config/settings-compose.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/code-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/domain-engineering/spawn-record.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+        "templates/contextkit/runtime/domain-engineering/spawn-record.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/agent-orchestration-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/auto-deliberation.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/auto-deliberation.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intake-methodology.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/intake-methodology.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/intent-language.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/task-intake.mjs",
+        "templates/contextkit/runtime/execution/intent-language.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-classify.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+        "templates/contextkit/runtime/execution/request-classify.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/execution/request-orchestrator.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/execution/request-orchestrator.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/check-registration.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/compaction-continuity.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/compaction-continuity.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/completion-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/completion-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/concurrency-guard.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/concurrency-guard.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/deliberation-nudge.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/deliberation-nudge.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-code-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-code-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/domain-conformance.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/domain-conformance.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/done-sweep.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/execution-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/graph-first-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/graph-first-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/host-adapter.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/hooks/host-adapter.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/indirect-write-reconcile.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/journey-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/journey-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/ledger.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/hooks/ledger.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/session-start.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/simulate-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/simulate-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/subagent-gate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/subagent-gate.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/hooks/track-edits.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/agent-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/track-edits.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/state/state-io.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/runtime/antigravity/session-manager.mjs",
+        "templates/contextkit/runtime/antigravity/boot-context.mjs",
+        "templates/contextkit/runtime/hooks/session-start.mjs",
+        "templates/contextkit/runtime/hooks/autonomy-signals.mjs",
+        "templates/contextkit/runtime/state/state-io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/runtime/statusline.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/settings-compose.mjs",
+        "templates/contextkit/runtime/statusline.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/complexity-rubric.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/complexity-rubric.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/economy/gate-advisory.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-gate.mjs",
+        "templates/contextkit/tools/scripts/economy/gate-advisory.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/model-policy.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-hook.mjs",
+        "templates/contextkit/runtime/hooks/execution-contract-advisory.mjs",
+        "templates/contextkit/runtime/execution/routing-runtime.mjs",
+        "templates/contextkit/tools/scripts/routing/routing-decision.mjs",
+        "templates/contextkit/tools/scripts/model-policy.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/pipeline-session.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/check-registration.mjs",
+        "templates/contextkit/tools/scripts/pipeline-session.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/registry/workflow.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/registry/workflow.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/io.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/workflow/ceremony-manifest.mjs",
+        "templates/contextkit/tools/scripts/workflow/io.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/plan.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/state.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/workflow-assist.mjs",
+        "templates/contextkit/tools/scripts/workflow-pack.mjs",
+        "templates/contextkit/tools/scripts/workflow/state.mjs"
+      ]
+    },
+    {
+      "entrypoint": "templates/cdx.mjs",
+      "legacyPath": "templates/contextkit/tools/scripts/workflow/validate.mjs",
+      "chain": [
+        "templates/cdx.mjs",
+        "templates/ctx.mjs",
+        "templates/contextkit/tools/scripts/context-level.mjs",
+        "templates/contextkit/runtime/config/codex-hooks-compose.mjs",
+        "templates/contextkit/runtime/hooks/done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow-done-sweep.mjs",
+        "templates/contextkit/tools/scripts/workflow/finalization.mjs",
+        "templates/contextkit/tools/scripts/workflow/plan.mjs",
+        "templates/contextkit/tools/scripts/workflow/validate.mjs"
+      ]
+    }
+  ],
+  "verdict": "refuse"
+}
