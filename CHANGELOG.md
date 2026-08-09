@@ -144,6 +144,14 @@ this project follows [Semantic Versioning](https://semver.org/).
   and the current 4.x memory model. Links now target the locale tree rather than
   the removed legacy pt-BR file.
 
+- **`fix(release)` — distinguish v4 cleanup boundaries from executable legacy
+  routing.** The release inventory now permits only the exact Codex updater,
+  its negative integration test, and the localized migration guide to name
+  retired 3.x contracts. Real global-routing harnesses and near-miss paths
+  remain release-blocking, preventing cleanup code from becoming a false
+  positive without weakening the cutover fence. The inventory also stops
+  requiring the intentionally retired root `instrucoes.md` as a scan root.
+
 ### Tests (`test`)
 
 - **`test(workflow)` — prove continuation determinism across the complete
