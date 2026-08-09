@@ -215,7 +215,7 @@ timed-out process tree. Release packaging uses an allowlist and refuses legacy
 runtime reachability, host-projection drift, test fixtures in the tarball, or an
 unexercised migration rollback.
 
-Version `4.0.0` is stamped only after all release gates are green.
+A release version is stamped only after all release gates are green.
 
 ## Documentation
 

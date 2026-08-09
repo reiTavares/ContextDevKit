@@ -110,7 +110,9 @@ multissessão, cutover, rollback ou pedido explícito.
 
 Antes da primeira escrita de workflow, o loader entrega `workflow.json`,
 `workflow-state.json`, PRD, SPEC, decisões, `pipeline/tasks.json` e reports
-relevantes. Não há fallback para plano v1, frontmatter, lanes ou `done/`.
+relevantes. Não há fallback para plano v1, frontmatter ou lanes. O `done/`
+delimitado pode localizar um pacote concluído, mas nunca determina seu estado:
+`workflow-state.json` continua sendo a autoridade.
 
 Tasks vivem somente em `pipeline/tasks.json`; estado agregado do workflow vive
 somente em `workflow-state.json`; Markdown é projeção. Transições usam lock,

@@ -6,6 +6,7 @@ import {
   completeWorkflow,
   listWorkflows,
   loadWorkflowPack,
+  moveCompletedWorkflow,
   readWorkflow,
   repairWorkflowScaffold,
   resolveWorkflowDirectory,
@@ -62,7 +63,7 @@ function printWorkflow(workflow) {
 
 /** Explicit fence for v3 runtime verbs and the staged ADR-0156 plan-hash flag. */
 function refuseRemovedV3Surface(command) {
-  const removedCommands = new Set(['conclude', 'done-move', 'migrate-plan', 'migrate']);
+  const removedCommands = new Set(['conclude', 'migrate-plan', 'migrate']);
   if (removedCommands.has(command) || process.argv.includes('--adopt-plan-hash')) {
     throw new Error('This v3 plan/hash surface is not available in Workflow v2. Use the explicit offline migrate-v3-to-v4 tool.');
   }
@@ -137,6 +138,13 @@ function run() {
     printWorkflow(workflow);
     return;
   }
+  if (command === 'done-move') {
+    const [ref] = positional();
+    if (!ref) throw new Error('done-move requires a workflow reference');
+    const receipt = moveCompletedWorkflow(ROOT, ref, { apply: process.argv.includes('--apply') });
+    console.log(JSON.stringify(receipt, null, 2));
+    return;
+  }
   if (command === 'repair-scaffold') {
     const [ref] = positional();
     const directory = resolveWorkflowDirectory(ROOT, ref);
@@ -156,7 +164,7 @@ function run() {
     console.log(JSON.stringify(requiredFiles(), null, 2));
     return;
   }
-  console.error('Usage: workflow.mjs <new <slug> [--operation OP-####|--business BIZ-####] [--profile p] | status [ref] [--json] | load <ref> | render <ref> | validate <ref> | advance <ref> [--ref report] | complete <ref> --qa-status passed|skipped --qa-evidence <ref[,ref]> --ref reports/<file> --expected-revision <n> | repair-scaffold <ref> [--write] | explain-file <id> | required-files>');
+  console.error('Usage: workflow.mjs <new <slug> [--operation OP-####|--business BIZ-####] [--profile p] | status [ref] [--json] | load <ref> | render <ref> | validate <ref> | advance <ref> [--ref report] | complete <ref> --qa-status passed|skipped --qa-evidence <ref[,ref]> --ref reports/<file> --expected-revision <n> | done-move <ref> [--apply] | repair-scaffold <ref> [--write] | explain-file <id> | required-files>');
   process.exitCode = 1;
 }
 

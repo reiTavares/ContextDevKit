@@ -37,16 +37,14 @@ contextkit/memory/
 │   └── OP-0008-.../
 │       ├── operation.json          # registro de máquina
 │       ├── reason.md               # por que a Operation existe + achados + escopo
-│       ├── tasks.md
-│       └── workflows/              # ← workflows possuídos ANINHAM aqui
-│           └── WF-0070-memory-accessibility-and-governance-digest/
-│               ├── index.md
-│               ├── prd.md          # requisitos de produto
-│               ├── spec.md         # spec técnica
-│               ├── decisions.md    # log de decisões de design
-│               ├── memory.md       # handoffs/aprendizados duráveis
-│               ├── tasks.md
-│               └── reports/        # evidência por tarefa
+│       ├── batch/tasks.json         # estado canônico de tasks diretas/batch
+│       ├── workflows/              # workflows ativos do owner
+│       │   └── WF-0070-memory-accessibility-and-governance-digest/
+│       │       ├── workflow.json · workflow-state.json
+│       │       ├── pipeline/tasks.json · pipeline/tasks.md
+│       │       ├── prd.md · spec.md · decisions.md · index.md
+│       │       └── reports/
+│       └── done/                   # pacotes completos após conclusão JSON-first
 ├── decisions/                      # ADRs — o "porquê" das escolhas arquiteturais
 │   ├── ADR-0000-...md              # ADR-####-<slug>.md (formato canônico)
 │   ├── business/ · operations/ · legacy/
@@ -66,11 +64,12 @@ governado por `decisions/operations/ADR-0132-*.md`.
 
 - **Business** — `business.json` (registro) + `business-case.md` (o valor).
   `growth.md` / `investment-decision.md` são os documentos de apoio padrão.
-- **Operation** — `operation.json` + `reason.md` (por que existe, achados, escopo)
-  + `tasks.md`. Um diretório `workflows/` guarda seus workflows possuídos.
-- **Workflow (spec-pack)** — `index.md`, `prd.md`, `spec.md`, `decisions.md`,
-  `memory.md`, `tasks.md`, e um diretório `reports/` para evidência. (Alguns packs
-  usam `reason.md` junto/no lugar de `decisions.md`.)
+- **Operation** — `operation.json` + `reason.md` (por que existe, achados,
+  escopo). `batch/tasks.json` guarda tasks diretas/batch; `workflows/` e `done/`
+  organizam pacotes de workflow ativos e concluídos.
+- **Workflow (spec-pack v2)** — `workflow.json`, `workflow-state.json`,
+  `pipeline/tasks.json`, `pipeline/tasks.md` gerado, `index.md`, `prd.md`,
+  `spec.md`, `decisions.md`, `context-manifest.json` e `reports/`.
 - **ADR** — `decisions/ADR-####-<slug>.md`. ADRs de business/operation ficam nas
   subpastas `business/` e `operations/`; os históricos em `legacy/`.
 
@@ -78,7 +77,9 @@ governado por `decisions/operations/ADR-0132-*.md`.
 
 - Businesses: `BIZ-####`; Operations: `OP-####`; Workflows: `WF-####`.
 - Diretórios de workflows possuídos carregam o **prefixo `WF-`** (`WF-0070-<slug>`)
-  e aninham sob o `workflows/` do pai.
+  e ficam sob `workflows/` enquanto ativos. O diretório completo vai para
+  `done/` do pai após a conclusão; o JSON, não a posição, continua sendo a
+  autoridade do ciclo de vida.
 - Arquivos de ADR: `ADR-####-<slug>.md`.
 - Números são alocados de **uma sequência global única** entre BIZ/OP/WF/ADR —
   nunca reutilizados ou por-diretório.

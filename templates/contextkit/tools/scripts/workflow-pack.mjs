@@ -5,10 +5,23 @@
  * or physical status placement. Historical v3 input belongs exclusively to the
  * explicit offline migrator.
  */
-import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  renameSync,
+  statSync,
+} from 'node:fs';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { createWaveWorkflow, repairWorkflowScaffold } from './workflow/create.mjs';
+import {
+  createWaveWorkflow,
+  repairWorkflowScaffold,
+  workflowStorageRoots,
+} from './workflow/create.mjs';
 import { WORKFLOW_PHASES } from './workflow/catalog.mjs';
 import { readJsonSafe, writeJsonStable } from './workflow/io.mjs';
 import { renderWorkflowPack } from './workflow/render.mjs';
@@ -29,14 +42,27 @@ function isContained(parent, candidate) {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-/** Enumerate active canonical workflow roots without creating missing paths. */
+/** Compare resolved paths using host path-case semantics. */
+function isSamePath(left, right) {
+  const normalizedLeft = resolve(left);
+  const normalizedRight = resolve(right);
+  return process.platform === 'win32'
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+
+/** Enumerate active and completed workflow roots without creating paths. */
 function workflowRoots(root) {
   const paths = pathsFor(root);
-  const roots = [join(paths.memory, 'workflows')];
+  const neutralRoot = join(paths.memory, 'workflows');
+  const roots = [neutralRoot, join(neutralRoot, 'done')];
   for (const contextsRoot of [paths.business, paths.operations]) {
     if (!existsSync(contextsRoot)) continue;
     for (const entry of readdirSync(contextsRoot, { withFileTypes: true })) {
-      if (entry.isDirectory()) roots.push(join(contextsRoot, entry.name, 'workflows'));
+      if (entry.isDirectory()) {
+        roots.push(join(contextsRoot, entry.name, 'workflows'));
+        roots.push(join(contextsRoot, entry.name, 'done'));
+      }
     }
   }
   return roots;
@@ -175,7 +201,7 @@ export function readWorkflow(root, ref) {
   };
 }
 
-/** List every active v2 workflow; invalid packs remain visible as malformed. */
+/** List every active or completed v2 workflow; invalid packs stay visible. */
 export function listWorkflows(root) {
   return workflowDirectories(root).map((directory) => {
     try {
@@ -184,6 +210,172 @@ export function listWorkflows(root) {
       return { malformed: true, format: 'v2', path: directory, error: error.message };
     }
   }).sort((left, right) => String(right.started ?? '').localeCompare(String(left.started ?? '')));
+}
+
+/**
+ * Compute the derived completed location for an already-loaded workflow pack.
+ * Lifecycle status is never inferred from either source or target path.
+ *
+ * @param {string} root project root
+ * @param {ReturnType<typeof loadWorkflowPack>} pack validated workflow pack
+ * @returns {{source:string,target:string,doneRoot:string,alreadyPlaced:boolean}}
+ * @throws {Error} on path drift, reparse roots, or target collision
+ */
+function workflowDonePlacement(root, pack) {
+  const memoryRoot = pathsFor(root).memory;
+  const { activeRoot, doneRoot } = workflowStorageRoots(root, pack.definition.owner);
+  const source = resolve(pack.dir);
+  const resolvedDoneRoot = resolve(doneRoot);
+  const sourceParent = dirname(source);
+  const alreadyPlaced = isSamePath(sourceParent, resolvedDoneRoot);
+  if (!alreadyPlaced && !isSamePath(sourceParent, activeRoot)) {
+    throw new Error(`Workflow directory is outside its active/completed roots: ${source}`);
+  }
+  if (existsSync(doneRoot) && lstatSync(doneRoot).isSymbolicLink()) {
+    throw new Error(`Workflow done root must not be a symbolic link: ${doneRoot}`);
+  }
+  const target = alreadyPlaced ? source : join(resolvedDoneRoot, basename(source));
+  if (!isContained(memoryRoot, target)) throw new Error(`Workflow done target escapes the memory root: ${target}`);
+  if (!alreadyPlaced && existsSync(target)) {
+    throw new Error(`Workflow done target collision: source and target both exist (${source} / ${target})`);
+  }
+  return { source, target, doneRoot: resolvedDoneRoot, alreadyPlaced };
+}
+
+/** Compute the derived active location for a validated workflow pack. */
+function workflowActivePlacement(root, pack) {
+  const memoryRoot = pathsFor(root).memory;
+  const { activeRoot, doneRoot } = workflowStorageRoots(root, pack.definition.owner);
+  const source = resolve(pack.dir);
+  const resolvedActiveRoot = resolve(activeRoot);
+  const sourceParent = dirname(source);
+  const alreadyPlaced = isSamePath(sourceParent, resolvedActiveRoot);
+  if (!alreadyPlaced && !isSamePath(sourceParent, doneRoot)) {
+    throw new Error(`Workflow directory is outside its active/completed roots: ${source}`);
+  }
+  if (existsSync(activeRoot) && lstatSync(activeRoot).isSymbolicLink()) {
+    throw new Error(`Workflow active root must not be a symbolic link: ${activeRoot}`);
+  }
+  const target = alreadyPlaced ? source : join(resolvedActiveRoot, basename(source));
+  if (!isContained(memoryRoot, target)) throw new Error(`Workflow active target escapes the memory root: ${target}`);
+  if (!alreadyPlaced && existsSync(target)) {
+    throw new Error(`Workflow active target collision: source and target both exist (${source} / ${target})`);
+  }
+  return { source, target, activeRoot: resolvedActiveRoot, alreadyPlaced };
+}
+
+/**
+ * Plan the human-facing completed placement without changing state or files.
+ *
+ * @param {string} root project root
+ * @param {string} ref workflow id, slug, or path
+ * @returns {{status:string,applied:false,stateStatus:string,source:string,target:string}}
+ */
+export function planWorkflowDonePlacement(root, ref) {
+  const pack = loadWorkflowPack(root, ref);
+  const placement = workflowDonePlacement(root, pack);
+  return {
+    status: pack.state.status !== 'done'
+      ? 'not-completed'
+      : placement.alreadyPlaced ? 'noop' : 'dry-run',
+    applied: false,
+    stateStatus: pack.state.status,
+    source: placement.source,
+    target: placement.target,
+  };
+}
+
+/**
+ * Move one JSON-completed Workflow v2 package to its derived `done/` root.
+ * The command is dry-run by default and never mutates lifecycle state.
+ *
+ * @param {string} root project root
+ * @param {string} ref workflow id, slug, or path
+ * @param {{apply?:boolean}} [options]
+ * @returns {{status:'dry-run'|'noop'|'applied',applied:boolean,stateStatus:'done',source:string,target:string}}
+ * @throws {Error} when JSON is not done or placement is unsafe
+ */
+export function moveCompletedWorkflow(root, ref, { apply = false } = {}) {
+  const pack = loadWorkflowPack(root, ref);
+  if (pack.state.status !== 'done') {
+    throw new Error(`done-move requires workflow-state.json status done, found ${pack.state.status}`);
+  }
+  const placement = workflowDonePlacement(root, pack);
+  const baseReceipt = {
+    applied: false,
+    stateStatus: 'done',
+    source: placement.source,
+    target: placement.target,
+  };
+  if (placement.alreadyPlaced) return { status: 'noop', ...baseReceipt };
+  if (!apply) return { status: 'dry-run', ...baseReceipt };
+  mkdirSync(placement.doneRoot, { recursive: true });
+  if (lstatSync(placement.doneRoot).isSymbolicLink()) {
+    throw new Error(`Workflow done root must not be a symbolic link: ${placement.doneRoot}`);
+  }
+  renameSync(placement.source, placement.target);
+  return { status: 'applied', ...baseReceipt, applied: true };
+}
+
+/**
+ * Reopen a completed workflow before a human-feedback task reset. Aggregate
+ * JSON is committed first, projections are repaired, and the complete package
+ * then returns to its active root. A retry after a post-state move failure is
+ * idempotent.
+ *
+ * @param {string} root project root
+ * @param {string} ref workflow id, slug, or path
+ * @param {{expectedRevision?:number,now?:string}} [options]
+ * @returns {ReturnType<typeof readWorkflow>}
+ * @throws {Error} on an unsafe placement, stale revision, or unrelated state
+ */
+export function reopenCompletedWorkflow(root, ref, options = {}) {
+  const pack = loadWorkflowPack(root, ref);
+  if (options.expectedRevision !== undefined && options.expectedRevision !== pack.state.revision) {
+    throw new Error(`Workflow state CAS refused: expected revision ${options.expectedRevision}, found ${pack.state.revision}`);
+  }
+  const placement = workflowActivePlacement(root, pack);
+  const alreadyReopened = pack.state.status === 'working'
+    && pack.state.phase === 'ship'
+    && pack.state.qa?.status === 'pending'
+    && pack.state.completedAt === null;
+  if (pack.state.status !== 'done' && !alreadyReopened) {
+    throw new Error(`Workflow reopen requires status done, found ${pack.state.status}/${pack.state.phase}`);
+  }
+  let revision = pack.state.revision;
+  if (pack.state.status === 'done') {
+    const now = options.now ?? new Date().toISOString();
+    const next = {
+      ...pack.state,
+      status: 'working',
+      phase: 'ship',
+      revision: pack.state.revision + 1,
+      activeTaskIds: [],
+      blockers: [],
+      qa: { status: 'pending', evidenceRefs: [] },
+      updatedAt: now,
+      completedAt: null,
+    };
+    writeWorkflowStateCas(join(pack.dir, 'workflow-state.json'), pack.state, next);
+    revision = next.revision;
+  }
+  try {
+    renderWorkflowPack(pack.dir);
+  } catch (error) {
+    throw new Error(`Workflow reopen committed at revision ${revision}, but projection repair failed: ${error.message}`);
+  }
+  try {
+    if (!placement.alreadyPlaced) {
+      mkdirSync(placement.activeRoot, { recursive: true });
+      if (lstatSync(placement.activeRoot).isSymbolicLink()) {
+        throw new Error(`Workflow active root must not be a symbolic link: ${placement.activeRoot}`);
+      }
+      renameSync(placement.source, placement.target);
+    }
+    return readWorkflow(root, placement.target);
+  } catch (error) {
+    throw new Error(`Workflow reopen committed at revision ${revision}, but active placement failed; retry the same qa-reject command: ${error.message}`);
+  }
 }
 
 /** Create through the one atomic Workflow v2 creator. */
@@ -272,7 +464,18 @@ export function completeWorkflow(root, ref, completion, options = {}) {
       && pack.state.lastReportRef === completion?.reportRef
       && JSON.stringify(pack.state.qa?.evidenceRefs ?? []) === JSON.stringify(completion?.qaEvidenceRefs ?? []);
     if (!sameReceipt) throw new Error('Workflow is already done with different QA evidence');
-    return readWorkflow(root, pack.dir);
+    workflowDonePlacement(root, pack);
+    try {
+      renderWorkflowPack(pack.dir);
+    } catch (error) {
+      throw new Error(`Workflow is done at revision ${pack.state.revision}, but projection repair failed before done placement retry: ${error.message}`);
+    }
+    try {
+      const move = moveCompletedWorkflow(root, pack.dir, { apply: true });
+      return readWorkflow(root, move.target);
+    } catch (error) {
+      throw new Error(`Workflow is done at revision ${pack.state.revision}, but done placement failed; retry workflow done-move ${pack.definition.id} --apply: ${error.message}`);
+    }
   }
   if (pack.state.phase !== PHASES[PHASES.length - 1]) {
     throw new Error(`Workflow completion requires phase conclusion, found ${pack.state.phase}`);
@@ -298,6 +501,7 @@ export function completeWorkflow(root, ref, completion, options = {}) {
   if (pack.state.blockers.length > 0) {
     throw new Error(`Workflow completion requires zero blockers: ${pack.state.blockers.join(', ')}`);
   }
+  workflowDonePlacement(root, pack);
   const now = options.now ?? new Date().toISOString();
   const next = {
     ...pack.state,
@@ -321,7 +525,12 @@ export function completeWorkflow(root, ref, completion, options = {}) {
   } catch (error) {
     throw new Error(`Workflow completion committed at revision ${next.revision}, but projection repair failed: ${error.message}`);
   }
-  return readWorkflow(root, pack.dir);
+  try {
+    const move = moveCompletedWorkflow(root, pack.dir, { apply: true });
+    return readWorkflow(root, move.target);
+  } catch (error) {
+    throw new Error(`Workflow completion committed at revision ${next.revision}, but done placement failed; retry workflow done-move ${pack.definition.id} --apply: ${error.message}`);
+  }
 }
 
 /** Optional Git branch enrichment; absence is a valid non-Git result. */

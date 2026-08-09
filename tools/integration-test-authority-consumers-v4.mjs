@@ -21,28 +21,35 @@ const toolCatalogModule = await importSource('templates/contextkit/mcp-server/to
 const root = mkdtempSync(resolve(tmpdir(), 'contextdevkit-v4-consumers-'));
 const memoryRoot = resolve(root, 'contextkit', 'memory');
 const goodWorkflow = resolve(memoryRoot, 'workflows', 'WF-0001-good');
+const completedWorkflow = resolve(memoryRoot, 'workflows', 'done', 'WF-0003-completed');
 const corruptWorkflow = resolve(memoryRoot, 'operations', 'OP-0001-test', 'workflows', 'WF-0002-corrupt');
 const ownedBatch = resolve(memoryRoot, 'operations', 'OP-0001-test', 'batch');
 mkdirSync(goodWorkflow, { recursive: true });
+mkdirSync(completedWorkflow, { recursive: true });
 mkdirSync(corruptWorkflow, { recursive: true });
 mkdirSync(ownedBatch, { recursive: true });
 writeFileSync(resolve(goodWorkflow, 'workflow.json'), '{}\n');
+writeFileSync(resolve(completedWorkflow, 'workflow.json'), '{}\n');
 writeFileSync(resolve(corruptWorkflow, 'workflow.json'), '{}\n');
 writeFileSync(resolve(ownedBatch, 'tasks.json'), '{}\n');
 
-const makePack = (workflowDir) => ({
-  dir: workflowDir,
-  definition: {
-    id: workflowDir.includes('0002') ? 'WF-0002' : 'WF-0001',
-    slug: workflowDir.includes('0002') ? 'corrupt' : 'good',
+const makePack = (workflowDir) => {
+  const workflowId = workflowDir.includes('0002') ? 'WF-0002'
+    : workflowDir.includes('0003') ? 'WF-0003' : 'WF-0001';
+  return {
+    dir: workflowDir,
+    definition: {
+      id: workflowId,
+      slug: workflowId === 'WF-0002' ? 'corrupt' : workflowId === 'WF-0003' ? 'completed' : 'good',
     title: 'Fixture',
   },
-  state: { status: 'working', phase: 'implementation', revision: 2 },
-  tasks: null,
-  manifest: { schemaVersion: 1 },
-  documents: { prd: '# PRD', spec: '# SPEC', decisions: '# Decisions', continuation: null },
-  reports: [{ ref: 'reports/latest.md', content: '# Report' }],
-});
+    state: { status: workflowId === 'WF-0003' ? 'done' : 'working', phase: 'implementation', revision: 2 },
+    tasks: null,
+    manifest: { schemaVersion: 1 },
+    documents: { prd: '# PRD', spec: '# SPEC', decisions: '# Decisions', continuation: null },
+    reports: [{ ref: 'reports/latest.md', content: '# Report' }],
+  };
+};
 const loadPack = (_projectRoot, workflowDir) => makePack(workflowDir);
 const readTasks = (tasksPath) => {
   if (tasksPath.includes('corrupt')) {
@@ -56,6 +63,15 @@ const readTasks = (tasksPath) => {
       scopeRef: 'OP-0001',
       revision: 1,
       tasks: [{ id: 'T-002', title: 'Verify batch', status: 'testing', priority: 'P2' }],
+      events: [],
+    };
+  }
+  if (tasksPath.includes('0003')) {
+    return {
+      schemaVersion: 2,
+      scopeRef: 'WF-0003',
+      revision: 3,
+      tasks: [{ id: 'T-003', title: 'Completed', status: 'done', priority: 'P2' }],
       events: [],
     };
   }
@@ -73,9 +89,12 @@ try {
   snapshot.status === 'partial'
     ? ok('partial authority remains partial when one canonical workflow is corrupt')
     : bad(`expected partial authority, got ${snapshot.status}`);
-  snapshot.counts.working === 1 && snapshot.counts.testing === 1 && snapshot.tasks.length === 2
+  snapshot.counts.working === 1 && snapshot.counts.testing === 1 && snapshot.counts.done === 1 && snapshot.tasks.length === 3
     ? ok('task counts derive from readable canonical JSON only')
     : bad(`unexpected task projection: ${JSON.stringify(snapshot.counts)}`);
+  snapshot.workflows.some((workflow) => workflow.id === 'WF-0003' && workflow.path.includes('workflows/done/'))
+    ? ok('authority consumers include JSON-completed workflows from the human done projection')
+    : bad(`completed workflow projection is missing: ${JSON.stringify(snapshot.workflows)}`);
   snapshot.batches.some((batch) => batch.id === 'OP-0001')
     ? ok('operation-owned batch tasks are read from their canonical root JSON')
     : bad(`owned batch projection is missing: ${JSON.stringify(snapshot.batches)}`);

@@ -129,7 +129,7 @@ export const PHASE_GUIDES = {
     suggestedCommands: [
       'npm test',
       'node contextkit/tools/scripts/workflow.mjs report <slug> --task <id>',
-      'Run /pipetest to qa-approve or qa-reject.',
+      'Run /pipetest to auto-complete proven tests or qa-reject with feedback.',
       'node contextkit/tools/scripts/workflow.mjs advance <slug>',
     ],
     gateCriteria: 'No automated gate — advance when tests pass and cards are approved.',
