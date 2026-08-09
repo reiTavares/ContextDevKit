@@ -23,14 +23,26 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [4.0.3] - 2026-08-09
 
-> **Governance Harness documentation and internationalization.** ContextDevKit
-> 4.0.3 aligns the public product model with the implemented 4.x runtime: a
-> host-agnostic AI Software Engineering Governance Harness that preserves
-> project intelligence and runs proportional, evidence-driven engineering loops
-> without turning methodology into permission. The release also establishes a
-> first-class multilingual documentation contract.
+> **Deterministic continuation, canonical ADR authoring, conditional agent
+> coordination, and complete Governance Harness documentation.** ContextDevKit
+> 4.0.3 makes every Workflow v2 package independently resumable, standardizes
+> new decision records across all hosts, removes the obsolete 3.x Codex dispatch
+> receipt without weakening coordination that is actually required, and aligns
+> the public product model with the implemented 4.x runtime. The release also
+> establishes a first-class multilingual documentation contract.
 
-### Changed (`docs` / `refactor`)
+### Changed (`refactor` / `docs`)
+
+- **`refactor(routing)` — separate route selection from dispatch authority.** A
+  current v4 routing recommendation may be resolved before a real subagent call,
+  but it cannot authorize or veto that call. Missing or malformed legacy
+  `decision`, `model`, `effort`, and `ruleId` fields no longer prevent an
+  explicitly or governably required debate/swarm from being attempted.
+- **`refactor(decisions)` — make one ADR body contract authoritative.** Fresh
+  decisions use schema-v2 front matter plus `documentVersion: 1`, explicit
+  Business/Operation/Platform ownership, closed decision/value enums, one
+  canonical ordered section set, and lifecycle validation shared by create,
+  validate, accept, documentation, and every host projection.
 
 - **`docs(readme)` — document the complete 4.x operating model.** The root guide
   now explains the harness boundary, mutation-only intake, transient Intake
@@ -46,15 +58,40 @@ this project follows [Semantic Versioning](https://semver.org/).
 - **`docs(governance)` — clarify quality floors and evaluator authority.** QA
   sign-off, applicable deterministic DDD Class A invariants, and new high/
   critical Technical Debt remain the three guarded quality floors. Architecture
-  Debt stays canary, Privacy/LGPD shadow, and routing/graph/swarm/economy/
-  deliberation remain recommendation surfaces.
+  Debt stays canary and Privacy/LGPD stays shadow. Routing, graph, economy, and
+  specialist selection remain recommendation surfaces; debate and swarm are
+  conditionally required only when the current owner instruction, selected
+  workflow/skill, or governed classification activates them.
 - **`docs(loop-engineering)` — document the project-level engineering loop.** A
   new explanation defines implement → evaluate → findings → correct → fresh
   evaluation → evidence-backed completion, including fresh QA cycles, stale
   evidence invalidation, Workflow reopen, adaptive evaluator depth, and
   convergence/escalation behavior.
 
-### Added (`docs` / `i18n`)
+### Added (`feat` / `docs` / `i18n`)
+
+- **`feat(workflow)` — generate a mandatory deterministic continuation
+  artifact.** Every new or repaired Workflow v2 package now contains
+  `CONTINUATION-PROMPT.md`. The renderer derives its workflow identity, phase,
+  revision, canonical task snapshot, governed context references, loading order,
+  mutation boundary, and next action from `workflow.json`,
+  `workflow-state.json`, `pipeline/tasks.json`, and `context-manifest.json`
+  instead of free-form session prose.
+- **`feat(workflow)` — version the complete context manifest contract.** Context
+  manifest schema 2 declares the continuation artifact as required. Create,
+  load, validate, render, repair, Business-owned workflow publication, package
+  integration, and the explicit v3-to-v4 migrator now agree on the same ordered
+  required-file set.
+- **`feat(decisions)` — ship a canonical ADR generator and reference.** The
+  Decision CLI requires explicit context ownership, rejects new `legacy`
+  records and incompatible kind/context combinations, renders every required
+  section exactly once in canonical order, and records a deterministic SHA-256
+  decision hash when a human accepts the ADR. A new bilingual decision README
+  documents creation, validation, acceptance, immutability, and supersession.
+- **`feat(coordination)` — expose conditional debate state explicitly.** A
+  governed `needsDebate: true` classification now survives orchestration sizing
+  as `coordination.debate = required`; the unchanged council and the
+  recommendation-only routing authority are machine-readable and deterministic.
 
 - **`docs(i18n)` — add a machine-readable locale contract.** `docs/locales.json`
   defines BCP 47 locale tags, native names, LTR/RTL direction, fallback, status,
@@ -72,7 +109,29 @@ this project follows [Semantic Versioning](https://semver.org/).
   Business-case operation guide. Arabic and Hebrew are declared RTL while
   commands, paths, ids, JSON keys, status enums, and code symbols stay canonical.
 
-### Fixed (`docs` / `tooling`)
+### Fixed (`fix` / `docs` / `tooling`)
+
+- **`fix(codex)` — retire only the obsolete mandatory routing contract.** Codex
+  update removes the exact project-level 3.x dispatch section and the managed
+  global routing marker plus its three exclusive harness files. User-authored
+  global/project prose and non-ContextDevKit harness content are preserved; the
+  replacement host contract keeps current routing guidance and conditional
+  debate/swarm triggers without restoring admission control.
+- **`fix(coordination)` — do not downgrade required councils to optional
+  guidance.** Host templates, `/dev-start`, `/debate`, `/swarm`, command
+  references, architecture guidance, ADR guidance, and English/pt-BR public docs
+  now distinguish optional-by-default coordination from coordination activated
+  by an explicit owner request, workflow/skill contract, or governed classifier.
+- **`fix(migration)` — make migrated workflows immediately resumable.** The
+  explicit v3-to-v4 planner writes context manifest schema 2 and renders the
+  required continuation artifact before parity/cutover, without adding a live
+  legacy reader or dual-authority fallback.
+- **`fix(decisions)` — refuse malformed ADRs before persistence.** Creation and
+  acceptance validate YAML schema, document version, required section presence,
+  uniqueness/order, unresolved template tokens, enum values, and context
+  compatibility before writing. Existing accepted historical ADRs remain
+  preserved as memory, while the old ADR-0000 seed is no longer installed as a
+  competing authoring standard.
 
 - **`fix(docs-reindex)` — keep localized trees out of the canonical English
   Diátaxis index.** `docs-reindex.mjs` now reads `docs/locales.json`, excludes
@@ -84,6 +143,25 @@ this project follows [Semantic Versioning](https://semver.org/).
   `none`, honest clarification, independent execution shape, JSON authorities,
   and the current 4.x memory model. Links now target the locale tree rather than
   the removed legacy pt-BR file.
+
+### Tests (`test`)
+
+- **`test(workflow)` — prove continuation determinism across the complete
+  lifecycle.** Focused Workflow v2 and packaging integration cover create,
+  validate, load, render, repair, missing/modified continuation refusal,
+  Business-owned publication, context-manifest schema 2, and byte-identical
+  rerendering. The explicit v3-to-v4 E2E additionally proves the artifact is
+  present before cutover.
+- **`test(decisions)` — enforce the ADR contract at every public seam.** Template,
+  Decision CLI, Business/Decision/Methodology, tooling, and host-projection tests
+  cover valid generation, ordering, duplicate/missing section refusal, explicit
+  ownership, legacy-create refusal, deterministic acceptance hash, docs examples,
+  and generated Claude/Codex/Antigravity command parity.
+- **`test(coordination)` — cover required coordination without a routing gate.**
+  Advisory-policy and Codex installer integration prove `needsDebate` remains
+  required, councils are not trimmed, current routing output stays non-binding,
+  missing legacy receipt fields cannot cancel a swarm/debate, and cleanup
+  preserves user prose. Host projection checks remain drift- and orphan-free.
 
 ### Release engineering (`ci` / `chore`)
 
