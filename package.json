@@ -1,7 +1,7 @@
 {
   "name": "contextdevkit",
   "version": "4.0.2",
-  "description": "Host-agnostic AI software engineering governance harness for persistent project intelligence, memory, context orchestration, work lifecycle, and policy across coding agents.",
+  "description": "Host-agnostic AI software engineering governance harness with persistent project intelligence, adaptive evidence-driven engineering loops, durable work state, and long-term memory across coding agents.",
   "type": "module",
   "bin": {
     "contextdevkit": "install.mjs",
@@ -77,6 +77,9 @@
     "harness",
     "ai-software-engineering",
     "governance",
+    "loop-engineering",
+    "business-driven-development",
+    "project-intelligence",
     "project-memory",
     "hooks",
     "agents",
