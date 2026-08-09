@@ -1,15 +1,29 @@
 # توثيق ContextDevKit — العربية
 
-اللغة: `ar` · اتجاه النص: `rtl`
+اللغة: `ar` · الاتجاه: `rtl` · التغطية: `core-v4`
 
-هذا المجلد هو المساحة الرسمية لتوثيق ContextDevKit باللغة العربية الفصحى الحديثة. إلى أن تُعلَّم الصفحة بأنها ترجمة محدثة، تبقى الوثائق الإنجليزية داخل `docs/` هي المصدر المرجعي للعقد التقني.
+هذه هي الوثائق العربية الرسمية للمفاهيم الأساسية في ContextDevKit 4. تبقى الوثائق الإنجليزية هي المصدر canonical للمراجع التقنية التي لم تُترجم بعد.
 
-## الحالة
+## ابدأ من هنا
 
-تم تجهيز بنية الترجمة العربية، ويجب أن تعكس بنية الوثائق الإنجليزية: `tutorials/` و`how-to/` و`reference/` و`explanation/` و`workflow-engine/`.
+- [البنية المعمارية](ARCHITECTURE.md)
+- [Business-Driven Development](explanation/business-driven-development.md)
+- [Loop Engineering قائم على الأدلة](explanation/loop-engineering.md)
+- [الحوكمة وEnforcement](explanation/governance-and-enforcement.md)
+- [نموذج الجودة](explanation/quality-model.md)
+- [عقد الحوكمة](reference/governance-contract.md)
+- [مسرد المصطلحات](reference/glossary.md)
+- [تشغيل Business case](how-to/run-a-business-case.md)
 
-- الوثائق المرجعية: [English](../README.md)
-- Português (Brasil): [pt-BR](../pt-BR/README.md)
-- سجل اللغات: [`docs/locales.json`](../locales.json)
+## لغات أخرى
 
-> ملاحظة: يجب أن تحافظ الصفحات العربية على دعم RTL من دون تغيير أسماء المسارات أو الأوامر أو المعرّفات التقنية.
+- [English](../README.md)
+- [Português (Brasil)](../pt-BR/README.md)
+- [Español](../es-ES/README.md)
+- [Русский](../ru-RU/README.md)
+- [हिन्दी](../hi-IN/README.md)
+- [简体中文](../zh-CN/README.md)
+- [עברית](../he-IL/README.md)
+- [كل locales](../LANGUAGES.md)
+
+لا تتم ترجمة commands أو paths أو ids أو JSON keys أو status enums أو code symbols. ويجب الحفاظ على RTL للنص الطبيعي مع إبقاء الكتل التقنية بالقيم canonical.
