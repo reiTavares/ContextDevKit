@@ -43,66 +43,65 @@ const diskPolicy = loadWorkPolicy(process.cwd());
 
 /**
  * Design §12 fixtures updated for OP-0005 / ADR-0125 TABLE 1+2 scoring.
- * Under new §17, ambiguous texts yield confidence='ask'; only texts with clear
- * TABLE 1 signals reach 'high'. All fixture #1-11 defaults to nature='operation'
- * (ASK for ambiguous, high for fixture #5 incident). New fixtures #12-15 exercise
- * TABLE 1 clear-BUSINESS, clear-OPERATION, and hard-trigger paths.
+ * Under the 4.0 contract `none` is the common neutral owner. Only durable
+ * Business/Operation evidence selects an owner; topology, not vocabulary,
+ * selects workflow.
  */
 const FIXTURES = [
   // Existing fixtures — updated for OP-0005 §17/§18 thresholds:
   { req: 'fix the broken updater rollback after the failed release',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
-    kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'workflow' },
+    nature: 'none', confidence: 'low', needsClarification: false,
+    kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
   { req: 'add a new export-to-CSV endpoint to the report screen',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'change', intent: 'CREATE', lever: 'OPERATIONAL_EFFICIENCY', mode: 'direct' },
   { req: 'rename every vibekit reference to contextkit across the repo',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'direct' },
   { req: 'investigate why the L5 guard blocks edits in a worktree',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'investigation', intent: 'LEARN', lever: 'RELIABILITY', mode: 'direct' },
   // #5: "incident" scores O=6 → clear OPERATION/high.
   { req: 'production updater is failing — incident, roll back now',
     nature: 'operation', confidence: 'high', needsClarification: false,
     kind: 'operationalResponse', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
-  // #6: "adr" in text → hard trigger adr-required → mode=workflow.
+  // #6: "adr" alone does not imply workflow.
   { req: "harden the autonomy floor so an agent can't self-approve an ADR",
-    nature: 'operation', confidence: 'ask', needsClarification: true,
-    kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'workflow' },
+    nature: 'none', confidence: 'high', needsClarification: false,
+    kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
   { req: 'launch a new business-driven methodology platform capability',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
   { req: 'build the strategic portfolio-intelligence initiative for enterprise',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'low', needsClarification: false,
     kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
-  // #9: "decision" → adr-required; "compliance" → critical-compliance → mode=workflow.
+  // #9: decision/compliance vocabulary alone does not imply an owner or workflow.
   { req: 'make sure every accepted decision is recorded and validated for LGPD compliance',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
-    kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'workflow' },
+    nature: 'none', confidence: 'high', needsClarification: false,
+    kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'direct' },
   { req: 'reduce token cost by caching the routing classifier across sessions',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'change', intent: 'IMPROVE', lever: 'COST_EFFICIENCY', mode: 'direct' },
   { req: 'bump the changelog and tidy a few lint warnings',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'maintenance', intent: 'IMPROVE', lever: 'QUALITY', mode: 'direct' },
   // New fixtures exercising TABLE 1 clear paths:
   // #12: "new product"(+6) + "new market"(+6) = B=12 → BUSINESS/high.
   { req: 'we need to launch a new product for a new market segment',
     nature: 'business', confidence: 'high', needsClarification: false,
-    kind: 'product', intent: 'CREATE', lever: null, mode: 'workflow' },
+    kind: 'product', intent: 'CREATE', lever: null, mode: 'direct' },
   // #13: "hotfix"(+6) + "outage"(+6) = O=12 → OPERATION/high.
   { req: 'this is a hotfix for the production outage',
     nature: 'operation', confidence: 'high', needsClarification: false,
     kind: 'fix', intent: 'RECOVER', lever: null, mode: 'direct' },
   // #14: ASK path (B=0, O=0), mode=direct (ceremony points=1, a few).
   { req: 'add a few small improvements to this component',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
+    nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'change', intent: 'IMPROVE', lever: null, mode: 'direct' },
-  // #15: "adr"(+4, hard) + "architecture"(+4, hard) → mode=workflow; isBusiness=false.
+  // #15: architecture/ADR vocabulary alone does not imply workflow.
   { req: 'implement the new architecture adr for the platform',
-    nature: 'operation', confidence: 'ask', needsClarification: true,
-    kind: 'change', intent: 'CREATE', lever: 'STRATEGIC_ENABLEMENT', mode: 'workflow' },
+    nature: 'none', confidence: 'high', needsClarification: false,
+    kind: 'change', intent: 'CREATE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
 ];
 
 // 1-3. Fixtures + determinism + explainability.
@@ -146,7 +145,7 @@ for (let i = 0; i < FIXTURES.length; i += 1) {
   const LEGACY_KEYS = ['tier', 'domain', 'needsAdr', 'paths', 'phase', 'level'];
   const hasAll = LEGACY_KEYS.every((k) => k in out.signals);
   assert('intake retains every legacy signals key', hasAll);
-  assert('intake attaches additive signals.work', out.signals.work && out.signals.work.nature === 'operation');
+  assert('intake attaches additive signals.work', out.signals.work && out.signals.work.nature === 'none');
   assert('intake legacy tier unchanged by A2', out.signals.tier === 'trivial' || out.signals.tier === 'feature' || out.signals.tier === 'architectural');
 }
 

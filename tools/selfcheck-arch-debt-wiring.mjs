@@ -221,12 +221,12 @@ deliver({}).deliver === true ? ok('first source write → law delivered') : bad(
 deliver({ level: 3 }).deliver === false ? ok('below L4 → silent (gate capability floor)') : bad('delivered below L4');
 deliver({ alreadyDelivered: true }).deliver === false ? ok('once per session (debounced, never a nag)') : bad('law repeated');
 deliver({ toolName: 'Read' }).deliver === false ? ok('non-write tool → silent') : bad('delivered on a read');
-deliver({ filePaths: ['docs/guide.md'] }).deliver === false
-  ? ok('docs-only write → silent (no architectural weight)')
-  : bad('delivered on a docs write');
-deliver({ filePaths: ['contextkit/memory/x.json'] }).deliver === false
-  ? ok('governance-memory write → silent')
-  : bad('delivered on a memory write');
+deliver({ filePaths: ['docs/guide.md'] }).deliver === true
+  ? ok('docs write → mutation preflight delivered')
+  : bad('docs write did not get the mutation preflight');
+deliver({ filePaths: ['contextkit/memory/x.json'] }).deliver === true
+  ? ok('governance-memory write → mutation preflight delivered')
+  : bad('memory write did not get the mutation preflight');
 
 // HOST PARITY (regression): the law must be delivered on EVERY host's write
 // tools, not only Claude's triple. Antigravity keeps its own tool names, so a
@@ -237,9 +237,9 @@ for (const agyTool of ['write_to_file', 'replace_file_content', 'multi_replace_f
     ? ok(`agy \`${agyTool}\` → law delivered (host parity)`)
     : bad(`agy ${agyTool} did NOT get the law — host parity broken`);
 }
-deliver({ toolName: 'write_to_file', filePaths: ['docs/x.md'] }).deliver === false
-  ? ok('agy docs-only write → silent (parity of the exclusion too)')
-  : bad('agy docs write got the law');
+deliver({ toolName: 'write_to_file', filePaths: ['docs/x.md'] }).deliver === true
+  ? ok('agy docs write → mutation preflight delivered')
+  : bad('agy docs write missed the mutation preflight');
 
 // ===========================================================================
 // E. gate end-to-end — the posture ladder over the real composition root

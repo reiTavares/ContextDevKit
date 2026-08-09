@@ -5,10 +5,10 @@
  * `test-suites.mjs` via `...WF0081_SUITES` so the main registry stays under the
  * 308-line RED ceiling.
  *
- *   - wf0081-no-code-prior : the pre-write intent-aware downgrade + the completion-gate
- *                            SOURCE-only no-code revoke (the F1-F5 fixtures, incl. the
- *                            reproduced meta-bug: a memory-only investigation session
- *                            stays exempt; a real source write revokes the prior).
+ *   - wf0081-no-code-prior : the compatibility no-code prior and authoritative
+ *                            write-attempt promotion.
+ *   - wf0111-interaction-classification : the 4.0 mutation-only fast path,
+ *                            linkage consumption, owner nature, and execution shape.
  *
  * Zero runtime dependencies — node:* only.
  *
@@ -29,6 +29,20 @@ export const WF0081_SUITES = Object.freeze([
       'templates/contextkit/runtime/hooks/execution-gate.mjs',
       'templates/contextkit/runtime/hooks/completion-gate.mjs',
       'templates/contextkit/runtime/execution/execution-contract.mjs',
+    ],
+  },
+  {
+    id: 'wf0111-interaction-classification',
+    file: 'templates/contextkit/runtime/execution/interaction-classify.selftest.mjs',
+    tier: 'selfcheck',
+    touches: [
+      'templates/contextkit/runtime/execution/interaction-classify.mjs',
+      'templates/contextkit/runtime/execution/intent-language.mjs',
+      'templates/contextkit/runtime/execution/task-intake.mjs',
+      'templates/contextkit/runtime/execution/request-classify.mjs',
+      'templates/contextkit/runtime/execution/work-classify-nature.mjs',
+      'templates/contextkit/runtime/execution/work-classifier.mjs',
+      'templates/contextkit/runtime/execution/no-code-prior.mjs',
     ],
   },
 ]);

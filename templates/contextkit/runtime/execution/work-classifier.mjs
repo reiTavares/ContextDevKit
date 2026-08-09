@@ -4,7 +4,7 @@
  * §17 nature + §18 execution-mode extracted to work-classify-nature.mjs (OP-0005 / ADR-0125).
  *
  * Six pure classifiers over `policy/work-classification.json`:
- *   nature (business|operation) · businessKind · operationKind ·
+ *   nature (business|operation|none|unclassified) · businessKind · operationKind ·
  *   valueIntent (primary + secondary) · growthLever · executionMode.
  *
  * ADDITIVE to the tier rubric: this module COMPOSES `complexity-rubric.mjs`
@@ -33,7 +33,7 @@ import { classifyNature, classifyExecutionMode } from './work-classify-nature.mj
 export const DEFAULT_WORK_CLASSIFICATION = Object.freeze({
   version: 1,
   nature: {
-    default: 'operation',
+    default: 'none',
     businessFloor: 8,
     businessMargin: 3,
     operationFloor: 6,
@@ -294,7 +294,7 @@ export function classifyWork(objective, policy = DEFAULT_WORK_CLASSIFICATION) {
     };
   } catch {
     return {
-      nature: 'operation',
+      nature: 'unclassified',
       kind: null,
       valueIntents: { primary: 'IMPROVE', secondary: [] },
       growthLever: null,
@@ -302,8 +302,8 @@ export function classifyWork(objective, policy = DEFAULT_WORK_CLASSIFICATION) {
       confidence: 'low',
       needsClarification: false,
       clarifyQuestion: null,
-      reasons: ['classifyWork error — fail-open defaults'],
-      evidence: {},
+      reasons: ['classifyWork degraded — no owner context or execution shape assumed'],
+      evidence: { degraded: true },
     };
   }
 }

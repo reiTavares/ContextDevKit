@@ -2,65 +2,51 @@
  * no-code-prior.mjs — WF-0081 (BIZ-0006, ADR-0148 position 1).
  *
  * The shared, PURE predicates that make the intake gates intent-aware:
- *   - `isSourceWrite(path)`  — does a write to this path count as SOURCE code?
- *   - `sessionHasSourceWrite(modifications, taskId)` — did THIS task write source?
+ *   - `isSourceWrite(path)`  — compatibility alias: is this a governed write?
+ *   - `sessionHasSourceWrite(modifications, taskId)` — did THIS task attempt a write?
  *   - `noCodePriorHolds(contract, modifications, taskId)` — should the no-code
  *     prior suppress obligations right now?
  *
  * The design (ADR-0148 §1 + §8, resolve/enforce/escape):
  *   - RESOLVE: these are pure, deterministic, I/O-free predicates.
  *   - ENFORCE: the gates that consume them stay fail-open / advisory-when-uncertain.
- *   - ESCAPE: a no-code verdict is a *prior*, not a permanent state. A real SOURCE
- *     write REVOKES it (OP-0008 F-A) and the full ceremony returns.
+ *   - ESCAPE: a no-code verdict is a *prior*, not a permanent state. A real write
+ *     promotes the turn and runs the minimum mutation preflight once.
  *
- * "source write" definition (default-to-source = default-to-ceremony, the safe
- * bias against an over-permissive exemption, risk R1): a write is NON-source only
- * when its repo-relative path matches a known governance/docs/scratch surface;
- * every other tracked path (runtime/tooling/templates code + real config) is source.
- * An unknown path defaults to SOURCE — so a genuine config change still draws the
- * ceremony (risk R2), never silently exempt.
+ * In the 4.0 contract every real project mutation is authoritative. Writes to
+ * documentation, memory, configuration, and host files promote just like source
+ * writes. Reads never promote.
  *
  * Zero runtime dependencies — `node:*`-free, safe on the hot path (immutable rule 1).
  */
 
 /**
- * Repo-relative path prefixes/patterns that are NON-source (a write here does NOT
- * revoke the no-code prior): governance memory, docs, per-workflow reports, scratch,
- * VCS/host artifacts, and dependency dirs. Everything else is source.
- */
-export const NON_SOURCE_PATTERNS = Object.freeze([
-  /(^|\/)contextkit\/memory\//,   // governance memory + business/op/workflow artifacts
-  /(^|\/)docs\//,                  // documentation
-  /(^|\/)reports\//,               // per-workflow reports/ (wave evidence)
-  /\.scratch\.md$/,                // pipeline scratch (gitignored by convention)
-  /(^|\/)\.git\//,                 // VCS internals
-  /(^|\/)node_modules\//,          // dependencies
-  /(^|\/)\.claude\//,              // host artifacts (Claude Code)
-  /(^|\/)\.agents\//,              // host artifacts (Antigravity)
-  /(^|\/)\.codex\//,               // host artifacts (Codex)
-]);
-
-/** Normalize a path to forward slashes for pattern matching (portability rule 4). */
-function normalizePath(path) {
-  return typeof path === 'string' ? path.replace(/\\/g, '/') : '';
-}
-
-/**
- * True when a write to `path` counts as a SOURCE write (and therefore revokes a
- * no-code prior). Defensive: a missing/non-string path defaults to `true` (source)
- * so an unreadable receipt never silently grants an exemption (default-to-refuse).
+ * Compatibility name for the 4.0 rule that every project write is governed.
+ * The path cannot exempt a real mutation attempt.
  *
  * @param {string} path repo-relative modified path
- * @returns {boolean} true when the write is source (revokes the no-code prior)
+ * @returns {boolean} always true; paths do not exempt writes
  */
 export function isSourceWrite(path) {
-  const normalized = normalizePath(path);
-  if (normalized === '') return true; // unknown → treat as source (safe bias)
-  return !NON_SOURCE_PATTERNS.some((pattern) => pattern.test(normalized));
+  void path;
+  return true;
 }
 
 /**
- * True when THIS task has at least one SOURCE Edit/Write/MultiEdit in the ledger.
+ * Check whether a host tool can perform a real file mutation.
+ * @param {string} toolName host tool name
+ * @returns {boolean} true when the tool is a write primitive
+ */
+function isWriteTool(toolName) {
+  const normalized = String(toolName ?? '').toLowerCase();
+  return [
+    'edit', 'write', 'multiedit', 'notebookedit', 'apply_patch', 'edit_file',
+    'write_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content',
+  ].includes(normalized);
+}
+
+/**
+ * True when THIS task has at least one Edit/Write/MultiEdit in the ledger.
  * The F-B taskId binding (each modification is stamped with its taskId by
  * track-edits) keeps the gate reading the SAME task's writes as the contract.
  *
@@ -73,33 +59,27 @@ export function sessionHasSourceWrite(modifications, taskId) {
   return mods.some(
     (m) => m
       && m.taskId === taskId
-      && ['Edit', 'Write', 'MultiEdit'].includes(m.tool)
-      && isSourceWrite(m.path),
+      && isWriteTool(m.tool),
   );
 }
 
 /**
- * True when the CURRENT tool call is itself a revoking SOURCE write — an
- * `Edit`/`Write`/`MultiEdit` targeting at least one source path. The pre-write gate
- * needs this because at PreToolUse the current write is not yet in the ledger, so a
- * past-writes check alone would wrongly suppress the ceremony for the very write that
- * revokes the prior.
+ * True when the current tool call is a real write attempt. The path is irrelevant:
+ * at PreToolUse the current write is not yet in the ledger, so a past-writes check
+ * alone would suppress the preflight for the very action that promotes mutation.
  *
  * @param {string} toolName the tool being invoked
  * @param {string[]} filePaths the tool's target paths (repo-relative)
  * @returns {boolean}
  */
 export function currentCallRevokes(toolName, filePaths) {
-  if (!['Edit', 'Write', 'MultiEdit'].includes(toolName)) return false;
-  const paths = Array.isArray(filePaths) ? filePaths : [];
-  return paths.some((p) => isSourceWrite(p));
+  void filePaths;
+  return isWriteTool(toolName);
 }
 
 /**
- * True when the no-code prior should suppress obligations right now: the contract's
- * language-aware intent verdict is `no-code` (not a mutation verb), the domain is
- * general (never invert on a regulated domain — ADR-0131), AND no SOURCE write has
- * occurred for this task yet (an F-A revoking write clears the prior).
+ * True when the interaction is conversation, exploration, or unresolved and no
+ * write has occurred for this task yet. Domain vocabulary never changes this axis.
  *
  * Fail-open: a missing/low-confidence intent verdict returns `false` (the prior does
  * NOT hold → the gate behaves exactly as today, never a false suppression). Any
@@ -112,10 +92,11 @@ export function currentCallRevokes(toolName, filePaths) {
  */
 export function noCodePriorHolds(contract, modifications, taskId) {
   try {
-    const intent = contract?.signals?.intent;
-    if (!intent || intent.intent !== 'no-code' || intent.mutationVerb === true) return false;
-    const domain = contract?.signals?.domain;
-    if (domain && domain !== 'general') return false; // regulated domains keep ceremony
+    const interactionIntent = contract?.signals?.interaction?.intent;
+    const legacyIntent = contract?.signals?.intent;
+    const isReadOnlyInteraction = ['conversation', 'exploration', 'unclassified'].includes(interactionIntent)
+      || (legacyIntent?.intent === 'no-code' && legacyIntent?.mutationVerb !== true);
+    if (!isReadOnlyInteraction || interactionIntent === 'mutation') return false;
     if (sessionHasSourceWrite(modifications, taskId)) return false; // F-A: real write revokes
     return true;
   } catch {

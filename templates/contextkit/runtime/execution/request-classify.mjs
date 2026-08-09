@@ -234,6 +234,27 @@ function finalize(primaryType, secondarySet, reasons) {
 export function classifyRequest(signals, ctx = {}) {
   try {
     const safeSignals = signals && typeof signals === 'object' ? signals : {};
+    const interactionIntent = safeSignals?.interaction?.intent
+      ?? safeSignals?.intent?.interaction?.intent
+      ?? null;
+    if (interactionIntent && interactionIntent !== 'mutation') {
+      const primaryType = interactionIntent === 'exploration' ? 'research' : 'conversation';
+      return {
+        primaryType,
+        secondaryTypes: [],
+        intent: interactionIntent,
+        interactionIntent,
+        complexity: 'trivial',
+        risk: 'low',
+        materialityScore: 0,
+        ambiguityScore: interactionIntent === 'unclassified' ? 1 : 0,
+        reversibility: 'high',
+        blastRadius: 'local',
+        needsAdr: false,
+        needsDebate: false,
+        reasonCodes: [`interaction=${interactionIntent} (full request classification skipped)`],
+      };
+    }
     const { primaryType, secondaryTypes, reasons: ctxReasons } = pickContext(safeSignals, ctx);
     const { risk, reasons: riskReasons } = deriveRisk(safeSignals);
     const { reversibility, blastRadius } = deriveBlast(safeSignals);
@@ -252,16 +273,17 @@ export function classifyRequest(signals, ctx = {}) {
       `complexity=${complexity}`, `needsDebate=${needsDebate}`];
 
     return {
-      primaryType, secondaryTypes, intent, complexity, risk,
+      primaryType, secondaryTypes, intent, interactionIntent: interactionIntent ?? 'mutation', complexity, risk,
       materialityScore, ambiguityScore, reversibility, blastRadius,
       needsAdr, needsDebate, reasonCodes,
     };
   } catch {
     return {
-      primaryType: 'implementation', secondaryTypes: [], intent: 'implementation',
-      complexity: 'feature', risk: 'medium', materialityScore: 0, ambiguityScore: 1,
-      reversibility: 'medium', blastRadius: 'local', needsAdr: false, needsDebate: false,
-      reasonCodes: ['fail-open: classifier degraded to conservative implementation verdict'],
+      primaryType: 'conversation', secondaryTypes: [], intent: 'unclassified',
+      interactionIntent: 'unclassified', complexity: 'trivial', risk: 'low',
+      materialityScore: 0, ambiguityScore: 1, reversibility: 'high',
+      blastRadius: 'local', needsAdr: false, needsDebate: false, degraded: true,
+      reasonCodes: ['request-classifier-degraded: no governed context assumed'],
     };
   }
 }

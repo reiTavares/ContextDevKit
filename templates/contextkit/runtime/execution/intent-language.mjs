@@ -8,25 +8,18 @@
  *   classifyIntentLangAware(text) → { language, intent, mutationVerb, readOnly,
  *                                     confidence, routeToAI, reasons }
  *
- * Design (ADR-0131 §Decision + Binding condition):
+ * Compatibility design (ADR-0158 / WF-0111):
  *   - Offline language *detection* via Unicode-script ranges + frozen pt/en
  *     stopword tables. Translation of other languages is NEVER done here — it is
  *     delegated to the model via the hook's ‹CONTEXTKIT-LANG› directive (next-turn).
- *   - Intent runs BOTH pt+en tables regardless of the detected language (mixed
- *     prompts / English identifiers in pt prose). The language verdict only decides
- *     whether the caller emits the AI directive (`routeToAI`) — it must NOT narrow
- *     which verb tables run (ADR-0131 binding condition, supersedes the earlier
- *     SPEC 'unknown' phrasing).
- *   - A mutation verb (create/fix/refactor/…) forces `code` intent, overriding the
- *     no-code bias — mirroring looksLikeNewTask > isPureConversation
- *     (execution-contract-hook.mjs). On genuine ambiguity the verdict is `no-code`
- *     (inverting the legacy `feature` fallthrough), porting the domain classifier's
- *     explicitReadOnly:-100 concept WITHOUT activating that default-OFF path.
- *   - The authoritative write-attempt override (a real Edit/Write forcing code
- *     intent, F-A) lives in the gate/hook, NOT in this text-only module.
+ *   - Interaction intent comes only from the canonical pure four-way classifier.
+ *   - This module maps `mutation` to the legacy `code` label and every non-mutation
+ *     state to `no-code` while consumers migrate to `signals.interaction`.
+ *   - A supplied write-attempt context is authoritative and maps to mutation.
  *
  * @module runtime/execution/intent-language
  */
+import { classifyInteraction } from './interaction-classify.mjs';
 
 /** Non-Latin Unicode script ranges → language hint (high-confidence when dominant). */
 const SCRIPT_RANGES = Object.freeze([
@@ -69,48 +62,9 @@ const EN_STOPWORDS = Object.freeze([
   'me', 'so', 'its', 'when', 'which', 'these', 'those', 'their', 'our',
 ]);
 
-/** Mutation verbs (en + pt) — presence forces `code` intent, overriding the bias. */
-const MUTATION_VERBS = Object.freeze([
-  // en
-  'create', 'add ', 'implement', 'fix ', 'refactor', 'remove', 'delete', 'edit',
-  'write ', 'update', 'rename', 'build', 'replace', 'migrate', 'patch', 'wire ',
-  'scaffold', 'generate', 'install', 'configure', 'set up', 'rewrite', 'append',
-  // pt
-  'criar', 'crie', 'cria ', 'adicionar', 'adicione', 'implementar', 'implemente',
-  'corrigir', 'corrija', 'consertar', 'conserte', 'refatorar', 'refatore',
-  'remover', 'remova', 'deletar', 'apagar', 'apague', 'editar', 'edite',
-  'escrever', 'escreva', 'atualizar', 'atualize', 'renomear', 'renomeie',
-  'construir', 'gerar', 'gere', 'instalar', 'configurar', 'ajustar', 'ajuste',
-]);
-
-/** Read-only / question signals (en + pt) — no mutation verb + these ⇒ `no-code`. */
-const READONLY_SIGNALS = Object.freeze([
-  // en
-  'what is', 'what are', 'what does', 'how does', 'how do', 'why does', 'why is',
-  'explain', 'investigate', 'analyze', 'analyse', 'understand', 'show me', 'list ',
-  'read ', 'tell me', 'describe', 'can you explain', 'where is', 'which ',
-  'is there', 'are there', 'do you', 'does it', 'review', 'summarize', 'summarise',
-  // pt
-  'o que é', 'o que sao', 'o que são', 'como funciona', 'por que', 'porque',
-  'explique', 'explica', 'explicar', 'investigar', 'analisar', 'entender', 'mostre',
-  'mostrar', 'listar', 'liste', 'qual é', 'quais são', 'quais sao', 'me diga',
-  'descreva', 'onde está', 'onde esta', 'existe', 'tem como', 'dúvida', 'duvida',
-  'pergunta',
-]);
-
 const PT_SET = new Set(PT_STOPWORDS);
 const EN_SET = new Set(EN_STOPWORDS);
 const ACCENT_RE = /[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]/;
-
-/**
- * Counts word tokens (Unicode-letter runs) in a string.
- * @param {string} text
- * @returns {number}
- */
-function tokenCount(text) {
-  const m = String(text ?? '').match(/[\p{L}]+/gu);
-  return m ? m.length : 0;
-}
 
 /**
  * Detects the language of a prompt, offline and deterministically. Non-Latin
@@ -163,28 +117,12 @@ export function detectLanguage(text) {
  */
 export function classifyIntentLangAware(text, opts = {}) {
   const raw = typeof text === 'string' ? text : '';
-  const lower = raw.toLowerCase();
   const language = detectLanguage(raw);
-  const reasons = [];
-
-  const mutationVerb = MUTATION_VERBS.some((v) => lower.includes(v));
-  const readOnly = READONLY_SIGNALS.some((s) => lower.includes(s)) || /\?\s*$/.test(raw.trim());
-  const short = tokenCount(raw) < (opts.shortWords ?? 4);
-
-  let intent;
-  if (mutationVerb) {
-    intent = 'code';
-    reasons.push('intent=code (mutation verb present — overrides no-code bias)');
-  } else if (readOnly) {
-    intent = 'no-code';
-    reasons.push('intent=no-code (read-only/question signal; no mutation verb)');
-  } else if (short) {
-    intent = 'no-code';
-    reasons.push('intent=no-code (short/ambiguous prompt; bias-to-no-code default)');
-  } else {
-    intent = 'no-code';
-    reasons.push('intent=no-code (no mutation verb; ambiguity defaults to no-code)');
-  }
+  const interaction = classifyInteraction(raw, opts.interactionContext ?? {});
+  const mutationVerb = interaction.intent === 'mutation';
+  const readOnly = interaction.intent === 'conversation' || interaction.intent === 'exploration';
+  const intent = mutationVerb ? 'code' : 'no-code';
+  const reasons = interaction.reasonCodes.map((code) => `interaction=${interaction.intent} (${code})`);
 
   const threshold = opts.confidenceThreshold ?? 0.5;
   const known = language.lang === 'pt' || language.lang === 'en';
@@ -193,5 +131,14 @@ export function classifyIntentLangAware(text, opts = {}) {
     reasons.push(`routeToAI=true (lang='${language.lang}' confidence=${language.confidence}; emit ‹CONTEXTKIT-LANG›)`);
   }
 
-  return { language, intent, mutationVerb, readOnly, confidence: language.confidence, routeToAI, reasons };
+  return {
+    language,
+    intent,
+    mutationVerb,
+    readOnly,
+    confidence: interaction.confidence,
+    routeToAI,
+    reasons,
+    interaction,
+  };
 }

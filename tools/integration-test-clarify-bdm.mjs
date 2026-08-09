@@ -32,19 +32,18 @@ console.log('\nF6. Wave 2 — ASK clarification + looksLikeNewTask skip guard...
   );
   const { isPureConversation, looksLikeNewTask } = hookMod;
 
-  // F6a. Near-tie / ambiguous objective → classifyWork returns needsClarification:true
-  // with a non-empty clarifyQuestion string. A prompt with no strong Business or
-  // Operation signals falls below the confidence floor (0.70) and triggers ASK.
+  // F6a. Absence of durable Business/Operation evidence is the valid neutral
+  // `none` result; it must not ask merely to manufacture an owner container.
   const ambiguous = classifyWork('update the platform strategy', policy);
-  ambiguous.needsClarification === true
-    ? rep.ok('F6a. near-tie/ambiguous objective → needsClarification=true')
-    : rep.bad(`F6a. expected needsClarification=true, got ${ambiguous.needsClarification}`);
-  typeof ambiguous.clarifyQuestion === 'string' && ambiguous.clarifyQuestion.length > 0
-    ? rep.ok('F6a. clarifyQuestion is a non-empty string')
-    : rep.bad(`F6a. clarifyQuestion invalid: ${JSON.stringify(ambiguous.clarifyQuestion)}`);
-  ambiguous.confidence === 'ask'
-    ? rep.ok('F6a. confidence=ask for the near-tie case')
-    : rep.bad(`F6a. confidence: got ${ambiguous.confidence}, want 'ask'`);
+  ambiguous.nature === 'none' && ambiguous.needsClarification === false
+    ? rep.ok('F6a. no durable owner evidence → nature=none without clarification')
+    : rep.bad(`F6a. got nature=${ambiguous.nature}, clarification=${ambiguous.needsClarification}`);
+  ambiguous.clarifyQuestion === null
+    ? rep.ok('F6a. neutral nature emits no owner question')
+    : rep.bad(`F6a. unexpected clarifyQuestion: ${JSON.stringify(ambiguous.clarifyQuestion)}`);
+  ambiguous.confidence === 'high'
+    ? rep.ok('F6a. neutral none is a confident valid result')
+    : rep.bad(`F6a. confidence: got ${ambiguous.confidence}, want 'high'`);
 
   // F6b. A short imperative prompt is NOT treated as pure conversation when
   // looksLikeNewTask returns true (overriding the skip guard, OP-0005 Wave 2).

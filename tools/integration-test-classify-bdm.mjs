@@ -69,17 +69,17 @@ const policy = DEFAULT_WORK_CLASSIFICATION;
 console.log('\nF1+F2. Classifier fixtures (design §12) + determinism...');
 // Updated for OP-0005 / ADR-0125: §17 integer thresholds; §18 ceremony-point bands.
 const FIXTURES = [
-  { n: 1, req: 'fix the broken updater rollback after the failed release', nature: 'operation', kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'workflow' },
-  { n: 2, req: 'add a new export-to-CSV endpoint to the report screen', nature: 'operation', kind: 'change', intent: 'CREATE', lever: 'OPERATIONAL_EFFICIENCY', mode: 'direct' },
-  { n: 3, req: 'rename every vibekit reference to contextkit across the repo', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'direct' },
-  { n: 4, req: 'investigate why the L5 guard blocks edits in a worktree', nature: 'operation', kind: 'investigation', intent: 'LEARN', lever: 'RELIABILITY', mode: 'direct' },
+  { n: 1, req: 'fix the broken updater rollback after the failed release', nature: 'none', kind: 'fix', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
+  { n: 2, req: 'add a new export-to-CSV endpoint to the report screen', nature: 'none', kind: 'change', intent: 'CREATE', lever: 'OPERATIONAL_EFFICIENCY', mode: 'direct' },
+  { n: 3, req: 'rename every vibekit reference to contextkit across the repo', nature: 'none', kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'direct' },
+  { n: 4, req: 'investigate why the L5 guard blocks edits in a worktree', nature: 'none', kind: 'investigation', intent: 'LEARN', lever: 'RELIABILITY', mode: 'direct' },
   { n: 5, req: 'production updater is failing — incident, roll back now', nature: 'operation', kind: 'operationalResponse', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
-  { n: 6, req: "harden the autonomy floor so an agent can't self-approve an ADR", nature: 'operation', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'workflow' },
-  { n: 7, req: 'launch a new business-driven methodology platform capability', nature: 'operation', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
-  { n: 8, req: 'build the strategic portfolio-intelligence initiative for enterprise', nature: 'operation', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
-  { n: 9, req: 'make sure every accepted decision is recorded and validated for LGPD compliance', nature: 'operation', kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'workflow' },
-  { n: 10, req: 'reduce token cost by caching the routing classifier across sessions', nature: 'operation', kind: 'change', intent: 'IMPROVE', lever: 'COST_EFFICIENCY', mode: 'direct' },
-  { n: 11, req: 'bump the changelog and tidy a few lint warnings', nature: 'operation', kind: 'maintenance', intent: 'IMPROVE', lever: 'QUALITY', mode: 'direct' },
+  { n: 6, req: "harden the autonomy floor so an agent can't self-approve an ADR", nature: 'none', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
+  { n: 7, req: 'launch a new business-driven methodology platform capability', nature: 'none', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
+  { n: 8, req: 'build the strategic portfolio-intelligence initiative for enterprise', nature: 'none', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
+  { n: 9, req: 'make sure every accepted decision is recorded and validated for LGPD compliance', nature: 'none', kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'direct' },
+  { n: 10, req: 'reduce token cost by caching the routing classifier across sessions', nature: 'none', kind: 'change', intent: 'IMPROVE', lever: 'COST_EFFICIENCY', mode: 'direct' },
+  { n: 11, req: 'bump the changelog and tidy a few lint warnings', nature: 'none', kind: 'maintenance', intent: 'IMPROVE', lever: 'QUALITY', mode: 'direct' },
 ];
 
 for (const fx of FIXTURES) {

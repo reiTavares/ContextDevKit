@@ -224,6 +224,8 @@ function main() {
     // exemption; selftest lives beside its engine module under templates/,
     // registered via test-suites-wf0081.mjs, dispatched directly.
     'templates/contextkit/runtime/execution/no-code-prior.selftest.mjs',
+    // WF-0111 W02 — mutation-only interaction, owner nature, and execution shape.
+    'templates/contextkit/runtime/execution/interaction-classify.selftest.mjs',
     // BIZ-0006 / WF-0088 (ADR-0148 position 11) — governance-contract envelope;
     // selftest lives beside its schema module under templates/, registered via
     // test-suites-wf0088.mjs, dispatched directly.
