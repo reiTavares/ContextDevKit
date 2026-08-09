@@ -23,6 +23,10 @@ try {
   write('templates/runtime/entry.mjs', "import './pipeline-session.mjs';\nexport const ready = true;\n");
   write('templates/runtime/pipeline-session.mjs', "export function autoAdvanceSessionTasks() {}\n");
   write('tools/selfcheck-source-cases-recent.mjs', "export const old = 'Stop hook auto-advances session tasks';\n");
+  write('tools/install/codex.mjs', "export const retiredHarness = 'resolve-subagent-route.mjs';\n");
+  write('tools/integration-test-codex.mjs', "export const retiredHeading = 'Codex-only mandatory subagent routing';\n");
+  write('tools/install-codex-global-routing.mjs', "export const activeLegacyGate = 'resolve-subagent-route.mjs';\n");
+  write('docs/pt-BR/workflow-engine/migration-guide.md', '# Migra\u00e7\u00e3o\n\nSubstitua workflow-plan.json.\n');
   write('docs/CHANGELOG.md', '# Changelog\n\nThe legacy workflow-plan.json authority was retired.\n');
 
   assert.throws(() => resolveContainedPath(root, '../escape'), /escapes repository root/);
@@ -33,6 +37,10 @@ try {
   assert.equal(inventory.complete, true);
   assert.ok(inventory.items.some((item) => item.path === 'templates/runtime/pipeline-session.mjs' && item.releaseBlocking));
   assert.ok(inventory.items.some((item) => item.path === 'docs/CHANGELOG.md' && item.status === 'historical-archive' && !item.releaseBlocking));
+  assert.ok(inventory.items.some((item) => item.path === 'tools/install/codex.mjs' && !item.releaseBlocking));
+  assert.ok(inventory.items.some((item) => item.path === 'tools/integration-test-codex.mjs' && !item.releaseBlocking));
+  assert.ok(inventory.items.some((item) => item.path === 'docs/pt-BR/workflow-engine/migration-guide.md' && !item.releaseBlocking));
+  assert.ok(inventory.items.some((item) => item.path === 'tools/install-codex-global-routing.mjs' && item.releaseBlocking));
   assert.match(renderLegacyInventoryMarkdown(inventory), /Retained consumers/);
 
   const reachability = analyzeLegacyReachability({

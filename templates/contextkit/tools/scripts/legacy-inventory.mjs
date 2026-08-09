@@ -15,7 +15,7 @@ const BINARY_EXTENSIONS = new Set(['.gif', '.gz', '.ico', '.jpeg', '.jpg', '.pdf
 const INVENTORY_KINDS = ['runtime', 'test', 'fixture', 'template', 'projection', 'doc', 'memory', 'update-snapshot', 'config', 'command'];
 const DEFAULT_SCAN_ROOTS = [
   '.github', '.npmignore', 'ACKNOWLEDGEMENTS.md', 'CHANGELOG.md', 'CONTRIBUTING.md',
-  'README.md', 'SECURITY.md', 'docs', 'install.mjs', 'instrucoes.md', 'package.json',
+  'README.md', 'SECURITY.md', 'docs', 'install.mjs', 'package.json',
   'templates', 'tools',
 ];
 
@@ -289,13 +289,18 @@ function isReleaseFenceSource(path) {
  * @returns {boolean}
  */
 function isSupportedV4Boundary(path) {
-  if (path === 'MIGRATION-3.x-TO-4.0.md' || path === 'docs/workflow-engine/migration-guide.md') return true;
+  if (
+    path === 'MIGRATION-3.x-TO-4.0.md'
+    || path === 'docs/workflow-engine/migration-guide.md'
+    || path === 'docs/pt-BR/workflow-engine/migration-guide.md'
+  ) return true;
   if (path === 'README.md' || path === 'docs/README.md' || path === 'docs/workflow-engine/README.md') return true;
   if (/^(?:templates\/contextkit\/)?tools\/migrations\/v3-to-v4\//.test(path)) return true;
   if (/^templates\/contextkit\/tools\/scripts\/tasks-(?:migrate|cutover)(?:\.selftest)?\.mjs$/.test(path)) return true;
   if (/^templates\/contextkit\/tools\/scripts\/(?:workflow|workflow-pack)\.mjs$/.test(path)) return true;
   if (/^templates\/contextkit\/tools\/scripts\/workflow\/(?:create|validate)\.mjs$/.test(path)) return true;
   if (/^templates\/contextkit\/runtime\/config\/(?:codex-hooks-compose|settings-compose)\.mjs$/.test(path)) return true;
+  if (path === 'tools/install/codex.mjs' || path === 'tools/integration-test-codex.mjs') return true;
   if (/^tools\/(?:integration-test-work-business-create|selfcheck-host-hooks)\.mjs$/.test(path)) return true;
   if (/^tools\/(?:selfcheck-domain-engineering|selfcheck-model-policy|selfcheck-arch-debt-fitness)\.mjs$/.test(path)) return true;
   return /^tools\/(?:integration-test-(?:advisory-policy|authority-consumers-v4|enforcement-modes|governance-anti-loop|governance-dispatchers|host-parity|pipeline-cutover|workflow-v2)|migrations\/v3-to-v4\/v3-to-v4\.selftest)\.mjs$/.test(path);
