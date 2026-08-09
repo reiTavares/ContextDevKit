@@ -1,128 +1,283 @@
 # ContextDevKit
 
-**O ContextDevKit é um AI Software Engineering Governance Harness host-agnostic.**
-Ele fornece inteligência persistente do projeto, memória de longa duração,
-orquestração de contexto, gestão do ciclo de trabalho, governança e continuidade
-de execução entre agentes como Claude Code, OpenAI Codex, Google Antigravity e
-Grok.
+**Harness de Governança para Engenharia de Software com IA, orientado a desenvolvimento adaptativo e loops baseados em evidência.**
 
-O ContextDevKit não substitui o coding agent, o provedor de modelo, o runtime de
-ferramentas nem o agent loop. Esses hosts executam modelos e ferramentas; o
-ContextDevKit opera ao redor e acima deles para manter estado, contexto, memória,
-governança e histórico de trabalho portáveis entre hosts, sem adicionar
-framework de aplicação nem dependência de pacote ao hot path dos hooks.
+O ContextDevKit é um harness host-agnostic que fornece inteligência persistente do projeto, memória de longa duração, estado governado do trabalho, orientação de engenharia proporcional e entrega baseada em evidência para Claude Code, OpenAI Codex, Google Antigravity, Grok e hosts compatíveis.
 
-O modelo 4.0 é deliberadamente silencioso: a governança começa quando a
-interação vai alterar arquivos ou estado governado. Conversa e exploração
-somente leitura não criam tarefa, workflow, ledger, recibo ou contexto durável.
+Ele **não** substitui o coding agent, o provedor de modelo, o runtime de ferramentas ou o agent loop.
+
+Ele opera ao redor deles como a camada de engenharia durável do projeto.
+
+> **Iniciantes ganham guardrails de engenharia. Engenheiros seniores ganham alavancagem. Nenhum dos dois ganha cerimônia desnecessária.**
+
+O objetivo é ajudar projetos a sair do vibe coding e chegar a uma engenharia AI-native disciplinada sem transformar metodologia em burocracia.
 
 Documentação principal em inglês: [README.md](README.md).
 
-## Limite do harness
+## Por que o ContextDevKit existe
 
-ContextDevKit é um harness de governança e inteligência de projeto, não um
-runtime de execução de LLM. O host continua responsável pelo loop do modelo,
-chamadas de ferramentas, shell/filesystem, transporte MCP e limites de segurança
-da própria plataforma. O ContextDevKit é responsável pelo ambiente de engenharia
-durável que sobrevive à troca desses hosts:
+Uma sessão de coding agent não é, sozinha, um sistema de engenharia de software.
 
-- classificação de intenção e de mutação;
-- grafo do projeto e inteligência baseada também no filesystem;
-- memória de longa duração e preferências do owner;
-- ciclo de vida de direct, batch, workflow, tasks, reports e continuidade;
-- governança limitada, evidências e avaliação de políticas;
-- montagem de contexto e continuidade entre sessões;
-- recomendações host-neutral para routing, especialistas e swarms;
-- adapters que permitem ao mesmo projeto governado funcionar em diferentes
-  coding agents suportados.
+Sem uma camada persistente, agentes podem esquecer decisões de sessões anteriores, ignorar PRDs/SPECs/ADRs, recriar trabalho já existente, perder tarefas pendentes, introduzir drift arquitetural, declarar conclusão sem evidência suficiente ou usar o mesmo nível de processo para um typo e para uma migração crítica.
 
-Essa separação torna o agente de execução substituível enquanto a inteligência
-governada e a memória operacional do projeto permanecem duráveis.
+O ContextDevKit adiciona o sistema de engenharia no nível do projeto.
 
-## Contrato operacional
+```text
+                         CONTEXTDEVKIT
+              AI SOFTWARE ENGINEERING HARNESS
 
-Cada interação é classificada antes de iniciar governança:
+ ┌──────────────────────────────────────────────────────────────┐
+ │ Intenção & Intake                                            │
+ │ conversa · exploração · mutação · esclarecimento            │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Business-Driven Development                                  │
+ │ Business · Operation · none                                  │
+ │ direct · batch · workflow                                    │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Inteligência do Projeto                                      │
+ │ Project Map · grafo · ADRs · specs · decisões · reports      │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Memória de Longa Duração                                     │
+ │ histórico · preferências · decisões · evidência              │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Execução de Engenharia                                       │
+ │ tasks · workflows · especialistas · compiler · compact       │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Loops de Engenharia Orientados a Evidência                   │
+ │ implementar → avaliar → corrigir → reavaliar → entregar      │
+ ├──────────────────────────────────────────────────────────────┤
+ │ Governança                                                   │
+ │ quality floors guarded · guidance canary · análise shadow    │
+ └──────────────────────────────┬───────────────────────────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+         Claude Code           Codex        Outros hosts
+```
 
-| Interação | Efeito durável |
+O host executa. **O ContextDevKit preserva a inteligência do projeto.**
+
+## Do vibe coder ao engenheiro sênior
+
+| Perfil | O que o ContextDevKit acrescenta |
 | --- | --- |
-| Conversa | Nenhum |
-| Exploração somente leitura | Nenhum |
-| Intenção não classificada | Uma pergunta curta no idioma do usuário; sem persistência |
-| Mutação | Resolve trabalho existente, classifica a natureza, escolhe a forma de execução e aplica a governança pertinente |
+| **Vibe coder** | testes, revisão, quality floors, memória persistente e estrutura que o usuário talvez nem saiba pedir |
+| **Desenvolvedor** | contexto, estado de tasks, workflows reutilizáveis, evidência, reports e continuidade |
+| **Engenheiro sênior** | execução mais rápida, especialistas, consciência arquitetural e decisões duráveis sem retirar autoridade técnica |
+| **Tech Lead** | memória compartilhada, ADRs, política de qualidade, ownership e consistência entre sessões |
+| **Time AI-native** | inteligência de projeto que sobrevive à troca de modelos, agentes e hosts |
 
-Uma tentativa real de escrita promove a interação para mutação exatamente uma
-vez. Isso vale igualmente para fonte, documentação, configuração e memória.
+> **Use engenharia suficiente para o risco e a complexidade da mudança — nem mais, nem menos.**
 
-Trabalho de mutação usa a menor forma adequada:
+## Primeiro: existe trabalho real para governar?
 
-- **direct** — uma a três tarefas coesas;
-- **batch** — quatro a doze tarefas relacionadas sem ordem forte;
-- **workflow** — ordem obrigatória, dependências, waves, múltiplas sessões,
-  cutover ou rollback.
+Antes de iniciar governança, a interação é classificada como:
 
-`Business`, `Operation` e `none` descrevem a natureza. `none` é normal para uma
-feature focada, correção, documentação ou mudança técnica. Business exige um
-resultado estratégico durável; Operation exige uma capacidade durável de
-manutenção ou operação. Nenhum dos dois é inferido apenas por palavra-chave.
+```text
+conversation | exploration | mutation | unclassified
+```
 
-## Dispatcher único e governança limitada
+- **conversation**: responde normalmente, sem criar estado durável;
+- **exploration**: investiga em modo somente leitura;
+- **mutation**: ativa o intake e a classificação de trabalho;
+- **unclassified**: faz uma pergunta curta em vez de adivinhar.
 
-Cada host executa no máximo um processo ContextDevKit por evento:
+Uma tentativa real de escrita é autoritativa e promove a interação para `mutation`.
 
-1. `prompt-preflight`
-2. `write-preflight`
-3. `postflight`
-4. `completion`
+```text
+pedido do usuário
+      │
+      ▼
+classificador de interação
+      │
+      ├── conversa ─────→ responder
+      ├── exploração ───→ investigar
+      ├── incerto ───────→ perguntar uma vez
+      └── mutação
+             │
+             ▼
+           intake
+```
 
-O dispatcher centraliza deduplicação, orçamento de tempo, proteção de reentrada
-e circuit breaker. Falha interna segue `continue`: gera diagnóstico, nunca um
-pass fabricado e nunca quebra o trabalho real do usuário.
+A governança começa quando o projeto vai realmente mudar, não toda vez que alguém conversa com a IA.
 
-Os modos de gate têm significados exatos:
+## Intake Envelope
 
-- **canary** avalia e relata sem negar;
-- **shadow** observa sem alterar o resultado;
-- **guarded** só pode negar violação aplicável, determinística e comprovada no
-  momento documentado.
+Depois de confirmar uma mutação, o ContextDevKit forma um **Intake Envelope** transitório.
 
-Somente três domínios são guarded por padrão:
+Esse envelope é um modelo mental para os sinais que o runtime já produz. Ele **não é um novo arquivo, receipt ou cerimônia obrigatória**.
 
-| Gate | Momento de bloqueio | Condição exata |
-| --- | --- | --- |
-| `qa-signoff` | completion | transição para `done` sem evidência determinística de QA |
-| `ddd-invariants` | write-preflight, completion | violação determinística de invariante de domínio Classe A aplicável |
-| `technical-debt` | completion | o diff atual introduz dívida nova high ou critical |
+Ele combina:
 
-Todos os demais gates — graph, intake, journey, presença de workflow,
-simulação, deliberação, routing, escopo de subagente, economia e carregamento de
-contexto — usam canary. `privacy-lgpd` é shadow.
+```text
+interaction
+existingWork
+nature
+executionMode
+complexity / tier
+domain / risk
+valueIntent
+decisionNeed / decisionMatch
+businessMatch
+reasons / evidence
+```
 
-O owner pode registrar override humano com escopo para um veredito guarded. O
-override registra ator, razão, escopo, versão/hash da política, revisão-base,
-timestamp, expiração e resultado. Ele não reescreve evidência nem desativa
-controles reais do host ou da plataforma.
+Isso permite que diferentes modelos e hosts partam dos mesmos fatos antes de tomar decisões de engenharia.
 
-## Autoridade de estado
+## Business-Driven Development
 
-Existe uma única autoridade gravável para cada tipo de estado:
+O ContextDevKit diferencia o motivo durável do trabalho da forma de execução.
 
-| Estado | Autoridade |
+### Business
+
+`Business` (`BIZ-####`) representa uma capacidade estratégica, produto, iniciativa ou decisão durável cujo resultado vale a pena preservar por muitas sessões e mudanças.
+
+Business guarda o **porquê durável**.
+
+### Operation
+
+`Operation` (`OP-####`) representa manutenção, incidente, recuperação, melhoria operacional ou outro conjunto durável de trabalho dentro de uma capacidade existente.
+
+Operation guarda uma **razão operacional durável**.
+
+### none
+
+`none` é um resultado normal e importante.
+
+Uma feature focada, bug localizado, alteração documental ou mudança técnica pequena não precisa ganhar um Business ou Operation só porque o ContextDevKit existe.
+
+Isso evita transformar a memória de governança em um depósito de burocracia.
+
+## Ownership e forma de execução são eixos independentes
+
+`Business | Operation | none` responde **quem/qual contexto durável possui o motivo do trabalho**.
+
+`direct | batch | workflow` responde **quanta coordenação a execução realmente exige**.
+
+- **direct**: normalmente 1–3 tarefas coesas;
+- **batch**: normalmente 4–12 tarefas relacionadas sem ordem forte;
+- **workflow**: dependências reais, waves, ordem obrigatória, múltiplas sessões, integração coordenada, cutover/rollback ou workflow explicitamente solicitado.
+
+Business não força Workflow. Operation não força Workflow. Vocabulário de arquitetura, ADR ou compliance também não.
+
+## Trabalho existente antes de trabalho novo
+
+Antes de criar novo estado governado, o intake pode resolver se a mutação pertence a algo já existente:
+
+```text
+explicit | inferred | ambiguous | new | none
+```
+
+Um item concluído não é reaberto silenciosamente. Um match ambíguo não é escolhido silenciosamente. Uma relação fraca com Business não vira ownership automático.
+
+O matcher de Business pode **sugerir** um vínculo para uma Operation usando evidência determinística, mas não o confirma sozinho.
+
+## Loop Engineering orientado a evidência
+
+Para trabalho relevante, a entrega é um ciclo:
+
+```text
+IMPLEMENTAR
+    ↓
+AVALIAR
+    ↓
+FINDINGS
+    ↓
+CORRIGIR
+    ↓
+REAVALIAR
+    ↓
+EVIDÊNCIA NOVA
+    ↓
+DONE
+```
+
+Uma task rejeitada em QA pode voltar para um novo ciclo. Evidência da rodada anterior não valida automaticamente a implementação corrigida. Um Workflow concluído pode ser reaberto quando feedback posterior invalida a conclusão anterior.
+
+Assim, `done` representa estado de engenharia sustentado por evidência, não apenas a afirmação do modelo.
+
+## Profundidade adaptativa de engenharia
+
+Nem toda mudança precisa dos mesmos avaliadores.
+
+O agente ativo usa escopo, complexidade, blast radius, risco, contratos afetados, peso de domínio, critical paths, instrução do owner e evidência disponível para decidir a profundidade adequada.
+
+Um typo pode exigir só validação focada. Uma feature material pode justificar testes e code review. Uma mudança crítica pode justificar QA completo, DDD, arquitetura, technical debt, security, integration/E2E e performance quando aplicável.
+
+Se o owner disser explicitamente "não termine até QA, DDD, arquitetura, debt, review e testes estarem limpos", esses checks passam a fazer parte do outcome solicitado.
+
+## Governança: quality floors sem soberania da plataforma
+
+Os modos de enforcement são:
+
+```text
+off | shadow | canary | guarded
+```
+
+### guarded
+
+Três domínios são `guarded` por padrão:
+
+| Quality floor | Protege |
 | --- | --- |
-| Definição do workflow | `workflow.json` |
-| Ciclo de vida do workflow | `workflow-state.json` |
-| Tarefas e status | `pipeline/tasks.json` |
-| Execução transitória do pipeline | `memory/runs/<run-id>/state.json` |
-| Preferências do owner | `contextkit/memory/preferences/owner-preferences.json` |
+| **QA sign-off** | conclusão sem evidência determinística suficiente de QA |
+| **DDD invariants** | violação comprovada de invariante Classe A aplicável e declarado |
+| **Technical debt** | dívida nova high/critical comprovadamente introduzida pelo diff atual |
 
-Os status são `backlog`, `working`, `blocked`, `testing`, `done` e `cancelled`.
-As escritas usam validação, revisão compare-and-swap, lock e substituição
-atômica. A transição de status e seu evento de auditoria são gravados no mesmo
-documento.
+Esses floors existem para evitar que o agente declare `done` silenciosamente com uma violação determinística conhecida.
 
-Arquivos Markdown como `tasks.md` e `index.md` são projeções derivadas. O
-runtime nunca os lê como autoridade e pode repará-los a partir do JSON.
+Eles não tornam o ContextDevKit dono do projeto. O owner pode configurar os modos e usar override humano com escopo e auditoria sem fingir que a evidência passou.
 
-Um pacote de workflow contém:
+### canary
+
+Canary avalia e reporta, mas não nega.
+
+Architecture Debt, graph-first, routing, workflow presence, journey, simulations, deliberation, economy e context-pack são canary por padrão.
+
+Architecture Debt é deliberadamente separado de Technical Debt: encontra risco estrutural e produz evidência, mas não vira um quarto guarded gate por conta própria.
+
+### shadow
+
+Privacy/LGPD é shadow por padrão. Ele pode observar riscos de privacidade sem inferir que contratos, bases legais, DPAs ou controles externos não existem apenas porque não estão no repositório.
+
+## Owner sovereignty
+
+O ContextDevKit governa o projeto sem disputar autoridade com o owner.
+
+A configuração padrão usa `humanAuthority: owner-wins` dentro da governança, preservando os limites reais de segurança do host/plataforma.
+
+O harness pode mostrar evidência, aplicar quality floors configurados, preservar decisões, recomendar especialistas, recusar PASS fabricado e registrar override explícito.
+
+Ele não deve transformar score de modelo, agent routing, swarm, graph, councils ou metodologia opcional em permissão para trabalhar.
+
+## Especialistas são ferramentas
+
+ContextDevKit possui agentes especializados em arquitetura, implementação, code review, domain modeling, QA, security, accessibility, DevOps, product, design, growth e outros domínios.
+
+Routing é advisory.
+
+`code-reviewer`, por exemplo, é fortemente recomendado para diffs materiais e aparece explicitamente no pipeline `/ship`. Se o host não conseguir delegar, o agente ativo continua e executa a responsabilidade. A presença do subagente não é a evidência de qualidade.
+
+## Inteligência e memória do projeto
+
+A memória pode preservar:
+
+```text
+Business
+Operations
+Workflows
+Tasks
+ADRs
+Specifications
+Decisions
+Reports
+Sessions
+Owner preferences
+Project personalization
+Execution evidence
+```
+
+Um pacote de Workflow mantém o contexto completo:
 
 ```text
 WF-####-slug/
@@ -131,148 +286,108 @@ WF-####-slug/
 ├── prd.md
 ├── spec.md
 ├── decisions.md
-├── CONTINUATION-PROMPT.md
 ├── context-manifest.json
+├── CONTINUATION-PROMPT.md
 ├── pipeline/
 │   ├── tasks.json
-│   └── tasks.md              # projeção gerada
+│   └── tasks.md
 └── reports/
 ```
 
-Trabalhos direct e batch usam o mesmo contrato de tarefas dentro do contexto
-owner. Um workflow nasce completo em diretório sibling de staging, é validado e
-renomeado atomicamente para o destino.
+JSON mantém a autoridade de máquina. Markdown é contexto autorado ou projeção humana. Reports guardam evidência factual.
 
-## Personalização do projeto
+## Uma autoridade por estado
 
-O ContextDevKit mantém instruções duráveis específicas do projeto fora dos
-arquivos de host regenerados:
+| Estado | Autoridade |
+| --- | --- |
+| Definição do Workflow | `workflow.json` |
+| Lifecycle do Workflow | `workflow-state.json` |
+| Tasks e status | `pipeline/tasks.json` |
+| Run transitório | `memory/runs/<run-id>/state.json` |
+| Recomendações do owner | `memory/preferences/owner-preferences.json` |
 
-- `contextkit/memory/preferences/personalization.md` guarda instruções
-  explícitas do projeto, sob autoria do usuário;
-- `contextkit/memory/preferences/owner-preferences.json` continua sendo o store
-  estruturado já existente, apenas recomendatório.
+Status não é inferido de Markdown ou de nome de pasta.
 
-O instalador cria ambos somente quando ausentes e nunca os sobrescreve, nem com
-`--force`. `CLAUDE.md`, `AGENTS.md` e `INSTRUCTIONS.md` recebem uma única
-referência delimitada aos dois arquivos. O update troca atomicamente apenas esse
-bloco e preserva byte a byte todo o texto do owner fora dele. O Markdown é
-contexto explícito do projeto; o JSON apenas orienta recomendações. Nenhum deles
-supera instruções atuais de system, developer e user nem limites de segurança da
-plataforma.
+## Project Map e grafo estrutural
 
-## Grafo, routing e agentes
+Project Map é o fast path preferido para descoberta estrutural e pode indexar source + memory configurada, inclusive memória ignorada pelo Git.
 
-Project Map é a primeira consulta preferida porque localiza código e memória com
-menos contexto. Se o grafo estiver ausente, stale, parcial ou não responder à
-consulta, a busca ampla continua imediatamente disponível. Graph-first nunca
-bloqueia `Grep`, `Glob`, `rg` ou fallback equivalente.
+Se o grafo estiver ausente, stale, parcial ou sem resposta, o agente usa busca normal imediatamente. Graph-first significa **otimização preferida**, não **proibição de busca**.
 
-Seleção de modelo, routing de especialistas, forma do swarm, sugestões de
-economia e preferências do owner são recomendações. Não concedem autoridade e
-sua ausência não nega escrita. Swarm é opcional e só respeita um limite técnico
-real quando o host efetivamente o expõe.
+## Continuidade de sessões longas
 
-O agente LGPD opera somente em shadow: pode emitir observações de privacidade,
-mas não vira gate obrigatório de agente.
+ContextDevKit preserva continuidade com tasks, Workflow state, reports, context manifests, memória de longa duração, continuation prompts, `run-compact`, compactação de output de testes, task compiler, run/session state e preferências do owner.
 
-Para ação destrutiva em produção, force-push ou rotação de segredo, o kit emite
-um `riskAcknowledgement` não bloqueante. A confirmação continua pertencendo ao
-limite real do host ou da plataforma.
+Trocar de sessão, janela de contexto, modelo ou host não deve apagar o que o projeto já sabe.
+
+## Pipeline completo
+
+`/ship --auto` organiza um passe completo de engenharia:
+
+```text
+scope
+  ↓
+design
+  ↓
+plan tests
+  ↓
+implement
+  ↓
+self-review
+  ↓
+test / QA
+  ↓
+quality analysis
+  ↓
+record decisions/evidence
+  ↓
+report
+```
+
+Evidência vermelha dentro do escopo deve ser corrigida; evidência que não pode ser resolvida honestamente é reportada como unresolved, nunca escondida em um PASS fabricado.
 
 ## Instalação
 
-Requisito: Node.js 18 ou superior. O hot path dos hooks tem zero dependências de
-runtime.
+Requer Node.js 18 ou superior. O hot path de governança tem zero dependências de pacote em runtime.
 
 ```bash
 npx contextdevkit --target /caminho/do/projeto
 ```
 
-Neste checkout do repositório:
+Ou, a partir do checkout:
 
 ```bash
 node install.mjs --target /caminho/do/projeto
 ```
 
-O instalador aceita projetos tracked, local-only e sem Git. Em diretório sem
-Git ele declara `NON-GIT` com honestidade e pula apenas integrações dependentes
-de Git.
+## Princípios
 
-Os níveis habilitam capacidades; não são graus de consentimento:
-
-| Nível | Capacidades |
-| --- | --- |
-| 1 | memória durável do projeto |
-| 2 | dispatchers de governança e diagnósticos do host |
-| 3 | coordenação multissessão e claims |
-| 4 | agentes especialistas e papéis de QA |
-| 5 | análise de impacto, arquitetura e qualidade |
-| 6 | comandos autônomos de pipeline e ciclos de aprendizado |
-| 7 | fleet, ecossistema, QA visual e observabilidade avançada |
-
-A instrução atual do owner determina o que o agente pode fazer. ContextDevKit
-não converte nível, rota de modelo ou preferência em permissão.
-
-## Comandos diários
-
-Use a CLI compartilhada via `cdx.mjs` (Codex) ou `ctx.mjs` (outros hosts):
-
-```bash
-node cdx.mjs state
-node cdx.mjs project-map --find <símbolo-ou-path>
-node cdx.mjs dev-start <objetivo>
-node cdx.mjs pipeline
-node cdx.mjs workflow new <slug>
-node cdx.mjs qa-signoff
-node cdx.mjs log-session
-```
-
-Quando um comando mutador oferece switch de escrita, o padrão é dry-run. Leia o
-recibo antes de aplicar.
-
-## Atualização do 3.x
-
-Não existe fallback live. Lanes Markdown, planos de workflow v1, graus de
-autonomia, cadeias antigas de hooks e writers antigos só são aceitos pelo
-migrador offline explícito.
-
-A sequência segura é inventário e dry-run, staging, freeze dos writers antigos,
-prova de paridade e rollback, cutover atômico e, então, retirada das fontes v3.
-O rollback aponta para uma geração v4 copiada e verificada byte a byte; o
-workspace externo preserva o bundle e o manifest da origem v3.
-
-Consulte [MIGRATION-3.x-TO-4.0.md](MIGRATION-3.x-TO-4.0.md) para comandos,
-conversão de configuração, recusas, paridade e rollback.
-
-## Desenvolvimento e verificação
-
-```bash
-npm run test:smoke
-npm run test:selfcheck
-npm run test:integration
-npm test
-npm run release:v4:gate
-```
-
-O runner é limitado, emite progresso e heartbeat e encerra a árvore de
-processos em timeout. O empacotamento usa allowlist e recusa runtime legado
-alcançável, drift de projeções de host, fixtures no tarball ou rollback de
-migração não exercitado.
-
-Uma versão de release só é gravada depois que todos os gates de release
-estiverem verdes.
+1. **Entrega acima da burocracia.**
+2. **Evidência acima da cerimônia.**
+3. **Governança começa com mutação.**
+4. **Determinismo prova fatos.**
+5. **Inteligência interpreta evidência.**
+6. **A intenção do owner supera metodologia.**
+7. **Trabalho pequeno continua pequeno.**
+8. **Trabalho durável merece memória durável.**
+9. **Um estado, uma autoridade.**
+10. **Falha deve ser reportada honestamente.**
 
 ## Documentação
 
-- [Índice da documentação](docs/README.md)
+Comece por:
+
+- [Índice](docs/README.md)
 - [Arquitetura](docs/ARCHITECTURE.md)
+- [Business-Driven Development](docs/explanation/business-driven-development.md)
+- [Evidence-Driven Loop Engineering](docs/explanation/loop-engineering.md)
+- [Governança e enforcement](docs/explanation/governance-and-enforcement.md)
+- [Quality model](docs/explanation/quality-model.md)
 - [Contrato de governança](docs/reference/governance-contract.md)
-- [Configuração](docs/reference/config.md)
-- [Engine de workflow](docs/workflow-engine/README.md)
-- [Segurança e privacidade](docs/PRIVACY.md)
-- [Migração do 3.x](MIGRATION-3.x-TO-4.0.md)
+- [Memory model](docs/reference/memory-model.md)
+- [Agents](docs/reference/agents.md)
+- [Workflow engine](docs/workflow-engine/README.md)
 
 ## Licença
 
-[MIT](LICENSE)
+MIT
