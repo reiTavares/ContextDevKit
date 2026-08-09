@@ -14,6 +14,7 @@ import {
 } from './gate-registry.mjs';
 
 const CONTINUE_POLICY = 'continue';
+export const DEFAULT_OVERRIDE_TTL_MS = 15 * 60 * 1000;
 
 /**
  * Resolves one gate from project config. Missing, invalid, or throwing config
@@ -152,7 +153,11 @@ export function evaluateGateObservation({ gate, moment, observation = {} }) {
     : normalized.mode;
   if (mode === 'off') return gateVerdict('allow', gateId, mode, false, 'gate disabled');
 
-  const override = validateHumanOverrideMetadata(gateId, observation?.override);
+  const override = validateHumanOverrideMetadata(gateId, observation?.override, {
+    currentRevision: observation?.currentRevision ?? observation?.revision,
+    scope: observation?.currentScope ?? observation?.scope,
+    now: observation?.evaluationTime,
+  });
   if (override.valid) return gateVerdict('allow', gateId, mode, true, 'human owner override accepted');
 
   const status = observation?.status ?? 'unknown';
@@ -173,7 +178,7 @@ export function evaluateGateObservation({ gate, moment, observation = {} }) {
  *
  * @param {string} gateId guarded gate id
  * @param {{actor:string,reason:string,scope:object|string,baseRevision:string|number,
- *   outcome:string,timestamp?:string}} input override facts
+ *   outcome:string,timestamp?:string,expiresAt?:string}} input override facts
  * @returns {Readonly<object>} complete immutable audit metadata
  * @throws {TypeError|RangeError} when a required audit fact is absent
  */
@@ -185,6 +190,12 @@ export function buildHumanOverrideMetadata(gateId, input) {
   if (!input || typeof input !== 'object') throw new TypeError('override input must be an object');
 
   const timestamp = input.timestamp ?? new Date().toISOString();
+  const timestampMs = Date.parse(timestamp);
+  if (Number.isNaN(timestampMs)) throw new TypeError('override timestamp must be ISO-8601 compatible');
+  const expiresAt = input.expiresAt ?? new Date(timestampMs + DEFAULT_OVERRIDE_TTL_MS).toISOString();
+  const expiresAtMs = Date.parse(expiresAt);
+  if (Number.isNaN(expiresAtMs)) throw new TypeError('override expiresAt must be ISO-8601 compatible');
+  if (expiresAtMs <= timestampMs) throw new RangeError('override expiresAt must be after timestamp');
   const candidate = {
     actor: input.actor,
     reason: input.reason,
@@ -193,11 +204,11 @@ export function buildHumanOverrideMetadata(gateId, input) {
     policyHash: GATE_POLICY_HASH,
     baseRevision: input.baseRevision,
     timestamp,
+    expiresAt,
     outcome: input.outcome,
   };
   const missing = OVERRIDE_METADATA_FIELDS.filter((field) => !hasAuditValue(candidate[field]));
   if (missing.length > 0) throw new TypeError(`override metadata missing: ${missing.join(', ')}`);
-  if (Number.isNaN(Date.parse(timestamp))) throw new TypeError('override timestamp must be ISO-8601 compatible');
   return Object.freeze({ gateId, ...candidate });
 }
 
@@ -206,9 +217,10 @@ export function buildHumanOverrideMetadata(gateId, input) {
  *
  * @param {string} gateId guarded gate id
  * @param {unknown} metadata override metadata
+ * @param {{currentRevision?:string|number,scope?:object|string,now?:string|number|Date}} [context]
  * @returns {{valid:boolean,reason:string}}
  */
-export function validateHumanOverrideMetadata(gateId, metadata) {
+export function validateHumanOverrideMetadata(gateId, metadata, context = {}) {
   const definition = getGateDefinition(gateId);
   if (!definition?.overrideAllowed || !GUARDED_GATE_IDS.includes(gateId)) {
     return { valid: false, reason: 'gate does not support override' };
@@ -219,8 +231,41 @@ export function validateHumanOverrideMetadata(gateId, metadata) {
   if (metadata.policyVersion !== GATE_POLICY_VERSION || metadata.policyHash !== GATE_POLICY_HASH) {
     return { valid: false, reason: 'override policy version/hash mismatch' };
   }
-  if (Number.isNaN(Date.parse(metadata.timestamp))) return { valid: false, reason: 'override timestamp invalid' };
+  const timestampMs = Date.parse(metadata.timestamp);
+  const expiresAtMs = Date.parse(metadata.expiresAt);
+  if (Number.isNaN(timestampMs)) return { valid: false, reason: 'override timestamp invalid' };
+  if (Number.isNaN(expiresAtMs) || expiresAtMs <= timestampMs) {
+    return { valid: false, reason: 'override expiry invalid' };
+  }
+  const nowMs = resolveAuditTime(context.now);
+  if (expiresAtMs <= nowMs) return { valid: false, reason: 'override expired' };
+  if (!hasAuditValue(context.currentRevision)) {
+    return { valid: false, reason: 'current revision missing' };
+  }
+  if (String(metadata.baseRevision) !== String(context.currentRevision)) {
+    return { valid: false, reason: 'override base revision mismatch' };
+  }
+  if (context.scope !== undefined && canonicalAuditScope(metadata.scope) !== canonicalAuditScope(context.scope)) {
+    return { valid: false, reason: 'override scope mismatch' };
+  }
   return { valid: true, reason: 'human owner override valid' };
+}
+
+/** @param {unknown} value @returns {number} an epoch used only for override expiry validation */
+function resolveAuditTime(value) {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) return Date.parse(value);
+  return Date.now();
+}
+
+/** @param {unknown} value @returns {string} deterministic scope encoding for replay protection */
+function canonicalAuditScope(value) {
+  if (typeof value === 'string') return value.trim();
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return JSON.stringify(value);
+  return JSON.stringify(Object.fromEntries(
+    Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
+  ));
 }
 
 /** @param {unknown} value audit field @returns {boolean} whether the field is present */

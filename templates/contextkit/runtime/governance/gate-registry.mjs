@@ -5,9 +5,7 @@
  * and human-override metadata. It deliberately contains no project I/O and no
  * third-party dependency so every host can consume the same immutable matrix.
  */
-import { createHash } from 'node:crypto';
-
-export const GATE_POLICY_VERSION = '4.0.0-rc.1';
+export const GATE_POLICY_VERSION = '4.0.0-rc.2';
 
 export const OVERRIDE_METADATA_FIELDS = Object.freeze([
   'actor',
@@ -17,6 +15,7 @@ export const OVERRIDE_METADATA_FIELDS = Object.freeze([
   'policyHash',
   'baseRevision',
   'timestamp',
+  'expiresAt',
   'outcome',
 ]);
 
@@ -90,13 +89,9 @@ export const GATE_REGISTRY = /** @type {Readonly<Record<string, object>>} */ (
 
 export const GATE_IDS = Object.freeze(Object.keys(GATE_REGISTRY));
 
-const POLICY_DOCUMENT = JSON.stringify({
-  policyVersion: GATE_POLICY_VERSION,
-  guardedAllowlist: GUARDED_GATE_ID_LIST,
-  gates: GATE_REGISTRY,
-});
-
-export const GATE_POLICY_HASH = createHash('sha256').update(POLICY_DOCUMENT).digest('hex');
+// Generated at the release boundary from the immutable registry document.
+// Keeping the digest literal prevents mandatory hashing in the hook hot path.
+export const GATE_POLICY_HASH = '8a3f6cdbc96da6efa684ae8cd6789e7803de7b0e51229ffc1818a0a2c43bfce3';
 
 export const DEFAULT_GOVERNANCE_CONFIG = freezeRegistryValue({
   defaultMode: 'canary',

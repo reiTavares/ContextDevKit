@@ -78,12 +78,24 @@ try {
 
   const override = gateMode.buildHumanOverrideMetadata('qa-signoff', {
     actor: 'owner', reason: 'explicit decision', scope: { taskId: '410' },
-    baseRevision: 9, timestamp: '2026-08-08T12:00:00.000Z', outcome: 'accepted',
+    baseRevision: 9, timestamp: '2026-08-08T12:00:00.000Z',
+    expiresAt: '2099-08-08T12:15:00.000Z', outcome: 'accepted',
   });
-  gateMode.evaluateGateObservation({ gate: qaGate, moment: 'completion', observation: { ...qaViolation, override } }).decision === 'allow'
+  gateMode.evaluateGateObservation({
+    gate: qaGate,
+    moment: 'completion',
+    observation: { ...qaViolation, override, currentRevision: 9, currentScope: { taskId: '410' } },
+  }).decision === 'allow'
     ? rep.ok('E14 owner override needs no autonomy grade') : rep.bad('E14 owner override failed');
   registry.OVERRIDE_METADATA_FIELDS.every((field) => Object.hasOwn(override, field))
     ? rep.ok('E15 override audit metadata complete') : rep.bad('E15 override audit metadata incomplete');
+  gateMode.evaluateGateObservation({
+    gate: qaGate,
+    moment: 'completion',
+    observation: { ...qaViolation, override, currentRevision: 10, currentScope: { taskId: '410' } },
+  }).decision === 'deny'
+    ? rep.ok('E15b stale override cannot replay onto a new revision')
+    : rep.bad('E15b stale override replayed onto a new revision');
 
   const dddGate = gateMode.resolveGateMode(defaults.DEFAULT_CONFIG, 'ddd-invariants');
   const dddFacts = { status: 'violated', deterministic: true, applicable: true, evidenced: true };

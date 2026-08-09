@@ -236,9 +236,14 @@ export async function runEnforcementChecks(rep, { KIT }) {
   const override = buildHumanOverrideMetadata('qa-signoff', {
     actor: 'owner', reason: 'explicit release decision', scope: { taskId: '410' },
     baseRevision: 7, outcome: 'accepted', timestamp: '2026-08-08T12:00:00.000Z',
+    expiresAt: '2099-08-08T12:15:00.000Z',
   });
   OVERRIDE_METADATA_FIELDS.every((field) => Object.hasOwn(override, field))
-    && evaluateGateObservation({ gate: qaGate, moment: 'completion', observation: { ...qaFacts, override } }).decision === 'allow'
+    && evaluateGateObservation({
+      gate: qaGate,
+      moment: 'completion',
+      observation: { ...qaFacts, override, currentRevision: 7, currentScope: { taskId: '410' } },
+    }).decision === 'allow'
     ? ok('override: complete audit metadata allows owner override without grade')
     : bad('override: metadata or owner-wins behavior failed');
 
