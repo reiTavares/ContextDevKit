@@ -43,6 +43,7 @@ export function composeSettings(existing, level) {
   if (level >= 1 && (!settings.statusLine || String(settings.statusLine.command || '').includes('contextkit/runtime/statusline'))) {
     settings.statusLine = { type: 'command', command: 'node contextkit/runtime/statusline.mjs', padding: 0 };
   }
+  if (level >= 1) add('SessionStart', null, 'governance-session-context.mjs');
 
   if (level >= 2) {
     add('PostToolUse', 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*', 'governance-postflight.mjs');
@@ -51,7 +52,11 @@ export function composeSettings(existing, level) {
   if (level >= 3) {
     add('PreToolUse', 'Edit|Write|MultiEdit|NotebookEdit|Bash|mcp__.*', 'governance-write-preflight.mjs');
   }
-  if (level >= 5) add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
+  if (level >= 5) {
+    add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
+    add('PreCompact', null, 'governance-session-context.mjs');
+    add('SubagentStart', null, 'governance-session-context.mjs');
+  }
 
   settings.hooks = hooks;
   return settings;

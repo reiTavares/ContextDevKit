@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WF-0111 W11 focused contract: routing, swarm, autonomy, LGPD, and owner
+ * WF-0111 W11 focused contract: routing, swarm, risk acknowledgement, LGPD, and owner
  * preferences advise without becoming hidden authorization authorities.
  */
 import assert from 'node:assert/strict';
@@ -13,9 +13,8 @@ import {
   resolveModel,
 } from '../templates/contextkit/tools/scripts/model-policy.mjs';
 import { routePrompt } from '../templates/contextkit/runtime/execution/routing-runtime.mjs';
-import { resolveAutonomy } from '../templates/contextkit/runtime/config/resolve-autonomy.mjs';
+import { resolveRiskAcknowledgement } from '../templates/contextkit/runtime/governance/risk-acknowledgement.mjs';
 import { applyOverOrchestrationGuard } from '../templates/contextkit/runtime/execution/agent-orchestration-guard.mjs';
-import { evaluateSubagentRecommendation } from '../templates/contextkit/runtime/hooks/subagent-gate.mjs';
 import {
   confirmOwnerPreference,
   editOwnerPreference,
@@ -116,33 +115,36 @@ test('swarm caps are recommendations and selections remain byte-identical', () =
   assert.equal(recommendation.guard.plannedAfter, recommendation.guard.plannedBefore);
 });
 
-test('autonomy grades never authorize work; real safety gets acknowledgement metadata', () => {
-  const ordinary = resolveAutonomy('edit', { autonomy: { grade: 1 } });
-  assert.equal(ordinary.mode, 'advisory');
+test('real safety gets non-binding acknowledgement metadata without grades', () => {
+  const ordinary = resolveRiskAcknowledgement('edit');
+  assert.equal(ordinary.required, false);
   assert.equal(ordinary.binding, false);
-  assert.equal(ordinary.riskAcknowledgement.required, false);
+  assert.equal(ordinary.continuation.allowed, true);
 
-  const secret = resolveAutonomy('edit', { autonomy: { grade: 4 } }, null, { path: '.env.production' });
-  assert.equal(secret.mode, 'advisory');
-  assert.equal(secret.riskAcknowledgement.required, true);
-  assert.equal(secret.riskAcknowledgement.kind, 'secret-rotation');
+  const secret = resolveRiskAcknowledgement('edit', { path: '.env.production' });
+  assert.equal(secret.required, true);
+  assert.equal(secret.kind, 'secret-rotation');
+  assert.match(secret.message, /platform safety boundary/i);
 
-  const destructive = resolveAutonomy('push', {}, null, { force: true });
-  assert.equal(destructive.riskAcknowledgement.required, true);
-  assert.equal(destructive.riskAcknowledgement.kind, 'force-push');
+  const destructive = resolveRiskAcknowledgement('push', { force: true });
+  assert.equal(destructive.required, true);
+  assert.equal(destructive.kind, 'force-push');
+
+  const acknowledged = resolveRiskAcknowledgement('destructive-production', {
+    acknowledgedBy: 'owner',
+    acknowledgedAt: '2026-08-08T12:00:00.000Z',
+    reason: 'Owner explicitly accepts the production rollback risk.',
+  });
+  assert.equal(acknowledged.acknowledged, true);
+  assert.equal(acknowledged.acknowledgedBy, 'owner');
+  assert.equal(acknowledged.blocking, false);
 });
 
-test('subagent scope findings are canary-only and do not require records', () => {
-  const recommendation = evaluateSubagentRecommendation({
-    label: 'worker',
-    declared: ['src/allowed/'],
-    touched: ['src/outside/file.mjs'],
-    forbidden: ['secrets/'],
-  });
-  assert.equal(recommendation.mode, 'canary');
-  assert.equal(recommendation.decision, 'recommend');
-  assert.equal(recommendation.blocking, false);
-  assert.equal(recommendation.persisted, false);
+test('legacy subagent gate is physically absent', async () => {
+  await assert.rejects(
+    readFile(join(KIT, 'templates/contextkit/runtime/hooks/subagent-gate.mjs'), 'utf8'),
+    /ENOENT/,
+  );
 });
 
 test('LGPD agent is explicit shadow guidance with evidence categories', async () => {

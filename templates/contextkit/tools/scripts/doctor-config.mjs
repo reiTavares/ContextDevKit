@@ -27,7 +27,6 @@ export function checkConfigPathRot({ ROOT, pass, fail, note }) {
     }
     report(`${label} points at nonexistent path(s): ${missing.join(', ')}`, 'edit contextkit/config.json — was the platform dir or file renamed/moved? (e.g. a vibekit-era install)');
   };
-  probe(cfg?.ledger?.registration, 'ledger.registration', fail);
   probe(cfg?.l5?.highRiskPaths, 'l5.highRiskPaths', note);
   probe(cfg?.qa?.criticalPaths, 'qa.criticalPaths', note);
 }

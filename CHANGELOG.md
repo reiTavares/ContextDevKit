@@ -20,6 +20,46 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-08-09
+
+### Changed
+- **Governance-first runtime.** Interaction classification is mutation-only;
+  conversation and exploration create no task, workflow, contract, receipt, or
+  memory artifact. Host governance now runs through one bounded dispatcher per
+  event with deduplication, circuit breaking, a 500 ms aggregate budget, and
+  fail-open operational behavior.
+- **Single JSON work authority.** Workflow v2 packages use `workflow.json`,
+  `workflow-state.json`, and `pipeline/tasks.json` with exclusive
+  responsibilities, CAS-backed atomic transitions, derived Markdown, and no
+  status-shaped directories. CLI, MCP, dashboard, statusline, boot, and graph
+  consumers read the same authority.
+- **Human-sovereign policy.** Gate modes are centralized as
+  `off|shadow|canary|guarded`; architecture debt is canary, LGPD is shadow, and
+  model, agent, swarm, autonomy, and graph recommendations no longer authorize
+  or deny ordinary work.
+- **Portable hosts and installs.** Claude, Codex, Antigravity, and Grok share a
+  manifest-driven projection contract. Non-Git installs, ZIP distributions,
+  paths with spaces, updater cleanup, progress reporting, and bounded suite
+  execution are covered by deterministic tests.
+
+### Removed
+- **3.x executable governance.** Removed the multi-hook chain, implicit session
+  ledger, rigid routing/autonomy/required-agent gates, automatic workflow-plan
+  fallback, physical pipeline lane readers and writers, done sweeps, sidecars,
+  retired commands, and tests that existed only to preserve those contracts.
+- **Runtime compatibility mode.** There is no dual-read, dual-write, automatic
+  lane import, or v3 fallback. The only 3.x reader is the explicit offline
+  `tools/migrations/v3-to-v4/` importer.
+
+### Fixed
+- **WF-0059 activation gap.** The previously deferred wire-in and live cutover
+  are superseded by the 4.0 authority migration: conservation and parity are
+  verified, rollback remains v4, old writers stay fenced, and retired source
+  data moves to a hash-gated external audit bundle.
+- **Project Map roots.** Active memory is indexed even when gitignored or stored
+  in an external cutover generation; unavailable or stale graph data permits
+  ordinary search fallback.
+
 ## [3.9.0] - 2026-08-02
 
 ### Added

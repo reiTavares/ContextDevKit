@@ -28,7 +28,6 @@ export const POLICY_TABLES = Object.freeze({
   pathRules: 'path-rules.json',
   hardTriggers: 'hard-triggers.json',
   reasonCodes: 'reason-codes.json',
-  ruleClasses: 'rule-classes.json',
   manifest: 'policy-manifest.json',
 });
 
@@ -64,7 +63,7 @@ export function loadPolicyTable(root, tableId) {
  *   degraded: boolean, missing: string[] }}
  */
 export function loadPolicyBundle(root) {
-  const ids = ['codeIntentWeights', 'domainApplicabilityWeights', 'profileThresholds', 'pathRules', 'hardTriggers', 'ruleClasses'];
+  const ids = ['codeIntentWeights', 'domainApplicabilityWeights', 'profileThresholds', 'pathRules', 'hardTriggers'];
   const loaded = ids.map((id) => [id, loadPolicyTable(root, id)]);
   const missing = loaded.filter(([, result]) => result.degraded).map(([id]) => id);
   const pick = (id) => loaded.find(([k]) => k === id)[1].table;
@@ -74,7 +73,6 @@ export function loadPolicyBundle(root) {
     profiles: pick('profileThresholds'),
     pathRules: pick('pathRules'),
     hardTriggers: pick('hardTriggers'),
-    ruleClasses: pick('ruleClasses'),
     degraded: missing.length > 0,
     missing,
   };

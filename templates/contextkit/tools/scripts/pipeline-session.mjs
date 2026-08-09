@@ -40,7 +40,7 @@ export async function startTask(tasksTarget, taskId, options = {}) {
   }, document.revision);
   let workspaceWarning = null;
   try {
-    await (options.attach ?? attachTask)(task.id);
+    await (options.attach ?? attachTask)(task.id, tasksTarget);
   } catch (error) {
     workspaceWarning = `task transitioned, but workspace association failed: ${error?.message ?? error}`;
   }

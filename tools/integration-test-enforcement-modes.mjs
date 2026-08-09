@@ -16,18 +16,16 @@ try {
   const registry = await importTemplate('templates/contextkit/runtime/governance/gate-registry.mjs');
   const gateMode = await importTemplate('templates/contextkit/runtime/governance/gate-mode.mjs');
   const defaults = await importTemplate('templates/contextkit/runtime/config/defaults.mjs');
-  const bypassStore = await importTemplate('templates/contextkit/runtime/execution/bypass-store.mjs');
-
   JSON.stringify(modes.ENFORCEMENT_MODES) === JSON.stringify(['off', 'shadow', 'canary', 'guarded'])
     ? rep.ok('E1 canonical mode enum') : rep.bad('E1 canonical mode enum drifted');
   modes.resolveEnforcementMode(null) === 'canary'
     ? rep.ok('E2 missing config -> canary') : rep.bad('E2 missing config did not become canary');
-  modes.resolveEnforcementMode({ enforcement: { mode: 'advisory' } }) === 'canary'
-    ? rep.ok('E3 advisory -> canary') : rep.bad('E3 advisory alias failed');
+  modes.resolveEnforcementMode({ governance: { defaultMode: 'shadow' } }) === 'shadow'
+    ? rep.ok('E3 canonical governance key is authoritative') : rep.bad('E3 canonical governance key failed');
   const warnings = [];
-  modes.resolveEnforcementMode({ enforcement: { mode: 'strict' } }, { onWarning: (warning) => warnings.push(warning) }) === 'guarded'
+  modes.resolveEnforcementMode({ enforcement: { mode: 'strict' } }, { onWarning: (warning) => warnings.push(warning) }) === 'canary'
     && warnings.length === 1
-    ? rep.ok('E4 strict -> guarded with migration warning') : rep.bad('E4 strict alias/warning failed');
+    ? rep.ok('E4 v3 alias is ignored by runtime and degrades to canary') : rep.bad('E4 v3 alias leaked into runtime policy');
 
   const matrix = gateMode.resolveGovernanceMatrix(defaults.DEFAULT_CONFIG);
   const guarded = Object.entries(matrix.modes).filter(([, mode]) => mode === 'guarded').map(([gateId]) => gateId);
@@ -115,24 +113,9 @@ try {
     ? rep.ok('E17 technical debt guards only new deterministic high-severity diff debt')
     : rep.bad('E17 technical-debt boundary failed');
 
-  const receiptRoot = mkdtempSync(join(tmpdir(), 'ck-gate-bypass-'));
-  try {
-    const scope = { branch: 'feat/x', taskId: 'task-42', paths: [] };
-    const contract = { requiredBeforeCompletion: ['qa-signoff'] };
-    bypassStore.writeBypass(receiptRoot, {
-      capability: 'qa-signoff', taskId: scope.taskId, branch: scope.branch,
-      reason: 'owner approved', actor: 'human-owner', approvedBy: 'owner',
-    });
-    const verdict = modes.decide({
-      mode: 'guarded', contract, moment: 'beforeCompletion', scope, root: receiptRoot,
-      gateId: 'qa-signoff', violation: qaViolation,
-    });
-    verdict.decision === 'allow' && verdict.bypassed.includes('qa-signoff') && !verdict.satisfied.includes('qa-signoff')
-      ? rep.ok('E18 compatibility bypass allows without fabricating proof')
-      : rep.bad(`E18 bypass verdict wrong: ${JSON.stringify(verdict)}`);
-  } finally {
-    rmSync(receiptRoot, { recursive: true, force: true });
-  }
+  typeof modes.decide === 'undefined'
+    ? rep.ok('E18 receipt/bypass decision adapter is physically absent')
+    : rep.bad('E18 retired receipt/bypass decision adapter remains exported');
 } catch (error) {
   rep.bad(`governance integration crashed: ${error?.stack ?? error}`);
 }

@@ -140,16 +140,13 @@ function readEngineWorkflowState(root, bizId) {
         .filter((e) => e.isDirectory()).map((e) => e.name);
       for (const wf of wfFolders) {
         const state = readJsonSafe(join(wfDir, wf, 'workflow-state.json'), null);
-        const hasRecordedActivity = Object.keys(state?.taskStates || {}).length > 0;
-        if (
-          state?.overallStatus === 'active'
-          || state?.overallStatus === 'in-progress'
-          || (state?.overallStatus === 'not-started' && hasRecordedActivity)
-        ) {
+        if (['working', 'blocked', 'testing'].includes(state?.status)) {
           active.push({
-            workflow: (wf.match(/^(WF-\d{4})/) ?? [])[1] ?? null,
-            wave: state?.currentWave ?? null,
-            task: state?.currentTask ?? null,
+            workflow: typeof state?.workflowId === 'string'
+              ? state.workflowId
+              : (wf.match(/^(WF-\d{4})/) ?? [])[1] ?? null,
+            wave: null,
+            task: Array.isArray(state?.activeTaskIds) ? state.activeTaskIds[0] ?? null : null,
           });
         }
       }

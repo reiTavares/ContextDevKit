@@ -13,15 +13,20 @@
  *
  * Run:  node tools/integration-test-token-economy.mjs   (exit 0 = healthy)
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { reporter, installFixture } from './it-helpers.mjs';
+import { digestUnreleased, extractUnreleased } from '../templates/contextkit/runtime/hooks/boot-context-readers.mjs';
 
 const rep = reporter();
 const { ok, bad } = rep;
 console.log('\n🪙  ContextDevKit integration test — token economy (F3)\n');
 const fx = installFixture(rep);
-const { proj, script, hook } = fx;
+const { proj, script } = fx;
+const changelogDigest = () => {
+  const text = readFileSync(join(proj, 'docs', 'CHANGELOG.md'), 'utf8');
+  return digestUnreleased(text) ?? extractUnreleased(text) ?? '';
+};
 
 try {
   // Token economy (#7): token-report aggregates usage from transcripts (fake --from dir; also
@@ -68,15 +73,15 @@ try {
   // ADR-0044 D2 — the boot banner shows a count-by-type [Unreleased] digest, with a raw fallback.
   mkdirSync(join(proj, 'docs'), { recursive: true });
   writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n### Added\n- **Alpha.** new thing\n- **Beta.** another new thing\n\n### Fixed\n- **Gamma.** a fix\n\n## [1.0.0] - 2026-01-01\n- old\n');
-  const d2Banner = hook('session-start.mjs', {});
+  const d2Banner = changelogDigest();
   /Added 2 · Fixed 1 \(3 entries\)/.test(d2Banner) && !d2Banner.includes('new thing\n- **Beta')
     ? ok('boot banner digests [Unreleased] as a count-by-type tally (ADR-0044 D2)') : bad('boot banner did not show the [Unreleased] digest');
   // Audit 135: a nested sub-bullet is detail of its parent, not a new entry.
   writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n### Added\n- **Parent.** a top-level entry\n  - nested detail under the parent\n\n## [1.0.0] - 2026-01-01\n- old\n');
-  /Added 1 \(1 entry\)/.test(hook('session-start.mjs', {}))
+  /Added 1 \(1 entry\)/.test(changelogDigest())
     ? ok('boot [Unreleased] digest counts only column-0 bullets, not nested sub-bullets (audit 135)') : bad('digest inflated the count with a nested sub-bullet');
   writeFileSync(join(proj, 'docs', 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\nFreeform notes without typed subsections here.\n\n## [1.0.0] - 2026-01-01\n- old\n');
-  hook('session-start.mjs', {}).includes('Freeform notes without typed subsections')
+  changelogDigest().includes('Freeform notes without typed subsections')
     ? ok('boot banner falls back to the raw [Unreleased] section on a parse miss (ADR-0044 D2)') : bad('boot banner did not fall back to raw [Unreleased]');
 } catch (err) {
   bad(`crashed: ${err?.stack || err}`);

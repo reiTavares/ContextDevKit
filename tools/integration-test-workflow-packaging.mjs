@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ContextDevKit integration test — wave-workflow engine PACKAGING (WF0035).
+ * ContextDevKit integration test — Workflow v2 engine packaging.
  *
  * Proves the universal wave-based workflow engine is correctly DISTRIBUTED to
  * installed projects and works cross-platform. The engine source lives under
@@ -28,16 +28,14 @@ const rep = reporter();
 const { ok, bad } = rep;
 console.log('\n📦 ContextDevKit integration test — wave-workflow engine packaging (WF0035)\n');
 
-/** Engine modules every installed project must carry (the WF0035 surface). */
+/** Runtime modules every installed project must carry for the Workflow v2 surface. */
 const ENGINE_MODULES = [
-  'io.mjs', 'plan.mjs', 'state.mjs', 'create.mjs', 'render.mjs', 'dag.mjs',
-  'scheduler.mjs', 'ownership.mjs', 'gates.mjs', 'results.mjs', 'continuation.mjs',
-  'commands.mjs', 'create-files.mjs', 'files.mjs', 'profiles.mjs', 'patterns.mjs',
-  'addons.mjs', 'validate.mjs', 'glob.mjs', 'catalog.mjs',
+  'io.mjs', 'create.mjs', 'render.mjs', 'files.mjs', 'profiles.mjs',
+  'patterns.mjs', 'validate.mjs', 'catalog.mjs',
 ];
-/** The four declarative registries shipped under `workflow/registry/`. */
+/** Declarative registries still consumed by v2 profile/pattern creation. */
 const REGISTRY_JSONS = [
-  'profile-registry.json', 'file-catalog.json', 'wave-patterns.json', 'addon-registry.json',
+  'profile-registry.json', 'wave-patterns.json',
 ];
 
 /** Path of the engine dir under a `contextkit/tools/scripts` root. */

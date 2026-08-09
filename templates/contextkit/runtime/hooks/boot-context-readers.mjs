@@ -1,5 +1,5 @@
 /**
- * Boot-context content readers — pure I/O for `session-start.mjs`.
+ * Boot-context content readers — pure I/O for `governance-session-context.mjs`.
  *
  * Each function reads ONE source artifact and returns a Markdown snippet (or
  * null when missing/empty). All helpers are defensive — they never throw.
@@ -7,7 +7,7 @@
  */
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { CHANGELOG, SESSIONS_DIR, SESSIONS_INDEX, WORKSPACE_INDEX } from '../config/paths.mjs';
+import { CHANGELOG, pathsFor } from '../config/paths.mjs';
 import { parseSessionLog, renderDigest } from './session-digest-core.mjs';
 import { clip, stripMd } from './md-extract.mjs';
 import {
@@ -40,9 +40,10 @@ export async function exists(root, relPath) {
 
 /** Newest session file (canonical number; later DATE breaks a numbering tie) + its content. */
 async function latestSessionEntry(root) {
+  const paths = pathsFor(root);
   let files = [];
   try {
-    files = await readdir(resolve(root, SESSIONS_DIR));
+    files = await readdir(paths.sessions);
   } catch {
     return null;
   }
@@ -54,9 +55,10 @@ async function latestSessionEntry(root) {
     // the boot banner never shows a stale entry just because of a numbering clash.
     .sort((a, b) => b.num - a.num || b.date.localeCompare(a.date));
   if (entries.length === 0) return null;
-  const content = await readSafe(root, `${SESSIONS_DIR}/${entries[0].filename}`);
+  const sessionPath = resolve(paths.sessions, entries[0].filename);
+  const content = await readFile(sessionPath, 'utf-8').catch(() => null);
   if (!content) return null;
-  return { filename: entries[0].filename, content, path: resolve(root, SESSIONS_DIR, entries[0].filename) };
+  return { filename: entries[0].filename, content, path: sessionPath };
 }
 
 /** Most recent registered session as a raw-truncated Markdown snippet + its path. */
@@ -180,7 +182,7 @@ export function digestUnreleased(text, topN = 5) {
 
 /** Active-session table from WORKSPACE.md (first ~12 lines after the header). */
 export async function readWorkspaceSummary(root) {
-  const md = await readSafe(root, WORKSPACE_INDEX);
+  const md = await readFile(pathsFor(root).workspaceIndex, 'utf-8').catch(() => null);
   if (!md) return null;
   const lines = md.split('\n');
   const startIdx = lines.findIndex((l) => /^##\s+🟢\s+Active/.test(l));
@@ -193,5 +195,5 @@ export async function readChangelog(root) {
 }
 
 export async function readSessionsIndex(root) {
-  return readSafe(root, SESSIONS_INDEX);
+  return readFile(pathsFor(root).sessionsIndex, 'utf-8').catch(() => null);
 }

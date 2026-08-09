@@ -26,9 +26,7 @@ export const WF0081_SUITES = Object.freeze([
     tier: 'selfcheck',
     touches: [
       'templates/contextkit/runtime/execution/no-code-prior.mjs',
-      'templates/contextkit/runtime/hooks/execution-gate.mjs',
-      'templates/contextkit/runtime/hooks/completion-gate.mjs',
-      'templates/contextkit/runtime/execution/execution-contract.mjs',
+      'templates/contextkit/runtime/execution/interaction-classify.mjs',
     ],
   },
   {

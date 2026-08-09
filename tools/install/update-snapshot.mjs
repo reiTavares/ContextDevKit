@@ -42,7 +42,6 @@ const SINGLE_FILES = [
  * @type {string[]}
  */
 const RECURSIVE_DIRS = [
-  '.claude/.sessions',
   '.claude/.workspace',
 ];
 
@@ -128,7 +127,6 @@ export function newUpdateId() {
  *
  * Included surfaces (when present):
  *   - `.claude/settings.json`
- *   - `.claude/.sessions/**`
  *   - `.claude/.workspace/**`
  *   - `contextkit/config.json`
  *   - `contextkit/.install-manifest.json`

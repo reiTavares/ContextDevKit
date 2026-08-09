@@ -66,7 +66,7 @@ const FIXTURES = [
     nature: 'operation', confidence: 'high', needsClarification: false,
     kind: 'operationalResponse', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
   // #6: "adr" alone does not imply workflow.
-  { req: "harden the autonomy floor so an agent can't self-approve an ADR",
+  { req: "harden the approval boundary so an agent can't self-approve an ADR",
     nature: 'none', confidence: 'high', needsClarification: false,
     kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
   { req: 'launch a new business-driven methodology platform capability',

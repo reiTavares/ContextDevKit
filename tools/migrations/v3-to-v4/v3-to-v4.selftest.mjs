@@ -19,6 +19,7 @@ import {
   cutoverToV4,
   freezeV3Writers,
   inventoryV3,
+  normalizeLegacyStatus,
   planV3ToV4,
   readAuthorityMarker,
   resolveContainedPath,
@@ -33,6 +34,11 @@ import {
 } from '../../../templates/contextkit/tools/migrations/v3-to-v4/index.mjs';
 import { runCli } from '../../../templates/contextkit/tools/migrations/v3-to-v4/cli.mjs';
 import { readTasksDocument } from '../../../templates/contextkit/tools/scripts/tasks-store.mjs';
+import { pathsFor } from '../../../templates/contextkit/runtime/config/paths.mjs';
+import { readAuthoritySnapshot } from '../../../templates/contextkit/runtime/authority-reader.mjs';
+import { extractLatestSession } from '../../../templates/contextkit/runtime/hooks/boot-context-readers.mjs';
+import { buildDashboardData } from '../../../templates/contextkit/tools/scripts/dashboard-data.mjs';
+import { governanceRoots } from '../../../templates/contextkit/tools/scripts/project-map-roots.mjs';
 
 let passed = 0;
 
@@ -56,7 +62,17 @@ function card(id, status, workflow, title) {
 
 /** @param {string} platformRoot */
 function buildFixture(platformRoot) {
+  write(resolve(platformRoot, 'memory/GLOSSARY.md'), '# Preserved glossary\n');
+  write(resolve(platformRoot, 'memory/roadmap.md'), '# Preserved roadmap\n');
+  write(resolve(platformRoot, 'memory/SESSIONS.md'), '# Session History\n');
+  write(resolve(platformRoot, 'memory/WORKSPACE.md'), '# Workspace\n');
+  write(resolve(platformRoot, 'memory/sessions/2026-08-08-01-migrated.md'), '# Migrated session\n');
+  write(resolve(platformRoot, 'memory/operations/OP-0001-demo/operation.json'), '{"schemaVersion":1,"id":"OP-0001","title":"Demo"}\n');
+  write(resolve(platformRoot, 'memory/operations/OP-0001-demo/reason.md'), '# Reason\n');
+  write(resolve(platformRoot, 'memory/business/BIZ-0001-demo/business.json'), '{"schemaVersion":1,"id":"BIZ-0001","title":"Demo"}\n');
   write(resolve(platformRoot, 'pipeline/backlog/001-ownerless.md'), card('001', 'backlog', '', 'Ownerless'));
+  write(resolve(platformRoot, 'pipeline/devpipeline.md'), '# Legacy board\n');
+  write(resolve(platformRoot, 'pipeline/.gitignore'), '!backlog/\n');
   write(resolve(platformRoot, 'pipeline/working/001-owned.md'), card('001', 'working', 'WF-0001', 'Duplicate'));
   write(resolve(platformRoot, 'pipeline/testing/002-blocked.md'), card('002', 'testing', 'WF-0001', 'Blocked'));
   write(resolve(platformRoot, 'pipeline/conclusion/003-done.md'), card('003', 'conclusion', 'WF-0001', 'Done'));
@@ -68,7 +84,7 @@ function buildFixture(platformRoot) {
     schemaVersion: 1,
     workflowId: 'WF-0001',
     slug: 'demo',
-    waves: [{ id: 'W1', status: 'done', tasks: [{ id: '001', title: 'Owned', status: 'done' }] }],
+    waves: [{ id: 'W1', status: 'done', tasks: [{ id: 'WF-T1', title: 'Embedded task', status: 'done' }] }],
   }, null, 2));
   write(resolve(workflowRoot, 'workflow-state.json'), JSON.stringify({
     schemaVersion: 1,
@@ -93,7 +109,8 @@ function buildFixture(platformRoot) {
 }
 
 const sandboxRoot = resolve(tmpdir(), `contextdevkit-v3-v4-${process.pid}`);
-const platformRoot = resolve(sandboxRoot, 'project', 'kit-root');
+const projectRoot = resolve(sandboxRoot, 'project');
+const platformRoot = resolve(projectRoot, 'contextkit');
 const workspaceRoot = resolve(sandboxRoot, 'project', 'migration-workspace');
 rmSync(sandboxRoot, { recursive: true, force: true });
 mkdirSync(platformRoot, { recursive: true });
@@ -109,6 +126,7 @@ try {
     assert.equal(existsSync(workspaceRoot), false);
     assert.equal(inventory.counts.laneCards, 5);
     assert.equal(inventory.counts.ownerTasks, 2);
+    assert.equal(inventory.counts.workflowTasks, 1);
     assert.equal(inventory.counts.workflows, 1);
     assert.equal(inventory.counts.sidecars, 1);
     assert.equal(inventory.duplicates.length, 1);
@@ -140,7 +158,7 @@ try {
     assert.throws(() => resolveLegacyId(plan, '001'), (error) => error.code === 'AMBIGUOUS_LEGACY_ID');
   });
 
-  await test('ambiguous workflow ids are quarantined instead of guessed', () => {
+  await test('duplicate workflow ids receive source-bound v4 ids without data loss', () => {
     const ambiguousInventory = structuredClone(inventory);
     const duplicateWorkflow = structuredClone(ambiguousInventory.workflows[0]);
     duplicateWorkflow.sourcePath = 'memory/workflows/WF-0001-second/workflow-plan.json';
@@ -151,27 +169,42 @@ try {
       workflowId: 'WF-0001',
       sourcePaths: [ambiguousInventory.workflows[0].sourcePath, duplicateWorkflow.sourcePath].sort(),
     }];
+    const bareAmbiguousTask = structuredClone(ambiguousInventory.records.find((record) => record.legacyId === '002'));
+    bareAmbiguousTask.recordKey = 'bare-ambiguous-workflow-owner';
+    bareAmbiguousTask.legacyId = 'AMB-1';
+    bareAmbiguousTask.sourcePath = 'pipeline/backlog/ambiguous-workflow-owner.md';
+    delete bareAmbiguousTask.ownerEvidence.workflowSourcePath;
+    ambiguousInventory.records.push(bareAmbiguousTask);
     const ambiguousPlan = planV3ToV4(ambiguousInventory);
-    assert.equal(ambiguousPlan.manifest.quarantinedWorkflows.length, 2);
+    const mappings = ambiguousPlan.manifest.workflowMappings
+      .filter((mapping) => mapping.legacyId === 'WF-0001');
+    assert.equal(mappings.length, 2);
+    assert.equal(new Set(mappings.map((mapping) => mapping.v4Id)).size, 2);
+    assert.equal(ambiguousPlan.manifest.quarantinedWorkflows.length, 0);
+    assert.equal(mappings.some((mapping) => mapping.idResolution === 'namespaced'), true);
     assert.equal(ambiguousPlan.manifest.entries
       .filter((entry) => entry.sourcePath.includes('001-owned') || entry.legacyId === '002' || entry.legacyId === '003')
-      .every((entry) => entry.disposition === 'quarantined'), true);
+      .every((entry) => entry.disposition === 'migrated'), true);
+    assert.equal(ambiguousPlan.manifest.entries.find((entry) => entry.legacyId === 'AMB-1').disposition, 'quarantined');
   });
 
   await test('ownerless task migrates to an explicit neutral batch', () => {
     const ownerless = plan.manifest.entries.find((entry) => entry.sourcePath.includes('ownerless'));
     assert.equal(ownerless.ownerResolution, 'neutral-batch');
-    assert.equal(ownerless.targetPath, 'memory/batches/BATCH-V3-OWNERLESS/tasks.json');
+    assert.equal(ownerless.targetPath, 'memory/batches/BATCH-0001-v3-ownerless/tasks.json');
+    assert.equal(JSON.parse(plan.targetFiles['memory/batches/BATCH-0001-v3-ownerless/batch.json']).id, 'BATCH-0001');
   });
 
   await test('status normalization honors blocker and done semantics', () => {
     assert.equal(plan.manifest.entries.find((entry) => entry.legacyId === '002').normalizedStatus, 'blocked');
     assert.equal(plan.manifest.entries.find((entry) => entry.legacyId === '003').normalizedStatus, 'done');
     assert.equal(plan.manifest.entries.find((entry) => entry.legacyId === '005').disposition, 'quarantined');
+    assert.equal(normalizeLegacyStatus('deferred'), 'backlog');
   });
 
   await test('legacy dependencies resolve to canonical ids inside one scope', () => {
     const targetPath = plan.manifest.entries.find((entry) => entry.legacyId === '006').targetPath;
+    assert.equal(targetPath, 'memory/business/BIZ-0001-demo/batch/tasks.json');
     const document = JSON.parse(plan.targetFiles[targetPath]);
     assert.deepEqual(document.tasks.find((task) => task.id === 'T-006').dependsOn, ['T-004']);
   });
@@ -179,13 +212,14 @@ try {
   await test('done workflow returns to canonical path and preserves documents', () => {
     const targets = Object.keys(plan.manifest.targetFileHashes);
     assert.equal(targets.some((path) => path.includes('/done/')), false);
+    assert.equal(targets.some((path) => path.includes('/OP-0001-demo/workflows/WF-0001-demo/workflow.json')), true);
     assert.equal(targets.some((path) => path.endsWith('/WF-0001-demo/prd.md')), true);
     const statePath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow-state.json'));
     const workflowPath = targets.find((path) => path.endsWith('/WF-0001-demo/workflow.json'));
     assert.equal(JSON.parse(plan.targetFiles[statePath]).status, 'done');
     const migratedWave = JSON.parse(plan.targetFiles[workflowPath]).structure.waves[0];
     assert.equal(Object.hasOwn(migratedWave, 'status'), false);
-    assert.equal(Object.hasOwn(migratedWave.tasks[0], 'status'), false);
+    assert.equal(Object.hasOwn(migratedWave, 'tasks'), false);
   });
 
   await test('target traversal is refused', () => {
@@ -248,6 +282,8 @@ try {
     assert.equal(receipt.parityValidated, true);
     verifyGeneration(receipt.candidateRoot, plan);
     verifyGeneration(receipt.rollbackRoot, plan);
+    assert.equal(readFileSync(resolve(receipt.candidateRoot, 'memory/GLOSSARY.md'), 'utf8'), '# Preserved glossary\n');
+    assert.equal(existsSync(resolve(receipt.candidateRoot, 'memory/operations/OP-0001-demo/operation.json')), true);
     for (const targetPath of Object.keys(plan.targetFiles).filter((path) => path.endsWith('/tasks.json'))) {
       const document = readTasksDocument(resolve(receipt.candidateRoot, targetPath));
       assert.equal(document.schemaVersion, 2);
@@ -306,7 +342,7 @@ try {
     cpSync(rollbackFile, candidateFile, { force: true });
   });
 
-  await test('cutover atomically activates only v4 with a monotonic marker', () => {
+  await test('cutover atomically activates only v4 with a monotonic marker', async () => {
     const marker = cutoverToV4({
       platformRoot, plan, stageReceipt: receipt, expectedRevision: 0, stamp: 'cutover',
     });
@@ -314,6 +350,15 @@ try {
     assert.equal(marker.oldWriterFence, true);
     assert.equal(marker.revision, 1);
     assert.equal(readAuthorityMarker(platformRoot).authority, 'v4');
+    assert.equal(pathsFor(projectRoot).memory, resolve(receipt.candidateRoot, 'memory'));
+    const activeSnapshot = readAuthoritySnapshot(projectRoot);
+    assert.equal(activeSnapshot.status, 'available', JSON.stringify(activeSnapshot.diagnostics));
+    assert.equal(activeSnapshot.tasks.length, plan.manifest.counts.migrated);
+    assert.equal(activeSnapshot.batches.some((batch) => batch.id === 'BATCH-0001'), true);
+    assert.match(buildDashboardData(projectRoot).roadmap.markdown, /Preserved roadmap/);
+    const latestSession = await extractLatestSession(projectRoot);
+    assert.equal(latestSession.path.startsWith(resolve(receipt.candidateRoot, 'memory')), true);
+    assert.equal(governanceRoots(projectRoot)[0].absolutePath, resolve(receipt.candidateRoot, 'memory'));
     assert.throws(
       () => cutoverToV4({ platformRoot, plan, stageReceipt: receipt, expectedRevision: 0 }),
       (error) => error.code === 'MARKER_CAS_CONFLICT',
@@ -338,7 +383,23 @@ try {
     assert.equal(marker.oldWriterFence, true);
     assert.equal(marker.revision, 2);
     assert.equal(marker.rollbackOfRevision, 1);
+    assert.equal(pathsFor(projectRoot).memory, resolve(receipt.rollbackRoot, 'memory'));
+    assert.equal(readAuthoritySnapshot(projectRoot).tasks.length, plan.manifest.counts.migrated);
     assert.throws(() => assertV3WriterAllowed(platformRoot, 'write', 'legacy'), OldWriterFenced);
+  });
+
+  await test('cutover after rollback reactivates the candidate generation', () => {
+    const marker = cutoverToV4({
+      platformRoot, plan, stageReceipt: receipt, expectedRevision: 2, stamp: 'cutover-after-drill',
+    });
+    assert.equal(marker.revision, 3);
+    assert.equal(marker.generationRoot, receipt.candidateRoot.replaceAll('\\', '/'));
+    assert.equal(pathsFor(projectRoot).memory, resolve(receipt.candidateRoot, 'memory'));
+    const repeated = cutoverToV4({
+      platformRoot, plan, stageReceipt: receipt, expectedRevision: 3, stamp: 'idempotent-repeat',
+    });
+    assert.equal(repeated.idempotent, true);
+    assert.equal(repeated.revision, 3);
   });
 
   await test('retirement is hash-gated, audited, and idempotent', () => {
@@ -347,6 +408,8 @@ try {
     const second = retireV3Sources({ platformRoot, workspaceRoot, plan });
     assert.equal(second.alreadyRetired.length, retirement.retired.length);
     assert.equal(existsSync(resolve(retirement.bundleRoot, 'pipeline/backlog/001-ownerless.md')), true);
+    assert.equal(existsSync(resolve(retirement.bundleRoot, 'pipeline/devpipeline.md')), true);
+    assert.equal(existsSync(resolve(platformRoot, 'pipeline')), false);
     assert.throws(() => assertV3WriterAllowed(platformRoot, 'move', 'legacy'), OldWriterFenced);
   });
 
@@ -355,12 +418,11 @@ try {
     assert.throws(() => assertSameVolume(platformRoot, 'Z:\\not-present'), (error) => error.code === 'CROSS_VOLUME_WRITE');
   });
 
-  await test('public scripts expose no rollback-to-v3 API', async () => {
-    const migrateEntry = await import('../../../templates/contextkit/tools/scripts/tasks-migrate.mjs');
-    const cutoverEntry = await import('../../../templates/contextkit/tools/scripts/tasks-cutover.mjs');
-    assert.equal('rollbackMigration' in migrateEntry, false);
-    assert.equal('rollbackCutover' in cutoverEntry, false);
-    assert.equal(typeof cutoverEntry.rollbackV4, 'function');
+  await test('explicit migration entrypoint exposes no rollback-to-v3 API', async () => {
+    const migrationEntry = await import('../../../templates/contextkit/tools/migrations/v3-to-v4/index.mjs');
+    assert.equal('rollbackMigration' in migrationEntry, false);
+    assert.equal('rollbackCutover' in migrationEntry, false);
+    assert.equal(typeof migrationEntry.rollbackV4, 'function');
   });
 
   process.stdout.write(`\nv3-to-v4 migration: ${passed} focused checks passed\n`);

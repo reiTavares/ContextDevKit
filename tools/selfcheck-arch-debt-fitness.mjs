@@ -172,16 +172,16 @@ line && line.rolloutState === 'ADVISORY' && line.enforcement === 'ADVISORY'
 // 9 W2 floor/signal rules + 14 Domain Engineering rules (ADR-0128 §24): 8
 // deterministic Class-A (ARMED BLOCKING+ACTIVE by WF-0068) + 6 advisory Class-B
 // (OBSERVE_ONLY). See the domain block below for the per-class rollout assertions.
-defaultReg.functions.length === 23 ? ok('catalogue holds all 23 fitness functions (9 core + 14 domain)') : bad('expected 23, got ' + defaultReg.functions.length);
+defaultReg.functions.length === 22 ? ok('catalogue holds all 22 fitness functions (9 core + 13 domain)') : bad('expected 22, got ' + defaultReg.functions.length);
 
 console.log('\nDomain Engineering fitness (ADR-0128 §24/§26) — 8 Class-A ARMED (WF-0068), 6 Class-B OBSERVE_ONLY');
-const domainIds = ['DOMAIN_INFRASTRUCTURE_INDEPENDENCE', 'BOUNDED_CONTEXT_BOUNDARY', 'STATE_AUTHORITY_UNIQUENESS', 'PUBLIC_CONTRACT_PRESERVATION', 'AGGREGATE_CONSISTENCY_BOUNDARY', 'CROSS_CONTEXT_ACCESS', 'DOMAIN_EVENT_CONTRACT', 'IMPLEMENTATION_PACKET_CONFORMANCE'];
+const domainIds = ['DOMAIN_INFRASTRUCTURE_INDEPENDENCE', 'BOUNDED_CONTEXT_BOUNDARY', 'STATE_AUTHORITY_UNIQUENESS', 'PUBLIC_CONTRACT_PRESERVATION', 'AGGREGATE_CONSISTENCY_BOUNDARY', 'CROSS_CONTEXT_ACCESS', 'DOMAIN_EVENT_CONTRACT'];
 const advisoryDomainIds = ['POSSIBLE_ANEMIC_MODEL', 'POSSIBLY_LARGE_AGGREGATE', 'EXCESS_DOMAIN_SERVICES', 'VALUE_OBJECT_FRAGMENTATION', 'QUESTIONABLE_REPOSITORY_USE', 'OVER_COMPLEX_STRUCTURE'];
-domainIds.every((id) => byId.has(id)) ? ok('all 8 blocking domain fitness rules are registered') : bad('a blocking domain fitness rule is missing: ' + domainIds.filter((id) => !byId.has(id)).join(', '));
+domainIds.every((id) => byId.has(id)) ? ok('all 7 blocking domain fitness rules are registered') : bad('a blocking domain fitness rule is missing: ' + domainIds.filter((id) => !byId.has(id)).join(', '));
 // WF-0068 promotion (ADR-0128 §26): the 8 Class-A rules are now BLOCKING + ACTIVE (armed) together.
 const blockingDomainFns = defaultReg.functions.filter((fn) => domainIds.includes(fn.id));
-blockingDomainFns.length === 8 && blockingDomainFns.every((fn) => fn.enforcement === 'BLOCKING' && fn.rolloutState === 'ACTIVE')
-  ? ok('all 8 Class-A domain rules are BLOCKING + ACTIVE (WF-0068 armed the blocking set, in lockstep)')
+blockingDomainFns.length === 7 && blockingDomainFns.every((fn) => fn.enforcement === 'BLOCKING' && fn.rolloutState === 'ACTIVE')
+  ? ok('all 7 Class-A domain rules are BLOCKING + ACTIVE')
   : bad('a Class-A domain rule is not BLOCKING/ACTIVE: ' + blockingDomainFns.filter((fn) => fn.enforcement !== 'BLOCKING' || fn.rolloutState !== 'ACTIVE').map((fn) => `${fn.id}(${fn.enforcement}/${fn.rolloutState})`).join(', '));
 // The 6 Class-B signals stay SEMANTIC OBSERVE_ONLY (ceiling guarded, never auto-strict, ADR-0129).
 const advisoryDomainFns = defaultReg.functions.filter((fn) => advisoryDomainIds.includes(fn.id));

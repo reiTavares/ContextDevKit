@@ -3,7 +3,7 @@
  *
  * The shared, PURE predicates that make the intake gates intent-aware:
  *   - `isSourceWrite(path)`  — compatibility alias: is this a governed write?
- *   - `sessionHasSourceWrite(modifications, taskId)` — did THIS task attempt a write?
+ *   - `turnHasWriteAttempt(attempts, taskId)` — did THIS turn attempt a write?
  *   - `noCodePriorHolds(contract, modifications, taskId)` — should the no-code
  *     prior suppress obligations right now?
  *
@@ -46,7 +46,7 @@ function isWriteTool(toolName) {
 }
 
 /**
- * True when THIS task has at least one Edit/Write/MultiEdit in the ledger.
+ * True when THIS task has at least one transient Edit/Write/MultiEdit attempt.
  * The F-B taskId binding (each modification is stamped with its taskId by
  * track-edits) keeps the gate reading the SAME task's writes as the contract.
  *
@@ -54,9 +54,9 @@ function isWriteTool(toolName) {
  * @param {string} taskId active task id
  * @returns {boolean}
  */
-export function sessionHasSourceWrite(modifications, taskId) {
-  const mods = Array.isArray(modifications) ? modifications : [];
-  return mods.some(
+export function turnHasWriteAttempt(attempts, taskId) {
+  const writes = Array.isArray(attempts) ? attempts : [];
+  return writes.some(
     (m) => m
       && m.taskId === taskId
       && isWriteTool(m.tool),
@@ -65,7 +65,7 @@ export function sessionHasSourceWrite(modifications, taskId) {
 
 /**
  * True when the current tool call is a real write attempt. The path is irrelevant:
- * at PreToolUse the current write is not yet in the ledger, so a past-writes check
+ * at PreToolUse the current write is not yet in turn history, so a past-writes check
  * alone would suppress the preflight for the very action that promotes mutation.
  *
  * @param {string} toolName the tool being invoked
@@ -86,7 +86,7 @@ export function currentCallRevokes(toolName, filePaths) {
  * malformed input returns `false` — the safe default is full ceremony.
  *
  * @param {object} contract the loaded execution contract (`contract.signals.intent`)
- * @param {Array} modifications the session ledger's `modifications[]`
+ * @param {Array} modifications transient write attempts for this turn
  * @param {string} taskId active task id
  * @returns {boolean} true when obligations should be suppressed for a no-code prior
  */
@@ -97,7 +97,7 @@ export function noCodePriorHolds(contract, modifications, taskId) {
     const isReadOnlyInteraction = ['conversation', 'exploration', 'unclassified'].includes(interactionIntent)
       || (legacyIntent?.intent === 'no-code' && legacyIntent?.mutationVerb !== true);
     if (!isReadOnlyInteraction || interactionIntent === 'mutation') return false;
-    if (sessionHasSourceWrite(modifications, taskId)) return false; // F-A: real write revokes
+    if (turnHasWriteAttempt(modifications, taskId)) return false;
     return true;
   } catch {
     return false; // fail-open: never suppress on malformed input

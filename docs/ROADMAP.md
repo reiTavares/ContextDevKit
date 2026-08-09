@@ -85,7 +85,7 @@ levels**:
 6. ✅ **Dependency & supply-chain control.** `/deps-audit` + the **security-team**
    (`security` AppSec · `infra-security` IaC/cloud · `devops` delivery).
 
-**Also delivered in 1.0:** standardized **WSJF (SAFe) prioritization + bug severity
+**Also delivered in 1.0:** a historical prioritization experiment (retired in 4.0) plus bug severity
 (S1–S4) + SLA** with a **known-bugs map** in the DevPipeline; **`/deep-analysis`**
 (global sweep → report → ADRs → backlog); an **active security-mode** boot trigger
 (runs every N sessions, on by default); and the **`business-rules/`** memory folder.
@@ -289,9 +289,8 @@ being the periodic L5/L6 commands that read the **last ~10 session logs raw**
 cost being the **boot banner injecting 60 raw lines of the last session every
 session**. ADR-0027 adds a deterministic, zero-dep **digest layer** that pre-digests
 the two artifacts the AI re-reads most (session logs, ADRs) so it reasons over
-compact output. Estimated **~120–200K input tokens/week** saved on an active project
-(full per-command estimate + assumptions in
-[docs/token-economy-plan.md](token-economy-plan.md)).
+compact output. The original estimates were historical planning inputs; v4 keeps
+measurement advisory and reports unknown data as skipped.
 
 - ✅ **Shared single-source extractor** (ADR-0027 §1). Shipped as
   `runtime/hooks/md-extract.mjs` (generic markdown primitives) +
@@ -309,9 +308,8 @@ compact output. Estimated **~120–200K input tokens/week** saved on an active p
   (latest-session digest + `[Unreleased]` + immutable rules + open backlog +
   recent ADRs) that collapses the 3–5 sequential reads in `/dev-start`, `/state`,
   `/ship` into **one script call** — fewer tokens *and* fewer round-trips.
-- ✅ **Boot hook digest** (ADR-0027 §5). `session-start.mjs` emits a ~6-line
-  digest for "Last registered session" instead of 60 raw lines, **falling back to
-  the raw-truncated output on any parse miss** (Rule 2/8 — degrade, never break).
+- **Historical 3.x boot digest.** This informed the bounded v4 context bundle;
+  the implicit boot writer and raw-session fallback are retired.
   The highest-frequency saving (every session).
 
 **Stays inside the invariants:** no new hook and no new dependency (plain scripts +
@@ -395,7 +393,10 @@ the installer's seed list didn't copy — `review-protocol.md` now ships in
 `templates/contextkit/` and is in the engine installer's seed list (selfcheck
 asserts it).
 
-## Next — Autonomy dial: a consent axis orthogonal to levels (ADR-0041)
+## Historical — retired consent-grade experiment (ADR-0041)
+
+> Status: superseded by ADR-0158; active: false. The following record is kept to
+> explain earlier design work and is not an operational roadmap for v4.
 
 Six same-day deliberations (4 Gemini rounds + 2 full-staff Claude rounds, 8 voices
 each — see `contextkit/memory/deliberations/2026-06-10-06-…`) converged: the kit
@@ -478,12 +479,11 @@ package — strategy, legal, instrumentation and token economy:
 *Deferred:* EN-language legal templates (pt-BR/LGPD market first, rule 9);
 framework-variant (Astro/Next) scaffold parity; measuring the real token delta.
 
-## Next — Agent swarm + cost-tiered model routing (ADR-0051 + ADR-0052)
+## Historical note — swarm and model routing (ADR-0051 + ADR-0052)
 
-Two linked decisions (session 52, 2026-06-11) ride on the completed autonomy
-substrate (F0–F4, v2.0.0). Full analyses:
-`docs/explanation/swarm-feasibility-study.md` and
-`docs/explanation/model-tier-routing-study.md`.
+These 3.x experiments informed the 4.0 design. In v4, parallel planning and
+model routing are recommendations only: they never dispatch, deny, or grant
+authority.
 
 **ADR-0052 — cost-tiered model routing** (Accepted; Phase 1 ✅ shipped, session 52):
 expensive models think, cheap models execute. All 34 agents declare a `model:`
@@ -498,8 +498,8 @@ Deterministic-first — no LLM-judge per dispatch; agy host gap on record.
 | 1 | **Routing Phase 1 — frontmatter tiers + dispatch rules + matrix refresh** | 0052 | Every subagent burned session-model (premium) tokens; Claude Code enforces `model:` natively, zero engine code | Execution fan-outs ~5–10× cheaper per call (Haiku $0.275 vs Fable $2.75 on a typical /ship fan-out); cache-safe by construction | — | ✅ session 52 |
 | 2 | **Routing Phase 2 — deterministic resolver + per-model attribution** | 0052 (follow-up) | The ≥60%-savings acceptance needs `byModel` data on top of D3; floors/escalation deserve code, not only skill text | `routing-policy.json` + `model-policy.mjs` (reuses router `loadMatrix`) + `selfcheck-model-policy` + `byModel` in token attribution | 139 | 📋 |
 | 3 | **Swarm P0 — zero-code validation run** | 0051 §9 | One afternoon answers the two killer questions (cost/task, conflict rate) before any engine code | Baseline measured: 52–61K tok/task, 0/2 conflicts, sonnet+haiku tiers; the test-file-spillover finding now drives the planner | 123 (precondition) | ✅ session 52/56 |
-| 4 | **Swarm v1 — grade-3 coordinator** | **0051** | The substrate is complete; what's missing is the coordinator: nothing pulls N backlog tasks into parallel governed workstreams | `/swarm` + pure `swarm-plan.mjs` + `swarm-state.mjs` manifest; `swarm-dispatch` area; `by` field on events; worktree-per-workstream; **finishes at `testing`, never `done`** — `/swarm review` batches human approval; 23-check integration test | 123 | ✅ session 52/56 |
-| 5 | **Swarm v2 — grade-4** | 0051 §8 | Only after the ADR-0045 bar **plus ≥3 clean grade-3 swarm runs** (eligibility data accumulates passively — the real bottleneck) | Per-workstream hardened quorum, branch-only auto-push; permanently-grade-3 is an acceptable outcome | post-123 | 📋 |
+| 4 | **Historical swarm coordinator** | **0051** | Proved that disjoint tasks can run in parallel worktrees | Superseded by the v4 host-bounded advisory swarm contract | 123 | superseded |
+| 5 | **Historical autonomous swarm expansion** | 0051 §8 | Proposed score-based promotion and automatic push | Rejected by v4; destructive actions remain at real host confirmation boundaries | post-123 | removed |
 
 **Refused / deferred, on record (ADR-0052 §7):** LLM-judge per dispatch (costs
 what it saves + frozen quality opinions, ADR-0012 §5) · cross-CLI delegation

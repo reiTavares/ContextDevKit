@@ -1,8 +1,8 @@
 /**
  * receipt-store.mjs — Session Autonomy Receipt: atomic, hot-path-safe storage.
  *
- * Persists receipt artifacts BESIDE the flat session ledger
- * (`.claude/.sessions/<sessionId>.json`) and upserts the `## Session autonomy`
+ * Persists optional receipt artifacts in a dedicated telemetry directory and
+ * upserts the `## Session autonomy`
  * section into the session markdown (spec §23–27). Constitution §4 (fail fast at
  * the boundary) + invariant "hooks never break real work": every write is atomic
  * (tmp + rename) and NEVER throws on the hot path — failures return a result
@@ -19,16 +19,16 @@ const SECTION_HEADING = '## Session autonomy';
 
 /**
  * Resolves the three sidecar artifact paths for a session's receipt.
- * @param {string} sessionsDir flat ledger dir (e.g. `.claude/.sessions`)
+ * @param {string} receiptsDir dedicated optional telemetry directory
  * @param {string} sessionId
  * @returns {{json: string, md: string, signature: string}}
  */
-export function receiptPaths(sessionsDir, sessionId) {
+export function receiptPaths(receiptsDir, sessionId) {
   const base = `${sessionId}.autonomy-receipt`;
   return {
-    json: join(sessionsDir, `${base}.json`),
-    md: join(sessionsDir, `${base}.md`),
-    signature: join(sessionsDir, `${base}.signature.json`),
+    json: join(receiptsDir, `${base}.json`),
+    md: join(receiptsDir, `${base}.md`),
+    signature: join(receiptsDir, `${base}.signature.json`),
   };
 }
 
@@ -54,7 +54,7 @@ function atomicWrite(targetPath, content) {
  * Stores the receipt JSON (+ optional signature sidecar) and markdown, per flags.
  * Atomic, hot-path-safe. Creates the sessions dir if missing.
  * @param {object} params
- * @param {string} params.sessionsDir
+ * @param {string} params.receiptsDir dedicated optional telemetry directory
  * @param {string} params.sessionId
  * @param {object} params.receipt the assembled receipt object
  * @param {string} [params.markdown] rendered markdown (when storeMarkdown)
@@ -64,20 +64,20 @@ function atomicWrite(targetPath, content) {
  * @returns {{ok: boolean, written: string[], reason?: string}}
  */
 export function storeReceipt({
-  sessionsDir, sessionId, receipt, markdown, signature,
+  receiptsDir, sessionId, receipt, markdown, signature,
   storeJson = true, storeMarkdown = true,
 }) {
   const written = [];
-  if (!sessionsDir || !sessionId) {
-    return { ok: false, written, reason: 'missing sessionsDir or sessionId' };
+  if (!receiptsDir || !sessionId) {
+    return { ok: false, written, reason: 'missing receiptsDir or sessionId' };
   }
   try {
-    if (!existsSync(sessionsDir)) mkdirSync(sessionsDir, { recursive: true });
+    if (!existsSync(receiptsDir)) mkdirSync(receiptsDir, { recursive: true });
   } catch {
     return { ok: false, written, reason: 'cannot create sessions dir' };
   }
 
-  const paths = receiptPaths(sessionsDir, sessionId);
+  const paths = receiptPaths(receiptsDir, sessionId);
 
   if (storeJson) {
     if (!receipt || typeof receipt !== 'object') {

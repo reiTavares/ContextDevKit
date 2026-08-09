@@ -1,8 +1,8 @@
 /**
  * Test-infrastructure self-test suites (WF0025 / ADR-0113).
  *
- * Cohesion note: these three suites guard the test machinery itself (the suite
- * list, the impact selector, and the request-orchestration shard). They live in
+ * Cohesion note: these suites guard the test machinery itself (the suite list,
+ * impact selector, telemetry, and bounded runner). They live in
  * their own module — spread into `test-suites.mjs` via `...INFRA_SUITES` — so the
  * main registry stays under the 308-line RED ceiling (same pattern as
  * `BDM_SUITES` / `WORKFLOW_ENGINE_SUITES`). All are fast `smoke` suites.
@@ -17,12 +17,6 @@
  * @type {ReadonlyArray<{id:string,file:string,tier:string,touches:string[]}>}
  */
 export const INFRA_SUITES = Object.freeze([
-  // Request-orchestration shard (WF0025) — runs the W1–W7 block standalone so a
-  // `runtime/execution/*` edit selects it (seconds) instead of the selfcheck
-  // monolith. The monolith STILL runs the same block inline (full floor).
-  { id: 'selfcheck-request', file: 'tools/selfcheck-request.mjs', tier: 'smoke',
-    touches: ['tools/selfcheck-request', 'templates/contextkit/runtime/execution/'] },
-
   // Infra self-test (TEA-002) — guards the list itself; also a fast smoke suite.
   { id: 'selfcheck-suites', file: 'tools/selfcheck-suites.mjs', tier: 'smoke',
     touches: ['tools/test-suites.mjs', 'tools/run-suites.mjs', 'tools/selfcheck-suites.mjs'] },

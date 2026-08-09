@@ -8,7 +8,7 @@
  */
 import { existsSync, statSync } from 'node:fs';
 import { isAbsolute, posix, resolve, win32 } from 'node:path';
-import { MEMORY_DIR, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
+import { MEMORY_DIR, PLATFORM_DIR, pathsFor } from '../../runtime/config/paths.mjs';
 
 /** @typedef {'source'|'governance'} ProjectMapRootKind */
 /** @typedef {'tree'|'file'} ProjectMapRootEntryType */
@@ -16,6 +16,7 @@ import { MEMORY_DIR, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
  * @typedef {object} ProjectMapRoot
  * @property {ProjectMapRootKind} kind
  * @property {string} path Project-relative, forward-slashed path.
+ * @property {string} absolutePath Resolved active path, never persisted as authority.
  * @property {ProjectMapRootEntryType} entryType
  * @property {boolean} available
  * @property {{deep:string[], rootRelative:string[]}} excludes
@@ -24,7 +25,6 @@ import { MEMORY_DIR, PLATFORM_DIR } from '../../runtime/config/paths.mjs';
 /** Governance inputs outside the generated project-map projection itself. */
 export const GOVERNANCE_SCAN_ROOTS = Object.freeze([
   MEMORY_DIR,
-  `${PLATFORM_DIR}/pipeline/tasks.json`,
 ]);
 
 /** Backward-compatible name for callers that only need the memory root list. */
@@ -73,10 +73,11 @@ function sorted(values) {
  * @param {{deep:Set<string>,rootRelative:Set<string>}} excludes
  * @returns {ProjectMapRoot}
  */
-function rootDescriptor(kind, path, entryType, excludes, available = true) {
+function rootDescriptor(kind, path, entryType, excludes, available = true, absolutePath = null) {
   return Object.freeze({
     kind,
     path,
+    absolutePath: absolutePath || path,
     entryType,
     available,
     excludes: Object.freeze({
@@ -93,6 +94,7 @@ function rootDescriptor(kind, path, entryType, excludes, available = true) {
  * @returns {ProjectMapRoot[]}
  */
 export function governanceRoots(root) {
+  const activePaths = pathsFor(root);
   const governanceExcludes = {
     deep: new Set(['node_modules', '.git', '.hg', '.svn', '.tmp']),
     // Avoid indexing the graph into itself. All other governed memory is walked.
@@ -100,16 +102,16 @@ export function governanceRoots(root) {
   };
   const roots = [];
   for (const candidate of GOVERNANCE_SCAN_ROOTS) {
+    const absolutePath = candidate === MEMORY_DIR ? activePaths.memory : resolve(root, candidate);
     let available = false;
     let entryType = candidate.endsWith('.json') ? 'file' : 'tree';
     try {
-      const absolute = resolve(root, candidate);
-      available = existsSync(absolute);
-      if (available) entryType = statSync(absolute).isDirectory() ? 'tree' : 'file';
+      available = existsSync(absolutePath);
+      if (available) entryType = statSync(absolutePath).isDirectory() ? 'tree' : 'file';
     } catch {
       available = false;
     }
-    roots.push(rootDescriptor('governance', candidate, entryType, governanceExcludes, available));
+    roots.push(rootDescriptor('governance', candidate, entryType, governanceExcludes, available, absolutePath));
   }
   return roots;
 }
@@ -167,7 +169,7 @@ export function resolveRoots(config, root) {
   const sourceRoots = configuredPaths.map((path) => {
     let available = false;
     try { available = statSync(resolve(root, path)).isDirectory(); } catch { /* recorded on descriptor */ }
-    return rootDescriptor('source', path, 'tree', sourceExcludes, available);
+    return rootDescriptor('source', path, 'tree', sourceExcludes, available, resolve(root, path));
   });
   const governedRoots = governanceRoots(root);
   const roots = Object.freeze([...sourceRoots, ...governedRoots]);

@@ -34,7 +34,7 @@ function apiReceipt() {
       estimatedSavingsPercent: 40.0, costStatus: 'actual', currency: 'USD',
     },
     confidence: { level: 'high', score: 0.9, reasons: [] },
-    integrity: { status: 'signed', receiptPath: '.claude/.sessions/s-api.autonomy-receipt.json' },
+    integrity: { status: 'signed', receiptPath: 'contextkit/memory/economics/session-autonomy/s-api.autonomy-receipt.json' },
   };
 }
 
@@ -119,18 +119,18 @@ export async function runSessionAutonomyRenderChecks({ ok, bad }, { KIT }) {
     : bad('markdown section missing heading or required bullets');
 
   // --- Store: writes the sidecar files atomically ---
-  const sessionsDir = mkdtempSync(resolve(tmpdir(), 'cdk-sar-'));
+  const receiptsDir = mkdtempSync(resolve(tmpdir(), 'cdk-sar-'));
   const result = storeReceipt({
-    sessionsDir, sessionId: 's-api', receipt: apiReceipt(), markdown: md,
+    receiptsDir, sessionId: 's-api', receipt: apiReceipt(), markdown: md,
     signature: { algo: 'mock', payloadHash: 'abc' },
   });
-  const paths = receiptPaths(sessionsDir, 's-api');
+  const paths = receiptPaths(receiptsDir, 's-api');
   result.ok && existsSync(paths.json) && existsSync(paths.md) && existsSync(paths.signature)
     ? ok('storeReceipt: json + md + signature sidecars written')
     : bad(`storeReceipt failed: ${result.reason ?? 'files missing'}`);
 
   // --- Upsert: replaces rather than duplicates on a second run (spec §23) ---
-  const sessionMd = resolve(sessionsDir, 'session-log.md');
+  const sessionMd = resolve(receiptsDir, 'session-log.md');
   writeFileSync(sessionMd, '# Session\n\nSome narrative.\n\n## Notes\n\nkeep me\n', 'utf8');
   const first = upsertSessionAutonomySection(sessionMd, renderMarkdown(apiReceipt()));
   const second = upsertSessionAutonomySection(sessionMd, renderMarkdown(lowConfidenceReceipt()));
@@ -142,7 +142,7 @@ export async function runSessionAutonomyRenderChecks({ ok, bad }, { KIT }) {
     : bad(`upsert duplicated or lost content (headings=${headingCount})`);
 
   // --- Store: graceful skip when the session markdown is absent ---
-  const skip = upsertSessionAutonomySection(resolve(sessionsDir, 'nope.md'), md);
+  const skip = upsertSessionAutonomySection(resolve(receiptsDir, 'nope.md'), md);
   skip.ok && skip.action === 'skipped'
     ? ok('upsert: skips gracefully when the session markdown is missing')
     : bad('upsert did not skip a missing file');

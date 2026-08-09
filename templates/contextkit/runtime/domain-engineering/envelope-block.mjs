@@ -6,7 +6,7 @@
  *
  * WF-0063 is SHADOW-ONLY: the block is additive and carries `shadow: true`; it
  * grants zero blocking power. A degraded policy/signal load yields a block with
- * the ENVELOPE_DEGRADED reason code — a recorded receipt, never a false pass.
+ * the ENVELOPE_DEGRADED reason code — an explicit diagnostic, never a false pass.
  *
  * Zero runtime dependencies beyond the sibling pure modules + policy-load.
  *
@@ -21,10 +21,10 @@ import { resolveImplementationProfile } from './profile.mjs';
 // COMPOSITION layer, so it may read the devteam skill table; the devteam leaf
 // modules import nothing from domain-engineering (no cycle).
 import { loadDevteamPolicyTable } from '../devteam/policy-load.mjs';
-import { resolveRequiredSkills } from '../devteam/required-skills.mjs';
+import { resolveRecommendedSkills } from '../devteam/recommended-skills.mjs';
 
 /** Block schema version — bump on any breaking shape change (§15). */
-export const IMPLEMENTATION_BLOCK_VERSION = '1.0.0';
+export const IMPLEMENTATION_BLOCK_VERSION = '2.0.0';
 
 /**
  * Builds the `implementation` block for one request. Pure given an injected
@@ -62,11 +62,11 @@ export function buildImplementationBlock(params) {
     bundle.profiles,
   );
 
-  const squadRequired = profile.profile !== 'no-code';
+  const recommendationAvailable = profile.profile !== 'no-code';
   // WF-0064: skills resolve from the §11 trigger truth-table (devteam policy).
   // A missing table degrades to the conservative baseline with a reason code.
   const triggers = p.devteamTriggers ?? loadDevteamPolicyTable(p.root, 'skillTriggers').table;
-  const skills = resolveRequiredSkills(cmis, das, profile, skillContext(signals, das), triggers);
+  const skills = resolveRecommendedSkills(cmis, das, profile, skillContext(signals, das), triggers);
 
   return {
     schemaVersion: IMPLEMENTATION_BLOCK_VERSION,
@@ -75,14 +75,15 @@ export function buildImplementationBlock(params) {
     codeMutationVerdict: cmis.verdict,
     domainApplicabilityScore: das.score,
     profile: profile.profile,
-    squadRequired,
-    requiredAgents: profile.minimumSquad,
-    requiredSkills: skills.skills,
+    recommendationsOnly: true,
+    recommendationAvailable,
+    recommendedAgents: profile.recommendedAgents,
+    recommendedSkills: skills.skills,
     // additive honesty flag: skill resolution fell back to the baseline (the
     // block-level `degraded` stays false — classification itself succeeded).
     skillsDegraded: skills.degraded,
-    requiredArtifacts: profile.artifacts,
-    simulateImpactRequired: profile.simulateImpactRequired,
+    recommendedArtifacts: profile.recommendedArtifacts,
+    simulateImpactRecommended: profile.simulateImpactRecommended,
     reasonCodes: dedupe([...cmis.reasonCodes, ...das.reasonCodes, ...profile.reasonCodes, ...skills.reasonCodes]),
     degraded: false,
   };
@@ -95,7 +96,7 @@ export function buildImplementationBlock(params) {
  *
  * @param {object} signals from buildSignals().
  * @param {object} das DAS result (its DAS_FLOOR_* codes mark a hard trigger).
- * @returns {object} ctx for resolveRequiredSkills().
+ * @returns {object} context for resolveRecommendedSkills().
  */
 function skillContext(signals, das) {
   return {
@@ -118,12 +119,13 @@ function degradedBlock(missing) {
     codeMutationVerdict: 'UNCERTAIN',
     domainApplicabilityScore: 0,
     profile: 'no-code',
-    squadRequired: false,
-    requiredAgents: [],
-    requiredSkills: [],
+    recommendationsOnly: true,
+    recommendationAvailable: false,
+    recommendedAgents: [],
+    recommendedSkills: [],
     skillsDegraded: true,
-    requiredArtifacts: [],
-    simulateImpactRequired: false,
+    recommendedArtifacts: [],
+    simulateImpactRecommended: false,
     reasonCodes: ['ENVELOPE_DEGRADED'],
     degraded: true,
     missing: Array.isArray(missing) ? missing : [],

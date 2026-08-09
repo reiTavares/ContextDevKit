@@ -41,6 +41,8 @@ export function composeCodexHooks(existing, level) {
     (hooks[eventName] = hooks[eventName] || []).push(entry);
   };
 
+  if (level >= 1) add('SessionStart', null, 'governance-session-context.mjs');
+
   if (level >= 2) {
     add('PostToolUse', 'Edit|Write|apply_patch|Bash|mcp__.*', 'governance-postflight.mjs');
     add('Stop', null, 'governance-completion.mjs');
@@ -48,7 +50,11 @@ export function composeCodexHooks(existing, level) {
   if (level >= 3) {
     add('PreToolUse', 'Edit|Write|apply_patch|Bash|mcp__.*', 'governance-write-preflight.mjs');
   }
-  if (level >= 5) add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
+  if (level >= 5) {
+    add('UserPromptSubmit', null, 'governance-prompt-preflight.mjs');
+    add('PreCompact', null, 'governance-session-context.mjs');
+    add('SubagentStart', null, 'governance-session-context.mjs');
+  }
 
   file.hooks = hooks;
   return file;

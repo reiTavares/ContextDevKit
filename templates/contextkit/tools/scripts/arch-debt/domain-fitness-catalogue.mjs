@@ -38,7 +38,6 @@ const REMEDIATION = Object.freeze({
   AGGREGATE_CONSISTENCY_BOUNDARY: 'Route the write through the aggregate root that owns the invariant.',
   CROSS_CONTEXT_ACCESS: 'Add the relation to the allowed set or integrate via a published contract/event.',
   DOMAIN_EVENT_CONTRACT: 'Version the event; do not change a published event contract in place.',
-  IMPLEMENTATION_PACKET_CONFORMANCE: 'Update the Implementation Packet touch-set or revert the out-of-scope change.',
   POSSIBLE_ANEMIC_MODEL: 'Consider moving behaviour onto the entity; tracked as observation until calibrated.',
   POSSIBLY_LARGE_AGGREGATE: 'Consider splitting the aggregate; tracked as observation until calibrated.',
   EXCESS_DOMAIN_SERVICES: 'Consider folding logic into entities/value objects; observation only.',

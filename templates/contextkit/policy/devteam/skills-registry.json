@@ -3,16 +3,16 @@
   "policyVersion": "0.1.0",
   "id": "skills-registry",
   "title": "Devteam trigger-driven skills — ADR-0128 §11 (WF-0064)",
-  "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
-  "note": "The six skills auto-apply by deterministic signal (CMIS/DAS band, profile, declared flags) — never by the user remembering a slash command. Selection is not proof: actual application is recorded via the §18 skill-application receipt. Shadow-only at WF-0064; enforcement power arrives with WF-0067 under ADR-0129 ceilings. The fail-open baseline is BASELINE_SKILLS in runtime/devteam/required-skills.mjs (deliberately hardcoded — it must survive a missing table).",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "note": "The six skills are optional recommendations derived from declared signals. Selection never proves use, dispatches an agent, or gates a write.",
   "skills": {
     "senior-implementation": {
       "title": "Senior implementation discipline",
       "owningSquad": "devteam",
       "applicableAgents": ["implementation-engineer", "claude"],
-      "artifacts": ["implementation-packet"],
-      "summary": "Smallest safe diff for the approved use case: respect the packet, preserve dependency direction and invariants, tests with the code, evidence with the diff.",
+      "artifacts": [],
+      "summary": "Smallest safe diff for the approved use case: preserve dependency direction and invariants, tests with the code, evidence with the diff.",
       "body": "skills/senior-implementation/SKILL.md"
     },
     "domain-modeling": {
@@ -52,7 +52,7 @@
       "owningSquad": "devteam",
       "applicableAgents": ["code-reviewer"],
       "artifacts": ["review-notes"],
-      "summary": "Packet-vs-diff review for non-trivial code: every changed line traces to the request, contracts honored, no abstraction or fragmentation without benefit.",
+      "summary": "Request-vs-diff review for non-trivial code: every changed line traces to the request, contracts honored, no abstraction or fragmentation without benefit.",
       "body": "skills/implementation-review/SKILL.md"
     }
   }

@@ -87,11 +87,15 @@ try {
   currentDocument = readTasksDocument(scopeRoot);
   check('conclusion is semantic alias for done', currentDocument.tasks.find((task) => task.id === 'T-002')?.status === 'done');
 
-  await dispatchPipelineCommand(invocation(['add', '--title', 'Canonical new task', '--priority', 'P1']), environment);
+  await dispatchPipelineCommand(invocation([
+    'add', '--title', 'Canonical new task', '--priority', 'P1',
+    '--evidence-refs', 'gh#42', '--report-refs', 'reports/triage.md',
+  ]), environment);
   await dispatchPipelineCommand(invocation(['move', 'T-003', 'cancelled']), environment);
   currentDocument = readTasksDocument(scopeRoot);
   const newTask = currentDocument.tasks.find((task) => task.title === 'Canonical new task');
   check('add writes schema-v2 task through store API', newTask?.id === 'T-004' && newTask.status === 'backlog');
+  check('add preserves canonical evidence/report references', newTask?.evidenceRefs.includes('gh#42') && newTask.reportRefs.includes('reports/triage.md'));
   check('cancelled is persisted as status, not placement', currentDocument.tasks.find((task) => task.id === 'T-003')?.status === 'cancelled');
 
   let staleCasRefused = false;

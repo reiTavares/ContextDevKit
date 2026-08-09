@@ -15,7 +15,7 @@
  *     I1  line count alone can NEVER block (a 999-line file → approval).
  *     I2  a deterministic floor breach BLOCKS (immediately, lexicographic).
  *     I3  UNKNOWN ≠ PASS (missing evidence → non-approval, never silent PASS).
- *     I4  the gate ships ACTIVE (mode === 'active', not Shadow/Canary).
+ *     I4  architecture debt ships CANARY and cannot block delivery by default.
  *     I5  the blocking set is DETERMINISTIC-ONLY (no SEMANTIC/HEURISTIC may block).
  *
  *   §34 GAP rows (engine-level, not covered by a unit selftest):
@@ -132,13 +132,13 @@ isApproval(unknownRun.outcome) === false ? ok('missing graph → non-approval ('
 (unknownRun.outcome === GateOutcome.UNKNOWN || unknownRun.outcome === GateOutcome.REVIEW_REQUIRED)
   ? ok('missing graph → UNKNOWN/REVIEW_REQUIRED') : bad('unexpected outcome: ' + unknownRun.outcome);
 
-// I4 — the gate ships ACTIVE (not Shadow/Canary). Both the standalone block and
-// the resolver of an empty config must report mode 'active'.
-console.log('\nI4 (§35) — the gate ships ACTIVE');
-ARCH_DEBT_GATE_DEFAULTS.mode === 'active' ? ok("defaults mode === 'active'") : bad('defaults mode not active: ' + ARCH_DEBT_GATE_DEFAULTS.mode);
-resolveArchDebtConfig({}).mode === 'active' ? ok("resolver of empty config → mode 'active'") : bad('empty-config mode not active');
-DEFAULT_CONFIG.architectureDebtGate && DEFAULT_CONFIG.architectureDebtGate.mode === 'active'
-  ? ok('DEFAULT_CONFIG ships the gate ACTIVE') : bad('DEFAULT_CONFIG gate not active');
+// I4 — architecture debt ships CANARY. Explicit deterministic policies remain
+// testable below, but the default posture only reports their observations.
+console.log('\nI4 (§35) — architecture debt ships CANARY');
+ARCH_DEBT_GATE_DEFAULTS.mode === 'canary' ? ok("defaults mode === 'canary'") : bad('defaults mode not canary: ' + ARCH_DEBT_GATE_DEFAULTS.mode);
+resolveArchDebtConfig({}).mode === 'canary' ? ok("resolver of empty config → mode 'canary'") : bad('empty-config mode not canary');
+DEFAULT_CONFIG.architectureDebtGate && DEFAULT_CONFIG.architectureDebtGate.mode === 'canary'
+  ? ok('DEFAULT_CONFIG ships architecture debt CANARY') : bad('DEFAULT_CONFIG gate not canary');
 
 // I5 — the blocking set is DETERMINISTIC-ONLY. makeFinding must REJECT a BLOCKING
 // SEMANTIC/HEURISTIC finding (a model opinion can never reach the blocking path),
@@ -243,12 +243,12 @@ greenfield.blocking.length === 0 ? ok('greenfield → zero blockers') : bad('gre
 
 // §34.30 — installer/updater PRESERVE the new policy. A project missing the gate
 // block gains it on --update (migrateConfigSections), with the hard invariants
-// intact (mode active + lineSignals.blocking false); a user override survives.
+// intact (mode canary + lineSignals.blocking false); a user override survives.
 console.log('\n§34.30 — installer/updater preserve the new policy');
 const legacyProject = { level: 5, l5: { lineBudget: { yellow: 240, red: 308 } } };
 const migrated = migrateConfigSections(legacyProject, DEFAULT_CONFIG);
 const addedGate = migrated.cfg.architectureDebtGate;
-addedGate && addedGate.mode === 'active' ? ok('update adds architectureDebtGate (mode active)') : bad('update did not add an active gate block');
+addedGate && addedGate.mode === 'canary' ? ok('update adds architectureDebtGate (mode canary)') : bad('update did not add a canary gate block');
 addedGate && addedGate.lineSignals && addedGate.lineSignals.blocking === false
   ? ok('update preserves lineSignals.blocking === false') : bad('update leaked a blocking line signal');
 migrated.added.includes('architectureDebtGate') ? ok('update records architectureDebtGate as added') : bad('update did not record the gate addition');

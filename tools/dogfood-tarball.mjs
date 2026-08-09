@@ -234,7 +234,7 @@ await step('STEP 8 — TWO-SESSION DEFERRAL', async () => {
   assertFileExists(evPath, '.engine-version before session deferral test');
   const mtimeBefore = getMtime(evPath);
 
-  // Plant two active ledger files.
+  // Plant two explicit active workspace records.
   plantActiveSessions(proj);
 
   // --update without --allow-active-sessions should defer.

@@ -29,14 +29,13 @@
  * no disk writes — the only disk reads are the source files this suite
  * statically scans (read-only).
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   deriveScope, deriveRisk, deriveTasks, deriveClassification, deriveKpiSkeleton,
 } from './projections.mjs';
 import { deriveField } from './provenance.mjs';
-import { pathsFor } from '../runtime/config/paths.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -45,11 +44,6 @@ function assert(label, cond, detail = '') {
   process.stdout.write(`  ${cond ? 'ok  ' : 'FAIL'} ${label}${detail && !cond ? ` — ${detail}` : ''}\n`);
   if (!cond) failures.push(label);
 }
-/** Advisory-only observation (constitution §8: missing data is reported, never counted as a pass). */
-function skip(label, detail = '') {
-  process.stdout.write(`  skip ${label}${detail ? ` — ${detail}` : ''}\n`);
-}
-
 /**
  * A richer fixture than SA1's (adds a two-hop chain, a cross-reference edge,
  * and a fully isolated node) so "independently recomputed" is a meaningful
@@ -258,12 +252,6 @@ function independentReverseConsumers(edges, targetIds) {
   assert('[d.2] the full derive path is deterministic across 5 repeated runs (same input -> byte-identical output every time)',
     runs.every((run) => run === runs[0]));
 
-  const ledgerDir = pathsFor(process.cwd()).ledgerDir;
-  if (!existsSync(ledgerDir)) {
-    skip('[d.3] live-ledger secondary confirmation', 'no .claude/.sessions ledger present in this environment — structural + determinism proofs above remain authoritative');
-  } else {
-    skip('[d.3] live-ledger secondary confirmation', 'ledger present but its schema is an activity log (file modifications/simulations), not a token/cost record — not a substitute for the structural proof');
-  }
 }
 
 process.stdout.write(failures.length ? `\nFAILED (${failures.length})\n` : '\nPASSED\n');

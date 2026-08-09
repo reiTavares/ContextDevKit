@@ -2,8 +2,8 @@
 /**
  * Creates a git worktree + branch for a parallel session on the same machine.
  *
- * Each worktree gets its own `.claude/.sessions/` (it lives outside `.git`),
- * so parallel Claude chats never collide on the ledger or on live edits.
+ * Each worktree has isolated files, Git index, and explicit workspace claims,
+ * so parallel hosts do not collide on governed work or live edits.
  *
  * Usage:
  *   node contextkit/tools/scripts/worktree-new.mjs <feature> [base-branch]

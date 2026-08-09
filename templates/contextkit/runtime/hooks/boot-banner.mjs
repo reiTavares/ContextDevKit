@@ -116,19 +116,6 @@ export function renderBootBanner(boot) {
     out.push('');
   }
 
-  if (boot.bugs) {
-    const bugs = boot.bugs;
-    out.push('## 🐞 Canonical task health');
-    out.push('');
-    if (bugs.authorityStatus === 'unavailable' || bugs.authorityStatus === 'corrupt') {
-      out.push(`Task authority is **${bugs.authorityStatus}**; no task count was assumed.`);
-    } else {
-      out.push(`**${bugs.total}** open bug(s)${bugs.p0 ? ` · 🔴 **${bugs.p0}** P0` : ''}${bugs.p1 ? ` · 🟠 **${bugs.p1}** P1` : ''} in canonical backlog/working status.`);
-      if (bugs.authorityStatus === 'partial') out.push('Task authority is **partial**; inspect diagnostics before relying on totals.');
-    }
-    out.push('');
-  }
-
   if (boot.mapStale) {
     out.push('## 🗺️ Project map');
     out.push('');

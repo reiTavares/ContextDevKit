@@ -14,12 +14,12 @@
  *
  * @module resume-pack
  */
-import { readState } from '../../../runtime/state/state-io.mjs';
+import { readRunState as readState } from '../../../runtime/state/run-state-store.mjs';
 import { pathsFor } from '../../../runtime/config/paths.mjs';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { writeState } from '../../../runtime/state/state-io.mjs';
+import { writeRunState as writeState } from '../../../runtime/state/run-state-store.mjs';
 import { checkpoint } from '../ship-state.mjs';
 import { emitEconomy } from './telemetry-emit.mjs';
 
@@ -258,7 +258,7 @@ function main() {
     process.stderr.write('Usage: resume-pack.mjs <runId>\n');
     process.exit(1);
   }
-  const pipeDir = pathsFor(process.cwd()).pipeline;
+  const pipeDir = pathsFor(process.cwd()).memory;
   const pack = buildResumePack(pipeDir, runId);
   console.log(renderResumePack(pack));
   // Honest emit: the resume pack was actually rendered into the resuming session

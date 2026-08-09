@@ -64,15 +64,8 @@ the rubric and propose improvements with engineering judgment.
    ```
    Sort by tier (1 → 2), then severity (BLOCKER → NIT), then blast radius.
    Top 5 first; the rest below.
-6. **Feed the DevPipeline backlog** — add each surviving item as a task,
-   **auto-prioritised** (BLOCKER→P0, HARD→P1, CANDIDATE→P2, NIT→P3):
-   ```
-   node contextkit/tools/scripts/pipeline.mjs add --type chore --priority <P> \
-     --source "practices:<file>" --title "refactor <file> by responsibility"
-   ```
-   `--source` keeps re-runs idempotent; then `pipeline.mjs sync`. Priorities
-   stay editable (`pipeline.mjs prioritize <id> <P>` or `/pipeline`).
-7. **Do not refactor in this command** — it's analysis. Offer to open a
+6. **Do not persist findings in this command.** It is analysis and creates no
+   tasks, workflows, or source edits. Offer to open a
    focused `/dev-start "refactor <file> by responsibility"` (or `/ship`)
    on the top item.
 

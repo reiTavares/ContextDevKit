@@ -1,19 +1,16 @@
 #!/usr/bin/env node
 /**
- * `adr-tasks` — turn an ADR's decision into backlog tasks (ADR-0034).
+ * `adr-tasks` — preview work implied by an ADR decision (ADR-0034).
  *
  * Parses an ADR's numbered/lettered **Decision** points + **Follow-ups** bullets
- * into proposed DevPipeline tasks, each tagged `source: adr:NNNN` so the decision
- * and its work are linked (and measurable, like advisor findings). Dry-run by
- * default (constitution §8) — prints the proposal; `--write` creates the tasks by
- * delegating to `pipeline.mjs add` (the single task-writer). Zero-dep.
+ * into a reviewable proposal. This command is preview-only; it never writes task authority.
+ * Accepted work must be added explicitly to one scoped `tasks.json` through
+ * `pipeline.mjs add --tasks <scope>`. Zero-dep.
  *
  * Usage:
  *   node contextkit/tools/scripts/adr-tasks.mjs 0034            # dry-run (preview)
- *   node contextkit/tools/scripts/adr-tasks.mjs 0034 --write    # create the tasks
  *   node contextkit/tools/scripts/adr-tasks.mjs <path.md> --json
  */
-import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
@@ -51,7 +48,7 @@ function titleOf(line) {
  * Extracts proposed tasks from an ADR's **Decision** section — the numbered (`1.`)
  * and lettered-bold (`**A.`) points ARE the work items. Heuristic + dry-run by
  * default, so an imperfect parse is reviewed, never auto-spammed.
- * @returns {{ adrId: string, tasks: Array<{ title: string, kind: string }> }}
+ * @returns {{ adrId: string, tasks: Array<{ title: string }> }}
  */
 export function parseAdrTasks(text, adrId) {
   const tasks = [];
@@ -61,7 +58,7 @@ export function parseAdrTasks(text, adrId) {
     const title = titleOf(line);
     if (title && title.length > 4 && !seen.has(title.toLowerCase())) {
       seen.add(title.toLowerCase());
-      tasks.push({ title, kind: 'chore' });
+      tasks.push({ title });
     }
   }
   return { adrId, tasks };
@@ -70,10 +67,13 @@ export function parseAdrTasks(text, adrId) {
 function main() {
   const argv = process.argv.slice(2);
   const wantJson = argv.includes('--json');
-  const write = argv.includes('--write');
+  if (argv.includes('--write')) {
+    console.error('adr-tasks is preview-only; add accepted work with pipeline.mjs add --tasks <scope>.');
+    process.exit(1);
+  }
   const arg = argv.find((a) => !a.startsWith('--'));
   if (!arg) {
-    console.error('Usage: adr-tasks.mjs <adr-id|path.md> [--write] [--json]');
+    console.error('Usage: adr-tasks.mjs <adr-id|path.md> [--json]');
     process.exit(1);
   }
   const root = process.cwd();
@@ -86,23 +86,18 @@ function main() {
   const { tasks } = parseAdrTasks(readFileSync(file, 'utf-8').replace(/^﻿/, ''), adrId);
 
   if (wantJson) {
-    console.log(JSON.stringify({ adrId, write, tasks }, null, 2));
+    console.log(JSON.stringify({ adrId, tasks }, null, 2));
     return;
   }
   if (tasks.length === 0) {
     console.log(`No decision/follow-up tasks parsed from ADR-${adrId}.`);
     return;
   }
-  console.log(`\n📋 ADR-${adrId} → ${tasks.length} proposed task(s)${write ? ' (creating)' : ' (dry-run — pass --write to create)'}:`);
-  const pipeline = resolve(pathsFor(root).scripts, 'pipeline.mjs');
+  console.log(`\n📋 ADR-${adrId} → ${tasks.length} proposed task(s) (preview-only):`);
   for (const t of tasks) {
-    console.log(`  - [${t.kind}] ${t.title}`);
-    if (write) {
-      const r = spawnSync(process.execPath, [pipeline, 'add', '--type', t.kind, '--source', `adr:${adrId}`, '--title', t.title], { cwd: root, encoding: 'utf-8' });
-      if (r.status !== 0) console.error(`    ⚠️  add failed: ${r.stderr || r.stdout}`);
-    }
+    console.log(`  - ${t.title}`);
   }
-  console.log(write ? '\n✅ Tasks created (tagged source: adr:' + adrId + '). Run /pipeline to see the board.' : '\nReview, then re-run with --write.');
+  console.log('\nReview the proposal, then add accepted work to an explicit scope with pipeline.mjs add --tasks <scope>.');
 }
 
 if (process.argv[1]?.endsWith('adr-tasks.mjs')) main();

@@ -3,8 +3,8 @@
   "policyVersion": "0.1.0",
   "id": "scaffold-contracts",
   "title": "Governed scaffolds (ADR-0128 §22, WF-0066)",
-  "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
   "note": "Scaffolds emit TYPED PLACEHOLDERS only — never an invented business rule (constitution §9, ADR-0128 architecture read). Each scaffold declares the artifact kind whose contract must already exist before it may be released (requiresContract); a scaffold with no satisfied contract is refused, not degraded to a guess (constitution §8 — default to refuse). placeholderFields are structural slots the generator fills with a typed TODO marker, never a domain-specific default.",
   "scaffolds": {
     "aggregate-root": {
@@ -46,11 +46,6 @@
       "title": "Infrastructure adapter",
       "requiresContract": "aggregate",
       "placeholderFields": ["portImplemented", "externalDependency"]
-    },
-    "contract-test": {
-      "title": "Contract test",
-      "requiresContract": "implementation-packet",
-      "placeholderFields": ["contractsToPreserve"]
     },
     "domain-test": {
       "title": "Domain test",

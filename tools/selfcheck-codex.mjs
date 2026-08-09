@@ -43,7 +43,7 @@ async function checkCodexHooks(rep, KIT) {
     1: ['SessionStart'],
     2: ['PostToolUse', 'SessionStart', 'Stop'],
     3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
+    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit'],
   };
   for (const [level, want] of Object.entries(expected)) {
     const got = events(Number(level));

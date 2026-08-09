@@ -2,8 +2,8 @@
 /**
  * Self-test for the flat policy-table distribution contract (WF-0086 IN1, ADR-0148).
  *
- * The IN1 finding: `templates/contextkit/policy/journey.json`,
- * `work-classification.json` and `decision-intelligence.json` had readers in the
+ * The IN1 finding: flat policy tables such as `work-classification.json` and
+ * `decision-intelligence.json` had readers in the
  * runtime but NO installer path — so a greenfield install silently degraded every
  * reader to its embedded fallback and the canonical journey map went inert. The
  * three subtrees (`domain-engineering|devteam|domain-artifacts`) were already
@@ -94,9 +94,9 @@ export function runPolicyDistributionChecks({ ok, bad }, { KIT: root }) {
     bad(`(b) tables claimed by BOTH channels: ${doubleClaimed.join(', ')} — overwrite would clobber the seeded copy`);
   }
 
-  // (c) the three WF-0086 IN1 tables are kit code (always-overwrite), never seeded:
+  // (c) the remaining classifier tables are kit code (always-overwrite), never seeded:
   // each is schema-coupled to a runtime reader, so a stale user copy breaks it.
-  for (const table of ['journey.json', 'work-classification.json', 'decision-intelligence.json']) {
+  for (const table of ['work-classification.json', 'decision-intelligence.json']) {
     if (!present.includes(table)) { bad(`(c) ${table} absent from ${POLICY_DIR}`); continue; }
     if (overwritten.has(table) && !seeded.has(table)) ok(`(c) ${table} ships always-overwrite (schema-coupled kit table)`);
     else bad(`(c) ${table} must be in POLICY_TABLES, not seeded (overwrite=${overwritten.has(table)} seeded=${seeded.has(table)})`);

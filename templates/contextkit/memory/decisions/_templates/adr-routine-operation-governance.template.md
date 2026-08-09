@@ -61,7 +61,7 @@ keep it routine._
 
 - Primary context: {{PRIMARY_CONTEXT_ID}} (platform)
 - Approval source: {{APPROVAL_ID}} revision {{APPROVAL_REVISION}}, decisionHash `{{DECISION_HASH}}`
-- Status: {{STATUS}}. Acceptance stays manual (rides the existing autonomy floor — no new gate).
+- Status: {{STATUS}}. Acceptance records the owner's explicit decision; no extra gate is created.
 
 ## Scope
 

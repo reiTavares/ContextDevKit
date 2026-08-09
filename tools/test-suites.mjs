@@ -36,7 +36,6 @@ import { WF0059_SUITES } from './test-suites-wf0059.mjs';
 import { WF0069_SUITES } from './test-suites-wf0069.mjs';
 import { WF0070_SUITES } from './test-suites-wf0070.mjs';
 import { WF0081_SUITES } from './test-suites-wf0081.mjs';
-import { WF0088_SUITES } from './test-suites-wf0088.mjs';
 import { WF0089_SUITES } from './test-suites-wf0089.mjs';
 import { WF0090_SUITES } from './test-suites-wf0090.mjs';
 import { WF0094_SUITES } from './test-suites-wf0094.mjs';
@@ -65,8 +64,8 @@ const it = (name) => `tools/integration-test-${name}.mjs`;
  */
 export const SUITES = Object.freeze([
   // selfcheck (static, in-process wiring) — 1
-  // `touches` EXCLUDES the broad `runtime/` seed (ADR-0113) so `runtime/execution/*`
-  // selects the fast `selfcheck-request` shard, not this 8-min monolith.
+  // `touches` excludes the broad runtime seed so focused v4 suites own their
+  // source prefixes without dragging in this static monolith.
   { id: 'selfcheck', file: 'tools/selfcheck.mjs', tier: 'selfcheck',
     touches: ['tools/selfcheck', 'install.mjs'] },
   { id: 'session-autonomy', file: 'tools/selfcheck-session-autonomy-all.mjs', tier: 'smoke',
@@ -90,36 +89,22 @@ export const SUITES = Object.freeze([
   { id: 'eacp', file: it('eacp'), tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/economics/'] },
   { id: 'competitive-followups', file: it('competitive-followups'), tier: 'integration:core', touches: ['templates/contextkit/tools/scripts/claims-gate', 'templates/contextkit/tools/scripts/runs'] },
-  { id: 'tooling-pipeline', file: it('tooling-pipeline'), tier: 'integration:workflow',
-    touches: ['templates/contextkit/tools/scripts/pipeline', 'templates/contextkit/commands/pipeline'] },
-  { id: 'pipeline-substrate', file: it('pipeline-substrate'), tier: 'integration:workflow',
-    touches: ['templates/contextkit/tools/scripts/pipeline', 'templates/contextkit/tools/scripts/state'] },
   { id: 'tooling-agent-forge', file: it('tooling-agent-forge'), tier: 'integration:workflow',
     touches: ['templates/contextkit/squads/agent-forge/'] },
   { id: 'guards', file: it('guards'), tier: 'integration:installer',
     touches: ['templates/contextkit/runtime/hooks/commit-msg', 'templates/contextkit/runtime/hooks/pre-push', 'templates/contextkit/runtime/config/load'] },
-  { id: 'autonomy', file: it('autonomy'), tier: 'integration:core',
-    touches: ['templates/contextkit/runtime/config/resolve-autonomy', 'templates/contextkit/commands/autonomy'] },
   { id: 'advisory-policy', file: it('advisory-policy'), tier: 'integration:core',
-    touches: ['templates/contextkit/tools/scripts/model-policy', 'templates/contextkit/policy/routing-policy', 'templates/contextkit/runtime/execution/routing-runtime', 'templates/contextkit/runtime/config/resolve-autonomy', 'templates/contextkit/runtime/hooks/subagent-gate', 'templates/contextkit/runtime/execution/agent-orchestration-guard', 'templates/contextkit/runtime/preferences/', 'templates/claude/agents/privacy-lgpd'] },
-  { id: 'compozy', file: it('compozy'), tier: 'integration:ecosystem',
-    touches: ['templates/contextkit/squads/', 'templates/contextkit/tools/scripts/'] },
-  { id: 'migrate', file: it('migrate'), tier: 'integration:installer',
-    touches: ['install.mjs', 'templates/contextkit/tools/scripts/migrate'] },
+    touches: ['templates/contextkit/tools/scripts/model-policy', 'templates/contextkit/policy/routing-policy', 'templates/contextkit/runtime/execution/routing-runtime', 'templates/contextkit/runtime/governance/risk-acknowledgement', 'templates/contextkit/runtime/execution/agent-orchestration-guard', 'templates/contextkit/runtime/preferences/', 'templates/claude/agents/privacy-lgpd'] },
   { id: 'update-safety', file: it('update-safety'), tier: 'integration:installer',
     touches: ['install.mjs'] },
   { id: 'config-migrate', file: it('config-migrate'), tier: 'integration:installer',
     touches: ['tools/install/config-migrate.mjs', 'templates/contextkit/runtime/config/defaults.mjs'] },
   { id: 'antigravity', file: it('antigravity'), tier: 'integration:hosts',
     touches: ['templates/contextkit/runtime/antigravity/', 'templates/ctx.mjs'] },
-  { id: 'active-squads', file: it('active-squads'), tier: 'integration:hosts',
-    touches: ['templates/contextkit/squads/', 'templates/contextkit/runtime/hooks/squad-context'] },
   { id: 'codex', file: it('codex'), tier: 'integration:hosts',
     touches: ['templates/contextkit/runtime/codex/', 'templates/cdx.mjs'] },
-  { id: 'codex-global-routing', file: it('codex-global-routing'), tier: 'integration:hosts',
-    touches: ['templates/contextkit/policy/routing-policy.json', 'templates/contextkit/tools/scripts/model-policy.mjs', 'templates/contextkit/tools/scripts/install-codex-global-routing.mjs', 'templates/contextkit/runtime/codex/global-routing/'] },
   { id: 'grok', file: it('grok'), tier: 'integration:hosts',
-    touches: ['install.mjs', 'tools/install/grok.mjs', 'templates/contextkit/runtime/config/grok-hooks-compose.mjs', 'templates/contextkit/runtime/hooks/host-adapter.mjs'] },
+    touches: ['install.mjs', 'tools/install/grok.mjs', 'templates/contextkit/runtime/config/grok-hooks-compose.mjs', 'templates/contextkit/runtime/hooks/governance-'] },
   { id: 'lp', file: it('lp'), tier: 'integration:hosts',
     touches: ['templates/contextkit/squads/design-team/', 'templates/contextkit/commands/landing-page'] },
   { id: 'swarm', file: it('swarm'), tier: 'smoke',
@@ -128,12 +113,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/deliberation', 'templates/contextkit/commands/debate'] },
   { id: 'hooks', file: it('hooks'), tier: 'integration:core',
     touches: ['templates/contextkit/runtime/hooks/'] },
-  { id: 'workflow-governance', file: it('workflow-governance'), tier: 'integration:workflow',
-    touches: ['templates/contextkit/tools/scripts/workflow', 'templates/contextkit/commands/workflow'] },
   { id: 'hookcoexist', file: it('hookcoexist'), tier: 'integration:ecosystem',
     touches: ['templates/contextkit/runtime/config/settings-compose', 'templates/contextkit/runtime/hooks/'] },
-  { id: 'autoformat', file: it('autoformat'), tier: 'integration:ecosystem',
-    touches: ['templates/contextkit/runtime/hooks/auto-format', 'templates/contextkit/runtime/config/settings-compose'] },
   { id: 'qgates', file: it('qgates'), tier: 'integration:enforcement',
     touches: ['templates/contextkit/tools/scripts/qgates', 'templates/contextkit/runtime/hooks/'] },
   { id: 'ci-squad', file: it('ci-squad'), tier: 'integration:ecosystem',
@@ -148,37 +129,8 @@ export const SUITES = Object.freeze([
     touches: ['install.mjs'] },
   { id: 'fleet-portability', file: it('fleet'), tier: 'integration:installer',
     touches: ['install.mjs', 'tools/install/', 'templates/contextkit/tools/scripts/docs-reindex.mjs', 'templates/contextkit/tools/scripts/registry/fleet.mjs'] },
-  { id: 'execution', file: it('execution'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/', 'templates/contextkit/runtime/hooks/'] },
-  { id: 'execution-persistence', file: it('execution-persistence'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/'] },
-  { id: 'receipts', file: it('receipts'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/', 'templates/contextkit/runtime/enforcement/'] },
-  { id: 'enforcement', file: it('enforcement'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/enforcement/'] },
   { id: 'enforcement-modes', file: it('enforcement-modes'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/enforcement/'] },
-  { id: 'gate', file: it('gate'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/enforcement/', 'templates/contextkit/runtime/hooks/'] },
-  { id: 'gate-p2', file: it('gate-p2'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/enforcement/'] },
-  { id: 'contract-hook', file: it('contract-hook'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/', 'templates/contextkit/runtime/hooks/'] },
-  { id: 'indirect-write', file: it('indirect-write'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/', 'templates/contextkit/runtime/hooks/'] },
-  { id: 'explore-budget', file: it('explore-budget'), tier: 'smoke',
-    touches: ['templates/contextkit/runtime/execution/'] },
-  { id: 'completion-gate', file: it('completion-gate'), tier: 'integration:enforcement',
-    touches: ['templates/contextkit/runtime/hooks/completion-gate', 'templates/contextkit/runtime/execution/evaluate-completion'] },
-  // WF-0108 (ADR-0155) — mandatory graph-first exploration driven as REAL hook
-  // processes: block-on-match, warn-on-miss, no-false-block, human bypass, refresh receipt.
-  { id: 'graph-first-e2e', file: it('graph-first'), tier: 'integration:enforcement',
-    touches: ['templates/contextkit/runtime/hooks/graph-first-gate', 'templates/contextkit/runtime/hooks/graph-session-refresh', 'templates/contextkit/mcp-server/server', 'templates/contextkit/mcp-server/tool-catalog'] },
-  { id: 'subagent-gate', file: it('subagent-gate'), tier: 'integration:enforcement',
-    touches: ['templates/contextkit/runtime/hooks/subagent', 'templates/contextkit/runtime/execution/'] },
-  { id: 'compaction', file: it('compaction'), tier: 'integration:enforcement',
-    touches: ['templates/contextkit/runtime/hooks/compaction', 'templates/contextkit/runtime/execution/'] },
-
+    touches: ['templates/contextkit/runtime/governance/', 'templates/contextkit/runtime/execution/enforcement-modes.mjs'] },
   // PKG-05 — Project-map & adaptive context (CDK-050…056), advisory, additive.
   { id: 'pkg05-roots', file: 'tools/selfcheck-pkg05-050.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/project-map-roots', 'templates/contextkit/tools/scripts/project-map-core'] },
@@ -217,15 +169,8 @@ export const SUITES = Object.freeze([
 
   // PKG-07 — Lineage graph (CDK-070), read-only advisory, unregistered.
   { id: 'selfcheck-lineage', file: 'tools/selfcheck-lineage.mjs', tier: 'selfcheck',
-    touches: ['templates/contextkit/tools/scripts/lineage-graph', 'templates/contextkit/runtime/execution/receipt-store', 'templates/contextkit/runtime/state/state-io'] },
+    touches: ['templates/contextkit/tools/scripts/lineage-graph', 'templates/contextkit/runtime/authority-reader', 'templates/contextkit/tools/scripts/tasks-store'] },
 
-  // ADR-0094 — automatic model routing for standard sessions (additive, advisory).
-  { id: 'routing', file: it('routing'), tier: 'integration:core',
-    touches: ['templates/contextkit/tools/scripts/routing/', 'templates/contextkit/runtime/hooks/session-start', 'templates/contextkit/runtime/config/defaults'] },
-
-  // HIGH hotfix 3.0.1 — routing wired into the REAL UserPromptSubmit hook (ADR-0094 §Decision).
-  { id: 'routing-hook', file: it('routing-hook'), tier: 'integration:core',
-    touches: ['templates/contextkit/runtime/execution/routing-runtime', 'templates/contextkit/runtime/hooks/execution-contract-hook', 'templates/contextkit/tools/scripts/routing/'] },
   { id: 'dev-start-economy', file: it('dev-start-economy'), tier: 'integration:core',
     touches: ['templates/contextkit/tools/scripts/economy/dev-start', 'templates/contextkit/runtime/execution/economy-lifecycle', 'templates/contextkit/tools/scripts/routing/', 'templates/claude/commands/pipeline/dev-start'] },
 
@@ -238,13 +183,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/tools/scripts/lineage-rules'] },
   { id: 'pkg07-policy', file: 'tools/selfcheck-pkg07-074.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/policy-registry'] },
-  { id: 'pkg07-evidence', file: 'tools/selfcheck-pkg07-075.mjs', tier: 'selfcheck',
-    touches: ['templates/contextkit/tools/scripts/evidence-taxonomy', 'templates/contextkit/runtime/execution/receipt-store'] },
   { id: 'pkg07-scorecard', file: 'tools/selfcheck-pkg07-076.mjs', tier: 'selfcheck',
-    touches: ['templates/contextkit/tools/scripts/engineering-scorecard', 'templates/contextkit/tools/scripts/lineage-rules', 'templates/contextkit/tools/scripts/evidence-taxonomy'] },
-  { id: 'pkg07-readiness', file: 'tools/selfcheck-pkg07-077.mjs', tier: 'selfcheck',
-    touches: ['templates/contextkit/tools/scripts/autonomy-readiness-v2', 'templates/contextkit/tools/scripts/engineering-scorecard'] },
-
+    touches: ['templates/contextkit/tools/scripts/engineering-scorecard', 'templates/contextkit/tools/scripts/lineage-rules', 'templates/contextkit/tools/scripts/lineage-graph'] },
   // PKG-08 — Fleet & agent platform (CDK-080/081/082), read-only advisory, unregistered.
   { id: 'pkg08-fleet', file: 'tools/selfcheck-pkg08-fleet.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/fleet-compliance', 'templates/contextkit/tools/scripts/agent-registry', 'templates/contextkit/tools/scripts/policy-distribution'] },
@@ -258,17 +198,9 @@ export const SUITES = Object.freeze([
   { id: 'economy-wave2', file: 'tools/selfcheck-economy-wave2.mjs', tier: 'selfcheck',
     touches: ['templates/contextkit/tools/scripts/economy/'] },
 
-  // 3.1.2 hotfix — VibeKit backward-compatibility regression lock (P0-08).
-  // Calls migrateLegacy / migrateConfigPaths directly; covers ONLY-VIBEKIT,
-  // ONLY-CONTEXTKIT, HYBRID (refuse+preserve), LEGACY-CFG-PATHS, NO-GLOBAL-REPLACE,
-  // and IDEMPOTENT-SECOND-RUN (scenarios 1-6, ADR-0095).
-  { id: 'vibekit-compat', file: it('vibekit-compat'), tier: 'integration:installer',
-    touches: ['tools/install/migrate.mjs', 'tools/install/config-paths.mjs'] },
 
   // 3.1.2 updater-safety hotfix (ADR-0099, WF0034) — session/ledger preservation,
   // safe writes, external preflight/snapshot/status, project-map safe deferral.
-  { id: 'session-safety', file: it('session-safety'), tier: 'integration:core',
-    touches: ['templates/contextkit/runtime/hooks/session-start.mjs', 'templates/contextkit/runtime/hooks/ledger.mjs'] },
   { id: 'safe-writes', file: it('safe-writes'), tier: 'integration:installer',
     touches: ['tools/install/fs.mjs', 'tools/install/claude.mjs'] },
   { id: 'update-preflight', file: it('update-preflight'), tier: 'integration:installer',
@@ -277,14 +209,9 @@ export const SUITES = Object.freeze([
     touches: ['tools/install/update-snapshot.mjs', 'tools/install/update-status.mjs'] },
   { id: 'projmap-defer', file: it('projmap-defer'), tier: 'integration:installer',
     touches: ['tools/install/project-map-baseline.mjs'] },
-  // 3.1.2 RUN 2 hardening — non-TTY conflict honesty, adversarial matrices,
-  // idempotency + failure boundaries (ADR-0099, WF0034).
+  // 3.1.2 RUN 2 hardening — non-TTY conflict honesty, idempotency, and failure boundaries.
   { id: 'sync-conflict', file: it('sync-conflict'), tier: 'integration:installer',
     touches: ['tools/install/sync.mjs'] },
-  { id: 'session-adversarial', file: it('session-adversarial'), tier: 'integration:core',
-    touches: ['templates/contextkit/runtime/hooks/session-start.mjs', 'tools/install/update-preflight.mjs'] },
-  { id: 'vibekit-adversarial', file: it('vibekit-adversarial'), tier: 'integration:installer',
-    touches: ['tools/install/migrate.mjs'] },
   { id: 'update-idempotency', file: it('update-idempotency'), tier: 'integration:installer',
     touches: ['install.mjs', 'tools/install/engine.mjs', 'tools/install/fs.mjs'] },
   { id: 'update-failure', file: it('update-failure'), tier: 'integration:installer',
@@ -295,13 +222,6 @@ export const SUITES = Object.freeze([
   // default-OFF block-proof; /domain CLI; --update non-destructive; --purge reversible.
   { id: 'domain-distribution', file: it('domain-distribution'), tier: 'integration:installer',
     touches: ['tools/install/engine.mjs', 'tools/install/uninstall.mjs', 'templates/contextkit/runtime/config/settings-compose.mjs', 'templates/contextkit/tools/scripts/domain-inspect.mjs'] },
-
-  // WF-0079 (BIZ-0005, ADR-0146) — end-to-end program distribution for the four
-  // WF-0075..0078 capabilities: dispatch gate, MADM, autonomy dial, squad selection;
-  // the retired l5.lineBudget alias stays gone; the WF-0069 allocator fix ships;
-  // --update is non-destructive across the whole chain.
-  { id: 'biz0005-chain', file: it('biz0005-chain'), tier: 'integration:installer',
-    touches: ['templates/contextkit/runtime/domain-engineering/code-gate.mjs', 'templates/contextkit/tools/scripts/madm-generate.mjs', 'templates/contextkit/runtime/hooks/autonomy-signals.mjs', 'templates/contextkit/runtime/execution/request-agent-select.mjs'] },
 
   { id: 'projmap-signals', file: 'tools/selfcheck-projmap-signals.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/project-map-signals', 'templates/contextkit/tools/scripts/project-map-insights'] }, // WF-0057 W1.1 (ADR-0122) structural signals
   { id: 'blast-radius', file: 'tools/selfcheck-blast-radius.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/blast-radius', 'templates/contextkit/tools/scripts/project-map-signals'] }, // WF-0071 GC1-T1 (BIZ-0004) blast-radius consumer lookup
@@ -321,8 +241,7 @@ export const SUITES = Object.freeze([
   { id: 'graph-activation', file: 'tools/selfcheck-graph-activation.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/graph-activation'] }, // WF-0074 RO2 (BIZ-0004) staged rollout ladder (ADR-0134)
   { id: 'hotpath-purity', file: 'tools/selfcheck-hotpath-purity.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/hooks', 'templates/contextkit/runtime/config/load'] }, // WF-0074 RO3 (BIZ-0004) hot-path zero-dep purity proof (ADR-0134)
   { id: 'graph-index', file: 'tools/selfcheck-graph-index.mjs', tier: 'selfcheck', touches: ['tools/install/graph-index'] }, // WF-0074 (BIZ-0004) index-on-update installer machinery
-  { id: 'graph-first', file: 'tools/selfcheck-graph-first.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/hooks/graph-first-gate', 'templates/contextkit/runtime/hooks/graph-session-refresh', 'tools/install/graph-deps', 'templates/contextkit/runtime/config/settings-compose', 'templates/contextkit/runtime/config/codex-hooks-compose', 'templates/contextkit/runtime/config/agent-hooks-compose', 'templates/contextkit/mcp-server/tool-catalog', 'templates/claude/agents/'] }, // WF-0108 (ADR-0155) mandatory graph-first exploration + per-session refresh + dep guarantee
-  { id: 'arch-debt', file: 'tools/selfcheck-arch-debt.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/arch-debt/', 'templates/contextkit/tools/scripts/architecture-debt-gate.mjs', 'templates/contextkit/runtime/config/resolve-arch-debt-config.mjs', 'templates/contextkit/runtime/execution/arch-debt-law.mjs', 'templates/contextkit/runtime/hooks/arch-debt-law-gate.mjs'] }, // WF-0057 W2 (ADR-0122) arch-debt analyzer pipeline aggregator (finding/collector/conformance/classifier/fragmentation/floors) + OP-0012 wiring child (gate/resolver/law/hook)
+  { id: 'arch-debt', file: 'tools/selfcheck-arch-debt.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/arch-debt/', 'templates/contextkit/tools/scripts/architecture-debt-gate.mjs', 'templates/contextkit/runtime/config/resolve-arch-debt-config.mjs', 'templates/contextkit/runtime/execution/arch-debt-law.mjs'] }, // Architecture-debt analysis remains advisory/canary; the v3 pre-write hook is retired.
   { id: 'arch-debt-config', file: 'tools/selfcheck-arch-debt-config.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/config/defaults-arch-debt.mjs', 'templates/contextkit/runtime/config/resolve-arch-debt-config.mjs', 'templates/contextkit/runtime/config/schema-sections.mjs'] }, // WF-0057 W5.2 (ADR-0122) gate config block + legacy line-budget migration
   { id: 'arch-debt-calibration', file: 'tools/selfcheck-arch-debt-calibration.mjs', tier: 'selfcheck', touches: ['templates/contextkit/runtime/config/resolve-arch-debt-config.mjs', 'templates/contextkit/runtime/config/schema-arch-debt.mjs', 'templates/contextkit/tools/scripts/architecture-debt-gate.mjs', 'contextkit/config.json'] }, // WF-0057 #370 (ADR-0122) F2/F3 floor calibration — floors EVALUATE on the live tree, block a real new violation, pass clean
   { id: 'arch-debt-acceptance', file: 'tools/selfcheck-arch-debt-acceptance.mjs', tier: 'selfcheck', touches: ['templates/contextkit/tools/scripts/architecture-debt-gate.mjs', 'templates/contextkit/tools/scripts/arch-debt/', 'templates/contextkit/runtime/config/defaults-arch-debt.mjs', 'tools/install/config-migrate.mjs'] }, // WF-0057 W6.1 (ADR-0122) MASTER acceptance suite — §35 headline invariants + §34 engine-level GAPs (contract/contradiction/amplification/greenfield/installer/semantic/experimental)
@@ -345,7 +264,7 @@ export const SUITES = Object.freeze([
   // OP-0004 / WF-0059 task-ownership reform — own module (see test-suites-wf0059.mjs).
   ...WF0059_SUITES,
   ...MCP_SUITES,      // MCP ticket integration-tests (see test-suites-mcp.mjs).
-  // Test-infra self-tests (suite-list guard, impact selector, request shard) —
+  // Test-infra self-tests (suite-list guard and impact selector) —
   // own module to keep this registry under the 308-line budget (ADR-0113).
   ...INFRA_SUITES,
   // WF-0069 (OP-0008) language-aware intent + the two direct fixes (#2, #8) —
@@ -359,7 +278,6 @@ export const SUITES = Object.freeze([
   ...WF0081_SUITES,
   // WF-0088 (BIZ-0006, ADR-0148 position 11) governance-contract envelope suite —
   // own module for the line budget (see test-suites-wf0088.mjs).
-  ...WF0088_SUITES,
   // WF-0089 (BIZ-0006, ADR-0148 §9/§10) structural auto-fill projections — own
   // module for the line budget (see test-suites-wf0089.mjs).
   ...WF0089_SUITES,

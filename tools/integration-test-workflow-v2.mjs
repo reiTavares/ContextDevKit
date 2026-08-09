@@ -20,6 +20,7 @@ import {
 } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import {
   advanceWorkflow,
+  completeWorkflow,
   listWorkflows,
   loadWorkflowPack,
   readWorkflow,
@@ -110,6 +111,41 @@ try {
   check(advanced.revision === 1 && advanced.currentPhase === 'prd' && advanced.status === 'working', 'aggregate state advances with monotonic CAS revision');
   check(validatePack(created.dir).valid, 'aggregate state advance regenerates projections and leaves the package valid');
 
+  let earlyCompletionRefused = false;
+  try {
+    completeWorkflow(root, 'WF-0042', {
+      qaStatus: 'passed',
+      qaEvidenceRefs: ['runs/final-suite.json'],
+      reportRef: 'reports/0001.md',
+    }, { now: '2026-08-08T12:02:00.000Z', expectedRevision: 1 });
+  } catch (error) {
+    earlyCompletionRefused = /phase conclusion/.test(error.message);
+  }
+  check(earlyCompletionRefused, 'workflow completion refuses before the conclusion phase');
+
+  let phaseCursor = advanced;
+  while (phaseCursor.currentPhase !== 'conclusion') {
+    phaseCursor = advanceWorkflow(root, 'WF-0042', '', {
+      now: '2026-08-08T12:03:00.000Z',
+      expectedRevision: phaseCursor.revision,
+    });
+  }
+  const completionInput = {
+    qaStatus: 'passed',
+    qaEvidenceRefs: ['runs/final-suite.json'],
+    reportRef: 'reports/0001.md',
+  };
+  const completed = completeWorkflow(root, 'WF-0042', completionInput, {
+    now: '2026-08-08T12:04:00.000Z',
+    expectedRevision: phaseCursor.revision,
+  });
+  check(completed.status === 'done' && completed.currentPhase === 'conclusion', 'explicit completion transitions conclusion to done');
+  check(completed.state.qa.status === 'passed' && completed.state.qa.evidenceRefs[0] === 'runs/final-suite.json', 'completion persists explicit QA evidence');
+  check(completed.state.activeTaskIds.length === 0 && completed.state.lastReportRef === 'reports/0001.md', 'completion clears active tasks and binds the factual report');
+  check(validatePack(created.dir).valid, 'completed package remains fully valid');
+  const idempotentCompletion = completeWorkflow(root, 'WF-0042', completionInput, { expectedRevision: completed.revision });
+  check(idempotentCompletion.revision === completed.revision, 'repeating the same completion receipt is idempotent');
+
   writeFileSync(join(created.dir, 'workflow-plan.json'), '{}\n', 'utf8');
   check(validatePack(created.dir).errors.some((error) => error.code === 'duplicate-authority'), 'validator rejects workflow-plan.json as a duplicate runtime authority');
   rmSync(join(created.dir, 'workflow-plan.json'));
@@ -135,6 +171,15 @@ try {
     encoding: 'utf8',
   });
   check(removedPlanHash.status === 1 && removedPlanHash.stderr.includes('explicit offline migrate-v3-to-v4'), 'v2 CLI fences the staged ADR-0156 plan-hash surface with explicit migration guidance');
+
+  const cliCompletion = spawnSync(process.execPath, [
+    cli, 'complete', 'WF-0042',
+    '--qa-status', 'passed',
+    '--qa-evidence', 'runs/final-suite.json',
+    '--ref', 'reports/0001.md',
+    '--expected-revision', String(completed.revision),
+  ], { cwd: root, encoding: 'utf8' });
+  check(cliCompletion.status === 0 && cliCompletion.stdout.includes('done/conclusion'), 'v2 CLI completes idempotently with explicit QA evidence and CAS');
 } finally {
   rmSync(tempBase, { recursive: true, force: true });
 }

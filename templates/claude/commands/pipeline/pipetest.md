@@ -1,12 +1,12 @@
 ---
-description: Deterministic QA gate (ADR-0055) — run the project suite; green + complete acceptance criteria ⇒ qa-approve testing cards into conclusion; red ⇒ report (and qa-reject only attributable failures).
-argument-hint: [taskId …] | --all
+description: Deterministic QA gate for explicitly scoped canonical testing tasks.
+argument-hint: <taskId …> --tasks <scope> | --all --tasks <scope>
 ---
 
 # 🧪 Pipetest (deterministic testing-lane gate)
 
-Targets: **$ARGUMENTS** (task ids in `testing/`, or `--all` for the whole lane;
-no argument = `--all`).
+Targets: **$ARGUMENTS** (task ids whose canonical status is `testing`, or
+`--all --tasks <scope>` for every testing task in one explicit scope).
 
 You are running the ADR-0055 deterministic QA sign-off. The verdict is the
 SUITE'S EXIT CODE — never your opinion of the code. Use TodoWrite for the steps.
@@ -20,24 +20,22 @@ count, timestamp).
 
 ## 2. Green → approve what is approvable
 
-For EACH targeted card in `testing/`:
+For each targeted canonical task in `testing`:
 
-1. Read the card. If its acceptance criteria have **≥1 checkbox and zero
-   unchecked**, run:
-   `node contextkit/tools/scripts/pipeline.mjs qa-approve <id> --evidence "<runner> exit 0 — <summary> @<ISO date>"`
-   The verb itself re-validates (testing-only, evidence required, checkboxes
-   complete) — if it refuses, relay its reason verbatim; never fall back to a
+1. Verify the task's `acceptance[]` against the test output, then run:
+   `node contextkit/tools/scripts/pipeline.mjs qa-approve <id> --tasks <scope> --evidence "<runner> exit 0 — <summary> @<ISO date>"`
+   The verb re-validates testing status and evidence. If it refuses, relay its
+   reason verbatim; never fall back to a
    bare `move` to force the result.
-2. If the card has unchecked or missing checkboxes: **report it, don't approve
-   it** — list exactly which boxes are open. The human either completes the
-   card or hand-moves it.
+2. If an acceptance criterion is unproved: report it and leave the task in
+   `testing`.
 
 ## 3. Red → report; bounce only what is attributable
 
 A red suite NEVER mass-bounces the lane. Identify which failing test belongs to
 which card (its own new tests / its touched files). Only for an attributable
-card: `node contextkit/tools/scripts/pipeline.mjs qa-reject <id> "<the failing
-output tail>"`. Everything else: report the failure and stop — fixing is a
+task: `node contextkit/tools/scripts/pipeline.mjs qa-reject <id> "<the failing
+output tail>" --tasks <scope>`. Everything else: report the failure and stop — fixing is a
 separate decision.
 
 ## 4. Report

@@ -1,101 +1,49 @@
 # Skill: workflow
 
-> Workflow spec pack - PRD/PDR + SPEC -> ADR -> roadmap -> pipeline -> ship -> testing -> conclusion. (ADR-0057)
-> Argument: "new <slug> [--kind feature|architecture|bug|chore|spike] | advance <slug> [--ref ref] | status [slug] | report <slug> [--task id]"
-`/workflow` is the spec-pack layer over the primitives the kit already ships.
-It does not replace `/roadmap`, `/new-adr`, `/pipeline`, `/ship`, `/pipetest`,
-or `/log-session`; it keeps the PRD/PDR, SPEC, links, memory, and reports for a
-large workflow in one folder.
+> Create, load, validate, render, and advance a canonical Workflow v2 package.
+> Argument: "new <slug> [--operation OP-####|--business BIZ-####] | status [ref] | load <ref> | validate <ref> | advance <ref> [--ref evidence]"
+`/workflow` manages the ContextDevKit 4 workflow package. It never reads a
+legacy plan, Markdown frontmatter, physical status lane, or `done/` directory.
 
-Canonical folder:
+Canonical authorities:
 
 ```text
-contextkit/memory/workflows/<slug>/
-  index.md
+<workflow-root>the `WF` skill-####-<slug>/
+  workflow.json            # stable definition, owner, topology, artifact refs
+  workflow-state.json      # aggregate lifecycle, phase, revision, QA refs
+  context-manifest.json    # required context-loading contract
   prd.md
   spec.md
   decisions.md
-  tasks.md
-  memory.md
-  reports/YYYY-MM-DD.md
+  index.md                 # generated projection
+  reports/
+  pipeline/
+    tasks.json             # only task/status/event authority
+    tasks.md               # generated projection
 ```
 
-## When to use
+The root is `memory/workflows/` for owner `none`, or the `workflows/` child of
+the owning Business/Operation. A completed workflow stays at the same path.
+The three JSON authorities are `workflow.json`, `workflow-state.json`, and
+`pipeline/tasks.json`; none may duplicate another's state.
 
-- Large features and architectural work: PRD/PDR + SPEC are required before ADR
-  and pipeline work.
-- Simple bugs/chores may stay on the lightweight DevPipeline path.
-- The workflow folder references ADRs, roadmap items, and pipeline cards; it
-  never duplicates their full contents.
+Before changing source for a workflow, load `context-manifest.json` and every
+required artifact. This must include the PRD, SPEC, decisions/ADR references,
+task store, workflow state, and relevant reports. Loading is read-only.
 
-## Lifecycle
-
-`intake -> prd -> spec -> adr -> roadmap -> pipeline -> ship -> testing -> conclusion`
-
-- **intake**: read `context-pack`, relevant ADRs/sessions, project map, roadmap,
-  and pipeline digest.
-- **prd**: fill product WHAT/WHY, goals, users, non-goals, metrics.
-- **spec**: fill technical HOW, impact, interfaces, tests, sequence. **Deliberation
-  gate** [ADR-0070]: for a `feature`/`architecture` kind, convene the specialist
-  council before locking the SPEC. Resolve `feature-deliberation`
-  (`resolveAutonomy('feature-deliberation', config)`) — at **grade ≥ 3** with
-  `deliberations.active` this is `debate` mode: run `/debate "<the core feature
-  decision>"`, record it under `decisions.md`, and let its synthesis shape the SPEC
-  and the ADR. At grade ≤ 2 it is a suggestion. Skip for `bug`/`chore`/`spike`.
-- **adr**: create/accept the architecture decision when needed (the deliberation
-  above pre-fills it).
-- **roadmap**: add or link the P-ID only for new product capability.
-- **pipeline**: create DevPipeline cards with `--workflow` and `--spec`.
-- **ship**: implement scoped cards.
-- **testing**: move implemented cards to testing with evidence.
-- **conclusion**: close through `/pipetest` or human sign-off; report the result.
-
-## Commands
-
-Start:
+Commands:
 
 ```bash
-node contextkit/tools/scripts/workflow.mjs new <slug> --kind feature
+node contextkit/tools/scripts/workflow.mjs new <slug> [--operation OP-####|--business BIZ-####]
+node contextkit/tools/scripts/workflow.mjs status [ref] [--json]
+node contextkit/tools/scripts/workflow.mjs load <ref>
+node contextkit/tools/scripts/workflow.mjs validate <ref>
+node contextkit/tools/scripts/workflow.mjs render <ref>
+node contextkit/tools/scripts/workflow.mjs advance <ref> [--ref <evidence>]
+node contextkit/tools/scripts/workflow.mjs repair-scaffold <ref> [--write]
 ```
 
-Advance:
-
-```bash
-node contextkit/tools/scripts/workflow.mjs advance <slug> --ref ADR-0057
-```
-
-Status:
-
-```bash
-node contextkit/tools/scripts/workflow.mjs status [slug] [--json]
-```
-
-Daily report:
-
-```bash
-node contextkit/tools/scripts/workflow.mjs report <slug> --task 123
-```
-
-Reports include branch, commit, `git diff --stat`, `git diff --numstat`, and
-touched files. They intentionally do not embed full patches; git is the patch
-source of truth.
-
-## Numbering — UNIVERSAL (inviolable law)
-
-> A workflow's number is **unique across the whole hierarchy** as ONE sequence —
-> `memory/workflows/`, every `business/<BIZ>/workflows/`, every
-> `operations/<OP>/workflows/`, and every `done/` archive. **It is NOT
-> per-context.** If a Business already holds workflow `20`, the next workflow —
-> even the first in a brand-new Operation — is `21`, never `01`.
-> (BIZ-0001 / WF-0036 A4 "global numbering scanning every root"; ADR-0119.)
-
-`workflow.mjs new` allocates the id via the universal allocator
-(`registry/ids.mjs` → `nextWorkflowNumber` / `allocateWorkflowId`), which scans
-every root plus the worktree fleet. **Never** hand-pick a number or use a
-per-directory count — that re-introduces the cross-context collisions ADR-0119
-fixed.
-
-## Compatibility
-
-Legacy breadcrumb files at `contextkit/memory/workflows/<slug>.md` remain
-readable by `status` and `advance`. New workflows use the folder layout.
+Creation is atomic and emits the complete package. `repair-scaffold` is dry-run
+unless `--write` is explicit and accepts only a package already containing a
+valid `workflow.json`. Importing 3.x is reserved for the explicit offline
+`migrate-v3-to-v4` tool.

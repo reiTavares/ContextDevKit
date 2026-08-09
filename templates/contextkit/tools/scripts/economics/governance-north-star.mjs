@@ -8,9 +8,8 @@
  *
  * Two readings, both honest-or-absent:
  *
- *  - **the guardrail** — `governance-tokens/session` must NOT rise. HARD per
- *    ADR-0148 §13: a rising reading blocks promotion. It compares this session's
- *    governance spend to the most recent PRIOR session's.
+ *  - **the canary trend** — compares this session's governance spend with the
+ *    most recent prior session without gaining promotion authority.
  *  - **the north-star** — concluded work contexts per 1k governance tokens. The
  *    ratio only means anything with both a numerator and a denominator, so an
  *    absent ledger yields `available:false` with a reason, never a flattering zero.
@@ -26,11 +25,9 @@
  *
  * Zero runtime dependencies — `node:*` and sibling scripts only.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readAuthoritySnapshot } from '../../../runtime/authority-reader.mjs';
 import { economyEventsFile, readEconomyEventsSync } from '../economy/economy-events.mjs';
 import { ECONOMY_RESOURCES } from '../economy/registry.mjs';
-import { workflowCorpusRoots } from '../workflow/invariants.mjs';
 
 /**
  * The economy categories that count as governance spend. An explicit allow-list,
@@ -57,7 +54,7 @@ export const GOVERNANCE_RESOURCES = Object.freeze(
  * Returns `null` when the row carries no usable measurement — deliberately NOT 0.
  * `Number(null)` is 0, so folding an absent measurement into a sum makes "nothing
  * was measured" indistinguishable from "measured, and it cost nothing", and a
- * HARD guardrail would then report a green `pass` from zero evidence
+ * comparison would then report a green `pass` from zero evidence
  * (constitution §8). A negative or non-finite value is unusable, not zero.
  *
  * @param {object} record one economy-events row
@@ -177,72 +174,38 @@ export function readGovernanceTokenSeries(root, options = {}) {
 }
 
 /**
- * Counts concluded work contexts across the whole workflow corpus — the
- * north-star's numerator. A context counts only when its state authority says so
- * (`overallStatus === 'done'`), never because of where the directory sits: the
- * placement-vs-state divergence is exactly the drift BIZ-0006 exists to kill, so
- * trusting placement here would let the metric flatter itself.
+ * Counts concluded work contexts from the canonical v4 authority snapshot.
+ * Directory placement and legacy state shapes are never consulted.
  *
  * @param {string} root project root
- * @param {{roots?: string[], readState?: Function, exists?: Function,
- *   listDirs?: Function}} [options] test seams — `listDirs` yields the workflow
- *   directory names under one corpus root, mirroring the `readEvents` seam style
- *   so the selftest never touches disk.
+ * @param {{snapshot?:object,readSnapshot?:Function}} [options]
  * @returns {{available: boolean, concluded: number, scanned: number, reason: string|null}}
  */
 export function countConcludedContexts(root, options = {}) {
-  let roots;
+  let snapshot;
   try {
-    roots = Array.isArray(options.roots) ? options.roots : workflowCorpusRoots(root);
+    snapshot = options.snapshot ?? (options.readSnapshot ?? readAuthoritySnapshot)(root);
   } catch {
-    return { available: false, concluded: 0, scanned: 0, reason: 'workflow corpus roots unresolvable' };
+    return { available: false, concluded: 0, scanned: 0, reason: 'canonical authority snapshot unavailable' };
   }
-  // Dedupe: a repeated corpus root would count the same pack twice and inflate the
-  // numerator, which flatters the north-star. `workflowCorpusRoots` emits distinct
-  // paths today, so this guards the seam rather than a live defect.
-  roots = [...new Set(roots)];
-
-  const readState = typeof options.readState === 'function'
-    ? options.readState
-    : (path) => JSON.parse(readFileSync(path, 'utf8').replace(/^﻿/, ''));
-  const exists = typeof options.exists === 'function' ? options.exists : existsSync;
-  const listDirs = typeof options.listDirs === 'function'
-    ? options.listDirs
-    : (dir) => readdirSync(dir, { withFileTypes: true }).filter((item) => item.isDirectory()).map((item) => item.name);
-
-  let concluded = 0;
-  let scanned = 0;
-  for (const dir of roots) {
-    if (!exists(dir)) continue;
-    let names;
-    try {
-      names = listDirs(dir);
-    } catch { continue; }
-    for (const name of Array.isArray(names) ? names : []) {
-      const statePath = join(dir, name, 'workflow-state.json');
-      if (!exists(statePath)) continue;
-      scanned += 1;
-      try {
-        if (readState(statePath)?.overallStatus === 'done') concluded += 1;
-      } catch { /* an unreadable state is not a conclusion */ }
-    }
-  }
-
+  const workflows = Array.isArray(snapshot?.workflows) ? snapshot.workflows : [];
+  const scanned = workflows.length;
   if (scanned === 0) {
-    return { available: false, concluded: 0, scanned: 0, reason: 'no workflow states found in the corpus' };
+    return { available: false, concluded: 0, scanned: 0, reason: 'no canonical workflow states found' };
   }
+  const concluded = workflows.filter((workflow) => workflow.status === 'done').length;
   return { available: true, concluded, scanned, reason: null };
 }
 
 /**
- * The HARD ADR-0148 §13 guardrail: `governance-tokens/session` must NOT rise.
- * Pure comparison over a series reading.
+ * Canary observation for `governance-tokens/session`. A rise is a finding, never
+ * a promotion gate; economy is predictive governance in v4.
  *
  * `skipped` is a first-class verdict, never promoted to `pass` (constitution §8):
  * an unmeasured guardrail has not held, it has simply not been read.
  *
  * @param {ReturnType<typeof readGovernanceTokenSeries>} series
- * @returns {{status: 'pass'|'fail'|'skipped', risen: boolean|null,
+ * @returns {{status: 'pass'|'finding'|'skipped', risen: boolean|null,
  *   delta: number|null, blocksPromotion: boolean, reason: string}}
  */
 export function evaluateGovernanceTokenGuardrail(series) {
@@ -257,7 +220,7 @@ export function evaluateGovernanceTokenGuardrail(series) {
   }
   // Type-checked, never coerced. `Number(null)` is 0 and `NaN > 0` is false, so a
   // corrupt or absent reading would slide through the comparison below and land on
-  // `pass` — a green HARD guardrail from an unusable measurement. Both sides must
+  // `pass` — a green verdict from an unusable measurement. Both sides must
   // be finite, non-negative numbers; a string that merely looks numeric is not one.
   if (!isUsableMeasurement(series.sessionTokens) || !isUsableMeasurement(series.priorSessionTokens)) {
     return {
@@ -271,11 +234,11 @@ export function evaluateGovernanceTokenGuardrail(series) {
   const delta = series.sessionTokens - series.priorSessionTokens;
   if (delta > 0) {
     return {
-      status: 'fail',
+      status: 'finding',
       risen: true,
       delta,
-      blocksPromotion: true,
-      reason: `governance tokens rose by ${delta} vs the prior session (${series.priorSessionTokens} → ${series.sessionTokens}) — ADR-0148 §13 blocks promotion`,
+      blocksPromotion: false,
+      reason: `governance tokens rose by ${delta} vs the prior session (${series.priorSessionTokens} → ${series.sessionTokens}); canary observation only`,
     };
   }
   return {
@@ -356,14 +319,7 @@ export function presentGovernanceNorthStar(northStar, guardrail) {
     ? `  north-star: ${northStar.concludedPerThousandTokens} concluded context(s) per 1k governance tokens `
       + `(${northStar.concludedContexts} concluded / ${northStar.governanceTokens} tokens) · baseline null · target null`
     : `  north-star: skipped — ${northStar?.reason ?? 'unavailable'} (baseline null, target null)`);
-  const mark = guardrail?.status === 'pass' ? '✓' : guardrail?.status === 'fail' ? '✗' : '–';
+  const mark = guardrail?.status === 'pass' ? '✓' : guardrail?.status === 'finding' ? '!' : '–';
   lines.push(`  ${mark} governance-tokens/session: ${guardrail?.status ?? 'skipped'} — ${guardrail?.reason ?? 'unavailable'}`);
-  // OBSERVATIONAL, deliberately: `blocksPromotion` has no consumer yet — nothing in
-  // the engine reads it, so a rising reading cannot actually stop a promotion today.
-  // Saying "promotion is blocked" here would be the ADR-0148 R1 failure (governance
-  // theater) in one line of output. Wiring the consumer needs a measured series first.
-  if (guardrail?.blocksPromotion) {
-    lines.push('  ⚠ this reading rises — it SHOULD block promotion (advisory: no enforcing consumer yet).');
-  }
   return lines.join('\n');
 }

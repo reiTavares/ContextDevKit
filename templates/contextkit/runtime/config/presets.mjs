@@ -8,17 +8,14 @@
  */
 export const PRESETS = {
   next: {
-    ledger: { important: ['app/', 'components/', 'lib/', 'pages/', 'src/'] },
     l5: { highRiskPaths: ['app/api/', 'middleware.ts'] },
     qa: { criticalPaths: ['app/', 'components/'] },
   },
   go: {
-    ledger: { important: ['cmd/', 'internal/', 'pkg/'] },
     l5: { highRiskPaths: ['internal/auth/'] },
     qa: { criticalPaths: ['internal/', 'pkg/'] },
   },
   python: {
-    ledger: { important: ['src/', 'app/', 'tests/'] },
     l5: { highRiskPaths: ['*/auth/', '*/security/'] },
     qa: { criticalPaths: ['src/'] },
   },
@@ -40,7 +37,6 @@ export function applyPreset(config, name) {
   const preset = PRESETS[name];
   if (!preset) return config;
   const cfg = { ...config };
-  cfg.ledger = { ...(cfg.ledger || {}), important: uniq([...(cfg.ledger?.important || []), ...(preset.ledger?.important || [])]) };
   cfg.l5 = { ...(cfg.l5 || {}), highRiskPaths: uniq([...(cfg.l5?.highRiskPaths || []), ...(preset.l5?.highRiskPaths || [])]) };
   cfg.qa = { ...(cfg.qa || {}), criticalPaths: uniq([...(cfg.qa?.criticalPaths || []), ...(preset.qa?.criticalPaths || [])]) };
   return cfg;

@@ -26,8 +26,11 @@
 /** The gate's own default bands (mirrors defaults-arch-debt.mjs / DEFAULT_LINE_BANDS). */
 const DEFAULT_BANDS = Object.freeze({ yellow: 240, elevated: 308 });
 
-/** Enforcement postures for the twelve dimensions (OP-0012). Guarded is the default. */
+/** Enforcement postures for the twelve dimensions (OP-0012). Advisory is the v4 default. */
 const ENFORCEMENT_POSTURES = Object.freeze(['advisory', 'guarded', 'strict']);
+
+/** Runtime modes retained by the architecture-debt engine during v4 migration. */
+const GATE_MODES = Object.freeze(['active', 'shadow', 'canary']);
 
 /** A finite positive integer guard — a malformed band number is ignored, never NaN. */
 function isBand(value) {
@@ -196,17 +199,16 @@ export function resolveArchDebtConfig(config = {}) {
   const writeAuthorities = Array.isArray(gate.writeAuthorities) ? gate.writeAuthorities : undefined;
   const conformanceConfigured = Boolean(layerRules || ownership || writeAuthorities);
 
-  // Enforcement POSTURE for the twelve dimensions (OP-0012). `guarded` is the
-  // default: a deterministic VIOLATION on a changed line BLOCKS. An unknown value
-  // falls back to `guarded` rather than silently disarming the gate.
+  // Enforcement POSTURE for the twelve dimensions (OP-0012). Architecture debt
+  // is advisory by default in v4; only an explicit project override may raise it.
   const enforcement = ENFORCEMENT_POSTURES.includes(gate.enforcement)
     ? gate.enforcement
-    : 'guarded';
+    : 'advisory';
 
   return {
-    // Master switch + gear (ACTIVE by contract).
+    // Master switch + gear. Missing or malformed modes degrade to canary.
     enabled: gate.enabled !== false,
-    mode: typeof gate.mode === 'string' ? gate.mode : 'active',
+    mode: GATE_MODES.includes(gate.mode) ? gate.mode : 'canary',
     enforcement,
 
     // Line-count signal — ADVISORY only. `blocking` is forced false (hard invariant):

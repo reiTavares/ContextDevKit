@@ -6,10 +6,6 @@
  * missing, corrupt, or only partially readable.
  */
 
-const TYPE_COLORS = {
-  bug: '#e3413c', chore: '#7a8497', increment: '#3b6ef0',
-  spike: '#8b5cf6', docs: '#10b981',
-};
 const PRIORITY_COLORS = {
   P0: '#991b1b', P1: '#e3413c', P2: '#f59e0b', P3: '#facc15', P4: '#9ca3af',
 };
@@ -39,11 +35,10 @@ const renderBadge = (text, color) =>
   `<span class="badge" style="background:${color}">${escapeHtml(text)}</span>`;
 
 const renderTask = (task) => {
-  const typeBadge = task.type ? renderBadge(task.type, TYPE_COLORS[task.type] || '#7a8497') : '';
   const priorityBadge = task.priority ? renderBadge(task.priority, PRIORITY_COLORS[task.priority] || '#9ca3af') : '';
   const scope = task.scopeRef ? `<span class="scope">${escapeHtml(task.scopeRef)}</span>` : '';
   return `<article class="card" data-id="${escapeHtml(task.id)}">
-    <header><span class="task-id">#${escapeHtml(task.id)}</span>${typeBadge}${priorityBadge}</header>
+    <header><span class="task-id">#${escapeHtml(task.id)}</span>${priorityBadge}</header>
     <h3>${escapeHtml(task.title)}</h3>
     <footer>${scope}</footer>
   </article>`;

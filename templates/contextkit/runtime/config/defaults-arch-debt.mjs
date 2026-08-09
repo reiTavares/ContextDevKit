@@ -11,8 +11,8 @@
  * its thresholds onto `lineSignals.{yellow, elevated}` as ADVISORY-only and emits
  * a one-time deprecation notice.
  *
- * CRITICAL invariants (ADR-0122, do not weaken without a new ADR):
- *   - `mode` is `'active'` — the gate deploys ACTIVE, never Shadow/Canary.
+ * CRITICAL invariants (ADR-0122 as superseded by ADR-0158):
+ *   - `mode` is `'canary'` — architecture debt reports without blocking delivery.
  *   - `lineSignals.blocking` is `false` — line count alone can never block
  *     (constitution §1 amended to advisory; a long file requests review, it does
  *     not determine a split). Both bands stay advisory trip-wires.
@@ -25,7 +25,7 @@
  *
  * Key map (consumed by the gate's config-resolution + `arch-debt/gate-context.mjs`):
  *   - `enabled`        — master switch; false restores legacy line-budget-only behaviour.
- *   - `mode`           — global gate gear. ACTIVE by contract (ADR-0122).
+ *   - `mode`           — global gate gear. Canary by default under ADR-0158.
  *   - `baseline`       — ratchet strategy; `blockUnchangedLegacyDebt:false` scopes
  *                        the verdict to the changed set so legacy debt never blocks
  *                        unrelated work (§25).
@@ -41,7 +41,7 @@
  */
 export const ARCH_DEBT_GATE_DEFAULTS = Object.freeze({
   enabled: true,
-  mode: 'active',
+  mode: 'canary',
   // Enforcement POSTURE (OP-0012, mirrors ADR-0125's guarded-by-default contract).
   // `guarded`  — DEFAULT. The twelve dimensions enforce for real: a deterministic
   //              VIOLATION on a changed line blocks. Analyzers whose evidence or
@@ -50,11 +50,11 @@ export const ARCH_DEBT_GATE_DEFAULTS = Object.freeze({
   // `advisory` — every dimension is demoted to observation (opt-out escape hatch).
   // `strict`   — additionally blocks on REVIEW_REQUIRED-grade findings.
   // Line count is NEVER affected by this: it stays advisory in every posture.
-  enforcement: 'guarded',
+  enforcement: 'advisory',
   baseline: { strategy: 'ratchet', blockUnchangedLegacyDebt: false },
   ruleModes: {},
   lineSignals: { enabled: true, blocking: false, yellow: 240, elevated: 308 },
-  floors: { security: 'BLOCKING', reliability: 'BLOCKING', testability: 'BLOCKING' },
+  floors: { security: 'ADVISORY', reliability: 'ADVISORY', testability: 'ADVISORY' },
   intentionalDebt: {
     requireOwner: true,
     requireBusinessJustification: true,

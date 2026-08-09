@@ -78,7 +78,7 @@ never by hand. Add a custom profile under the sweep config the same way.
 
 ## Relation to other L5 components
 
-- **`/simulate-impact`** — independent (ledger vs source code).
+- **`/simulate-impact`** — independent advisory prediction versus source analysis.
 - **Contract-drift gate** — complementary: the sweep measures internal health, the
   contract gate measures external commitments.
 - **`/distill-sessions`** — can use recurring findings as a pattern signal.

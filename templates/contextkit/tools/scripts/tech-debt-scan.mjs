@@ -2,7 +2,7 @@
 /**
  * Deterministic tech-debt scanner — the engine behind `/tech-debt-sweep`.
  *
- * Walks the project's source files (skipping config.ledger.irrelevant paths),
+ * Walks the project's source files (skipping read-only analysis exclusions),
  * runs the regex detectors, and reports findings. Fast, zero-dependency.
  *
  * Usage:
@@ -21,7 +21,7 @@ import { ALL_DETECTORS, CODE_RE } from './tech-debt-detectors.mjs';
 const ROOT = process.cwd();
 const P = pathsFor(ROOT);
 const cfg = loadConfigSync(ROOT);
-const IRRELEVANT = (cfg.ledger?.irrelevant || []).concat(['.git/', `${PLATFORM_DIR}/tools/`, `${PLATFORM_DIR}/runtime/`, `${PLATFORM_DIR}/detectors/`]);
+const IRRELEVANT = (cfg.analysis?.excludePaths || []).concat(['.git/', `${PLATFORM_DIR}/tools/`, `${PLATFORM_DIR}/runtime/`, `${PLATFORM_DIR}/detectors/`]);
 const LINE_BUDGET = cfg.l5?.lineBudget || { yellow: 240, red: 308 };
 
 function isIgnored(rel) {
@@ -30,7 +30,7 @@ function isIgnored(rel) {
 }
 
 /**
- * Walk the project's source files (skipping config.ledger.irrelevant paths),
+ * Walk the project's source files (skipping read-only analysis exclusions),
  * returning their repo-relative forward-slash paths. Exported so the WF-0057
  * architecture-debt gate REUSES this one walk as its StructuralSignalCollector
  * input source rather than duplicating the tree traversal (decisions.md Fork-1).
@@ -159,10 +159,10 @@ async function main() {
   }
   if (args.includes('--write')) {
     writeFileSync(resolve(P.memory, 'tech-debt-board.md'), renderBoard(report), 'utf-8');
-    // Also dump the raw findings so the DevPipeline can ingest them deterministically.
+    // Keep the raw findings as a review artifact; this command never creates tasks.
     writeFileSync(resolve(P.memory, 'tech-debt-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`✅ tech-debt-board.md + tech-debt-findings.json written — ${report.findings.length} finding(s) across ${report.fileCount} files.`);
-    console.log('   → feed the backlog:  node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/tech-debt-findings.json --type chore');
+    console.log('   → review findings, then add accepted work with pipeline.mjs add --tasks <scope> --title "..."');
     return;
   }
   const counts = report.findings.reduce((m, f) => ((m[f.kind] = (m[f.kind] || 0) + 1), m), {});

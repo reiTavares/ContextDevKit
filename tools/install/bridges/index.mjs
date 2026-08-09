@@ -2,7 +2,7 @@
  * bridges/index.mjs — F8 bridge orchestration (ADR-0068).
  *
  * Drives the opt-in context bridges for the six non-native tools. The registry
- * (`BRIDGE_HOSTS`) is the single source of truth in `host-adapter.mjs`; each
+ * (`BRIDGE_HOSTS`) is single-sourced here with the bridge installers; each
  * enabled tool has a sibling installer (`./<key>.mjs`) exporting
  * `installBridge(target, body, host)`. The shared body comes from `render.mjs`;
  * every installer writes through `marker-inject.mjs` (idempotent, non-destructive).
@@ -13,8 +13,17 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BRIDGE_HOSTS } from '../../../templates/contextkit/runtime/hooks/host-adapter.mjs';
 import { renderBridgeBody } from './render.mjs';
+
+/** Context-only bridges. Native governance is never projected into them. */
+export const BRIDGE_HOSTS = Object.freeze([
+  { key: 'cursor', label: 'Cursor', targetFile: '.cursor/rules/contextdevkit.mdc', enforced: false },
+  { key: 'copilot', label: 'GitHub Copilot', targetFile: '.github/copilot-instructions.md', enforced: false },
+  { key: 'gemini', label: 'Gemini CLI', targetFile: 'GEMINI.md', enforced: false },
+  { key: 'windsurf', label: 'Windsurf', targetFile: '.windsurfrules', enforced: false },
+  { key: 'aider', label: 'Aider', targetFile: 'CONVENTIONS.md', enforced: false },
+  { key: 'continue', label: 'Continue', targetFile: '.continue/rules/contextdevkit.md', enforced: false },
+]);
 
 /** Reads `bridges.enabled` from the target's contextkit/config.json (BOM-safe). */
 function readEnabledBridges(target) {

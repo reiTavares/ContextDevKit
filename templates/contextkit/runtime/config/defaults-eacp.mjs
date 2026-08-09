@@ -16,7 +16,7 @@
  * Rollout phases (rollout-plan.md):
  *   Phase 0 — baseline / measurement only (silent)
  *   Phase 1 — advisory surfaces (token-report v2, pressure, map effectiveness)
- *   Phase 2 — guarded (budget warn/ask through autonomy resolver) [opt-in]
+ *   Phase 2 — advisory budget warnings [opt-in]
  *   Phase 3 — controlled optimization (model routing actions) [opt-in]
  *   Phase 4 — proven autonomy (post-benchmark) [opt-in]
  *   Phase 5 — fleet / enterprise [opt-in]
@@ -78,8 +78,8 @@ export const EACP_DEFAULTS = Object.freeze({
   /**
    * Budget guards and cost enforcement (card #238).
    * Phase 2: opt-in. Default false — no budget warn/ask before dogfood validates.
-   * When enabled, the budget engine advises through the EXISTING autonomy resolver
-   * (ADR-0077 §no-parallel-gate). Never blocks edit-class activity.
+   * When enabled, the budget engine emits non-binding advisory findings.
+   * It never blocks edit-class activity or creates a parallel authority.
    *   - `mode`: observe | warn | ask | downgrade | split | block.
    *     Default `observe` (measure only, no user-visible warning).
    *   - observe/warn remain advisory; ask/downgrade map to `suggest` semantics.

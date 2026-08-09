@@ -244,7 +244,7 @@ or flagged as a hypothesis.]_
 ## Conditions and gates
 
 _[FILL: What conditions must be met before the investment is released? Reference
-the Workflow gates (workflow-plan.json) and any external dependencies.]_
+the canonical Workflow v2 package and any external dependencies.]_
 
 ## Investment review trigger
 

@@ -24,15 +24,6 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
-    id: 'workflow-bdm',
-    file: 'tools/integration-test-workflow-bdm.mjs',
-    tier: 'integration:workflow',
-    touches: [
-      'templates/contextkit/tools/scripts/work', 'templates/contextkit/tools/scripts/registry/',
-      'templates/contextkit/runtime/work/',
-    ],
-  },
-  {
     id: 'wf0082-business-create',
     file: 'tools/integration-test-work-business-create.mjs',
     tier: 'integration:workflow',
@@ -60,16 +51,6 @@ export const BDM_SUITES = Object.freeze([
       `${EXEC}/work-classifier.mjs`, `${EXEC}/work-classify-signals.mjs`,
       `${EXEC}/business-matcher.mjs`, `${EXEC}/intake-proposal-store.mjs`,
       `${EXEC}/intake-methodology.mjs`, 'templates/contextkit/policy/work-classification.json',
-    ],
-  },
-  {
-    id: 'clarify-bdm',
-    file: 'tools/integration-test-clarify-bdm.mjs',
-    tier: 'integration:enforcement',
-    touches: [
-      `${EXEC}/work-classify-nature.mjs`, `${EXEC}/work-classifier.mjs`,
-      `${EXEC}/request-orchestrator.mjs`,
-      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
     ],
   },
   {
@@ -114,16 +95,6 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
-    id: 'a4-bdm',
-    file: 'tools/integration-test-a4-bdm.mjs',
-    tier: 'integration:workflow',
-    touches: [
-      'templates/contextkit/tools/scripts/registry/workflow.mjs',
-      'templates/contextkit/tools/scripts/registry/ids.mjs',
-      'templates/contextkit/tools/scripts/migration-plan.mjs',
-    ],
-  },
-  {
     id: 'b3-bdm',
     file: 'tools/integration-test-b3-bdm.mjs',
     tier: 'integration:enforcement',
@@ -132,8 +103,6 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/tools/scripts/work-decision-supersede.mjs',
       'templates/contextkit/tools/scripts/work-decision-ownership.mjs',
       'templates/contextkit/tools/scripts/decision-coverage.mjs',
-      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
-      'templates/contextkit/runtime/hooks/execution-contract-advisory.mjs',
     ],
   },
   {
@@ -154,19 +123,6 @@ export const BDM_SUITES = Object.freeze([
     touches: [
       'templates/contextkit/runtime/execution/task-intake.mjs',
       'templates/contextkit/runtime/config/paths.mjs',
-    ],
-  },
-  {
-    id: 'w5-gate-enforcement',
-    file: 'templates/contextkit/runtime/hooks/gate-enforcement-decision.selftest.mjs',
-    tier: 'selfcheck',
-    touches: [
-      'templates/contextkit/runtime/hooks/gate-enforcement-decision.mjs',
-      'templates/contextkit/runtime/hooks/execution-gate.mjs',
-      'templates/contextkit/runtime/hooks/execution-contract-hook.mjs',
-      'templates/contextkit/runtime/execution/execution-contract.mjs',
-      'templates/contextkit/runtime/hooks/session-start.mjs',
-      'templates/contextkit/runtime/hooks/boot-banner.mjs',
     ],
   },
   {
@@ -218,15 +174,6 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
-    id: 'b4-legacy-coexistence',
-    file: 'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
-    tier: 'selfcheck',
-    touches: [
-      'templates/contextkit/tools/scripts/adr-index.mjs',
-      'templates/contextkit/tools/scripts/registry/decision.mjs',
-    ],
-  },
-  {
     id: 'b4-bdm',
     file: 'tools/integration-test-b4-bdm.mjs',
     tier: 'integration:installer',
@@ -237,16 +184,6 @@ export const BDM_SUITES = Object.freeze([
       'templates/contextkit/memory/decisions/legacy/',
       'templates/contextkit/memory/decisions/_templates/',
       'templates/contextkit/tools/scripts/registry/decision.mjs',
-    ],
-  },
-  {
-    id: 'b5-governance',
-    file: 'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
-    tier: 'selfcheck',
-    touches: [
-      'templates/contextkit/tools/scripts/program-governance.mjs',
-      'templates/contextkit/tools/scripts/decision-coverage.mjs',
-      'templates/contextkit/runtime/work/schema-decision.mjs',
     ],
   },
   {
@@ -261,88 +198,13 @@ export const BDM_SUITES = Object.freeze([
     ],
   },
   {
-    // ADR-0126 — installer auto-adopts the methodology: seeds the work-context
-    // roots WITH templates + scaffolds the Root Business BIZ-0001 (idempotent, fail-open).
-    id: 'methodology-seed',
-    file: 'tools/integration-test-methodology-seed.mjs',
-    tier: 'integration:installer',
-    touches: [
-      'install.mjs', 'tools/install/seed-methodology.mjs', 'tools/install/engine.mjs',
-    ],
-  },
-  {
     // ADR-0126 follow-up — native /work command + host-neutral seeded READMEs so
     // Claude stops reaching for ctx.mjs (the Antigravity runner) to start an operation.
     id: 'work-command',
     file: 'tools/selfcheck-work-command.mjs',
     tier: 'selfcheck',
     touches: [
-      'templates/claude/commands/pipeline/work.md', 'tools/install/seed-methodology.mjs',
-    ],
-  },
-  {
-    // ADR-0127 Phase 2 (first cut) — journey map + pure verifier (branch select,
-    // stage verdicts, graceful degradation on unknown checkpoints).
-    id: 'journey',
-    file: 'tools/selfcheck-journey.mjs',
-    tier: 'selfcheck',
-    touches: [
-      'templates/contextkit/policy/journey.json',
-      'templates/contextkit/runtime/work/journey-verifier.mjs',
-      'templates/contextkit/runtime/work/journey-command.mjs',
-      'templates/contextkit/runtime/work/lifecycle-map.mjs',
-      'templates/contextkit/runtime/hooks/journey-surface.mjs',
-      'templates/contextkit/runtime/execution/active-context-resolver.mjs',
-      'templates/contextkit/runtime/execution/active-context-precedence.mjs',
-      'templates/contextkit/tools/scripts/work-next.mjs',
-      'templates/contextkit/tools/scripts/work.mjs',
-      'templates/contextkit/tools/scripts/workflow-pack.mjs',
-      'templates/contextkit/tools/scripts/workflow.mjs',
-      'templates/contextkit/docs/work-lifecycle.md',
-      'tools/fixtures/wf0085/lifecycle-state.json',
-      'tools/fixtures/wf0085/lifecycle-map.md',
-    ],
-  },
-  {
-    // ADR-0127 Phase 2 — registry-backed evidence-gatherer (real on-disk verdicts).
-    id: 'journey-evidence',
-    file: 'tools/integration-test-journey-evidence.mjs',
-    tier: 'integration:workflow',
-    touches: [
-      'templates/contextkit/runtime/work/journey-evidence-registry.mjs',
-      'templates/contextkit/runtime/hooks/journey-surface.mjs',
-    ],
-  },
-  {
-    // ADR-0127 Phase 2 (second cut) — journey BLOCKING gate (guarded+fallback).
-    // Over-block is the headline risk; this suite proves block-only-on-positively-false.
-    id: 'journey-gate',
-    file: 'tools/integration-test-journey-gate.mjs',
-    tier: 'integration:enforcement',
-    touches: [
-      'templates/contextkit/runtime/hooks/journey-gate.mjs',
-      'templates/contextkit/runtime/work/journey-verifier.mjs',
-      'templates/contextkit/runtime/work/journey-evidence-registry.mjs',
-      'templates/contextkit/runtime/hooks/journey-surface.mjs',
-      'templates/contextkit/policy/journey.json',
-      'templates/contextkit/runtime/config/settings-compose.mjs',
-      'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
-      'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
-    ],
-  },
-  {
-    // WF-0042 / ADR-0119 — fleet-aware intake collision gate + done/ lifecycle.
-    id: 'intake-gate',
-    file: 'tools/integration-test-intake-gate.mjs',
-    tier: 'integration:workflow',
-    touches: [
-      'templates/contextkit/tools/scripts/registry/fleet.mjs',
-      'templates/contextkit/tools/scripts/registry/ids.mjs',
-      'templates/contextkit/tools/scripts/intake-collision-gate.mjs',
-      'templates/contextkit/tools/scripts/workflow-done-sweep.mjs',
-      'templates/contextkit/tools/scripts/project-map.mjs',
-      'templates/contextkit/tools/scripts/workflow.mjs',
-      'templates/contextkit/tools/scripts/workflow-pack.mjs',
+      'templates/claude/commands/pipeline/work.md',
     ],
   },
 ]);

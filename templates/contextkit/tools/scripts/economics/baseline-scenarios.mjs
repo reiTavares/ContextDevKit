@@ -26,7 +26,7 @@ export const SCENARIO_KINDS = Object.freeze([
   'multi-module-refactor',
   'architectural',
   'security',
-  'skip-workflow',
+  'qa-done-transition',
   'broad-grep',
   'complete-without-tests',
   'delegated-subagent',
@@ -147,20 +147,20 @@ export const SCENARIOS = Object.freeze([
     ]),
   }),
   Object.freeze({
-    id: 'skip-workflow-governance-gate',
-    kind: 'skip-workflow',
-    title: 'Attempt to skip governance gate on a card move',
+    id: 'skip-qa-done-gate',
+    kind: 'qa-done-transition',
+    title: 'Attempt to mark a task done without QA evidence',
     seed: 1007,
     fixture: Object.freeze({
       files: Object.freeze([
-        'contextkit/pipeline/backlog/999-example-card.md',
+        'contextkit/memory/workflows/WF-0999-example/tasks.json',
       ]),
-      note: 'Task tries to move card to done without running required checks.',
+      note: 'Task tries to transition to done without applicable QA evidence.',
     }),
     acceptance: Object.freeze([
-      'gate blocks the action',
-      'error message identifies the gate',
-      'card remains in original state',
+      'qa-signoff blocks only the done transition',
+      'error message identifies the missing deterministic evidence',
+      'canonical task state remains unchanged',
     ]),
   }),
   Object.freeze({

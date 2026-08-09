@@ -55,7 +55,7 @@ async function runAssemblerChecks({ ok, bad }, { KIT }) {
 
   // fail-open: estimator throws (bad signals) → finalization still ok.
   const finalized = finalizeReceipt({
-    sessionId: 'smoke-3', sessionsDir: null, generatedAt: '2026-06-20T00:00:00Z',
+    sessionId: 'smoke-3', receiptsDir: null, generatedAt: '2026-06-20T00:00:00Z',
     config: { economy: { sessionAutonomyReceipt: { enabled: true } } },
     signals: { observedUsage: null, get sessionProfile() { throw new Error('boom'); } },
   });

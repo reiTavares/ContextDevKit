@@ -4,7 +4,7 @@
   "id": "code-intent-weights",
   "title": "Code Mutation Intent Score (CMIS) signal weights — ADR-0128 plan §5",
   "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
+  "maximumAutomaticLevel": "advisory",
   "note": "Weights are deterministic and table-driven. Positive/negative signals are summed and clamped to [0,100]. A real write attempt is an authoritative Class-A hard trigger that overrides this score to 100 (see hard-triggers.json).",
   "positiveSignals": {
     "explicitMutationVerb": {

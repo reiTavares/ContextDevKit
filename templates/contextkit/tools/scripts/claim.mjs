@@ -3,11 +3,11 @@
  * Reserves resources for the current session (Level >= 3) — paths and, since
  * [ADR-0015 §B](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md),
  * DevPipeline task ids. Writes/updates `.claude/.workspace/<sid>.json`, then
- * regenerates `contextkit/memory/WORKSPACE.md`. The current session id is read
- * from the `.last-touched` pointer the hooks maintain.
+ * regenerates `contextkit/memory/WORKSPACE.md`. Host environment identifiers
+ * are used directly; governance does not create or depend on session markers.
  *
  * Usage:  node contextkit/tools/scripts/claim.mjs <path> [path2 ...]
- * API:    attachTask(taskId) / detachTask(taskId) — used by pipeline.mjs
+ * API:    attachTask(taskId, tasksTarget) / detachTask(taskId) — used by pipeline.mjs
  *         start|stop so task ownership flows through the same single source
  *         of truth as path ownership.
  */
@@ -16,12 +16,18 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sanitizeSid } from '../../runtime/hooks/ledger.mjs';
 import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const WS_DIR = resolve(ROOT, '.claude/.workspace');
-const LAST_TOUCHED = resolve(ROOT, '.claude/.sessions/.last-touched');
+const SESSION_ENV_KEYS = Object.freeze([
+  'CONTEXTKIT_SESSION_ID',
+  'CODEX_THREAD_ID',
+  'CLAUDE_SESSION_ID',
+  'ANTIGRAVITY_SESSION_ID',
+  'AGY_SESSION_ID',
+  'GROK_SESSION_ID',
+]);
 
 // execFileSync (argv array, no shell) — consistent with the other git callers.
 function gitOut(args, fallback) {
@@ -32,12 +38,27 @@ function gitOut(args, fallback) {
   }
 }
 
-async function sessionId() {
-  try {
-    return JSON.parse(await readFile(LAST_TOUCHED, 'utf-8')).sessionId;
-  } catch {
-    return `local_${process.pid}`;
+export function sanitizeSid(value) {
+  return String(value ?? 'local')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 64) || 'local';
+}
+
+/**
+ * Resolves a host-provided session identity without reading or writing marker
+ * files. The process-local fallback deliberately avoids pretending that a
+ * durable cross-process identity exists.
+ *
+ * @param {NodeJS.ProcessEnv|Record<string,string|undefined>} [environment]
+ * @returns {string}
+ */
+export function sessionId(environment = process.env) {
+  for (const key of SESSION_ENV_KEYS) {
+    if (typeof environment[key] === 'string' && environment[key].trim() !== '') {
+      return environment[key];
+    }
   }
+  return `local_${process.pid}`;
 }
 
 /**
@@ -77,16 +98,21 @@ async function persistRecord(record) {
  * no-op (heartbeat refresh only).
  *
  * @param {string} taskId
+ * @param {string} tasksTarget canonical workflow/batch root or tasks.json path
  */
-export async function attachTask(taskId) {
-  const sid = sanitizeSid(await sessionId());
+export async function attachTask(taskId, tasksTarget) {
+  if (typeof tasksTarget !== 'string' || tasksTarget.trim() === '') {
+    throw new TypeError('attachTask: tasksTarget must identify the canonical tasks.json scope');
+  }
+  const sid = sanitizeSid(sessionId());
   const record = await loadRecord(sid);
-  const id = String(taskId).padStart(3, '0');
-  const existing = record.tasks.find((t) => t.id === id);
+  const id = String(taskId);
+  const canonicalTarget = resolve(ROOT, tasksTarget);
+  const existing = record.tasks.find((task) => task.id === id && task.tasksTarget === canonicalTarget);
   if (existing) {
     existing.lastHeartbeat = Date.now();
   } else {
-    record.tasks.push({ id, startedAt: Date.now(), lastHeartbeat: Date.now() });
+    record.tasks.push({ id, tasksTarget: canonicalTarget, startedAt: Date.now(), lastHeartbeat: Date.now() });
   }
   await persistRecord(record);
 }
@@ -99,9 +125,9 @@ export async function attachTask(taskId) {
  * @param {string} taskId
  */
 export async function detachTask(taskId) {
-  const sid = sanitizeSid(await sessionId());
+  const sid = sanitizeSid(sessionId());
   const record = await loadRecord(sid);
-  const id = String(taskId).padStart(3, '0');
+  const id = String(taskId);
   const before = record.tasks.length;
   record.tasks = record.tasks.filter((t) => t.id !== id);
   if (record.tasks.length === before) return;
@@ -114,7 +140,7 @@ async function main() {
     console.error('Usage: claim.mjs <path> [path2 ...]');
     process.exit(1);
   }
-  const sid = sanitizeSid(await sessionId());
+  const sid = sanitizeSid(sessionId());
   const record = await loadRecord(sid);
   const existing = new Set((record.claims || []).map((c) => c.path));
   for (const p of paths) {

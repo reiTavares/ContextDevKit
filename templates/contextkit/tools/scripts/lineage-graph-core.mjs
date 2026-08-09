@@ -3,16 +3,15 @@
  *
  * No I/O — callers pass a `sources` object (collected by lineage-graph.mjs).
  * Graph schema:
- *   Node = { id, type, label, ref }   type ∈ {adr,workflow,card,session,receipt,telemetry}
+ *   Node = { id, type, label, ref }   type ∈ {adr,workflow,card,session,telemetry}
  *   Edge = { from, to, rel, confidence }  confidence ∈ {'direct','derived'}
- * Namespaced ids: adr:<num>, wf:<slug>, card:<id>, session:<num>,
- *   receipt:<taskId>/<capability>, tele:<sessionId>
+ * Namespaced ids: adr:<num>, wf:<slug>, card:<id>, session:<num>, tele:<sessionId>
  *
  * Zero runtime dependencies. Advisory, fail-open everywhere.
  * Cohesion note: all pure graph construction in one file for isolated testability.
  * ADR-0072 / CDK-070.
  *
- * @typedef {'adr'|'workflow'|'card'|'session'|'receipt'|'telemetry'} NodeType
+ * @typedef {'adr'|'workflow'|'card'|'session'|'telemetry'} NodeType
  * @typedef {{ id: string, type: NodeType, label: string, ref: any }} Node
  * @typedef {{ from: string, to: string, rel: string, confidence: 'direct'|'derived' }} Edge
  * @typedef {{ nodes: Node[], edges: Edge[], stats: object }} Graph
@@ -24,7 +23,7 @@
 
 /**
  * Builds a flat Node array from the collected sources object.
- * @param {{ adrs?:any[], workflows?:any[], cards?:any[], sessions?:any[], receipts?:any[], telemetry?:any[] }} sources
+ * @param {{ adrs?:any[], workflows?:any[], cards?:any[], sessions?:any[], telemetry?:any[] }} sources
  * @returns {Node[]}
  */
 export function buildNodes(sources) {
@@ -33,7 +32,6 @@ export function buildNodes(sources) {
   const workflows = Array.isArray(s.workflows)  ? s.workflows  : [];
   const cards     = Array.isArray(s.cards)      ? s.cards     : [];
   const sessions  = Array.isArray(s.sessions)   ? s.sessions  : [];
-  const receipts  = Array.isArray(s.receipts)   ? s.receipts  : [];
   const telemetry = Array.isArray(s.telemetry)  ? s.telemetry : [];
   const nodes = [];
 
@@ -57,12 +55,6 @@ export function buildNodes(sources) {
     const num = String(sess.number ?? '');
     nodes.push({ id: `session:${num}`, type: 'session', label: sess.title || sess.slug || `session-${num}`, ref: sess });
   }
-  for (const receipt of receipts) {
-    if (!receipt) continue;
-    const taskId = String(receipt.taskId ?? '');
-    const cap    = String(receipt.capability ?? '');
-    nodes.push({ id: `receipt:${taskId}/${cap}`, type: 'receipt', label: `${taskId}/${cap}`, ref: receipt });
-  }
   for (const tele of telemetry) {
     if (!tele) continue;
     const sessId = String(tele.sessionId ?? '');
@@ -77,7 +69,7 @@ export function buildNodes(sources) {
 
 /**
  * Builds edges between the collected sources. All resolution is defensive.
- * @param {{ adrs?:any[], workflows?:any[], cards?:any[], receipts?:any[], telemetry?:any[] }} sources
+ * @param {{ adrs?:any[], workflows?:any[], cards?:any[], sessions?:any[], telemetry?:any[] }} sources
  * @param {Node[]} nodes
  * @returns {Edge[]}
  */
@@ -86,7 +78,7 @@ export function buildEdges(sources, nodes) {
   const adrs      = Array.isArray(s.adrs)      ? s.adrs      : [];
   const workflows = Array.isArray(s.workflows)  ? s.workflows  : [];
   const cards     = Array.isArray(s.cards)      ? s.cards     : [];
-  const receipts  = Array.isArray(s.receipts)   ? s.receipts  : [];
+  const sessions  = Array.isArray(s.sessions)   ? s.sessions  : [];
   const telemetry = Array.isArray(s.telemetry)  ? s.telemetry : [];
 
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -101,43 +93,37 @@ export function buildEdges(sources, nodes) {
   for (const wf of workflows) {
     if (!wf || wf.malformed) continue;
     const slug = String(wf.slug ?? '');
-    const phaseRefs = phaseRefStrings(wf);
+    const workflowRefs = workflowReferenceStrings(wf);
     for (const adr of adrs) {
       if (!adr) continue;
       const num = String(adr.number ?? '????');
       const pats = [num, `ADR-${num}`, `adr-${num}`];
-      if (phaseRefs.some((ref) => pats.some((pat) => ref.includes(pat)))) {
+      if (workflowRefs.some((ref) => pats.some((pat) => ref.includes(pat)))) {
         link(`adr:${num}`, `wf:${slug}`, 'drives', 'derived');
       }
     }
   }
 
-  // workflow → card (direct): card.workflow === workflow.slug
+  // workflow → task (direct): task.scopeRef === workflow.id
+  const workflowSlugById = new Map(
+    workflows.filter((workflow) => workflow && !workflow.malformed)
+      .map((workflow) => [String(workflow.id ?? ''), String(workflow.slug ?? '')]),
+  );
   for (const card of cards) {
     if (!card) continue;
-    const wfSlug = String(card.workflow ?? '');
+    const wfSlug = workflowSlugById.get(String(card.scopeRef ?? '')) ?? '';
     if (wfSlug) link(`wf:${wfSlug}`, `card:${String(card.id ?? '')}`, 'ships', 'direct');
   }
 
-  // card → session (direct): ownerSessionId, or fallback to receipt.sessionId
+  // task → session (derived): a session log mentions the canonical task id.
   for (const card of cards) {
     if (!card) continue;
-    const cardId  = String(card.id ?? '');
-    const sessId  = String(card.ownerSessionId ?? '');
-    if (sessId) {
-      link(`card:${cardId}`, `session:${sessId}`, 'workedIn', 'direct');
-    } else {
-      const match = receipts.find((r) => r && String(r.taskId ?? '') === cardId && r.sessionId);
-      if (match) link(`card:${cardId}`, `session:${String(match.sessionId)}`, 'workedIn', 'direct');
+    const cardId = String(card.id ?? '');
+    for (const session of sessions) {
+      if (Array.isArray(session?.taskIds) && session.taskIds.includes(cardId)) {
+        link(`card:${cardId}`, `session:${String(session.number ?? '')}`, 'workedIn', 'derived');
+      }
     }
-  }
-
-  // card → receipt (direct): receipt.taskId === card.id
-  for (const receipt of receipts) {
-    if (!receipt) continue;
-    const taskId = String(receipt.taskId ?? '');
-    const cap    = String(receipt.capability ?? '');
-    link(`card:${taskId}`, `receipt:${taskId}/${cap}`, 'attests', 'direct');
   }
 
   // session → telemetry (direct): UsageEvent.sessionId matches a session node
@@ -219,7 +205,7 @@ export function renderDigest(graph) {
   const byType = stats.byType ?? {};
   const lines  = [`Lineage graph: ${nodes.length} nodes, ${edges.length} edges`];
 
-  for (const type of ['adr', 'workflow', 'card', 'session', 'receipt', 'telemetry']) {
+  for (const type of ['adr', 'workflow', 'card', 'session', 'telemetry']) {
     const count = byType[type] ?? 0;
     if (count > 0) lines.push(`  ${type}: ${count}`);
   }
@@ -244,11 +230,16 @@ export function renderDigest(graph) {
 // ---------------------------------------------------------------------------
 
 /**
- * Collects all non-empty phase ref strings from a workflow object.
+ * Collects canonical definition strings that can reference an ADR.
  * @param {object} wf @returns {string[]}
  */
-function phaseRefStrings(wf) {
-  const phases = wf?.phases;
-  if (!phases || typeof phases !== 'object') return [];
-  return Object.values(phases).map((ps) => ps?.ref).filter(Boolean).map(String);
+function workflowReferenceStrings(wf) {
+  const definition = wf?.definition ?? {};
+  return [
+    definition.objective,
+    ...(definition.acceptance ?? []),
+    ...(definition.dependencies ?? []),
+    ...(definition.scope?.included ?? []),
+    ...(definition.scope?.excluded ?? []),
+  ].filter(Boolean).map(String);
 }

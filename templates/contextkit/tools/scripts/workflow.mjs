@@ -3,6 +3,7 @@
 import {
   advanceWorkflow,
   checkWorkflow,
+  completeWorkflow,
   listWorkflows,
   loadWorkflowPack,
   readWorkflow,
@@ -41,6 +42,13 @@ function ownerArg() {
   const business = arg('business');
   if (operation && business) throw new Error('Choose either --operation or --business, not both');
   return operation || business || null;
+}
+
+/** Parse one required non-negative integer option. */
+function requiredRevisionArg() {
+  const rawRevision = arg('expected-revision');
+  if (!/^\d+$/.test(rawRevision)) throw new Error('complete requires --expected-revision <non-negative integer>');
+  return Number(rawRevision);
 }
 
 /** Print one compact workflow row. */
@@ -114,6 +122,21 @@ function run() {
     printWorkflow(workflow);
     return;
   }
+  if (command === 'complete') {
+    const [ref] = positional();
+    if (!ref) throw new Error('complete requires a workflow reference');
+    const qaEvidenceRefs = arg('qa-evidence').split(',').map((reference) => reference.trim()).filter(Boolean);
+    const workflow = completeWorkflow(ROOT, ref, {
+      qaStatus: arg('qa-status'),
+      qaEvidenceRefs,
+      reportRef: arg('ref'),
+    }, {
+      expectedRevision: requiredRevisionArg(),
+      now: new Date().toISOString(),
+    });
+    printWorkflow(workflow);
+    return;
+  }
   if (command === 'repair-scaffold') {
     const [ref] = positional();
     const directory = resolveWorkflowDirectory(ROOT, ref);
@@ -133,7 +156,7 @@ function run() {
     console.log(JSON.stringify(requiredFiles(), null, 2));
     return;
   }
-  console.error('Usage: workflow.mjs <new <slug> [--operation OP-####|--business BIZ-####] [--profile p] | status [ref] [--json] | load <ref> | render <ref> | validate <ref> | advance <ref> [--ref report] | repair-scaffold <ref> [--write] | explain-file <id> | required-files>');
+  console.error('Usage: workflow.mjs <new <slug> [--operation OP-####|--business BIZ-####] [--profile p] | status [ref] [--json] | load <ref> | render <ref> | validate <ref> | advance <ref> [--ref report] | complete <ref> --qa-status passed|skipped --qa-evidence <ref[,ref]> --ref reports/<file> --expected-revision <n> | repair-scaffold <ref> [--write] | explain-file <id> | required-files>');
   process.exitCode = 1;
 }
 

@@ -4,7 +4,7 @@
   "id": "domain-applicability-weights",
   "title": "Domain Applicability Score (DAS) signal weights — ADR-0128 plan §7",
   "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
+  "maximumAutomaticLevel": "advisory",
   "note": "Deterministic, table-driven. Positive + reducer signals summed and clamped to [0,100]. Hard triggers raise the profile floor (see hard-triggers.json); DDD ceremony is never applied to simple work.",
   "positiveSignals": {
     "explicitInvariant": { "weight": 25, "tokens": ["invariant", "business rule", "must always", "must never", "consistency rule", "invariante", "regra de negócio", "regra de negocio", "deve sempre", "nunca deve", "regra de consistência", "regra de consistencia"] },

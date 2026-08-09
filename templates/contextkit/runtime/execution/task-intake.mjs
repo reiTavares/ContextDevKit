@@ -5,7 +5,7 @@
  * request's objective through the deterministic complexity rubric classifier.
  * No LLM, no Math.random — same input always produces the same output.
  *
- * Consumers: execution-contract.mjs, slash commands, the pre-write governance gate.
+ * Consumers: mutation-only intake commands and the v4 governance dispatcher.
  * NOT consumed by hooks directly — hooks call load.mjs; this module stays out of
  * that chain to avoid circular imports (ADR-0001 / immutable rule 1).
  *
@@ -160,7 +160,7 @@ export function intake(request, env = {}) {
   // ADDITIVE (A2, BIZ-0001/WF-0036, ADR-0102): attach the deterministic
   // methodology classification under a NEW namespace. The legacy tier keys above
   // are untouched — `signals.work` is a pure superset, so existing consumers
-  // (execution-contract.mjs, the gate) are unaffected (design §6.1).
+  // Existing public signal keys remain stable (design §6.1).
   signals.work = classifyWork(objective, loadWorkPolicy(safeEnv.root));
 
   // ADDITIVE (B2, BIZ-0001/WF-0037, ADR-0102): enrich with decision-need
@@ -243,17 +243,11 @@ function buildReasons(classification, tier, domain) {
 
   // Tier reason — identify which rubric signal triggered the tier.
   const rubricSignalHint = inferTierSignalHint(classification);
-  if (classification.forcedByDomain) {
-    reasons.push(
-      `tier=${tier} (forced by regulated domain '${domain}' — complexity=high overrides rubric signal)`,
-    );
-  } else {
-    reasons.push(`tier=${tier}${rubricSignalHint ? ` (rubric signal: '${rubricSignalHint}')` : ' (default tier)'}`);
-  }
+  reasons.push(`tier=${tier}${rubricSignalHint ? ` (rubric signal: '${rubricSignalHint}')` : ' (default tier)'}`);
 
   // Domain reason.
   if (domain !== 'general') {
-    reasons.push(`domain=${domain} (regulated domain detected; requiredAgents=[${classification.requiredAgents.join(', ')}])`);
+    reasons.push(`domain=${domain} (advisory risk context; recommendedAgents=[${classification.recommendedAgents.join(', ')}])`);
   } else {
     reasons.push('domain=general (no regulated domain signals matched)');
   }

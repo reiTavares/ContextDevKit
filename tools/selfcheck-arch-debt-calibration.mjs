@@ -131,8 +131,8 @@ const authorityRes = await runInjected({
 authorityRes.exitCode === 1 ? ok('new duplicate authority → exitCode 1 (BLOCKED)') : bad('duplicate authority did not block: ' + authorityRes.outcome);
 authorityRes.blocking.some((f) => f.ruleId === 'F3.state-authority') ? ok('F3.state-authority is the blocking finding') : bad('F3 not in blockers: ' + authorityRes.blocking.map((f) => f.ruleId).join(','));
 
-// Calibration guard: the live config must stay mode:active (never demoted).
-liveResolved.mode === 'active' ? ok('gate mode stays active') : bad('gate mode drifted: ' + liveResolved.mode);
+// Calibration guard: architecture debt remains canary in the live defaults.
+liveResolved.mode === 'canary' ? ok('gate mode stays canary') : bad('gate mode drifted: ' + liveResolved.mode);
 
 console.log('\n' + (passes + failures) + ' checks -- ' + passes + ' pass / ' + failures + ' fail');
 if (failures > 0) { console.error('\nFAIL'); process.exit(1); }

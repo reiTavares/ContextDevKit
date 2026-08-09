@@ -11,19 +11,18 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     // ADR-0047 A1 — PR line in /git status (task 128).
     ['sync-check exports the PR facts for reuse (ADR-0047 A1)', 'templates/contextkit/tools/scripts/sync-check.mjs', /export function listOpenPRs/],
     ['sync-check guards its CLI so import never runs main (rule 2)', 'templates/contextkit/tools/scripts/sync-check.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
-    ['squad-audit guards its CLI with fileURLToPath for Linux paths', 'templates/contextkit/tools/scripts/squad-audit.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
     ['squad-director guards its CLI with fileURLToPath for Linux paths', 'templates/contextkit/tools/scripts/squad-director.mjs', /resolve\(process\.argv\[1\]\) === fileURLToPath\(import\.meta\.url\)/],
     ['git.mjs surfaces the branch PR fact, reusing sync-check (ADR-0047 A1)', 'templates/contextkit/tools/scripts/git.mjs', /function branchPrFact[\s\S]*listOpenPRs\(\['--head', branch\]\)/],
     ['git.mjs reports an unusable gh as SKIPPED, never as no-PR (rule 8)', 'templates/contextkit/tools/scripts/git.mjs', /\{ status: 'skipped', reason: 'gh not installed\/authed' \}/],
     // ADR-0047 A2 — /advise --after --since <ref> (task 129).
     ['/advise --after accepts a --since git range (ADR-0047 A2)', 'templates/claude/commands/advise.md', /--since <ref>[\s\S]*git diff --name-only <ref>\.\.\.HEAD/],
-    ['/advise refuses an unknown --since ref, no silent fallback (rule 8)', 'templates/claude/commands/advise.md', /never silently fall back/],
+    ['/advise refuses an unknown --since ref, no silent fallback (rule 8)', 'templates/claude/commands/advise.md', /never\s+silently\s+fall back/],
     ['antigravity /advise mirror carries --since (ticket 084 parity)', 'templates/antigravity/skills/advise.md', /--since <ref>/],
     // ADR-0047 A3 — DevPipeline board digest (task 130).
     ['pipeline-board exports the token-light digest (ADR-0047 A3)', 'templates/contextkit/tools/scripts/pipeline-board.mjs', /export function renderDigest/],
     ['the digest is bounded — backlog capped, titles clipped (ADR-0027 posture)', 'templates/contextkit/tools/scripts/pipeline-board.mjs', /backlogCap = 8/],
     ['pipeline.mjs wires the board --digest verb', 'templates/contextkit/tools/scripts/pipeline.mjs', /command === 'board'/],
-    ['/pipeline show starts from the digest, not N task files (ADR-0047 A3)', 'templates/claude/commands/pipeline/pipeline.md', /board --digest/],
+    ['/pipeline board supports a compact digest of canonical JSON', 'templates/claude/commands/pipeline/pipeline.md', /board --tasks <scope> \[--digest\]/],
     ['/plan-week points at the digest for lane context (ADR-0047 A3)', 'templates/claude/commands/pipeline/plan-week.md', /board --digest/],
     // ADR-0047 A4 — scheduled alert-sync in the scaffolded security.yml (task 131).
     ['security.yml ships the opt-in cron trigger, commented (ADR-0047 A4, rule 8)', 'templates/github/workflows/security.yml', /# schedule:\s*\n\s*#\s+- cron:/],
@@ -41,7 +40,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['INSTRUCTIONS.md.tpl references no nonexistent engine-keeper persona (ticket 143)', 'templates/INSTRUCTIONS.md.tpl', /^(?![\s\S]*engine-keeper)[\s\S]*$/],
     // Encoding + config-rot guards (tickets 144-145).
     ['selfcheck wires the tree-wide mojibake gate (ticket 144)', 'tools/selfcheck.mjs', /runEncodingChecks\(\{ ok, bad \}, \{ KIT \}\)/],
-    ['doctor probes config paths that no longer exist — registration rot is critical (ticket 145)', 'templates/contextkit/tools/scripts/doctor-config.mjs', /probe\(cfg\?\.ledger\?\.registration, 'ledger\.registration', fail\)/],
+    ['doctor validates current governed path lists', 'templates/contextkit/tools/scripts/doctor-config.mjs', /l5\.highRiskPaths[\s\S]*qa\.criticalPaths/],
     // ADR-0052 Phase 2 — /fable, the manual premium tier (Fable stays manual-only).
     ['/fable dispatches the task to a Fable subagent via the Agent tool model param (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Agent tool with[\s\S]*`model: fable`/],
     ['/fable is explicit-only — never invoked on the agent own initiative (ADR-0052 Phase 2)', 'templates/claude/commands/fable.md', /Never invoke Fable on your own initiative/],
@@ -54,7 +53,7 @@ export const SOURCE_INVARIANT_CASES_LATEST = [
     ['paths.mjs single-sources the Codex host dir as .codex', 'templates/contextkit/runtime/config/paths.mjs', /export const CODEX_DIR = '\.codex'/],
     ['package.json ships the cdx bin target', 'package.json', /"cdx":\s*"templates\/cdx\.mjs"/],
     ['Codex hooks carry an explicit host flag', 'templates/contextkit/runtime/config/codex-hooks-compose.mjs', /--host codex/],
-    ['Codex hook adapter persists a stable local session marker', 'templates/contextkit/runtime/hooks/host-adapter.mjs', /CODEX_SESSION_MARKER[\s\S]*rememberHookSessionId/],
+    ['Codex hook composer uses the canonical v4 write dispatcher', 'templates/contextkit/runtime/config/codex-hooks-compose.mjs', /governance-write-preflight\.mjs/],
     ['AGENTS.md.tpl carries the canonical v4 host contract', 'templates/AGENTS.md.tpl', /contextdevkit:host-contract:start[\s\S]*canonical-json-state[\s\S]*contextdevkit:host-contract:end/],
     ['AGENTS.md.tpl requires cross-host contract identity', 'templates/AGENTS.md.tpl', /identical for Claude, Codex, and Antigravity/],
     // ADR-0057 regression — WS-D spawnSync timeout hygiene (task 158).

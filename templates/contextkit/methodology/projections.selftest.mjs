@@ -75,11 +75,11 @@ const ABSENT = { available: false, reason: 'no committed graph projection', evid
 
 // [c] deriveTasks reuses tasks-derive.mjs's deriveWorkflowTasks.
 {
-  const plan = { workflowId: '77', waves: [{ id: 'W1', tasks: [{ id: 'T1', title: 'Alpha' }, { id: 'T2', title: 'Beta', dependsOn: ['T1'] }] }] };
+  const plan = { workflowId: '77', createdAt: '2026-01-01T00:00:00.000Z', waves: [{ id: 'W1', tasks: [{ id: 'T1', title: 'Alpha' }, { id: 'T2', title: 'Beta', dependsOn: ['T1'] }] }] };
   const result = deriveTasks(plan);
   assert('[c] deriveTasks source is biz0003:tasks-derive', result.source === 'biz0003:tasks-derive');
   assert('[c] deriveTasks available for a well-formed plan', result.available === true);
-  assert('[c] deriveTasks owner is WF-0077 (reused deriveWorkflowTasks shape)', result.value.owner.id === 'WF-0077', JSON.stringify(result.value.owner));
+  assert('[c] deriveTasks scopeRef is WF-0077 (canonical v4 task authority)', result.value.scopeRef === 'WF-0077', JSON.stringify(result.value.scopeRef));
   assert('[c] deriveTasks carries both planned tasks', result.value.tasks.length === 2, JSON.stringify(result.value.tasks));
   const malformed = deriveTasks({ workflowId: '1', waves: [{ tasks: [{ id: '' }] }] });
   assert('[c] a malformed plan degrades to available:false (never throws)', malformed.available === false && typeof malformed.reason === 'string');
@@ -119,7 +119,7 @@ const ABSENT = { available: false, reason: 'no committed graph projection', evid
   const riskTwice = JSON.stringify(deriveRisk(['sym:seed'], projection));
   assert('[f] deriveRisk is idempotent', riskOnce === riskTwice);
 
-  const plan = { workflowId: '5', waves: [{ id: 'W1', tasks: [{ id: 'T1', title: 'Alpha' }] }] };
+  const plan = { workflowId: '5', createdAt: '2026-01-01T00:00:00.000Z', waves: [{ id: 'W1', tasks: [{ id: 'T1', title: 'Alpha' }] }] };
   const tasksOnce = JSON.stringify(deriveTasks(plan));
   const tasksTwice = JSON.stringify(deriveTasks(plan));
   assert('[f] deriveTasks is idempotent', tasksOnce === tasksTwice);

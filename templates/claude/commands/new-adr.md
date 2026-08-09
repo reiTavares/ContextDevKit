@@ -9,14 +9,10 @@ Create a new Architecture Decision Record for: **$ARGUMENTS**
    `node contextkit/tools/scripts/adr-digest.mjs --search "<key terms from the title>"`.
    If an ADR already covers this, extend or supersede it rather than create a duplicate.
 
-0b. **Deliberation gate** [ADR-0070]: a strategic/architectural decision should be
-   argued before it hardens. Resolve the `decision-deliberation` area
-   (`resolveAutonomy('decision-deliberation', config)`): at **grade ≥ 3** with
-   `deliberations.active`, this is `debate` mode — run `/debate "<the decision
-   question>"` FIRST and use its synthesis as this ADR's Context (the debate offers a
-   pre-filled draft). At grade ≤ 2 it is a suggestion, not a block. Skip only for a
-   trivial/mechanical decision (no real tension). Writing the ADR itself stays
-   `manual` at every grade — the deliberation precedes the write, never authorizes it.
+0b. **Optional deliberation** [ADR-0158]: when a strategic decision has genuine
+   tension, `/debate "<the decision question>"` can supply independent evidence
+   for Context. It is never a readiness, grade, council, or receipt prerequisite;
+   the current owner instruction controls whether to use it.
 
 1. Find the next ADR number: list `contextkit/memory/decisions/`, take the highest `NNNN` + 1
    (zero-padded to 4 digits). The `0000` meta-ADR and `_TEMPLATE.md` do not count as the latest
@@ -35,15 +31,14 @@ Create a new Architecture Decision Record for: **$ARGUMENTS**
 
 4. Show the user the draft and ask for confirmation before marking it `Accepted`.
 
-5. **Generate the backlog from the decision** [ADR-0034] — a decision with no tasks is
-   decorative. Once `Accepted`, preview the work it implies and create it:
+5. **Preview work implied by the decision** [ADR-0034]. Once `Accepted`, inspect the
+   proposal without creating a second task authority:
    ```
-   node contextkit/tools/scripts/adr-tasks.mjs <NNNN>            # preview (dry-run)
-   node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --write    # create, tagged source: adr:NNNN
+   node contextkit/tools/scripts/adr-tasks.mjs <NNNN> --json
    ```
-   It parses the **Decision** points into backlog tasks (auto-classified, ADR-tagged).
-   Review the preview, prune/merge as needed, then `--write`. The tasks then flow
-   through the pipeline (`/pipeline start` → working → conclusion on accepted criteria).
+   The command is preview-only. Review, prune, or merge the proposal, then add each
+   accepted item through `pipeline.mjs add --tasks <scope> --title "..."`; the scoped
+   `tasks.json` remains the only authority.
 
 ADRs are immutable once `Accepted` — to change a decision, write a new ADR that supersedes it.
 Never delete or rewrite an accepted ADR.

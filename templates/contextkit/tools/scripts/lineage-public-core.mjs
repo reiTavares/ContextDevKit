@@ -7,7 +7,7 @@
  * Public projection rules:
  *   - KEEP: adr nodes projected to {number,title,status,decision} only.
  *   - KEEP: edges between surviving public nodes (from/to/rel only, no refs).
- *   - DROP: workflow, card, session, receipt, telemetry nodes.
+ *   - DROP: workflow, task, session, and telemetry nodes.
  *   - DROP: all node.ref objects (contain host, scope, fingerprints, file-paths).
  *
  * The `redacted` array lists the dropped field families so callers can audit
@@ -28,8 +28,8 @@
  */
 const REDACTED_FAMILIES = Object.freeze([
   'session-ids',
-  'receipt-fingerprints',
-  'card-owner-ids',
+  'task-private-fields',
+  'run-identifiers',
   'host',
   'cost-telemetry',
   'file-paths',
@@ -40,7 +40,7 @@ const REDACTED_FAMILIES = Object.freeze([
  * Projects a node-type string to a boolean indicating public visibility.
  * Only `adr` nodes are retained in the public view.
  *
- * @param {string} nodeType  e.g. 'adr', 'workflow', 'card', 'session', 'receipt', 'telemetry'
+ * @param {string} nodeType  e.g. 'adr', 'workflow', 'card', 'session', 'telemetry'
  * @returns {boolean}
  */
 function isPublicNodeType(nodeType) {
@@ -69,7 +69,7 @@ function projectAdrRef(adrRef) {
  *
  * Keeps only `adr` nodes, projected to {number,title,status,decision}.
  * Keeps only edges whose both endpoints remain in the public node set.
- * Drops receipt, session, telemetry, workflow, and card nodes entirely.
+ * Drops session, telemetry, workflow, and task/card nodes entirely.
  *
  * @param {{ nodes?: object[], edges?: object[] }} graph  full lineage graph
  * @returns {PublicGraph}

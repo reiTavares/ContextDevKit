@@ -149,7 +149,10 @@ export function cutoverToV4(options) {
   return withMarkerLock(markerPath, () => {
     const current = readMarker(markerPath);
     assertMarkerRevision(current, options.expectedRevision);
-    if (current.authority === 'v4' && current.manifestHash === plan.manifest.manifestHash) {
+    const candidateRoot = toPortablePath(options.stageReceipt.candidateRoot);
+    if (current.authority === 'v4'
+      && current.manifestHash === plan.manifest.manifestHash
+      && current.generationRoot === candidateRoot) {
       return { ...current, idempotent: true };
     }
     const marker = {
@@ -157,7 +160,7 @@ export function cutoverToV4(options) {
       kind: 'contextdevkit-authority',
       revision: current.revision + 1,
       authority: 'v4',
-      generationRoot: toPortablePath(options.stageReceipt.candidateRoot),
+      generationRoot: candidateRoot,
       rollbackGenerationRoot: toPortablePath(options.stageReceipt.rollbackRoot),
       manifestHash: plan.manifest.manifestHash,
       generationDigest: plan.manifest.generationDigest,

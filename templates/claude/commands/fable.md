@@ -37,6 +37,7 @@ switch is theirs to make, not yours.
   user literally saying "use fable") activates it. It is the most expensive tier;
   the default is always NOT Fable. When unsure, ask — don't spend.
 - **One task per invocation.** No batching, no lingering in "fable mode."
-- **The floor still holds.** Secret paths, gate/hook self-edits, ADR/grade changes
-  and pushes remain governed by the autonomy resolver (ADR-0042) — a premium model
-  does not buy more consent, only more capability on the one task.
+- **Capability never grants authority.** A premium model does not expand the
+  current owner instruction. Force-push, secret rotation, and destructive
+  production actions still use explicit risk acknowledgement plus the
+  host/platform confirmation boundary.

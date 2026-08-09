@@ -2,7 +2,7 @@
 /**
  * engineering-scorecard.mjs — I/O orchestration + CLI for CDK-076.
  *
- * Composes seven advisory signals from CDK-07x tools into a multi-dimension
+ * Composes canonical advisory signals into a multi-dimension
  * engineering health scorecard. Read-only, advisory, UNREGISTERED, fail-open.
  *
  * §8 contract: every signal is gathered in its own try/catch. A thrown or absent
@@ -13,7 +13,6 @@
  *   lineageGraph   — buildLineage()         (CDK-070 / lineage-graph.mjs)
  *   calibration    — lineageCalibration()   (CDK-072 / lineage-calibration.mjs)
  *   rules          — runRules()             (CDK-073 / lineage-rules.mjs)
- *   taxonomy       — evidenceTaxonomy()     (CDK-075 / evidence-taxonomy.mjs)
  *   compliance     — buildComplianceMatrix  (CDK-061 / capability-compliance.mjs)
  *   benchmark      — summarize()            (CDK-065 / benchmark-task.mjs)
  *
@@ -92,21 +91,6 @@ async function gatherRules(root) {
   try {
     const { runRules } = await import(siblingUrl('./lineage-rules.mjs'));
     return await runRules(root);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Gathers the evidence taxonomy report. Returns null on any error.
- *
- * @param {string} root project root
- * @returns {Promise<object|null>}
- */
-async function gatherTaxonomy(root) {
-  try {
-    const { evidenceTaxonomy } = await import(siblingUrl('./evidence-taxonomy.mjs'));
-    return await evidenceTaxonomy(root);
   } catch {
     return null;
   }
@@ -201,12 +185,11 @@ export async function engineeringScorecard(root = process.cwd()) {
   }
 
   // Gather all signals concurrently — each is independent and fail-open.
-  const [lineageGraph, calibration, rules, taxonomy, compliance, benchmark] =
+  const [lineageGraph, calibration, rules, compliance, benchmark] =
     await Promise.all([
       gather('lineage-graph', () => gatherLineageGraph(root)),
       gather('calibration', () => gatherCalibration(root)),
       gather('rules', () => gatherRules(root)),
-      gather('taxonomy', () => gatherTaxonomy(root)),
       gather('compliance', () => gatherCompliance(root)),
       gather('benchmark', () => gatherBenchmark(root)),
     ]);
@@ -215,7 +198,6 @@ export async function engineeringScorecard(root = process.cwd()) {
     lineageGraph,
     calibration,
     rules,
-    taxonomy,
     compliance,
     benchmark,
   });

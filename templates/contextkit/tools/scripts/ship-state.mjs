@@ -14,19 +14,23 @@
  *   ship-state.mjs current [--json]             → the in-flight ship, for resume
  */
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { writeState, readState, listStates } from '../../runtime/state/state-io.mjs';
+import {
+  writeRunState as writeState,
+  readRunState as readState,
+  listRunStates as listStates,
+} from '../../runtime/state/run-state-store.mjs';
 
 /** The 9 stages of ship.md, in order. `step.current` is one of these. */
 export const SHIP_STAGES = ['scope', 'design', 'plan-tests', 'implement', 'self-review', 'test', 'quality-gates', 'record', 'report'];
 
-const PIPE = pathsFor(process.cwd()).pipeline;
+const PIPE = pathsFor(process.cwd()).memory;
 
 const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'run';
 const getArg = (name) => { const i = process.argv.indexOf(`--${name}`); return i !== -1 ? process.argv[i + 1] : undefined; };
 
 /** In-flight ship runs (not done/failed, no endedAt), newest first. */
 export function inflightRuns(pipeDir) {
-  return listStates(pipeDir, { kind: 'pipeline-run' })
+  return listStates(pipeDir)
     .filter((s) => s.endedAt == null && s.status !== 'done' && s.status !== 'failed' && String(s.id).startsWith('ship-'));
 }
 

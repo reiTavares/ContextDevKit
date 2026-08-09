@@ -1,11 +1,9 @@
 /**
- * Integration tests for the WF-0082 Business create command.
+ * ContextDevKit 4 Business creation integration test.
  *
- * Covers the public ceremony contract, the closed Business kind enum, dry-run
- * safety, decision/workflow structure validation, collision refusal, and
- * aggregate rollback after an injected staging failure.
- *
- * Standalone: node tools/integration-test-work-business-create.mjs
+ * Proves that Business identity is independent from execution shape, direct
+ * creation is the default, and an explicitly requested workflow is published
+ * as one complete Workflow v2 package in the same atomic rename.
  */
 import assert from 'node:assert/strict';
 import {
@@ -16,10 +14,8 @@ import {
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 import { reporter } from './it-helpers.mjs';
-import { installEngine } from '../tools/install/engine.mjs';
 import { pathsFor } from '../templates/contextkit/runtime/config/paths.mjs';
 import { BUSINESS_KINDS } from '../templates/contextkit/runtime/work/enums.mjs';
 import { validateBusiness } from '../templates/contextkit/runtime/work/schema-business.mjs';
@@ -30,37 +26,14 @@ import {
   resolveBusinessCeremony,
   resolveBusinessCreateInputs,
 } from '../templates/contextkit/tools/scripts/work-business-create.mjs';
-import { buildBusinessPrompt } from '../templates/contextkit/tools/scripts/business-templates.mjs';
-import { dispatch } from '../templates/contextkit/tools/scripts/work.mjs';
 import { writeFileEnsured } from '../templates/contextkit/tools/scripts/work-io.mjs';
-import { validatePlan } from '../templates/contextkit/tools/scripts/workflow/validate.mjs';
-import { validateStructure } from '../templates/contextkit/methodology/validate-structure.mjs';
+import { validatePack } from '../templates/contextkit/tools/scripts/workflow/validate.mjs';
 
 const rep = reporter();
-const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
-const root = mkdtempSync(join(tmpdir(), 'contextkit-business-create-'));
+const root = mkdtempSync(join(tmpdir(), 'contextkit v4 business '));
+const NOW = '2026-08-09T12:00:00.000Z';
 
-/**
- * Recursively collect regular files for token assertions.
- * @param {string} directory directory to scan
- * @returns {string[]} absolute file paths
- */
-function filesUnder(directory) {
-  const files = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    const entryPath = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...filesUnder(entryPath));
-    else if (entry.isFile()) files.push(entryPath);
-  }
-  return files;
-}
-
-/**
- * Run one assertion and report the outcome without hiding the failure detail.
- * @param {string} label assertion label
- * @param {() => void} assertion assertion callback
- * @returns {void}
- */
+/** Run one assertion while retaining every failure in the suite receipt. */
 function check(label, assertion) {
   try {
     assertion();
@@ -70,272 +43,134 @@ function check(label, assertion) {
   }
 }
 
-/**
- * Run an asynchronous assertion and keep its failure in the suite receipt.
- *
- * @param {string} label assertion label
- * @param {() => Promise<void>} assertion asynchronous assertion callback
- * @returns {Promise<void>}
- */
-async function asyncCheck(label, assertion) {
-  try {
-    await assertion();
-    rep.ok(label);
-  } catch (error) {
-    rep.bad(`${label}: ${error?.message ?? error}`);
+/** Return every relative file path below a directory. */
+function relativeFiles(directory, prefix = '') {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const absolutePath = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...relativeFiles(absolutePath, relativePath));
+    else if (entry.isFile()) files.push(relativePath.replaceAll('\\', '/'));
   }
+  return files.sort();
 }
 
 try {
-  await asyncCheck('clean install distributes methodology for installed work command', async () => {
-    const installRoot = mkdtempSync(join(tmpdir(), 'contextkit-business-install-'));
-    try {
-      const report = [];
-      const sync = { manifest: { files: {} }, nextFiles: {}, conflicts: [], pendingMerges: 0 };
-      await installEngine(installRoot, join(KIT, 'templates'), {
-        name: 'Install Probe',
-        level: 7,
-        version: 'test',
-        args: { force: false },
-        sync,
-      }, report);
-      const installedMethodology = join(installRoot, 'contextkit', 'methodology', 'templates', 'manifest.json');
-      const installedWork = join(installRoot, 'contextkit', 'tools', 'scripts', 'work.mjs');
-      assert.equal(existsSync(installedMethodology), true);
-      const { dispatch: installedDispatch } = await import(`${pathToFileURL(installedWork).href}?install-probe=${Date.now()}`);
-      assert.equal(typeof installedDispatch, 'function');
-
-      // WF-0089 SA4-T1 (BIZ-0006, ADR-0148 §9/§10) — the structural auto-fill
-      // projection engine ships via the SAME copyTree('methodology') the ceremony
-      // skeletons above already ride (tools/install/engine.mjs); there is no
-      // separate installer wiring to add. Assert the three engine modules land
-      // AND are importable + functional post-install (not just copied bytes).
-      const installedProjections = join(installRoot, 'contextkit', 'methodology', 'projections.mjs');
-      const installedProvenance = join(installRoot, 'contextkit', 'methodology', 'provenance.mjs');
-      const installedProvenanceSchema = join(installRoot, 'contextkit', 'methodology', 'schema-provenance-sidecar.mjs');
-      assert.equal(existsSync(installedProjections), true);
-      assert.equal(existsSync(installedProvenance), true);
-      assert.equal(existsSync(installedProvenanceSchema), true);
-      const { deriveKpiSkeleton: installedDeriveKpiSkeleton } = await import(`${pathToFileURL(installedProjections).href}?install-probe=${Date.now()}`);
-      const installedKpiSkeleton = installedDeriveKpiSkeleton({ growthLever: 'RELIABILITY' });
-      assert.equal(installedKpiSkeleton.available, true);
-      assert.equal(installedKpiSkeleton.value.kpis.every((kpi) => kpi.baseline === null), true);
-
-      // WF-0090 GA3-T1 (ADR-0148, the four rails) — the grounded content engine
-      // rides the same copyTree('methodology'), so again there is no separate
-      // installer wiring. Assert all five modules land AND that a fresh install
-      // ships the engine OFF: with no config and no generator the engine writes
-      // nothing, which is rail (d) proven on a real post-install import rather
-      // than on a fixture.
-      for (const moduleName of ['content-fill.mjs', 'content-grounding.mjs', 'content-eligibility.mjs', 'token-guardrail.mjs', 'content-promote.mjs']) {
-        assert.equal(existsSync(join(installRoot, 'contextkit', 'methodology', moduleName)), true, `${moduleName} did not land`);
-      }
-      const installedContentFill = join(installRoot, 'contextkit', 'methodology', 'content-fill.mjs');
-      const { fillGroundedContent: installedFill, CONTENT_FILL_DEFAULTS: installedDefaults, ENGINE_VERDICT_KEY: installedVerdictKey } =
-        await import(`${pathToFileURL(installedContentFill).href}?install-probe=${Date.now()}`);
-      assert.equal(installedDefaults.enabled, false);
-      assert.equal(installedDefaults.tokenBudgetPerContext, 0);
-      const freshSkeleton = { fields: { 'prd.problem': { contentKind: 'markdown', current: '{{PROBLEM}}' } } };
-      const freshOutcome = installedFill(
-        { contextRef: 'BIZ-0000', sidecar: { schemaVersion: 1, contextRef: null, fields: {} }, config: installedDefaults },
-        freshSkeleton,
-        { available: false, reason: 'no committed graph projection' },
-        { available: false, reason: 'no ledger' },
-      );
-      assert.deepEqual(Object.keys(freshOutcome.fields), [installedVerdictKey]);
-      assert.equal(Object.keys(freshOutcome.provenance.fields).length, 0);
-      assert.equal(freshSkeleton.fields['prd.problem'].current, '{{PROBLEM}}');
-
-      // The guardrail is importable and refuses on a fresh install's own ledger
-      // (there is none) — an unavailable measurement never authorizes spend.
-      const installedGuardrail = join(installRoot, 'contextkit', 'methodology', 'token-guardrail.mjs');
-      const { readGovernanceTokenLedger: installedReadLedger, evaluateKillSwitch: installedKillSwitch } =
-        await import(`${pathToFileURL(installedGuardrail).href}?install-probe=${Date.now()}`);
-      const freshLedger = installedReadLedger(installRoot, { sessionId: 'S-install-probe' });
-      assert.equal(freshLedger.available, false);
-      assert.equal(installedKillSwitch({ enabled: true, tokenBudgetPerContext: 5000 }, freshLedger).enabled, false);
-    } finally {
-      rmSync(installRoot, { recursive: true, force: true });
-    }
-  });
-
-  check('decision maps to decision-only/business-decision', () => {
-    const ceremony = resolveBusinessCeremony('decision');
-    assert.equal(ceremony.shape, 'decision-only');
-    assert.equal(ceremony.journeyBranch, 'business-decision');
-  });
-
-  check('workflow maps to multi-workflow-program/business-workflow', () => {
-    const ceremony = resolveBusinessCeremony('workflow');
-    assert.equal(ceremony.shape, 'multi-workflow-program');
-    assert.equal(ceremony.journeyBranch, 'business-workflow');
-  });
-
-  check('direct-business is rejected as a public ceremony', () => {
-    assert.throws(
-      () => resolveBusinessCeremony('direct-business'),
-      /direct-business.*not public/i,
-    );
-  });
-
-  check('all five persisted Business kinds are accepted', () => {
+  check('direct is the default and never inferred as workflow from Business kind', () => {
     for (const [index, kind] of BUSINESS_KINDS.entries()) {
       const inputs = resolveBusinessCreateInputs({
-        positionals: [`Kind ${kind}`],
-        flags: { kind, id: `BIZ-${String(9110 + index).padStart(4, '0')}` },
+        positionals: [`Direct ${kind}`],
+        flags: { id: `BIZ-${String(9200 + index).padStart(4, '0')}`, kind },
         root,
       });
-      assert.equal(inputs.kind, kind);
+      assert.equal(inputs.ceremony, 'decision');
+      const plan = planBusinessPackage({ inputs: { ...inputs, now: NOW }, root });
+      assert.equal(plan.ceremony.executionMode, 'direct');
+      assert.equal(plan.workflowSpec, null);
+      assert.equal(plan.ceremonyDir, null);
     }
   });
 
-  check('human Business template renders the authoritative kind list', () => {
-    const template = buildBusinessPrompt('business-case');
-    assert.equal(template.includes(`[FILL: ${BUSINESS_KINDS.join(' | ')}]`), true);
+  check('public ceremony mapping is direct or explicit Workflow v2 only', () => {
+    assert.deepEqual(
+      { mode: resolveBusinessCeremony('decision').executionMode, shape: resolveBusinessCeremony('decision').shape },
+      { mode: 'direct', shape: 'business-direct' },
+    );
+    assert.deepEqual(
+      { mode: resolveBusinessCeremony('workflow').executionMode, shape: resolveBusinessCeremony('workflow').shape },
+      { mode: 'workflow', shape: 'workflow-v2' },
+    );
+    assert.throws(() => resolveBusinessCeremony('direct-business'), /not public/i);
   });
 
-  check('lowercase and classifier kinds are rejected', () => {
-    assert.throws(
-      () => resolveBusinessCreateInputs({ positionals: ['Bad kind'], flags: { kind: 'capability' }, root }),
-      /--kind.*TRANSFORMATION.*INITIATIVE/i,
-    );
-    assert.throws(
-      () => resolveBusinessCreateInputs({ positionals: ['Missing kind'], flags: {}, root }),
-      /--kind is required/i,
-    );
-  });
-
-  check('dry-run leaves no target and reports no committed writes', () => {
+  check('dry-run plans without creating any artifact', () => {
     const receipt = handleBusinessCreate({
       positionals: ['Dry Run'],
-      flags: { kind: 'FEATURE', ceremony: 'decision', id: 'BIZ-9120' },
+      flags: { id: 'BIZ-9210', kind: 'FEATURE', now: NOW },
       apply: false,
       root,
     });
     assert.equal(receipt.applied, false);
     assert.deepEqual(receipt.detail.committedWrites, []);
+    assert.equal(receipt.detail.ceremonyPath, null);
     assert.equal(existsSync(receipt.detail.target), false);
   });
 
-  check('dispatcher wires business create without applying by default', () => {
-    const receipt = dispatch(
-      { command: 'business', positionals: ['Dispatch Dry Run'], flags: { kind: 'ENABLER', id: 'BIZ-9121' } },
-      { root },
-    );
-    assert.equal(receipt.command, 'business');
-    assert.equal(receipt.applied, false);
-    assert.equal(existsSync(receipt.detail.target), false);
-  });
-
-  check('decision apply produces a schema- and structure-valid aggregate', () => {
+  check('direct apply publishes one valid Business aggregate without a workflow authority', () => {
     const receipt = handleBusinessCreate({
-      positionals: ['Decision Package'],
-      flags: { kind: 'TRANSFORMATION', ceremony: 'decision', id: 'BIZ-9122' },
+      positionals: ['Direct Business'],
+      flags: { id: 'BIZ-9211', kind: 'TRANSFORMATION', now: NOW },
       apply: true,
       root,
     });
-    const businessPath = join(receipt.detail.target, 'business.json');
-    const business = JSON.parse(readFileSync(businessPath, 'utf-8'));
+    const business = JSON.parse(readFileSync(join(receipt.detail.target, 'business.json'), 'utf8').replace(/^\uFEFF/, ''));
     assert.equal(validateBusiness(business).ok, true);
-    assert.equal(business.kind, 'TRANSFORMATION');
-    assert.equal(validateStructure(receipt.detail.ceremonyPath, 'decision-only').ok, true);
-    assert.equal(existsSync(join(receipt.detail.ceremonyPath, 'decision-record.md')), true);
-    assert.deepEqual(readdirSync(join(receipt.detail.target, 'workflows')), ['.gitkeep']);
+    assert.equal(receipt.detail.atomicity, 'sibling-staging-rename');
+    assert.equal(receipt.detail.ceremonyPath, null);
+    assert.deepEqual(readdirSync(join(receipt.detail.target, 'workflows')), []);
+    assert.equal(relativeFiles(receipt.detail.target).some((path) => path === 'workflow-plan.json'), false);
   });
 
-  check('workflow apply produces a complete WF pack under the Business workflows root', () => {
+  check('explicit workflow apply publishes a complete valid Workflow v2 below its owner', () => {
     const receipt = handleBusinessCreate({
-      positionals: ['Workflow Package'],
-      flags: { kind: 'PROGRAMME', ceremony: 'workflow', id: 'BIZ-9123' },
+      positionals: ['Governed Delivery'],
+      flags: { id: 'BIZ-9212', kind: 'PROGRAMME', ceremony: 'workflow', now: NOW },
       apply: true,
       root,
     });
-    const structure = validateStructure(receipt.detail.ceremonyPath, 'multi-workflow-program');
-    assert.equal(structure.ok, true, structure.errors.join('; '));
-    const workflowPlan = JSON.parse(readFileSync(join(receipt.detail.ceremonyPath, 'workflow-plan.json'), 'utf-8'));
-    assert.equal(validatePlan(workflowPlan).valid, true);
-    for (const filePath of filesUnder(receipt.detail.ceremonyPath)) {
-      assert.equal(readFileSync(filePath, 'utf-8').includes('{{'), false, `unresolved token in ${filePath}`);
-    }
-    assert.match(receipt.detail.ceremonyPath.replaceAll('\\', '/'), /\/workflows\/WF-\d{4}-workflow-package$/);
-  });
-
-  check('declared continuation validator refuses malformed workflow output', () => {
-    const inputs = resolveBusinessCreateInputs({
-      positionals: ['Malformed Continuation'],
-      flags: { kind: 'FEATURE', ceremony: 'workflow', id: 'BIZ-9127' },
-      root,
-    });
-    const plan = planBusinessPackage({ inputs, root });
-    const continuation = plan.files.find((file) => file.relativePath === 'CONTINUATION-PROMPT.md');
-    continuation.content = '# malformed continuation\n';
-    assert.throws(
-      () => applyBusinessPackage(plan),
-      /continuation-sections validation failed/i,
-    );
-    assert.equal(existsSync(plan.targetDir), false);
+    const verdict = validatePack(receipt.detail.ceremonyPath);
+    assert.equal(verdict.valid, true, verdict.errors.map((entry) => entry.message).join('; '));
+    const definition = JSON.parse(readFileSync(join(receipt.detail.ceremonyPath, 'workflow.json'), 'utf8'));
+    const state = JSON.parse(readFileSync(join(receipt.detail.ceremonyPath, 'workflow-state.json'), 'utf8'));
+    const tasks = JSON.parse(readFileSync(join(receipt.detail.ceremonyPath, 'pipeline', 'tasks.json'), 'utf8'));
+    assert.deepEqual(definition.owner, { kind: 'business', id: 'BIZ-9212' });
+    assert.equal(state.workflowId, definition.id);
+    assert.equal(tasks.scopeRef, definition.id);
+    assert.equal(tasks.schemaVersion, 2);
+    assert.equal(existsSync(join(receipt.detail.ceremonyPath, 'reports')), true);
+    assert.equal(relativeFiles(receipt.detail.ceremonyPath).includes('workflow-plan.json'), false);
   });
 
   check('collision refuses without overwriting the first aggregate', () => {
     const first = handleBusinessCreate({
-      positionals: ['Original Package'],
-      flags: { kind: 'FEATURE', ceremony: 'decision', id: 'BIZ-9124' },
+      positionals: ['Original'],
+      flags: { id: 'BIZ-9213', kind: 'FEATURE', now: NOW },
       apply: true,
       root,
     });
-    assert.throws(
-      () => handleBusinessCreate({
-        positionals: ['Replacement Package'],
-        flags: { kind: 'FEATURE', ceremony: 'decision', id: 'BIZ-9124' },
-        apply: true,
-        root,
-      }),
-      /already occupied/i,
-    );
-    const preserved = JSON.parse(readFileSync(join(first.detail.target, 'business.json'), 'utf-8'));
-    assert.equal(preserved.title, 'Original Package');
+    assert.throws(() => handleBusinessCreate({
+      positionals: ['Replacement'],
+      flags: { id: 'BIZ-9213', kind: 'FEATURE', now: NOW },
+      apply: true,
+      root,
+    }), /already occupied/i);
+    const preserved = JSON.parse(readFileSync(join(first.detail.target, 'business.json'), 'utf8'));
+    assert.equal(preserved.title, 'Original');
   });
 
-  check('injected staging failure leaves no published tree or residual staging directory', () => {
+  check('injected staging failure leaves neither a target nor a staging sidecar', () => {
     const inputs = resolveBusinessCreateInputs({
-      positionals: ['Rollback Package'],
-      flags: { kind: 'INITIATIVE', ceremony: 'workflow', id: 'BIZ-9125' },
+      positionals: ['Rollback'],
+      flags: { id: 'BIZ-9214', kind: 'INITIATIVE', ceremony: 'workflow' },
       root,
     });
-    const plan = planBusinessPackage({ inputs, root });
-    let writeCount = 0;
-    assert.throws(
-      () => applyBusinessPackage(plan, {
-        writeFile: (filePath, content) => {
-          writeCount += 1;
-          if (writeCount === 2) throw new Error('injected staging failure');
-          writeFileEnsured(filePath, content);
-        },
-      }),
-      /injected staging failure/i,
-    );
+    const plan = planBusinessPackage({ inputs: { ...inputs, now: NOW }, root });
+    let writes = 0;
+    assert.throws(() => applyBusinessPackage(plan, {
+      writeFile: (path, content) => {
+        writes += 1;
+        if (writes === 2) throw new Error('injected staging failure');
+        writeFileEnsured(path, content);
+      },
+    }), /injected staging failure/i);
     assert.equal(existsSync(plan.targetDir), false);
-    const businessRoot = pathsFor(root).business;
-    const leftovers = existsSync(businessRoot)
-      ? readdirSync(businessRoot).filter((name) => name.includes('staging'))
+    const leftovers = existsSync(pathsFor(root).business)
+      ? readdirSync(pathsFor(root).business).filter((name) => name.includes('staging'))
       : [];
     assert.deepEqual(leftovers, []);
-  });
-
-  check('missing methodology skeleton refuses before any apply', () => {
-    const inputs = resolveBusinessCreateInputs({
-      positionals: ['Missing Template'],
-      flags: { kind: 'ENABLER', ceremony: 'decision', id: 'BIZ-9126' },
-      root,
-    });
-    assert.throws(
-      () => planBusinessPackage({ inputs, root, methodologyRoot: join(root, 'missing-methodology') }),
-      /skeleton is unavailable/i,
-    );
-    assert.equal(existsSync(join(pathsFor(root).business, 'BIZ-9126-missing-template')), false);
   });
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
 
-rep.finish('WF-0082 business create');
+rep.finish('ContextDevKit 4 Business create');

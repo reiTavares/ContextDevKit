@@ -14,10 +14,9 @@
  *   - DENY an R4/R5 server enabled without a RECORDED human approval.
  *   - Tool exposure is allow-list-only: a new server defaults to read-only and
  *     NEVER exposes every declared tool implicitly (least privilege).
- *   - Consults the autonomy resolver (ADR-0042) — the policy can only CLAMP
- *     toward the human floor, never relax past it. If the resolver substrate is
- *     absent, the local checks still run and the autonomy clamp is reported as
- *     "skipped" (constitution §8: never a false pass).
+ *   - Does not consult governance grades or advisory routing. Real MCP safety is
+ *     expressed directly through pinning, secret handling, host allow-lists,
+ *     explicit R4/R5 approval, and least-privilege tool exposure.
  *
  * Zero third-party dependencies (node:* only) — hot-path safe (immutable rule 1).
  *
@@ -84,37 +83,13 @@ function findLiteralSecret(referencedSecrets) {
 }
 
 /**
- * Resolves the autonomy floor for enabling an MCP server, degrading to a "skipped"
- * report when the resolver substrate (ADR-0042/0072) is unavailable. NEVER throws
- * out of the policy: a missing substrate must not become a false pass nor a crash.
- *
- * @param {object} ctx { autonomyConfig, resolveAutonomyFn }
- * @returns {{ status: 'clamped'|'skipped', mode: string|null, reason: string }}
- */
-function resolveAutonomyClamp({ autonomyConfig, resolveAutonomyFn }) {
-  if (typeof resolveAutonomyFn !== 'function') {
-    return { status: 'skipped', mode: null, reason: 'autonomy:substrate-skipped' };
-  }
-  try {
-    // Enabling a server is a config edit; clamp against the 'edit' floor at the
-    // project's resolved grade. The floor (secret/gate paths) cannot be relaxed.
-    const resolved = resolveAutonomyFn('edit', autonomyConfig ?? {}, null, {});
-    return { status: 'clamped', mode: resolved.mode, reason: `autonomy:grade-${resolved.grade}:${resolved.mode}` };
-  } catch (resolverError) {
-    // A contradiction/absent-flag throw from the resolver must not crash policy;
-    // treat it as the most restrictive posture: manual (human) consent required.
-    return { status: 'clamped', mode: 'manual', reason: `autonomy:resolver-error-fail-closed` };
-  }
-}
-
-/**
  * Evaluates whether a single MCP server may be activated, and under what posture.
  * PURE + deterministic — no I/O, no clock, no randomness.
  *
  * @param {RegistryEntry} entry         Curated registry entry (risk, allowedHosts, pin, defaultMode, capabilities).
  * @param {ManifestEntry} manifestEntry Project manifest entry (mode override, referencedSecrets, allowedTools, recordedApproval).
  * @param {string}        host          Target host id (e.g. 'claude-code', 'cursor').
- * @param {object}        [options]     { allowedHosts?, autonomyConfig?, resolveAutonomyFn?, recordedApproval? }
+ * @param {object}        [options]     { allowedHosts?, recordedApproval? }
  * @returns {PolicyEvaluation}
  */
 export function evaluateServer(entry, manifestEntry = {}, host = '', options = {}) {
@@ -174,16 +149,6 @@ export function evaluateServer(entry, manifestEntry = {}, host = '', options = {
   }
   const unknownTools = allowedTools.filter((t) => !declaredTools.includes(t));
   if (unknownTools.length > 0) escalate('deny', `tools:undeclared-in-registry(${unknownTools.join(',')})`);
-
-  // --- Autonomy clamp (cannot exceed the human floor) -------------------------
-  const clamp = resolveAutonomyClamp({
-    autonomyConfig: options.autonomyConfig,
-    resolveAutonomyFn: options.resolveAutonomyFn,
-  });
-  reasons.push(clamp.reason);
-  if (clamp.status === 'clamped' && clamp.mode === 'manual' && decision === 'allow') {
-    escalate('warn', 'autonomy:floor-requires-human-consent-to-activate');
-  }
 
   // --- DENY (final, no opt-out): a blocked-by-default class cannot be cleared --
   // Checked AFTER every other gate so no approval token can shortcut it. The

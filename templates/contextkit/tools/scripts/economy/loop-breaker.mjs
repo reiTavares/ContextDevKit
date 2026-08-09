@@ -7,7 +7,7 @@
  *   loopBreakerSignal(history, mode)  — projectState-compatible signal wrapper
  *   econCheckLoopBreaker(root)        — CI self-check suite → {name,pass,detail}[]
  *
- * `mode` semantics (mirrors the gate in evaluate-action.mjs):
+ * `mode` semantics:
  *   'advisory'  — escalate is ALWAYS false; signal is informational only
  *   'guarded'   — escalate is ALWAYS false; same advisory contract
  *   'strict'    — escalate may become true ONLY on the 4th provably-no-progress

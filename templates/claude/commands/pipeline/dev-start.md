@@ -1,137 +1,57 @@
 ---
-description: Start a focused session on one objective — locks scope, blocks opportunistic refactors.
+description: Start a mutation-focused session on one objective and keep its scope bounded.
 argument-hint: <session objective>
 ---
 
-# 🎯 Mode: Focused Dev
+# Focused development
 
-You just entered **dev-start** mode with the objective:
+Use **$ARGUMENTS** as the single objective for this session.
 
-> **$ARGUMENTS**
-
-## Posture for this session (until told otherwise)
-
-1. **Sync preflight — look at GitHub *before* coding** [ADR-0026]. Run:
-   ```
-   node contextkit/tools/scripts/sync-check.mjs preflight
-   ```
-   It reports ahead/behind, recent **in-flight branches**, and **open PRs with
-   their CI/review status** (flagging any *awaiting status*). If an open PR or a
-   recent branch overlaps this objective, **surface it and confirm with the user
-   before duplicating work** — coordinate or `/claim` first. `gh` missing/unauthed
-   degrades to the git-only view; it never blocks. Behind upstream is a fact to
-   surface; **do not pull automatically**.
-
-2. **Resolve the economy plan before broad context**. Pass the objective as one
-   explicit argv value — it is classified as data and is never executed:
-   ```
+1. Classify the interaction. Conversation and read-only exploration are no-op:
+   do not create a task, workflow, ledger, receipt, or durable context. If the
+   intent is unclassified, ask one short question in the user's language.
+2. On mutation, resolve existing work before creating anything. Resume an
+   explicit active reference. For a single strong inferred match, ask one short
+   confirmation unless the owner already requested auto-resume. Do not reopen
+   completed work without explicit intent. When an explicitly selected task is
+   still in `backlog` and the owner asked to begin it, use
+   `pipeline.mjs start <id> --tasks <scope>` against its canonical JSON scope.
+3. Query Project Map first when it can locate the named symbol/path. Missing,
+   stale, partial, or unanswered graph results immediately fall back to `rg`,
+   `Grep`, `Glob`, or equivalent search; graph-first never blocks exploration.
+4. Use the economy bootstrap only as a bounded recommendation:
+   ```bash
    node contextkit/tools/scripts/economy/dev-start-bootstrap.mjs --objective -- "$ARGUMENTS"
    ```
-   The fail-open, read-mostly bootstrap reports ordered stages and structured
-   lever states for resume/checkpoint, Project Map freshness + focused path/symbol
-   lookup, task intake, RequestOrchestrator, the `dev-start` context profile and
-   `run-compact`. It never regenerates Project Map, runs free-form text, changes
-   git state or moves a card. Use `--json` for `cdk-dev-start-bootstrap/1`.
+   Render a reported checkpoint with `resume-pack.mjs`. Run Task Compiler only
+   for an exact Project Map match. Neither result authorizes or denies work.
+   For an unlinked mutation, read the bounded project summary once with
+   `node contextkit/tools/scripts/context-pack.mjs --profile dev-start`; open
+   full sources only when that summary identifies a relevant file.
+5. Classify nature as `business`, `operation`, `none`, or `unclassified`, then
+   choose `direct`, `batch`, or `workflow` from task topology. `none` is normal.
+   One to three cohesive tasks are direct; four to twelve related unordered
+   tasks are batch; dependencies, waves, multi-session work, cutover, or
+   rollback require workflow.
+6. State explicit in-scope and out-of-scope boundaries. Preserve unrelated
+   dirty files and active workspace claims. Reclassify if the real work expands
+   materially beyond those boundaries.
+7. If the objective links a workflow, load the canonical governed context
+   before the first write. It must include `workflow.json`,
+   `workflow-state.json`, PRD, SPEC, decisions, `pipeline/tasks.json`, and the
+   relevant reports. Never substitute the retired 3.x plan artifact, Markdown
+   frontmatter, a physical lane, or `done/` discovery.
+8. Keep routing and specialist selection advisory. Continue with the active
+   agent when a model recommendation, receipt, specialist, or swarm is absent.
+   LGPD observations are shadow-only. Use a swarm only when parallel work is
+   genuinely useful; only a real host technical limit constrains it.
+9. Implement the minimum complete change, run focused tests first, then the
+   appropriate broader suite and QA sign-off. Only the deterministic guarded
+   domains may deny: QA at `done`, an applicable Class A DDD invariant, or new
+   high/critical technical debt introduced by the current diff.
+10. At the end, report the exact diff, validation receipts, remaining risk, and
+    whether anything was committed. Register the session only when productive
+    mutation occurred.
 
-   **Economy canaries to apply from that plan**:
-   - If the bootstrap or Project Map reports an exact symbol/path match, run Task
-     Compiler in read/compile-only mode:
-     `node contextkit/tools/scripts/economy/task-compiler.mjs --symbol <exact-symbol> --objective "$ARGUMENTS"`.
-     If the match is partial/ambiguous/missing, report `task-compiler skipped:
-     no exact Project Map match`.
-   - If the bootstrap reports a previous checkpoint/run id, render the resume
-     pack before re-reading old context:
-     `node contextkit/tools/scripts/economy/resume-pack.mjs <runId>`. If no
-     checkpoint exists, report `resume-pack skipped: no checkpoint`.
-   - If RequestOrchestrator suggests subagent work, resolve the bounded profile:
-     `node contextkit/tools/scripts/economy/subagent-profile.mjs`, then attach
-     that profile to each subagent packet. This is advisory and must not increase
-     dispatch count.
-
-3. **Read the current state first** — run:
-   ```
-   node contextkit/tools/scripts/context-pack.mjs --profile dev-start
-   ```
-   [ADR-0027]: **one** bounded bundle (latest-session digest + `[Unreleased]` +
-   immutable rules + open backlog + recent ADRs) in a single call instead of
-   opening each file. Open a full source only if the pack flags something to inspect.
-
-4. **Right-size the work** [ADR-0030]. Classify the objective before committing
-   to a process — don't over-engineer a typo or under-plan a migration:
-   ```
-   node contextkit/tools/scripts/complexity-rubric.mjs classify "$ARGUMENTS"
-   ```
-   It returns a **tier** (trivial → no ADR/no story · feature → story · architectural
-   → `/new-adr` FIRST) and detects a **regulated domain**. If it flags a domain
-   (LGPD / fintech / healthcare …), **auto-route to the named agents** (e.g.
-   `@privacy-lgpd` + `@security`) and treat the work as architectural. The tier is
-   advisory, not a cage — state it and adjust with the user if it misreads.
-
-   **Auto-start a referenced task** [ADR-0034]: if the objective names a backlog
-   task id (e.g. "fix 042" / "ticket 058"), use the bootstrap's correlated id,
-   move it into `working/`, and attach it to this session:
-   ```
-   node contextkit/tools/scripts/pipeline.mjs start <id>
-   ```
-   While you work, the task heartbeat is renewed on every edit. At completion,
-   check off its acceptance criteria so the Stop hook can auto-conclude it.
-
-   **Model routing is canary/active when configured** [ADR-0094] — the boot
-   banner shows the actual mode (`canary` by default in templates; dogfood may
-   use `active`). Apply the posture *Haiku operates · Sonnet executes ·
-   Opus decides* without being re-prompted: run ≤3 simple deterministic commands
-   **directly** (runner-first — never spawn an agent for one trivial command);
-   **batch** mechanical investigation (grep/glob/tests/lint/log triage) to a
-   **Haiku** agent that returns a compact pack; delegate bounded low/medium-risk
-   implementation to **Sonnet** under a short contract; keep **Opus** for decisions
-   and for implementing high/critical-risk code directly (auth/RLS, migrations,
-   concurrency, public contracts). Never auto-select Fable. Minimize *total* task
-   cost, not just per-token price — don't delegate when coordination costs more
-   than direct execution. Disable per session via `routing.enabled=false`.
-
-5. **Define IN-SCOPE / OUT-OF-SCOPE explicitly** from the objective. Show the user:
-   ```
-   ✅ IN-SCOPE: <what we will touch>
-   ❌ OUT-OF-SCOPE: <what we will NOT touch, even if tempting>
-   ```
-   Ask for confirmation before proceeding if there is ambiguity.
-
-6. **Scope lock during the session**:
-   - Do NOT suggest refactors in files outside IN-SCOPE.
-   - Do NOT "while we're here" rename/reorganize adjacent code.
-   - Do NOT add new dependencies without asking.
-   - If you spot a problem out of scope, **note it** and mention it at the END
-     ("for next session: X, Y, Z") — do not act on it now.
-   - **Correct-course checkpoint** [ADR-0030]: if mid-session the work clearly
-     outgrows the agreed scope (a feature turns out to need a migration, a new
-     dependency, or an auth change), STOP and re-classify with the user before
-     continuing — don't silently let scope creep past the tier you agreed on.
-
-7. **Break the objective into 3–7 concrete tasks** and track them with TodoWrite.
-
-8. **Workflow spec pack context** [ADR-0057]: if the objective names a workflow
-   slug or the task card has `workflow:` / `spec:` metadata, read
-   `contextkit/memory/workflows/<slug>/prd.md`, `spec.md`, `tasks.md`, and
-   `memory.md` before editing. Do not duplicate those artifacts in the task;
-   link them and keep implementation evidence in the card/report.
-
-9. **Per-task scratch (optional)**: if you accumulate ephemeral notes while a
-   ticket is in `contextkit/pipeline/testing/`, drop them in a sibling file named
-   `NNN-*.scratch.md` next to the ticket. The pipeline's `.gitignore` excludes
-   `*.scratch.md` — scratches are local-only. At conclude time, summarise the
-   useful parts into the ticket body and let the scratch be discarded.
-
-10. **Before opening a PR — re-check sync** [ADR-0026]. Run
-   `node contextkit/tools/scripts/sync-check.mjs prepr --fetch` (or just use `/git pr`,
-   which runs it): it re-confirms you are not behind `main` and that **no open PR
-   already exists for this branch** before you create one. (`--fetch` refreshes
-   remote refs — read-only checks skip the fetch by default, ticket 065.) Don't duplicate a PR;
-   push to update the existing one.
-
-11. **At the end**: offer `/log-session` (or `/new-adr` if an architectural decision was made).
-
-## Why this mode exists
-
-Sessions without a defined focus tend to become giant refactors that mix intentional change with
-incidental cleanup — impossible to review, and the changelog becomes a patchwork. Scope-locking
-fixes that at the root.
+The current owner instruction is the authority for action. Capability level,
+model route, owner preference, and former autonomy grades do not grant consent.

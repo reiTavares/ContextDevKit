@@ -1,212 +1,39 @@
 /**
- * Self-check suite for WF-0063 — Domain Engineering deterministic classification
- * (ADR-0128 / ADR-0129). Validates the invariants the kit must never regress:
- * CMIS/DAS verdict bands, the Class-A write-attempt hard trigger, path hard
- * exclusions, profile resolution (no-code short-circuit + raise-only escalation +
- * simple-never-gets-a-domain-model), determinism, fail-open degrade (never a false
- * pass), rule-class ceilings (Class B never strict), ground-truth self-report
- * exclusion, the `rule × host × policyVersion` calibration unit, and the additive
- * shadow envelope block. Wired into `tools/selfcheck.mjs`.
- */
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
-
-const RT = 'templates/contextkit/runtime/domain-engineering';
-
-/**
- * @param {{ ok: Function, bad: Function }} report
- * @param {{ KIT: string }} ctx
+ * Checks the ContextDevKit 4.0 Domain Engineering observation contract.
+ *
+ * @param {{ ok: Function, bad: Function }} report Test reporter.
+ * @param {{ KIT: string }} context Repository context.
+ * @returns {Promise<void>}
  */
 export async function runDomainEngineeringChecks({ ok, bad }, { KIT }) {
-  console.log('Checking WF-0063 domain-engineering classification...');
-  const imp = async (rel) => import(pathToFileURL(resolve(KIT, RT, rel)).href);
-  const TPL = resolve(KIT, 'templates');
+  const { pathToFileURL } = await import('node:url');
+  const { resolve } = await import('node:path');
+  const runtime = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/domain-engineering/index.mjs')).href);
+  const templatesRoot = resolve(KIT, 'templates');
 
-  let de, env;
-  try {
-    de = await imp('index.mjs');
-    env = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/execution/request-envelope.mjs')).href);
-    ok('domain-engineering modules import cleanly');
-  } catch (err) {
-    bad(`domain-engineering import failed: ${err?.message ?? err}`);
-    return;
-  }
+  console.log('Checking Domain Engineering advisory classification...');
+  const bundle = runtime.loadPolicyBundle(templatesRoot);
+  bundle?.degraded === false ? ok('domain policy bundle loads') : bad(`domain policy bundle degraded: ${bundle?.missing}`);
 
-  const bundle = de.loadPolicyBundle(TPL);
-  bundle && !bundle.degraded ? ok('policy bundle loads (not degraded)') : bad(`policy bundle degraded: ${bundle?.missing}`);
-  const codeIntent = { ...bundle.codeIntent, hardTrigger: bundle.hardTriggers?.codeMutationIntent?.writeAttempt };
+  const disabled = runtime.resolveConfig();
+  runtime.resolveObservationMode(disabled) === 'shadow'
+    ? ok('disabled Domain Engineering is shadow-only') : bad('disabled Domain Engineering gained authority');
+  const enabled = runtime.resolveConfig({ enabled: true, mode: 'guarded' });
+  runtime.resolveObservationMode(enabled) === 'advisory'
+    ? ok('legacy enforcement input is capped at advisory') : bad('Domain Engineering exceeded advisory mode');
 
-  const cmis = (text, paths = [], extra = {}) => de.scoreCodeMutationIntent(
-    de.buildSignals({ requestText: text, intakeSignals: { tier: 'feature', paths }, classification: extra.cls || {}, writeAttempt: extra.wa }),
-    codeIntent,
-  );
-  const das = (text) => de.scoreDomainApplicability(de.buildSignals({ requestText: text }), bundle.domainApplicability, bundle.hardTriggers);
+  const noCode = runtime.buildImplementationBlock({ root: templatesRoot, requestText: 'Explain the architecture without changing anything.' });
+  noCode.recommendationsOnly === true && noCode.profile === 'no-code' && noCode.recommendedAgents.length === 0
+    ? ok('read-only exploration yields no implementation recommendation') : bad(`read-only classification wrong: ${JSON.stringify(noCode)}`);
 
-  // -- CMIS verdict bands ----------------------------------------------------
-  cmis('what is the materiality score and how does it work?').verdict === 'NO_CODE' ? ok('CMIS NO_CODE') : bad('CMIS NO_CODE misfired');
-  cmis('plan the roadmap status').verdict === 'NO_CODE' ? ok('CMIS planning → NO_CODE') : bad('CMIS planning band wrong');
-  cmis('implement the scorer function', ['x.mjs']).verdict === 'CODE_MODIFICATION' ? ok('CMIS CODE_MODIFICATION') : bad('CMIS CODE_MODIFICATION band wrong');
-  const creation = cmis('implement and create a new module endpoint, add a test, needs build', ['src/x.mjs']);
-  creation.score >= 70 ? ok('CMIS CODE_CREATION (≥70)') : bad(`CMIS creation band wrong: ${creation.score}`);
+  const mutation = runtime.buildImplementationBlock({ root: templatesRoot, requestText: 'Implement a distributed billing aggregate.', writeAttempt: true, tool: 'Edit' });
+  const forbiddenKeys = ['requiredAgents', 'requiredSkills', 'requiredArtifacts', 'squadRequired', 'simulateImpactRequired'];
+  mutation.recommendationsOnly === true && Array.isArray(mutation.recommendedAgents)
+    ? ok('mutation classification emits recommendations only') : bad('mutation recommendation shape missing');
+  forbiddenKeys.every((key) => !(key in mutation))
+    ? ok('classification exposes no required-agent or required-artifact contract') : bad(`legacy obligation key survived: ${forbiddenKeys.filter((key) => key in mutation)}`);
 
-  // -- Class-A write-attempt hard trigger ------------------------------------
-  const trig = cmis('anything', ['a.mjs'], { wa: true });
-  trig.score === 100 && trig.reasonCodes.includes('CMIS_HARD_TRIGGER_WRITE_ATTEMPT')
-    ? ok('CMIS write-attempt hard trigger = 100 (Class A)') : bad('write-attempt hard trigger broken');
-
-  // -- Determinism -----------------------------------------------------------
-  JSON.stringify(cmis('implement x', ['a.mjs'])) === JSON.stringify(cmis('implement x', ['a.mjs']))
-    ? ok('CMIS deterministic (identical input ⇒ identical output)') : bad('CMIS not deterministic');
-
-  // -- DAS bands + floor + reducer -------------------------------------------
-  das('add a simple crud getter').profileFloor === 'simple' ? ok('DAS simple (reducer)') : bad('DAS simple band wrong');
-  das('implement the invariant in a bounded context with a domain event').profileFloor === 'domain-driven'
-    ? ok('DAS domain-driven (weighted band)') : bad('DAS domain-driven band wrong');
-  // Pure floor test: "aggregate" is ONLY a hard-trigger token (score stays low) so
-  // the floor must RAISE simple → domain-driven and record its reason code.
-  const dd = das('refactor the aggregate');
-  dd.profileFloor === 'domain-driven' && dd.reasonCodes.includes('DAS_FLOOR_DOMAIN_DRIVEN')
-    ? ok('DAS floor raises low score + records reason') : bad(`DAS floor raise wrong: ${dd.profileFloor} ${dd.reasonCodes}`);
-  das('build a saga with eventual consistency and an outbox of versioned events').profileFloor === 'distributed-domain'
-    ? ok('DAS distributed-domain (floor trigger)') : bad('DAS distributed floor wrong');
-
-  // -- Path classification (hard exclusions + classes) -----------------------
-  const pc = (p) => de.classifyPath(p, bundle.pathRules).pathClass;
-  const pcx = (p) => de.classifyPath(p, bundle.pathRules);
-  pc('templates/x.mjs') === 'source-code' ? ok('path source-code') : bad('path source-code wrong');
-  pc('x.test.mjs') === 'test-code' ? ok('path test-code') : bad('path test-code wrong');
-  pc('migrations/001.sql') === 'database-migration' ? ok('path migration') : bad('path migration wrong');
-  pcx('node_modules/a/b.js').hardExcluded === true ? ok('path hard-exclusion (node_modules)') : bad('hard exclusion missed');
-  pc('package-lock.json') === 'generated' ? ok('path lockfile → generated') : bad('lockfile not excluded');
-  pc('README.md') === 'documentation' ? ok('path documentation') : bad('path docs wrong');
-  pc('weird.bin') === 'unknown' ? ok('path unknown fallback') : bad('path fallback wrong');
-
-  // -- Profile resolution ----------------------------------------------------
-  const prof = (cmisR, dasR, ctx = {}) => de.resolveImplementationProfile(cmisR, dasR, ctx, bundle.profiles);
-  prof({ verdict: 'NO_CODE' }, { profileFloor: 'simple' }).profile === 'no-code' ? ok('profile NO_CODE short-circuit') : bad('no-code short-circuit broken');
-  const simple = prof({ verdict: 'CODE_MODIFICATION' }, { profileFloor: 'simple' }, {});
-  simple.profile === 'simple' && !simple.artifacts.includes('domain-map')
-    ? ok('profile simple never gets a domain-map (proportionality)') : bad('simple wrongly got domain ceremony');
-  prof({ verdict: 'CODE_MODIFICATION' }, { profileFloor: 'domain-driven' }).profile === 'domain-driven' ? ok('profile from DAS floor') : bad('profile from DAS wrong');
-  const escalated = prof({ verdict: 'CODE_MODIFICATION' }, { profileFloor: 'simple' }, { risk: 'critical' });
-  escalated.profile === 'domain-driven' && escalated.reasonCodes.includes('PROFILE_ESCALATED_BY_RISK')
-    ? ok('profile raise-only escalation by risk') : bad('risk escalation broken');
-
-  // -- Fail-open degrade (never a false pass) --------------------------------
-  const degraded = de.buildImplementationBlock({ policy: { degraded: true, missing: ['all'] }, requestText: 'implement x' });
-  degraded.degraded === true && degraded.shadow === true && degraded.profile === 'no-code' && degraded.reasonCodes.includes('ENVELOPE_DEGRADED')
-    ? ok('degraded policy ⇒ recorded degrade, never a false pass') : bad('degrade path is a false pass');
-
-  // -- Rule classes (ADR-0129 §1 ceilings) -----------------------------------
-  de.validateRuleClasses(bundle.ruleClasses).length === 0 ? ok('rule-classes valid (no Class-B strict)') : bad(`rule-class violations: ${de.validateRuleClasses(bundle.ruleClasses)}`);
-  de.isClassA('CMIS_WRITE_ATTEMPT', bundle.ruleClasses) ? ok('write-attempt is Class A') : bad('write-attempt class wrong');
-  de.maximumAutomaticLevel('DAS_DOMAIN_APPLICABILITY', bundle.ruleClasses) === 'guarded' ? ok('Class B ceiling = guarded') : bad('Class B ceiling wrong');
-  de.maximumAutomaticLevel('CMIS_WRITE_ATTEMPT', bundle.ruleClasses) === 'guarded' ? ok('Class A not pre-authorized ⇒ capped guarded') : bad('Class A strict cap wrong');
-
-  // -- Ground truth (self-report never promotes) -----------------------------
-  const labels = [
-    de.buildLabel({ ruleId: 'DAS_DOMAIN_APPLICABILITY', provenance: 'humanAdjudicated', predictedPositive: true, actualPositive: true }),
-    de.buildLabel({ ruleId: 'DAS_DOMAIN_APPLICABILITY', provenance: 'selfReported', predictedPositive: true, actualPositive: false }),
-  ];
-  de.promotionAuthorizedLabels(labels).length === 1 ? ok('self-report excluded from promotion authority') : bad('self-report wrongly promotes');
-  de.provenanceCounts(labels).selfReported === 1 ? ok('provenance counts record self-report (telemetry only)') : bad('provenance count wrong');
-  de.buildConfusionMatrix('PATH_CLASSIFICATION', labels, bundle.ruleClasses, de.isClassA) === null
-    ? ok('confusion matrix refused for Class A rule') : bad('confusion matrix built for Class A');
-  de.buildConfusionMatrix('DAS_DOMAIN_APPLICABILITY', labels, bundle.ruleClasses, de.isClassA)?.matrix.truePositive === 1
-    ? ok('confusion matrix built for Class B (self-report excluded)') : bad('Class B confusion matrix wrong');
-  try { de.buildLabel({ ruleId: 'x', provenance: 'bogus' }); bad('buildLabel accepted unknown provenance'); }
-  catch { ok('buildLabel rejects unknown provenance (fail-fast)'); }
-
-  // -- Telemetry calibration unit (rule × host × policyVersion) ---------------
-  de.calibrationKey({ ruleId: 'r', host: 'claude', policyVersion: '0.1.0' }) === 'r::claude::0.1.0' ? ok('calibration key = rule×host×policyVersion') : bad('calibration key wrong');
-  const sample = de.buildSample({ ruleId: 'r', host: 'claude', policyVersion: '0.1.0', profile: 'simple', project: 'contextdevkit' });
-  !sample.key.includes('simple') && !sample.key.includes('contextdevkit') && sample.dimensions.profile === 'simple'
-    ? ok('profile/project are telemetry dimensions, not in the key') : bad('calibration unit leaked profile/project into the key');
-  sample.shadow === true ? ok('telemetry sample is shadow') : bad('telemetry sample not shadow');
-
-  // -- §28 telemetry proof: precision/recall over a confusion matrix -----------
-  // buildConfusionMatrix counts ONLY promotion-authorized labels (self-report Tier D
-  // excluded) — so these metrics measure ACTUAL activation, not selection.
-  const groundTruthLabels = [
-    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: true, actualPositive: true }),
-    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: true, actualPositive: false }),
-    de.buildLabel({ ruleId: 'PRED', provenance: 'behaviorObserved', predictedPositive: false, actualPositive: true }),
-    // A self-reported label that (if counted) would inflate the metrics — must be excluded.
-    de.buildLabel({ ruleId: 'PRED', provenance: 'selfReported', predictedPositive: true, actualPositive: true }),
-  ];
-  const cm = de.buildConfusionMatrix('PRED', groundTruthLabels, {}, () => false); // Class-B ⇒ matrix built
-  const pr = de.precisionRecall(cm.matrix);
-  cm.matrix.truePositive === 1 && cm.matrix.falsePositive === 1 && cm.matrix.falseNegative === 1
-    ? ok('§28: confusion matrix excludes self-reported labels (activation, not selection)') : bad(`§28 matrix miscounts (self-report leaked?): ${JSON.stringify(cm.matrix)}`);
-  Math.abs(pr.precision - 0.5) < 1e-9 && Math.abs(pr.recall - 0.5) < 1e-9 && Math.abs(pr.f1 - 0.5) < 1e-9
-    ? ok('§28: precision/recall/F1 derived from the matrix (0.5/0.5/0.5 for TP1/FP1/FN1)') : bad(`§28 precision/recall/F1 wrong: ${JSON.stringify(pr)}`);
-  // Negative case: a TAMPERED self-reported label (promotes:true it should not carry)
-  // must STILL be excluded — authority is re-derived from the tier table, not the field.
-  const tampered = [
-    ...groundTruthLabels,
-    { ruleId: 'PRED', provenance: 'selfReported', promotes: true, tier: 'D', predictedPositive: true, actualPositive: true },
-  ];
-  const cmTampered = de.buildConfusionMatrix('PRED', tampered, {}, () => false);
-  cmTampered.matrix.truePositive === 1
-    ? ok('§28: a tampered promotes:true on a self-reported label is STILL excluded (tier table is authority-of-record)') : bad(`§28 tampered self-report leaked into the matrix: ${JSON.stringify(cmTampered.matrix)}`);
-  // Measured-but-zero (tp=0, fp>0, fn>0): precision=recall=0 (non-null) ⇒ F1=0, not null.
-  const measuredZero = de.precisionRecall({ truePositive: 0, falsePositive: 1, falseNegative: 1, trueNegative: 0 });
-  measuredZero.precision === 0 && measuredZero.recall === 0 && measuredZero.f1 === 0
-    ? ok('§28: measured-but-zero (P=R=0) ⇒ F1=0, not null (definitive, not "no data")') : bad(`§28 measured-zero should be F1=0: ${JSON.stringify(measuredZero)}`);
-  // No data at all ⇒ every metric null (no fabricated 1.0), and support counts every cell.
-  const empty = de.precisionRecall({ truePositive: 0, falsePositive: 0, falseNegative: 0, trueNegative: 0 });
-  empty.precision === null && empty.recall === null && empty.f1 === null && empty.support === 0
-    ? ok('§28: empty matrix ⇒ precision/recall/F1 all null, support 0 (no data ⇒ no claim)') : bad(`§28 empty matrix wrong: ${JSON.stringify(empty)}`);
-
-  // -- Config (default-off + level ladder) -----------------------------------
-  de.DEFAULT_DOMAIN_ENGINEERING_CONFIG.enabled === false ? ok('config default-off') : bad('config not default-off');
-  const cfg = de.resolveConfig({ enabled: true, codeIntent: { codeMin: 55 } });
-  cfg.codeIntent.codeMin === 55 && cfg.codeIntent.structuralMin === 70 ? ok('config shallow-merge keeps defaults') : bad('config merge wrong');
-  de.modeForLevel(7, cfg) === 'strict' && de.modeForLevel(5, cfg) === 'guarded' && de.modeForLevel(4, cfg) === 'advisory'
-    ? ok('config level→mode ladder') : bad('level ladder wrong');
-
-  // -- Envelope additive shadow block + governance non-interference ----------
-  const envelope = env.buildEnvelope({
-    requestId: 'req-t', requestText: 'implement the aggregate in a bounded context',
-    classification: { primaryType: 'implementation', risk: 'high', blastRadius: 'module' },
-    intakeSignals: { tier: 'feature', paths: ['src/order.mjs'] }, root: TPL,
-  });
-  envelope.implementation && envelope.implementation.shadow === true ? ok('envelope carries shadow §15 block') : bad('envelope missing implementation block');
-  envelope.classification && envelope.context && envelope.routing ? ok('envelope existing blocks intact (additive)') : bad('envelope wiring broke existing shape');
-  !('workNature' in envelope.implementation) && !('ceremony' in envelope.implementation)
-    ? ok('implementation block never sets Work Nature / Ceremony (governance owns them)') : bad('block leaks governance authority');
-
-  // -- Reason-code stability (every emitted code is in the catalog) -----------
-  const catalog = de.loadPolicyTable(TPL, 'reasonCodes').table?.codes || {};
-  const emitted = [...creation.reasonCodes, ...dd.reasonCodes, ...escalated.reasonCodes, ...degraded.reasonCodes, 'CMIS_HARD_TRIGGER_WRITE_ATTEMPT'];
-  emitted.every((code) => code in catalog) ? ok('every emitted reason code exists in the catalog') : bad(`unknown reason code emitted: ${emitted.filter((c) => !(c in catalog))}`);
-
-  // -- /domain diagnostic contract (WF-0068 §27): observation-only, reuses §15 -
-  let inspect;
-  try {
-    inspect = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/domain-inspect.mjs')).href);
-    typeof inspect.inspectObjective === 'function' && typeof inspect.renderView === 'function'
-      ? ok('/domain exports inspectObjective + renderView') : bad('/domain diagnostic missing exports');
-    const view = await inspect.inspectObjective('implement the aggregate in a bounded context', TPL);
-    view && typeof view.mode === 'string' && view.block && typeof view.block.profile === 'string'
-      ? ok('/domain reuses buildImplementationBlock (view carries mode + §15 block)') : bad('/domain view shape wrong');
-    /observation only|nothing was changed/i.test(inspect.renderView(view))
-      ? ok('/domain render is observation-only (states nothing was changed)') : bad('/domain render missing the observation-only marker');
-  } catch (err) {
-    bad(`/domain diagnostic failed to load: ${err?.message ?? err}`);
-  }
-
-  // -- Cross-squad composition (§25): proportional, never a duplicate specialist.
-  // Composition (minimumSquad → requiredAgents) is REUSE — the RequestOrchestrator
-  // owns the wider dedup (request-agent-select duplicate weight + over-orchestration
-  // guard, each self-tested). Here we prove the domain block itself never emits a
-  // duplicated specialist for one responsibility.
-  const codeBlock = de.buildImplementationBlock({
-    root: TPL, requestText: 'refactor the checkout aggregate invariants', writeAttempt: true,
-    classification: { primaryType: 'implementation', risk: 'high', blastRadius: 'module' },
-    intakeSignals: { tier: 'feature', paths: ['src/checkout/aggregate.mjs'] },
-  });
-  const agents = Array.isArray(codeBlock.requiredAgents) ? codeBlock.requiredAgents : [];
-  new Set(agents).size === agents.length
-    ? ok('cross-squad composition emits no duplicate specialist (proportional, deduped §25)') : bad(`duplicate specialist in requiredAgents: ${agents.join(', ')}`);
+  const degraded = runtime.buildImplementationBlock({ policy: { degraded: true, missing: ['policy'] }, requestText: 'Implement x' });
+  degraded.degraded === true && degraded.recommendationAvailable === false
+    ? ok('degraded classification is honest and non-blocking') : bad('degraded classification fabricated authority');
 }

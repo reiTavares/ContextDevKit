@@ -1,331 +1,133 @@
 /**
- * Host hook composition checks for Claude settings, Antigravity, Codex, and Grok.
+ * Static host-composer checks for the ContextDevKit 4 single-process runtime.
  *
- * Kept outside the main selfcheck runner so the entrypoint remains an
- * orchestrator instead of becoming a host-contract test module.
+ * Host-specific matching is allowed, but every matching event group must start
+ * exactly one canonical dispatcher or the read-only context loader.
  */
 
-function checkCompose({ ok, bad }, composeSettings) {
-  console.log('Checking settings composition per level...');
-  const events = (lvl) => Object.keys(composeSettings(null, lvl).hooks || {}).sort();
-  const expect = {
-    1: ['SessionStart'],
-    2: ['PostToolUse', 'SessionStart', 'Stop'],
-    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    // L4 gains UserPromptSubmit: the graph-first gate captures the human bypass
-    // token there (WF-0108 / ADR-0155), alongside its PreToolUse enforcement.
-    4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
-    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
-    6: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
-    7: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStop', 'UserPromptSubmit'],
-  };
-  for (const [lvl, want] of Object.entries(expect)) {
-    const got = events(Number(lvl));
-    JSON.stringify(got) === JSON.stringify(want.sort())
-      ? ok(`L${lvl} -> ${got.join(', ')}`)
-      : bad(`L${lvl} expected [${want}] got [${got}]`);
-  }
-  const once = composeSettings(null, 5);
-  const onceCount = (once.hooks.PostToolUse || []).length;
-  const twice = composeSettings(structuredClone(once), 5);
-  const dup = (twice.hooks.PostToolUse || []).length;
-  dup === onceCount
-    ? ok('re-running installer is idempotent (no duplicate hooks)')
-    : bad(`idempotency broken: PostToolUse has ${dup} groups after re-compose (expected ${onceCount})`);
-  const sl = composeSettings(null, 1).statusLine;
-  sl && String(sl.command).includes('contextkit/runtime/statusline')
-    ? ok('statusLine widget wired (L1+)')
-    : bad('statusLine widget not wired');
-  composeSettings({ statusLine: { type: 'command', command: 'mine' } }, 5).statusLine?.command === 'mine'
-    ? ok('composeSettings preserves a user statusLine')
-    : bad('composeSettings clobbered a user statusLine');
+const EVENTS_BY_LEVEL = Object.freeze({
+  1: ['SessionStart'],
+  2: ['PostToolUse', 'SessionStart', 'Stop'],
+  3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+  4: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
+  5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit'],
+});
+
+const CANONICAL_SCRIPTS = Object.freeze({
+  SessionStart: 'governance-session-context.mjs',
+  PostToolUse: 'governance-postflight.mjs',
+  Stop: 'governance-completion.mjs',
+  PreToolUse: 'governance-write-preflight.mjs',
+  UserPromptSubmit: 'governance-prompt-preflight.mjs',
+  PreCompact: 'governance-session-context.mjs',
+  SubagentStart: 'governance-session-context.mjs',
+});
+
+/** Extract the plain event map from one host-specific composition. */
+function eventMap(host, composer, level) {
+  if (host === 'claude') return composer.composeSettings(null, level).hooks ?? {};
+  if (host === 'codex') return composer.composeCodexHooks(null, level).hooks ?? {};
+  if (host === 'grok') return composer.composeGrokHooks(null, level).hooks ?? {};
+  return composer.composeAgentHooks(null, level)[composer.KIT_HOOK_GROUP] ?? {};
 }
 
-function checkAgentHooksCompose({ ok, bad }, composer, adapter) {
-  console.log('Checking agy hooks composition + host adapter (ADR-0049)...');
-  const { composeAgentHooks, stripAgentHooks, KIT_HOOK_GROUP } = composer;
-  const group = (lvl) => composeAgentHooks(null, lvl)[KIT_HOOK_GROUP];
-  const events = (lvl) => Object.keys(group(lvl)).filter((k) => k !== 'enabled').sort();
-  const expect = {
-    1: ['SessionStart'],
-    2: ['PostToolUse', 'SessionStart', 'Stop'],
-    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
-  };
-  for (const [lvl, want] of Object.entries(expect)) {
-    const got = events(Number(lvl));
-    JSON.stringify(got) === JSON.stringify(want.sort())
-      ? ok(`agy L${lvl} -> ${got.join(', ')}`)
-      : bad(`agy L${lvl} expected [${want}] got [${got}]`);
-  }
-  const l5 = group(5);
-  // L5 PreToolUse = SIX per-write controls (concurrency-guard, domain-code-gate,
-  // arch-debt-law-gate, simulate-gate, journey-gate, deliberation-nudge) plus TWO
-  // matcher-less hooks: the generic execution gate and the graph-first gate
-  // (WF-0108 / ADR-0155 — agy's search tool names are host-owned, so that gate
-  // self-filters by payload shape instead).
-  const perWriteControls = 6;
-  const genericPreToolUse = ['execution-gate.mjs', 'graph-first-gate.mjs'];
-  l5.PreToolUse.length === adapter.AGY_WRITE_TOOLS.length * perWriteControls + genericPreToolUse.length
-    && l5.PreToolUse.filter((entry) => adapter.AGY_WRITE_TOOLS.includes(entry.matcher)).length === adapter.AGY_WRITE_TOOLS.length * perWriteControls
-    && genericPreToolUse.every((script) => l5.PreToolUse.some((entry) => entry.hooks?.[0]?.command.includes(script)))
-    ? ok('agy PreToolUse wires per-write controls plus generic execution-gate + graph-first parity')
-    : bad(`agy PreToolUse wiring wrong: ${JSON.stringify(l5.PreToolUse?.map((e) => e.matcher))}`);
-  l5.PreToolUse.every((e) => e.hooks[0].command.endsWith('--host agy'))
-    ? ok('every agy tool hook carries the --host agy flag')
-    : bad('an agy tool hook is missing the --host agy flag');
-  l5.SessionStart[0].hooks[0].command.includes('session-manager.mjs start') && l5.Stop[0].hooks[0].command.includes('session-manager.mjs end')
-    ? ok('agy SessionStart/Stop reuse session-manager start/end')
-    : bad('agy session boundary commands do not target session-manager');
-  const l5Commands = Object.values(l5).flat().flatMap((entry) => (entry.hooks || []).map((hook) => hook.command || ''));
-  ['execution-contract-hook.mjs', 'execution-gate.mjs', 'indirect-write-reconcile.mjs', 'completion-gate.mjs', 'subagent-gate.mjs', 'compaction-continuity.mjs']
-    .every((script) => l5Commands.some((command) => command.includes(script)))
-    ? ok('agy L5 exposes execution, completion, subagent, indirect-write, and continuity controls')
-    : bad('agy L5 is missing a required capability-enforcement control point');
-  const userFile = { 'my-gate': { enabled: true, PreToolUse: [] } };
-  const composed = composeAgentHooks(composeAgentHooks(userFile, 5), 5);
-  composed['my-gate'] && composed[KIT_HOOK_GROUP].PreToolUse.length === l5.PreToolUse.length
-    ? ok('agy re-compose is idempotent and preserves user groups')
-    : bad('agy re-compose duplicated entries or dropped a user group');
-  const stripped = stripAgentHooks(composed);
-  stripped && stripped['my-gate'] && !stripped[KIT_HOOK_GROUP] && stripAgentHooks(composeAgentHooks(null, 5)) === null
-    ? ok('stripAgentHooks removes only the kit group (null when nothing remains)')
-    : bad('stripAgentHooks misbehaved');
+/** Return every command registered for an event. */
+function commandsFor(events, eventName) {
+  return (events[eventName] ?? []).flatMap((group) => (
+    (group.hooks ?? []).map((hook) => String(hook.command ?? ''))
+  ));
+}
 
-  const norm = adapter.normalizeToolPayload;
-  const cases = [
-    ['claude Edit', { tool_name: 'Edit', tool_input: { file_path: 'a.js' } }, ['a.js']],
-    ['claude MultiEdit edits[]', { tool_name: 'MultiEdit', tool_input: { edits: [{ file_path: 'b.js' }, { file_path: 'c.js' }] } }, ['b.js', 'c.js']],
-    ['agy toolCall TargetFile', { toolCall: { name: 'write_to_file', args: { TargetFile: 'd.js' } } }, ['d.js']],
-    ['agy claude-shaped variant', { tool_name: 'replace_file_content', tool_input: { TargetFile: 'e.js' } }, ['e.js']],
-    ['codex apply_patch', { tool_name: 'apply_patch', tool_input: { command: '*** Begin Patch\n*** Update File: src/a.js\n*** Add File: src/b.js\n*** End Patch\n' } }, ['src/a.js', 'src/b.js']],
-    ['junk payload', { nonsense: true }, []],
+/** Verify event shape, canonical dispatchers, and one-process groups. */
+function checkHost(report, host, composer) {
+  const { ok, bad } = report;
+  for (const [levelText, expectedEvents] of Object.entries(EVENTS_BY_LEVEL)) {
+    const level = Number(levelText);
+    const events = eventMap(host, composer, level);
+    const names = Object.keys(events).filter((name) => name !== 'enabled').sort();
+    const expected = [...expectedEvents].sort();
+    if (JSON.stringify(names) === JSON.stringify(expected)) ok(`${host} L${level} uses the v4 event surface`);
+    else bad(`${host} L${level} events differ: expected ${expected.join(', ')}, got ${names.join(', ')}`);
+
+    for (const eventName of names) {
+      const groups = events[eventName] ?? [];
+      const malformed = groups.some((group) => (group.hooks ?? []).length !== 1);
+      if (!malformed) ok(`${host} L${level} ${eventName} starts one process per matching group`);
+      else bad(`${host} L${level} ${eventName} contains a multi-process hook group`);
+
+      const commands = commandsFor(events, eventName);
+      const expectedScript = CANONICAL_SCRIPTS[eventName];
+      if (commands.length > 0 && commands.every((command) => command.includes(expectedScript))) {
+        ok(`${host} L${level} ${eventName} delegates to ${expectedScript}`);
+      } else {
+        bad(`${host} L${level} ${eventName} does not exclusively delegate to ${expectedScript}`);
+      }
+    }
+  }
+
+  const levelFive = eventMap(host, composer, 5);
+  const allCommands = Object.keys(levelFive)
+    .filter((name) => name !== 'enabled')
+    .flatMap((eventName) => commandsFor(levelFive, eventName));
+  const forbidden = [
+    'ledger.mjs', 'session-start.mjs', 'track-edits.mjs', 'check-registration.mjs',
+    'graph-first-gate.mjs', 'execution-gate.mjs', 'completion-gate.mjs',
+    'domain-code-gate.mjs', 'domain-conformance.mjs', 'subagent-gate.mjs',
   ];
-  for (const [label, payload, want] of cases) {
-    const got = norm(payload).filePaths;
-    JSON.stringify(got) === JSON.stringify(want)
-      ? ok(`normalizeToolPayload: ${label}`)
-      : bad(`normalizeToolPayload ${label} -> ${JSON.stringify(got)}`);
-  }
-  adapter.hookHost(['node', 'x.mjs', '--host', 'agy']) === 'agy' &&
-  adapter.hookHost(['node', 'x.mjs', '--host=codex']) === 'codex' &&
-  adapter.hookHost(['node', 'x.mjs']) === 'claude'
-    ? ok('hookHost resolves explicit agy/codex hosts and defaults to claude')
-    : bad('hookHost flag parsing wrong');
-  checkCodexAdvisoryPayload({ ok, bad }, adapter);
-}
+  const legacy = allCommands.filter((command) => forbidden.some((name) => command.includes(name)));
+  if (legacy.length === 0) ok(`${host} composer exposes no executable 3.x hook`);
+  else bad(`${host} composer retains executable 3.x hooks: ${legacy.join(', ')}`);
 
-function checkCodexAdvisoryPayload({ ok, bad }, adapter) {
-  try {
-    const pre = JSON.parse(adapter.advisoryPayload('note', 'codex', 'PreToolUse'));
-    const stop = JSON.parse(adapter.advisoryPayload('note', 'codex', 'Stop'));
-    pre.hookSpecificOutput?.hookEventName === 'PreToolUse' &&
-    pre.hookSpecificOutput?.additionalContext === 'note' &&
-    stop.systemMessage === 'note'
-      ? ok('Codex advisories use event-valid JSON payloads')
-      : bad('Codex advisory payload shape is invalid');
-  } catch {
-    bad('Codex advisory payload shape is invalid');
+  if (host !== 'claude' && allCommands.every((command) => command.includes(`--host ${host}`))) {
+    ok(`${host} commands carry an explicit host flag`);
+  } else if (host !== 'claude') {
+    bad(`${host} command is missing its explicit host flag`);
   }
 }
 
-function checkCodexHooksCompose({ ok, bad }, composer) {
-  console.log('Checking Codex hooks composition...');
-  const events = (lvl) => Object.keys(composer.composeCodexHooks(null, lvl).hooks || {}).sort();
-  const expect = {
-    1: ['SessionStart'],
-    2: ['PostToolUse', 'SessionStart', 'Stop'],
-    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
-  };
-  for (const [lvl, want] of Object.entries(expect)) {
-    const got = events(Number(lvl));
-    JSON.stringify(got) === JSON.stringify(want.sort())
-      ? ok(`Codex L${lvl} -> ${got.join(', ')}`)
-      : bad(`Codex L${lvl} expected [${want}] got [${got}]`);
+/** Verify recomposition strips only prior kit hooks and retains user hooks. */
+function checkRecomposition(report, host, composer) {
+  const { ok, bad } = report;
+  if (host === 'agy') {
+    const user = { custom: { enabled: true, SessionStart: [{ hooks: [{ type: 'command', command: 'echo user' }] }] } };
+    const once = composer.composeAgentHooks(user, 5);
+    const twice = composer.composeAgentHooks(once, 5);
+    if (twice.custom && JSON.stringify(once[composer.KIT_HOOK_GROUP]) === JSON.stringify(twice[composer.KIT_HOOK_GROUP])) {
+      ok('agy recomposition is idempotent and preserves user groups');
+    } else bad('agy recomposition duplicated kit hooks or lost a user group');
+    return;
   }
-  const once = composer.composeCodexHooks(null, 5);
-  const commands = Object.values(once.hooks).flat().flatMap((entry) => (entry.hooks || []).map((hook) => hook.command || ''));
-  commands.every((command) => command.includes('--host codex'))
-    ? ok('Codex hook commands carry the explicit host flag')
-    : bad('Codex hook command missing --host codex');
-  const twice = composer.composeCodexHooks(structuredClone(once), 5);
-  (twice.hooks.PreToolUse || []).length === (once.hooks.PreToolUse || []).length
-    ? ok('Codex hook re-compose is idempotent')
-    : bad('Codex hook re-compose duplicated entries');
-  composer.stripCodexHooks(once) === null
-    ? ok('stripCodexHooks removes only the kit hooks')
-    : bad('stripCodexHooks left kit-only residue');
+
+  const method = host === 'claude' ? 'composeSettings' : host === 'codex' ? 'composeCodexHooks' : 'composeGrokHooks';
+  const user = { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'echo user' }] }] } };
+  const once = composer[method](structuredClone(user), 5);
+  const twice = composer[method](structuredClone(once), 5);
+  const userCount = commandsFor(twice.hooks, 'SessionStart').filter((command) => command === 'echo user').length;
+  const kitCountOnce = commandsFor(once.hooks, 'PreToolUse').length;
+  const kitCountTwice = commandsFor(twice.hooks, 'PreToolUse').length;
+  if (userCount === 1 && kitCountOnce === kitCountTwice) ok(`${host} recomposition is idempotent and preserves user hooks`);
+  else bad(`${host} recomposition duplicated kit hooks or lost a user hook`);
 }
 
-function checkGrokHooksCompose({ ok, bad }, composer, adapter) {
-  console.log('Checking Grok hooks composition + host adapter (OP-0014)...');
-  const events = (lvl) => Object.keys(composer.composeGrokHooks(null, lvl).hooks || {}).sort();
-  const expect = {
-    1: ['SessionStart'],
-    2: ['PostToolUse', 'SessionStart', 'Stop'],
-    3: ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop'],
-    5: ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'SubagentStop', 'UserPromptSubmit'],
-  };
-  for (const [lvl, want] of Object.entries(expect)) {
-    const got = events(Number(lvl));
-    JSON.stringify(got) === JSON.stringify(want.sort())
-      ? ok(`Grok L${lvl} -> ${got.join(', ')}`)
-      : bad(`Grok L${lvl} expected [${want}] got [${got}]`);
-  }
-
-  const once = composer.composeGrokHooks(null, 5);
-  const twice = composer.composeGrokHooks(structuredClone(once), 5);
-  JSON.stringify(twice) === JSON.stringify(once)
-    ? ok('Grok hook re-compose is idempotent')
-    : bad('Grok hook re-compose duplicated or reordered kit entries');
-
-  const commands = Object.values(once.hooks).flat().flatMap((entry) =>
-    (entry.hooks || []).map((hook) => hook.command || '')
-  );
-  commands.length > 0 && commands.every((command) => command.endsWith('--host grok'))
-    ? ok('every Grok hook command carries the --host grok flag')
-    : bad('a Grok hook command is missing the --host grok flag');
-
-  const scriptsFor = (hooks, eventName) => (hooks?.[eventName] || [])
-    .flatMap((entry) => (entry.hooks || []).map((hook) => String(hook.command || '').split('/').pop()?.split(' ')[0] || ''));
-  const codexLikeScripts = new Set([
-    ...scriptsFor(once.hooks, 'SessionStart'),
-    ...scriptsFor(once.hooks, 'PostToolUse'),
-    ...scriptsFor(once.hooks, 'Stop'),
-    ...scriptsFor(once.hooks, 'PreToolUse'),
-    ...scriptsFor(once.hooks, 'UserPromptSubmit'),
-    ...scriptsFor(once.hooks, 'SubagentStart'),
-    ...scriptsFor(once.hooks, 'SubagentStop'),
-    ...scriptsFor(once.hooks, 'PreCompact'),
-  ]);
-  const codexScripts = new Set([
-    'session-start.mjs', 'track-edits.mjs', 'check-registration.mjs',
-    'concurrency-guard.mjs', 'auto-format.mjs', 'graph-session-refresh.mjs',
-    'graph-first-gate.mjs', 'domain-code-gate.mjs', 'domain-conformance.mjs',
-    'arch-debt-law-gate.mjs', 'simulate-gate.mjs', 'journey-gate.mjs',
-    'deliberation-nudge.mjs', 'execution-contract-hook.mjs', 'execution-gate.mjs',
-    'indirect-write-reconcile.mjs', 'completion-gate.mjs', 'done-sweep.mjs',
-    'subagent-gate.mjs', 'compaction-continuity.mjs',
-  ]);
-  const missingCodexControls = [...codexScripts].filter((script) => !codexLikeScripts.has(script));
-  missingCodexControls.length === 0
-    ? ok('Grok L5 exposes every Codex control script')
-    : bad(`Grok L5 is missing Codex control scripts: ${missingCodexControls.join(', ')}`);
-
-  const executionMatcher = once.hooks.PreToolUse?.find((entry) =>
-    entry.hooks?.some((hook) => String(hook.command || '').includes('execution-gate.mjs')),
-  )?.matcher || '';
-  const indirectMatcher = once.hooks.PostToolUse?.find((entry) =>
-    entry.hooks?.some((hook) => String(hook.command || '').includes('indirect-write-reconcile.mjs')),
-  )?.matcher || '';
-  /MCPTool/.test(executionMatcher) && /__/.test(executionMatcher) && /MCPTool/.test(indirectMatcher) && /__/.test(indirectMatcher)
-    ? ok('Grok L5 captures native and qualified MCP tool calls for execution/indirect-write parity')
-    : bad(`Grok MCP matcher parity is incomplete: execution=${executionMatcher}, indirect=${indirectMatcher}`);
-
-  const userFile = {
-    hooks: {
-      SessionStart: [{ hooks: [{ type: 'command', command: 'echo user-hook' }] }],
-    },
-  };
-  const withUser = composer.composeGrokHooks(userFile, 5);
-  const reComposed = composer.composeGrokHooks(withUser, 5);
-  const userCommands = reComposed.hooks.SessionStart.flatMap((group) => group.hooks || [])
-    .map((hook) => hook.command);
-  userCommands.filter((command) => command === 'echo user-hook').length === 1
-    ? ok('Grok recomposition preserves one unrelated user hook')
-    : bad('Grok recomposition dropped or duplicated an unrelated user hook');
-  const stripped = composer.stripGrokHooks(reComposed);
-  stripped?.hooks?.SessionStart?.some((group) => group.hooks?.some((hook) => hook.command === 'echo user-hook'))
-    && !JSON.stringify(stripped).includes('contextkit/runtime/hooks')
-    ? ok('stripGrokHooks removes only ContextDevKit hooks')
-    : bad('stripGrokHooks removed user content or left kit residue');
-  composer.stripGrokHooks(once) === null
-    ? ok('stripGrokHooks returns null for a kit-only file')
-    : bad('stripGrokHooks left kit-only residue');
-
-  const normalized = adapter.normalizeToolPayload({
-    sessionId: 'grok-selfcheck',
-    toolName: 'Write',
-    toolInput: { filePath: 'src/grok.js' },
-  });
-  normalized.toolName === 'Write' && normalized.filePaths[0] === 'src/grok.js'
-    ? ok('Grok camelCase tool payload normalizes to a write path')
-    : bad(`Grok camelCase payload normalized incorrectly: ${JSON.stringify(normalized)}`);
-  adapter.hookHost(['node', 'hook.mjs', '--host', 'grok']) === 'grok'
-    && adapter.hookHost(['node', 'hook.mjs', '--host=grok']) === 'grok'
-    ? ok('hookHost resolves explicit Grok host flags')
-    : bad('hookHost Grok flag parsing is incorrect');
-  try {
-    const advisory = JSON.parse(adapter.advisoryPayload('note', 'grok', 'PreToolUse'));
-    advisory.decision === 'allow' && advisory.reason === 'note'
-      ? ok('Grok advisories use an explicit allow payload')
-      : bad('Grok advisory payload shape is invalid');
-  } catch {
-    bad('Grok advisory payload shape is invalid');
-  }
-}
-
-/**
- * Cross-host parity for the WF-0068 Domain Engineering gate hooks (ADR-0128
- * §25/§31): each native host must wire BOTH gate hooks at L≥4 with
- * equivalent behaviour, or declare an explicit limitation. Equivalence here is
- * genuine — the block verb is translated per host by the host-adapter
- * (claude/codex `block`, agy/Grok `deny`), so no limitation is declared. Both hooks are
- * default-OFF + fail-open, so wiring them across hosts can never false-block.
- */
-function checkDomainHookParity({ ok, bad }, { settings, agy, codex, grok }) {
-  console.log('Checking Domain Engineering gate-hook cross-host parity (WF-0068, ADR-0128 §25)...');
-  const CODE_GATE = 'domain-code-gate.mjs';
-  const CONFORMANCE = 'domain-conformance.mjs';
-  // Flatten every hook command an event maps to (both matcher-alternation and
-  // per-tool composer shapes), for a given composed hooks object.
-  const commandsFor = (hooksObj, evt) =>
-    [].concat(hooksObj?.[evt] || []).flatMap((g) => (g.hooks || []).map((h) => String(h.command || '')));
-
-  const hosts = {
-    claude: (lvl) => settings.composeSettings(null, lvl).hooks,
-    codex: (lvl) => codex.composeCodexHooks(null, lvl).hooks,
-    agy: (lvl) => agy.composeAgentHooks(null, lvl)[agy.KIT_HOOK_GROUP],
-    grok: (lvl) => grok.composeGrokHooks(null, lvl).hooks,
-  };
-
-  for (const [host, hooksAt] of Object.entries(hosts)) {
-    // Present at L4 (the advisory floor of the level→mode ladder).
-    const pre4 = commandsFor(hooksAt(4), 'PreToolUse').some((c) => c.includes(CODE_GATE));
-    const post4 = commandsFor(hooksAt(4), 'PostToolUse').some((c) => c.includes(CONFORMANCE));
-    pre4 && post4
-      ? ok(`${host}: both domain gate hooks wired at L4 (code-gate PreToolUse + conformance PostToolUse)`)
-      : bad(`${host}: domain gate hook missing at L4 (code-gate=${pre4}, conformance=${post4})`);
-    // Absent below the L4 floor (inert — matches the resolveDomainMode ladder).
-    const pre3 = commandsFor(hooksAt(3), 'PreToolUse').some((c) => c.includes(CODE_GATE));
-    !pre3
-      ? ok(`${host}: domain code-gate is absent below L4 (respects the advisory floor)`)
-      : bad(`${host}: domain code-gate wired below L4 — breaks the level policy`);
-  }
-}
-
+/** Run the host-composition portion of the aggregate selfcheck. */
 export function runHostHookChecks(report, { mods }) {
-  if (mods['config/settings-compose.mjs']?.composeSettings) checkCompose(report, mods['config/settings-compose.mjs'].composeSettings);
-  if (mods['config/agent-hooks-compose.mjs']?.composeAgentHooks && mods['hooks/host-adapter.mjs']) {
-    checkAgentHooksCompose(report, mods['config/agent-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
+  const hosts = [
+    ['claude', mods['config/settings-compose.mjs']],
+    ['codex', mods['config/codex-hooks-compose.mjs']],
+    ['agy', mods['config/agent-hooks-compose.mjs']],
+    ['grok', mods['config/grok-hooks-compose.mjs']],
+  ];
+  for (const [host, composer] of hosts) {
+    if (!composer) {
+      report.bad(`${host} composer failed to import`);
+      continue;
+    }
+    checkHost(report, host, composer);
+    checkRecomposition(report, host, composer);
   }
-  if (mods['config/codex-hooks-compose.mjs']?.composeCodexHooks) checkCodexHooksCompose(report, mods['config/codex-hooks-compose.mjs']);
-  if (mods['config/grok-hooks-compose.mjs']?.composeGrokHooks && mods['hooks/host-adapter.mjs']) {
-    checkGrokHooksCompose(report, mods['config/grok-hooks-compose.mjs'], mods['hooks/host-adapter.mjs']);
-  }
-  // WF-0068 cross-host parity — needs all native composers loaded.
-  if (
-    mods['config/settings-compose.mjs']?.composeSettings &&
-    mods['config/agent-hooks-compose.mjs']?.composeAgentHooks &&
-    mods['config/codex-hooks-compose.mjs']?.composeCodexHooks &&
-    mods['config/grok-hooks-compose.mjs']?.composeGrokHooks
-  ) {
-    checkDomainHookParity(report, {
-      settings: mods['config/settings-compose.mjs'],
-      agy: mods['config/agent-hooks-compose.mjs'],
-      codex: mods['config/codex-hooks-compose.mjs'],
-      grok: mods['config/grok-hooks-compose.mjs'],
-    });
-  }
+
+  const settings = mods['config/settings-compose.mjs']?.composeSettings(null, 1);
+  if (String(settings?.statusLine?.command ?? '').includes('runtime/statusline.mjs')) {
+    report.ok('Claude composition keeps the read-only v4 statusline');
+  } else report.bad('Claude composition is missing the read-only v4 statusline');
 }

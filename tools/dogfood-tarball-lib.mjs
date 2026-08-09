@@ -63,26 +63,22 @@ export function seedProject(dir) {
 }
 
 /**
- * Plants two "active" session ledger files in <projectDir>/.claude/.sessions/
+ * Plants two active workspace claim records in <projectDir>/.claude/.workspace/
  * to simulate the DEFERRED_ACTIVE_SESSIONS scenario.
  * @param {string} projectDir
  */
 export function plantActiveSessions(projectDir) {
-  const sessDir = join(projectDir, '.claude', '.sessions');
-  mkdirSync(sessDir, { recursive: true });
-  // Session 1: has activeTask → active
-  writeFileSync(join(sessDir, 'session-aaa.json'), JSON.stringify({
+  const workspaceDir = join(projectDir, '.claude', '.workspace');
+  mkdirSync(workspaceDir, { recursive: true });
+  writeFileSync(join(workspaceDir, 'session-aaa.json'), JSON.stringify({
     sessionId: 'session-aaa',
-    registered: false,
-    activeTask: 'running-hotfix',
-    modifications: ['file.js'],
+    claims: [{ path: 'file.js', claimedAt: Date.now() }],
+    tasks: [],
   }));
-  // Session 2: unregistered + modifications → active
-  writeFileSync(join(sessDir, 'session-bbb.json'), JSON.stringify({
+  writeFileSync(join(workspaceDir, 'session-bbb.json'), JSON.stringify({
     sessionId: 'session-bbb',
-    registered: false,
-    activeTask: '',
-    modifications: ['other.js'],
+    claims: [],
+    tasks: [{ id: 'T1', tasksTarget: 'contextkit/memory/workflows/WF-0001/tasks.json' }],
   }));
 }
 

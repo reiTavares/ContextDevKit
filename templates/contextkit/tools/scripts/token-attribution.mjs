@@ -5,7 +5,7 @@
  * splits token cost two ways:
  *   - by AGENT — main loop vs subagent **fan-out**, via the transcript's
  *     `isSidechain` flag (the cost frontier ADR-0041 named). This split is always
- *     available and is the honest input the grade-4 budget gate (ADR-0045) reads.
+ *     available and remains an honest advisory budget input.
  *   - by COMMAND — via the transcript's `attributionSkill` field. This field is
  *     populated by the HOST only while a slash command / skill is the attribution
  *     context, so `commands` is legitimately empty on sessions that ran no

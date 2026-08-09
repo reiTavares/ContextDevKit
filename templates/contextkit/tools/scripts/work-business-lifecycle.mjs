@@ -5,11 +5,10 @@
  * flow and the revision-history append. A3-T2 is the ONLY code that may set
  * `status === 'confirmed'` — no other module emits that state.
  *
- * CRITICAL INVARIANT (enforced here + in resolve-autonomy.mjs `adr` floor):
+ * CRITICAL DOMAIN INVARIANT (enforced only at this write boundary):
  *   AI cannot self-approve a Business. `approve` REQUIRES `ctx.actor === 'human'`.
  *   Any call with a non-human actor is a hard refusal (throws `ApprovalActorError`
- *   with a structured receipt). This check CANNOT be weakened by any grade or
- *   configuration — it mirrors the `adr` area's `manual` floor.
+ *   with a structured receipt). This is not an autonomy grade or routing gate.
  *
  * Zero runtime dependencies — `node:*` + sibling modules only (immutable rule 1).
  *
@@ -80,8 +79,7 @@ function assertHumanActor(ctx) {
   const actor = typeof ctx.actor === 'string' ? ctx.actor : '(unknown)';
   const err = new Error(
     `Business approve REFUSED: actor "${actor}" is not "human". ` +
-    'AI cannot self-approve a Business at any autonomy grade. ' +
-    'This is a permanent floor — see resolve-autonomy.mjs §adr + ADR-0102.',
+    'Business approval requires the recorded human actor defined by ADR-0102.',
   );
   err.code = 'APPROVAL_ACTOR_REFUSED';
   err.refusal = { actor, reason: 'non-human-actor', action: 'approve' };

@@ -3,7 +3,7 @@
  *
  * Implements three independent checks that run before any file is written:
  *   1. projectId           — deterministic sha256 id for the canonical target path.
- *   2. detectActiveSessions — scans ledger files for in-flight sessions.
+ *   2. detectActiveSessions — scans explicit workspace claims for in-flight work.
  *   3. detectSelfHost      — detects overlap between the running installer and target.
  *   4. runPreflight        — composes the above and returns a unified decision object.
  *
@@ -11,7 +11,7 @@
  *   - Zero runtime dependencies. node:* only.
  *   - Default to refuse / opt-in to permit. Any uncovered risk → deferred.
  *   - One consent flag never implies the other (both + only one override → still deferred).
- *   - Fail fast: I/O errors in the ledger scan treat the ledger as ACTIVE
+ *   - Fail fast: I/O errors in the workspace scan treat the record as ACTIVE
  *     (conservative / false-positive-safe, never false-negative-safe).
  */
 import { createHash } from 'node:crypto';
@@ -24,8 +24,8 @@ import {
   DEFERRED_SELF_UPDATE,
 } from './update-status.mjs';
 
-/** Ledger directory relative to a project root (mirrors LEDGER_DIR in paths.mjs). */
-const LEDGER_DIR_REL = '.claude/.sessions';
+/** Explicit workspace-claim directory relative to a project root. */
+const WORKSPACE_DIR_REL = '.claude/.workspace';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -79,68 +79,55 @@ export function projectId(target) {
 }
 
 /**
- * Scans `<target>/.claude/.sessions/*.json` and returns entries that look ACTIVE.
+ * Scans `<target>/.claude/.workspace/*.json` and returns entries that look ACTIVE.
  *
  * Conservative active-classification rules — any one match → ACTIVE:
- *   a) Ledger file cannot be parsed → treated as active (unknown state is risky).
- *   b) `registered` is falsy AND `modifications` array is non-empty.
- *   c) `activeTask` field is present, non-null, and non-empty.
- *
- * A registered ledger with no active task (regardless of modifications) is NOT
- * active — it represents a completed, recorded session.
+ *   a) A workspace record cannot be parsed → treated as active (unknown is risky).
+ *   b) `claims[]` is non-empty.
+ *   c) `tasks[]` is non-empty.
  *
  * @param {string} target project root
  * @returns {Promise<Array<{ sessionId: string, reason: string }>>}
  */
 export async function detectActiveSessions(target) {
-  const sessionsDir = join(target, LEDGER_DIR_REL);
-  if (!existsSync(sessionsDir)) return [];
+  const workspaceDir = join(target, WORKSPACE_DIR_REL);
+  if (!existsSync(workspaceDir)) return [];
 
   let filenames;
   try {
-    filenames = readdirSync(sessionsDir);
+    filenames = readdirSync(workspaceDir);
   } catch {
-    return [{ sessionId: 'unknown', reason: 'sessions directory unreadable — treated as active' }];
+    return [{ sessionId: 'unknown', reason: 'workspace directory unreadable — treated as active' }];
   }
 
   const active = [];
   for (const filename of filenames) {
     if (!filename.endsWith('.json') || filename.startsWith('.')) continue;
     const sessionId = filename.slice(0, -5);
-    const filePath = join(sessionsDir, filename);
+    const filePath = join(workspaceDir, filename);
 
-    let ledger;
+    let workspace;
     try {
       const raw = await readFile(filePath, 'utf-8');
-      ledger = JSON.parse(raw.replace(/^﻿/, '')); // strip BOM (windows-safe)
+      workspace = JSON.parse(raw.replace(/^﻿/, '')); // strip BOM (windows-safe)
     } catch {
-      active.push({ sessionId, reason: 'ledger unreadable or corrupt — treated as active' });
+      active.push({ sessionId, reason: 'workspace record unreadable or corrupt — treated as active' });
       continue;
     }
 
-    if (typeof ledger !== 'object' || ledger === null) {
-      active.push({ sessionId, reason: 'ledger is not a JSON object — treated as active' });
+    if (typeof workspace !== 'object' || workspace === null) {
+      active.push({ sessionId, reason: 'workspace record is not a JSON object — treated as active' });
       continue;
     }
 
-    const hasActiveTask =
-      ledger.activeTask != null &&
-      typeof ledger.activeTask === 'string' &&
-      ledger.activeTask.length > 0;
-
-    const hasModifications =
-      Array.isArray(ledger.modifications) && ledger.modifications.length > 0;
-    const isRegistered = ledger.registered === true;
-
-    if (hasActiveTask) {
-      active.push({ sessionId, reason: `has activeTask: "${ledger.activeTask}"` });
-    } else if (!isRegistered && hasModifications) {
+    const claims = Array.isArray(workspace.claims) ? workspace.claims : [];
+    const tasks = Array.isArray(workspace.tasks) ? workspace.tasks : [];
+    if (claims.length > 0 || tasks.length > 0) {
       active.push({
-        sessionId,
-        reason: `unregistered with ${ledger.modifications.length} modification(s)`,
+        sessionId: typeof workspace.sessionId === 'string' ? workspace.sessionId : sessionId,
+        reason: `${claims.length} claim(s), ${tasks.length} canonical task binding(s)`,
       });
     }
-    // registered && no activeTask → not active regardless of modifications.
   }
 
   return active;

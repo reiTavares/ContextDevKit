@@ -12,9 +12,9 @@
  *                          classification boundary — the four observable levers
  *                          (boot-delta/run-compact/project-map/routing) are
  *                          EXCLUDED from governance spend, because folding a
- *                          saving into a spend measurement would make the HARD
- *                          §13 guardrail unfalsifiable. Proves a rising series
- *                          FAILS and blocks promotion while flat/falling pass;
+ *                          saving into a spend measurement would make the
+ *                          trend unfalsifiable. Proves a rising series remains
+ *                          an explicit non-blocking canary finding;
  *                          that an unavailable measurement is `skipped` and never
  *                          behaves as a pass (constitution §8); that the
  *                          concluded-context numerator is decided by the state

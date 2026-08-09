@@ -13,6 +13,7 @@ import { dispatchPromptPreflight } from '../templates/contextkit/runtime/hooks/g
 import { dispatchWritePreflight } from '../templates/contextkit/runtime/hooks/governance-write-preflight.mjs';
 import { dispatchPostflight } from '../templates/contextkit/runtime/hooks/governance-postflight.mjs';
 import { dispatchCompletion } from '../templates/contextkit/runtime/hooks/governance-completion.mjs';
+import { loadGovernanceSessionContext } from '../templates/contextkit/runtime/hooks/governance-session-context.mjs';
 import { createWaveWorkflow } from '../templates/contextkit/tools/scripts/workflow/create.mjs';
 import {
   emitGovernanceResult,
@@ -22,10 +23,13 @@ import {
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const EXPECTED_COMMANDS = Object.freeze({
+  SessionStart: 'governance-session-context.mjs',
   UserPromptSubmit: 'governance-prompt-preflight.mjs',
   PreToolUse: 'governance-write-preflight.mjs',
   PostToolUse: 'governance-postflight.mjs',
   Stop: 'governance-completion.mjs',
+  PreCompact: 'governance-session-context.mjs',
+  SubagentStart: 'governance-session-context.mjs',
 });
 const LEGACY_HOOKS = Object.freeze([
   'session-start.mjs',
@@ -75,11 +79,11 @@ function assertNoLegacyFallback(file) {
  */
 function assertLevelEvents(compose) {
   const expectedByLevel = new Map([
-    [1, []],
-    [2, ['PostToolUse', 'Stop']],
-    [3, ['PostToolUse', 'PreToolUse', 'Stop']],
-    [4, ['PostToolUse', 'PreToolUse', 'Stop']],
-    [5, ['PostToolUse', 'PreToolUse', 'Stop', 'UserPromptSubmit']],
+    [1, ['SessionStart']],
+    [2, ['PostToolUse', 'SessionStart', 'Stop']],
+    [3, ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop']],
+    [4, ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop']],
+    [5, ['PostToolUse', 'PreCompact', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit']],
   ]);
   for (const [level, expectedEvents] of expectedByLevel) {
     const actualEvents = Object.keys(compose(null, level).hooks ?? {}).sort();
@@ -134,9 +138,15 @@ assertNoLegacyFallback(claude);
 assertNoLegacyFallback(codex);
 assertLevelEvents(composeSettings);
 assertLevelEvents(composeCodexHooks);
-assert.equal(claude.hooks.SessionStart, undefined);
-assert.equal(codex.hooks.SessionStart, undefined);
-ok('SessionStart performs no speculative ledger write before user intent');
+const emptySessionRoot = mkdtempSync(join(tmpdir(), 'cdk-w03-session-'));
+try {
+  const sessionContext = await loadGovernanceSessionContext({ hook_event_name: 'SessionStart' }, { root: emptySessionRoot, env: {} });
+  assert.equal(sessionContext.status, 'not-applicable');
+  assert.deepEqual(readdirSync(emptySessionRoot), []);
+  ok('SessionStart performs a read-only context lookup without speculative state');
+} finally {
+  rmSync(emptySessionRoot, { recursive: true, force: true });
+}
 
 assert.match(claude.hooks.PreToolUse[0].matcher, /Edit/);
 assert.match(claude.hooks.PreToolUse[0].matcher, /Bash/);
@@ -268,6 +278,15 @@ try {
   assert.match(contextResult.contextPack, /### decisions\.md/);
   assert.match(contextResult.contextPack, /### pipeline\/tasks\.json/);
   ok('write preflight injects the complete governed workflow pack before dispatch');
+
+  const sessionContext = await loadGovernanceSessionContext(
+    { hook_event_name: 'SessionStart', workflow_ref: 'WF-0111' },
+    { root: workflowContextRoot, env: {} },
+  );
+  assert.equal(sessionContext.status, 'available');
+  assert.match(sessionContext.contextPack, /### workflow\.json/);
+  assert.match(sessionContext.contextPack, /### pipeline\/tasks\.json/);
+  ok('session, compact, and handoff loader renders the governed pack read-only');
 } finally {
   rmSync(workflowContextRoot, { recursive: true, force: true });
 }

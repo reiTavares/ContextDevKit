@@ -1,23 +1,12 @@
 /**
- * Global ID allocation across every methodology root (BIZ-0001 / WF-0036).
- *
- * A1-T3 seam: `workflowRoots` + `nextWorkflowNumber` (base foundation).
- * A4-T1 addition: `allocateWorkflowId(root)` — the public allocator that
- * returns a formatted `WF-####` string, scanning ALL roots (new + legacy)
- * so ids never collide across the full hierarchy.
- *
- * Reuses the `workflow-number.mjs` allocator pattern (`nextNumber` over `NNNN-`
- * folders) rather than forking it: `nextWorkflowNumber` delegates to that module
- * for EACH workflow root and takes the global max, so a new WF id never collides
- * with a legacy `NNNN-slug` dir (compatibility-plan §"Dual resolution"). The
- * prefixed allocators (`BIZ-####`, `OP-####`) share one generic scanner here —
- * the legacy `NNNN` regex is owned by `workflow-number.mjs` and not duplicated.
+ * Global v4 ID allocation across every canonical methodology root.
+ * Legacy names and `done/` placement are migration input only and never enter
+ * normal runtime allocation.
  *
  * Defensive: a missing root contributes 0; allocators never throw on absent dirs.
  * Pure `node:*`, zero runtime dependencies.
  */
 import { existsSync, readdirSync } from 'node:fs';
-import { nextNumber } from '../workflow-number.mjs';
 import { pathsFor } from '../../../runtime/config/paths.mjs';
 import { fleetMemoryRoots } from './fleet.mjs';
 
@@ -96,29 +85,24 @@ export function nextOperationId(root = process.cwd()) {
 }
 
 /**
- * Every directory that may hold a `NNNN-slug` (legacy) or `WF-####` workflow under
- * ONE memory root: the top-level `workflows/` and its `done/` archive, plus each
- * business/ and operations/ context's `workflows/` and `done/` (ADR-0119). The
- * `done/` archives are included so a concluded, filed-away workflow stays both
- * resolvable AND counted by the allocator — its number is never reused.
+ * Every canonical directory that may hold a `WF-####` workflow under one memory
+ * root. Workflow status never changes these paths.
  *
  * @param {string} memory - an absolute `memory/` directory.
  * @returns {string[]} absolute paths of every workflow-holding directory.
  */
 function workflowDirsUnder(memory) {
-  const dirs = [`${memory}/workflows`, `${memory}/workflows/done`];
+  const dirs = [`${memory}/workflows`];
   for (const contextsRoot of [`${memory}/business`, `${memory}/operations`]) {
     for (const name of childDirs(contextsRoot)) {
-      dirs.push(`${contextsRoot}/${name}/workflows`, `${contextsRoot}/${name}/done`);
+      dirs.push(`${contextsRoot}/${name}/workflows`);
     }
   }
   return dirs;
 }
 
 /**
- * Every workflow-holding directory under the LOCAL project root (active + done).
- * Used by the resolver/migration tooling, which operate on the current tree only.
- * A4 duplicate-path detection runs over this same set.
+ * Every canonical workflow-holding directory under the local project root.
  *
  * @param {string} [root] - project root (default cwd).
  * @returns {string[]} absolute paths of every workflow-holding directory.
@@ -128,17 +112,13 @@ export function workflowRoots(root = process.cwd()) {
 }
 
 /**
- * Highest workflow number (legacy `NNNN-` OR new `WF-####`) in one dir, or 0. The
- * legacy parsing stays owned by `workflow-number.mjs#nextNumber` (reuse, not fork);
- * this only adds the `WF-` prefix the legacy allocator does not recognise.
+ * Highest workflow number behind `WF-` in one canonical directory, or 0.
  */
 function maxWorkflowInDir(dir) {
-  // nextNumber = legacy max+1; subtract 1 to recover the per-dir legacy max.
-  const legacyMax = parseInt(nextNumber(dir), 10) - 1;
-  return Math.max(legacyMax, maxPrefixedNumber(dir, 'WF'));
+  return maxPrefixedNumber(dir, 'WF');
 }
 
-/** Highest workflow number across a set of memory roots (active + done dirs). */
+/** Highest workflow number across a set of canonical memory roots. */
 function maxWorkflowOver(memoryRoots) {
   let max = 0;
   for (const memory of memoryRoots) {
@@ -150,9 +130,8 @@ function maxWorkflowOver(memoryRoots) {
 }
 
 /**
- * Next free workflow number, reconciled across the whole worktree fleet AND every
- * `done/` archive (ADR-0119) so a new id never collides with a parallel session's
- * allocation and never reuses the number of a filed-away workflow. Returned value
+ * Next free workflow number, reconciled across the whole worktree fleet so a new
+ * id never collides with a parallel session's canonical package. Returned value
  * is the bare 4-digit string (e.g. "0038"); WF callers prefix with `WF-`.
  *
  * @param {string} [root] - project root (default cwd).
@@ -230,8 +209,7 @@ export function localVsFleet(root = process.cwd()) {
 
 /**
  * Allocates the next free workflow id as a formatted `WF-####` string by scanning
- * EVERY workflow root (new-format `WF-####` dirs + legacy `NNNN-slug` dirs) so the
- * returned id is globally collision-free across all methodology roots.
+ * every canonical workflow root in the worktree fleet.
  *
  * This is the public allocator that callers (CLI, orchestrator) should use for new
  * workflow creation; it wraps `nextWorkflowNumber` to always return the complete

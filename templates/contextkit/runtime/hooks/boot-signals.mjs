@@ -1,8 +1,8 @@
 /**
  * Boot signals — environment detectors for the SessionStart banner.
  *
- * Pure-ish read-only helpers split out of `session-start.mjs` to keep that hook
- * under the line budget: git divergence/branch, other active branches, project
+ * Pure read-only helpers keep the governance session-context loader thin:
+ * git divergence/branch, other active branches, project
  * name, greenfield detection, and the config-driven cadence triggers
  * (security-mode, predictions-review). All best-effort and silent on error —
  * a signal never blocks a session. Zero third-party deps.
@@ -13,7 +13,6 @@ import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
 import { pathsFor } from '../config/paths.mjs';
-import { readAuthoritySnapshot } from '../authority-reader.mjs';
 
 export function checkGitDivergence(root) {
   try {
@@ -95,10 +94,8 @@ function sessionCount(root) {
 
 /**
  * ADR-0033 — cross-session engine-update signal. The installer (`--update`) stamps
- * `contextkit/.engine-version`; this compares it to a hook-side "seen" marker and
- * announces the bump ONCE on the next session (a SessionStart hook can't detect a
- * mid-session update, so the honest signal is cross-session). This reader does not
- * advance the marker; mutation-only postflight owns any acknowledgement write.
+ * `contextkit/.engine-version`; explicit context reads may surface that version.
+ * No per-session acknowledgement marker is created.
  */
 export function engineUpdateSignal(root) {
   try {
@@ -106,37 +103,20 @@ export function engineUpdateSignal(root) {
     if (!existsSync(verPath)) return null;
     const current = readFileSync(verPath, 'utf-8').trim();
     if (!current) return null;
-    const seenPath = resolve(pathsFor(root).ledgerDir, '.engine-seen');
-    let seen = '';
-    try {
-      seen = readFileSync(seenPath, 'utf-8').trim();
-    } catch {
-      /* never seen */
-    }
-    if (seen === current) return null;
-    return seen ? `🔄 ContextDevKit engine updated to **v${current}** since your last session — new commands/hooks are active (restart Claude Code if a command seems missing).` : null;
+    return `ContextDevKit engine: **v${current}**.`;
   } catch {
     return null;
   }
 }
 
 /**
- * ADR-0033 — weekly local value line (config-gated via `boot.valueLine`, default on;
+ * ADR-0033 — local value line (config-gated via `boot.valueLine`, default on;
  * local-only, no PII). Reflects the kit's accrued value back so the dev can see it.
- * Reads the existing debounce marker without modifying it. Mutation-only
- * postflight owns any acknowledgement write.
+ * It is derived entirely from durable authored memory and creates no marker.
  */
 export function valueLine(root) {
   try {
     if (loadConfigSync(root)?.boot?.valueLine === false) return null;
-    const markerPath = resolve(pathsFor(root).ledgerDir, '.value-nudge');
-    let last = 0;
-    try {
-      last = Number.parseInt(readFileSync(markerPath, 'utf-8').trim(), 10) || 0;
-    } catch {
-      /* no prior */
-    }
-    if (Date.now() - last < 7 * 24 * 60 * 60 * 1000) return null;
     const sessions = sessionCount(root);
     let adrs = 0;
     try {
@@ -146,35 +126,6 @@ export function valueLine(root) {
     }
     if (sessions === 0 && adrs === 0) return null;
     return `📈 ContextDevKit here: **${sessions}** session(s) logged · **${adrs}** ADR(s) recorded — the kit is keeping this project's memory.`;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Open bugs from canonical task JSON. Corrupt/unavailable authority stays visible
- * instead of degrading to a fabricated zero.
- */
-export function openBugsDue(root) {
-  try {
-    const authority = readAuthoritySnapshot(root);
-    if (authority.status === 'unavailable' || authority.status === 'corrupt') {
-      return { total: 0, p0: 0, p1: 0, authorityStatus: authority.status };
-    }
-    let total = 0;
-    let p0 = 0;
-    let p1 = 0;
-    for (const status of ['backlog', 'working']) {
-      for (const task of authority.tasksByStatus[status]) {
-        if (task.type !== 'bug') continue;
-        total += 1;
-        if (task.priority === 'P0') p0 += 1;
-        else if (task.priority === 'P1') p1 += 1;
-      }
-    }
-    return total > 0 || authority.status === 'partial'
-      ? { total, p0, p1, authorityStatus: authority.status }
-      : null;
   } catch {
     return null;
   }

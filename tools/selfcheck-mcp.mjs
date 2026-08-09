@@ -51,7 +51,7 @@ const SCRIPT_FILES = Object.freeze([
   'mcp.mjs', 'mcp-discover.mjs', 'mcp-discover-core.mjs',
   'mcp-doctor.mjs', 'mcp-doctor-core.mjs', 'mcp-doctor-helpers.mjs',
   'mcp-doctor-probe-http.mjs', 'mcp-doctor-probe-stdio.mjs',
-  'mcp-audit.mjs', 'mcp-audit-core.mjs', 'mcp-receipt.mjs',
+  'mcp-audit.mjs', 'mcp-audit-core.mjs',
 ]);
 
 /** Every host that must carry a `/mcp` command surface (ADR-0036/0056/0068). */

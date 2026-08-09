@@ -38,7 +38,7 @@ function receiptConfig(config) {
  *
  * @param {object} args
  * @param {string} args.sessionId
- * @param {string} args.sessionsDir — the flat `.claude/.sessions` directory.
+ * @param {string} args.receiptsDir — dedicated optional telemetry directory.
  * @param {object} args.signals — collected session signals for buildReceipt().
  * @param {object} args.config — resolved ContextDevKit config.
  * @param {string} args.generatedAt — ISO timestamp (injected, deterministic).
@@ -49,7 +49,7 @@ function receiptConfig(config) {
  */
 export function finalizeReceipt(args = {}) {
   const {
-    sessionId = null, sessionsDir = null, signals = {}, config = {},
+    sessionId = null, receiptsDir = null, signals = {}, config = {},
     generatedAt = null, env = (typeof process !== 'undefined' ? process.env : {}),
     sessionMarkdownPath = null,
   } = args;
@@ -84,15 +84,15 @@ export function finalizeReceipt(args = {}) {
 
   const written = [];
   try {
-    if (sessionsDir && sessionId) {
+    if (receiptsDir && sessionId) {
       const stored = storeReceipt({
-        sessionsDir, sessionId, receipt,
+        receiptsDir, sessionId, receipt,
         markdown: cfg.storeMarkdown ? renderMarkdown(receipt) : null,
         signature: receipt.integrity ?? null,
         storeJson: cfg.storeJson, storeMarkdown: cfg.storeMarkdown,
       });
       if (stored && Array.isArray(stored.written)) written.push(...stored.written);
-      const paths = receiptPaths(sessionsDir, sessionId);
+      const paths = receiptPaths(receiptsDir, sessionId);
       if (sessionMarkdownPath) {
         upsertSessionAutonomySection(sessionMarkdownPath, renderMarkdown({ ...receipt, integrity: { ...receipt.integrity, receiptPath: paths.json } }));
       }

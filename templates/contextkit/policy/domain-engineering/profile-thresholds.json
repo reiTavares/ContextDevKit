@@ -3,40 +3,40 @@
   "policyVersion": "0.1.0",
   "id": "profile-thresholds",
   "title": "Implementation Profile resolution — ADR-0128 plan §8",
-  "ruleClass": "B",
-  "maximumAutomaticLevel": "guarded",
-  "note": "Profile is derived from CMIS verdict (is this code?), DAS profile floor (how much domain?), plus inherited risk + blastRadius + materiality + ceremony. NO_CODE short-circuits to no-code. Each profile declares its minimum squad lead and proportional artifacts; simple never generates a domain model.",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "note": "Profile is an optional recommendation derived from code intent, domain applicability, risk, blast radius and materiality. It never requires a squad, artifact or gate.",
   "profiles": {
     "no-code": {
       "rank": 0,
       "appliesWhen": "cmisVerdict === 'NO_CODE'",
-      "minimumSquad": [],
-      "artifacts": [],
-      "simulateImpactRequired": false
+      "recommendedAgents": [],
+      "recommendedArtifacts": [],
+      "simulateImpactRecommended": false
     },
     "simple": {
       "rank": 1,
-      "minimumSquad": ["implementation-engineer"],
-      "artifacts": ["implementation-packet"],
-      "simulateImpactRequired": false
+      "recommendedAgents": ["implementation-engineer"],
+      "recommendedArtifacts": [],
+      "simulateImpactRecommended": false
     },
     "modular": {
       "rank": 2,
-      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer"],
-      "artifacts": ["implementation-packet", "contract-notes"],
-      "simulateImpactRequired": false
+      "recommendedAgents": ["implementation-engineer", "code-reviewer", "test-engineer"],
+      "recommendedArtifacts": ["contract-notes"],
+      "simulateImpactRecommended": false
     },
     "domain-driven": {
       "rank": 3,
-      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer", "architect"],
-      "artifacts": ["implementation-packet", "domain-map", "contract-notes"],
-      "simulateImpactRequired": true
+      "recommendedAgents": ["implementation-engineer", "code-reviewer", "test-engineer", "architect"],
+      "recommendedArtifacts": ["domain-map", "contract-notes"],
+      "simulateImpactRecommended": true
     },
     "distributed-domain": {
       "rank": 4,
-      "minimumSquad": ["implementation-engineer", "code-reviewer", "test-engineer", "architect", "security"],
-      "artifacts": ["implementation-packet", "domain-map", "context-map", "contract-notes"],
-      "simulateImpactRequired": true
+      "recommendedAgents": ["implementation-engineer", "code-reviewer", "test-engineer", "architect", "security"],
+      "recommendedArtifacts": ["domain-map", "context-map", "contract-notes"],
+      "simulateImpactRecommended": true
     }
   },
   "escalation": {

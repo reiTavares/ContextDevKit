@@ -71,8 +71,9 @@ const MINIMAL_ROUTING_POLICY = JSON.stringify({
   updated: '2026-01-01',
   tiers: { fast: { alias: 'haiku' }, powerful: { alias: 'sonnet' } },
   ladder: ['fast', 'powerful'],
-  floorTier: 'powerful',
-  floorAgents: [],
+  decision: 'recommend',
+  binding: false,
+  failurePolicy: 'continue-current-agent',
   inheritAgents: [],
   taskClasses: {},
   agents: { 'test-agent': 'powerful' },
@@ -140,11 +141,11 @@ routePolicies.every((p) => p.id.startsWith('routing:tier:'))
 
 // Enforcement store — always present (comes from the module, not a data file)
 const enforcePolicies = fullRegistry.policies.filter((p) => p.kind === 'enforcement');
-enforcePolicies.length === 3
-  ? ok(`enforcement store: 3 modes indexed (advisory, guarded, strict)`)
-  : bad(`enforcement store: expected 3 enforcement modes, got ${enforcePolicies.length}`);
+enforcePolicies.length === 4
+  ? ok('enforcement store: 4 canonical modes indexed')
+  : bad(`enforcement store: expected 4 enforcement modes, got ${enforcePolicies.length}`);
 
-const expectedModes = ['advisory', 'guarded', 'strict'];
+const expectedModes = ['off', 'shadow', 'canary', 'guarded'];
 for (const mode of expectedModes) {
   enforcePolicies.some((p) => p.id === `enforcement:mode:${mode}`)
     ? ok(`enforcement mode '${mode}' is indexed`)

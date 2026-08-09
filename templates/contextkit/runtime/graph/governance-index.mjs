@@ -28,7 +28,7 @@ function governanceEdge(source, target, relation) {
  * @param {string} projectRoot
  * @param {import('../../tools/scripts/project-map-roots.mjs').ProjectMapRoot} scanRoot
  * @param {(scanRoot:object,relPath:string,entryName:string)=>boolean} isExcluded
- * @param {Set<string>} files
+ * @param {Map<string,string>} files logical source path to absolute file path
  * @param {Set<string>} pendingPaths
  */
 function walkGovernanceRoot(projectRoot, scanRoot, isExcluded, files, pendingPaths) {
@@ -36,24 +36,26 @@ function walkGovernanceRoot(projectRoot, scanRoot, isExcluded, files, pendingPat
     pendingPaths.add(scanRoot.path);
     return;
   }
-  const absoluteRoot = resolve(projectRoot, scanRoot.path);
+  const absoluteRoot = scanRoot.absolutePath || resolve(projectRoot, scanRoot.path);
   if (scanRoot.entryType === 'file') {
-    files.add(scanRoot.path);
+    files.set(scanRoot.path, absoluteRoot);
     return;
   }
   const visit = (directory) => {
     let entries;
     try { entries = readdirSync(directory, { withFileTypes: true }); } catch {
-      pendingPaths.add(portable(relative(projectRoot, directory)) || scanRoot.path);
+      const unresolved = portable(relative(absoluteRoot, directory));
+      pendingPaths.add(unresolved ? `${scanRoot.path}/${unresolved}` : scanRoot.path);
       return;
     }
     for (const entry of entries) {
       const absolute = join(directory, entry.name);
-      const rel = portable(relative(projectRoot, absolute));
+      const relativeToGovernanceRoot = portable(relative(absoluteRoot, absolute));
+      const rel = relativeToGovernanceRoot ? `${scanRoot.path}/${relativeToGovernanceRoot}` : scanRoot.path;
       if (entry.isDirectory()) {
         if (!isExcluded(scanRoot, rel, entry.name)) visit(absolute);
       } else if (entry.isFile() && GOVERNANCE_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
-        files.add(rel);
+        files.set(rel, absolute);
       }
     }
   };
@@ -99,7 +101,7 @@ function parseTasks(text) {
  */
 export function buildGovernanceLayer(root, config = null, { maxFileBytes = DEFAULT_MAX_FILE_BYTES } = {}) {
   const resolvedRoots = resolveRoots(config, root);
-  const files = new Set();
+  const files = new Map();
   const pendingPaths = new Set();
   for (const scanRoot of resolvedRoots.governanceRoots) {
     walkGovernanceRoot(root, scanRoot, resolvedRoots.isExcluded, files, pendingPaths);
@@ -125,8 +127,8 @@ export function buildGovernanceLayer(root, config = null, { maxFileBytes = DEFAU
     return id;
   };
 
-  for (const sourceFile of [...files].sort()) {
-    const absolute = resolve(root, sourceFile);
+  for (const [sourceFile, absolute] of [...files.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))) {
     let size;
     try { size = statSync(absolute).size; } catch { pendingPaths.add(sourceFile); continue; }
     if (size > maxFileBytes) { pendingPaths.add(sourceFile); continue; }
@@ -181,14 +183,7 @@ export function buildGovernanceLayer(root, config = null, { maxFileBytes = DEFAU
         const taskIdentifier = task?.id === undefined || task?.id === null ? null : String(task.id);
         if (!taskIdentifier) continue;
         const taskId = addEntity('task', taskIdentifier, sourceFile);
-        const workflowIdentifier = typeof task.workflow === 'string'
-          ? task.workflow
-          : (typeof task.workflowId === 'string' ? task.workflowId : null);
-        if (workflowIdentifier && /^WF-\d{4}$/i.test(workflowIdentifier)) {
-          const workflowId = entityNodeId('workflow', workflowIdentifier.toUpperCase());
-          upsertNode({ id: workflowId, kind: 'workflow', nodeType: 'workflow', label: workflowIdentifier.toUpperCase(), sourceFile });
-          addEdge(governanceEdge(workflowId, taskId, 'tracks'));
-        }
+        for (const workflowId of workflowNodes) addEdge(governanceEdge(workflowId, taskId, 'tracks'));
       }
     }
   }

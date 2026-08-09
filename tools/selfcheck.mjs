@@ -17,25 +17,17 @@ import { runCodexChecks } from './selfcheck-codex.mjs';
 import { runGateChecks } from './selfcheck-gates.mjs';
 import { runEncodingChecks } from './selfcheck-encoding.mjs';
 import { runCapabilityChecks } from './selfcheck-capabilities.mjs';
-import { runEnforcementChecks } from './selfcheck-enforcement.mjs';
-import { runEnforcementGateChecks } from './selfcheck-enforcement-gate.mjs';
 import { runAllEacpChecks } from './selfcheck-eacp-all.mjs';
 import { runAllEconomyChecks } from './selfcheck-economy-all.mjs';
 import { runRoutingChecks } from './selfcheck-routing.mjs';
-import { runConfigPathChecks } from './selfcheck-config-paths.mjs';
-import { runAllRequestOrchestrationChecks } from './selfcheck-request-all.mjs';
 import { runHostHookChecks } from './selfcheck-host-hooks.mjs';
 import { runMcp002Checks } from './selfcheck-mcp-002.mjs';
 import { runDomainEngineeringChecks } from './selfcheck-domain-engineering.mjs';
 import { runDevteamChecks } from './selfcheck-devteam.mjs';
 import { runDomainArtifactsChecks } from './selfcheck-domain-artifacts.mjs';
-import { runDomainLifecycleChecks } from './selfcheck-domain-lifecycle.mjs';
-import { runDomainEnforcementChecks } from './selfcheck-domain-enforcement.mjs';
 import { runMadmChecks } from './selfcheck-madm.mjs';
 import { runPolicyDistributionChecks } from './selfcheck-policy-distribution.mjs';
-import { runAutonomyPostureChecks } from './selfcheck-autonomy-posture.mjs';
 import { runGraphSquadSelectionChecks } from './selfcheck-graph-squad-selection.mjs';
-import { runTaskLedgerChecks } from './selfcheck-task-ledger.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
 const RT = resolve(KIT, 'templates/contextkit/runtime');
@@ -58,13 +50,11 @@ async function importLibs() {
     'config/codex-hooks-compose.mjs',
     'config/grok-hooks-compose.mjs',
     'config/presets.mjs',
-    'config/resolve-autonomy.mjs',
-    'hooks/host-adapter.mjs',
+    'governance/risk-acknowledgement.mjs',
     'hooks/path-classification.mjs',
     'hooks/safe-io.mjs',
     'hooks/boot-context-readers.mjs',
     'hooks/boot-signals.mjs',
-    'hooks/ledger.mjs',
     'hooks/squad-context.mjs',
   ];
   const mods = {};
@@ -82,9 +72,9 @@ async function importLibs() {
 function checkConfig(load) {
   console.log('Checking zero-dep config loader...');
   const cfg = load.loadConfigSync(KIT);
-  Array.isArray(cfg?.ledger?.important) && cfg.ledger.important.length > 0
-    ? ok('defaults.ledger.important populated')
-    : bad('config defaults missing ledger.important');
+  Array.isArray(cfg?.analysis?.excludePaths) && cfg.analysis.excludePaths.length > 0
+    ? ok('defaults.analysis.excludePaths populated')
+    : bad('config defaults missing analysis.excludePaths');
   Number.isInteger(load.getLevel(KIT))
     ? ok(`getLevel() -> L${load.getLevel(KIT)}`)
     : bad('getLevel() did not return an integer');
@@ -95,14 +85,14 @@ function checkPresets(presets) {
     bad('presets.applyPreset not exported');
     return;
   }
-  const merged = presets.applyPreset({ ledger: { important: ['x/'] } }, 'next');
-  merged.ledger.important.includes('app/') && merged.ledger.important.includes('x/')
+  const merged = presets.applyPreset({ l5: { highRiskPaths: ['x/'] } }, 'next');
+  merged.l5.highRiskPaths.includes('app/api/') && merged.l5.highRiskPaths.includes('x/')
     ? ok('applyPreset merges a stack preset (array union)')
     : bad('applyPreset did not merge the preset');
-  presets.PRESETS.__sc_partial = { ledger: { important: ['z/'] } };
+  presets.PRESETS.__sc_partial = { l5: { highRiskPaths: ['z/'] } };
   try {
     const partial = presets.applyPreset({}, '__sc_partial');
-    partial.ledger.important.includes('z/') &&
+    partial.l5.highRiskPaths.includes('z/') &&
     Array.isArray(partial.l5.highRiskPaths) &&
     Array.isArray(partial.qa.criticalPaths)
       ? ok('applyPreset tolerates a partial preset (missing l5/qa keys)')
@@ -120,10 +110,10 @@ function checkPaths(paths) {
     return;
   }
   const pf = paths.pathsFor('/tmp/proj');
-  pf.pipeline.replaceAll('\\', '/').endsWith('contextkit/pipeline') &&
+  pf.memory.replaceAll('\\', '/').endsWith('contextkit/memory') &&
   pf.sessions.replaceAll('\\', '/').endsWith('contextkit/memory/sessions')
     ? ok('pathsFor resolves canonical absolute paths')
-    : bad(`pathsFor wrong: ${pf.pipeline}`);
+    : bad(`pathsFor wrong: ${pf.memory}`);
 }
 
 function checkChangelogDisambiguation() {
@@ -178,24 +168,16 @@ async function main() {
   await runGateChecks({ ok, bad }, { KIT, RT, mods });
   await runEncodingChecks({ ok, bad }, { KIT });
   await runCapabilityChecks({ ok, bad }, { KIT });
-  await runEnforcementChecks({ ok, bad }, { KIT });
-  await runEnforcementGateChecks({ ok, bad }, { KIT });
   await runAllEacpChecks({ ok, bad }, { KIT });
   await runAllEconomyChecks({ ok, bad }, { KIT });
   await runRoutingChecks({ ok, bad }, { KIT });
-  await runConfigPathChecks({ ok, bad }, { KIT });
-  await runAllRequestOrchestrationChecks({ ok, bad }, { KIT });
   await runMcp002Checks({ ok, bad }, { KIT });
   await runDomainEngineeringChecks({ ok, bad }, { KIT });
   await runDevteamChecks({ ok, bad }, { KIT });
   await runDomainArtifactsChecks({ ok, bad }, { KIT });
-  await runDomainLifecycleChecks({ ok, bad }, { KIT });
-  await runDomainEnforcementChecks({ ok, bad }, { KIT });
   await runMadmChecks({ ok, bad }, { KIT });
   runPolicyDistributionChecks({ ok, bad }, { KIT });
-  await runAutonomyPostureChecks({ ok, bad }, { KIT });
   await runGraphSquadSelectionChecks({ ok, bad }, { KIT });
-  await runTaskLedgerChecks({ ok, bad }, { KIT });
   checkZeroDependencyInvariant();
   checkChangelogDisambiguation();
 

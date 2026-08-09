@@ -5,17 +5,28 @@
  * `adr-migrate.mjs` (the orchestrator + CLI) stays under the 280-line budget.
  * Separated by the single-responsibility seam: "step logic" vs "orchestration".
  *
- * Reuses `normalizeCollisions` from `migration-plan.mjs` (A4 shape contract).
- *
  * Zero runtime dependencies — `node:*` only.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, mkdirSync, renameSync } from 'node:fs';
 import { dirname, resolve, basename } from 'node:path';
-import { normalizeCollisions } from './migration-plan.mjs';
 import { indexLegacyAdrsDirs } from './adr-index.mjs';
 
-export { normalizeCollisions };
+/**
+ * Normalizes collision facts into a stable array for the ADR migration audit.
+ * @param {{duplicateIds?:string[],duplicatePaths?:string[]}|object[]|null} found
+ * @returns {object[]}
+ */
+export function normalizeCollisions(found) {
+  if (Array.isArray(found)) return found;
+  if (!found || typeof found !== 'object') return [];
+  return [
+    ...(Array.isArray(found.duplicateIds) ? found.duplicateIds : [])
+      .map((id) => ({ kind: 'duplicate-id', id })),
+    ...(Array.isArray(found.duplicatePaths) ? found.duplicatePaths : [])
+      .map((path) => ({ kind: 'duplicate-path', path })),
+  ];
+}
 
 /** All pipeline step names in canonical execution order. */
 export const ADR_PIPELINE_STEPS = [

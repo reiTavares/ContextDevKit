@@ -3,8 +3,8 @@
  * fleet-compliance.mjs — Cross-fleet capability compliance + health rollup (CDK-080, PKG-08).
  *
  * Advisory, fail-open, UNREGISTERED. Reads the ContextDevKit fleet registry and
- * calls the three per-repo scanners (capability-compliance, engineering-scorecard,
- * autonomy-readiness-v2) for every registered repo. Composes their outputs via
+ * calls the two per-repo scanners (capability-compliance and engineering-scorecard)
+ * for every registered repo. Composes their outputs via
  * fleet-compliance-core.mjs. A missing/broken repo lands in sources.skipped,
  * its fields are null, and it is NEVER counted as 0 (§8 honesty contract).
  *
@@ -109,33 +109,13 @@ async function gatherScorecard(repoPath) {
   }
 }
 
-/**
- * Gathers the autonomy readiness report for one repo.
- * Returns the ready flag and confidence string only.
- *
- * @param {string} repoPath absolute path to the repo
- * @returns {Promise<{ ready: boolean, confidence: string }|null>}
- */
-async function gatherReadiness(repoPath) {
-  try {
-    const { autonomyReadinessV2 } = await import(
-      siblingUrl('./autonomy-readiness-v2.mjs')
-    );
-    const full = await autonomyReadinessV2(repoPath);
-    if (!full || typeof full.ready !== 'boolean') return null;
-    return { ready: full.ready, confidence: full.confidence ?? 'unknown' };
-  } catch {
-    return null;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Per-repo scanner
 // ---------------------------------------------------------------------------
 
 /**
- * Scans one repo: calls all three signal gatherers concurrently (fail-open).
- * If all three fail → ok:false, all fields null. If any succeed → ok:true.
+ * Scans one repo: calls both signal gatherers concurrently (fail-open).
+ * If both fail → ok:false, all fields null. If either succeeds → ok:true.
  *
  * @param {string} repoPath absolute path to the registered repo
  * @returns {Promise<{
@@ -143,19 +123,16 @@ async function gatherReadiness(repoPath) {
  *   name: string,
  *   ok: boolean,
  *   compliance: { total: number, parity: number, gaps: number }|null,
- *   scorecard: { score: number|null, band: string|null }|null,
- *   readiness: { ready: boolean, confidence: string }|null
+ *   scorecard: { score: number|null, band: string|null }|null
  * }>}
  */
 async function scanRepo(repoPath) {
-  const [compliance, scorecard, readiness] = await Promise.all([
+  const [compliance, scorecard] = await Promise.all([
     gatherCompliance(repoPath),
     gatherScorecard(repoPath),
-    gatherReadiness(repoPath),
   ]);
 
-  const atLeastOneSucceeded =
-    compliance !== null || scorecard !== null || readiness !== null;
+  const atLeastOneSucceeded = compliance !== null || scorecard !== null;
 
   return {
     path: repoPath,
@@ -163,7 +140,6 @@ async function scanRepo(repoPath) {
     ok: atLeastOneSucceeded,
     compliance,
     scorecard,
-    readiness,
   };
 }
 
@@ -186,15 +162,13 @@ async function scanRepo(repoPath) {
  *     name: string,
  *     ok: boolean,
  *     compliance: { total: number, parity: number, gaps: number }|null,
- *     scorecard: { score: number|null, band: string|null }|null,
- *     readiness: { ready: boolean, confidence: string }|null
+ *     scorecard: { score: number|null, band: string|null }|null
  *   }>,
  *   totals: {
  *     repos: number,
  *     scanned: number,
  *     avgComplianceParityPct: number|null,
- *     weakest: string|null,
- *     leastReady: string|null
+ *     weakest: string|null
  *   },
  *   sources: { present: string[], skipped: string[] }
  * }>}
@@ -206,7 +180,7 @@ export async function buildFleetCompliance(_opts) {
     return {
       schemaVersion: SCHEMA_VERSION,
       repos: [],
-      totals: { repos: 0, scanned: 0, avgComplianceParityPct: null, weakest: null, leastReady: null },
+      totals: { repos: 0, scanned: 0, avgComplianceParityPct: null, weakest: null },
       sources: { present: [], skipped: [] },
     };
   }
@@ -250,7 +224,6 @@ if (isMain()) {
           `  Avg parity: ${totals.avgComplianceParityPct !== null ? totals.avgComplianceParityPct + '%' : 'n/a'}`,
         );
         if (totals.weakest) console.log(`  Weakest compliance : ${totals.weakest}`);
-        if (totals.leastReady) console.log(`  Least ready        : ${totals.leastReady}`);
         console.log('');
         for (const r of repos) {
           const compStr = r.compliance
@@ -259,10 +232,7 @@ if (isMain()) {
           const scoreStr = r.scorecard && r.scorecard.score !== null
             ? `score ${r.scorecard.score} (${r.scorecard.band})`
             : 'scorecard n/a';
-          const readyStr = r.readiness !== null
-            ? (r.readiness.ready ? 'READY' : 'NOT READY')
-            : 'readiness n/a';
-          console.log(`  ${r.name.padEnd(30)} ${compStr.padEnd(22)} ${scoreStr.padEnd(22)} ${readyStr}`);
+          console.log(`  ${r.name.padEnd(30)} ${compStr.padEnd(22)} ${scoreStr}`);
         }
         if (!repos.length) console.log('  No repos registered. Add one with: fleet.mjs add <path>');
         console.log(`\n  Sources present : ${sources.present.join(', ') || 'none'}`);

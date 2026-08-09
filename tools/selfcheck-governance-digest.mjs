@@ -49,8 +49,11 @@ function buildFixture() {
   wf('business/BIZ-9001-fixture/business.json', JSON.stringify({ id: 'BIZ-9001', status: 'proposed', title: 'Fixture Business' }));
   mk('operations/OP-9001-fixture');
   wf('operations/OP-9001-fixture/operation.json', JSON.stringify({ id: 'OP-9001', status: 'active', title: 'Fixture Operation' }));
-  mk('operations/OP-9001-fixture/workflows/WF-9001-fixture');
-  wf('operations/OP-9001-fixture/workflows/WF-9001-fixture/workflow-state.json', JSON.stringify({ status: 'ship' }));
+  createWorkflow(root, 'fixture', 'feature', 'OP-9001', {
+    id: 'WF-9001',
+    now: '2026-01-01T00:00:00.000Z',
+    title: 'Fixture Workflow',
+  });
   mk('decisions');
   wf('decisions/9001-fixture-adr.md', '# Fixture ADR\n**Status:** Accepted\n');
   mk('sessions');
@@ -60,9 +63,10 @@ function buildFixture() {
   return root;
 }
 
-let generateDigest, writeDigest, buildDigestModel;
+let generateDigest, writeDigest, buildDigestModel, createWorkflow;
 try {
   ({ generateDigest, writeDigest, buildDigestModel } = await import(MOD_URL));
+  ({ createWorkflow } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/workflow-pack.mjs')).href));
   ok('governance-digest.mjs imports (generateDigest / writeDigest / buildDigestModel)');
 } catch (err) {
   bad(`import failed: ${err.message}`);

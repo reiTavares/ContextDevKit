@@ -120,11 +120,17 @@ function readReports(packDirectory) {
  * not merely their references.
  * @param {string} root project root
  * @param {string} ref workflow id, slug, folder, or contained absolute path
- * @returns {{dir:string,definition:object,state:object,tasks:object,manifest:object,documents:object,reports:Array<{ref:string,content:string}>}}
+ * @returns {{dir:string,definition:object,state:object,tasks:object,manifest:object,documents:object,reports:Array<{ref:string,content:string}>,diagnostics:object[]}}
  */
 export function loadWorkflowPack(root, ref) {
   const directory = resolveWorkflowDirectory(root, ref);
-  const { definition, state, tasks, manifest } = assertValidPack(directory);
+  const verdict = validatePack(directory);
+  const blockingErrors = verdict.errors.filter((error) => error.code !== 'projection-drift');
+  if (blockingErrors.length > 0) {
+    const detail = blockingErrors.map((error) => `${error.path || '(pack)'}: ${error.message}`).join('\n  - ');
+    throw new Error(`Invalid Workflow v2 package at ${directory}:\n  - ${detail}`);
+  }
+  const { definition, state, tasks, manifest } = verdict.pack;
   return {
     dir: directory,
     definition,
@@ -138,6 +144,7 @@ export function loadWorkflowPack(root, ref) {
       continuation: readDocument(join(directory, 'CONTINUATION-PROMPT.md'), true),
     },
     reports: readReports(directory),
+    diagnostics: verdict.errors.filter((error) => error.code === 'projection-drift'),
   };
 }
 
@@ -164,6 +171,7 @@ export function readWorkflow(root, ref) {
     state: pack.state,
     tasks: pack.tasks,
     manifest: pack.manifest,
+    diagnostics: pack.diagnostics,
   };
 }
 
@@ -218,24 +226,100 @@ export function advanceWorkflow(root, ref, evidenceRef = '', options = {}) {
   }
   const phaseIndex = PHASES.indexOf(pack.state.phase);
   if (phaseIndex < 0) throw new Error(`Unknown workflow phase: ${pack.state.phase}`);
+  if (phaseIndex === PHASES.length - 1) {
+    throw new Error('Workflow completion requires completeWorkflow with explicit QA evidence');
+  }
   const nextPhase = PHASES[phaseIndex + 1] ?? pack.state.phase;
-  const completed = phaseIndex === PHASES.length - 1;
   const now = options.now ?? new Date().toISOString();
   const next = {
     ...pack.state,
-    status: completed ? 'done' : pack.state.status === 'backlog' ? 'working' : pack.state.status,
+    status: pack.state.status === 'backlog' ? 'working' : pack.state.status,
     phase: nextPhase,
     revision: pack.state.revision + 1,
     lastReportRef: evidenceRef || pack.state.lastReportRef,
     startedAt: pack.state.startedAt ?? now,
     updatedAt: now,
-    completedAt: completed ? now : pack.state.completedAt,
+    completedAt: pack.state.completedAt,
   };
   writeWorkflowStateCas(join(pack.dir, 'workflow-state.json'), pack.state, next);
   try {
     renderWorkflowPack(pack.dir);
   } catch (error) {
     throw new Error(`Workflow state committed at revision ${next.revision}, but projection repair failed: ${error.message}`);
+  }
+  return readWorkflow(root, pack.dir);
+}
+
+/**
+ * Complete a workflow through the aggregate CAS writer after every task is
+ * terminal and an explicit QA receipt exists. This is the only supported path
+ * from `conclusion` to `done`; phase advancement cannot infer QA success.
+ *
+ * @param {string} root project root
+ * @param {string} ref workflow id, slug, folder, or contained absolute path
+ * @param {{qaStatus:'passed'|'skipped',qaEvidenceRefs:string[],reportRef:string}} completion
+ * @param {{expectedRevision?:number,now?:string}} [options]
+ * @returns {ReturnType<typeof readWorkflow>}
+ * @throws {Error} when completion evidence, task state, phase, or CAS is invalid
+ */
+export function completeWorkflow(root, ref, completion, options = {}) {
+  const pack = loadWorkflowPack(root, ref);
+  if (options.expectedRevision !== undefined && options.expectedRevision !== pack.state.revision) {
+    throw new Error(`Workflow state CAS refused: expected revision ${options.expectedRevision}, found ${pack.state.revision}`);
+  }
+  if (pack.state.status === 'done') {
+    const sameReceipt = pack.state.qa?.status === completion?.qaStatus
+      && pack.state.lastReportRef === completion?.reportRef
+      && JSON.stringify(pack.state.qa?.evidenceRefs ?? []) === JSON.stringify(completion?.qaEvidenceRefs ?? []);
+    if (!sameReceipt) throw new Error('Workflow is already done with different QA evidence');
+    return readWorkflow(root, pack.dir);
+  }
+  if (pack.state.phase !== PHASES[PHASES.length - 1]) {
+    throw new Error(`Workflow completion requires phase conclusion, found ${pack.state.phase}`);
+  }
+  if (!completion || !['passed', 'skipped'].includes(completion.qaStatus)) {
+    throw new Error('Workflow completion requires qaStatus passed or skipped');
+  }
+  if (!Array.isArray(completion.qaEvidenceRefs)
+    || completion.qaEvidenceRefs.some((reference) => typeof reference !== 'string' || reference.trim() === '')
+    || (completion.qaStatus === 'passed' && completion.qaEvidenceRefs.length === 0)) {
+    throw new Error('Workflow completion requires explicit QA evidence references');
+  }
+  if (typeof completion.reportRef !== 'string' || !completion.reportRef.startsWith('reports/')) {
+    throw new Error('Workflow completion requires a reportRef inside reports/');
+  }
+  if (!pack.reports.some((report) => report.ref === completion.reportRef)) {
+    throw new Error(`Workflow completion report does not exist: ${completion.reportRef}`);
+  }
+  const unfinishedTasks = pack.tasks.tasks.filter((task) => !['done', 'cancelled'].includes(task.status));
+  if (unfinishedTasks.length > 0) {
+    throw new Error(`Workflow completion requires terminal tasks: ${unfinishedTasks.map((task) => task.id).join(', ')}`);
+  }
+  if (pack.state.blockers.length > 0) {
+    throw new Error(`Workflow completion requires zero blockers: ${pack.state.blockers.join(', ')}`);
+  }
+  const now = options.now ?? new Date().toISOString();
+  const next = {
+    ...pack.state,
+    status: 'done',
+    phase: PHASES[PHASES.length - 1],
+    revision: pack.state.revision + 1,
+    activeTaskIds: [],
+    blockers: [],
+    qa: {
+      status: completion.qaStatus,
+      evidenceRefs: [...new Set(completion.qaEvidenceRefs.map((reference) => reference.trim()))],
+    },
+    lastReportRef: completion.reportRef,
+    startedAt: pack.state.startedAt ?? now,
+    updatedAt: now,
+    completedAt: now,
+  };
+  writeWorkflowStateCas(join(pack.dir, 'workflow-state.json'), pack.state, next);
+  try {
+    renderWorkflowPack(pack.dir);
+  } catch (error) {
+    throw new Error(`Workflow completion committed at revision ${next.revision}, but projection repair failed: ${error.message}`);
   }
   return readWorkflow(root, pack.dir);
 }

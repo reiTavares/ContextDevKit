@@ -4,9 +4,8 @@
  *
  * Installs the kit into a throwaway temp project and exercises the tool scripts
  * (modular CLAUDE.md, git, deep-analysis, security mode, deps-audit, gh-alerts,
- * fleet, agent-tuning, …). Two focused siblings carry the longer subsystems:
- * `integration-test-tooling-pipeline.mjs` (DevPipeline, ADR-0016 H1 split)
- * and `integration-test-tooling-agent-forge.mjs` (forge round-trip + Fase 6
+ * fleet, agent-tuning, …). One focused sibling carries the longer subsystem:
+ * `integration-test-tooling-agent-forge.mjs` (forge round-trip + Fase 6
  * pipeline DSL — split when Fase 6 pushed this file past the RED zone, as the
  * cohesion note had anticipated). The core hooks/engine are covered by
  * `integration-test.mjs`. Shared harness: `it-helpers.mjs`.
@@ -62,10 +61,10 @@ try {
     : bad(`git.mjs PR fact wrong: ${gitPr.stdout || gitPr.stderr}`);
   git(['remote', 'remove', 'origin'], proj);
 
-  // ADR-0030 — complexity rubric: regulated domain auto-routes + forces architectural tier.
+  // ContextDevKit 4.0 — regulated-domain vocabulary is advisory and does not force ceremony.
   const clsLgpd = script('complexity-rubric.mjs', 'classify', 'store user CPF and consent', '--json');
-  (() => { try { const j = JSON.parse(clsLgpd.stdout); return j.domain === 'lgpd' && j.requiredAgents.includes('privacy-lgpd') && j.tier === 'architectural' && j.needsAdr === true; } catch { return false; } })()
-    ? ok('complexity-rubric routes a regulated (LGPD) task to privacy-lgpd + architectural tier')
+  (() => { try { const j = JSON.parse(clsLgpd.stdout); return j.domain === 'lgpd' && j.recommendedAgents.includes('privacy-lgpd') && j.tier === 'feature' && j.needsAdr === false; } catch { return false; } })()
+    ? ok('complexity-rubric reports LGPD risk without forcing architectural ceremony')
     : bad(`complexity-rubric LGPD classify failed: ${clsLgpd.stdout || clsLgpd.stderr}`);
   const clsTrivial = script('complexity-rubric.mjs', 'classify', 'fix typo in readme', '--json');
   (() => { try { const j = JSON.parse(clsTrivial.stdout); return j.tier === 'trivial' && j.needsAdr === false && j.domain === 'general'; } catch { return false; } })()
@@ -95,26 +94,6 @@ try {
     ? ok('docs-reindex regenerates the index idempotently')
     : bad(`docs-reindex failed: ${dr.stdout || dr.stderr}`);
 
-  // ADR-0032 — pipeline `add` auto-classifies the title (regulated domain → route + architectural tier).
-  const addOut = script('pipeline.mjs', 'add', '--type', 'feature', '--title', 'store user CPF and consent').stdout || '';
-  addOut.includes('privacy-lgpd') && addOut.includes('architectural')
-    ? ok('pipeline add auto-classifies + routes a regulated task (ADR-0032)')
-    : bad(`pipeline add auto-classify failed: ${addOut}`);
-
-  // ADR-0032 — session-draft pre-fills Done from the ledger.
-  hook('track-edits.mjs', { session_id: 'sd', tool_name: 'Write', tool_input: { file_path: 'src/feature/x.js' } });
-  const sd = script('session-draft.mjs', '--json');
-  (() => { try { return JSON.parse(sd.stdout).files.includes('src/feature/x.js'); } catch { return false; } })()
-    ? ok('session-draft drafts the Done section from the ledger (ADR-0032)')
-    : bad(`session-draft failed: ${sd.stdout || sd.stderr}`);
-
-  // ADR-0032 — advise-review tallies advise:<lane> tasks into a per-lane hit-rate.
-  script('pipeline.mjs', 'add', '--type', 'chore', '--source', 'advise:ux', '--title', 'cap the boot drift banner');
-  const ar = script('advise-review.mjs', '--json');
-  (() => { try { const j = JSON.parse(ar.stdout); return j.rows.some((r) => r.lane === 'ux' && r.open >= 1) && typeof j.hitRatePct === 'number'; } catch { return false; } })()
-    ? ok('advise-review computes per-lane advisor hit-rate (ADR-0032)')
-    : bad(`advise-review failed: ${ar.stdout || ar.stderr}`);
-
   // ADR-0034 — adr-tasks parses an ADR's Decision into proposed backlog tasks.
   writeFileSync(join(proj, 'contextkit', 'memory', 'decisions', '0050-x.md'),
     '# ADR-0050: x\n\n## Decision\n\n1. **Do the first thing.**\n2. **Do the second thing.**\n\n## Consequences\n- ok\n');
@@ -123,24 +102,12 @@ try {
     ? ok('adr-tasks parses the Decision into backlog tasks (ADR-0034)')
     : bad(`adr-tasks failed: ${at.stdout || at.stderr}`);
 
-  // DevPipeline tests live in `integration-test-tooling-pipeline.mjs` (sibling).
+  // Canonical task-store and CLI cutover behavior lives in pipeline-cutover.selftest.mjs.
 
   // Deep analysis: aggregates the deterministic scanners into one report.
   const deep = JSON.parse(script('deep-analysis.mjs', '--json').stdout || '{}');
   deep.byScan && typeof deep.total === 'number' && Array.isArray(deep.findings)
     ? ok('deep-analysis aggregates scanners into one report') : bad(`deep-analysis failed: ${JSON.stringify(deep).slice(0, 120)}`);
-
-  // Security mode: SessionStart reminds to /deep-analysis on the cadence (default-on).
-  const secCfg = readJson(cfgPath);
-  secCfg.securityMode = { active: true, everyNSessions: 1 };
-  writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
-  writeFileSync(join(proj, 'contextkit', 'memory', 'sessions', '2026-01-01-01-x.md'), '# x');
-  hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
-    ? ok('security-mode boot trigger fires on cadence') : bad('security-mode banner missing');
-  secCfg.securityMode.active = false;
-  writeFileSync(cfgPath, JSON.stringify(secCfg, null, 2));
-  !hook('session-start.mjs', { session_id: 'sec' }).includes('Security mode')
-    ? ok('security-mode disabled via config (active:false)') : bad('security-mode fired while disabled');
 
   // Security: a crafted base-branch arg must reach git LITERALLY (one invalid ref →
   // non-zero exit), not be split by a shell — proves no shell was involved.
@@ -166,13 +133,10 @@ try {
   JSON.parse(script('tech-debt-scan.mjs', '--json').stdout || '{"findings":[]}').findings.some((f) => f.kind === 'custom-foobar')
     ? ok('tech-debt-scan loads a drop-in custom detector (contextkit/detectors/)') : bad('custom detector not loaded');
 
-  // Stack presets: install --preset merges stack paths into config (union with defaults).
-  // --allow-active-sessions: an earlier track-edits call left a ledger in proj, which the
-  // 3.1.2 active-session guard (ADR-0099 P0-02) would otherwise defer on; this scripted
-  // update opts out (it tests preset-merge, not the guard).
-  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go', '--allow-active-sessions']);
-  (readJson(cfgPath).ledger?.important || []).includes('internal/')
-    ? ok('install --preset merges a stack preset into config') : bad('preset paths not merged into config');
+  // Stack presets tune risk and QA hints without reviving a path-based state ledger.
+  run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--preset', 'go']);
+  (readJson(cfgPath).l5?.highRiskPaths || []).includes('internal/auth/')
+    ? ok('install --preset merges advisory stack risk paths') : bad('preset risk paths not merged into config');
 
   // Recommended start level (ADR-0009): greenfield auto-picks L3, existing auto-picks L7
   // (the latter also proves the level cap accepts 7 — a broken cap would downgrade to 2).

@@ -1,14 +1,14 @@
 /**
- * `work reconcile` handler — rebuilds the work-context, workflow, and decision
- * registries from disk (BIZ-0001 / WF-0036, Wave 3, OP-0005 / ADR-0125).
+ * `work reconcile` handler — rebuilds the work-context and decision registries
+ * while reading workflow state from the canonical v4 authority.
  *
  * Routes to:
  *   `registry/work-context.mjs` → `buildWorkContextRegistry` + `writeWorkContextRegistry`
- *   `registry/workflow.mjs`     → `buildWorkflowRegistry` + `writeWorkflowRegistry`
+ *   `authority-reader.mjs`      → read-only canonical workflow/task projection
  *   `registry/decision.mjs`     → `buildDecisionRegistry` + `writeDecisionRegistry`
  *
- * Posture (constitution §8): DRY-RUN BY DEFAULT. `--apply` writes the three
- * registry files atomically. Idempotent: calling twice with the same disk state
+ * Posture (constitution §8): DRY-RUN BY DEFAULT. `--apply` writes the two
+ * derived registry files atomically. Idempotent: calling twice with the same disk state
  * produces byte-identical output (via `serializeRegistry` from serialize.mjs).
  *
  * `--check` reports whether the registries exist on disk (readiness-only; no rebuild).
@@ -21,7 +21,7 @@ import { existsSync } from 'node:fs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { makeReceipt } from './work-io.mjs';
 import { buildWorkContextRegistry, writeWorkContextRegistry } from './registry/work-context.mjs';
-import { buildWorkflowRegistry, writeWorkflowRegistry } from './registry/workflow.mjs';
+import { readAuthoritySnapshot } from '../../runtime/authority-reader.mjs';
 import { buildDecisionRegistry, writeDecisionRegistry } from './registry/decision.mjs';
 
 // ---------------------------------------------------------------------------
@@ -32,13 +32,12 @@ import { buildDecisionRegistry, writeDecisionRegistry } from './registry/decisio
  * Checks which registry files exist on disk for `--check` mode.
  *
  * @param {string} root - project root.
- * @returns {{ workContext: boolean, workflow: boolean, decision: boolean }}
+ * @returns {{ workContext: boolean, decision: boolean }}
  */
 function checkRegistryPresence(root) {
   const paths = pathsFor(root);
   return {
     workContext: existsSync(paths.workContextRegistry),
-    workflow: existsSync(paths.workflowRegistry),
     decision: existsSync(paths.decisionRegistry),
   };
 }
@@ -48,11 +47,11 @@ function checkRegistryPresence(root) {
 // ---------------------------------------------------------------------------
 
 /**
- * Handles `work reconcile` — builds (and optionally writes) the three work
- * registries: work-context, workflow, and decision.
+ * Handles `work reconcile` — builds (and optionally writes) the work-context
+ * and decision registries, and reports workflows from canonical JSON authority.
  *
  * In `--check` mode (no rebuild), it reports which registry files are present.
- * In `--apply` mode, it writes all three atomically.
+ * In `--apply` mode, it writes only the two derived registries atomically.
  * In dry-run mode (default), it builds but does not write.
  *
  * The operation is idempotent: running twice on the same disk state writes
@@ -67,7 +66,7 @@ export function handleReconcile({ flags, apply, root }) {
 
   if (checkOnly) {
     const presence = checkRegistryPresence(root);
-    const allPresent = presence.workContext && presence.workflow && presence.decision;
+    const allPresent = presence.workContext && presence.decision;
     return makeReceipt({
       command: 'reconcile',
       applied: false,
@@ -76,7 +75,6 @@ export function handleReconcile({ flags, apply, root }) {
         check: true,
         registries: {
           workContext: { path: paths.workContextRegistry, exists: presence.workContext },
-          workflow: { path: paths.workflowRegistry, exists: presence.workflow },
           decision: { path: paths.decisionRegistry, exists: presence.decision },
         },
         allPresent,
@@ -84,20 +82,18 @@ export function handleReconcile({ flags, apply, root }) {
     });
   }
 
-  // Build all three registries in memory first (pure read, no write yet).
+  // Build derived registries and read canonical workflow authority in memory.
   const workContextPayload = buildWorkContextRegistry(root);
-  const workflowPayload = buildWorkflowRegistry(root);
+  const workflowPayload = readAuthoritySnapshot(root);
   const decisionPayload = buildDecisionRegistry(root);
 
   const targetPaths = [
     paths.workContextRegistry,
-    paths.workflowRegistry,
     paths.decisionRegistry,
   ];
 
   if (apply) {
     writeWorkContextRegistry(root);
-    writeWorkflowRegistry(root);
     writeDecisionRegistry(root);
   }
 
@@ -107,7 +103,7 @@ export function handleReconcile({ flags, apply, root }) {
     writes: targetPaths,
     detail: {
       workContextCount: Array.isArray(workContextPayload.contexts) ? workContextPayload.contexts.length : 0,
-      workflowCount: Array.isArray(workflowPayload.workflows) ? workflowPayload.workflows.length : 0,
+      workflowCount: workflowPayload.workflows.length,
       decisionCount: Array.isArray(decisionPayload.decisions) ? decisionPayload.decisions.length : 0,
     },
   });

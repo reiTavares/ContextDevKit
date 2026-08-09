@@ -10,8 +10,7 @@
  *   2. matcher is BYTE-IDENTICAL across two runs (no time/randomness);
  *   3. matcher refuses-to-null below the suggested threshold + never sets confirmed;
  *   4. proposal store round-trips atomically (build → save → read identical);
- *   5. autonomy-per-grade: Business is `manual` at EVERY grade; Operation is
- *      `auto` at grade 3; a low-confidence near-tie downgrades one notch;
+ *   5. Business and Operation recommendations remain advisory without grades;
  *   6. the hook's legacy checklist render is byte-identical and methodology is a
  *      pure superset (returns null / appends nothing for a control input).
  *
@@ -29,7 +28,6 @@ import {
   buildIntakeProposal, saveIntakeProposal, readIntakeProposal,
 } from './intake-proposal-store.mjs';
 import { resolveProposedAction, renderMethodologyLine, runMethodology } from './intake-methodology.mjs';
-import { renderChecklist } from '../hooks/execution-contract-hook.mjs';
 
 const failures = [];
 /** Records a named assertion. */
@@ -89,7 +87,7 @@ assert('matcher unlinked on empty registry', mEmpty.status === 'unlinked');
 // ---------------------------------------------------------------------------
 const proposal = buildIntakeProposal('task-test-1', OP_WORK, m1, {
   objective: OP_OBJECTIVE, createdAt: '2026-06-19T00:00:00.000Z',
-  action: { nature: 'operation', kind: 'fix', autonomyMode: 'auto', grade: 3 },
+  action: { nature: 'operation', kind: 'fix', mode: 'advisory' },
 });
 const saved = saveIntakeProposal(ROOT, 'task-test-1', proposal);
 const roundTrip = readIntakeProposal(ROOT, 'task-test-1');
@@ -99,31 +97,22 @@ assert('proposal status defaults to proposed', roundTrip.status === 'proposed');
 assert('absent proposal reads as null', readIntakeProposal(ROOT, 'nope') === null);
 
 // ---------------------------------------------------------------------------
-// 5 — autonomy-per-grade mapping.
+// 5 — non-binding recommendation mapping.
 // ---------------------------------------------------------------------------
-const cfgAt = (grade) => ({ autonomy: { grade } });
-const bizAction1 = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' }, cfgAt(1));
-const bizAction3 = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' }, cfgAt(3));
-assert('Business is manual at grade 1', bizAction1.mode === 'manual');
-assert('Business stays manual at grade 3 (human floor)', bizAction3.mode === 'manual' && bizAction3.area === 'adr');
-const opAction1 = resolveProposedAction({ nature: 'operation', kind: 'fix', confidence: 'high' }, cfgAt(1));
-const opAction3 = resolveProposedAction({ nature: 'operation', kind: 'fix', confidence: 'high' }, cfgAt(3));
-assert('Operation is manual at grade 1', opAction1.mode === 'manual');
-assert('Operation is auto at grade 3', opAction3.mode === 'auto' && opAction3.area === 'edit');
-const opLow3 = resolveProposedAction({ nature: 'operation', kind: 'fix', confidence: 'low' }, cfgAt(3));
-assert('low-confidence Operation downgrades auto→suggest at grade 3', opLow3.mode === 'suggest' && opLow3.downgraded === true);
+const bizAction = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' });
+assert('Business recommendation is advisory', bizAction.mode === 'advisory' && bizAction.area === 'adr');
+const opAction = resolveProposedAction({ nature: 'operation', kind: 'fix', confidence: 'high' });
+assert('Operation recommendation is advisory', opAction.mode === 'advisory' && opAction.area === 'edit');
+const opLow = resolveProposedAction({ nature: 'operation', kind: 'fix', confidence: 'low' });
+assert('low confidence stays advisory without a hidden floor', opLow.mode === 'advisory' && opLow.downgraded === false);
 
 // methodology line is a non-empty single line.
-const line = renderMethodologyLine(OP_WORK, m1, opAction3);
+const line = renderMethodologyLine(OP_WORK, m1, opAction);
 assert('methodology line is single-line and mentions suggestion', typeof line === 'string' && !line.includes('\n') && line.includes('BIZ-9001'));
 
 // ---------------------------------------------------------------------------
 // 6 — hook is a pure superset: legacy render unchanged; methodology null-safe.
 // ---------------------------------------------------------------------------
-const fakeContract = { signals: { tier: 'feature' }, requiredBeforeWrite: ['x'], requiredBeforeCompletion: [] };
-const legacy = renderChecklist(fakeContract, 'task-c-1', true, null);
-assert('legacy checklist render still produces the tier line', legacy.includes('Tier: feature'));
-assert('legacy checklist render carries NO methodology line', !legacy.includes('Work:'));
 // control input: no `signals.work` → runMethodology returns null → hook appends nothing.
 const controlResult = runMethodology({ root: ROOT, taskId: 'task-c-2', objective: 'anything', work: undefined, config: cfgAt(3) });
 assert('runMethodology returns null when classification absent (control input)', controlResult === null);

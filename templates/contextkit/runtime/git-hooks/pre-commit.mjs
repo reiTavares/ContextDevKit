@@ -9,7 +9,7 @@
  * Invoked by `.git/hooks/pre-commit` (a thin wrapper the installer drops).
  * Bypass: `git commit --no-verify`.
  */
-import { execFileSync, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadConfigSync } from '../config/load.mjs';
@@ -40,22 +40,8 @@ function stagedTouchesSource() {
   }
 }
 
-/** Run the WF-0084 guard before derived-document writes; unknown hook failures fail open. */
-function runWorkflowInvariantGuard() {
-  const hook = resolve(P.runtime, 'git-hooks/workflow-invariant-hook.mjs');
-  if (!existsSync(hook)) return;
-  try {
-    execFileSync(process.execPath, [hook], { cwd: ROOT, stdio: 'inherit', timeout: 10_000 });
-  } catch (error) {
-    if (error?.status === 1) throw error;
-    console.warn('pre-commit: workflow invariant hook unavailable; continuing fail-open.');
-  }
-}
-
 function main() {
   console.log('› pre-commit: regenerating derived docs...');
-
-  runWorkflowInvariantGuard();
 
   if (existsSync(resolve(ROOT, 'docs'))) {
     safeRun('node contextkit/tools/scripts/docs-refresh.mjs');
@@ -73,11 +59,7 @@ function main() {
     safeRun('node contextkit/tools/scripts/workspace-sync.mjs');
     safeRun('git add contextkit/memory/WORKSPACE.md');
   }
-  if (existsSync(P.pipeline)) {
-    safeRun('node contextkit/tools/scripts/pipeline.mjs sync');
-    safeRun('git add contextkit/pipeline/devpipeline.md contextkit/pipeline/known-bugs.md');
-  }
-  // Project-map auto-refresh (ADR-0046) — grade-blind derived doc, like the indices
+  // Project-map auto-refresh (ADR-0046) — derived doc, like the indices
   // above. Only when a map already exists, the staged changeset touches source, and
   // the toggle is on. Deterministic ⇒ no-op stage when nothing structural changed.
   if (existsSync(resolve(P.projectMap, 'manifest.json')) && loadConfigSync(ROOT)?.projectMap?.autoRefresh !== false && stagedTouchesSource()) {

@@ -4,15 +4,15 @@
  *
  * OBSERVATION-ONLY. Prints what the Domain Engineering classifier decides for an
  * objective — CMIS (code-mutation intent), DAS (domain applicability), the
- * resolved implementation profile, the required agents/skills/artifacts, and the
- * effective enforcement mode for this project's level + config. It changes
+ * resolved implementation profile, optional specialist/artifact recommendations,
+ * and the effective observation mode for this project's config. It changes
  * NOTHING: no write, no gate, no state mutation. Normal activation never needs
  * it — the hooks + classifier fire by deterministic signal; this command is for
  * a human calibrating the rollout to SEE the decision.
  *
  * Reuse-over-rebuild: it calls the SAME pure `buildImplementationBlock` (§15) the
- * lifecycle + gates read, and the SAME `resolveDomainMode` ladder the code gate
- * uses — zero new classification logic. `/implementation` is NOT a separate
+ * diagnostic surface reads — zero new classification logic. `/implementation`
+ * is NOT a separate
  * command: the implementation profile is a field of this one block, so a second
  * command would have no distinct consumer (constitution §9) — it is folded here.
  *
@@ -25,8 +25,7 @@
  */
 import { pathToFileURL } from 'node:url';
 import { getLevel, loadConfig } from '../../runtime/config/load.mjs';
-import { resolveConfig } from '../../runtime/domain-engineering/config.mjs';
-import { resolveDomainMode } from '../../runtime/domain-engineering/code-gate.mjs';
+import { resolveConfig, resolveObservationMode } from '../../runtime/domain-engineering/config.mjs';
 import { buildImplementationBlock } from '../../runtime/domain-engineering/envelope-block.mjs';
 
 /**
@@ -46,7 +45,7 @@ export async function inspectObjective(objective, root) {
     objective,
     level,
     enabled: domainConfig.enabled === true,
-    mode: resolveDomainMode(level, domainConfig),
+    mode: resolveObservationMode(domainConfig),
     block,
   };
 }
@@ -71,11 +70,11 @@ export function renderView(view) {
     `  code-mutation intent (CMIS): ${block.codeMutationIntentScore} → ${block.codeMutationVerdict}`,
     `  domain applicability (DAS):  ${block.domainApplicabilityScore}`,
     `  implementation profile:      ${block.profile}`,
-    `  squad required:              ${block.squadRequired}`,
-    `  required agents:             ${fmtList(block.requiredAgents)}`,
-    `  required skills:             ${fmtList(block.requiredSkills)}${block.skillsDegraded ? '  (skill table degraded → baseline)' : ''}`,
-    `  required artifacts:          ${fmtList(block.requiredArtifacts)}`,
-    `  simulate-impact required:    ${block.simulateImpactRequired}`,
+    `  recommendations available:   ${block.recommendationAvailable}`,
+    `  recommended agents:          ${fmtList(block.recommendedAgents)}`,
+    `  recommended skills:          ${fmtList(block.recommendedSkills)}${block.skillsDegraded ? '  (skill table degraded → baseline)' : ''}`,
+    `  recommended artifacts:       ${fmtList(block.recommendedArtifacts)}`,
+    `  simulate-impact recommended: ${block.simulateImpactRecommended}`,
     `  reason codes:                ${fmtList(block.reasonCodes)}`,
   ];
   if (block.degraded) lines.push(``, `  ⚠️  classification DEGRADED (missing: ${fmtList(block.missing)}) — a recorded receipt, never a false pass.`);

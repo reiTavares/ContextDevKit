@@ -216,6 +216,58 @@ function writeInitialPack(stagingDirectory, definition, options) {
   renderWorkflowPack(stagingDirectory);
 }
 
+/**
+ * Materializes and validates a complete Workflow v2 package in an empty
+ * caller-owned directory. This is the aggregate-composition seam used when a
+ * workflow must be published atomically with its Business/Operation owner.
+ *
+ * @param {string} directory empty target directory
+ * @param {object} options complete workflow creation inputs
+ * @returns {{dir:string,id:string,slug:string,definition:object}}
+ * @throws {Error} on invalid input, a non-empty target, or failed validation
+ */
+export function materializeWorkflowPack(directory, options = {}) {
+  const targetDirectory = resolve(directory);
+  const parentDirectory = dirname(targetDirectory);
+  mkdirSync(parentDirectory, { recursive: true });
+  assertContained(parentDirectory, targetDirectory, 'workflow package target');
+  if (existsSync(targetDirectory) && readdirSync(targetDirectory).length > 0) {
+    throw new Error(`Workflow package target is not empty: ${targetDirectory}`);
+  }
+  if (!ID_RE.test(options.id ?? '')) throw new Error(`workflow id must match WF-#### (got "${options.id ?? ''}")`);
+  if (!SLUG_RE.test(options.slug ?? '')) throw new Error(`slug must match ${SLUG_RE} (got "${options.slug ?? ''}")`);
+  if (typeof options.now !== 'string' || Number.isNaN(Date.parse(options.now))) {
+    throw new Error('materializeWorkflowPack: a valid ISO `now` is required');
+  }
+  const owner = normalizeOwner(options.owner);
+  const definition = createWorkflowDefinition({
+    id: options.id,
+    slug: options.slug,
+    title: options.title ?? options.slug,
+    owner,
+    objective: options.objective ?? options.title ?? options.slug,
+    scope: options.scope,
+    acceptance: options.acceptance,
+    dependencies: options.dependencies,
+    structure: structureFor(options),
+    now: options.now,
+  });
+  const definitionVerdict = validateWorkflowDefinition(definition);
+  if (!definitionVerdict.valid) throw new Error(definitionVerdict.errors.map((entry) => entry.message).join('; '));
+  mkdirSync(targetDirectory, { recursive: true });
+  try {
+    writeInitialPack(targetDirectory, definition, {
+      ...options,
+      continuation: Boolean(options.continuation || options.shape),
+    });
+    assertValidPack(targetDirectory);
+  } catch (error) {
+    rmSync(targetDirectory, { recursive: true, force: true });
+    throw error;
+  }
+  return { dir: targetDirectory, id: definition.id, slug: definition.slug, definition };
+}
+
 /** Convert a profile/pattern request into v2 topology without carrying task status. */
 function structureFor(options) {
   if (options.structure) return options.structure;
@@ -255,25 +307,15 @@ export function createWaveWorkflow(root, slug, options = {}) {
   const targetDirectory = join(workflowsRoot, `${id}-${slug}`);
   assertContained(workflowsRoot, targetDirectory, 'workflow target');
   if (existsSync(targetDirectory)) throw new Error(`Workflow target already exists: ${targetDirectory}`);
-  const definition = createWorkflowDefinition({
-    id,
-    slug,
-    title: options.title ?? slug,
-    owner,
-    objective: options.objective ?? options.title ?? slug,
-    scope: options.scope,
-    acceptance: options.acceptance,
-    dependencies: options.dependencies,
-    structure: structureFor(options),
-    now: options.now,
-  });
-  const definitionVerdict = validateWorkflowDefinition(definition);
-  if (!definitionVerdict.valid) throw new Error(definitionVerdict.errors.map((entry) => entry.message).join('; '));
   const stagingDirectory = mkdtempSync(join(workflowsRoot, '.workflow-create-'));
   assertContained(workflowsRoot, stagingDirectory, 'workflow staging directory');
   try {
-    writeInitialPack(stagingDirectory, definition, { ...options, continuation: Boolean(options.continuation || options.shape) });
-    assertValidPack(stagingDirectory);
+    materializeWorkflowPack(stagingDirectory, {
+      ...options,
+      id,
+      slug,
+      owner,
+    });
     renameSync(stagingDirectory, targetDirectory);
   } catch (error) {
     rmSync(stagingDirectory, { recursive: true, force: true });

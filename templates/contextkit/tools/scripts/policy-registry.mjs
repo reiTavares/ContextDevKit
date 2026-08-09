@@ -12,7 +12,7 @@
  * Three policy stores indexed:
  *   capability  — contextkit/policy/capability-registry.json (loadRegistry)
  *   routing     — contextkit/policy/routing-policy.json      (loadPolicy)
- *   enforcement — runtime/execution/enforcement-modes.mjs    (VALID_MODES / resolveEnforcementMode)
+ *   enforcement — runtime/execution/enforcement-modes.mjs    (ENFORCEMENT_MODES)
  *
  * Contract: advisory + read-only + fail-open. Each store is wrapped
  * independently; a missing or broken store goes to sources.skipped and
@@ -127,7 +127,7 @@ async function loadRoutingStore(root) {
  * Loads enforcement mode policy from enforcement-modes.mjs.
  *
  * The source label is the relative path to the enforcement-modes module;
- * the actual modes are the valid enumeration values exported as VALID_MODES.
+ * the actual modes are the canonical values exported as ENFORCEMENT_MODES.
  *
  * @param {string} root project root — used only to derive a relative label
  * @returns {Promise<{ entries: object[], sourceLabel: string, present: boolean }>}
@@ -137,26 +137,19 @@ async function loadEnforcementStore(root) {
   // Build label relative to root so paths stay portable.
   const sourceLabel = relative(root, modesPath).replaceAll('\\', '/');
   try {
-    const { resolveEnforcementMode } = await import(pathToFileURL(modesPath).href);
-    // Derive the valid modes the same way enforcement-modes.mjs does — by probing
-    // each known mode string. This avoids importing a private constant.
-    const knownModes = ['advisory', 'guarded', 'strict'];
-    const entries = knownModes.map((mode) => {
-      // Confirm each string is recognized by the resolver (resolves to itself).
-      const resolved = resolveEnforcementMode({ enforcement: { mode } });
-      const isValid = resolved === mode;
+    const { ENFORCEMENT_MODES } = await import(pathToFileURL(modesPath).href);
+    // The exported frozen enumeration is the single runtime authority.
+    const entries = ENFORCEMENT_MODES.map((mode) => {
       return {
         id: `enforcement:mode:${mode}`,
         kind: 'enforcement',
         source: sourceLabel,
         scope: 'global',
         summary: `Enforcement mode "${mode}" — ${modeDescription(mode)}`,
-        present: isValid,
+        present: true,
       };
     });
-    // Only include entries the resolver confirmed (defensive; all three should match).
-    const valid = entries.filter((e) => e.present);
-    return { entries: valid, sourceLabel, present: valid.length > 0 };
+    return { entries, sourceLabel, present: entries.length > 0 };
   } catch {
     return { entries: [], sourceLabel, present: false };
   }
@@ -170,9 +163,10 @@ async function loadEnforcementStore(root) {
  */
 function modeDescription(mode) {
   switch (mode) {
-    case 'advisory':  return 'warns on missing capabilities, never blocks';
-    case 'guarded':   return 'blocks writes/completions when required capabilities missing';
-    case 'strict':    return 'blocks at every lifecycle moment when any required capability missing';
+    case 'off':       return 'does not evaluate or surface the gate';
+    case 'shadow':    return 'evaluates silently and never blocks';
+    case 'canary':    return 'surfaces observations and always continues';
+    case 'guarded':   return 'may deny only an allowlisted deterministic violation';
     default:          return 'unknown';
   }
 }

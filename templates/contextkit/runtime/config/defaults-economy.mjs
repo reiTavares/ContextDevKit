@@ -30,7 +30,7 @@ export const ECONOMY_CONFIG_DEFAULTS = Object.freeze({
   agentContract:   { enabled: true },
   compaction:      { enabled: true },
   contextProfiles: { enabled: true },
-  bootDelta:       { enabled: true },
+  bootDelta:       { enabled: false },
   resumePack:      { enabled: true },
   leanLoop:        { enabled: true },
   loopBreaker:     { enabled: true },
@@ -39,7 +39,7 @@ export const ECONOMY_CONFIG_DEFAULTS = Object.freeze({
   /**
    * sessionAutonomyReceipt — generate a per-session Session Autonomy Receipt at
    * finalization (advisory, fail-open). Public default 'conservative' estimation;
-   * receipts are stored beside the session ledger and signed only when a key is
+   * receipts are stored in the optional economics memory directory and signed only when a key is
    * configured (else hash-only). Subscription mode never invents financial savings.
    */
   sessionAutonomyReceipt: Object.freeze({

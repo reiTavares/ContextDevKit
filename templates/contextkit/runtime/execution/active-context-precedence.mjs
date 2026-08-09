@@ -7,7 +7,6 @@
  * @module active-context-precedence
  */
 import { normalize } from 'node:path';
-import { resolveWorkflow } from '../../tools/scripts/registry/workflow.mjs';
 
 // ─── ID patterns ────────────────────────────────────────────────────────────
 
@@ -141,7 +140,6 @@ export function ruleBranchName(branch, registry, root) {
   const business  = bizM ? verifyInRegistry(bizM[1].toUpperCase(), registry) : null;
   const operation = opM  ? verifyInRegistry(opM[1].toUpperCase(), registry)  : null;
   let workflow = wfM ? wfM[1].toUpperCase() : null;
-  if (workflow && !resolveWorkflow(workflow, root)) workflow = null;
   const hit = business || operation || workflow;
   if (!hit) return null;
   return {

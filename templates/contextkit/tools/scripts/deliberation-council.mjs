@@ -33,7 +33,7 @@ const LANE_KEYWORDS = Object.freeze({
   security: ['security', 'auth', 'token', 'secret', 'credential', 'crypto', 'vulnerab', 'injection', 'permission', 'privacy', 'lgpd', 'pii', 'attack'],
   features: ['feature', 'capability', 'requirement', 'user story', 'scope', 'mvp', 'roadmap'],
   deepen: ['deepen', 'mature', 'enhance', 'polish', 'harden existing', 'improve existing'],
-  ux: ['ux', 'ui ', 'usability', 'onboarding', 'accessibilit', 'a11y', 'layout', 'interaction', 'screen', 'flow'],
+  ux: ['ux', 'ui ', 'user experience', 'usability', 'onboarding', 'accessibilit', 'a11y', 'layout', 'interaction', 'screen', 'flow'],
   growth: ['growth', 'conversion', 'funnel', 'retention', 'churn', 'activation', 'acquisition', 'seo', 'landing'],
 });
 

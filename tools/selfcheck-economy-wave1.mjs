@@ -8,7 +8,7 @@
  * `(root) => { name, pass, detail }[]` (sync or async), advisory + fail-open.
  *
  * Cards covered: #254 output-contract, #255 findings-merge, #256 agent-contract,
- * #257 run-compact, #258 context-profiles, #259 boot-delta, #260 resume-pack,
+ * #257 run-compact, #258 context-profiles, #259 pure boot-delta, #260 resume-pack,
  * #264 economy-governance.
  *
  * Standalone runnable: `node tools/selfcheck-economy-wave1.mjs`
@@ -30,7 +30,6 @@ const CARDS = [
   ['#257 run-compact', 'run-compact.mjs', 'econCheckRunCompact'],
   ['#258 context-profiles', 'context-profiles.mjs', 'econCheckProfiles'],
   ['#259 boot-delta', 'boot-delta.mjs', 'econCheckBootDelta'],
-  ['#259 boot-delta-gate (wired)', 'boot-delta-gate.mjs', 'econCheckBootDeltaGate'],
   ['#260 resume-pack', 'resume-pack.mjs', 'econCheckResumePack'],
   ['#264 economy-governance', 'economy-governance.mjs', 'econCheckGovernance'],
   ['#OP1-W2 redact', 'redact.mjs', 'econCheckRedact'],

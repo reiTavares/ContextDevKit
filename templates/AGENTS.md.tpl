@@ -24,7 +24,7 @@ differ, but no host may add a second authority or a stronger private ceremony.
   `workflow-state.json` stores aggregate execution state, and
   `pipeline/tasks.json` owns task definition/status. Markdown, reports,
   dashboards, statuslines, and physical folders are projections only.
-- `advisory-agent-routing`: agent/model selection, economy, autonomy, simulation,
+- `advisory-agent-routing`: agent/model selection, economy, risk guidance, simulation,
   architecture guidance, and deliberation are advisory. Resolver failure never
   denies spawn or delivery; current explicit human direction wins within platform
   security, secret, credential, and destructive-action boundaries.

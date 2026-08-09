@@ -1,312 +1,62 @@
 #!/usr/bin/env node
 /**
- * Suite-list floor check (TEA-002, SPEC §12) — STANDALONE entrypoint (exit 0/1).
+ * Suite-registry completeness check.
  *
- * WHY: `tools/test-suites.mjs` is the single source of truth for which suites
- * run. If a suite file is added to `tools/` but forgotten from that list, it
- * would silently stop running under `npm test`. This check asserts the list
- * covers EVERY `tools/selfcheck.mjs` + `tools/integration-test*.mjs` file
- * present on disk, and that the count clears a floor — mirroring selfcheck's own
- * `MIN_CHECKS` guard. Losing a suite from the list fails loudly here.
- *
- * Registered in `test-suites.mjs` as a `smoke` suite so it rides every run.
- * Does NOT touch `tools/selfcheck.mjs` (Wave 2 owns that file). Zero-dep,
- * `node:*` only, Windows-safe.
+ * Every top-level integration entrypoint must be registered, every registered
+ * file must exist, and suite ids must be unique. Focused sibling selfchecks may
+ * live anywhere; existence is verified directly instead of through a manual
+ * exception list that can preserve removed contracts by accident.
  */
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allSuites } from './test-suites.mjs';
 
 const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
-const TOOLS_DIR = resolve(KIT, 'tools');
-
-/**
- * Floor for the number of on-disk suite files the list must cover. The current
- * inventory is 60 product suites (selfcheck.mjs + 59 integration-test*.mjs). The
- * 3.1.2 updater-safety hotfix (ADR-0099, WF0034) added eleven across RUN 1 + RUN 2:
- * vibekit-compat, session-safety, safe-writes, update-preflight, update-snapshot,
- * projmap-defer, sync-conflict, session-adversarial, vibekit-adversarial,
- * update-idempotency, update-failure. Lowering this requires an ADR; raise it as
- * suites are added.
- */
+const TOOLS_DIRECTORY = resolve(KIT, 'tools');
 const MIN_SUITES = 60;
-
 let failures = 0;
-const ok = (msg) => console.log(`  ✓ ${msg}`);
-const bad = (msg) => {
-  console.error(`  ✗ ${msg}`);
+
+const ok = (message) => console.log(`  ✓ ${message}`);
+const bad = (message) => {
+  console.error(`  ✗ ${message}`);
   failures += 1;
 };
 
-/**
- * Enumerate the suite ENTRYPOINT files on disk: `selfcheck.mjs` and every
- * `integration-test*.mjs`. Sibling `selfcheck-*.mjs` modules are dispatched
- * in-process by `selfcheck.mjs` and are NOT independent entrypoints, so they are
- * excluded here (matching how the legacy `test` chain invoked suites).
- * @returns {string[]} forward-slashed `tools/...mjs` paths, sorted.
- * @throws {Error} if the tools dir can't be read (fail-fast).
- */
+/** Discover user-runnable aggregate suite entrypoints. */
 function discoverSuiteFiles() {
-  const names = readdirSync(TOOLS_DIR);
-  const wanted = names.filter(
-    (name) => name === 'selfcheck.mjs'
-      || (name.startsWith('integration-test') && name.endsWith('.mjs') && !name.endsWith('-helpers.mjs')),
-  );
-  return wanted.map((name) => `tools/${name}`).sort();
+  return readdirSync(TOOLS_DIRECTORY)
+    .filter((name) => name === 'selfcheck.mjs'
+      || (name.startsWith('integration-test') && name.endsWith('.mjs') && !name.endsWith('-helpers.mjs')))
+    .map((name) => `tools/${name}`)
+    .sort();
 }
 
 function main() {
-  console.log('\n🌀 ContextDevKit suite-list floor check\n');
+  console.log('\nContextDevKit suite-registry check\n');
   const onDisk = discoverSuiteFiles();
-  const listed = new Set(allSuites().map((suite) => suite.file));
+  const suites = allSuites();
+  const listedFiles = new Set(suites.map((suite) => suite.file));
 
-  // 1. Every on-disk suite entrypoint must appear in the list.
-  const missing = onDisk.filter((file) => !listed.has(file));
-  missing.length === 0
-    ? ok(`every on-disk suite (${onDisk.length}) is listed in test-suites.mjs`)
-    : bad(`suite(s) on disk but NOT in test-suites.mjs: ${missing.join(', ')}`);
+  const missingRegistrations = onDisk.filter((file) => !listedFiles.has(file));
+  if (missingRegistrations.length === 0) ok(`every top-level suite (${onDisk.length}) is registered`);
+  else bad(`top-level suite(s) are unregistered: ${missingRegistrations.join(', ')}`);
 
-  // 2. Count must clear the floor (a wholesale loss of suites fails loudly).
-  onDisk.length >= MIN_SUITES
-    ? ok(`suite count ${onDisk.length} ≥ floor ${MIN_SUITES}`)
-    : bad(`only ${onDisk.length} suite file(s) on disk — below the ${MIN_SUITES} floor`);
+  if (onDisk.length >= MIN_SUITES) ok(`suite count ${onDisk.length} ≥ floor ${MIN_SUITES}`);
+  else bad(`only ${onDisk.length} top-level suites exist; floor is ${MIN_SUITES}`);
 
-  // 3. No listed suite may point at a vanished file (excluding the infra
-  //    self-checks which are not integration/selfcheck entrypoints).
-  const onDiskSet = new Set(onDisk);
-  const infra = new Set([
-    'tools/selfcheck-suites.mjs', 'tools/selfcheck-impact.mjs',
-    // WF0025 request-orchestration shard + telemetry-summary self-test (ADR-0113,
-    // task 301) — sibling selfcheck-*, dispatched directly as their own suites.
-    'tools/selfcheck-request.mjs', 'tools/selfcheck-telemetry.mjs',
-    // WF0025/TEA-008 run-suites pool self-test (ADR-0114) — sibling, dispatched directly.
-    'tools/selfcheck-run-pool.mjs',
-    // PKG-05 selfcheck entrypoints — registered suites, dispatched directly
-    // (siblings, not discovered as integration-test*).
-    'tools/selfcheck-pkg05-050.mjs', 'tools/selfcheck-pkg05-051.mjs', 'tools/selfcheck-pkg05-053.mjs',
-    'tools/selfcheck-pkg05-054.mjs', 'tools/selfcheck-pkg05-055.mjs', 'tools/selfcheck-pkg05-056.mjs',
-    // PKG-06 selfcheck entrypoints — siblings, dispatched directly (not discovered).
-    'tools/selfcheck-pkg06-060.mjs', 'tools/selfcheck-pkg06-061.mjs', 'tools/selfcheck-pkg06-062.mjs',
-    'tools/selfcheck-pkg06-065.mjs', 'tools/selfcheck-pkg06-068.mjs',
-    // PKG-06 cost consumers (wf 0027) — siblings, dispatched directly.
-    'tools/selfcheck-pkg06-063.mjs', 'tools/selfcheck-pkg06-066.mjs', 'tools/selfcheck-pkg06-067.mjs',
-    // PKG-07 — lineage graph (CDK-070); sibling, dispatched directly.
-    'tools/selfcheck-lineage.mjs',
-    // PKG-07 — lineage consumers (CDK-071…077); siblings, dispatched directly.
-    'tools/selfcheck-pkg07-071.mjs', 'tools/selfcheck-pkg07-072.mjs', 'tools/selfcheck-pkg07-073.mjs',
-    'tools/selfcheck-pkg07-074.mjs', 'tools/selfcheck-pkg07-075.mjs', 'tools/selfcheck-pkg07-076.mjs',
-    'tools/selfcheck-pkg07-077.mjs',
-    // PKG-08 — fleet & agent platform (CDK-080/081/082); sibling, dispatched directly.
-    'tools/selfcheck-pkg08-fleet.mjs',
-    // WF0020 Economy Runtime — Wave 1 aggregate; sibling, dispatched directly.
-    'tools/selfcheck-economy-wave1.mjs',
-    // OP-0001 economy telemetry completeness gate (ADR-0117).
-    'tools/selfcheck-economy-completeness.mjs',
-    // OP-0001 economy instrumentation behavioral check (ADR-0117).
-    'tools/selfcheck-economy-instrumentation.mjs',
-    // WF0020 Economy Runtime — Wave 2 aggregate; sibling, dispatched directly.
-    'tools/selfcheck-economy-wave2.mjs',
-    // WF0033 project-map auto-baseline (PMB-02/03); siblings, dispatched directly.
-    'tools/selfcheck-projmap-onboarding.mjs', 'tools/selfcheck-boot-signals-projmap.mjs',
-    // WF-0057 W1.1 (ADR-0122) — project-map structural signals; sibling, dispatched directly.
-    'tools/selfcheck-projmap-signals.mjs',
-    // WF-0071 (BIZ-0004) GC1-T1 -- blast-radius consumer lookup; sibling
-    // selfcheck, dispatched directly (not an integration-test* entrypoint).
-    'tools/selfcheck-blast-radius.mjs',
-    // WF-0071 (BIZ-0004) GC1-T2 -- graph extraction + committed projection writer;
-    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
-    'tools/selfcheck-graph-extract.mjs',
-    // WF-0071 (BIZ-0004) GC2-T1 -- two-phase cross-file resolver + phantom
-    // guard + dedup; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-resolve.mjs',
-    // WF-0071 (BIZ-0004) GC3-T1 -- determinism / degradation / incremental-merge
-    // + multi-language golden validation; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-gc3-validation.mjs',
-    // WF-0071 (BIZ-0004) GC4-T1 -- capability gate default-off + hot-path
-    // purity proof (no graph module on the hot path); sibling, dispatched directly.
-    'tools/selfcheck-gc4-packaging.mjs',
-    // WF-0072 (BIZ-0004) IF1 -- graph query core (reverse callers/consumers,
-    // bounded hub-avoiding reachability, god-nodes, shortest-path); sibling.
-    'tools/selfcheck-graph-query.mjs',
-    // WF-0072 (BIZ-0004) IF2 -- consumer adapters (impact/contract/packet) +
-    // read-only MCP graph tool dispatch; degrade-to-UNKNOWN each; sibling.
-    'tools/selfcheck-graph-consumers.mjs',
-    // WF-0072 (BIZ-0004) IF2 -- /graph CLI dispatch surface; sibling.
-    'tools/selfcheck-graph-cli.mjs',
-    // WF-0073 (BIZ-0004) SR1 -- rationale/cites nodes (LINKS verb) + the
-    // free-text injection sanitization pipeline; siblings.
-    'tools/selfcheck-rationale-nodes.mjs',
-    'tools/selfcheck-graph-sanitize.mjs',
-    // WF-0073 (BIZ-0004) SR2 -- graded arch-debt signals (ENFORCES) + the
-    // zero-egress allowlist boundary + refuse-by-default semantic gate; siblings.
-    'tools/selfcheck-graph-graded.mjs',
-    'tools/selfcheck-graph-egress.mjs',
-    // WF-0074 (BIZ-0004) RO2 -- staged activation ladder (off/shadow/advisory/
-    // guarded/strict; default-off; guarded/strict human-gated); sibling.
-    'tools/selfcheck-graph-activation.mjs',
-    // WF-0080 (BIZ-0004, ADR-0147) — Tier-1 WASM AST extractor; sibling.
-    'tools/selfcheck-graph-ast.mjs',
-    // WF-0074 (BIZ-0004) RO3 -- hot-path purity proof: no graph builder module
-    // and no third-party dep is reachable from any hot-path hook / config-load.
-    'tools/selfcheck-hotpath-purity.mjs',
-    // WF-0074 (BIZ-0004) index-on-update installer machinery (default-off, fail-open).
-    'tools/selfcheck-graph-index.mjs',
-    // WF-0108 (ADR-0155) — mandatory graph-first exploration: per-session refresh
-    // ladder, gate decision matrix, dependency guarantee, and the host wiring.
-    'tools/selfcheck-graph-first.mjs',
-    // WF-0057 W2 (ADR-0122) — arch-debt analyzer pipeline aggregator (fans out to the
-    // 6 per-analyzer selftests); sibling, dispatched directly.
-    'tools/selfcheck-arch-debt.mjs',
-    // WF-0057 W5.2 (ADR-0122) — gate config block + legacy line-budget migration;
-    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
-    'tools/selfcheck-arch-debt-config.mjs',
-    // WF-0057 #370 (ADR-0122) — F2/F3 floor calibration: floors EVALUATE on the live
-    // tree, block a real new violation, pass clean; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-arch-debt-calibration.mjs',
-    // WF-0057 W6.1 (ADR-0122) — MASTER acceptance suite: §35 headline invariants +
-    // engine-level §34 GAP rows; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-arch-debt-acceptance.mjs',
-    // WF-0057 (BIZ-0001 ownership rule 3) — owned-workflow placement gate; sibling
-    // selfcheck, dispatched directly (not an integration-test* entrypoint).
-    'tools/selfcheck-workflow-ownership.mjs',
-    // BIZ-0001 / WF-0036 Wave A1 static wiring; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-bdm.mjs',
-    // ADR-0126 follow-up — native /work command + host-neutral seeded READMEs;
-    // sibling selfcheck, dispatched directly (not an integration-test* entrypoint).
-    'tools/selfcheck-work-command.mjs',
-    // ADR-0127 Phase 2 — journey map + verifier; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-journey.mjs',
-    // Session Autonomy Receipt aggregate; sibling selfcheck, dispatched directly.
-    'tools/selfcheck-session-autonomy-all.mjs',
-    // WF-0069 (OP-0008, ADR-0131/0133) — language-aware intent + the two direct
-    // fixes (#2 allocator, #8 WF- prefix); siblings, dispatched directly.
-    'tools/selfcheck-wf0069-lang-intent.mjs', 'tools/selfcheck-wf0069-adr-allocator.mjs',
-    'tools/selfcheck-wf0069-wf-prefix.mjs',
-    // WF-0095 (OP-0008, reuses ADR-0131) — bilingual classifier signals (pt/en
-    // parity + accent-preserving tokenizer); sibling, dispatched directly.
-    'tools/selfcheck-wf0095-bilingual-signals.mjs',
-    // WF0022 TC-14 content cache (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
-    'tools/selfcheck-tc-cache.mjs',
-    // WF0022 TC-12 deterministic transforms (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
-    'tools/selfcheck-tc-transform.mjs',
-    // WF0022 TC-13 scaffold-from-pattern (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
-    'tools/selfcheck-tc-scaffold.mjs',
-    // WF0022 TC-15 recipe-runner DAG (ADR-0089); sibling, dispatched via selfcheck-economy-all.mjs.
-    'tools/selfcheck-tc-recipe-runner.mjs',
-    // WF0022 TC-16 ephemeral dispatch (ADR-0111); sibling, dispatched via selfcheck-economy-all.mjs.
-    'tools/selfcheck-tc-dispatch.mjs',
-    // BIZ-0001 / WF-0036 Wave A3 registry-shim + Wave 5 gate-enforcement selftests
-    // live under templates/ (engine source), registered via test-suites-bdm.mjs.
-    'templates/contextkit/runtime/execution/task-intake-registry-shim.selftest.mjs',
-    'templates/contextkit/runtime/hooks/gate-enforcement-decision.selftest.mjs',
-    // BIZ-0001 / WF-0059 Wave 3 decision-CLI and work-verbs selftests under templates/.
-    'templates/contextkit/tools/scripts/decision.selftest.mjs',
-    'templates/contextkit/tools/scripts/work-verbs.selftest.mjs',
-    'templates/contextkit/tools/scripts/work-verbs-part2.selftest.mjs',
-    // OP-0004 / WF-0059 Waves — Stage-0 inventory (parity oracle), tasks.json
-    // schema/validators (source-of-truth guardrail), transition engine (atomic
-    // status↔event pairing), global derivation (byte-stable board), CAS-on-revision
-    // concurrency, compat adapters — selftests under templates/, registered via
-    // test-suites-wf0059.mjs, dispatched directly (not tools/ entrypoints).
-    'templates/contextkit/tools/scripts/pipeline-inventory.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-validate.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-transition.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-derive.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-cas.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-compat.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-migrate.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-cutover.selftest.mjs',
-    'templates/contextkit/tools/scripts/tasks-corpus-reconcile.selftest.mjs',
-    'templates/contextkit/tools/scripts/pipeline-cutover.selftest.mjs',
-    'templates/contextkit/tools/scripts/workflow-state-checksum-manifest.selftest.mjs',
-    // BIZ-0006 / WF-0081 (ADR-0148 §1) — classifier integrity & investigation
-    // exemption; selftest lives beside its engine module under templates/,
-    // registered via test-suites-wf0081.mjs, dispatched directly.
-    'templates/contextkit/runtime/execution/no-code-prior.selftest.mjs',
-    // WF-0111 W02 — mutation-only interaction, owner nature, and execution shape.
-    'templates/contextkit/runtime/execution/interaction-classify.selftest.mjs',
-    // BIZ-0006 / WF-0088 (ADR-0148 position 11) — governance-contract envelope;
-    // selftest lives beside its schema module under templates/, registered via
-    // test-suites-wf0088.mjs, dispatched directly.
-    'templates/contextkit/runtime/work/schema-governance-contract.selftest.mjs',
-    // BIZ-0006 / WF-0094 (ADR-0152) — reference-intent resolution & continuation
-    // gate; selftest lives beside its engine module under templates/, registered
-    // via test-suites-wf0094.mjs, dispatched directly.
-    'templates/contextkit/runtime/execution/reference-intent.selftest.mjs',
-    // BIZ-0006 / WF-0089 (ADR-0148 §9/§10) — structural auto-fill projections
-    // (scope/risk/tasks/classification/KPI skeleton); selftest lives beside its
-    // engine module under templates/, registered via test-suites-wf0089.mjs.
-    'templates/contextkit/methodology/projections.selftest.mjs',
-    // BIZ-0006 / WF-0089 SA2 (ADR-0148 §9) — field-provenance sidecar +
-    // idempotent re-derive engine; selftest lives beside its engine module
-    // under templates/, registered via test-suites-wf0089.mjs.
-    'templates/contextkit/methodology/provenance.selftest.mjs',
-    // BIZ-0006 / WF-0089 SA3-T1 (ADR-0148 §9/§10) — verification wave: scope/
-    // risk traced to an independently-recomputed graph traversal, an
-    // explicitly-authored field preserved, and the zero-token-on-structure
-    // receipt; selftest lives beside its engine module under templates/,
-    // registered via test-suites-wf0089.mjs.
-    'templates/contextkit/methodology/projections-verify.selftest.mjs',
-    // BIZ-0006 / WF-0090 GA1 (ADR-0148 rails a+b) — the grounded content engine:
-    // grounded-only retrieval + citation validation, draft-only provenance, and
-    // the never-blocking fallback; selftest lives beside its engine modules
-    // under templates/, registered via test-suites-wf0090.mjs.
-    'templates/contextkit/methodology/content-fill.selftest.mjs',
-    // BIZ-0006 / WF-0090 GA2 (ADR-0148 §13 + rail (b) promotion) — the token
-    // guardrail / kill-switch, its single ledger read boundary, and the one-way
-    // draft->authored promotion pass; registered via test-suites-wf0090.mjs.
-    'templates/contextkit/methodology/content-guardrail.selftest.mjs',
-    // BIZ-0006 / WF-0086 IN2 (ADR-0148 §13) — the plane-wide governance-token
-    // reader + north-star that token-guardrail.mjs names as a WF-0086 seam;
-    // selftest lives beside its engine module under templates/, registered via
-    // test-suites-wf0086.mjs and dispatched directly.
-    'templates/contextkit/tools/scripts/economics/governance-north-star.selftest.mjs',
-    // BIZ-0001 / WF-0037 Wave B4 — adr-tooling + legacy-coexistence selftests live
-    // under templates/ (engine source), registered as suites, dispatched directly.
-    'templates/contextkit/tools/scripts/adr-index.selftest.mjs',
-    'templates/contextkit/tools/scripts/b4-legacy-coexistence.selftest.mjs',
-    // OP-0003 / ADR-0123 — ownership-based filing of loose top-level ADRs, under templates/.
-    'templates/contextkit/tools/scripts/decisions-file.selftest.mjs',
-    // BIZ-0001 / WF-0037 Wave B5 — program-governance selftest (fixture-based), under templates/.
-    'templates/contextkit/tools/scripts/program-governance.selftest.mjs',
-    // BIZ-0006 / WF-0084 — finalization authority + I1-I10 adversarial fixtures.
-    'templates/contextkit/tools/scripts/workflow-finalization.selftest.mjs',
-    // Session-4 internal bug-hunt regression locks (BIZ-0001 + #243 fixes), under templates/.
-    'templates/contextkit/tools/scripts/economics/session4-bugfix-regression.selftest.mjs',
-    // DOC-007 / WF0016 — docs enforcement gate selfcheck; sibling, dispatched directly.
-    'tools/selfcheck-docs.mjs',
-    // WF0014 MCP integration-layer selfcheck siblings — standalone selfcheck
-    // entrypoints (NOT integration-test*, so excluded from discovery), registered
-    // in test-suites-mcp.mjs (MCP_SUITES) and dispatched directly. Each ticket's
-    // selfcheck was split into focused sub-suites (constitution §1); *-helpers are
-    // imported, not run. selfcheck-mcp-002.mjs aggregates its 4 sub-files.
-    'tools/selfcheck-mcp.mjs',
-    'tools/selfcheck-mcp-002.mjs',
-    'tools/selfcheck-mcp-004-deny.mjs', 'tools/selfcheck-mcp-004-pass.mjs',
-    'tools/selfcheck-mcp-004-pure.mjs', 'tools/selfcheck-mcp-004-report.mjs',
-    'tools/selfcheck-mcp-006-e2e.mjs', 'tools/selfcheck-mcp-006-handlers.mjs',
-    'tools/selfcheck-mcp-006-imports.mjs',
-    'tools/selfcheck-mcp-007-engine.mjs', 'tools/selfcheck-mcp-007-shape.mjs',
-    'tools/selfcheck-mcp-012.mjs', 'tools/selfcheck-mcp-012b.mjs',
-    // WF-0070 (OP-0008, ADR-0132) — governance digest + project-map memory roots
-    // selfcheck siblings; standalone entrypoints (NOT integration-test*), registered
-    // in test-suites.mjs and dispatched directly.
-    'tools/selfcheck-governance-digest.mjs', 'tools/selfcheck-projmap-memory-roots.mjs',
-  ]);
-  const dangling = allSuites()
+  const vanished = suites
     .map((suite) => suite.file)
-    .filter((file) => !onDiskSet.has(file) && !infra.has(file));
-  dangling.length === 0
-    ? ok('no listed suite points at a missing file')
-    : bad(`listed suite(s) point at a missing file: ${dangling.join(', ')}`);
+    .filter((file) => !existsSync(resolve(KIT, file)));
+  if (vanished.length === 0) ok('every registered suite file exists');
+  else bad(`registered suite(s) point at missing files: ${vanished.join(', ')}`);
 
-  // 4. No duplicate suite ids (the list must be a clean partition).
-  const ids = allSuites().map((suite) => suite.id);
-  const dupes = ids.filter((id, idx) => ids.indexOf(id) !== idx);
-  dupes.length === 0 ? ok('suite ids are unique') : bad(`duplicate suite id(s): ${[...new Set(dupes)].join(', ')}`);
+  const ids = suites.map((suite) => suite.id);
+  const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+  if (duplicates.length === 0) ok('suite ids are unique');
+  else bad(`duplicate suite id(s): ${duplicates.join(', ')}`);
 
-  console.log(failures === 0 ? '\n✅ suite-list floor check passed.\n' : `\n❌ ${failures} check(s) failed.\n`);
+  console.log(failures === 0 ? '\nSuite registry passed.\n' : `\n${failures} suite-registry check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }
 

@@ -44,7 +44,7 @@ export function loadDomainArtifactsPolicyTable(root, tableId) {
     const file = join(pathsFor(root).policy, POLICY_SUBDIR, filename);
     if (!existsSync(file)) return degraded('ARTIFACTS_POLICY_DEGRADED');
     const parsed = JSON.parse(readFileSync(file, 'utf-8').replace(/^﻿/, ''));
-    if (!parsed || parsed.schemaVersion !== 1) return degraded('ARTIFACTS_POLICY_DEGRADED');
+    if (!parsed || ![1, 2].includes(parsed.schemaVersion)) return degraded('ARTIFACTS_POLICY_DEGRADED');
     return { table: parsed, degraded: false, reasonCode: null };
   } catch {
     return degraded('ARTIFACTS_POLICY_DEGRADED');

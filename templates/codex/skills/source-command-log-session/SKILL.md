@@ -11,12 +11,8 @@ Use this skill when the user asks to run the migrated source command `log-sessio
 
 Register the current work session.
 
-> **Routing posture (ADR-0094).** The data-gathering below is deterministic — run
-> the `node …` scripts (`session-draft`, `session-reindex`, `predictions-review`,
-> `distill-detect`) **directly via the runner**; if a step needs broad mechanical
-> investigation (git diff/log triage, multi-file evidence), batch it to a **Haiku**
-> agent and accept its compact pack rather than re-reading files in premium context.
-> Reserve Opus/Sonnet for writing the *narrative*. (Silent if `routing.enabled=false`.)
+> The deterministic helpers below run directly. Model and agent routing are
+> recommendations only; they never determine whether the session can be logged.
 
 Steps:
 
@@ -47,11 +43,11 @@ Steps:
    <what works, what is pending, the natural next step>
    ```
 
-   **Pre-fill from the ledger** [ADR-0032] — don't start from a blank page:
+   **Pre-fill from Git** — don't start from a blank page:
    ```
    node contextkit/tools/scripts/session-draft.mjs
    ```
-   It reads the active ledger and emits a grouped **Done** scaffold (files by area)
+   It reads tracked and untracked working-tree changes and emits a grouped **Done** scaffold
    + the branch + a suggested slug. Start from that draft, then **rewrite it into a
    factual narrative of WHAT changed and WHY** — be factual, do not inflate, never
    ship the bare file list.
@@ -68,8 +64,8 @@ Steps:
 4. **Regenerate the index**: run `node contextkit/tools/scripts/session-reindex.mjs`.
 
 5. **Close the predicted-vs-actual loop** (if this session ran `/simulate-impact`): run
-   `node contextkit/tools/scripts/predictions-review.mjs` — it fills the *Actual* section of each
-   prediction file from the ledger (paths actually changed vs predicted). No-op if there were
+   `node contextkit/tools/scripts/predictions-review.mjs --write` — it fills the *Actual* section of each
+   prediction file from the current Git diff (paths actually changed vs predicted). No-op if there were
    no simulations.
 
 6. **Scan for rule-like phrases** (ticket 043 — *proposal-only*, never auto-applies). After the
@@ -83,5 +79,5 @@ Steps:
 
 7. Confirm to the user: session number, file path, and CHANGELOG lines added.
 
-Editing `contextkit/memory/SESSIONS.md` (via reindex) and `docs/CHANGELOG.md` marks the session as
-registered, which silences the Stop drift nudge.
+The session Markdown and regenerated index are the durable record. No host marker
+or hidden session sidecar is created.

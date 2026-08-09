@@ -23,7 +23,6 @@ import { fileURLToPath } from 'node:url';
  * @property {boolean} ok           true if at least one signal was gathered
  * @property {{ total: number, parity: number, gaps: number }|null} compliance
  * @property {{ score: number|null, band: string|null }|null} scorecard
- * @property {{ ready: boolean, confidence: string }|null} readiness
  */
 
 /**
@@ -32,7 +31,6 @@ import { fileURLToPath } from 'node:url';
  * @property {number}      scanned               repos with at least one successful signal
  * @property {number|null} avgComplianceParityPct mean parity% over repos with valid compliance
  * @property {string|null} weakest                path with lowest parity ratio (null if none)
- * @property {string|null} leastReady             first repo path where readiness.ready===false
  */
 
 /**
@@ -102,22 +100,6 @@ function findWeakest(perRepo) {
   return weakestPath;
 }
 
-/**
- * Finds the first repo path where readiness.ready === false.
- * Returns null if all repos are ready or none have readiness data (§8).
- *
- * @param {PerRepoResult[]} perRepo
- * @returns {string|null}
- */
-function findLeastReady(perRepo) {
-  for (const repo of perRepo) {
-    if (repo.readiness !== null && repo.readiness !== undefined) {
-      if (repo.readiness.ready === false) return repo.path;
-    }
-  }
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -139,7 +121,6 @@ export function aggregateFleet(perRepo) {
         scanned: 0,
         avgComplianceParityPct: null,
         weakest: null,
-        leastReady: null,
       },
       sources: { present: [], skipped: [] },
     };
@@ -153,7 +134,6 @@ export function aggregateFleet(perRepo) {
     scanned: present.length,
     avgComplianceParityPct: computeAvgParityPct(perRepo),
     weakest: findWeakest(perRepo),
-    leastReady: findLeastReady(perRepo),
   };
 
   return { totals, sources: { present, skipped } };

@@ -6,14 +6,14 @@
  *
  * Sections:
  *   [a] isSourceWrite — compatibility name; every project path is governed
- *   [b] sessionHasSourceWrite — F-B taskId binding; every write counts
+ *   [b] turnHasWriteAttempt — task binding; every write counts
  *   [c] currentCallRevokes — host write attempts promote regardless of path
  *   [d] noCodePriorHolds — pure-question prior, write promotion, fail-honest input
  *
  * Exit 0 = all held; exit 1 = at least one failed.
  */
 import {
-  isSourceWrite, sessionHasSourceWrite, currentCallRevokes, noCodePriorHolds,
+  isSourceWrite, turnHasWriteAttempt, currentCallRevokes, noCodePriorHolds,
 } from './no-code-prior.mjs';
 
 const failures = [];
@@ -25,7 +25,7 @@ function assert(label, cond, detail = '') {
 const noCode = (extra = {}) => ({
   signals: { domain: 'general', intent: { intent: 'no-code', mutationVerb: false, ...extra } },
 });
-const codeMod = (taskId, tool = 'Edit') => ({ taskId, tool, path: 'contextkit/runtime/hooks/execution-gate.mjs' });
+const codeMod = (taskId, tool = 'Edit') => ({ taskId, tool, path: 'contextkit/runtime/governance/event-runtime.mjs' });
 const memMod = (taskId, tool = 'Write') => ({ taskId, tool, path: 'contextkit/memory/business/BIZ-0006/business.json' });
 
 // [a] isSourceWrite
@@ -33,9 +33,9 @@ process.stdout.write('[a] isSourceWrite\n');
 assert('memory path is a governed write', isSourceWrite('contextkit/memory/business/x.json') === true);
 assert('docs path is a governed write', isSourceWrite('docs/guide.md') === true);
 assert('reports path is a governed write', isSourceWrite('contextkit/memory/.../reports/c0-report.md') === true);
-assert('scratch path is a governed write', isSourceWrite('contextkit/pipeline/testing/042-x.scratch.md') === true);
+assert('scratch path is a governed write', isSourceWrite('scratch/042-x.scratch.md') === true);
 assert('.claude host artifact is a governed write', isSourceWrite('.claude/settings.json') === true);
-assert('runtime code IS source', isSourceWrite('contextkit/runtime/hooks/execution-gate.mjs') === true);
+assert('runtime code IS source', isSourceWrite('contextkit/runtime/governance/event-runtime.mjs') === true);
 assert('templates code IS source', isSourceWrite('templates/contextkit/runtime/execution/x.mjs') === true);
 assert('tools code IS source', isSourceWrite('tools/selfcheck.mjs') === true);
 assert('a real root config IS source (R2 guard)', isSourceWrite('package.json') === true);
@@ -43,14 +43,14 @@ assert('windows backslashes remain a governed write', isSourceWrite('contextkit\
 assert('empty path defaults to source (safe bias)', isSourceWrite('') === true);
 assert('undefined path defaults to source', isSourceWrite(undefined) === true);
 
-// [b] sessionHasSourceWrite — F-B taskId binding
-process.stdout.write('[b] sessionHasSourceWrite\n');
-assert('memory-only writes ⇒ mutation write', sessionHasSourceWrite([memMod('T1'), memMod('T1')], 'T1') === true);
-assert('a source write for the task ⇒ true', sessionHasSourceWrite([memMod('T1'), codeMod('T1')], 'T1') === true);
-assert('source write for a DIFFERENT task ⇒ false (F-B binding)', sessionHasSourceWrite([codeMod('T2')], 'T1') === false);
-assert('a Read (non-write tool) never counts', sessionHasSourceWrite([{ taskId: 'T1', tool: 'Read', path: 'contextkit/runtime/x.mjs' }], 'T1') === false);
-assert('empty ledger ⇒ false', sessionHasSourceWrite([], 'T1') === false);
-assert('non-array ledger ⇒ false (defensive)', sessionHasSourceWrite(null, 'T1') === false);
+// [b] turnHasWriteAttempt — task binding
+process.stdout.write('[b] turnHasWriteAttempt\n');
+assert('memory-only writes imply mutation', turnHasWriteAttempt([memMod('T1'), memMod('T1')], 'T1') === true);
+assert('a source write for the task is observed', turnHasWriteAttempt([memMod('T1'), codeMod('T1')], 'T1') === true);
+assert('write for a different task stays isolated', turnHasWriteAttempt([codeMod('T2')], 'T1') === false);
+assert('a Read never counts', turnHasWriteAttempt([{ taskId: 'T1', tool: 'Read', path: 'contextkit/runtime/x.mjs' }], 'T1') === false);
+assert('empty write history is false', turnHasWriteAttempt([], 'T1') === false);
+assert('non-array write history is false', turnHasWriteAttempt(null, 'T1') === false);
 
 // [c] currentCallRevokes
 process.stdout.write('[c] currentCallRevokes\n');

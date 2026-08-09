@@ -4,7 +4,7 @@
  * Combines the CMIS verdict (is this code?), the DAS profile floor (how much
  * domain?) and the INHERITED signals (risk, blast radius, materiality) into one
  * of: no-code / simple / modular / domain-driven / distributed-domain. Each
- * profile declares its minimum squad and proportional artifacts.
+ * profile returns proportional specialist and artifact recommendations.
  *
  * Two invariants (constitution §9, ADR-0128 classification ruling):
  *   - NO_CODE short-circuits to `no-code` (no squad, no artifacts).
@@ -26,8 +26,8 @@ const PROFILE_ORDER = Object.freeze(['no-code', 'simple', 'modular', 'domain-dri
  * @param {object} das result of scoreDomainApplicability().
  * @param {object} context inherited { risk, blastRadius, materialityScore }.
  * @param {object} policy the profile-thresholds table.
- * @returns {{ profile: string, minimumSquad: string[], artifacts: string[],
- *   simulateImpactRequired: boolean, reasonCodes: string[] }}
+ * @returns {{ profile: string, recommendedAgents: string[], recommendedArtifacts: string[],
+ *   simulateImpactRecommended: boolean, reasonCodes: string[] }}
  */
 export function resolveImplementationProfile(cmis, das, context, policy) {
   const ctx = context && typeof context === 'object' ? context : {};
@@ -76,9 +76,9 @@ function shape(profile, profiles, reasonCodes) {
   const def = profiles[profile] || {};
   return {
     profile,
-    minimumSquad: Array.isArray(def.minimumSquad) ? [...def.minimumSquad] : [],
-    artifacts: Array.isArray(def.artifacts) ? [...def.artifacts] : [],
-    simulateImpactRequired: Boolean(def.simulateImpactRequired),
+    recommendedAgents: Array.isArray(def.recommendedAgents) ? [...def.recommendedAgents] : [],
+    recommendedArtifacts: Array.isArray(def.recommendedArtifacts) ? [...def.recommendedArtifacts] : [],
+    simulateImpactRecommended: Boolean(def.simulateImpactRecommended),
     reasonCodes,
   };
 }

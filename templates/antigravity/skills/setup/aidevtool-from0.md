@@ -80,9 +80,16 @@ forbids.
 
 ## Phase 6 — Initialize execution
 
-Seed the DevPipeline from the roadmap: break the first milestone into a few
-concrete backlog tasks —
-`node contextkit/tools/scripts/pipeline.mjs add --type feature --priority P1 --title "..." --roadmap P1.1`.
+When the user wants durable execution state, create one explicit workflow for
+the first milestone, then add its tasks to that workflow's canonical scope:
+
+```text
+node contextkit/tools/scripts/workflow.mjs new <milestone-slug> --title "<milestone>"
+node contextkit/tools/scripts/pipeline.mjs add --tasks <workflow-dir> \
+  --priority P1 --title "<first task>" --acceptance "<measurable criterion>"
+```
+
+Never seed a writable global backlog or infer a task scope from the roadmap.
 
 As soon as the project's structure exists (apps/backend/frontend/modules), give
 each its **own scoped CLAUDE.md** with `/claude-md` — the root one is the

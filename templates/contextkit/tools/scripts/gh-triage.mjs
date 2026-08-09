@@ -4,7 +4,7 @@
  * in sync without reprocessing. It stores the `createdAt` of the newest issue
  * already triaged; on the next run, `select` filters a `gh issue list --json`
  * dump down to issues created strictly after that watermark AND not already
- * tracked (a backlog task with `source: gh#<n>`). Re-triage stays cheap and
+ * tracked (a canonical task with an `evidenceRefs` entry `gh#<n>`). Re-triage stays cheap and
  * never duplicates a task. Pure over the input JSON; zero deps.
  *
  *   gh-triage.mjs watermark                  → print stored ISO ('' on first run)
@@ -16,10 +16,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { listTasks } from './pipeline-tasks.mjs';
+import { readAuthoritySnapshot } from '../../runtime/authority-reader.mjs';
 
-const PIPE = pathsFor(process.cwd()).pipeline;
-const WATERMARK_FILE = resolve(PIPE, '.gh-triage.json');
+const WATERMARK_FILE = resolve(pathsFor(process.cwd()).memory, '.gh-triage.json');
 
 /** The stored watermark ISO, or '' when there is none / the file is unreadable. */
 export function readWatermark(file = WATERMARK_FILE) {
@@ -31,12 +30,14 @@ export function readWatermark(file = WATERMARK_FILE) {
   }
 }
 
-/** Issue numbers already tracked in the backlog via `source: gh#<n>`. */
+/** Issue numbers already tracked through canonical task evidence references. */
 export function trackedIssueNumbers(tasks) {
   const set = new Set();
   for (const task of tasks) {
-    const match = /^gh#(\d+)/.exec(task.source || '');
-    if (match) set.add(match[1]);
+    for (const reference of task.evidenceRefs ?? []) {
+      const match = /^gh#(\d+)$/.exec(reference);
+      if (match) set.add(match[1]);
+    }
   }
   return set;
 }
@@ -93,7 +94,8 @@ function main() {
       process.exit(1);
     }
     const since = getArg('since') ?? readWatermark();
-    console.log(JSON.stringify(selectNewIssues(issues, since, trackedIssueNumbers(listTasks(PIPE))), null, 2));
+    const tasks = readAuthoritySnapshot(process.cwd()).tasks;
+    console.log(JSON.stringify(selectNewIssues(issues, since, trackedIssueNumbers(tasks)), null, 2));
   } else if (cmd === 'commit') {
     const iso = process.argv[3];
     if (!iso) { console.error('Usage: gh-triage.mjs commit <iso-timestamp>'); process.exit(1); }

@@ -9,6 +9,7 @@ export {
   stableJson,
 } from './common.mjs';
 export { inventoryV3, LEGACY_LANES } from './inventory.mjs';
+export { planLegacyAutonomyMigration } from './autonomy.mjs';
 export { reconcileLegacyWorkflow, reconcileWorkflowCorpus } from './reconcile.mjs';
 export {
   V4_TASK_STATUSES,

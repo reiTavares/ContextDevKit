@@ -21,11 +21,9 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import {
   PLATFORM_DIR,
-  MEMORY_DIR,
-  DECISIONS_DIR,
-  SESSIONS_DIR,
   CHANGELOG,
   CONFIG_FILE,
+  pathsFor,
 } from '../../runtime/config/paths.mjs';
 import { readAuthoritySnapshot, TASK_STATUSES } from '../../runtime/authority-reader.mjs';
 import { resolveGovernanceMatrix } from '../../runtime/governance/gate-mode.mjs';
@@ -37,8 +35,6 @@ import {
   MIN_COHORT_SIZE,
 } from './economics/economic-report.mjs';
 
-const ROADMAP_FILE = `${MEMORY_DIR}/roadmap.md`;
-
 /** Strip a leading UTF-8 BOM if present (rule 4). */
 const stripBom = (s) => s.replace(/^﻿/, '');
 
@@ -47,8 +43,8 @@ function readSafe(path) {
   try { return stripBom(readFileSync(path, 'utf-8')); } catch { return ''; }
 }
 
-function readAdrs(root) {
-  const dir = resolve(root, DECISIONS_DIR);
+function readAdrs(paths) {
+  const dir = paths.decisions;
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => /^\d{4}-.+\.md$/.test(f))
@@ -63,14 +59,14 @@ function readAdrs(root) {
         title: titleMatch ? titleMatch[1].trim() : file.replace(/^\d{4}-/, '').replace(/\.md$/, ''),
         status: statusMatch ? statusMatch[1].trim() : 'Unknown',
         date: dateMatch ? dateMatch[1].trim() : '',
-        file: `${DECISIONS_DIR}/${file}`,
+        file: resolve(dir, file),
       };
     })
     .sort((a, b) => b.number.localeCompare(a.number));
 }
 
-function readSessions(root, limit = 10) {
-  const dir = resolve(root, SESSIONS_DIR);
+function readSessions(paths, limit = 10) {
+  const dir = paths.sessions;
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => /^\d{4}-\d{2}-\d{2}-\d{2,}-.+\.md$/.test(f))
@@ -85,15 +81,15 @@ function readSessions(root, limit = 10) {
         title: titleMatch ? titleMatch[1].trim() : file.replace(/\.md$/, ''),
         date: dateMatch ? dateMatch[1].trim() : file.slice(0, 10),
         branch: branchMatch ? branchMatch[1].trim() : '',
-        file: `${SESSIONS_DIR}/${file}`,
+        file: resolve(dir, file),
       };
     })
     .sort((a, b) => b.number.localeCompare(a.number, undefined, { numeric: true }))
     .slice(0, limit);
 }
 
-function readRoadmap(root) {
-  const text = readSafe(resolve(root, ROADMAP_FILE));
+function readRoadmap(paths) {
+  const text = readSafe(paths.roadmap);
   return { exists: text.length > 0, markdown: text };
 }
 
@@ -127,6 +123,7 @@ function readBranch(root) {
  * @returns {object}     plain JS data object — no Dates, no functions
  */
 export function buildDashboardData(root) {
+  const paths = pathsFor(root);
   const config = readConfig(root);
   const taskAuthority = readAuthoritySnapshot(root);
   let governance = null;
@@ -157,9 +154,9 @@ export function buildDashboardData(root) {
     tasks: taskAuthority.tasksByStatus,
     counts: taskAuthority.counts,
     governance,
-    adrs: readAdrs(root),
-    sessions: readSessions(root),
-    roadmap: readRoadmap(root),
+    adrs: readAdrs(paths),
+    sessions: readSessions(paths),
+    roadmap: readRoadmap(paths),
     changelogUnreleased: readChangelogUnreleased(root),
   };
 }

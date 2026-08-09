@@ -166,7 +166,7 @@ export async function detectExistingHooksManager(target) {
 }
 
 // COMMITTED ignore lines (the shared, visible decision — ADR-0132). Machinery
-// front-end state + disposable runtime state + the REGENERABLE memory indices
+// explicit workspace claims + disposable runtime state + regenerable memory indices
 // (SESSIONS.md/WORKSPACE.md/DELIBERATIONS.md, rebuilt from the durable record) are
 // ignored, while `contextkit/memory/**` durable entries stay trackable (the
 // narrowed info/exclude no longer dir-prunes contextkit/, so no `!` negation is
@@ -175,11 +175,7 @@ const GITIGNORE_BLOCK = [
   '',
   '# ContextDevKit — local runtime state (do not commit)',
   '_contextkit/',
-  '.claude/.sessions/',
   '.claude/.workspace/',
-  '.codex/.sessions/',
-  '.codex/.workspace/',
-  'contextkit/pipeline/state/',
   '.context-snapshot.md',
   '.distillation-proposal.md',
   '.agent-tuning-proposal.md',

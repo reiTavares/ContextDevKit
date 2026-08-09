@@ -38,7 +38,6 @@ const CHILDREN = [
   'selfcheck-arch-debt-activation.mjs',
   // OP-0012 — the wiring hotfix: change evidence, enforcement posture, resolver
   // keys, pre-coding law delivery, and the guarded-blocks/escapes-do-not ladder.
-  'selfcheck-arch-debt-wiring.mjs',
 ];
 
 let failed = 0;

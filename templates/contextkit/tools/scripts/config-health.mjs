@@ -20,7 +20,7 @@ import { PLATFORM_DIR } from '../../runtime/config/paths.mjs';
 const BARE = `${PLATFORM_DIR}/`;
 /** Path-bearing config lists, by dotted address. */
 const PATH_LISTS = Object.freeze([
-  'ledger.registration', 'ledger.important', 'ledger.irrelevant', 'l5.highRiskPaths', 'qa.criticalPaths',
+  'analysis.excludePaths', 'l5.highRiskPaths', 'qa.criticalPaths',
 ]);
 
 /** Diagnostic states (spec §5.5). */

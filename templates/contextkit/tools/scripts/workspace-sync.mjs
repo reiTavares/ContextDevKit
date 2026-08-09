@@ -6,29 +6,21 @@
  * (gitignored local state). This scans them, drops stale entries (no heartbeat
  * for > 1h), and rebuilds the committed markdown summary.
  *
- * Since [ADR-0015 §B](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md),
- * the summary also surfaces **task ownership across sessions** — which session
- * owns which DevPipeline task right now, and any cross-session collision. A
- * task whose owning session has been silent past `pipeline.workingStaleAfterMinutes`
- * (default 90) is auto-evicted: the task file moves from `working/` back to
- * `backlog/` and the owner detaches.
+ * The summary also surfaces explicit task associations and cross-session
+ * collisions. It never changes canonical task status: inactivity is a workspace
+ * observation, not authorization for an automatic task transition.
  *
  * Usage:  node contextkit/tools/scripts/workspace-sync.mjs
  */
-import { existsSync, renameSync, readFileSync, readdirSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { loadConfigSync } from '../../runtime/config/load.mjs';
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { writeFileAtomic, writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { appendEvent, readState, writeState } from '../../runtime/state/state-io.mjs';
+import { writeFileAtomic } from '../../runtime/hooks/safe-io.mjs';
 
 const ROOT = process.cwd();
 const WORKSPACE_DIR = resolve(ROOT, '.claude/.workspace');
 const OUTPUT_PATH = pathsFor(ROOT).workspaceIndex;
-const PIPE_DIR = pathsFor(ROOT).pipeline;
 const STALE_AFTER_MS = 60 * 60 * 1000;
-const DEFAULT_TASK_STALE_MIN = 90;
 
 async function loadClaims() {
   let files = [];
@@ -64,80 +56,6 @@ function relativeTime(ms) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-/**
- * Walks every workspace record's `tasks[]` and evicts any whose heartbeat
- * exceeds `workingStaleAfterMinutes`. Eviction moves the task file from
- * `working/` back to `backlog/`, stamps an audit line in its body, and rewrites
- * the workspace record without that task entry.
- *
- * Returns the set of evicted `{ sid, taskId }` so the caller (rendering) can
- * surface the action. Best-effort I/O — failures don't throw, the workspace
- * file is the source of truth either way.
- *
- * @param {Array<object>} claims — workspace records, in-place mutation allowed
- * @param {number} maxMinutes
- * @returns {Array<{ sid: string, taskId: string }>}
- */
-function evictStaleTasks(claims, maxMinutes) {
-  const limit = maxMinutes * 60 * 1000;
-  const evicted = [];
-  for (const record of claims) {
-    if (!Array.isArray(record.tasks) || record.tasks.length === 0) continue;
-    const survivors = [];
-    for (const task of record.tasks) {
-      const ageMs = Date.now() - (task.lastHeartbeat || record.lastHeartbeat || 0);
-      if (ageMs <= limit) {
-        // Living task: mirror heartbeat into state.json (best-effort, ADR-0015 §C).
-        try {
-          if (readState(PIPE_DIR, task.id)) writeState(PIPE_DIR, task.id, { lastHeartbeat: task.lastHeartbeat || Date.now() });
-        } catch { /* */ }
-        survivors.push(task);
-        continue;
-      }
-      const moved = moveTaskFile(task.id, 'working', 'backlog', { sid: record.sessionId, ageMs });
-      if (moved) {
-        evicted.push({ sid: record.sessionId, taskId: task.id });
-        try {
-          // ADR-0043: an eviction IS a transition — record the `evict` event so the
-          // log stays complete ("if it isn't an event, it didn't happen") and the
-          // grade-4 rollback metric (ADR-0045) counts abandonment honestly.
-          appendEvent(PIPE_DIR, task.id, { from: 'working', to: 'backlog', actor: 'evict', note: `stale > ${maxMinutes}m` });
-          if (readState(PIPE_DIR, task.id)) writeState(PIPE_DIR, task.id, { status: 'backlog', endedAt: Date.now() });
-        } catch { /* */ }
-      }
-    }
-    if (survivors.length !== record.tasks.length) {
-      record.tasks = survivors;
-      try {
-        const sid = (record.sessionId ?? 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
-        const { ...body } = record;
-        writeFileAtomicSync(resolve(WORKSPACE_DIR, `${sid}.json`), JSON.stringify(body, null, 2));
-      } catch { /* best-effort */ }
-    }
-  }
-  return evicted;
-}
-
-function moveTaskFile(taskId, fromStage, toStage, { sid, ageMs }) {
-  try {
-    const fromDir = resolve(PIPE_DIR, fromStage);
-    if (!existsSync(fromDir)) return false;
-    const fileName = readdirSync(fromDir).find((f) => f.startsWith(String(taskId).padStart(3, '0') + '-') && f.endsWith('.md'));
-    if (!fileName) return false;
-    const fromPath = resolve(fromDir, fileName);
-    const toPath = resolve(PIPE_DIR, toStage, fileName);
-    let text = readFileSync(fromPath, 'utf-8').replace(/^(status:).*$/m, `status: ${toStage}`);
-    const note = `\n> auto-evicted from working/ at ${new Date().toISOString()} — session ${(sid || 'unknown').slice(0, 8)} idle for ${Math.floor(ageMs / 60000)}m\n`;
-    if (!text.endsWith('\n')) text += '\n';
-    text += note;
-    writeFileAtomicSync(fromPath, text);
-    renameSync(fromPath, toPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function renderTasksTable(active) {
   const rows = [];
   const seen = new Map();
@@ -159,7 +77,7 @@ function renderTasksTable(active) {
   return out;
 }
 
-function buildMarkdown(active, stale, evicted) {
+function buildMarkdown(active, stale) {
   const out = [];
   out.push('# Workspace — Active Sessions');
   out.push('');
@@ -196,12 +114,6 @@ function buildMarkdown(active, stale, evicted) {
     }
     out.push('');
   }
-  if (evicted.length > 0) {
-    out.push(`## ♻️ Recently auto-evicted (this run): ${evicted.length}`);
-    out.push('');
-    for (const ev of evicted) out.push(`- task **${ev.taskId}** (was owned by session \`${ev.sid?.slice(0, 8) ?? '?'}\`) → moved back to \`backlog/\``);
-    out.push('');
-  }
   out.push('---');
   out.push('');
   out.push('Slash commands: `/claim <path>` to reserve a path · `/pipeline start <id>` to attach a task · `/release` / `/pipeline stop <id>` to free · `/worktree-new <feature>` for parallel work.');
@@ -210,12 +122,10 @@ function buildMarkdown(active, stale, evicted) {
 
 async function main() {
   const claims = await loadClaims();
-  const cfg = loadConfigSync(ROOT).pipeline || {};
-  const evicted = evictStaleTasks(claims, cfg.workingStaleAfterMinutes || DEFAULT_TASK_STALE_MIN);
   const active = claims.filter((c) => !isStale(c));
   const stale = claims.filter(isStale);
-  await writeFileAtomic(OUTPUT_PATH, buildMarkdown(active, stale, evicted));
-  console.log(`✅ WORKSPACE.md regenerated — ${active.length} active, ${stale.length} stale, ${evicted.length} task(s) auto-evicted.`);
+  await writeFileAtomic(OUTPUT_PATH, buildMarkdown(active, stale));
+  console.log(`✅ WORKSPACE.md regenerated — ${active.length} active, ${stale.length} stale.`);
 }
 
 main().catch((err) => {

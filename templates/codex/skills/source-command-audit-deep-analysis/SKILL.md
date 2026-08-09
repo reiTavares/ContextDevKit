@@ -1,6 +1,6 @@
 ---
 name: "source-command-audit-deep-analysis"
-description: "Global deep analysis — every scan (code, security, deps, bugs) → report → ADRs → backlog."
+description: "Global read-only analysis across code, security, dependencies, and likely defects."
 ---
 
 # source-command-audit-deep-analysis
@@ -12,8 +12,7 @@ Use this skill when the user asks to run the migrated source command `deep-analy
 # 🔬 Deep Analysis (global)
 
 A full-project sweep (focus: **$ARGUMENTS** if given, else the whole repo):
-deterministic scanners **+ agent judgment** → one report → ADRs (if needed) →
-DevPipeline backlog. Run before a release, on a cadence, or on demand.
+deterministic scanners plus specialist judgment into one factual report.
 
 1. **Deterministic pass** — aggregate every scanner:
    ```
@@ -40,15 +39,9 @@ DevPipeline backlog. Run before a release, on a cadence, or on demand.
    you extend/reference an existing ADR instead of duplicating it; then draft a new
    one with `/new-adr` (Context / Decision / Consequences) only if none fits.
 
-5. **Fill the backlog** — every finding becomes a tracked, prioritized task:
-   ```
-   node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deep-analysis-findings.json --type chore
-   ```
-   Bugs found by judgment → `pipeline.mjs add --type bug --severity S1-S4
-   --bug-type <t> --title "…"`. Priorities (WSJF / severity) + SLA are auto-set and
-   **always user-editable** (`pipeline.mjs prioritize <id> <P>` / `wsjf <id> …`).
-
-6. End with the natural next step — usually `/dev-start` or `/ship` on the worst item.
+5. End with the natural next step — usually an explicitly scoped `/dev-start`
+   on the worst accepted item. The analysis itself creates no task, workflow, or
+   source edit.
 
 > This is the command the **security-mode** boot trigger reminds you to run on a
 > cadence (config `securityMode.everyNSessions`). It's active, not reactive.

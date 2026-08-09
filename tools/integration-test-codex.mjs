@@ -74,20 +74,36 @@ try {
     ? ok('Codex complete dimensions outrank research task kind')
     : bad(`Codex effort policy did not resolve research: ${(codexSearch.stdout + codexSearch.stderr).slice(0, 300)}`);
   const installedSwarmSkill = readFileSync(join(proj, '.agents', 'skills', 'source-command-pipeline-swarm', 'SKILL.md'), 'utf-8');
-  /reasoning_effort/.test(installedSwarmSkill) && /decision:\"dispatch\"/.test(installedSwarmSkill) && /xhigh/.test(installedSwarmSkill) && /ADR-0150/.test(installedSwarmSkill)
-    ? ok('Codex swarm skill carries mandatory classified dispatch instructions')
-    : bad('Codex swarm skill is missing effort-aware dispatch instructions');
+  /suggestions are advisory/.test(installedSwarmSkill)
+    && /unavailable agents do not deny the work/.test(installedSwarmSkill)
+    && !/decision:\"dispatch\"/.test(installedSwarmSkill)
+    ? ok('Codex swarm skill keeps model routing advisory')
+    : bad('Codex swarm skill still treats model routing as dispatch authority');
 
   const hooks = JSON.parse(readFileSync(join(proj, '.codex', 'hooks.json'), 'utf-8'));
-  (hooks.PreToolUse ?? hooks.hooks?.PreToolUse)?.some((entry) =>
-    (entry.hooks ?? []).some((hook) => /simulate-gate\.mjs --host codex/.test(hook.command ?? '')),
-  )
-    ? ok('.codex/hooks.json wires the L5 simulate gate with the Codex host flag')
-    : bad('.codex/hooks.json missing the Codex simulate gate host flag');
-  ['UserPromptSubmit', 'SubagentStart', 'SubagentStop', 'PreCompact'].every((event) => Array.isArray(hooks.hooks?.[event])) &&
-  (hooks.hooks?.Stop ?? []).some((entry) => (entry.hooks ?? []).some((hook) => /completion-gate\.mjs --host codex/.test(hook.command ?? '')))
-    ? ok('.codex/hooks.json wires Codex-native L5 contract/completion/subagent/compaction events')
-    : bad('.codex/hooks.json is missing modern Codex L5 lifecycle hooks');
+  const expectedHook = {
+    SessionStart: 'governance-session-context.mjs',
+    PostToolUse: 'governance-postflight.mjs',
+    Stop: 'governance-completion.mjs',
+    PreToolUse: 'governance-write-preflight.mjs',
+    UserPromptSubmit: 'governance-prompt-preflight.mjs',
+    PreCompact: 'governance-session-context.mjs',
+    SubagentStart: 'governance-session-context.mjs',
+  };
+  const hostCommands = Object.fromEntries(Object.entries(expectedHook).map(([eventName]) => [
+    eventName,
+    (hooks.hooks?.[eventName] ?? []).flatMap((entry) => entry.hooks ?? [])
+      .map((hook) => String(hook.command ?? ''))
+      .filter((command) => command.includes('contextkit/runtime/hooks/')),
+  ]));
+  Object.entries(expectedHook).every(([eventName, script]) =>
+    hostCommands[eventName]?.length === 1 && hostCommands[eventName][0].includes(script))
+    ? ok('.codex/hooks.json installs one v4 dispatcher per governed host event')
+    : bad(`.codex/hooks.json dispatcher parity failed: ${JSON.stringify(hostCommands)}`);
+  const serializedHooks = JSON.stringify(hooks);
+  !/execution-contract|track-edits|session-start|completion-gate|simulate-gate|subagent-gate/.test(serializedHooks)
+    ? ok('.codex/hooks.json contains no legacy hook registration')
+    : bad('.codex/hooks.json still registers a legacy hook');
 
   const agentsMd = readFileSync(join(proj, 'AGENTS.md'), 'utf-8');
   /contextdevkit:host-contract:start/.test(agentsMd) &&
@@ -97,49 +113,17 @@ try {
     ? ok('AGENTS.md carries the canonical v4 cross-host contract')
     : bad('AGENTS.md missing the canonical v4 cross-host contract');
 
-  const boot = run([join(proj, 'contextkit', 'runtime', 'hooks', 'session-start.mjs'), '--host', 'codex'], { cwd: proj, input: '{}' });
-  /Boot context.*\(codex\)/s.test(boot.stdout) && /node cdx\.mjs/.test(boot.stdout)
-    ? ok('Codex SessionStart emits Codex-aware boot context')
-    : bad(`Codex SessionStart output wrong: ${boot.stdout.slice(0, 300)}`);
-
-  const contract = run([join(proj, 'contextkit', 'runtime', 'hooks', 'execution-contract-hook.mjs'), '--host', 'codex'], {
+  const noOp = run([join(proj, 'contextkit', 'runtime', 'hooks', 'governance-prompt-preflight.mjs'), '--host', 'codex'], {
     cwd: proj,
     input: JSON.stringify({
       session_id: 'codex_local',
       hook_event_name: 'UserPromptSubmit',
-      prompt: 'Implement a focused feature with tests and update the changelog.',
+      prompt: 'How does the workflow store work? Do not change anything.',
     }),
   });
-  const contractLedger = JSON.parse(readFileSync(join(proj, '.claude', '.sessions', 'codex_local.json'), 'utf-8'));
-  contract.status === 0 && typeof contractLedger.activeTask === 'string'
-    ? ok('Codex UserPromptSubmit creates the shared execution contract')
-    : bad(`Codex execution-contract hook failed: ${(contract.stdout + contract.stderr).slice(0, 300)}`);
-
-  writeFileSync(join(proj, 'codex-owned.txt'), 'hello\n');
-  run([join(proj, 'contextkit', 'runtime', 'hooks', 'track-edits.mjs'), '--host', 'codex'], {
-    cwd: proj,
-    input: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: join(proj, 'codex-owned.txt') } }),
-  });
-  const ledger = JSON.parse(readFileSync(join(proj, '.claude', '.sessions', 'codex_local.json'), 'utf-8'));
-  ledger.modifications?.some((entry) => entry.path === 'codex-owned.txt')
-    ? ok('Codex hooks share one stable session ledger without session_id')
-    : bad('Codex track-edits did not reuse the SessionStart ledger');
-
-  mkdirSync(join(proj, 'src'), { recursive: true });
-  writeFileSync(join(proj, 'src', 'patched.js'), 'export const value = 2;\n');
-  run([join(proj, 'contextkit', 'runtime', 'hooks', 'track-edits.mjs'), '--host', 'codex'], {
-    cwd: proj,
-    input: JSON.stringify({
-      session_id: 'codex_local',
-      hook_event_name: 'PostToolUse',
-      tool_name: 'apply_patch',
-      tool_input: { command: '*** Begin Patch\n*** Update File: src/patched.js\n@@\n-old\n+new\n*** End Patch\n' },
-    }),
-  });
-  const patchedLedger = JSON.parse(readFileSync(join(proj, '.claude', '.sessions', 'codex_local.json'), 'utf-8'));
-  patchedLedger.modifications?.some((entry) => entry.path === 'src/patched.js' && entry.tool === 'Write')
-    ? ok('Codex apply_patch payload records every edited path through the shared adapter')
-    : bad('Codex apply_patch path was invisible to track-edits');
+  noOp.status === 0 && !existsSync(join(proj, '.claude', '.sessions', 'codex_local.json'))
+    ? ok('Codex read-only exploration exits cleanly with no legacy ledger/task creation')
+    : bad(`Codex no-op dispatcher persisted state: ${(noOp.stdout + noOp.stderr).slice(0, 300)}`);
 
   mkdirSync(join(proj, 'apps', 'codex-module'), { recursive: true });
   writeFileSync(join(proj, 'apps', 'codex-module', 'package.json'), '{"name":"codex-module"}');
@@ -170,9 +154,7 @@ try {
     : bad(`doctor missing Codex checks: ${doctor.stdout.slice(-500)}`);
 
   writeFileSync(join(proj, 'AGENTS.md'), '# Custom Codex instructions\n');
-  // --allow-active-sessions: a prior track-edits left a ledger in proj; opt out of the
-  // 3.1.2 active-session guard (ADR-0099 P0-02) — this tests AGENTS.md handling.
-  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update', '--allow-active-sessions', '--allow-self-update']);
+  const update = run([join(KIT, 'install.mjs'), '--target', proj, '--update']);
   const refreshedAgents = readFileSync(join(proj, 'AGENTS.contextdevkit.md'), 'utf-8');
   update.status === 0 && /contextdevkit:host-contract:start/.test(refreshedAgents)
     ? ok('--update preserves AGENTS.md and writes refreshed AGENTS.contextdevkit.md')

@@ -22,6 +22,7 @@ import {
 import { inventoryV3 } from './inventory.mjs';
 import { validateMigrationPlan, verifyStatusParity } from './plan.mjs';
 import { writeTasksDocumentAtomic } from '../../scripts/tasks-store.mjs';
+import { validatePack } from '../../scripts/workflow/validate.mjs';
 
 /** @param {string} parent @param {string} child @returns {boolean} */
 function contains(parent, child) {
@@ -58,6 +59,15 @@ export function verifyGeneration(generationRoot, plan) {
     parsedFiles[targetPath] = readFileSync(absolutePath, 'utf8');
   }
   validateMigrationPlan({ ...plan, targetFiles: parsedFiles });
+  for (const targetPath of Object.keys(plan.manifest.targetFileHashes)
+    .filter((path) => path.endsWith('/workflow.json'))) {
+    const packDirectory = dirname(resolveContainedPath(generationRoot, targetPath, { allowMissingLeaf: false }));
+    const verdict = validatePack(packDirectory);
+    if (!verdict.valid) {
+      const detail = verdict.errors.map((entry) => `${entry.path || '(pack)'}: ${entry.message}`).join('; ');
+      throw new MigrationRefusedError(`staged workflow pack is invalid: ${targetPath}: ${detail}`, 'WORKFLOW_PACK_SCHEMA');
+    }
+  }
 }
 
 /** @param {string} platformRoot @param {object} plan @returns {void} */

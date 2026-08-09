@@ -37,7 +37,13 @@ try {
   write(fixture, 'contextkit/memory/operations/OP-0004-ownership/reports/cutover.md', '# Cutover report\n');
   write(fixture, 'contextkit/memory/decisions/operations/ADR-0158-governance.md', 'primaryContext: OP-0004\nrelated: WF-0059\n');
   write(fixture, 'contextkit/memory/preferences/owner-preferences.json', JSON.stringify({ concise: true }));
-  write(fixture, 'contextkit/pipeline/tasks.json', JSON.stringify({ tasks: [{ id: 419, workflow: 'WF-0059', status: 'working' }] }));
+  write(fixture, 'contextkit/memory/operations/OP-0004-ownership/done/WF-0059-store/pipeline/tasks.json', JSON.stringify({
+    schemaVersion: 2,
+    scopeRef: 'WF-0059',
+    revision: 0,
+    tasks: [{ id: '419', title: 'Project Map task', status: 'working' }],
+    events: [],
+  }));
   write(fixture, 'contextkit/config.json', JSON.stringify({ projectMap: { roots: ['src\\nested'] } }));
   write(fixture, 'contextkit/memory/project-map/manifest.json', JSON.stringify({ signature: 'fixture-signature', modules: [] }));
 

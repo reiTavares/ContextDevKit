@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 /**
  * integration-test-classify-bdm.mjs — end-to-end harness for the BIZ-0001 /
- * WF-0036 Wave A2 methodology layer (classifier + matcher + intake-hook surface),
+ * WF-0036 Wave A2 methodology layer (classifier + matcher + proposal surface),
  * tier `integration:enforcement`. Encodes the design §12 fixture cases as REAL
  * assertions so a regression flips this suite RED under `npm run ci`.
  *
  * It drives the SHIPPED runtime modules under `templates/contextkit/` directly
  * (no subprocess needed — the classifiers are pure), and exercises the matcher +
- * methodology hook through a hermetic tmp fixture root, so it never reads/writes
+ * methodology helper through a hermetic tmp fixture root, so it never reads/writes
  * the dogfood tree and is byte-stable on any machine.
  *
  * Coverage (design §12 + §7 + §8 + §6):
  *   F1. Classifier fixtures — the 11 NL requests classify to their expected
  *       {nature, kind, valueIntent.primary, growthLever, executionMode}.
  *   F2. Determinism — classify each fixture twice → byte-identical JSON.
- *   F3. Tier flow intact — legacy signal keys (tier/domain/needsAdr) are
- *       byte-identical to a frozen pre-A2 golden; signals.work is a pure superset.
+ *   F3. Tier flow intact — signal keys (tier/domain/needsAdr) follow the v4
+ *       shadow-LGPD contract; signals.work is a pure superset.
  *   F4. Matcher — deterministic + thresholded on a fixture registry; below
  *       threshold → suggested=null; non-operation skipped; confirmed always null.
- *   F5. Hook superset / fail-open — methodology never alters the legacy checklist
- *       for a control input, and a classifier/matcher error never breaks the hook.
+ *   F5. Fail-open — a control input emits nothing and a classifier/matcher error
+ *       never breaks the methodology surface.
  *
  * Exit 0 on all-pass, non-zero on any failure. Zero deps — node:* only.
  */
@@ -43,7 +43,6 @@ let classifyWork, loadWorkPolicy, DEFAULT_WORK_CLASSIFICATION;
 let matchBusiness;
 let buildIntakeProposal, saveIntakeProposal, readIntakeProposal;
 let resolveProposedAction, renderMethodologyLine, runMethodology;
-let renderChecklist;
 let intake, classify, loadRubric;
 
 try {
@@ -51,7 +50,6 @@ try {
   ({ matchBusiness } = await import(urlFor('business-matcher.mjs')));
   ({ buildIntakeProposal, saveIntakeProposal, readIntakeProposal } = await import(urlFor('intake-proposal-store.mjs')));
   ({ resolveProposedAction, renderMethodologyLine, runMethodology } = await import(urlFor('intake-methodology.mjs')));
-  ({ renderChecklist } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/runtime/hooks/execution-contract-hook.mjs')).href));
   ({ intake } = await import(urlFor('task-intake.mjs')));
   ({ classify, loadRubric } = await import(pathToFileURL(resolve(KIT, 'templates/contextkit/tools/scripts/complexity-rubric.mjs')).href));
 } catch (err) {
@@ -74,7 +72,7 @@ const FIXTURES = [
   { n: 3, req: 'rename every vibekit reference to contextkit across the repo', nature: 'none', kind: 'maintenance', intent: 'IMPROVE', lever: 'RELIABILITY', mode: 'direct' },
   { n: 4, req: 'investigate why the L5 guard blocks edits in a worktree', nature: 'none', kind: 'investigation', intent: 'LEARN', lever: 'RELIABILITY', mode: 'direct' },
   { n: 5, req: 'production updater is failing — incident, roll back now', nature: 'operation', kind: 'operationalResponse', intent: 'RECOVER', lever: 'RELIABILITY', mode: 'direct' },
-  { n: 6, req: "harden the autonomy floor so an agent can't self-approve an ADR", nature: 'none', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
+  { n: 6, req: "harden the approval boundary so an agent can't self-approve an ADR", nature: 'none', kind: 'change', intent: 'PROTECT', lever: 'QUALITY', mode: 'direct' },
   { n: 7, req: 'launch a new business-driven methodology platform capability', nature: 'none', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
   { n: 8, req: 'build the strategic portfolio-intelligence initiative for enterprise', nature: 'none', kind: 'change', intent: 'ENABLE', lever: 'STRATEGIC_ENABLEMENT', mode: 'direct' },
   { n: 9, req: 'make sure every accepted decision is recorded and validated for LGPD compliance', nature: 'none', kind: 'change', intent: 'COMPLY', lever: 'QUALITY', mode: 'direct' },
@@ -100,14 +98,14 @@ for (const fx of FIXTURES) {
 }
 
 // ---------------------------------------------------------------------------
-// F3. Tier flow intact — legacy signal keys byte-identical to a frozen golden.
-// A2 attaches signals.work as a PURE SUPERSET; the tier verdict must not move.
+// F3. Tier flow intact — LGPD remains observable without forcing architecture,
+// workflow, or ADR ceremony. signals.work remains a PURE SUPERSET.
 // ---------------------------------------------------------------------------
-console.log('\nF3. Tier flow intact (legacy signals are a frozen superset)...');
+console.log('\nF3. Tier flow intact (v4 shadow-LGPD signals are a pure superset)...');
 {
-  // Frozen pre-A2 golden: control inputs and their legacy verdicts (design §7).
+  // V4 golden: privacy is classified but does not escalate ceremony.
   const GOLDEN = [
-    { input: 'store user CPF + consent', tier: 'architectural', domain: 'lgpd', needsAdr: true },
+    { input: 'store user CPF + consent', tier: 'feature', domain: 'lgpd', needsAdr: false },
     { input: 'fix typo in README', tier: 'trivial', domain: 'general', needsAdr: false },
   ];
   const rubric = JSON.parse(readFileSync(resolve(KIT, 'templates/contextkit/policy/complexity-rubric.json'), 'utf-8'));
@@ -138,9 +136,9 @@ console.log('\nF3. Tier flow intact (legacy signals are a frozen superset)...');
   const SHORT_SIGNAL_NEGATIVES = ['registry cleanup', 'merge PR', 'org settings cleanup', 'forge agent package', 'large refactor', 'author documentation for command', 'fix typo in README about authorship'];
   for (const input of SHORT_SIGNAL_NEGATIVES) {
     const r = classify(input, rubric);
-    r.domain === 'general' && !r.requiredAgents.includes('privacy-lgpd') && !r.requiredAgents.includes('security')
+    r.domain === 'general' && r.recommendedAgents.length === 0
       ? rep.ok(`short signal negative held: "${input}" stays general`)
-      : rep.bad(`short signal false positive: "${input}" → domain=${r.domain} agents=[${r.requiredAgents.join(',')}] tier=${r.tier}`);
+      : rep.bad(`short signal false positive: "${input}" → domain=${r.domain} recommendations=[${r.recommendedAgents.join(',')}] tier=${r.tier}`);
   }
   classify('author documentation for command', rubric).needsAdr === false
     ? rep.ok('tier false positive held: "author" does not imply architectural auth')
@@ -150,9 +148,9 @@ console.log('\nF3. Tier flow intact (legacy signals are a frozen superset)...');
     : rep.bad(`"authorship" typo did not stay trivial: ${classify('fix typo in README about authorship', rubric).tier}`);
   for (const input of ['store user RG', 'user_rg field', 'CPF + consent']) {
     const r = classify(input, rubric);
-    r.domain === 'lgpd' && r.requiredAgents.includes('privacy-lgpd')
-      ? rep.ok(`short signal positive held: "${input}" routes LGPD`)
-      : rep.bad(`short signal positive missed: "${input}" → domain=${r.domain} agents=[${r.requiredAgents.join(',')}]`);
+    r.domain === 'lgpd' && r.recommendedAgents.includes('privacy-lgpd') && r.tier !== 'architectural' && r.needsAdr === false
+      ? rep.ok(`short signal positive held: "${input}" reports LGPD without forcing ceremony`)
+      : rep.bad(`short signal positive missed: "${input}" → domain=${r.domain} recommendations=[${r.recommendedAgents.join(',')}] tier=${r.tier}`);
   }
 }
 
@@ -222,16 +220,10 @@ console.log('\nF4. Matcher (deterministic + thresholded + refuse-low)...');
 // ---------------------------------------------------------------------------
 console.log('\nF5. Hook superset / fail-open...');
 {
-  // Legacy checklist render carries NO methodology line (pure superset).
-  const fakeContract = { signals: { tier: 'feature' }, requiredBeforeWrite: ['x'], requiredBeforeCompletion: [] };
-  const legacy = renderChecklist(fakeContract, 'task-c-1', true, null);
-  legacy.includes('Tier: feature') ? rep.ok('F5. legacy checklist still renders the tier line') : rep.bad('F5. legacy tier line missing');
-  !legacy.includes('Work:') ? rep.ok('F5. legacy checklist carries NO methodology line') : rep.bad('F5. methodology line leaked into legacy render');
-
   const root = tmp();
   try {
     // Control input: classification absent → runMethodology null, no proposal.
-    const ctrl = runMethodology({ root, taskId: 'task-ctrl-1', objective: 'anything', work: undefined, config: { autonomy: { grade: 3 } } });
+    const ctrl = runMethodology({ root, taskId: 'task-ctrl-1', objective: 'anything', work: undefined });
     ctrl === null ? rep.ok('F5. control input (no work) → runMethodology returns null') : rep.bad('F5. control input produced a methodology result');
     readIntakeProposal(root, 'task-ctrl-1') === null ? rep.ok('F5. control input persisted no proposal') : rep.bad('F5. control input wrote a proposal');
 
@@ -242,24 +234,24 @@ console.log('\nF5. Hook superset / fail-open...');
     };
     const full = runMethodology({
       root, taskId: 'task-real-1', objective: 'fix the broken updater rollback',
-      work: opWork, config: { autonomy: { grade: 3 } }, createdAt: '2026-06-19T00:00:00.000Z',
+      work: opWork, createdAt: '2026-06-19T00:00:00.000Z',
     });
     full && typeof full.line === 'string' && !full.line.includes('\n')
       ? rep.ok('F5. genuine input yields a single advisory line')
       : rep.bad('F5. genuine input produced no/multi-line advisory');
     readIntakeProposal(root, 'task-real-1') !== null ? rep.ok('F5. genuine input persisted a proposal') : rep.bad('F5. genuine input wrote no proposal');
 
-    // ContextDevKit 4: autonomy is posture only; neither nature nor grade gates work.
-    const bizAct = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' }, { autonomy: { grade: 4 } });
+    // ContextDevKit 4: recommendations never become execution authority.
+    const bizAct = resolveProposedAction({ nature: 'business', kind: 'capability', confidence: 'high' });
     bizAct.mode === 'advisory' && bizAct.area === 'adr'
-      ? rep.ok('F5. Business recommendation is advisory at grade 4')
+      ? rep.ok('F5. Business recommendation is advisory without a grade')
       : rep.bad(`F5. Business recommendation gained authority: ${bizAct.mode}/${bizAct.area}`);
-    const opAct = resolveProposedAction(opWork, { autonomy: { grade: 3 } });
+    const opAct = resolveProposedAction(opWork);
     opAct.mode === 'advisory' && opAct.area === 'edit'
-      ? rep.ok('F5. Operation recommendation is advisory at grade 3')
+      ? rep.ok('F5. Operation recommendation is advisory without a grade')
       : rep.bad(`F5. Operation recommendation gained authority: ${opAct.mode}/${opAct.area}`);
     // Low confidence remains an advisory fact; it does not manufacture a manual gate.
-    const lowAct = resolveProposedAction({ ...opWork, confidence: 'low' }, { autonomy: { grade: 3 } });
+    const lowAct = resolveProposedAction({ ...opWork, confidence: 'low' });
     lowAct.mode === 'advisory' && lowAct.downgraded === false
       ? rep.ok('F5. low-confidence Operation remains non-blocking advisory')
       : rep.bad(`F5. low-confidence created an authority floor: ${lowAct.mode}/${lowAct.downgraded}`);
@@ -268,7 +260,7 @@ console.log('\nF5. Hook superset / fail-open...');
     // never throws. A malformed `work` (string) must not break the hook surface.
     let threw = false;
     let bad = null;
-    try { bad = runMethodology({ root, taskId: 'task-bad-1', objective: 'x', work: 'not-an-object', config: { autonomy: { grade: 3 } } }); } catch { threw = true; }
+    try { bad = runMethodology({ root, taskId: 'task-bad-1', objective: 'x', work: 'not-an-object' }); } catch { threw = true; }
     !threw && bad === null
       ? rep.ok('F5. malformed work → runMethodology fail-open to null (no throw)')
       : rep.bad(`F5. fail-open broken: threw=${threw}, result=${JSON.stringify(bad)}`);

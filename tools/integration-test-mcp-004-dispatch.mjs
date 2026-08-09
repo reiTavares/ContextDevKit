@@ -6,7 +6,7 @@
  *                    (rendersInto is always an array regardless of outcome)
  *   Suite 8  — AC-4  mcp.mjs is a dispatcher only — no business logic;
  *                    unknown subcommand → exit 0; --help, no-args; SUBCOMMAND_MAP;
- *                    correct delegation to mcp-doctor/mcp-audit/mcp-receipt
+ *                    correct delegation to mcp-doctor/mcp-audit
  *   Suite 9  — AC-4  mcp.mjs doctor dispatch end-to-end (empty config → exit 0)
  *
  * Run:  node tools/integration-test-mcp-004-dispatch.mjs
@@ -110,7 +110,7 @@ console.log('\n[Suite 8] AC-4 — mcp.mjs is a dispatcher only\n');
   c(helpOut.includes('doctor'),    'AC-4: --help mentions "doctor"');
   c(helpOut.includes('audit'),     'AC-4: --help mentions "audit"');
   c(helpOut.includes('discover'),  'AC-4: --help mentions "discover"');
-  c(helpOut.includes('receipt'),   'AC-4: --help mentions "receipt"');
+  c(!helpOut.includes('receipt'),  'AC-4: retired receipt command is absent');
   c(helpOut.includes('--root'),    'AC-4: --help mentions "--root"');
 
   // No args → exit 0, usage shown
@@ -137,9 +137,7 @@ console.log('\n[Suite 8] AC-4 — mcp.mjs is a dispatcher only\n');
   c(auditEntry !== null && (auditEntry[1] ?? '').includes('mcp-audit'),
     'AC-4: SUBCOMMAND_MAP audit → mcp-audit.mjs');
 
-  const receiptEntry = mcpSource.match(/receipt\s*:\s*['"]([^'"]+)['"]/);
-  c(receiptEntry !== null && (receiptEntry[1] ?? '').includes('mcp-receipt'),
-    'AC-4: SUBCOMMAND_MAP receipt → mcp-receipt.mjs');
+  c(!/receipt\s*:/.test(mcpSource), 'AC-4: SUBCOMMAND_MAP has no receipt writer');
 }
 
 // ---------------------------------------------------------------------------

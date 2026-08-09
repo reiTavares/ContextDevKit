@@ -171,7 +171,7 @@ function testReconcile(root) {
   const ra = dispatch(parsed('reconcile', ['--apply']), { root });
   assert('reconcile --apply applied', ra.applied === true);
   assert('reconcile --apply wrote work-context-registry', existsSync(workContextRegistry));
-  assert('reconcile --apply wrote workflow-registry', existsSync(workflowRegistry));
+  assert('reconcile --apply does not recreate retired workflow-registry', !existsSync(workflowRegistry));
   assert('reconcile --apply wrote decision-registry', existsSync(decisionRegistry));
 
   const ra2 = dispatch(parsed('reconcile', ['--apply']), { root });

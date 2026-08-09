@@ -3,7 +3,7 @@
  * lineage-graph.mjs — I/O orchestration + CLI for CDK-070.
  *
  * Composes existing defensive readers into a typed lineage graph:
- *   ADR → workflow → card → { session, receipt } → telemetry
+ *   ADR → workflow → task → session → telemetry
  *
  * Design decisions:
  *   - Read-only: no writes to any source store.
@@ -23,9 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 import { parseAdr, ADR_FILENAME_RE } from './adr-digest-core.mjs';
 import { listWorkflows } from './workflow-pack.mjs';
-import { listTasks } from './pipeline-tasks.mjs';
-import { readState } from '../../runtime/state/state-io.mjs';
-import { readReceipts } from '../../runtime/execution/receipt-store.mjs';
+import { readAuthoritySnapshot } from '../../runtime/authority-reader.mjs';
 
 import {
   buildNodes, buildEdges, computeStats, subgraphFrom, renderDigest,
@@ -43,7 +41,7 @@ const ENTRY_PATTERN = /^(\d{4}-\d{2}-\d{2})-(\d{2,})-([a-z0-9._-]+)\.md$/;
  * Never throws; returns [] on any I/O error.
  *
  * @param {string} sessionsDir  absolute path to contextkit/memory/sessions/
- * @returns {Array<{ number: number, slug: string, title: string, date: string }>}
+ * @returns {Array<{ number: number, slug: string, title: string, date: string, taskIds: string[] }>}
  */
 function listSessions(sessionsDir) {
   let files = [];
@@ -54,12 +52,14 @@ function listSessions(sessionsDir) {
     if (!match) continue;
     const [, date, numberStr, slug] = match;
     let title = slug;
+    let taskIds = [];
     try {
       const content = readFileSync(resolve(sessionsDir, filename), 'utf-8');
       const heading = content.split('\n').find((l) => l.startsWith('# '));
       if (heading) title = heading.slice(2).trim();
+      taskIds = [...new Set(content.match(/\b[A-Z]{2,8}-\d{1,6}\b/g) ?? [])];
     } catch { /* leave title = slug */ }
-    sessions.push({ number: Number.parseInt(numberStr, 10), slug, title, date });
+    sessions.push({ number: Number.parseInt(numberStr, 10), slug, title, date, taskIds });
   }
   return sessions;
 }
@@ -95,11 +95,10 @@ function listAdrs(decisionsDir) {
 
 /**
  * Collects all sources defensively. A missing store → [] + name in skipped.
- * Cards get ownerSessionId attached from state.json.
  * Telemetry is SKIPPED when no on-disk log is discoverable.
  *
  * @param {string} root  project root (absolute)
- * @returns {{ adrs:any[], workflows:any[], cards:any[], receipts:any[], sessions:any[], telemetry:any[], _sources:{ present:string[], skipped:string[] } }}
+ * @returns {{ adrs:any[], workflows:any[], cards:any[], sessions:any[], telemetry:any[], _sources:{ present:string[], skipped:string[] } }}
  */
 export async function collectSources(root) {
   const p = pathsFor(root);
@@ -124,34 +123,8 @@ export async function collectSources(root) {
   // Workflows
   const workflows = wrap('workflows', () => listWorkflows(root));
 
-  // Cards — attach ownerSessionId from state.json
-  const rawCards = wrap('cards', () => listTasks(p.pipeline));
-  const cards = rawCards.map((card) => {
-    let ownerSessionId = null;
-    try {
-      const state = readState(p.pipeline, card.id);
-      ownerSessionId = state?.ownerSessionId ?? null;
-    } catch { /* leave null */ }
-    return { ...card, ownerSessionId };
-  });
-  // Re-count cards accurately (rawCards counted above; cards is same length)
-
-  // Receipts — one readReceipts call per card id
-  let allReceipts = [];
-  try {
-    const cardIds = rawCards.map((c) => c.id).filter(Boolean);
-    for (const cardId of cardIds) {
-      const receipts = readReceipts(root, cardId);
-      if (Array.isArray(receipts)) allReceipts.push(...receipts);
-    }
-    if (allReceipts.length > 0) {
-      if (!present.includes('receipts')) present.push('receipts');
-    } else {
-      if (!skipped.includes('receipts')) skipped.push('receipts');
-    }
-  } catch {
-    if (!skipped.includes('receipts')) skipped.push('receipts');
-  }
+  // Tasks come only from the canonical v4 authority reader.
+  const cards = wrap('cards', () => readAuthoritySnapshot(root).tasks);
 
   // Sessions
   const sessions = wrap('sessions', () => listSessions(p.sessions));
@@ -174,7 +147,7 @@ export async function collectSources(root) {
     skipped.push('telemetry');
   }
 
-  return { adrs, workflows, cards, receipts: allReceipts, sessions, telemetry, _sources: { present, skipped } };
+  return { adrs, workflows, cards, sessions, telemetry, _sources: { present, skipped } };
 }
 
 // ---------------------------------------------------------------------------

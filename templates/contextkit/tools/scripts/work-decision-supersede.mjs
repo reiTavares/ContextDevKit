@@ -16,8 +16,8 @@
  *      atomically to the old file) + `oldStatus: 'superseded'`.
  *   3. Human-gated: `ctx.actor === 'human'` required for supersession.  Non-human
  *      returns a refused receipt — no throw (hooks must survive).
- *   4. `adr` floor in `resolve-autonomy.mjs` is NOT changed — B3-T1 only PREPARES
- *      artifacts; a human still accepts/applies them.
+ *   4. B3-T1 only PREPARES artifacts; the explicit actor at the write boundary
+ *      applies them. No governance grade participates.
  *
  * Zero runtime deps — `node:crypto` ok; rest is sibling imports (immutable rule 1).
  * File cohesion note: supersede + isGoverning share the same invariant set
@@ -155,7 +155,7 @@ export function isGoverning(adr) {
  *
  * Dry-run by design — nothing is written to disk.  The caller feeds `newAdr`
  * to `decision-template.mjs` and applies `oldPatch` atomically to the existing
- * file.  A human then accepts the new ADR (per the `adr` autonomy floor).
+ * file. The explicit actor then accepts the new ADR at the write boundary.
  *
  * Refusals return `{ newAdr: null, oldPatch: null, oldStatus: null, receipt }`:
  *   - `ctx.actor !== 'human'`

@@ -15,9 +15,18 @@ import { migrateConfigSections } from './config-migrate.mjs';
 import { migratePolicyStores } from './policy-migrate.mjs';
 import { DEFAULT_CONFIG } from '../../templates/contextkit/runtime/config/defaults.mjs';
 import { reindexDocs } from '../../templates/contextkit/tools/scripts/docs-reindex.mjs';
-import { read, overwrite, atomicWrite, backup, copyTree, copyTreeIfMissing, writeIfMissing, ensureDir, render } from './fs.mjs';
+import {
+  read,
+  overwrite,
+  atomicWrite,
+  copyTree,
+  copyTreeIfMissing,
+  writeIfMissing,
+  ensureDir,
+  pruneTreeToSource,
+  render,
+} from './fs.mjs';
 import { syncFile, syncTree } from './sync.mjs';
-import { migrateConfigPaths } from './config-paths.mjs';
 import { migrateDecisions } from './decisions-migrate.mjs';
 
 // ADR-0103 activation go-live notice: Economy Runtime ships ON (advisory). Shown
@@ -32,7 +41,6 @@ const ECONOMY_NOTICE =
 // ship always-overwrite in lockstep with the engine. Per-project tuning lives in
 // `config.json`, never in these files.
 const POLICY_TABLES = [
-  'journey.json',
   'work-classification.json',
   'decision-intelligence.json',
   'host-projections.json',
@@ -48,20 +56,9 @@ const MEMORY_SEEDS = [
   'memory/decisions/_templates/adr-business.template.md', 'memory/decisions/_templates/adr-operation.template.md',
   'memory/decisions/_templates/adr-routine-operation-governance.template.md',
   'memory/decisions/_templates/adr-emergency-governance.template.md',
-  // BIZ-0001 Business document templates — seeded so the methodology roots ship
-  // WITH their fill-in templates (the BIZ-0001 scaffold itself is materialized by
-  // seed-methodology.mjs at install/update time).
-  'memory/business/_TEMPLATE-business-case.md', 'memory/business/_TEMPLATE-growth.md',
-  'memory/business/_TEMPLATE-investment-decision.md',
   'memory/deliberations/_TEMPLATE.md', 'memory/deliberations/.gitkeep', 'memory/business-rules/_TEMPLATE.md',
   'memory/predictions/.gitkeep', 'memory/project-map/.gitkeep', 'memory/project-map/rules.example.json', 'memory/sessions/.gitkeep',
-  'memory/workflows/.gitkeep', 'memory/workflows/_TEMPLATE/index.md', 'memory/workflows/_TEMPLATE/prd.md',
-  'memory/workflows/_TEMPLATE/spec.md', 'memory/workflows/_TEMPLATE/decisions.md',
-  'memory/workflows/_TEMPLATE/tasks.md', 'memory/workflows/_TEMPLATE/memory.md',
-  'memory/workflows/_TEMPLATE/acceptance-matrix.md', 'memory/workflows/_TEMPLATE/risk-register.md',
-  'memory/workflows/_TEMPLATE/rollout-plan.md', 'memory/workflows/_TEMPLATE/CONTINUATION-PROMPT.md',
-  'memory/workflows/_TEMPLATE/workflow-plan.json', 'memory/workflows/_TEMPLATE/workflow-state.json',
-  'memory/workflows/_TEMPLATE/reports/.gitkeep', 'instrucoes.md', 'best-practices.md',
+  'memory/workflows/.gitkeep', 'instrucoes.md', 'best-practices.md',
   'review-protocol.md', 'behaviors.md', 'behaviors-examples.md', 'CLAUDE.child.md.tpl', 'squads/README.md',
   'squads/_BRIEFING.md.tpl', 'policy/complexity-rubric.json', 'policy/routing-policy.json', 'policy/squads-registry.json',
   'policy/capability-registry.json', 'policy/agent-capability-registry.json', 'policy/playbook-registry.json', '.env.example',
@@ -71,12 +68,16 @@ const MEMORY_SEEDS = [
  *  here: `.engine-version` is written LAST, only on final success [ADR-0099 P0-06],
  *  via {@link stampEngineVersion}, so a crash mid-install leaves the prior version. */
 async function copyEngine(target, tplDir, report) {
-  await copyTree(join(tplDir, 'contextkit', 'runtime'), join(target, 'contextkit', 'runtime'));
-  await copyTree(join(tplDir, 'contextkit', 'tools'), join(target, 'contextkit', 'tools'));
-  await copyTree(join(tplDir, 'contextkit', 'methodology'), join(target, 'contextkit', 'methodology'));
-  await copyTree(join(tplDir, 'contextkit', 'docs'), join(target, 'contextkit', 'docs'));
-  await copyTree(join(tplDir, 'contextkit', 'mcp'), join(target, 'contextkit', 'mcp'));
-  await copyTree(join(tplDir, 'contextkit', 'mcp-server'), join(target, 'contextkit', 'mcp-server'));
+  let removedLegacyEntries = 0;
+  for (const tree of ['runtime', 'tools', 'methodology', 'docs', 'mcp', 'mcp-server']) {
+    const sourceTree = join(tplDir, 'contextkit', tree);
+    const destinationTree = join(target, 'contextkit', tree);
+    const pruned = await pruneTreeToSource(sourceTree, destinationTree, tree === 'mcp'
+      ? { preserveRelativePaths: ['project-manifest.json'] }
+      : {});
+    removedLegacyEntries += pruned.removedFiles + pruned.removedDirectories;
+    await copyTree(sourceTree, destinationTree);
+  }
   // Domain Engineering contract tables (WF-0068, ADR-0128 §26): the deterministic
   // classifier's SINGLE SOURCE (`runtime/domain-engineering/policy-load.mjs`),
   // schema-coupled to the runtime that reads them — distributed always-overwrite in
@@ -87,17 +88,21 @@ async function copyEngine(target, tplDir, report) {
   // user EXTENDS (routing/squads/capability) stay seeded write-if-missing + additive
   // (MEMORY_SEEDS + policy-migrate); these deterministic tables are kit code.
   for (const sub of ['domain-engineering', 'devteam', 'domain-artifacts']) {
-    await copyTree(join(tplDir, 'contextkit', 'policy', sub), join(target, 'contextkit', 'policy', sub));
+    const sourceTree = join(tplDir, 'contextkit', 'policy', sub);
+    const destinationTree = join(target, 'contextkit', 'policy', sub);
+    const pruned = await pruneTreeToSource(sourceTree, destinationTree);
+    removedLegacyEntries += pruned.removedFiles + pruned.removedDirectories;
+    await copyTree(sourceTree, destinationTree);
   }
-  // Methodology-plane contract tables (WF-0086 IN1, ADR-0148): the canonical journey
-  // map, the work classifier's signal tables, and the decision-materiality weights.
+  // Methodology-plane contract tables: work-classification and decision-materiality
+  // inputs plus host-projection ownership.
   // Same class as the domain-engineering tables above — deterministic kit data that
   // the runtime is schema-coupled to (`work/journey-verifier.mjs`,
   // `execution/work-classifier.mjs`, `execution/materiality-score.mjs`), tuned per
-  // project through `config.json`, never by editing these files. So they ship
+  // project through `config.json`, never by editing these files. They ship
   // always-overwrite in lockstep with the engine rather than seeded write-if-missing
   // like the flat registries a user EXTENDS. Undistributed, every reader silently
-  // degraded to its fallback and the journey map went inert on a fresh install.
+  // degraded to its embedded fallback on a fresh install.
   // Report what actually shipped, not what was intended: a table missing from the
   // source is SKIPPED and must say so. An unconditional "✓ … policy/a|b|c" line
   // would let a silent skip read as a successful install — the same §8 failure this
@@ -112,6 +117,9 @@ async function copyEngine(target, tplDir, report) {
   }
   const tableReport = copiedTables.length ? `, policy/${copiedTables.join('|')}` : '';
   report.push(`✓ engine installed (contextkit/runtime, contextkit/tools, contextkit/methodology, contextkit/docs, contextkit/mcp, contextkit/mcp-server, policy/domain-engineering|devteam|domain-artifacts${tableReport})`);
+  if (removedLegacyEntries > 0) {
+    report.push(`engine cleanup removed ${removedLegacyEntries} obsolete kit-owned entr${removedLegacyEntries === 1 ? 'y' : 'ies'}`);
+  }
   if (skippedTables.length) {
     report.push(`⚠ policy table(s) SKIPPED — absent from the kit source, their readers will fall back to embedded defaults: ${skippedTables.join(', ')}`);
   }
@@ -137,12 +145,9 @@ async function seedSubstrate(target, tplDir, ctx, report) {
     if (!existsSync(src)) continue;
     if (await writeIfMissing(join(target, 'contextkit', rel), await read(src), force)) report.push(`✓ seeded contextkit/${rel}`);
   }
-  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations', 'project-map', 'workflows']) {
+  for (const d of ['sessions', 'decisions', 'business-rules', 'predictions', 'deliberations', 'project-map', 'business', 'operations', 'batches', 'workflows']) {
     await ensureDir(join(target, 'contextkit', 'memory', d));
   }
-  const pipeCount = await copyTreeIfMissing(join(tplDir, 'contextkit', 'pipeline'), join(target, 'contextkit', 'pipeline'));
-  if (pipeCount > 0) report.push(`✓ seeded contextkit/pipeline (${pipeCount} file(s))`);
-  for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'contextkit', 'pipeline', s));
   // Workflow guides + playbooks: kit content the user may tune — 3-way sync so a
   // personalized playbook survives --update, while kit renames/edits still land [ADR-0054].
   const wf = await syncTree(join(tplDir, 'contextkit', 'workflows'), target, 'contextkit/workflows', ctx.sync);
@@ -156,6 +161,7 @@ async function seedSubstrate(target, tplDir, ctx, report) {
   const detCount = await copyTreeIfMissing(join(tplDir, 'contextkit', 'detectors'), join(target, 'contextkit', 'detectors'));
   if (detCount > 0) report.push(`✓ seeded contextkit/detectors (${detCount} file(s))`);
   // Curated-stack starters: always overwrite — pure templates, copied OUT by /aidevtool-from0.
+  await pruneTreeToSource(join(tplDir, 'contextkit', 'starters'), join(target, 'contextkit', 'starters'));
   await copyTree(join(tplDir, 'contextkit', 'starters'), join(target, 'contextkit', 'starters'));
   report.push('✓ curated-stack starters installed (contextkit/starters)');
 }
@@ -169,11 +175,9 @@ async function syncContextReadme(target, tplDir, ctx, report) {
 }
 
 /**
- * Updates an existing config.json: level, first-run flag, legacy-path healing and
- * additive section merge. Writes ATOMICALLY and only when the content actually
- * changed (idempotent — a second `--update` is a no-op). A legacy-path rewrite is
- * a repair, so the original is backed up to `config.json.bak` first; a malformed
- * file is left untouched (P0 hotfix 3.0.1).
+ * Updates an existing v4 config.json: level, first-run flag, and additive section
+ * merge. Writes atomically and only when content changes. Format conversion is
+ * owned by the explicit v3-to-v4 migrator, never by a normal install/update.
  */
 async function updateConfig(target, cfgPath, level, preset, report) {
   let original;
@@ -195,20 +199,15 @@ async function updateConfig(target, cfgPath, level, preset, report) {
   if (cfg.setup?.completed !== true) {
     cfg.setup = { completed: false, installedAt: cfg.setup?.installedAt ?? new Date().toISOString() };
   }
-  const healed = migrateConfigPaths(target, cfg); // allowlist-gated; never touches project paths
   const { cfg: withDefaults, added } = migrateConfigSections(cfg, DEFAULT_CONFIG);
   cfg = withDefaults;
   if (preset) cfg = applyPreset(cfg, preset);
   const next = JSON.stringify(cfg, null, 2) + '\n';
   if (next === original) return; // no change — don't rewrite (idempotent)
-  if (healed > 0 && !(await backup(cfgPath))) {
-    report.push('⚠️  could not write config.json.bak before the legacy-path repair — proceeding (allowlist-gated, non-destructive)');
-  }
   await atomicWrite(cfgPath, next);
   report.push(`✓ updated contextkit/config.json level → ${level}${preset ? ` (+preset ${preset})` : ''}`);
   if (added.length) report.push(`✓ added ${added.length} new config section(s) on update: ${added.join(', ')}`);
   if (added.includes('economy')) report.push(ECONOMY_NOTICE);
-  if (healed > 0) report.push(`✓ migrated ${healed} legacy 'vibekit/' config path(s) onto ${PLATFORM_DIR}/ (backup: config.json.bak)`);
 }
 
 /** Creates config.json (level + first-run flag) or updates the level, preserving a finished setup. */

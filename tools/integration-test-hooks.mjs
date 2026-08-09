@@ -6,7 +6,7 @@
  * process — once with a benign Claude-hook payload, once with garbage stdin —
  * and asserts exit 0 both times in a bare temp cwd. This IS the constitution's
  * rule 2 ("hooks never break real work; defensive I/O always") asserted
- * uniformly, and it exercises the real template files so the grade-4
+ * uniformly, and it exercises the real template files so the
  * self-coverage harness (ADR-0045, NODE_V8_COVERAGE over runtime/hooks/**)
  * sees every entrypoint.
  *

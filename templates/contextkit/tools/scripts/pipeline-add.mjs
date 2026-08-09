@@ -58,6 +58,8 @@ export function add({ target, argv, now }) {
     dependsOn: parseList(getArgument(argv, 'depends-on')),
     acceptance: parseList(getArgument(argv, 'acceptance')),
     touchHints: parseList(getArgument(argv, 'touch-hints')),
+    evidenceRefs: parseList(getArgument(argv, 'evidence-refs')),
+    reportRefs: parseList(getArgument(argv, 'report-refs')),
   };
   return addTask(target, taskInput, document.revision, { now });
 }

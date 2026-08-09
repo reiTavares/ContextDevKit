@@ -12,7 +12,7 @@
  * modules. Fail-open: any malformed input degrades to a conservative
  * `implementation` / medium-risk verdict with a reason code, never throws.
  *
- * Consumers: request-orchestrator.mjs (W1), request-envelope.mjs (W1).
+ * Consumer: mutation-only task intake classification.
  *
  * @module request-classify
  */
@@ -163,7 +163,7 @@ function pickContext(signals, ctx) {
     return finalize('decision', secondary, reasons);
   }
   // 5. Workflow — a REAL external workflow reference (OP-0008 Finding #7, ADR-0131).
-  //    The hook mints a per-prompt taskId (execution-contract-hook.mjs) that is ALWAYS
+  //    Historical adapters minted a per-prompt taskId that was ALWAYS
   //    present, so branching on `ctx.taskId` shunted EVERY request to `workflow` and
   //    left the conversation/documentation/research branches below as dead code. Require
   //    a genuine workflow id (or an external, non-minted task ref); a minted per-prompt

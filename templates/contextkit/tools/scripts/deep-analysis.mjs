@@ -3,7 +3,7 @@
  * Deep analysis — the deterministic aggregator behind `/deep-analysis`.
  *
  * Runs every deterministic scanner the project ships and merges their findings
- * into ONE report, shaped for `pipeline.mjs ingest`. The slash command adds the
+ * into one reviewable report. The slash command adds the
  * judgment layer (security/architecture/bugs) on top. Defensive: a scanner that
  * errors or isn't applicable contributes nothing rather than failing the run.
  *
@@ -47,7 +47,7 @@ function main() {
   if (process.argv.includes('--write')) {
     writeFileSync(resolve(P.memory, 'deep-analysis-findings.json'), JSON.stringify(report, null, 2), 'utf-8');
     console.log(`🔬 deep-analysis: ${findings.length} finding(s) → contextkit/memory/deep-analysis-findings.json`);
-    console.log('   → ingest:  node contextkit/tools/scripts/pipeline.mjs ingest contextkit/memory/deep-analysis-findings.json --type chore');
+    console.log('   → review findings, then add accepted work with pipeline.mjs add --tasks <scope> --title "..."');
     return;
   }
   if (process.argv.includes('--json')) {

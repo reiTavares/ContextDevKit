@@ -7,7 +7,7 @@
  * equivalent, never-empty, ALL-DETERMINISTIC blocking floor set in force.
  *
  * It guards the §34 headline acceptance rows this wave owns the invariant for:
- *   - §34.31 / AC-7 — gate is ACTIVE after install: `mode === 'active'` in the
+ *   - §34.31 / AC-7 — gate is CANARY after install: `mode === 'canary'` in the
  *     standalone defaults AND wired into `DEFAULT_CONFIG`.
  *   - §34.32 / AC-9 — deterministic-critical rules are BLOCKING: the default
  *     fitness catalogue's `blockingRules()` is NON-EMPTY and every blocking rule
@@ -53,19 +53,19 @@ const { buildDefaultRegistry } = registryMod;
 const { Enforcement, DETERMINISTIC_TIER } = findingMod;
 
 // --------------------------------------------------------------------------
-// §34.31 / AC-7 — gate is ACTIVE after install (mode === 'active', wired in).
+// §34.31 / AC-7 — architecture debt is CANARY after install.
 // --------------------------------------------------------------------------
-console.log('\n§34.31 / AC-7 — gate is ACTIVE after install');
-ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.mode === 'active'
-  ? ok("defaults: architectureDebtGate.mode === 'active'")
-  : bad("defaults: mode is NOT 'active' (gate would not be active on install)");
+console.log('\n§34.31 / AC-7 — gate is CANARY after install');
+ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.mode === 'canary'
+  ? ok("defaults: architectureDebtGate.mode === 'canary'")
+  : bad("defaults: architecture debt is not canary");
 ARCH_DEBT_GATE_DEFAULTS && ARCH_DEBT_GATE_DEFAULTS.enabled === true
   ? ok('defaults: gate enabled === true')
   : bad('defaults: gate not enabled');
 DEFAULT_CONFIG && DEFAULT_CONFIG.architectureDebtGate
-  && DEFAULT_CONFIG.architectureDebtGate.mode === 'active'
-  ? ok('DEFAULT_CONFIG carries an active architectureDebtGate block (installed on every project)')
-  : bad('DEFAULT_CONFIG missing/inactive architectureDebtGate block');
+  && DEFAULT_CONFIG.architectureDebtGate.mode === 'canary'
+  ? ok('DEFAULT_CONFIG carries a canary architectureDebtGate block')
+  : bad('DEFAULT_CONFIG missing/non-canary architectureDebtGate block');
 
 // --------------------------------------------------------------------------
 // §34.32 / AC-9 + §34.35 Fork-2 — the BLOCKING floor set is NON-EMPTY and

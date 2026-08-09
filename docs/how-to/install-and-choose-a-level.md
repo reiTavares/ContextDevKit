@@ -150,8 +150,6 @@ Taken from the installer's own argument parser. `--help` prints the same list.
 | `--allow-active-sessions` | With `--update`: proceed even though active sessions were detected. Snapshots first. |
 | `--allow-self-update` | With `--update`: proceed when updating the kit's own source repository. |
 | `--rewire` | Only recomposes the host settings file for the given level, then stops. |
-| `--migrate` | Carries a legacy install forward to the current platform directory. |
-| `--dry-run` | With `--migrate`: reports what would change without writing. |
 | `--uninstall` | Removes hook wiring and git hooks. Keeps your memory. |
 | `--purge` | With `--uninstall`: also deletes the engine, commands and agents. |
 | `--help`, `-h` | Prints usage and the full flag list. |

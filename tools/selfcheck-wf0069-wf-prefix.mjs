@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /**
  * WF-0069 self-check (OP-0008 Finding #8 / card #385) — spec-pack createWorkflow
- * must give an OWNED workflow dir the `WF-` prefix so the registry's NEW_RE
- * matches it and the owner survives into resolveWorkflow (an unprefixed owned dir
- * falls to LEGACY_RE, which hardcodes owner:null — the bug this guards).
+ * must give an OWNED workflow dir the `WF-` prefix so the canonical v2 loader
+ * resolves it by id and preserves its owner.
  *
  * Asserts:
  *   (1) createWorkflow for an OWNED (OP-####) workflow names the dir `WF-####-slug`.
- *   (2) buildWorkflowRegistry + resolveWorkflow('WF-####') returns a row whose
- *       owner is the owning OP context (NOT null), format 'new'.
+ *   (2) readWorkflow('WF-####') returns a row whose owner is the owning OP
+ *       context (NOT null), format 'v2'.
  *   (3) Regression guard: the created dir name starts with `WF-` (this FAILS
  *       against the old `${number}-${slug}` naming).
  *
@@ -29,13 +28,12 @@ let failures = 0;
 const ok = (m) => console.log(`  ✓ ${m}`);
 const bad = (m) => { console.error(`  ✗ ${m}`); failures += 1; };
 
-let createWorkflow, pathsFor, buildWorkflowRegistry, resolveWorkflow, nextWorkflowNumber;
+let createWorkflow, readWorkflow, pathsFor, nextWorkflowNumber;
 try {
-  ({ createWorkflow } = await import(src('tools/scripts/workflow-pack.mjs')));
+  ({ createWorkflow, readWorkflow } = await import(src('tools/scripts/workflow-pack.mjs')));
   ({ pathsFor } = await import(src('runtime/config/paths.mjs')));
-  ({ buildWorkflowRegistry, resolveWorkflow } = await import(src('tools/scripts/registry/workflow.mjs')));
   ({ nextWorkflowNumber } = await import(src('tools/scripts/registry/ids.mjs')));
-  ok('workflow-pack + registry import cleanly');
+  ok('workflow-pack + id allocator import cleanly');
 } catch (err) {
   console.error(`FATAL: import failed: ${err?.message ?? err}`);
   process.exit(1);
@@ -68,19 +66,18 @@ try {
     ? ok(`dir name matches WF-${expectedNumber}-owned-flow (mirrors workflow/create.mjs)`)
     : bad(`dir name "${dirName}" != expected WF-${expectedNumber}-owned-flow`);
 
-  // (2) the registry resolves the workflow WITH its owner (not null).
-  const registry = buildWorkflowRegistry(root);
-  const row = resolveWorkflow(registry, `WF-${expectedNumber}`);
+  // (2) the canonical pack loader resolves the workflow WITH its owner.
+  const row = readWorkflow(root, `WF-${expectedNumber}`);
   row
-    ? ok(`resolveWorkflow('WF-${expectedNumber}') returns a row (format='${row.format}')`)
-    : bad(`resolveWorkflow('WF-${expectedNumber}') returned null — NEW_RE missed the dir`);
+    ? ok(`readWorkflow('WF-${expectedNumber}') returns a row (format='${row.format}')`)
+    : bad(`readWorkflow('WF-${expectedNumber}') returned null`);
   if (row) {
-    row.owner === OWNER
-      ? ok(`owner survives: row.owner='${row.owner}' (not null)`)
-      : bad(`owner LOST: row.owner='${row.owner}' expected '${OWNER}'`);
-    row.format === 'new'
-      ? ok("row.format is 'new' (matched NEW_RE, not LEGACY_RE)")
-      : bad(`row.format='${row.format}' — fell to legacy indexing`);
+    row.owner?.kind === 'operation' && row.owner?.id === OWNER
+      ? ok(`owner survives: row.owner='operation:${row.owner.id}'`)
+      : bad(`owner LOST: row.owner='${JSON.stringify(row.owner)}' expected operation:${OWNER}`);
+    row.format === 'v2'
+      ? ok("row.format is 'v2' (canonical pack authority)")
+      : bad(`row.format='${row.format}' — not canonical v2`);
   }
 } finally {
   rmSync(root, { recursive: true, force: true });

@@ -2,21 +2,19 @@
 /**
  * CDK-065 — Continuous per-completed-task benchmark recorder.
  *
- * Records cost/tokens for a completed task into an advisory append-only ledger,
- * and summarises the ledger. The primary metric is tokens (and, optionally, cost)
+ * Records cost/tokens for a completed task into an advisory economics journal,
+ * and summarises that journal. The primary metric is tokens (and, optionally, cost)
  * per correctly-completed task, tracked over time for post-release comparison.
  *
- * Ledger location: resolved relative to this file at installation time via
- * pathsFor(root).pipeline (the canonical pipeline state directory), as a sibling
- * file `benchmark-ledger.json`. The override env var `BENCHMARK_LEDGER_PATH` or
+ * Journal location: `contextkit/memory/economics/benchmark-ledger.json`. The
+ * override env var `BENCHMARK_LEDGER_PATH` or
  * `opts.ledgerPath` is honoured so tests are hermetic (write to a temp dir only).
  *
  * Design decisions:
  * - Accept explicit `{ taskId, tokens, … }` input so the recorder is decoupled
  *   from token-report.mjs and independently testable (CDK-065 spec §1).
- * - Append-only JSON array ledger file — same directory as the pipeline state
- *   substrate (templates/contextkit/runtime/state/state-io.mjs uses
- *   pathsFor(root).pipeline). No in-process state; every call reads+writes.
+ * - Append-only JSON array in the economics memory boundary. No in-process
+ *   state; every explicit recorder call reads and writes the journal.
  * - Fail-open: exit 0 on all errors; report "skipped" when required inputs absent.
  * - Zero runtime dependencies — node:* only, ESM.
  *
@@ -28,18 +26,13 @@ import { fileURLToPath } from 'node:url';
 import { pathsFor } from '../../runtime/config/paths.mjs';
 
 // ---------------------------------------------------------------------------
-// Path resolution — mirrors state-io.mjs (uses pathsFor(root).pipeline).
-// We derive the project root at two hops up from this script's location inside
-// templates/contextkit/tools/scripts/, then fall back to the installed layout
-// where this file sits at <root>/contextkit/tools/scripts/.
+// Path resolution remains rooted in the single-sourced platform memory path.
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve the default ledger path. Single-sources the platform directory via
- * pathsFor() (Rule 4) exactly like pipeline.mjs / project-map.mjs: the ledger is
- * a sibling of the pipeline state directory under the project root (process.cwd()).
+ * Resolve the default economics journal path through the platform memory root.
  *
- * Precedence: env var / opts.ledgerPath (hermetic tests) → pathsFor(cwd).pipeline.
+ * Precedence: env var / opts.ledgerPath (hermetic tests) → memory/economics.
  *
  * @returns {string} absolute path to the benchmark ledger JSON file.
  */
@@ -47,7 +40,7 @@ function defaultLedgerPath() {
   if (process.env.BENCHMARK_LEDGER_PATH) {
     return process.env.BENCHMARK_LEDGER_PATH;
   }
-  return resolve(pathsFor(process.cwd()).pipeline, 'benchmark-ledger.json');
+  return resolve(pathsFor(process.cwd()).memory, 'economics', 'benchmark-ledger.json');
 }
 
 // ---------------------------------------------------------------------------

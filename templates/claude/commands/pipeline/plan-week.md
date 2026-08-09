@@ -1,36 +1,27 @@
 ---
-description: Rank the DevPipeline backlog into an explained top-N — what to pick up next, by WSJF × SLA-urgency × advisor-lane.
+description: Rank canonical backlog tasks by explicit priority and dependency readiness.
 argument-hint: [--top N | --all | --json]
 ---
 
-# 🗓️ Plan the week
+# Plan the week
 
-Turn the backlog into an **ordered, explained plan** instead of a judgement call.
-Each backlog ticket gets a deterministic **plan score** from three signals the kit
-already records — **priority** (P0–P3, the dominant band), **SLA urgency** (overdue
-dominates, then proximity to the due date), and **lane weight** (a `type: bug` or
-`source: advise:security` finding outranks a same-priority chore). A ticket with
-open dependencies sinks below everything actionable — its blockers surface first.
+Read the v4 JSON task authority and produce an explained, read-only top-N list.
+The owner-defined `priority` is the ordering band; tasks with unfinished
+`dependsOn` references are shown separately as blocked.
 
-Run it and act on **$ARGUMENTS** (default: top 5):
-
-```
+```text
 node contextkit/tools/scripts/plan-next.mjs [--top N] [--all] [--json]
 ```
 
-For lane context around the ranking, prefer the token-light
-`node contextkit/tools/scripts/pipeline.mjs board --digest` (ADR-0047) over
-reading the full board or N task files.
+For a compact scope view, use
+`node contextkit/tools/scripts/pipeline.mjs board --digest --tasks <scope>`.
 
-Then:
+Use the result as a planning aid:
 
-1. **Read the ranked list.** Lead with the single top pick and its one-line
-   rationale (the `score` is the composite; the bits before it are *why*).
-2. **Call out anything blocked** — those need their dependencies cleared first
-   (`/pipeline` shows the `↘ blocked by N` edges; `/plan-week` lists the ids).
-3. **Offer the next action, don't take it:** `/dev-start "#<id>"` on the top pick
-   (which moves it `backlog → working` and starts a session). If the top pick is
-   architectural-tier, draft `/new-adr` first — `/dev-start` will refuse otherwise.
+1. Lead with the highest-priority actionable task.
+2. Name unfinished dependency ids for blocked work.
+3. Offer `/dev-start "<task-id>" --tasks <scope>` as the next mutation; do not
+   execute it from this read-only command.
 
-The ranking is **read-only** — it never moves a ticket. It is the planning lens;
-`/pipeline` and `/dev-start` are how work actually flows.
+The command never reads Markdown lanes, infers a writable global store, or
+changes task status.

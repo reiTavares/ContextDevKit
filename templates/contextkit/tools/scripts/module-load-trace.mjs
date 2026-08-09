@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { buildLegacyInventory, normalizeRelativePath, resolveContainedPath } from './legacy-inventory.mjs';
 
 const DEFAULT_SCENARIOS = Object.freeze([
-  ['boot', 'templates/contextkit/runtime/hooks/session-start.mjs'],
+  ['boot', 'templates/contextkit/runtime/hooks/governance-session-context.mjs'],
   ['no-op', 'templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs'],
   ['direct', 'templates/contextkit/runtime/hooks/governance-write-preflight.mjs'],
   ['batch', 'templates/contextkit/runtime/hooks/governance-write-preflight.mjs'],

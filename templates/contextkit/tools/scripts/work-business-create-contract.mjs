@@ -11,17 +11,13 @@ import { BUSINESS_KINDS, VALUE_INTENTS, isBusinessKind, isNonEmptyString } from 
 import { BUSINESS_ID_PATTERN } from '../../runtime/work/schema-business.mjs';
 import { allocateWorkflowId, nextBusinessId } from './registry/ids.mjs';
 import { fleetMemoryRoots } from './registry/fleet.mjs';
-import { resolveCeremonyManifest } from './workflow/ceremony-manifest.mjs';
-import { resolveCeremonyShape } from '../../methodology/resolve-ceremony-shape.mjs';
 import { slugify } from './work-io.mjs';
 
 const WORKFLOW_ID_PATTERN = /^WF-\d{4}$/;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,60}$/;
-const FUNCTIONAL_CLASSIFIER_KIND = 'initiative';
-
 const CEREMONY_DEFINITIONS = Object.freeze({
-  decision: Object.freeze({ executionMode: 'direct', tier: 'feature', shape: 'decision-only' }),
-  workflow: Object.freeze({ executionMode: 'workflow', tier: 'architectural', shape: 'multi-workflow-program' }),
+  decision: Object.freeze({ executionMode: 'direct', shape: 'business-direct' }),
+  workflow: Object.freeze({ executionMode: 'workflow', shape: 'workflow-v2' }),
 });
 
 /**
@@ -110,7 +106,7 @@ export function resolveBusinessCreateInputs({ positionals = [], flags = {}, root
 }
 
 /**
- * Resolve the public ceremony to one WF-0083 shape and journey branch.
+ * Resolve the public creation mode without inferring workflow from Business.
  *
  * @param {'decision'|'workflow'|'direct-business'} ceremony public ceremony token
  * @returns {{ceremony:string,shape:string,journeyBranch:string,validators:string[],executionMode:string,tier:string,classifierFunctionalKind:string}}
@@ -123,23 +119,13 @@ export function resolveBusinessCeremony(ceremony) {
   const definition = CEREMONY_DEFINITIONS[ceremony];
   if (!definition) throw new Error('business: ceremony must be one of decision|workflow');
 
-  const verifiedShape = resolveCeremonyShape(
-    'business',
-    definition.executionMode,
-    definition.tier,
-    FUNCTIONAL_CLASSIFIER_KIND,
-  );
-  if (verifiedShape !== definition.shape) {
-    throw new Error(`business: ceremony "${ceremony}" failed resolver verification (got "${verifiedShape}")`);
-  }
-  const manifestRow = resolveCeremonyManifest(definition.shape);
   return {
     ceremony,
     shape: definition.shape,
-    journeyBranch: manifestRow.journeyBranch,
-    validators: manifestRow.validators,
+    journeyBranch: definition.executionMode,
+    validators: ceremony === 'workflow' ? ['business-schema', 'workflow-v2'] : ['business-schema'],
     executionMode: definition.executionMode,
-    tier: definition.tier,
-    classifierFunctionalKind: FUNCTIONAL_CLASSIFIER_KIND,
+    tier: 'none',
+    classifierFunctionalKind: 'none',
   };
 }

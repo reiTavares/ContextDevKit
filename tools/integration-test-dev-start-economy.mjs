@@ -144,7 +144,7 @@ async function main() {
       /resume|checkpoint/i,
       /project.?map|map/i,
       /intake|classif/i,
-      /orchestrat|request/i,
+      /lifecycle.?plan/i,
       /context.*(expand|pack|profile)|ready/i,
     ]);
     check(planOrder.pass, 'bootstrap plan evaluates map before context expansion', planOrder.names.join(' → '));
@@ -153,7 +153,7 @@ async function main() {
       /resume|checkpoint/i,
       /project.?map|map/i,
       /intake|classif/i,
-      /orchestrat|request/i,
+      /lifecycle.?plan/i,
     ]);
     check(freshEvents.length > 0 && eventOrder.pass, 'persisted bootstrap events keep the expected order',
       eventOrder.names.join(' → ') || 'no persisted events');
@@ -168,8 +168,9 @@ async function main() {
     check(/project.?map/i.test(serialized) && /hit|fresh|matched|found/i.test(serialized),
       'fresh Project Map produces an explicit hit/fresh reason');
     check(/run-compact/i.test(serialized), 'bootstrap emits run-compact lifecycle or execution hint');
-    check(/shadow_mode/.test(serialized) && !/"applied"\s*:\s*true/.test(serialized),
-      'shadow routing records shadow_mode and no applied claim');
+    check(!/executeDispatchPlan|persistIntentEnvelope|shadow_mode/.test(serialized)
+      && !/"applied"\s*:\s*true/.test(serialized),
+    'dev-start has no retired orchestration authority or applied claim');
     check(noFableSelection({ fresh, freshEvents }), 'bootstrap never selects Fable');
 
     const missFile = resolve(root, 'contextkit', 'memory', 'economy-events-miss.jsonl');
