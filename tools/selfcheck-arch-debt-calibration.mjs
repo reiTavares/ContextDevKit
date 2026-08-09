@@ -131,8 +131,11 @@ const authorityRes = await runInjected({
 authorityRes.exitCode === 1 ? ok('new duplicate authority → exitCode 1 (BLOCKED)') : bad('duplicate authority did not block: ' + authorityRes.outcome);
 authorityRes.blocking.some((f) => f.ruleId === 'F3.state-authority') ? ok('F3.state-authority is the blocking finding') : bad('F3 not in blockers: ' + authorityRes.blocking.map((f) => f.ruleId).join(','));
 
-// Calibration guard: architecture debt remains canary in the live defaults.
-liveResolved.mode === 'canary' ? ok('gate mode stays canary') : bad('gate mode drifted: ' + liveResolved.mode);
+// Calibration guard: canonical absence/default remains canary. The live dogfood
+// config may carry an explicit project override and is already exercised above;
+// it must not redefine the product default asserted by this release check.
+const defaultResolved = resolveArchDebtConfig({});
+defaultResolved.mode === 'canary' ? ok('gate default stays canary') : bad('gate default drifted: ' + defaultResolved.mode);
 
 console.log('\n' + (passes + failures) + ' checks -- ' + passes + ' pass / ' + failures + ' fail');
 if (failures > 0) { console.error('\nFAIL'); process.exit(1); }

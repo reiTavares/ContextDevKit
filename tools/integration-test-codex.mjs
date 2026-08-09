@@ -7,8 +7,20 @@
  * and the `cdx.mjs` command runner alias.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { KIT, run, reporter, installFixture } from './it-helpers.mjs';
+import { isSkippedForCodex } from '../templates/contextkit/runtime/codex/convert-core.mjs';
+
+/** Recursively lists Markdown files so host parity never depends on a stale count. */
+function listMarkdownFiles(directory) {
+  const files = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...listMarkdownFiles(entryPath));
+    else if (entry.isFile() && entry.name.endsWith('.md')) files.push(entryPath);
+  }
+  return files;
+}
 
 const rep = reporter();
 const { ok, bad } = rep;
@@ -28,9 +40,17 @@ try {
   existsSync(join(proj, '.agents', 'skills', 'source-command-state', 'SKILL.md'))
     ? ok('Codex source-command skills installed under .agents/skills')
     : bad('Codex source-command skill missing');
-  readdirSync(join(proj, '.agents', 'skills')).filter((name) => name.startsWith('source-command-')).length === 83
-    ? ok('Codex installs all 83 canonical command projections (zero silent skips)')
-    : bad('Codex command projection count does not match Claude');
+  const installedClaudeCommandsRoot = join(proj, '.claude', 'commands');
+  const expectedCodexCommandCount = listMarkdownFiles(installedClaudeCommandsRoot)
+    .map((path) => relative(installedClaudeCommandsRoot, path).replaceAll('\\', '/'))
+    .filter((path) => path !== 'README.md' && !isSkippedForCodex(path))
+    .length;
+  const installedCodexCommandCount = readdirSync(join(proj, '.agents', 'skills'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('source-command-'))
+    .length;
+  installedCodexCommandCount === expectedCodexCommandCount
+    ? ok(`Codex installs all ${expectedCodexCommandCount} canonical command projections (zero silent skips)`)
+    : bad(`Codex command projection count does not match Claude (${installedCodexCommandCount}/${expectedCodexCommandCount})`);
 
   const reviewer = readFileSync(join(proj, '.codex', 'agents', 'code-reviewer.toml'), 'utf-8');
   /AGENTS\.md/.test(reviewer) && !/CLAUDE\.md/.test(reviewer)

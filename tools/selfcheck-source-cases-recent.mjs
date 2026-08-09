@@ -19,6 +19,8 @@ export const SOURCE_INVARIANT_CASES_RECENT = [
     ['release.yml runs the full gate before publish (ADR-0031)', '.github/workflows/release.yml', /run:\s*npm run ci/],
     ['release.yml publishes with npm provenance (ADR-0031)', '.github/workflows/release.yml', /npm publish --provenance/],
     ['release.yml grants id-token for provenance (ADR-0031)', '.github/workflows/release.yml', /id-token:\s*write/],
+    ['release.yml renders the authoritative version changelog before publication', '.github/workflows/release.yml', /release-notes\.mjs[\s\S]*--changelog CHANGELOG\.md/],
+    ['release.yml creates GitHub Release from the rendered full notes', '.github/workflows/release.yml', /gh release create[\s\S]*--notes-file/],
     ['preflight-version refuses an already-published version (ADR-0031)', 'tools/preflight-version.mjs', /ALREADY published/],
     // ADR-0032 — connect the substrate: classification + closed loops.
     ['complexity-rubric exposes classifyTask for the pipeline (ADR-0032)', 'templates/contextkit/tools/scripts/complexity-rubric.mjs', /export function classifyTask/],

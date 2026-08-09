@@ -28,7 +28,7 @@
     "test:integration:workflow": "node tools/run-suites.mjs --tier integration:workflow",
     "test:integration:enforcement": "node tools/run-suites.mjs --tier integration:enforcement",
     "test:integration:ecosystem": "node tools/run-suites.mjs --tier integration:ecosystem",
-    "test:release:v4": "node tools/release/v4/release-fences.selftest.mjs && node tools/release/v4/package-audit.mjs --check",
+    "test:release:v4": "node tools/release/release-notes.selftest.mjs && node tools/release/v4/release-fences.selftest.mjs && node tools/release/v4/package-audit.mjs --check",
     "test:impact": "node tools/run-suites.mjs --impact",
     "ci": "npm test && node templates/contextkit/tools/scripts/architecture-debt-gate.mjs --ci",
     "ci:full": "npm run ci",

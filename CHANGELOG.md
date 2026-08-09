@@ -22,43 +22,261 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [4.0.0] - 2026-08-09
 
-### Changed
-- **Governance-first runtime.** Interaction classification is mutation-only;
-  conversation and exploration create no task, workflow, contract, receipt, or
-  memory artifact. Host governance now runs through one bounded dispatcher per
-  event with deduplication, circuit breaking, a 500 ms aggregate budget, and
-  fail-open operational behavior.
-- **Single JSON work authority.** Workflow v2 packages use `workflow.json`,
-  `workflow-state.json`, and `pipeline/tasks.json` with exclusive
-  responsibilities, CAS-backed atomic transitions, derived Markdown, and no
-  status-shaped directories. CLI, MCP, dashboard, statusline, boot, and graph
-  consumers read the same authority.
-- **Human-sovereign policy.** Gate modes are centralized as
-  `off|shadow|canary|guarded`; architecture debt is canary, LGPD is shadow, and
-  model, agent, swarm, autonomy, and graph recommendations no longer authorize
-  or deny ordinary work.
-- **Portable hosts and installs.** Claude, Codex, Antigravity, and Grok share a
-  manifest-driven projection contract. Non-Git installs, ZIP distributions,
-  paths with spaces, updater cleanup, progress reporting, and bounded suite
-  execution are covered by deterministic tests.
+> **Major release.** ContextDevKit 4 replaces speculative, self-authorizing
+> governance with a mutation-only, human-sovereign runtime. It also completes
+> the state-authority cutover that 3.x started but did not activate. Read
+> [MIGRATION-3.x-TO-4.0.md](MIGRATION-3.x-TO-4.0.md) before updating an existing
+> installation; 4.0 intentionally has no automatic 3.x runtime fallback.
+
+This release implements the complete governance-first contract recorded by
+ADR-0158 / OP-0015 / WF-0111. Across the source tree it changes 976 files:
+40,280 insertions, 74,842 deletions, 68 new files, and 306 removed files. The
+net deletion is deliberate: replaced executable governance was removed instead
+of being retained as a second authority.
+
+### Breaking changes
+
+- **Canonical task authority.** Markdown lane directories are no longer task
+  storage. Task definition and status now live only in `pipeline/tasks.json`
+  schema v2 with the closed states `backlog`, `working`, `blocked`, `testing`,
+  `done`, and `cancelled`. `tasks.md` is an idempotent generated projection.
+- **Canonical workflow authority.** `workflow-plan.json` is replaced by
+  `workflow.json`; aggregate lifecycle state lives in the smaller
+  `workflow-state.json` schema v2. A completed workflow remains at its canonical
+  path with `status: done` instead of moving into a `done/` directory.
+- **No live compatibility layer.** Normal boot, hooks, CLI, MCP, dashboard,
+  statusline, graph, and host adapters cannot read lanes, workflow v1 plans,
+  autonomy grades, legacy swarm contracts, or old gate state. The explicit
+  offline migrator is the only code allowed to understand 3.x formats.
+- **Advisory orchestration.** Model selection, required-agent routing, swarm
+  size, autonomy, graph-first, workflow-presence, and semantic classifiers are
+  recommendations. Integrations that treated those results as authorization or
+  denial must now respect the active owner and host as the decision boundary.
+- **Configuration vocabulary.** The canonical gate modes are `off`, `shadow`,
+  `canary`, and `guarded`. The upgrade parser converts `advisory` to `canary`
+  and `strict` to `guarded` with warnings; those aliases are absent from the
+  normal runtime schema.
+- **Retired commands and APIs.** Session-ledger resume/watch commands, lane-card
+  mutations, implicit done sweeps, v1 workflow finalization commands, rigid
+  autonomy gates, and MCP mutation tools were removed. Consumers must use the
+  v4 task store, workflow package APIs, or read-only MCP resources.
+
+### Features (`feat`)
+
+#### Governance runtime
+
+- **`feat(governance)` — one canonical gate registry and resolver.** Every gate
+  resolves from one policy matrix with version/hash provenance, alias warnings,
+  default-canary degradation, `failurePolicy: continue`, a guarded allowlist,
+  and auditable scoped human overrides.
+- **`feat(governance)` — one process per governed host event.** Prompt
+  preflight, write preflight, postflight, and completion now enter through thin
+  dispatchers that normalize host payloads and share one evaluated context.
+  Session context uses the same host-neutral contract without reviving the 3.x
+  ledger writer.
+- **`feat(governance)` — bounded anti-loop execution.** Gate work is keyed by
+  `(session, workItem, revision, gate, moment)`, deduplicated across repeated
+  calls, guarded against re-entry, capped by timeout and aggregate budget, and
+  protected by a session circuit breaker. Internal failures remain observable
+  but do not break the developer's real command.
+- **`feat(intake)` — mutation-only interaction classification.** Conversation,
+  exploration, and unresolved intent create no task ID, workflow, contract,
+  receipt, graph artifact, completion obligation, or durable memory. A real
+  write attempt is the authoritative promotion signal and triggers preflight
+  exactly once, including writes to docs, configuration, and memory.
+- **`feat(intake)` — honest work shape.** Existing-work resolution runs before
+  durable creation. Work nature may be `business`, `operation`, `none`, or
+  `unclassified`; execution may be `direct`, `batch`, or `workflow`. Business,
+  `architecture`, ADR, compliance, or multi-agent vocabulary no longer forces a
+  workflow by itself.
+
+#### State, workflow, and migration
+
+- **`feat(tasks)` — canonical transactional task store.** Schema validation,
+  monotonic revisions, compare-and-swap, a cross-process lock, same-volume temp
+  files plus atomic rename, status/event pairing, idempotent commands,
+  corruption refusal, reference validation, and projection repair now share one
+  writer.
+- **`feat(workflow)` — complete Workflow v2 packages.** Atomic creation stages
+  and validates `workflow.json`, `workflow-state.json`, PRD, SPEC, decisions,
+  continuation, reports, `pipeline/tasks.json`, `pipeline/tasks.md`, and the
+  manifest before the package becomes visible. Read, validate, repair, render,
+  and rollback paths use the same catalog.
+- **`feat(pipeline)` — CLI cutover.** `pipeline`, `work`, and `workflow` commands
+  resolve explicit v4 scopes, use CAS transitions for every task state, refuse
+  lane paths and removed v1 verbs, and never reconstruct authority from
+  Markdown frontmatter.
+- **`feat(migration)` — explicit 3.x to 4.0 cutover.** The offline migrator
+  inventories every legacy card, rejects ambiguous identities, preserves
+  ownerless work as neutral work, conserves migrated plus quarantined counts,
+  normalizes statuses without fabricating history, and stages a complete v4
+  generation outside the installed runtime.
+- **`feat(migration)` — recovery proven before activation.** Staging records
+  source hashes, schema/parity receipts, a byte-verified v4 rollback generation,
+  and idempotence. Freeze and cutover use revisioned CAS markers; the old-writer
+  fence survives rollback, and retirement moves source evidence into a
+  hash-gated external audit bundle.
+- **`feat(consumers)` — one reader for every view.** MCP task/context resources,
+  dashboard, statusline, boot context, global status, and workflow context packs
+  now read the same v4 authority. MCP is read-only in 4.0; mutation remains at
+  the canonical writer boundary.
+- **`feat(consumers)` — governed context before workflow writes.** PRD, SPEC,
+  accepted decisions/ADRs, active task, aggregate state, and relevant reports
+  are loaded into a compact host-neutral context bundle before linked workflow
+  mutation, without inventing a separate receipt authority.
+
+#### Hosts, graph, and owner control
+
+- **`feat(hosts)` — manifest-driven projection parity.** Claude is the canonical
+  source and Codex, Antigravity, and Grok projections are generated, checked for
+  content drift, and cleaned of generated orphans. Five shared v4 contract
+  labels prove mutation-only intake, one governance dispatch, context-before-
+  write, canonical JSON state, and advisory routing.
+- **`feat(project-map)` — governed memory roots.** Project Map indexes source
+  plus active workflow, task, ADR/decision, report, operation, business,
+  preference, and migration-generation roots even when a parent is gitignored.
+  Partial, stale, or unavailable graph state immediately permits ordinary
+  Grep/Glob search instead of denying exploration.
+- **`feat(governance)` — human-sovereign policy.** Architecture debt defaults to
+  canary, LGPD to shadow, and routing/autonomy/swarm to advisory output. Only
+  QA-at-done, proven DDD Class A invariants, and new deterministic high-severity
+  technical debt are eligible for guarded denial.
+- **`feat(governance)` — owner preference memory.** Explicit owner preferences
+  are versioned, atomically written, scope-bound, redacted, and auditable. They
+  influence recommendations but never become hidden permissions or gates.
+
+### Changed (`refactor` / behavior)
+
+- **Hot-path simplification.** The 3.x multi-process hook chain is replaced by
+  internal, testable handlers behind one dispatcher. Runtime hooks retain zero
+  third-party dependencies and always exit safely on their own operational
+  errors.
+- **Task/workflow responsibility split.** Workflow topology, aggregate state,
+  task state, reports, and Markdown projections no longer duplicate each other.
+  Checksums and migration manifests are boundary evidence, not daily hot-path
+  state.
+- **Level semantics.** ContextDevKit levels select available capabilities; they
+  are not consent or authorization grades. Explicit owner instruction and host
+  safety controls remain authoritative.
+- **Batch execution.** Related independent work can use a real batch backed by
+  `tasks.json`; ordering, waves, multi-session dependencies, cutover, or rollback
+  still select a workflow.
+- **Release packaging.** npm contents are selected by a positive allowlist.
+  Development selftests, fixtures, snapshots, dogfood memory, temporary
+  analysis, backups, and update scratch data cannot leak into the tarball.
+
+### Fixes (`fix`)
+
+- **`fix(governance)` — cross-process mutation deduplication.** Repeated prompt
+  and write hooks for the same revision no longer classify, persist, or execute
+  the same gate twice, including concurrent processes.
+- **`fix(governance)` — owner override hardening.** Overrides validate actor,
+  reason, scope, policy identity, base revision, and expiry, reject replay or
+  cross-scope use, and cannot bypass platform security, secret, credential, or
+  destructive-action boundaries.
+- **`fix(portability)` — Git is optional.** Install/update, docs reindex, fleet
+  fixtures, path handling, and recovery now work in non-Git directories, ZIP
+  distributions, Windows paths, and paths containing spaces. Git-dependent
+  evidence reports `skipped` or `NON-GIT` honestly rather than a false pass.
+- **`fix(project-map)` — explicit roots are consumed.** The root list is no
+  longer decorative; active gitignored and external-generation memory enters
+  the graph, while unavailable providers degrade to search without a block.
+- **`fix(workflow)` — creator/validator parity.** A newly created workflow now
+  contains every artifact the validator and consumers require, and repair uses
+  stage/validate/swap/rollback instead of partially modifying a live package.
+- **`fix(tasks)` — WF-0059 activation gap.** The engine delivered in 3.x is now
+  wired into live readers and writers through the v4 schema, with parity,
+  rollback, cutover, and post-cutover writer fencing completed rather than
+  leaving physical lanes as a second authority.
+- **`fix(config)` — v4 defaults validate with optional Zod installed.** The
+  schema selfcheck now proves every current default section survives parsing
+  instead of requiring the deleted 3.x `pipeline` configuration object. Release
+  calibration also distinguishes the canonical canary default from an explicit
+  local dogfood override.
+- **`fix(hosts)` — projection-count regression.** Host integration tests derive
+  the expected Codex command count from the canonical Claude source and skip
+  policy instead of freezing a stale numeric total.
+- **`fix(release)` — complete GitHub Release notes.** Tag publication extracts
+  this exact version section from the authoritative root changelog and passes it
+  through `--notes-file`. Missing, duplicate, empty, or package-mismatched notes
+  refuse the release before npm publication; GitHub's compare-only generated
+  body is no longer used.
 
 ### Removed
-- **3.x executable governance.** Removed the multi-hook chain, implicit session
-  ledger, rigid routing/autonomy/required-agent gates, automatic workflow-plan
-  fallback, physical pipeline lane readers and writers, done sweeps, sidecars,
-  retired commands, and tests that existed only to preserve those contracts.
-- **Runtime compatibility mode.** There is no dual-read, dual-write, automatic
-  lane import, or v3 fallback. The only 3.x reader is the explicit offline
-  `tools/migrations/v3-to-v4/` importer.
 
-### Fixed
-- **WF-0059 activation gap.** The previously deferred wire-in and live cutover
-  are superseded by the 4.0 authority migration: conservation and parity are
-  verified, rollback remains v4, old writers stay fenced, and retired source
-  data moves to a hash-gated external audit bundle.
-- **Project Map roots.** Active memory is indexed even when gitignored or stored
-  in an external cutover generation; unavailable or stale graph data permits
-  ordinary search fallback.
+- **Executable 3.x governance.** Removed legacy ledgers and session markers,
+  execution/completion/journey/simulation/subagent gates, multi-hook composers,
+  done sweeps, source-case assertions, deprecated wrappers, and fallback
+  adapters that could reactivate replaced behavior.
+- **Lane and v1 workflow authorities.** Removed physical backlog/working/testing/
+  conclusion readers and writers, Markdown-card transitions, workflow v1 plan,
+  scheduler, finalization, checksum-chain, ownership sidecars, and `done/`
+  movement from all normal entrypoints.
+- **Rigid agent policy.** Removed required-agent denial, autonomy-grade floors,
+  mandatory council receipts, semantic swarm caps, routing-as-permission, and
+  LGPD escalation into write/completion blockers.
+- **Obsolete distribution material.** Removed orphan host projections, tests
+  whose only purpose was preserving deleted contracts, dead MCP mutation tools,
+  stale fixtures/snapshots, and executable archive copies. Historical ADRs,
+  reports, changelogs, and migration evidence remain data, never runtime code.
+
+### Security and safety
+
+- Path containment rejects traversal, reparse/symlink crossings, cross-volume
+  swaps, unsafe migration workspaces, and package entries outside the allowlist.
+- Every canonical state mutation validates before I/O, uses CAS plus atomic
+  rename, and refuses stale revisions, corruption, invalid references, or
+  mismatched source hashes.
+- Human overrides are narrowly scoped and auditable, but cannot override the
+  platform's secret handling, credential control, permission checks, or
+  confirmation requirements for destructive external actions.
+- npm publication remains tag-triggered in GitHub Actions, runs the full CI and
+  v4 release fences, and publishes with npm provenance. No second manual npm
+  publication path is required.
+
+### Documentation (`docs`)
+
+- Rewrote the English and pt-BR entry guides around mutation-only governance,
+  canonical JSON state, human sovereignty, current levels, host parity, and the
+  v4 command surface.
+- Added the complete [3.x to 4.0 migration guide](MIGRATION-3.x-TO-4.0.md),
+  including dry-run, staging, writer freeze, cutover, rollback drill, final
+  activation, source retirement, status/config conversion, refusals, and the
+  verification checklist.
+- Updated architecture, lifecycle, workflow-engine, configuration, governance,
+  Project Map, MCP, privacy, testing, and host documentation to remove claims
+  about deleted 3.x authorities.
+
+### Tests, build, and release engineering (`test` / `ci` / `chore`)
+
+- Added focused contracts for bilingual no-op intake, mutation promotion,
+  existing-work resolution, work nature/shape, gate modes, guarded allowlist,
+  anti-loop behavior, Workflow v2, task-store CAS, migration conservation,
+  rollback, old-writer fencing, authority consumers, Project Map fallback,
+  advisory routing, owner preferences, and host projection parity.
+- Added bounded suite execution with serial/pool progress, heartbeat, per-suite
+  timeout, full process-tree termination, and explicit exit `124` telemetry.
+- Added static legacy inventory, import reachability, dynamic module-load trace,
+  npm package audit, footprint capture, and a release gate that refuses any
+  reachable executable legacy or undeclared package content.
+- Added deterministic non-Git, Windows/path-space, tarball dogfood, clean
+  install/update, migration, rollback, and projection-orphan fixtures.
+- **`chore(hosts)` — regenerated canonical projections.** Privacy/LGPD agents
+  and every host-owned generated surface were regenerated from canonical source;
+  stale outputs are deleted on normal regeneration and rejected in check mode.
+
+### Upgrade sequence
+
+1. Stop all 3.x writers and read the migration guide.
+2. Run the migrator without `--write`; resolve duplicate or ambiguous IDs.
+3. Stage the external v4 generation and require schema, parity, and rollback
+   receipts to pass.
+4. Freeze v3 writers, perform the CAS cutover, exercise v4 rollback, and select
+   the accepted v4 generation.
+5. Verify CLI, MCP, dashboard, statusline, and Project Map against the same JSON
+   authority, then retire active v3 sources into the external audit bundle.
+6. Keep the migration workspace until the project's retention policy permits
+   deletion. Never restore a v3 writer or lane reader as rollback.
 
 ## [3.9.0] - 2026-08-02
 

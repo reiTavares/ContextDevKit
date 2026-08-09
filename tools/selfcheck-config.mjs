@@ -67,7 +67,10 @@ async function checkSchema(rep, mods, RT) {
   const { bad } = rep;
   const schema = await import('file://' + resolve(RT, 'config/schema.mjs').replaceAll('\\', '/'));
   const good = schema.validateConfig(defaults);
-  good.ok && good.config.qa && good.config.pipeline
+  const missingDefaultSections = good.ok
+    ? Object.keys(defaults).filter((section) => !(section in good.config))
+    : Object.keys(defaults);
+  good.ok && good.config.qa && missingDefaultSections.length === 0
     ? ok('schema validates DEFAULT_CONFIG + passthrough keeps every section') : bad('schema rejected defaults / dropped sections');
   good.ok && good.config.governance?.defaultMode === 'canary'
     && good.config.governance?.failurePolicy === 'continue'

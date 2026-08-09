@@ -23,14 +23,16 @@ try {
   write('templates/runtime/entry.mjs', "import './pipeline-session.mjs';\nexport const ready = true;\n");
   write('templates/runtime/pipeline-session.mjs', "export function autoAdvanceSessionTasks() {}\n");
   write('tools/selfcheck-source-cases-recent.mjs', "export const old = 'Stop hook auto-advances session tasks';\n");
+  write('docs/CHANGELOG.md', '# Changelog\n\nThe legacy workflow-plan.json authority was retired.\n');
 
   assert.throws(() => resolveContainedPath(root, '../escape'), /escapes repository root/);
   assert.throws(() => resolvePackagePath(root, '../escape'), /escapes root/);
   assert.equal(resolveModuleSpecifier(root, 'templates/runtime/entry.mjs', '../../../escape.mjs'), null);
 
-  const inventory = buildLegacyInventory({ root, scanRoots: ['install.mjs', 'templates', 'tools'] });
+  const inventory = buildLegacyInventory({ root, scanRoots: ['install.mjs', 'templates', 'tools', 'docs'] });
   assert.equal(inventory.complete, true);
   assert.ok(inventory.items.some((item) => item.path === 'templates/runtime/pipeline-session.mjs' && item.releaseBlocking));
+  assert.ok(inventory.items.some((item) => item.path === 'docs/CHANGELOG.md' && item.status === 'historical-archive' && !item.releaseBlocking));
   assert.match(renderLegacyInventoryMarkdown(inventory), /Retained consumers/);
 
   const reachability = analyzeLegacyReachability({

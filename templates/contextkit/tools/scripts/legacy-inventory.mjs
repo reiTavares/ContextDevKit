@@ -267,7 +267,10 @@ function isReleaseEvidence(path) {
 
 /** @param {string} path @returns {boolean} */
 function isHistoricalArchive(path) {
-  return path === 'CHANGELOG.md';
+  // The root file is product chronology; docs/CHANGELOG.md is installed-project
+  // chronology in this repository's gitignored dogfood. Both may name retired
+  // contracts as historical facts without becoming executable authorities.
+  return path === 'CHANGELOG.md' || path === 'docs/CHANGELOG.md';
 }
 
 /** @param {string} path @returns {boolean} */
