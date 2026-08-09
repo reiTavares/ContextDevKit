@@ -27,4 +27,4 @@ Um specialist pode retornar findings, recomendações, riscos e evidência. Apen
 
 Claude Code usa os agentes canônicos em `templates/claude/agents/`. Codex e Antigravity recebem projeções nativas geradas a partir dessas fontes; o projeto evita manter autoridades duplicadas por host.
 
-Consulte também [Hosts](hosts.md), [Contrato de governança](governance-contract.md) e [Modelo de qualidade](../explanation/quality-model.md).
+Consulte também [Hosts](hosts.md), [Contrato de governança](governance-contract.md), [Modelo de qualidade](../explanation/quality-model.md) e o [índice de idiomas](../../LANGUAGES.md).
