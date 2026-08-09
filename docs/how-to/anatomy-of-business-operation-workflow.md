@@ -2,7 +2,7 @@
 
 Goal: understand ContextDevKit's durable governance memory in one read — what a **Business**, an **Operation**, and a **Workflow** are, how they relate, where they live, and which files are authoritative.
 
-> pt-BR: see [anatomy-of-business-operation-workflow.pt-br.md](anatomy-of-business-operation-workflow.pt-br.md).
+> pt-BR: see [the Brazilian Portuguese version](../pt-BR/how-to/anatomy-of-business-operation-workflow.md).
 
 ## The three durable units
 
