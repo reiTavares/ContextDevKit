@@ -33,7 +33,7 @@ const ENGINE_MODULES = [
   'io.mjs', 'plan.mjs', 'state.mjs', 'create.mjs', 'render.mjs', 'dag.mjs',
   'scheduler.mjs', 'ownership.mjs', 'gates.mjs', 'results.mjs', 'continuation.mjs',
   'commands.mjs', 'create-files.mjs', 'files.mjs', 'profiles.mjs', 'patterns.mjs',
-  'addons.mjs', 'validate.mjs', 'glob.mjs',
+  'addons.mjs', 'validate.mjs', 'glob.mjs', 'catalog.mjs',
 ];
 /** The four declarative registries shipped under `workflow/registry/`. */
 const REGISTRY_JSONS = [
@@ -81,41 +81,40 @@ try {
   const reqFiles = run([cli, 'required-files', '--profile', 'basic'], { cwd: fix.proj });
   let reqArray = null;
   try { reqArray = JSON.parse(reqFiles.stdout); } catch { /* reported below */ }
-  reqFiles.status === 0 && Array.isArray(reqArray) && reqArray.includes('workflow-plan')
+  reqFiles.status === 0 && Array.isArray(reqArray) && reqArray.includes('workflow') && reqArray.includes('workflow-state') && reqArray.includes('tasks-json')
     ? ok('installed CLI: required-files --profile basic returns a sane file list')
     : bad(`installed required-files failed (status ${reqFiles.status}): ${reqFiles.stdout}${reqFiles.stderr}`);
 
-  const explain = run([cli, 'explain-file', 'risk-register'], { cwd: fix.proj });
+  const explain = run([cli, 'explain-file', 'workflow-state'], { cwd: fix.proj });
   let explainObj = null;
   try { explainObj = JSON.parse(explain.stdout); } catch { /* reported below */ }
-  explain.status === 0 && explainObj && explainObj.id === 'risk-register'
-    ? ok('installed CLI: explain-file risk-register returns the catalog entry')
+  explain.status === 0 && explainObj && explainObj.id === 'workflow-state'
+    ? ok('installed CLI: explain-file workflow-state returns the v2 catalog entry')
     : bad(`installed explain-file failed (status ${explain.status}): ${explain.stdout}${explain.stderr}`);
 
   // ── 4. wave creation works in the installed project ──────────────────────
   const created = run([cli, 'new', 'pkgdemo', '--profile', 'basic'], { cwd: fix.proj });
-  const planPath = join(fix.proj, 'contextkit', 'memory', 'workflows', '0001-pkgdemo', 'workflow-plan.json');
-  let plan = null;
-  try { plan = JSON.parse(readFileSync(planPath, 'utf-8').replace(/^﻿/, '')); } catch { /* reported below */ }
-  created.status === 0 && plan && Array.isArray(plan.waves) && plan.waves.length > 0
-    ? ok('installed CLI: new --profile basic creates a pack with a valid workflow-plan.json')
+  const packPath = join(fix.proj, 'contextkit', 'memory', 'workflows', 'WF-0001-pkgdemo');
+  const definitionPath = join(packPath, 'workflow.json');
+  let definition = null;
+  try { definition = JSON.parse(readFileSync(definitionPath, 'utf-8').replace(/^﻿/, '')); } catch { /* reported below */ }
+  created.status === 0 && definition && definition.schemaVersion === 2 && Array.isArray(definition.structure?.waves)
+    ? ok('installed CLI: new --profile basic creates a Workflow v2 definition')
     : bad(`wave creation failed (status ${created.status}): ${created.stdout}${created.stderr}`);
 
-  // Validate the freshly-created plan THROUGH the installed engine's own
+  // Validate the freshly-created package THROUGH the installed engine's own
   // validator — proves the shipped validate.mjs loads and runs in-project.
   const validateUrl = JSON.stringify(pathToFileURL(join(installedEngine, 'validate.mjs')).href);
-  const planUrl = JSON.stringify(pathToFileURL(join(installedEngine, 'plan.mjs')).href);
   const validatorSrc =
-    `import { validatePlan } from ${validateUrl};` +
-    `import { readPlan } from ${planUrl};` +
-    `const r = validatePlan(readPlan(${JSON.stringify(planPath.replace(/\\/g, '/'))}));` +
+    `import { validatePack } from ${validateUrl};` +
+    `const r = validatePack(${JSON.stringify(packPath.replace(/\\/g, '/'))});` +
     `process.stdout.write(JSON.stringify({ ok: r.valid === true, errors: r.errors || [] }));`;
   const validated = run(['--input-type=module', '-e', validatorSrc], { cwd: fix.proj });
   let verdict = null;
   try { verdict = JSON.parse(validated.stdout); } catch { /* reported below */ }
   validated.status === 0 && verdict && verdict.ok && (verdict.errors.length === 0)
-    ? ok('installed engine validates its own generated plan (no errors)')
-    : bad(`installed validate.mjs rejected the generated plan (status ${validated.status}): ${validated.stdout}${validated.stderr}`);
+    ? ok('installed engine validates its own generated Workflow v2 package')
+    : bad(`installed validate.mjs rejected the generated package (status ${validated.status}): ${validated.stdout}${validated.stderr}`);
 
   // ── 5. a second --update is idempotent and preserves the engine ──────────
   const beforeListing = readdirSync(installedEngine).sort();

@@ -36,6 +36,23 @@ const MODULE_SUITES = [
 }));
 
 export const WORKFLOW_ENGINE_SUITES = Object.freeze([
+  {
+    id: 'workflow-v2',
+    file: 'tools/integration-test-workflow-v2.mjs',
+    tier: 'integration:workflow',
+    touches: [
+      'templates/contextkit/tools/scripts/workflow-pack.mjs',
+      'templates/contextkit/tools/scripts/workflow.mjs',
+      `${WORKFLOW_DIR}/catalog`,
+      `${WORKFLOW_DIR}/create`,
+      `${WORKFLOW_DIR}/files`,
+      `${WORKFLOW_DIR}/render`,
+      `${WORKFLOW_DIR}/validate`,
+      'templates/contextkit/tools/scripts/tasks-schema.mjs',
+      'templates/contextkit/tools/scripts/tasks-store.mjs',
+      'templates/contextkit/tools/scripts/tasks-validate.mjs',
+    ],
+  },
   ...MODULE_SUITES,
   {
     // WF-0084 finalization authority, lifecycle verbs, and I1-I10 adversarial fixtures.

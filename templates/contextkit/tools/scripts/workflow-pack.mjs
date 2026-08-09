@@ -1,340 +1,255 @@
 /**
- * Workflow spec-pack helpers (ADR-0057). New workflows live in
- * `contextkit/memory/workflows/<slug>/`, while the old single-file breadcrumb
- * remains readable for compatibility.
+ * Read-only Workflow v2 package loader and small aggregate lifecycle facade.
  *
- * Cohesion Note: Content completeness checks and validation gates are kept
- * cohesive inside this module to avoid fragmented parsing logic across files
- * and to keep workflow advancing atomic and safe.
+ * Runtime readers never fall back to `workflow-plan.json`, Markdown frontmatter,
+ * or physical status placement. Historical v3 input belongs exclusively to the
+ * explicit offline migrator.
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathsFor } from '../../runtime/config/paths.mjs';
-import { writeFileAtomicSync } from '../../runtime/hooks/safe-io.mjs';
-import { checkPhaseGaps } from './workflow-gate.mjs';
-import { resolveFolderName } from './workflow-number.mjs';
-import { parseFrontmatter } from './workflow-frontmatter.mjs';
-import { resolveWorkflow } from './registry/workflow.mjs';
-import { nextWorkflowNumber, workflowRoots } from './registry/ids.mjs';
-import { seedFileContents } from './workflow-pack-seeds.mjs';
-import { readCanonicalContinuationTemplate, resolveCeremonyManifest } from './workflow/ceremony-manifest.mjs';
-import { applyStateUpdate, readState, writeState } from './workflow/state.mjs';
+import { createWaveWorkflow, repairWorkflowScaffold } from './workflow/create.mjs';
+import { WORKFLOW_PHASES } from './workflow/catalog.mjs';
+import { readJsonSafe, writeJsonStable } from './workflow/io.mjs';
+import { renderWorkflowPack } from './workflow/render.mjs';
+import { assertValidPack, validatePack } from './workflow/validate.mjs';
 
-export { checkWorkflowDocument } from './workflow-doc-check.mjs';
-
-export const PHASES = ['intake', 'prd', 'spec', 'adr', 'roadmap', 'pipeline', 'ship', 'testing', 'conclusion'];
-const LEGACY_PHASES = ['roadmap', 'adr', 'tickets', 'ship'];
-const VALID_KINDS = new Set(['feature', 'architecture', 'bug', 'chore', 'spike']);
+export { repairWorkflowScaffold };
+export const PHASES = [...WORKFLOW_PHASES];
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,60}$/;
 
-function workflowsDir(root) { return resolve(pathsFor(root).memory, 'workflows'); }
+/** Normalize a path for containment and stable returned references. */
+function slash(value) {
+  return String(value).replace(/\\/g, '/');
+}
 
-/**
- * Resolves an owner's nested `workflows/` dir (BIZ-0001 ownership rule 3), so an
- * owned pack-workflow lands under its parent context — never loose/central. Mirrors
- * `ownerWorkflowsDir` in `workflow/create.mjs` (kept local to avoid a cross-module
- * cycle; ~6 lines). Returns null when the owner id is malformed or its context
- * folder does not exist yet (caller then falls back to central). [ADR-0116/0127]
- *
- * @param {string} root project root.
- * @param {string} owner owner id (`BIZ-####` / `OP-####`).
- * @returns {string|null} absolute `<owner-folder>/workflows` dir, or null.
- */
-function ownerWorkflowsDir(root, owner) {
-  if (!/^(BIZ|OP)-\d{4}$/.test(owner || '')) return null;
-  const base = resolve(pathsFor(root).memory, owner.startsWith('BIZ') ? 'business' : 'operations');
-  try {
-    for (const entry of readdirSync(base, { withFileTypes: true })) {
-      if (entry.isDirectory() && entry.name.startsWith(`${owner}-`)) return resolve(base, entry.name, 'workflows');
+/** True when `candidate` is inside `parent`. */
+function isContained(parent, candidate) {
+  const rel = relative(resolve(parent), resolve(candidate));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+/** Enumerate active canonical workflow roots without creating missing paths. */
+function workflowRoots(root) {
+  const paths = pathsFor(root);
+  const roots = [join(paths.memory, 'workflows')];
+  for (const contextsRoot of [paths.business, paths.operations]) {
+    if (!existsSync(contextsRoot)) continue;
+    for (const entry of readdirSync(contextsRoot, { withFileTypes: true })) {
+      if (entry.isDirectory()) roots.push(join(contextsRoot, entry.name, 'workflows'));
     }
-  } catch { /* no contexts root yet */ }
-  return null;
+  }
+  return roots;
+}
+
+/** Enumerate directories that actually contain a canonical workflow definition. */
+function workflowDirectories(root) {
+  const directories = [];
+  for (const workflowsRoot of workflowRoots(root)) {
+    if (!existsSync(workflowsRoot)) continue;
+    for (const entry of readdirSync(workflowsRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === '_TEMPLATE') continue;
+      const directory = join(workflowsRoot, entry.name);
+      if (existsSync(join(directory, 'workflow.json'))) directories.push(directory);
+    }
+  }
+  return directories.sort((left, right) => slash(left).localeCompare(slash(right)));
 }
 
 /**
- * Absolute pack dir for an id-or-slug, resolved across EVERY root (BIZ-0001 /
- * WF-0036 A4): top-level `workflows/` plus each owned `business|operations/<id>/
- * workflows/`. Without this an owner-nested workflow (ownership rule 3) is
- * invisible to `readWorkflow`/`status`/`advance`. Order: (1) a direct central
- * match — also the not-yet-created path `createWorkflow` probes, so create stays
- * central; (2) else the cross-root `resolveWorkflow` row's memory-relative
- * `.path`, rebased absolute; (3) else the central path (unknown slug → "missing").
- * @param {string} root project root.
- * @param {string} slug workflow id or slug.
- * @returns {string} absolute pack directory (may not exist yet).
+ * Resolve a workflow id, slug, folder, or contained path to its canonical dir.
+ * @param {string} root project root
+ * @param {string} ref workflow reference
+ * @returns {string}
+ * @throws {Error} when missing, ambiguous, or outside the memory root
  */
-export function packDir(root, slug) {
-  const central = resolve(workflowsDir(root), resolveFolderName(workflowsDir(root), slug));
-  if (existsSync(central)) return central;
-  const hit = resolveWorkflow(slug, root);
-  if (hit && hit.path) return resolve(pathsFor(root).memory, hit.path);
-  return central;
+export function resolveWorkflowDirectory(root, ref) {
+  if (typeof ref !== 'string' || ref.trim().length === 0) throw new TypeError('workflow reference is required');
+  const memoryRoot = pathsFor(root).memory;
+  const pathCandidate = isAbsolute(ref) ? resolve(ref) : resolve(root, ref);
+  if (existsSync(pathCandidate) && statSync(pathCandidate).isDirectory() && existsSync(join(pathCandidate, 'workflow.json'))) {
+    if (lstatSync(pathCandidate).isSymbolicLink()) throw new Error(`Workflow path must not be a symbolic link: ${pathCandidate}`);
+    const canonicalCandidate = realpathSync(pathCandidate);
+    const canonicalMemory = realpathSync(memoryRoot);
+    if (!isContained(canonicalMemory, canonicalCandidate)) throw new Error(`Workflow path escapes the memory root: ${pathCandidate}`);
+    return canonicalCandidate;
+  }
+  const matches = [];
+  for (const directory of workflowDirectories(root)) {
+    const definition = readJsonSafe(join(directory, 'workflow.json'), null);
+    if (definition?.id === ref || definition?.slug === ref || directory.endsWith(`${ref}`)) matches.push(directory);
+  }
+  if (matches.length === 0) throw new Error(`Workflow "${ref}" not found`);
+  if (matches.length > 1) throw new Error(`Workflow reference "${ref}" is ambiguous: ${matches.join(', ')}`);
+  return matches[0];
 }
-function indexFile(root, slug) { return resolve(packDir(root, slug), 'index.md'); }
-function legacyFile(root, slug) { return resolve(workflowsDir(root), `${slug}.md`); }
-function stamp() { return new Date().toISOString(); }
-function day() { return new Date().toISOString().slice(0, 10); }
+
+/** Absolute pack directory for an existing v2 workflow. */
+export function packDir(root, ref) {
+  return resolveWorkflowDirectory(root, ref);
+}
+
+/** Read a UTF-8 document, returning null only for an optional absent file. */
+function readDocument(path, optional = false) {
+  if (!existsSync(path)) {
+    if (optional) return null;
+    throw new Error(`Required workflow document is missing: ${path}`);
+  }
+  return readFileSync(path, 'utf8');
+}
+
+/** Read factual report contents recursively in stable path order. */
+function readReports(packDirectory) {
+  const reportsRoot = join(packDirectory, 'reports');
+  const reports = [];
+  const visit = (directory) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) visit(path);
+      else if (entry.isFile()) reports.push({ ref: slash(relative(packDirectory, path)), content: readFileSync(path, 'utf8') });
+      else if (entry.isSymbolicLink()) throw new Error(`Workflow report must not be a symbolic link: ${path}`);
+    }
+  };
+  visit(reportsRoot);
+  return reports;
+}
 
 /**
- * Current git branch (ADR-0071), zero-dep. Handles worktrees where `.git` is a
- * file pointing at the real gitdir. Returns null when undeterminable (detached
- * HEAD, no repo): a null-branch workflow never scopes the guard to a branch.
+ * Load and validate the complete governed context before workflow mutation.
+ * This function is strictly read-only and includes authored docs and reports,
+ * not merely their references.
+ * @param {string} root project root
+ * @param {string} ref workflow id, slug, folder, or contained absolute path
+ * @returns {{dir:string,definition:object,state:object,tasks:object,manifest:object,documents:object,reports:Array<{ref:string,content:string}>}}
  */
+export function loadWorkflowPack(root, ref) {
+  const directory = resolveWorkflowDirectory(root, ref);
+  const { definition, state, tasks, manifest } = assertValidPack(directory);
+  return {
+    dir: directory,
+    definition,
+    state,
+    tasks,
+    manifest,
+    documents: {
+      prd: readDocument(join(directory, 'prd.md')),
+      spec: readDocument(join(directory, 'spec.md')),
+      decisions: readDocument(join(directory, 'decisions.md')),
+      continuation: readDocument(join(directory, 'CONTINUATION-PROMPT.md'), true),
+    },
+    reports: readReports(directory),
+  };
+}
+
+/**
+ * Compatibility-shaped view for callers that need a concise workflow row. All
+ * values still originate in canonical v2 JSON; `index.md` is never parsed.
+ */
+export function readWorkflow(root, ref) {
+  const pack = loadWorkflowPack(root, ref);
+  return {
+    format: 'v2',
+    id: pack.definition.id,
+    number: pack.definition.id.slice(3),
+    slug: pack.definition.slug,
+    title: pack.definition.title,
+    owner: pack.definition.owner,
+    currentPhase: pack.state.phase,
+    status: pack.state.status,
+    revision: pack.state.revision,
+    started: pack.definition.createdAt,
+    path: join(pack.dir, 'index.md'),
+    dir: pack.dir,
+    definition: pack.definition,
+    state: pack.state,
+    tasks: pack.tasks,
+    manifest: pack.manifest,
+  };
+}
+
+/** List every active v2 workflow; invalid packs remain visible as malformed. */
+export function listWorkflows(root) {
+  return workflowDirectories(root).map((directory) => {
+    try {
+      return readWorkflow(root, directory);
+    } catch (error) {
+      return { malformed: true, format: 'v2', path: directory, error: error.message };
+    }
+  }).sort((left, right) => String(right.started ?? '').localeCompare(String(left.started ?? '')));
+}
+
+/** Create through the one atomic Workflow v2 creator. */
+export function createWorkflow(root, slug, kind = 'feature', owner = null, options = {}) {
+  return readWorkflow(root, createWaveWorkflow(root, slug, {
+    ...options,
+    owner,
+    now: options.now ?? new Date().toISOString(),
+    objective: options.objective ?? `${kind}: ${slug}`,
+  }).dir);
+}
+
+/** Return full-pack validation gaps without reading Markdown as authority. */
+export function checkWorkflow(root, ref) {
+  const directory = resolveWorkflowDirectory(root, ref);
+  const verdict = validatePack(directory);
+  const state = readJsonSafe(join(directory, 'workflow-state.json'), null);
+  return {
+    currentPhase: state?.phase ?? 'unknown',
+    missing: verdict.errors.map((error) => `${error.path || '(pack)'}: ${error.message}`),
+    valid: verdict.valid,
+  };
+}
+
+/** Persist workflow aggregate state with a monotonic revision guard. */
+function writeWorkflowStateCas(path, current, next) {
+  const persisted = readJsonSafe(path, null);
+  if (!persisted || persisted.revision !== current.revision) {
+    throw new Error(`Workflow state CAS refused: expected revision ${current.revision}, found ${persisted?.revision ?? 'missing'}`);
+  }
+  if (next.revision !== current.revision + 1) throw new Error('Workflow state revision must increment by exactly one');
+  return writeJsonStable(path, next);
+}
+
+/** Advance only the aggregate workflow phase; task state remains W06-owned. */
+export function advanceWorkflow(root, ref, evidenceRef = '', options = {}) {
+  const pack = loadWorkflowPack(root, ref);
+  if (options.expectedRevision !== undefined && options.expectedRevision !== pack.state.revision) {
+    throw new Error(`Workflow state CAS refused: expected revision ${options.expectedRevision}, found ${pack.state.revision}`);
+  }
+  const phaseIndex = PHASES.indexOf(pack.state.phase);
+  if (phaseIndex < 0) throw new Error(`Unknown workflow phase: ${pack.state.phase}`);
+  const nextPhase = PHASES[phaseIndex + 1] ?? pack.state.phase;
+  const completed = phaseIndex === PHASES.length - 1;
+  const now = options.now ?? new Date().toISOString();
+  const next = {
+    ...pack.state,
+    status: completed ? 'done' : pack.state.status === 'backlog' ? 'working' : pack.state.status,
+    phase: nextPhase,
+    revision: pack.state.revision + 1,
+    lastReportRef: evidenceRef || pack.state.lastReportRef,
+    startedAt: pack.state.startedAt ?? now,
+    updatedAt: now,
+    completedAt: completed ? now : pack.state.completedAt,
+  };
+  writeWorkflowStateCas(join(pack.dir, 'workflow-state.json'), pack.state, next);
+  try {
+    renderWorkflowPack(pack.dir);
+  } catch (error) {
+    throw new Error(`Workflow state committed at revision ${next.revision}, but projection repair failed: ${error.message}`);
+  }
+  return readWorkflow(root, pack.dir);
+}
+
+/** Optional Git branch enrichment; absence is a valid non-Git result. */
 export function currentBranch(root) {
-  let gitDir = resolve(root, '.git');
+  let gitDirectory = join(root, '.git');
   try {
-    const meta = readFileSync(gitDir, 'utf-8'); // throws if .git is a directory (normal repo)
-    const m = meta.match(/^gitdir:\s*(.+)$/m);
-    if (m) gitDir = resolve(root, m[1].trim());
-  } catch { /* normal repo: .git is a directory */ }
+    const pointer = readFileSync(gitDirectory, 'utf8').match(/^gitdir:\s*(.+)$/m);
+    if (pointer) gitDirectory = resolve(root, pointer[1].trim());
+  } catch { /* a normal repository stores .git as a directory */ }
   try {
-    const head = readFileSync(resolve(gitDir, 'HEAD'), 'utf-8').trim();
-    const ref = head.match(/^ref:\s*refs\/heads\/(.+)$/);
-    return ref ? ref[1] : null;
+    return readFileSync(join(gitDirectory, 'HEAD'), 'utf8').trim().match(/^ref:\s*refs\/heads\/(.+)$/)?.[1] ?? null;
   } catch {
     return null;
   }
-}
-
-function phaseMap(phases) {
-  return Object.fromEntries(phases.map((phase) => [phase, { status: 'pending', ref: '' }]));
-}
-
-function parseWorkflowText(text, phases = PHASES, format = 'pack') {
-  const parsed = parseFrontmatter(text);
-  if (!parsed) return null;
-  const workflowPhases = {};
-  for (const phase of phases) {
-    workflowPhases[phase] = {
-      status: parsed.frontmatter[phase] || 'pending',
-      ref: parsed.frontmatter[`${phase}-ref`] || '',
-    };
-  }
-  return {
-    format,
-    slug: parsed.frontmatter.slug,
-    kind: parsed.frontmatter.kind || '',
-    number: parsed.frontmatter.number || '',
-    // ADR-0116 round-trip (card #357): owner must survive read→advance→render, else
-    // an advanced workflow loses its BIZ/OP owner and the done-sweep can't file it
-    // under its context. Empty string keeps renderIndex's `owner ?` guard honest.
-    owner: parsed.frontmatter.owner || '',
-    started: parsed.frontmatter.started || '',
-    branch: parsed.frontmatter.branch || '',
-    currentPhase: parsed.frontmatter.currentPhase || '',
-    phases: workflowPhases,
-    body: parsed.body,
-  };
-}
-
-function renderIndex(workflow) {
-  const lines = [
-    '---',
-    `slug: ${workflow.slug}`,
-    `kind: ${workflow.kind}`,
-    `number: ${workflow.number || ''}`,
-    ...(workflow.owner ? [`owner: ${workflow.owner}`] : []),
-    `started: ${workflow.started}`,
-    `branch: ${workflow.branch || ''}`,
-    `currentPhase: ${workflow.currentPhase}`,
-  ];
-  for (const phase of PHASES) {
-    const state = workflow.phases[phase] || { status: 'pending', ref: '' };
-    lines.push(`${phase}: ${state.status}`);
-    if (state.ref) lines.push(`${phase}-ref: ${state.ref}`);
-  }
-  lines.push('---', '', `# Workflow - ${workflow.slug}`, '');
-  lines.push('## Purpose', '', 'Track the PRD/PDR, SPEC, ADR, roadmap, pipeline, and completion evidence for this workflow.', '');
-  lines.push('## History', '');
-  const history = workflow.body.match(/## History\n([\s\S]*)$/)?.[1]?.trim();
-  lines.push(history || '- Created; next phase: intake.');
-  lines.push('');
-  return lines.join('\n');
-}
-
-function write(root, slug, relativePath, text) {
-  const fullPath = resolve(packDir(root, slug), relativePath);
-  mkdirSync(resolve(fullPath, '..'), { recursive: true });
-  writeFileAtomicSync(fullPath, text);
-}
-
-function seedFiles(root, slug, kind, number = '', owner = null, packDirAbs = null, shape = null) {
-  // When packDirAbs is supplied (owner-nested create), write directly to it — the
-  // not-yet-on-disk nested dir is invisible to packDir() until resolveWorkflow's
-  // fs-walk sees it, so creation must target the explicit dir. Back-compat: when
-  // null, behave exactly as before (central via packDir).
-  const base = packDirAbs || packDir(root, slug);
-  const writeTo = (rel, text) => {
-    const full = resolve(base, rel);
-    mkdirSync(resolve(full, '..'), { recursive: true });
-    writeFileAtomicSync(full, text);
-  };
-  for (const seed of seedFileContents(slug)) writeTo(seed.filename, seed.content);
-  if (shape) {
-    const shapeManifest = resolveCeremonyManifest(shape);
-    if (shapeManifest.workflowBearing) writeTo('CONTINUATION-PROMPT.md', readCanonicalContinuationTemplate());
-  }
-  writeTo('reports/.gitkeep', '');
-  const workflow = { slug, kind, number, owner: owner || '', started: stamp(), branch: currentBranch(root) || '', currentPhase: 'intake', phases: phaseMap(PHASES), body: '' };
-  writeTo('index.md', renderIndex(workflow));
-}
-
-export function createWorkflow(root, slug, kind = 'feature', owner = null, options = {}) {
-  if (!SLUG_RE.test(slug || '')) throw new Error(`slug must match ${SLUG_RE} (got "${slug || ''}")`);
-  if (!VALID_KINDS.has(kind)) throw new Error(`kind must be one of: ${[...VALID_KINDS].join(', ')}`);
-  // ADR-0116: feature/architecture work must declare an owner work-context (Operation/Business).
-  if ((kind === 'feature' || kind === 'architecture') && !/^(BIZ|OP)-\d{4}$/.test(owner || '')) {
-    throw new Error(`workflow "${slug}" (${kind}) needs an owner — pass --operation OP-#### or --business BIZ-#### (create it first). [ADR-0116]`);
-  }
-  // ADR-0116/0127 (BIZ-0001 ownership rule 3): an owned workflow NESTS under its
-  // parent context (operations/business/<owner>/workflows/), never loose/central.
-  // Fall back to central only when the owner's context folder does not exist yet.
-  const ownerDir = owner ? ownerWorkflowsDir(root, owner) : null;
-  const dir = ownerDir || workflowsDir(root);
-  mkdirSync(dir, { recursive: true });
-  if (existsSync(packDir(root, slug)) || existsSync(legacyFile(root, slug))) throw new Error(`workflow "${slug}" already exists`);
-  // UNIVERSAL numbering (BIZ-0001 / WF-0036 A4, ADR-0119): global max+1 across every
-  // root (legacy + business + operations + done/), NEVER a per-directory count.
-  const number = nextWorkflowNumber(root);
-  // WF-0069 fix (OP-0008 Finding #8): a pack that actually NESTS under an owner
-  // context gets the `WF-` prefix (mirrors `workflow/create.mjs`), so the registry's
-  // NEW_RE matches it and `ownerFromDir` recovers the owner into `resolveWorkflow` —
-  // an unprefixed nested dir falls to LEGACY_RE, which hardcodes owner:null (the bug).
-  // A CENTRAL pack (no owner, or the owner-context folder does not exist yet so we
-  // fell back to central) keeps the legacy `NNNN-slug` name: it registers unowned in
-  // central regardless of prefix, and the bare name preserves number-based resolution
-  // (`resolveFolderName` / NUM_RE). Prefix tracks PHYSICAL nesting, not the arg alone.
-  const nested = Boolean(ownerDir);
-  const packDirAbs = resolve(dir, nested ? `WF-${number}-${slug}` : `${number}-${slug}`);
-  mkdirSync(packDirAbs, { recursive: true });
-  seedFiles(root, slug, kind, number, owner, packDirAbs, options.shape || null);
-  return readWorkflow(root, slug);
-}
-
-/** Marker for an existing-but-unparseable artifact (malformed ≠ missing). */
-function malformed(path) { return { malformed: true, path }; }
-function isMalformed(entry) { return Boolean(entry && entry.malformed); }
-
-/**
- * Reads a spec-pack from an ABSOLUTE `index.md` path. null when genuinely absent;
- * an existing-but-unparseable index yields a `malformed` marker (constitution §8).
- * Path-based so it serves both the slug resolver and the cross-root walk.
- */
-function readPackAt(path) {
-  if (!existsSync(path)) return null;
-  const workflow = parseWorkflowText(readFileSync(path, 'utf-8'), PHASES, 'pack');
-  return workflow ? { ...workflow, path } : malformed(path);
-}
-
-/** Reads a spec-pack index for an id-or-slug (resolved across all roots). */
-function readPack(root, slug) {
-  return readPackAt(indexFile(root, slug));
-}
-
-/** Reads a legacy breadcrumb. Same malformed-vs-missing contract as readPack. */
-function readLegacy(root, slug) {
-  const path = legacyFile(root, slug);
-  if (!existsSync(path)) return null;
-  const workflow = parseWorkflowText(readFileSync(path, 'utf-8'), LEGACY_PHASES, 'legacy');
-  return workflow ? { ...workflow, path } : malformed(path);
-}
-
-export function readWorkflow(root, slug) {
-  const pack = readPack(root, slug);
-  if (isMalformed(pack)) throw new Error(`workflow "${slug}" is malformed (unparseable frontmatter): ${pack.path}`);
-  if (pack) return pack;
-  const legacy = readLegacy(root, slug);
-  if (isMalformed(legacy)) throw new Error(`workflow "${slug}" is malformed (unparseable frontmatter): ${legacy.path}`);
-  return legacy;
-}
-
-/**
- * Lists every workflow. Malformed entries are KEPT as `{ malformed, path }`
- * markers (never silently dropped) so `status` can print a `skipped (malformed)`
- * line; well-formed entries sort by start date, newest first.
- */
-export function listWorkflows(root) {
-  mkdirSync(workflowsDir(root), { recursive: true });
-  // Pack dirs from every ACTIVE workflow root (top-level + owned contexts),
-  // reusing `workflowRoots` so nested owned workflows are not blind spots
-  // (BIZ-0001 / WF-0036 A4). Read by absolute index path (no slug round-trip).
-  // `done/` archives are excluded to keep the prior active-only listing.
-  const packs = workflowRoots(root)
-    .filter((dir) => !dir.endsWith('/done') && existsSync(dir))
-    .flatMap((dir) => readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name !== '_TEMPLATE')
-      .map((entry) => readPackAt(resolve(dir, entry.name, 'index.md'))))
-    .filter((entry) => entry !== null);
-  // Legacy `.md` breadcrumbs only ever live in the central top-level root.
-  const legacy = readdirSync(workflowsDir(root), { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== '.gitkeep')
-    .map((entry) => readLegacy(root, entry.name.replace(/\.md$/, '')))
-    .filter((entry) => entry !== null);
-  const all = [...packs, ...legacy];
-  const valid = all.filter((entry) => !isMalformed(entry));
-  const broken = all.filter(isMalformed);
-  valid.sort((a, b) => String(b.started).localeCompare(String(a.started)));
-  return [...valid, ...broken];
-}
-
-/**
- * Reports the journey-gate gaps for a workflow's CURRENT phase (ADR-0071).
- * @returns {{ currentPhase: string, missing: string[] }}
- */
-export function checkWorkflow(root, slug) {
-  const workflow = readWorkflow(root, slug);
-  if (!workflow) throw new Error(`workflow "${slug}" not found`);
-  if (workflow.format === 'legacy') return { currentPhase: workflow.currentPhase, missing: [] };
-  return { currentPhase: workflow.currentPhase, missing: checkPhaseGaps(packDir(root, slug), workflow.currentPhase, workflow) };
-}
-
-export function advanceWorkflow(root, slug, ref = '', options = {}) {
-  const workflow = readWorkflow(root, slug);
-  if (!workflow) throw new Error(`workflow "${slug}" not found`);
-  if (workflow.format === 'legacy') return advanceLegacy(root, workflow, ref);
-  if (!options.force) {
-    const phaseState = workflow.phases[workflow.currentPhase] || {};
-    const candidate = ref
-      ? { ...workflow, phases: { ...workflow.phases, [workflow.currentPhase]: { ...phaseState, ref } } }
-      : workflow;
-    const gaps = checkPhaseGaps(packDir(root, slug), workflow.currentPhase, candidate);
-    if (gaps.length) {
-      throw new Error(`workflow "${slug}" cannot leave "${workflow.currentPhase}" - missing:\n  - ${gaps.join('\n  - ')}\nComplete these, or pass --force to override.`);
-    }
-  }
-  const index = PHASES.indexOf(workflow.currentPhase);
-  if (index < 0) throw new Error(`workflow "${slug}" has unknown currentPhase: ${workflow.currentPhase}`);
-  workflow.phases[workflow.currentPhase].status = 'done';
-  if (ref) workflow.phases[workflow.currentPhase].ref = ref;
-  const nextPhase = PHASES[index + 1];
-  const note = `${day()} - ${workflow.currentPhase} done${ref ? ` (ref: ${ref})` : ''}`;
-  workflow.currentPhase = nextPhase || 'done';
-  workflow.body = `${workflow.body.trim()}\n- ${note}${nextPhase ? `; next phase: ${nextPhase}` : '; workflow complete'}`.trim();
-  writeFileAtomicSync(indexFile(root, slug), renderIndex(workflow));
-  const statePath = resolve(packDir(root, slug), 'workflow-state.json');
-  const state = readState(statePath);
-  if (state && options.now) {
-    const overallStatus = state.overallStatus === 'done' ? 'done' : 'in-progress';
-    writeState(statePath, applyStateUpdate(state, {
-      journeyPhase: workflow.currentPhase,
-      overallStatus,
-    }, { now: options.now }));
-  }
-  return readWorkflow(root, slug);
-}
-
-function advanceLegacy(root, workflow, ref) {
-  const index = LEGACY_PHASES.indexOf(workflow.currentPhase);
-  if (index < 0) throw new Error(`workflow "${workflow.slug}" has unknown currentPhase: ${workflow.currentPhase}`);
-  workflow.phases[workflow.currentPhase].status = 'done';
-  if (ref) workflow.phases[workflow.currentPhase].ref = ref;
-  workflow.currentPhase = LEGACY_PHASES[index + 1] || 'done';
-  const lines = ['---', `slug: ${workflow.slug}`, `started: ${workflow.started}`, `currentPhase: ${workflow.currentPhase}`];
-  for (const phase of LEGACY_PHASES) {
-    lines.push(`${phase}: ${workflow.phases[phase].status}`);
-    if (workflow.phases[phase].ref) lines.push(`${phase}-ref: ${workflow.phases[phase].ref}`);
-  }
-  lines.push('---', '', workflow.body.trim(), `- ${day()} - advanced legacy workflow`);
-  writeFileAtomicSync(legacyFile(root, workflow.slug), `${lines.join('\n')}\n`);
-  return readWorkflow(root, workflow.slug);
 }
