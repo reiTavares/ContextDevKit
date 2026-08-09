@@ -84,7 +84,7 @@ Existe uma única autoridade gravável para cada tipo de estado:
 | Ciclo de vida do workflow | `workflow-state.json` |
 | Tarefas e status | `pipeline/tasks.json` |
 | Execução transitória do pipeline | `memory/runs/<run-id>/state.json` |
-| Preferências do owner | store canônico de preferências do owner |
+| Preferências do owner | `contextkit/memory/preferences/owner-preferences.json` |
 
 Os status são `backlog`, `working`, `blocked`, `testing`, `done` e `cancelled`.
 As escritas usam validação, revisão compare-and-swap, lock e substituição
@@ -114,6 +114,24 @@ WF-####-slug/
 Trabalhos direct e batch usam o mesmo contrato de tarefas dentro do contexto
 owner. Um workflow nasce completo em diretório sibling de staging, é validado e
 renomeado atomicamente para o destino.
+
+## Personalização do projeto
+
+O ContextDevKit mantém instruções duráveis específicas do projeto fora dos
+arquivos de host regenerados:
+
+- `contextkit/memory/preferences/personalization.md` guarda instruções
+  explícitas do projeto, sob autoria do usuário;
+- `contextkit/memory/preferences/owner-preferences.json` continua sendo o store
+  estruturado já existente, apenas recomendatório.
+
+O instalador cria ambos somente quando ausentes e nunca os sobrescreve, nem com
+`--force`. `CLAUDE.md`, `AGENTS.md` e `INSTRUCTIONS.md` recebem uma única
+referência delimitada aos dois arquivos. O update troca atomicamente apenas esse
+bloco e preserva byte a byte todo o texto do owner fora dele. O Markdown é
+contexto explícito do projeto; o JSON apenas orienta recomendações. Nenhum deles
+supera instruções atuais de system, developer e user nem limites de segurança da
+plataforma.
 
 ## Grafo, routing e agentes
 

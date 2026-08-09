@@ -7,6 +7,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { PLATFORM_DIR } from '../config/paths.mjs';
 
 export const OWNER_PREFERENCES_SCHEMA_VERSION = 1;
 export const OWNER_PREFERENCES_AUTHORITY = 'recommendation-only';
@@ -31,7 +32,7 @@ const SENSITIVE_VALUE_PATTERNS = Object.freeze([
  */
 function preferencePaths(root) {
   const projectRoot = resolve(root);
-  const directory = resolve(projectRoot, 'contextkit', 'memory', 'preferences');
+  const directory = resolve(projectRoot, PLATFORM_DIR, 'memory', 'preferences');
   if (directory !== projectRoot && !directory.startsWith(`${projectRoot}\\`) && !directory.startsWith(`${projectRoot}/`)) {
     throw new TypeError('owner-preferences: resolved path escaped the project root');
   }

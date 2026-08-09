@@ -27,17 +27,21 @@
  *                               is ours).
  * Nothing here throws on malformed input.
  *
- * ZERO runtime deps (immutable rule #1): only node:fs/promises + node:path.
- * BOM-safe reads, matching the sibling installer modules (tools/install/fs.mjs).
+ * ZERO runtime dependencies (immutable rule #1). BOM-safe reads and atomic
+ * writes reuse the sibling installer helpers.
  */
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { atomicWriteIfChanged } from '../fs.mjs';
 
 export const START_MARKER = '<!-- ContextDevKit:start -->';
 export const END_MARKER = '<!-- ContextDevKit:end -->';
 
-/** Reads a file, stripping a leading UTF-8 BOM (Windows-safe). */
+/**
+ * Read a UTF-8 file while stripping one leading BOM.
+ * @param {string} path absolute file path
+ * @returns {Promise<string>} BOM-free text
+ */
 async function readBom(path) {
   return (await readFile(path, 'utf-8')).replace(/^﻿/, '');
 }
@@ -47,11 +51,12 @@ async function readBom(path) {
  * sandwiched on its own line(s) between the markers; a trailing newline in the
  * body is normalised away so re-injecting the same body is byte-stable.
  * @param {string} body
+ * @param {{startMarker:string,endMarker:string}} markers validated marker pair
  * @returns {string}
  */
-function renderBlock(body) {
+function renderBlock(body, markers) {
   const inner = String(body).replace(/\r\n/g, '\n').replace(/^\n+/, '').replace(/\n+$/, '');
-  return `${START_MARKER}\n${inner}\n${END_MARKER}`;
+  return `${markers.startMarker}\n${inner}\n${markers.endMarker}`;
 }
 
 /**
@@ -59,14 +64,30 @@ function renderBlock(body) {
  * region to replace (from the start marker through the end marker, inclusive),
  * or `null` when there is no complete, well-formed block.
  * @param {string} text
+ * @param {{startMarker:string,endMarker:string}} markers validated marker pair
  * @returns {{ from: number, to: number } | null}
  */
-function locateBlock(text) {
-  const start = text.indexOf(START_MARKER);
+function locateBlock(text, markers) {
+  const start = text.indexOf(markers.startMarker);
   if (start === -1) return null;
-  const end = text.indexOf(END_MARKER, start + START_MARKER.length);
+  const end = text.indexOf(markers.endMarker, start + markers.startMarker.length);
   if (end === -1) return null; // start without end → not a valid block.
-  return { from: start, to: end + END_MARKER.length };
+  return { from: start, to: end + markers.endMarker.length };
+}
+
+/**
+ * Validate caller-owned marker names without permitting ambiguous boundaries.
+ * @param {{startMarker?:string,endMarker?:string}} [options] requested marker pair
+ * @returns {{startMarker:string,endMarker:string}} validated marker pair
+ * @throws {TypeError} when marker definitions are empty, multiline, or equal
+ */
+function resolveMarkers({ startMarker = START_MARKER, endMarker = END_MARKER } = {}) {
+  if (typeof startMarker !== 'string' || typeof endMarker !== 'string'
+    || startMarker.length === 0 || endMarker.length === 0
+    || startMarker === endMarker || /[\r\n]/.test(startMarker) || /[\r\n]/.test(endMarker)) {
+    throw new TypeError('marker-inject: markers must be distinct non-empty single-line strings');
+  }
+  return { startMarker, endMarker };
 }
 
 /**
@@ -87,33 +108,36 @@ function locateBlock(text) {
  * @param {object} opts
  * @param {string} opts.filePath  absolute path to the target file
  * @param {string} opts.body      kit-owned content to place between the markers
+ * @param {string} [opts.startMarker] dedicated start marker
+ * @param {string} [opts.endMarker] dedicated end marker
  * @returns {Promise<{ created: boolean, updated: boolean, appended: boolean }>}
  */
-export async function injectMarkedBlock({ filePath, body }) {
-  const block = renderBlock(body);
+export async function injectMarkedBlock({ filePath, body, startMarker, endMarker }) {
+  const markers = resolveMarkers({ startMarker, endMarker });
+  const block = renderBlock(body, markers);
 
   if (!existsSync(filePath)) {
-    await mkdir(dirname(filePath), { recursive: true });
-    await writeFile(filePath, `${block}\n`, 'utf-8');
+    await atomicWriteIfChanged(filePath, `${block}\n`);
     return { created: true, updated: false, appended: false };
   }
 
   const current = await readBom(filePath);
-  const span = locateBlock(current);
+  const span = locateBlock(current, markers);
 
   if (span) {
     const before = current.slice(0, span.from);
     const after = current.slice(span.to);
     const next = `${before}${block}${after}`;
     if (next === current) return { created: false, updated: false, appended: false };
-    await writeFile(filePath, next, 'utf-8');
+    await atomicWriteIfChanged(filePath, next);
     return { created: false, updated: true, appended: false };
   }
 
-  // No valid block — append, keeping the user's content intact above.
-  const base = current.replace(/\s+$/, '');
-  const next = base === '' ? `${block}\n` : `${base}\n\n${block}\n`;
-  await writeFile(filePath, next, 'utf-8');
+  // No valid block — append without normalizing even one owner-authored byte.
+  // Add only the separator needed after the existing payload.
+  const separator = current.endsWith('\n\n') ? '' : current.endsWith('\n') ? '\n' : '\n\n';
+  const next = current === '' ? `${block}\n` : `${current}${separator}${block}\n`;
+  await atomicWriteIfChanged(filePath, next);
   return { created: false, updated: false, appended: true };
 }
 
@@ -126,11 +150,13 @@ export async function injectMarkedBlock({ filePath, body }) {
  *
  * @param {string} text  current file content (caller is responsible for BOM strip
  *                        if reading raw; `stripMarkedBlockFile` handles it)
+ * @param {{startMarker?:string,endMarker?:string}} [options] dedicated marker pair
  * @returns {string | null} remaining content (no stray blank lines), or null
  */
-export function stripMarkedBlock(text) {
+export function stripMarkedBlock(text, options = {}) {
+  const markers = resolveMarkers(options);
   const src = typeof text === 'string' ? text.replace(/^﻿/, '') : '';
-  const span = locateBlock(src);
+  const span = locateBlock(src, markers);
   let rest;
   if (!span) {
     rest = src;
@@ -150,16 +176,17 @@ export function stripMarkedBlock(text) {
  * Never throws on a missing file — returns `{ removed: false }`.
  *
  * @param {string} filePath absolute path
+ * @param {{startMarker?:string,endMarker?:string}} [options] dedicated marker pair
  * @returns {Promise<{ removed: boolean, empty: boolean, content: string | null }>}
  */
-export async function stripMarkedBlockFile(filePath) {
+export async function stripMarkedBlockFile(filePath, options = {}) {
   if (!existsSync(filePath)) return { removed: false, empty: false, content: null };
   const current = await readBom(filePath);
-  const remaining = stripMarkedBlock(current);
+  const remaining = stripMarkedBlock(current, options);
   if (remaining === null) {
     return { removed: true, empty: true, content: null };
   }
   const next = `${remaining}\n`;
-  if (next !== current) await writeFile(filePath, next, 'utf-8');
-  return { removed: locateBlock(current) !== null, empty: false, content: remaining };
+  if (next !== current) await atomicWriteIfChanged(filePath, next);
+  return { removed: locateBlock(current, resolveMarkers(options)) !== null, empty: false, content: remaining };
 }

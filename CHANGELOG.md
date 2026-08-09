@@ -20,6 +20,88 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [4.0.2] - 2026-08-09
+
+> **Update-safe project personalization.** ContextDevKit 4.0.2 separates
+> durable owner-authored project guidance from regenerated host instructions.
+> It deliberately reuses the existing structured owner-preference store and
+> adds only one complementary Markdown file. Updates can refresh the bounded
+> references in each native host without replacing personalized content.
+
+### Features (`feat`)
+
+- **`feat(personalization)` — add one durable Markdown instruction source.** A
+  fresh install seeds
+  `contextkit/memory/preferences/personalization.md` for explicit,
+  project-specific user guidance. The file documents precedence and warns
+  against secrets, personal data, credentials, and temporary task text.
+- **`feat(personalization)` — reuse the canonical structured preference store.**
+  Structured preferences remain in the already established
+  `contextkit/memory/preferences/owner-preferences.json` schema v1. No
+  `personalization.json`, alias, mirror, or second JSON authority is introduced;
+  the store remains recommendation-only and cannot authorize work or weaken a
+  current instruction or platform boundary.
+- **`feat(hosts)` — reference both personalization sources from every native
+  host.** `CLAUDE.md`, `AGENTS.md`, and `INSTRUCTIONS.md` receive the same
+  dedicated `contextdevkit:personalization` block. It tells Claude Code, Codex,
+  and Antigravity to consult the Markdown instructions and structured JSON,
+  preserves their different authority semantics, and forbids agent edits unless
+  the user explicitly requests them.
+
+### Fixes (`fix`)
+
+- **`fix(installer)` — preserve personalization under every install mode.** The
+  Markdown and JSON seeds use create-if-missing semantics independently of the
+  ordinary memory-seed policy. Normal installs, updates, repeated installs, and
+  `--force` therefore never overwrite either user-owned file. The JSON seed has
+  the same schema, revision, preference array, and audit array expected by the
+  existing owner-preference runtime.
+- **`fix(installer)` — make native-host reference updates atomic and bounded.**
+  The marker injector now accepts validated caller-owned marker pairs and uses
+  same-directory atomic replacement for create, update, append, and strip.
+  Only the dedicated personalization block may change; existing ContextDevKit
+  blocks, user headings, comments, line content, and all bytes outside the
+  marker boundary remain owned by the project. Repeated installs are
+  idempotent and never duplicate the reference.
+- **`fix(update)` — snapshot every newly mutable or user-owned surface before
+  self-update.** Verified out-of-tree update backups now include `CLAUDE.md`,
+  `AGENTS.md`, `INSTRUCTIONS.md`, `personalization.md`,
+  `owner-preferences.json`, and `owner-preferences.audit.jsonl`, in addition to
+  configuration, install metadata, engine version, host settings, and workspace
+  claims. A failed or unverifiable snapshot still refuses before the first
+  target write.
+- **`fix(portability)` — derive preference paths from the platform directory.**
+  The owner-preference runtime and installer snapshot use `PLATFORM_DIR`
+  instead of introducing another hard-coded platform-folder path, retaining
+  Windows path-with-spaces and renamed-platform support.
+
+### Documentation (`docs`)
+
+- **`docs(personalization)` — document the single-source contract in English
+  and pt-BR.** Root guides, installed-kit guides, architecture, memory model,
+  configuration reference, footprint, customization, installer help, and the
+  update/rollback guide now identify the exact Markdown, JSON, and audit paths.
+  They distinguish explicit Markdown guidance from recommendation-only JSON
+  and state the precedence of current system, developer, user, and platform
+  safety instructions.
+- **`docs(update)` — describe the narrow host-root mutation boundary honestly.**
+  Previous broad claims that updates never touch boot instruction files are
+  replaced with the precise guarantee: only the dedicated pointer block may be
+  refreshed atomically, while owner prose and both personalization sources are
+  preserved.
+
+### Tests (`test`)
+
+- **`test(personalization)` — exercise a real install and repeated updates.** A
+  non-Git fixture whose path contains spaces verifies seed schema, one reference
+  in each native host, custom Markdown and JSON byte preservation across two
+  updates and `--force`, invalid-JSON fail-safe behavior, host-prose sentinels,
+  idempotence, and external backup contents.
+- **`test(installer)` — cover independent marker pairs and snapshot expansion.**
+  Focused integration checks prove coexistence with the original installer
+  block, exact outside-marker preservation, atomic update/strip behavior, and
+  verified capture of all three host roots plus Markdown, JSON, and audit state.
+
 ## [4.0.1] - 2026-08-09
 
 > **Workflow placement correction.** ContextDevKit 4.0.1 restores the

@@ -128,7 +128,10 @@ permission system.
 
 Owner preferences are versioned recommendations for routing and presentation.
 They are written atomically, audit changes, and redact sensitive values. They
-do not modify the central gate registry or become a second policy authority.
+live in `contextkit/memory/preferences/owner-preferences.json`; they do not
+modify the central gate registry or become a second policy authority. Longer,
+explicit project instructions belong in the separate user-owned
+`contextkit/memory/preferences/personalization.md`, not in a second JSON store.
 
 ## Other areas
 
