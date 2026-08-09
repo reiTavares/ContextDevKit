@@ -1,0 +1,33 @@
+{
+  "deltaTotalThroughput": 19545,
+  "naiveCumulativeSum": 74125,
+  "normalizedCumulativeTotal": 19545,
+  "inclusive": {
+    "confidence": "direct",
+    "buckets": {
+      "freshInput": 890,
+      "output": 670,
+      "cacheRead": 17450,
+      "cacheWrite": 535,
+      "reasoning": 0
+    }
+  },
+  "byAgent": {
+    "confidence": "direct",
+    "main": {
+      "freshInput": 590,
+      "output": 510,
+      "cacheRead": 11300,
+      "cacheWrite": 360,
+      "reasoning": 0
+    },
+    "subagent": {
+      "freshInput": 300,
+      "output": 160,
+      "cacheRead": 6150,
+      "cacheWrite": 175,
+      "reasoning": 0
+    }
+  },
+  "note": "Golden numbers computed from live pipeline on 2026-06-15; byte-frozen for regression testing"
+}

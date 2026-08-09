@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 2,
+  "decision": "recommend",
+  "binding": false,
+  "failurePolicy": "continue-current-agent",
+  "humanAuthority": "owner-wins",
+  "safetyBoundaries": ["platform-security", "secrets", "credentials", "destructive-external-actions"],
+  "_note": "Advisory model and effort catalog. It ranks optional executors but never authorizes, denies, or replaces the active agent. Missing, invalid, or disagreeing policy continues with the active agent and records an honest diagnostic.",
+  "adr": "ADR-0158",
+  "_hostNote": "hostModels maps demand tiers to host-specific recommendations. A host or active agent may ignore them; Antigravity remains an explicit unavailable recommendation without blocking.",
+  "_codexModelReference": "https://developers.openai.com/codex/models",
+  "_codexModelNote": "Codex recommended models: gpt-5.6-sol for flagship reasoning, gpt-5.6-terra for balanced work, and gpt-5.6-luna for fast/affordable work.",
+  "updated": "2026-08-08",
+  "tiers": {
+    "fast":      { "alias": "haiku",  "matrixTier": "cheap" },
+    "powerful":  { "alias": "sonnet", "matrixTier": "balanced" },
+    "reasoning": { "alias": "opus",   "matrixTier": "premium" }
+  },
+  "hostModels": {
+    "claude": {
+      "fast": "haiku",
+      "powerful": "sonnet",
+      "reasoning": "opus",
+      "inherit": "inherit"
+    },
+    "codex": {
+      "fast": "gpt-5.6-luna",
+      "powerful": "gpt-5.6-terra",
+      "reasoning": "gpt-5.6-sol",
+      "inherit": "inherit"
+    }
+  },
+  "codexDispatch": {
+    "policyVersion": "2026-08-01.1",
+    "supportedEfforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+    "canonicalComplexities": ["low", "moderate", "high", "xhigh", "critical"],
+    "canonicalRisks": ["low", "moderate", "high", "xhigh", "critical"],
+    "modelEfforts": {
+      "gpt-5.6-luna": ["low", "medium", "high", "xhigh", "max"],
+      "gpt-5.6-sol": ["low", "medium", "high", "xhigh", "max", "ultra"]
+    },
+    "matrixRules": [
+      { "complexity": "low", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "low", "ruleId": "codex-low-low-luna-low" },
+      { "complexity": "low", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "medium", "ruleId": "codex-low-moderate-luna-medium" },
+      { "complexity": "low", "risk": "high", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-low-high-luna-max" },
+      { "complexity": "low", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-low-xhigh-sol-high" },
+      { "complexity": "moderate", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "high", "ruleId": "codex-moderate-low-luna-high" },
+      { "complexity": "moderate", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-moderate-moderate-luna-max" },
+      { "complexity": "moderate", "risk": "high", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-moderate-high-luna-max" },
+      { "complexity": "moderate", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-moderate-xhigh-sol-high" },
+      { "complexity": "high", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-high-low-luna-max" },
+      { "complexity": "high", "risk": "moderate", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-high-moderate-luna-max" },
+      { "complexity": "high", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-high-high-sol-high" },
+      { "complexity": "high", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-high-xhigh-sol-xhigh" },
+      { "complexity": "xhigh", "risk": "low", "tier": "fast", "model": "gpt-5.6-luna", "effort": "max", "ruleId": "codex-xhigh-low-luna-max" },
+      { "complexity": "xhigh", "risk": "moderate", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "high", "ruleId": "codex-xhigh-moderate-sol-high" },
+      { "complexity": "xhigh", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-xhigh-high-sol-xhigh" },
+      { "complexity": "xhigh", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "max", "ruleId": "codex-xhigh-xhigh-sol-max" },
+      { "complexity": "critical", "risk": "low", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-low-sol-xhigh" },
+      { "complexity": "critical", "risk": "moderate", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-moderate-sol-xhigh" },
+      { "complexity": "critical", "risk": "high", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "xhigh", "ruleId": "codex-critical-high-sol-xhigh" },
+      { "complexity": "critical", "risk": "xhigh", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "max", "ruleId": "codex-critical-xhigh-sol-max" },
+      { "complexity": "critical", "risk": "critical", "tier": "reasoning", "model": "gpt-5.6-sol", "effort": "ultra", "ruleId": "codex-critical-critical-sol-ultra" }
+    ],
+    "criticalRiskPolicy": "continue-current-agent-when-unmatched",
+    "ultraPolicy": "critical-complexity-and-critical-risk-only",
+    "unmatched": "continue-current-agent"
+  },
+  "ladder": ["fast", "powerful", "reasoning"],
+  "inheritAgents": ["qa-orchestrator", "forge-orchestrator"],
+  "taskClasses": {
+    "think":     { "rule": "agent-tier", "note": "design / review / security / root-cause / planning — keep the agent's tier (orchestrator may bump one above for genuinely hard design)." },
+    "execute":   { "rule": "fast",       "note": "tests from a given plan / mechanical refactor / scaffold / format / summarize — drop to the cheap tier; QA gates catch regressions." },
+    "ambiguous": { "rule": "agent-tier", "note": "no LLM-judge per dispatch — fall back to the agent's static default." }
+  },
+  "agents": {
+    "architect": "reasoning",
+    "domain-modeler": "reasoning",
+    "implementation-engineer": "powerful",
+    "security": "reasoning",
+    "code-security": "reasoning",
+    "infra-security": "reasoning",
+    "privacy-lgpd": "reasoning",
+    "code-reviewer": "reasoning",
+    "agent-architect": "reasoning",
+    "devops": "powerful",
+    "test-engineer": "powerful",
+    "qa-e2e": "powerful",
+    "qa-perf": "powerful",
+    "qa-fuzzer": "powerful",
+    "prompt-engineer": "powerful",
+    "tool-designer": "powerful",
+    "eval-designer": "powerful",
+    "rag-designer": "powerful",
+    "governance-officer": "powerful",
+    "model-router": "powerful",
+    "ui-designer": "powerful",
+    "ux-designer": "powerful",
+    "accessibility": "powerful",
+    "landing-architect": "powerful",
+    "seo-specialist": "powerful",
+    "growth": "powerful",
+    "retention": "powerful",
+    "product-owner": "powerful",
+    "conversion-strategist": "powerful",
+    "tracking-integrator": "powerful",
+    "qa-unit": "fast",
+    "qa-integration": "fast",
+    "packager": "fast",
+    "context-keeper": "fast"
+  },
+  "hostGap": {
+    "agy": "host-gap-adr-0052"
+  }
+}

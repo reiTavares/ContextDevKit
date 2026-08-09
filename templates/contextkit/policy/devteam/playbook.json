@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
+  "id": "playbook",
+  "title": "Optional implementation playbook",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "playbookId": "devteam-implementation-recommendation",
+  "note": "The active agent may use these steps as a proportional planning aid. No role, packet, receipt or dispatch is mandatory.",
+  "steps": [
+    { "id": "classify", "order": 1, "title": "Classify", "owner": "active-agent", "recommendedWhen": "always" },
+    { "id": "model", "order": 2, "title": "Model", "owner": "active-agent", "recommendedWhen": "profile", "profileIn": ["domain-driven", "distributed-domain"] },
+    { "id": "decide", "order": 3, "title": "Decide", "owner": "active-agent", "recommendedWhen": "material-decision" },
+    { "id": "implement", "order": 4, "title": "Implement", "owner": "active-agent", "recommendedWhen": "always" },
+    { "id": "verify", "order": 5, "title": "Verify", "owner": "active-agent", "recommendedWhen": "always" },
+    { "id": "review", "order": 6, "title": "Review", "owner": "active-agent", "recommendedWhen": "risk-or-contract" }
+  ]
+}

@@ -1,0 +1,14 @@
+<!-- Fold 6 — FAQ. Kills the last logical objections. Scannable headings (no
+     accordion: hidden content is never read and useless for AISO). The build
+     also emits FAQPage JSON-LD from content/copy.json (same source, rule 4). -->
+<section class="section" id="faq" aria-labelledby="faq-title">
+  <div class="container narrow">
+    <h2 id="faq-title" class="section-title">{{copy.faq.title}}</h2>
+    <div class="qa">
+      <div class="qa-item"><h3>{{copy.faq.items.0.q}}</h3><p>{{copy.faq.items.0.a}}</p></div>
+      <div class="qa-item"><h3>{{copy.faq.items.1.q}}</h3><p>{{copy.faq.items.1.a}}</p></div>
+      <div class="qa-item"><h3>{{copy.faq.items.2.q}}</h3><p>{{copy.faq.items.2.a}}</p></div>
+      <div class="qa-item"><h3>{{copy.faq.items.3.q}}</h3><p>{{copy.faq.items.3.a}}</p></div>
+    </div>
+  </div>
+</section>

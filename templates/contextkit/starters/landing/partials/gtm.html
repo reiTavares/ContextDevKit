@@ -1,0 +1,26 @@
+<!-- Google Tag Manager — shipped DIRECTLY but ID-LESS and consent-gated.
+     Inert by construction: nothing loads unless BOTH hold —
+       1. lp.config.json has a real gtmId (empty string = this stays dead code);
+       2. the visitor accepted cookies (js/consent.js fires `lp:consent-granted`).
+     Consent Mode defaults to DENIED before any tag can run (LGPD posture). -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('consent', 'default', {
+    ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied',
+    analytics_storage: 'denied'
+  });
+  (function () {
+    function loadGtm() {
+      var id = (window.LP_CONFIG || {}).gtmId;
+      if (!id) return; // no container id configured — GTM never loads
+      gtag('consent', 'update', { analytics_storage: 'granted' });
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(id);
+      document.head.appendChild(s);
+      dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+    }
+    document.addEventListener('lp:consent-granted', loadGtm);
+  })();
+</script>

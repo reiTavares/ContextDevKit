@@ -1,0 +1,13 @@
+{
+  "id": "regulated",
+  "displayName": "Regulated / Compliance",
+  "description": "Minimal-surface profile for regulated environments (fintech, health, legal). Only context memory in read-only mode. All other servers require explicit per-project approval to limit blast radius in audited codebases.",
+  "servers": [
+    {
+      "id": "contextdevkit",
+      "mode": "read-only",
+      "referencedSecrets": [],
+      "allowedTools": ["session-log", "context-read", "glossary-read", "adr-read"]
+    }
+  ]
+}

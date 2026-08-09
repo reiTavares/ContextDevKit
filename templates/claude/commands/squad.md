@@ -1,39 +1,47 @@
 ---
-description: Show/route/grow the agent squads (devteam + qa-team) — the roster, when to use each, and how to add agents/squads.
-argument-hint: [show | route <task> | brief <agent> | new-squad <name>]
+description: Show/route/grow/audit the agent squads — the roster, playbooks, active routing, and onboarding config.
+argument-hint: [show | route <task-or-path> | activate <task-or-path> | brief <agent> | new-squad <name> | generate-playbooks]
 ---
 
 # 👥 Squads
 
-The sub-agents are organized into **squads** (see `vibekit/squads/README.md`):
-**devteam** (constructive — build + review) and **qa-team** (adversarial — verify
-behaviour). Agents live in `.claude/agents/` and install at **Level 4**.
+The sub-agents are organized into **squads** (see `contextkit/squads/README.md`):
+**devteam** (constructive — build + review), **qa-team** (adversarial — verify behaviour),
+**security-team** (AppSec & infrastructure), **compliance-team** (privacy & laws),
+**ops-team** (CI/CD workflows), **design-team** (UI/UX design), **growth-team** (acquisition & retention),
+and **agent-forge** (custom capability packaging).
 
 Act on **$ARGUMENTS**:
 
 ## show (default)
-Read `vibekit/squads/README.md` and list the squads, their members, and when to
-use each. If `.claude/agents/` isn't present, note the project is below Level 4 —
-suggest `/vibe-level 4` to enable the squads.
+Run `node contextkit/tools/scripts/squad.mjs list` (agents + briefings) and read `contextkit/squads/README.md`.
 
-## route <task>
-Pick the right squad/agent for the task and delegate (use the Agent tool to
-invoke the sub-agent). Building/designing/reviewing → **devteam** (`architect` →
-`code-reviewer`); testing/verifying → **qa-team** (via `qa-orchestrator`). For a
-full feature, prefer `/ship` (orchestrates the whole squad with checkpoints).
+## route <task-or-path>
+Analyze active git modifications or keyword intent and dynamically map to the correct squad, agent, and playbook:
+```
+node contextkit/tools/scripts/squad.mjs route <task-or-path>
+```
+It queries the squads-registry to identify the target postures and suggests custom agent scaffolding from `agent-forge` if third-party libraries (e.g. Stripe, Redis) lack dedicated agent coverage.
+
+## activate <task-or-path>
+Persist the detected posture in the current session ledger after a deliberate routing decision:
+```
+node contextkit/tools/scripts/squad.mjs activate <task-or-path>
+```
+Use this with the L5 guard after `/simulate-impact` when a high-risk path requires an active security/compliance/ops posture.
 
 ## brief <agent>
-Create/edit the **tier-2 rich briefing** for an agent at
-`vibekit/squads/<squad>/<agent>.md` (from `vibekit/squads/_BRIEFING.md.tpl`) —
-the deep reference (anti-patterns, recipes, edge cases) behind the lean
-`.claude/agents/<agent>.md`. Fill it with real, specific content for this project.
+Scaffold the **tier-2 rich briefing**, then fill it:
+```
+node contextkit/tools/scripts/squad.mjs brief <agent>
+```
 
 ## new-squad <name>
-Add a new squad (e.g. `design-team`, `product-team`, `ops-team`): create a
-section in `vibekit/squads/README.md` with its mandate + roster, and scaffold its
-agents from `.claude/agents/_TEMPLATE.md` (sharp `description`s). Keep the
-sovereignty rule clear (who decides on conflict).
+Add a new squad (e.g. `support-team`, `data-team`) and update the manifest roster.
 
-Remember the conflict rule: `code-reviewer` owns style/constitution;
-`qa-orchestrator` owns behaviour/sign-off; devteam decides until you harden the
-gates (`/vibe-level`).
+## generate-playbooks
+Scaffold the 8 default squad playbooks under `contextkit/workflows/playbooks/squads/` based on stack detection:
+```
+node contextkit/tools/scripts/squad.mjs generate-playbooks
+```
+These are synced/preserved across engine updates (ADR-0054).

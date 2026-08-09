@@ -1,0 +1,43 @@
+# Compliance pillar. Without it the agent is fined, sued, or banned. REQUIRED.
+pii:
+  detection:
+    enabled: {{true}}
+    categories: [cpf, cnpj, rg, email, phone, address, full_name, credit_card]
+    strategy: pre_call_redaction         # or: post_call_redaction | deny_on_detect
+  handling:
+    strategy: tokenize_then_send         # keep local ref, send a token
+    detokenize_on_response: true
+
+lgpd:
+  basis: {{legitimate_interest}}         # or: consent | contract | legal_obligation
+  data_subject_rights:
+    log_access: true
+    support_deletion_request: true
+  dpo_contact: {{dpo@example.com}}
+
+data_residency:
+  required: {{br-or-eu}}
+  allowed_providers: [anthropic, google, self-hosted]
+  denied_providers: [{{deepseek}}]       # if residency is a hard requirement
+
+retention:
+  zero_retention_required: {{true}}      # needs the provider's zero-retention flag
+  audit_log_retention_days: 1825         # 5 years
+  user_data_retention_days: 0
+
+audit:
+  log_inputs: true                       # after redaction
+  log_outputs: true
+  log_model_used: true
+  log_cost: true
+  log_fallback_triggered: true
+  log_pii_redactions: true
+  destination: file://./audit/{{AGENT_NAME}}.jsonl
+  schema: ../audit.schema.json
+
+red_team:
+  prompt_injection_tests: required
+  jailbreak_tests: required
+  pii_leak_tests: required
+  bias_tests: optional
+  run_before_each_release: true

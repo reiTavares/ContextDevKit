@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "cdk-calibration-profiles/1",
+  "updated": "2026-06-20",
+  "note": "Versioned, scoped calibration evidence consumed by the Session Autonomy Receipt estimator. A profile here is ONLY applied to a session whose task profile is compatible (see calibration-profiles.mjs#matchProfile). No value in this file is a global constant or a guarantee. Every profile carries claim:null and an evidence tier; only a HUMAN may elevate a claim via WF0018 (ADR-0080). Editing the numbers is ADR-gated (constitution §9); automation may only bump `updated`.",
+  "profiles": [
+    {
+      "calibrationId": "wf0018-compozy-c2",
+      "label": "WF0018 #242 pilot — compozy (Go, ~217k LOC) symptom-only bug-fix tasks",
+      "evidenceTier": "unpowered",
+      "claim": null,
+      "source": "WF0018 #242 pilot, n=8, reps=1 (reports/2026-06-19-economy-retest-ceiling.md)",
+      "observedTokens": 223453,
+      "baselineTokens": 312447,
+      "tokenEfficiencyMultiplier": 1.3983,
+      "lowerBound": 1.31,
+      "upperBound": 1.48,
+      "qaGreen": { "withKit": 8, "baseline": 8 },
+      "n": 8,
+      "reps": 1,
+      "confidence": "inferred",
+      "profile": {
+        "language": "go",
+        "framework": null,
+        "taskType": "bug-fix",
+        "repoSizeLoc": 217000,
+        "tasksPerSession": [4, 12]
+      },
+      "note": "Pilot SIGNAL, NOT a powered claim. ADR-0080 #243 gate requires >=3 matched reps and a matched-pair CI lower bound > 1.0x after Holm-Bonferroni at equal QA-green. Until a human elevates it, claim stays null and this profile yields claimType 'estimated' (never 'measured'). Apply only to compatible profiles; never as a default multiplier."
+    }
+  ]
+}

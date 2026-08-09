@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "path-rules",
+  "title": "Code-path classification rules — ADR-0128 plan §6",
+  "ruleClass": "A",
+  "note": "Deterministic path classification. Order: hard exclusions first, then directory patterns, then extension. Extension alone is never sufficient — generated/vendor/build/fixtures are hard exclusions that never start the full journey by themselves.",
+  "classes": ["source-code", "test-code", "domain-contract", "database-migration", "infrastructure-code", "configuration", "documentation", "generated", "vendor", "unknown"],
+  "hardExclusions": {
+    "classifyAs": "generated",
+    "dirPatterns": ["node_modules/", "vendor/", "dist/", "build/", "out/", ".next/", "coverage/", "__snapshots__/", "__fixtures__/", "fixtures/", ".git/", "generated/"],
+    "fileSuffixes": [".min.js", ".lock", "-lock.json", ".map", ".snap"],
+    "exactFiles": ["package-lock.json", "yarn.lock", "pnpm-lock.yaml"]
+  },
+  "vendorPatterns": { "classifyAs": "vendor", "dirPatterns": ["vendor/", "third_party/", "third-party/", "node_modules/"] },
+  "dirPatterns": [
+    { "classifyAs": "test-code", "patterns": ["test/", "tests/", "__tests__/", "spec/", ".test.", ".spec.", ".selftest.", "selfcheck-", "integration-test-"] },
+    { "classifyAs": "database-migration", "patterns": ["migrations/", "migrate/", "/migration/", "schema.sql", "/seeds/"] },
+    { "classifyAs": "infrastructure-code", "patterns": [".github/workflows/", "terraform/", "k8s/", "kubernetes/", "helm/", "dockerfile", "docker-compose", ".tf"] },
+    { "classifyAs": "domain-contract", "patterns": ["/contracts/", "/schemas/", "/domain/", ".proto", "openapi", ".graphql"] },
+    { "classifyAs": "documentation", "patterns": ["docs/", "/doc/", "readme", "changelog", "license"] },
+    { "classifyAs": "configuration", "patterns": ["config/", ".config.", ".json", ".yaml", ".yml", ".toml", ".ini", ".env"] }
+  ],
+  "sourceExtensions": [".mjs", ".js", ".ts", ".tsx", ".jsx", ".py", ".go", ".rs", ".java", ".rb", ".php", ".cs", ".cpp", ".c", ".h", ".kt", ".swift", ".scala"],
+  "documentationExtensions": [".md", ".mdx", ".rst", ".txt", ".adoc"],
+  "configExtensions": [".json", ".yaml", ".yml", ".toml", ".ini", ".env", ".properties"],
+  "fallbackClass": "unknown"
+}

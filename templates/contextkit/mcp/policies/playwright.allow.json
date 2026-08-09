@@ -1,0 +1,43 @@
+{
+  "$schema": "https://contextdevkit.dev/schemas/mcp-policy/playwright-allow/v1",
+  "version": 1,
+  "description": "Least-privilege allowlist for the Playwright MCP server (R3). Only read-oriented testing tools are permitted. Destructive, system-level, and file-mutation tools are explicitly denied. 'deny' always wins over 'allow'. No network secrets are required; the browser runs within workspace boundaries (R1/R3 boundary). Browser profile defaults to ephemeral (non-persistent) to prevent cross-session state leakage.",
+  "server": "playwright",
+  "riskClass": "R3",
+  "trustBoundary": "workspace",
+  "requiresNetworkSecret": false,
+  "browserProfile": {
+    "persistent": false,
+    "ephemeral": true
+  },
+  "allow": [
+    "browser_navigate",
+    "browser_snapshot",
+    "browser_screenshot",
+    "browser_wait_for",
+    "browser_accessibility_snapshot"
+  ],
+  "deny": [
+    "browser_install",
+    "browser_evaluate",
+    "browser_file_upload",
+    "browser_handle_dialog",
+    "browser_close",
+    "browser_click",
+    "browser_type",
+    "browser_drag",
+    "browser_select_option",
+    "browser_check",
+    "browser_uncheck",
+    "browser_hover",
+    "browser_press_key",
+    "browser_scroll",
+    "browser_resize",
+    "browser_network_request"
+  ],
+  "rationale": {
+    "allowed": "Navigate, snapshot, screenshot, wait-for, and a11y snapshot are read-only observation tools. They cannot mutate app state, write files, or exfiltrate data beyond capturing visible content.",
+    "denied_destructive": "browser_evaluate executes arbitrary JavaScript — too broad for guarded mode. browser_click/type/drag/select/check/hover/press_key/scroll can mutate app state or trigger unintended actions. browser_file_upload and browser_network_request cross the local-write and external-network trust boundaries respectively. browser_install modifies the host system. browser_handle_dialog can dismiss security prompts. browser_close terminates the browser process and can disrupt the test harness.",
+    "browser_evaluate_rationale": "browser_evaluate is excluded even in testing contexts because it allows injection of arbitrary JavaScript into the browser process, which can exfiltrate DOM content, trigger side effects in the SUT, or escalate privileges via the browser's rendering context."
+  }
+}

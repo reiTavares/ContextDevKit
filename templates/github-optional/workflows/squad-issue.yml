@@ -1,0 +1,225 @@
+# Squad — Issue to draft PR (ADR-0064).
+#
+# Installed by ContextDevKit into .github/workflows/. When an issue is labeled
+# `squad-ready`, this runs the local pipeline HEADLESS via the Claude Code CLI
+# and opens a DRAFT pull request. If the issue is too vague to act on, it posts a
+# clarification comment instead of a bad PR — re-applying the label re-triggers.
+#
+# REQUIRES the repository secret ANTHROPIC_API_KEY
+#   (Settings → Secrets and variables → Actions → New repository secret).
+# GITHUB_TOKEN is auto-provided; it powers `gh pr create` and `gh issue comment`.
+#
+# This is a TEMPLATE: it ships under templates/github/workflows/ and is copied
+# into a target only on install. Every PR it opens is a DRAFT — review + merge
+# stay human (ADR-0064).
+name: squad-issue
+
+on:
+  issues:
+    types: [labeled]
+
+# One run per issue. A re-label while a run is in flight queues rather than
+# cancels; the branch-reuse step handles the re-trigger gracefully.
+concurrency:
+  group: squad-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  squad:
+    # Only the `squad-ready` label fires the pipeline — nothing runs unattended
+    # without that explicit signal.
+    if: github.event.label.name == 'squad-ready'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Validate API key
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set."
+            echo "   Add it in: Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 20
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create working branch
+        id: branch
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          # feat/ when the title reads like a feature, fix/ otherwise.
+          if echo "$ISSUE_TITLE" | grep -qiE "^feat|feature|add |implement"; then
+            PREFIX="feat"
+          else
+            PREFIX="fix"
+          fi
+
+          # Slugify the title: lowercase, non-alphanumerics → dashes, trimmed.
+          SLUG=$(echo "$ISSUE_TITLE" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[^a-z0-9]/-/g' \
+            | sed 's/-\{1,\}/-/g' \
+            | sed 's/^-//;s/-$//' \
+            | cut -c1-50)
+
+          BRANCH="${PREFIX}/issue-${ISSUE_NUMBER}-${SLUG}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Reuse the branch on a re-trigger; create it otherwise.
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            echo "Branch $BRANCH already exists — checking out"
+            git fetch origin "$BRANCH"
+            git checkout "$BRANCH"
+          else
+            git checkout -b "$BRANCH"
+          fi
+
+      - name: Write the task brief from the issue
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          # The pipeline reads this brief as the task. contextkit/ (not .contextkit/).
+          mkdir -p contextkit/squad
+          {
+            echo "# Squad CI task — issue #${ISSUE_NUMBER}"
+            echo ""
+            echo "title: ${ISSUE_TITLE}"
+            echo "source: gh#${ISSUE_NUMBER}"
+            echo ""
+            echo "## Issue body"
+            echo ""
+            echo "${ISSUE_BODY}"
+          } > contextkit/squad/task.md
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run the pipeline headless
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          claude --dangerously-skip-permissions -p \
+            "You are running headless in CI for GitHub issue #${ISSUE_NUMBER}. \
+          Read CLAUDE.md and contextkit/squad/task.md (the issue title + body). \
+          FIRST decide if the task is actionable: it must have a clear, testable \
+          goal. If it is too vague to implement (no concrete outcome or acceptance \
+          criteria), DO NOT write code — instead write a file \
+          contextkit/squad/ci-result.md whose first line is exactly 'status: clarify' \
+          followed by a '### Questions' section listing the specific acceptance \
+          criteria you need, then STOP. \
+          Otherwise, run the local delivery pipeline for this task: drive /ship \
+          (the autonomous squad pipeline — design, implement, write tests, review) \
+          to build the change on the current branch. Write tests for what you add. \
+          Do NOT push and do NOT open a PR yourself — the workflow does that. When \
+          done, write contextkit/squad/ci-result.md whose first line is exactly \
+          'status: ready' followed by a short Markdown summary of the change for \
+          the PR body."
+
+      - name: Resolve pipeline result
+        id: result
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.branch.outputs.issue_number }}
+        run: |
+          STATUS="unknown"
+          if [ -f "contextkit/squad/ci-result.md" ]; then
+            STATUS=$(grep -m1 "^status:" contextkit/squad/ci-result.md | cut -d' ' -f2)
+          fi
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+          # Vague issue → comment with the questions, no PR. Re-label to re-trigger.
+          if [ "$STATUS" = "clarify" ]; then
+            QUESTIONS=$(grep -A100 "^### Questions" contextkit/squad/ci-result.md | tail -n +2)
+            gh issue comment "$ISSUE_NUMBER" --body "## 🤔 Squad needs clarification
+
+          This issue is too vague for the pipeline to act on safely. Please add the
+          missing acceptance criteria below, then **re-apply the \`squad-ready\` label**
+          to re-trigger the run:
+
+          ${QUESTIONS}
+
+          ---
+          *Automated by ContextDevKit Squad CI (ADR-0064)*"
+            echo "Posted clarification comment on issue #${ISSUE_NUMBER}"
+          fi
+
+      - name: Commit and push
+        if: steps.result.outputs.status != 'clarify'
+        id: commit
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          ISSUE_NUMBER: ${{ steps.branch.outputs.issue_number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          # Capture the summary for the PR body, then drop the scratch files.
+          if [ -f "contextkit/squad/ci-result.md" ]; then
+            {
+              echo "summary<<EOF_SUMMARY"
+              cat contextkit/squad/ci-result.md
+              echo "EOF_SUMMARY"
+            } >> "$GITHUB_OUTPUT"
+          fi
+          rm -f contextkit/squad/ci-result.md contextkit/squad/task.md
+          rmdir contextkit/squad 2>/dev/null || true
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes produced by the pipeline — nothing to commit."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "feat(issue-${ISSUE_NUMBER}): ${ISSUE_TITLE} — squad pipeline"
+          git push origin "$BRANCH"
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open draft PR
+        if: steps.result.outputs.status != 'clarify' && steps.commit.outputs.committed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.branch.outputs.issue_number }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          SUMMARY="${{ steps.commit.outputs.summary }}"
+          if [ -z "$SUMMARY" ]; then
+            SUMMARY="Automated squad pipeline run for issue #${ISSUE_NUMBER}."
+          fi
+          PR_BODY="${SUMMARY}
+
+          ---
+          Closes #${ISSUE_NUMBER}
+          *Generated by ContextDevKit Squad CI (ADR-0064). Opened as a DRAFT — review + merge are human.*"
+
+          # ALWAYS a draft — review and merge stay human (ADR-0064).
+          gh pr create \
+            --draft \
+            --title "${ISSUE_TITLE}" \
+            --body "$PR_BODY" \
+            --head "$BRANCH" \
+            --base "${{ github.event.repository.default_branch }}"

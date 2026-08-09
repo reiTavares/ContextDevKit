@@ -1,26 +1,44 @@
 #!/usr/bin/env node
 /**
- * VibeDevKit installer — entry point + orchestration.
+ * ContextDevKit installer — entry point + orchestration.
  *
  * Bootstraps the AI-assisted development platform into ANY project (greenfield
  * or existing, any stack). Idempotent: re-run it to change level or pull engine
  * updates. It never clobbers your own content (CLAUDE.md, memory, config
  * overrides); it only overwrites the kit's own engine code and slash commands.
  *
- * The mechanics live in focused modules under `tools/install/` (cli, fs,
- * project, git, uninstall); this file just wires the steps together.
+ * This file is a THIN ORCHESTRATOR [ADR-0037]: it resolves the install context
+ * (level / name / mode / --update), then calls the focused installers under
+ * `tools/install/` — wireClaudeSettings + installClaudeHost (claude.mjs),
+ * installEngine (engine.mjs), installAntigravityHost (antigravity.mjs),
+ * installCodexHost (codex.mjs), and installVcsIntegration (git.mjs). It detects
+ * --update and owns the summary; the
+ * per-file update guards live next to the writes they protect. Adding a fourth host
+ * is a new module + one call here, not more interleaving.
  * Run `node install.mjs --help` for usage and the full flag list.
  */
-import { existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-import { composeSettings } from './templates/vibekit/runtime/config/settings-compose.mjs';
-import { ensureDir, read, writeIfMissing, overwrite, copyTree, copyTreeIfMissing, render } from './tools/install/fs.mjs';
-import { detectStack, requireBasename, looksGreenfield } from './tools/install/project.mjs';
-import { installGitHooks, patchGitignore, patchGitattributes } from './tools/install/git.mjs';
+import { ensureDir, read } from './tools/install/fs.mjs';
+import { requireBasename, looksGreenfield } from './tools/install/project.mjs';
+import { installVcsIntegration } from './tools/install/git.mjs';
+import { installEngine, stampEngineVersion } from './tools/install/engine.mjs';
+import { runPreflight } from './tools/install/update-preflight.mjs';
+import { snapshotCriticalState, newUpdateId } from './tools/install/update-snapshot.mjs';
+import { DEFERRED_ACTIVE_SESSIONS, DEFERRED_SELF_UPDATE, FAILED_SNAPSHOT, UPDATED_WITH_PENDING_MERGES } from './tools/install/update-status.mjs';
+import { wireClaudeSettings, installClaudeHost } from './tools/install/claude.mjs';
+import { installAntigravityHost } from './tools/install/antigravity.mjs';
+import { installCodexHost } from './tools/install/codex.mjs';
+import { installGrokHost, wireGrokHooks } from './tools/install/grok.mjs';
+import { installBridges } from './tools/install/bridges/index.mjs';
 import { uninstall } from './tools/install/uninstall.mjs';
+import { loadManifest, saveManifest, resolveConflicts } from './tools/install/sync.mjs';
+import { isValidLevel } from './templates/contextkit/runtime/config/levels.mjs';
 import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
+import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
+import { maybeGenerateGraph } from './tools/install/graph-index.mjs';
+import { maybeInstallGraphDeps } from './tools/install/graph-deps.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
 const TPL = resolve(KIT_ROOT, 'templates');
@@ -41,7 +59,7 @@ async function main() {
     return;
   }
   if (args.version) {
-    console.log(`vibedevkit ${await kitVersion()}`);
+    console.log(`contextdevkit ${await kitVersion()}`);
     return;
   }
 
@@ -60,7 +78,7 @@ async function main() {
 
   if (interactive) {
     const rl = createInterface({ input: process.stdin, output: process.stdout });
-    console.log('\n🌀 VibeDevKit installer\n');
+    console.log('\n🌀 ContextDevKit installer\n');
     console.log(`Target: ${target}\n`);
     if (!name) name = await prompt(rl, 'Project name', requireBasename(target));
     if (!mode) {
@@ -70,166 +88,205 @@ async function main() {
     if (!level) {
       console.log('\nLevels:');
       for (const [k, v] of Object.entries(LEVEL_LABELS)) console.log(`  ${k}. ${v}`);
-      level = Number(await prompt(rl, '\nStart at level', '2'));
+      level = Number(await prompt(rl, '\nStart at level', String(mode === 'greenfield' ? 3 : 7)));
+    }
+    // CI Squad action is opt-in (ADR-0064): costs API credits + needs a repo secret.
+    if (args.ciSquad === undefined) {
+      const ans = await prompt(rl, '\nInstall the CI Squad GitHub Action (issue→draft PR; needs ANTHROPIC_API_KEY)? (y/N)', 'N');
+      args.ciSquad = /^y/i.test(ans);
     }
     rl.close();
   }
 
+  // Recommended starting level by project type: L3 for greenfield, L7 for a project
+  // that already has code (full toolkit; gates stay inert until configured). [ADR-0009]
+  const effMode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
+  const recommended = effMode === 'greenfield' ? 3 : 7;
+
   // Safe re-run / update: if no explicit --level, preserve the project's current
   // level (read from config) instead of silently downgrading to the default.
-  if (!(Number.isInteger(level) && level >= 1 && level <= 6)) {
+  if (!isValidLevel(level)) {
     try {
-      const existingCfg = JSON.parse(await read(join(target, 'vibekit', 'config.json')));
+      const existingCfg = JSON.parse(await read(join(target, 'contextkit', 'config.json')));
       if (Number.isInteger(existingCfg.level)) level = existingCfg.level;
     } catch {
       /* no config yet */
     }
   }
-  level = Number.isInteger(level) && level >= 1 && level <= 6 ? level : 2;
+  level = isValidLevel(level) ? level : recommended;
   name = name || requireBasename(target);
-  mode = mode === 'greenfield' || mode === 'existing' ? mode : looksGreenfield(target) ? 'greenfield' : 'existing';
+  mode = effMode;
 
   const report = [];
+  const version = await kitVersion();
 
-  // 1. settings.json (always — this is the wiring).
-  const settingsPath = join(target, '.claude', 'settings.json');
-  let existingSettings = null;
-  if (existsSync(settingsPath)) {
-    try {
-      existingSettings = JSON.parse(await read(settingsPath));
-    } catch {
-      report.push('⚠️  existing .claude/settings.json was malformed — recreated');
-    }
-  }
-  await overwrite(settingsPath, JSON.stringify(composeSettings(existingSettings, level), null, 2) + '\n');
-  report.push(`✓ .claude/settings.json wired for L${level}`);
+  // Read the prior installed engine version BEFORE installEngine stamps the new one,
+  // so the update notice can honestly show the "from → to" delta.
+  let priorVersion = null;
+  try {
+    priorVersion = (await read(join(target, 'contextkit', '.engine-version'))).trim() || null;
+  } catch { /* no prior install — first-run */ }
 
+  // Shared 3-way-sync context [ADR-0054]: host installers collect conflicts here;
+  // they are resolved in ONE pass below, then the manifest baseline is stamped.
+  const sync = { manifest: await loadManifest(target), nextFiles: {}, conflicts: [] };
+  const ctx = { name, level, mode, version, args, sync, priorVersion };
+
+  // --rewire: recompose the installed native host hook projections for the level, then stop.
   if (args.rewire) {
+    await wireClaudeSettings(target, level, report);
+    await wireGrokHooks(target, level, report);
     console.log(report.join('\n'));
-    console.log(`\n✅ Rewired to Level ${level}. Restart Claude Code to load the new hooks.`);
+    console.log(`\n✅ Rewired to Level ${level}. Restart your host (Claude Code, Antigravity, Codex, or Grok) to load the new hooks.`);
     return;
   }
 
-  // 2. Engine: always overwrite (kit code; updates should propagate).
-  await copyTree(join(TPL, 'vibekit', 'runtime'), join(target, 'vibekit', 'runtime'));
-  await copyTree(join(TPL, 'vibekit', 'tools'), join(target, 'vibekit', 'tools'));
-  report.push('✓ engine installed (vibekit/runtime, vibekit/tools)');
-
-  // 3. Slash commands: always overwrite.
-  await copyTree(join(TPL, 'claude', 'commands'), join(target, '.claude', 'commands'));
-  report.push('✓ slash commands installed (.claude/commands)');
-
-  // 4. Agents: only at L >= 4.
-  if (level >= 4) {
-    await copyTree(join(TPL, 'claude', 'agents'), join(target, '.claude', 'agents'));
-    report.push('✓ agent archetypes installed (.claude/agents)');
-  }
-
-  // 5. Memory seeds: write only if missing.
-  for (const rel of ['memory/SESSIONS.md', 'memory/WORKSPACE.md', 'memory/GLOSSARY.md', 'memory/roadmap.md', 'memory/decisions/_TEMPLATE.md', 'memory/decisions/0000-record-architecture-decisions.md', 'memory/business-rules/_TEMPLATE.md', 'memory/sessions/.gitkeep', 'README.md', 'instrucoes.md', 'best-practices.md', 'CLAUDE.child.md.tpl', 'squads/README.md', 'squads/_BRIEFING.md.tpl']) {
-    const src = join(TPL, 'vibekit', rel);
-    if (!existsSync(src)) continue;
-    const wrote = await writeIfMissing(join(target, 'vibekit', rel), await read(src), args.force);
-    if (wrote) report.push(`✓ seeded vibekit/${rel}`);
-  }
-  // Ensure memory dirs exist even if a packager stripped the .gitkeep seed.
-  await ensureDir(join(target, 'vibekit', 'memory', 'sessions'));
-  await ensureDir(join(target, 'vibekit', 'memory', 'decisions'));
-  await ensureDir(join(target, 'vibekit', 'memory', 'business-rules'));
-  // DevPipeline scaffolding (write-if-missing so existing tasks survive re-install).
-  const pipeCount = await copyTreeIfMissing(join(TPL, 'vibekit', 'pipeline'), join(target, 'vibekit', 'pipeline'));
-  if (pipeCount > 0) report.push(`✓ seeded vibekit/pipeline (${pipeCount} file(s))`);
-  for (const s of ['backlog', 'testing', 'conclusion']) await ensureDir(join(target, 'vibekit', 'pipeline', s));
-
-  // 6. config.json: create with level + first-run flag, or update level
-  //    (preserving an already-completed setup so re-installs don't re-trigger).
-  const cfgPath = join(target, 'vibekit', 'config.json');
-  if (existsSync(cfgPath)) {
-    try {
-      const cfg = JSON.parse(await read(cfgPath));
-      cfg.level = level;
-      if (cfg.setup?.completed !== true) cfg.setup = { completed: false, installedAt: new Date().toISOString() };
-      await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-      report.push(`✓ updated vibekit/config.json level → ${level}`);
-    } catch {
-      /* leave malformed file for the user */
+  // Preflight + external snapshot (UPDATE only) — runs BEFORE the first mutation so
+  // an unsafe update defers with ZERO writes [ADR-0099 P0-02/03/04]. Active sessions
+  // or a self-hosted source update default to a deferral; explicit flags override
+  // (one consent never implies the other). The snapshot lives OUTSIDE the repo.
+  if (args.update) {
+    const preflight = await runPreflight(target, KIT_ROOT, args);
+    if (preflight.status) {
+      console.log(`\n⏸️  ContextDevKit update DEFERRED: ${preflight.status} — no changes were made.`);
+      for (const reason of preflight.reasons) console.log(`   • ${reason}`);
+      if (preflight.status === DEFERRED_ACTIVE_SESSIONS) {
+        console.log('   Override (after saving your work): re-run with --allow-active-sessions.');
+      }
+      if (preflight.status === DEFERRED_SELF_UPDATE) {
+        console.log('   Override: re-run with --allow-self-update (add --allow-active-sessions if both apply).');
+      }
+      return;
     }
-  } else {
-    const cfg = JSON.parse(await read(join(TPL, 'vibekit', 'config.json')));
-    cfg.level = level;
-    cfg.setup = { completed: false, installedAt: new Date().toISOString() };
-    await overwrite(cfgPath, JSON.stringify(cfg, null, 2) + '\n');
-    report.push(`✓ created vibekit/config.json (level ${level}, first-run pending)`);
-  }
-
-  // 7. CLAUDE.md: render if missing; else drop a side file to merge.
-  //    On --update we NEVER touch CLAUDE.md (it's user-owned content).
-  const claudePath = join(target, 'CLAUDE.md');
-  if (args.update && existsSync(claudePath)) {
-    /* update: leave the user's CLAUDE.md untouched */
-  } else {
-    const claudeTpl = await read(join(TPL, 'CLAUDE.md.tpl'));
-    const claudeOut = render(claudeTpl, {
-      PROJECT_NAME: name,
-      DATE: new Date().toISOString().slice(0, 10),
-      LEVEL: String(level),
-      MODE: mode,
-      STACK_NOTES: mode === 'existing' ? await detectStack(target) : 'Greenfield — define the stack as the first architectural decision (`/new-adr`).',
+    const updateId = newUpdateId();
+    const snap = await snapshotCriticalState(target, updateId, {
+      root: process.env.CONTEXTKIT_BACKUP_ROOT || undefined,
     });
-    if (!existsSync(claudePath) || args.force) {
-      await overwrite(claudePath, claudeOut);
-      report.push('✓ CLAUDE.md created');
-    } else {
-      await overwrite(join(target, 'CLAUDE.vibedevkit.md'), claudeOut);
-      report.push('⚠️  CLAUDE.md exists — wrote CLAUDE.vibedevkit.md to merge by hand');
+    if (!snap.ok) {
+      console.error(`\n❌ ContextDevKit update ABORTED: ${FAILED_SNAPSHOT} — external critical-state snapshot failed to verify. No changes were made.`);
+      return;
     }
+    ctx.preflight = preflight;
+    report.push(`✓ external snapshot taken before update (${snap.files.length} file(s), id ${updateId})`);
   }
 
-  // 8. CHANGELOG: render if missing.
-  const changelogPath = join(target, 'docs', 'CHANGELOG.md');
-  if (!existsSync(changelogPath)) {
-    const clTpl = await read(join(TPL, 'docs', 'CHANGELOG.md.tpl'));
-    await overwrite(changelogPath, render(clTpl, { PROJECT_NAME: name, DATE: new Date().toISOString().slice(0, 10) }));
-    report.push('✓ docs/CHANGELOG.md created');
-  }
+  // Host-neutral engine + substrate (runtime, tools, seeds, config, changelog, docs).
+  await installEngine(target, TPL, ctx, report);
 
-  // 9. .gitignore + .gitattributes + GitHub templates + git hooks.
-  if (await patchGitignore(target)) report.push('✓ .gitignore patched');
-  if (await patchGitattributes(target, TPL)) report.push('✓ .gitattributes patched (LF for engine scripts)');
-  const ghCount = await copyTreeIfMissing(join(TPL, 'github'), join(target, '.github'));
-  if (ghCount > 0) report.push(`✓ ${ghCount} GitHub template(s) added to .github/`);
-  if (level >= 3) {
-    if (await installGitHooks(target)) report.push('✓ git hooks installed (pre-commit, commit-msg, pre-push)');
-    else report.push('ℹ️  no .git found — run `git init` then re-run to install git hooks');
-  }
-  // Version-control hint: suggest connecting a remote if there isn't one.
-  if (!existsSync(join(target, '.git')) || !(await read(join(target, '.git', 'config')).catch(() => '')).includes('[remote "origin"]')) {
-    report.push('ℹ️  no git remote — run /git setup-remote to connect GitHub/GitLab/other (+ CLI)');
-  }
+  // 3. Antigravity host — second native host [ADR-0036].
+  await installAntigravityHost(target, TPL, ctx, report);
+
+  // 4. Codex host — third native host (AGENTS.md, .codex, cdx runner).
+  await installCodexHost(target, TPL, ctx, report);
+
+  // 4b. Grok Build host — fourth native host (.grok hook projection).
+  await installGrokHost(target, TPL, ctx, report);
+
+  // 5. Claude Code host front-end (slash commands, agents/squads, CLAUDE.md).
+  await installClaudeHost(target, TPL, ctx, report);
+
+  // 5b. Resolve personalization conflicts (user decides on a TTY; "keep both" otherwise)
+  // and persist the manifest baseline for the next update [ADR-0054].
+  report.push(...(await resolveConflicts(target, sync, version)));
+  await saveManifest(target, sync, version);
+
+  // 5c. Claude Code settings.json (hook wiring) written LATE [ADR-0099 P0-05]: after
+  // engine + hosts, write-if-changed, so file-watchers fire at most once and an
+  // unchanged settings.json never churns mtime (the host-reload trigger).
+  await wireClaudeSettings(target, level, report);
+
+  // 6. VCS integration (exclude/.gitignore/.gitattributes, GitHub templates, git hooks, remote hint).
+  const vcs = await installVcsIntegration(target, TPL, level, args, report);
+
+  // 7. Context bridges for non-native tools — opt-in per tool via config
+  //    `bridges.enabled`; context only, no enforcement [ADR-0068].
+  await installBridges(target, ctx, report);
+
+  // 7b. Graph dependencies (WF-0108, ADR-0155). Graph-first exploration is MANDATORY,
+  // so the AST tier's binding (`web-tree-sitter`) must be installed rather than hoped
+  // for: the `.wasm` grammars ship vendored, but the JS binding resolves against the
+  // TARGET's node_modules, so without this a fresh install degraded silently to the
+  // regex tier. Runs on fresh install AND --update (the user-visible contract), before
+  // the graph index below so the first projection is built at full fidelity. Fail-open:
+  // a failed install leaves an honest regex-tier graph and never blocks (rule 2).
+  const graphDeps = await maybeInstallGraphDeps(target, {
+    kitRoot: KIT_ROOT,
+    selfHost: ctx.preflight?.selfHost === true,
+    activeSessions: ctx.preflight?.activeSessions,
+  });
+  if (graphDeps?.note && graphDeps.status !== 'disabled') report.push(`  ${graphDeps.note}`);
+
+  // FINAL critical write [ADR-0099 P0-06/P0-08]: stamp .engine-version only now that
+  // engine, hosts, config, conflicts and settings have all landed. A throw at any
+  // earlier step leaves the prior version (the update never "half-claims" success).
+  await stampEngineVersion(target, version);
+  report.push(`✓ .engine-version stamped → v${version}`);
 
   // ── summary ──
   console.log('\n' + report.join('\n'));
+  // Install-mode banner (CDK-014): state the VCS posture explicitly and how to
+  // switch, WITHOUT changing the default. Default is LOCAL-ONLY [ADR-0054];
+  // --tracked opts into committing the kit. Switching is non-destructive (re-run
+  // with the other flag) -- it only toggles .git/info/exclude, never the index/edits.
+  if (!vcs.available) {
+    console.log('\n📦 Install mode: NON-GIT — ContextDevKit installed without repository metadata.');
+    console.log('   Git integration is optional; initialize Git and re-run later to add hooks and local excludes.');
+  } else if (args.tracked) {
+    console.log('\n📦 Install mode: TRACKED — kit artifacts are committable (visible to teammates, other machines, CI).');
+    console.log('   Switch to local-only later: re-run without --tracked (writes a .git/info/exclude block; your files stay).');
+  } else {
+    console.log('\n🔒 Install mode: LOCAL-ONLY (default) — kit artifacts stay out of git history via .git/info/exclude [ADR-0054].');
+    console.log('   Good for solo / experiments. Team, multi-machine, or CI? Re-run with --tracked, then `git add` the kit.');
+  }
   if (args.update) {
-    console.log(`\n✅ VibeDevKit UPDATED to v${await kitVersion()} (Level ${level} preserved) in ${target}`);
-    console.log('   Refreshed: engine + slash commands + hook wiring. Untouched: CLAUDE.md, config,');
-    console.log('   memory (ADRs/sessions/roadmap), pipeline tasks, scoped module CLAUDE.md files.');
-    console.log('   Restart Claude Code to load the refreshed hooks.');
+    // PMB-01 (ADR-0098) + P0-09 (ADR-0099): generate the first project-map baseline
+    // when absent — but DEFER while sessions are active / on a self-update (preflight
+    // carries the signal). Post-update + fail-open: non-critical, never blocks/aborts.
+    const baseline = await maybeGenerateBaseline(target, { preflight: ctx.preflight });
+    if (baseline?.note) console.log(`  ${baseline.note}`);
+
+    // WF-0074 (BIZ-0004, ADR-0134): keep the symbol graph wired to every update.
+    // Default-OFF (projectMap.graph.enabled) => a silent no-op; fail-open, never blocks.
+    const graphIndex = await maybeGenerateGraph(target, { preflight: ctx.preflight });
+    if (graphIndex?.note && graphIndex.status !== 'disabled') console.log(`  ${graphIndex.note}`);
+
+    // Honest status [ADR-0099 P0-07/P0-10]: a non-TTY run that deferred real merges
+    // preserved both sides but is NOT a clean success — say so.
+    if (sync.pendingMerges > 0) {
+      console.log(`\n⚠️  ${UPDATED_WITH_PENDING_MERGES}: v${version} applied, but ${sync.pendingMerges} personalization conflict(s) were preserved unresolved (your files kept; kit versions stashed under contextkit/.updates/v${version}/). Merge them by hand.`);
+    } else {
+      console.log(`\n✅ ContextDevKit UPDATED to v${version} (Level ${level} preserved) in ${target}`);
+    }
+    console.log('   Refreshed: engine + host assets + hook wiring.');
+    console.log('   Never modifies user-authored memory (ADRs, sessions, roadmap, business rules, project');
+    console.log('   docs), CLAUDE.md, AGENTS.md, config, or pipeline tasks. Every agent/command/workflow');
+    console.log('   YOU personalized is kept (conflicts: see ⚠️ lines above). Derived artifacts (project-map)');
+    console.log('   may be regenerated transactionally when safe.');
+    console.log('   Restart your host (Claude Code, Antigravity, or Codex) to load the refreshed hooks.');
+    // Honest version-delta notice: only shown when a real version change occurred.
+    // Points to CHANGELOG.md rather than enumerating changes here (source of truth is the log).
+    if (priorVersion && priorVersion !== version) {
+      console.log(`\n📦 Updated v${priorVersion} → v${version}. New config sections were merged where missing (see the ✓ lines above); full change list in CHANGELOG.md.`);
+    }
     console.log('');
     return;
   }
-  console.log(`\n✅ VibeDevKit installed at Level ${level} into ${target}`);
+  console.log(`\n✅ ContextDevKit installed at Level ${level} into ${target}`);
   console.log('\nNext steps:');
   console.log('  1. Open the project in Claude Code (it reads .claude/ + CLAUDE.md).');
   console.log('  2. Approve the hooks on first run (one-time per hook).');
-  console.log('  3. ⭐ Run  /setupvibedevkit  — it fits the kit to THIS project');
+  console.log('  3. ⭐ Run  /setupcontextdevkit  — it fits the kit to THIS project');
   console.log('     (detects stack, tunes config, fills CLAUDE.md, flags risks).');
   console.log('     The first-run trigger will remind you automatically.');
   console.log('  4. Then work normally. /log-session at the end.');
-  if (level < 5) console.log(`  5. Level up later:  /vibe-level ${Math.min(level + 1, 5)}`);
+  if (level < 5) console.log(`  5. Level up later:  /context-level ${Math.min(level + 1, 5)}`);
+  console.log('\n  Using Antigravity instead? Read INSTRUCTIONS.md, then run `node ctx.mjs`');
+  console.log('  to list commands — or `node ctx.mjs session start` to begin a session.');
+  console.log('  Using Codex? Read AGENTS.md; `node cdx.mjs help` lists the same command runner.');
   console.log('');
 }
 
 main().catch((err) => {
-  console.error('\n❌ VibeDevKit install failed:', err?.stack || err);
+  console.error('\n❌ ContextDevKit install failed:', err?.stack || err);
   process.exit(1);
 });

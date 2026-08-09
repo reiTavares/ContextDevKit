@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "[PREENCHA] Nome do produto — promessa em poucas palavras",
+    "description": "[PREENCHA] Descrição de 140-160 caracteres com a promessa principal e o benefício concreto para quem busca esta solução.",
+    "skipLink": "Pular para o conteúdo"
+  },
+  "brand": {
+    "name": "[PREENCHA] Marca"
+  },
+  "hero": {
+    "eyebrow": "[PREENCHA] CATEGORIA · DIFERENCIAL CURTO",
+    "title": "[PREENCHA] A promessa principal (máximo 8 palavras)",
+    "subtitle": "[PREENCHA] Sub-promessa de 1-2 frases que mitiga a objeção mais comum do público.",
+    "ctaLabel": "[PREENCHA] Ação única",
+    "ctaHref": "#oferta",
+    "proof": "[PREENCHA] Uma prova REAL e verificável (número, cliente, resultado). Se não houver, apague o slot — nunca invente."
+  },
+  "problem": {
+    "title": "[PREENCHA] A dor nomeada como o público a sente",
+    "subtitle": "[PREENCHA] Agite a dor em 1-2 frases: o custo de continuar como está.",
+    "items": [
+      "[PREENCHA] Sintoma concreto 1 da dor",
+      "[PREENCHA] Sintoma concreto 2 da dor",
+      "[PREENCHA] Sintoma concreto 3 da dor"
+    ]
+  },
+  "solution": {
+    "title": "[PREENCHA] A solução apresentada como benefício, não feature",
+    "subtitle": "[PREENCHA] 1 frase: como a vida do usuário melhora.",
+    "benefits": [
+      { "title": "[PREENCHA] Benefício 1", "description": "[PREENCHA] O resultado que o usuário obtém, em linguagem dele." },
+      { "title": "[PREENCHA] Benefício 2", "description": "[PREENCHA] O resultado que o usuário obtém, em linguagem dele." },
+      { "title": "[PREENCHA] Benefício 3", "description": "[PREENCHA] O resultado que o usuário obtém, em linguagem dele." }
+    ]
+  },
+  "proof": {
+    "title": "[PREENCHA] Título da seção de prova social",
+    "quote": "[PREENCHA] Depoimento REAL, com autorização de uso. Se não houver, apague esta seção do build — nunca invente.",
+    "author": "[PREENCHA] Nome real",
+    "role": "[PREENCHA] Cargo, empresa"
+  },
+  "offer": {
+    "title": "[PREENCHA] O que exatamente é entregue",
+    "subtitle": "[PREENCHA] Escopo claro da oferta em 1-2 frases.",
+    "priceLabel": "[PREENCHA] Preço ou 'Grátis'",
+    "priceNote": "[PREENCHA] Âncora de valor ou condição (ex.: por mês, vitalício, sem cartão)",
+    "ctaLabel": "[PREENCHA] Ação única (a mesma do hero)",
+    "ctaHref": "#contato"
+  },
+  "faq": {
+    "title": "Perguntas frequentes",
+    "items": [
+      { "q": "[PREENCHA] Objeção lógica 1 em forma de pergunta?", "a": "[PREENCHA] Resposta direta e honesta." },
+      { "q": "[PREENCHA] Objeção lógica 2 em forma de pergunta?", "a": "[PREENCHA] Resposta direta e honesta." },
+      { "q": "[PREENCHA] Objeção lógica 3 em forma de pergunta?", "a": "[PREENCHA] Resposta direta e honesta." },
+      { "q": "[PREENCHA] Objeção lógica 4 em forma de pergunta?", "a": "[PREENCHA] Resposta direta e honesta." }
+    ]
+  },
+  "form": {
+    "title": "[PREENCHA] Título do formulário (a ação única)",
+    "nameLabel": "Nome",
+    "emailLabel": "E-mail",
+    "submitLabel": "[PREENCHA] Verbo + resultado",
+    "successMessage": "Recebido! Entraremos em contato em breve.",
+    "errorMessage": "Não foi possível enviar. Tente novamente."
+  },
+  "footer": {
+    "ctaTitle": "[PREENCHA] Última chamada: repita a promessa",
+    "companyLine": "[PREENCHA] Razão social ou nome fantasia"
+  },
+  "consent": {
+    "message": "Usamos cookies para medir o uso do site e melhorar sua experiência. Nada é ativado antes do seu aceite.",
+    "acceptLabel": "Aceitar",
+    "rejectLabel": "Recusar",
+    "policyLinkLabel": "Política de Privacidade"
+  }
+}

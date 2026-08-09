@@ -1,0 +1,350 @@
+#!/usr/bin/env node
+/**
+ * Self-test for project-map-resolve.mjs (GC2-T1, WF-0071/BIZ-0004) — standalone
+ * entrypoint (exit 0/1), sibling-dispatched like selfcheck-graph-extract.mjs.
+ *
+ * Asserts the GC0 resolver contract:
+ *   1. same-file + import-resolved calls -> EXTRACTED/GRAPH_DERIVED to the real
+ *      symbol node (endpoint exists).
+ *   2. no EXTRACTED edge lacks a proven endpoint; an unresolved target never
+ *      becomes a real node.
+ *   3. a JS/PY name collision -> AMBIGUOUS (never EXTRACTED, never dropped) and
+ *      the phantom guard forbids any cross-family EXTRACTED calls edge.
+ *   4. dedupNodes never fuzzy-merges code symbols (survivors == input); it DOES
+ *      merge near-duplicate semantic (concept) nodes, never across kind.
+ *   5. determinism: resolveGraph twice on the same fixture -> deeply equal.
+ *   6. zero-dep invariant (node:* + relative siblings only).
+ *
+ * AT3 (WF-0080, ADR-0147) additions — the acceptance-matrix rows AT2 deferred:
+ *   7. golden fixture: the AST tier's edge set is a SUPERSET of the regex
+ *      tier's on the SAME source (a call the regex tier can only mark
+ *      AMBIGUOUS — a class method isn't a regex-tracked top-level declaration
+ *      — resolves EXTRACTED/tier:'ast'), with zero phantom edges (every
+ *      tier:'ast' target is a real graph node).
+ *   8. `grammarVersions` records the pinned version of every grammar engaged;
+ *      `resolveGraph` (now including that field) stays byte-identical across
+ *      two runs on a fixed grammar version.
+ *   9. degrade-to-regex: a fixture root with NO grammar anywhere on its search
+ *      path (regardless of the environment's own install) produces zero
+ *      `tier:'ast'` edges and an empty `grammarVersions` — the ADR-0137
+ *      BLOCKING ladder is unreachable from this output by construction, not
+ *      by luck.
+ */
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const __dir = dirname(fileURLToPath(import.meta.url));
+const KIT = resolve(__dir, '..');
+const resolvePath = resolve(KIT, 'templates/contextkit/tools/scripts/project-map-resolve.mjs');
+
+function buildFixtureRoot() {
+  const root = mkdtempSync(join(tmpdir(), 'resolve-selfcheck-'));
+  mkdirSync(join(root, 'web', 'src'), { recursive: true });
+  mkdirSync(join(root, 'py', 'src'), { recursive: true });
+  writeFileSync(join(root, 'web', 'src', 'a.js'),
+    'export function alpha() { return 1; }\nexport function beta() { return alpha(); }\n', 'utf-8');
+  writeFileSync(join(root, 'web', 'src', 'b.js'),
+    "import { alpha } from './a.js';\nexport function gamma() { return alpha(); }\n", 'utf-8');
+  writeFileSync(join(root, 'web', 'src', 'c.js'),
+    'export function delta() { return mystery(); }\n', 'utf-8');
+  writeFileSync(join(root, 'web', 'src', 'e.js'),
+    'export function epsilon() { return foo(); }\n', 'utf-8');
+  writeFileSync(join(root, 'py', 'src', 'd.py'),
+    'def foo():\n    return 1\n', 'utf-8');
+  return root;
+}
+
+/**
+ * A class-based fixture for the AT2 receiver-type resolution checks. Copies the
+ * real installed grammar wasm from KIT's node_modules into the fixture's own
+ * node_modules at the same relative path `graph-ast.mjs::grammarCandidates`
+ * searches — the same technique proven manually against the real pipeline.
+ * Returns null when the grammar isn't installed here (degrade arm only, no
+ * fixture needed): the caller must skip gracefully, never fail on absence.
+ */
+function buildAstFixtureRoot(kit) {
+  const wasmSrc = join(kit, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm');
+  let wasmBytes;
+  try { wasmBytes = readFileSync(wasmSrc); } catch { return null; }
+
+  const root = mkdtempSync(join(tmpdir(), 'resolve-ast-selfcheck-'));
+  mkdirSync(join(root, 'src'), { recursive: true });
+  mkdirSync(join(root, 'node_modules', 'tree-sitter-wasms', 'out'), { recursive: true });
+  writeFileSync(join(root, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm'), wasmBytes);
+  writeFileSync(join(root, 'src', 'shape.mjs'), [
+    'export class Shape {',
+    '  area() { return 0; }',
+    '  describe() { return this.area(); }', // this.method() -> AT2 EXTRACTED
+    '}',
+    'const s = new Shape();',
+    's.area();',                             // const-binding method -> AT2 EXTRACTED
+    'new Shape().describe();',               // inline new -> AT2 EXTRACTED
+    'unknownVar.area();',                    // unproven receiver -> phantom guard, unresolved
+  ].join('\n'), 'utf-8');
+  return root;
+}
+
+/**
+ * AT3 (WF-0080, ADR-0147) golden-fixture PAIR — the SAME source (a method call
+ * the regex tier can only mark AMBIGUOUS, since a class method is not a
+ * top-level regex-tracked declaration) built into two fixture roots: one with
+ * the grammar wasm vendored (AST tier engages) and one without (regex-only).
+ * Diffing their `resolveGraph` output on identical input is the superset +
+ * precision-gain proof AT2 deferred to AT3. Returns null when the grammar
+ * isn't installed here (the comparison needs a real AST-tier run).
+ */
+function buildSupersetFixturePair(kit) {
+  const wasmSrc = join(kit, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm');
+  let wasmBytes;
+  try { wasmBytes = readFileSync(wasmSrc); } catch { return null; }
+
+  const source = [
+    'export class Shape {',
+    '  area() { return 0; }',
+    '  describe() { return this.area(); }', // regex tier: "describe(...)" isn't a declared top-level fn -> AMBIGUOUS
+    '}',
+    'new Shape().describe();',
+  ].join('\n');
+
+  const withAst = mkdtempSync(join(tmpdir(), 'resolve-superset-ast-'));
+  mkdirSync(join(withAst, 'src'), { recursive: true });
+  mkdirSync(join(withAst, 'node_modules', 'tree-sitter-wasms', 'out'), { recursive: true });
+  writeFileSync(join(withAst, 'node_modules', 'tree-sitter-wasms', 'out', 'tree-sitter-javascript.wasm'), wasmBytes);
+  writeFileSync(join(withAst, 'src', 'shape.mjs'), source, 'utf-8');
+
+  const regexOnly = mkdtempSync(join(tmpdir(), 'resolve-superset-regex-'));
+  mkdirSync(join(regexOnly, 'src'), { recursive: true });
+  writeFileSync(join(regexOnly, 'src', 'shape.mjs'), source, 'utf-8');
+
+  return { withAst, regexOnly };
+}
+
+function findImportSpecifiers(source) {
+  const specifiers = [];
+  for (const rawLine of source.split(String.fromCharCode(10))) {
+    const line = rawLine.trim();
+    if (line.indexOf('import ') !== 0) continue;
+    const fromAt = line.lastIndexOf('from ');
+    if (fromAt === -1) continue;
+    const rest = line.slice(fromAt + 5).trim();
+    const q = rest.charAt(0);
+    if (q !== String.fromCharCode(39) && q !== String.fromCharCode(34)) continue;
+    const closeAt = rest.indexOf(q, 1);
+    if (closeAt === -1) continue;
+    specifiers.push(rest.slice(1, closeAt));
+  }
+  return specifiers;
+}
+
+export async function runResolveChecks() {
+  const results = [];
+  const record = (name, pass, detail) => results.push({ name, pass, detail });
+
+  let resolveGraph, dedupNodes;
+  try {
+    ({ resolveGraph, dedupNodes } = await import(pathToFileURL(resolvePath).href));
+  } catch (err) {
+    record('module import', false, 'failed to import project-map-resolve: ' + (err?.message ?? err));
+    return results;
+  }
+  record('module import', true, 'resolveGraph, dedupNodes imported');
+
+  const root = buildFixtureRoot();
+  try {
+    const g = await resolveGraph(root);
+    const nodeIds = new Set(g.nodes.map((n) => n.id));
+    const calls = g.edges.filter((e) => e.relation === 'calls');
+
+    const alphaId = 'sym:web/src/a.js#alpha';
+    const sameFile = calls.find((e) => e.source === 'file:web/src/a.js' && e.target === alphaId);
+    const imported = calls.find((e) => e.source === 'file:web/src/b.js' && e.target === alphaId);
+    const resolvedOk = sameFile && sameFile.resolution === 'EXTRACTED' && sameFile.evidenceClass === 'GRAPH_DERIVED'
+      && imported && imported.resolution === 'EXTRACTED' && imported.evidenceClass === 'GRAPH_DERIVED';
+    record('same-file + import-resolved calls -> EXTRACTED/GRAPH_DERIVED', !!resolvedOk,
+      'sameFile=' + JSON.stringify(sameFile?.resolution) + ' imported=' + JSON.stringify(imported?.resolution));
+
+    const extractedOk = calls.filter((e) => e.resolution === 'EXTRACTED')
+      .every((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+    const noSyntheticNode = ![...nodeIds].some((id) => id.startsWith('unresolved:'));
+    record('EXTRACTED edges have real endpoints; no unresolved: node', extractedOk && noSyntheticNode,
+      'extractedOk=' + extractedOk + ' noSyntheticNode=' + noSyntheticNode);
+
+    const fooEdge = calls.find((e) => e.source === 'file:web/src/e.js' && e.target === 'unresolved:foo');
+    const fooAmbiguous = fooEdge && fooEdge.resolution === 'AMBIGUOUS' && fooEdge.evidenceClass === 'HEURISTIC';
+    const noCrossFamilyExtracted = !calls.some(
+      (e) => e.resolution === 'EXTRACTED' && e.source.startsWith('file:web/') && e.target.startsWith('sym:py/'),
+    );
+    record('JS/PY collision -> AMBIGUOUS; phantom guard blocks cross-family EXTRACTED', !!fooAmbiguous && noCrossFamilyExtracted,
+      'fooEdge=' + JSON.stringify(fooEdge?.resolution) + ' noCrossFamilyExtracted=' + noCrossFamilyExtracted);
+
+    const codeDedup = dedupNodes(g.nodes);
+    const codeUntouched = codeDedup.nodes.length === g.nodes.length && Object.keys(codeDedup.aliases).length === 0;
+    const conceptNodes = [
+      { id: 'concept:auth-flow', kind: 'concept', label: 'authentication flow' },
+      { id: 'concept:auth-flows', kind: 'concept', label: 'authentication flows' },
+      { id: 'concept:billing', kind: 'concept', label: 'billing' },
+    ];
+    const conceptDedup = dedupNodes(conceptNodes);
+    const conceptMerged = conceptDedup.nodes.length === 2 && Object.keys(conceptDedup.aliases).length === 1;
+    record('dedupNodes: code symbols untouched, near-duplicate concepts merged', codeUntouched && conceptMerged,
+      'codeUntouched=' + codeUntouched + ' conceptSurvivors=' + conceptDedup.nodes.length);
+
+    const a = JSON.stringify(await resolveGraph(root));
+    const b = JSON.stringify(await resolveGraph(root));
+    record('resolveGraph deterministic (twice -> deeply equal)', a === b, a === b ? 'identical' : 'DIVERGED');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+
+  // AT2 (WF-0080, ADR-0147) — receiver-type resolution through resolveGraph.
+  // Skips gracefully when the grammar isn't installed here (degrade-only env).
+  const astRoot = buildAstFixtureRoot(KIT);
+  if (!astRoot) {
+    record('AT2 receiver-type checks SKIPPED (grammar not installed here)', true, 'degrade arm covered elsewhere; needs the optional dep');
+  } else {
+    try {
+      const g = await resolveGraph(astRoot);
+      const calls = g.edges.filter((e) => e.relation === 'calls');
+      const astCalls = calls.filter((e) => e.tier === 'ast');
+
+      // GC0 source attribution is FILE-level (gc0-report.md section 2: "this
+      // file calls X") — this.area()/s.area()/new Shape().describe() all
+      // dedupe to the SAME file:->target edge, they don't fork by call-site.
+      const areaCall = astCalls.find((e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.area');
+      const describeCall = astCalls.find((e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.describe');
+      record('AT2: this.method() + const-binding (v.method()) dedupe to one file-level EXTRACTED/tier:ast edge', !!areaCall,
+        JSON.stringify(astCalls.map((e) => ({ source: e.source, target: e.target }))));
+
+      record('AT2: inline new (new X().m()) resolves -> EXTRACTED/tier:ast', !!describeCall,
+        'describeCall=' + !!describeCall);
+
+      const allAstProven = astCalls.every((e) => e.resolution === 'EXTRACTED' && e.evidenceClass === 'GRAPH_DERIVED');
+      record('AT2: every tier:ast edge is EXTRACTED/GRAPH_DERIVED (never a guess)', allAstProven,
+        JSON.stringify(astCalls.map((e) => e.resolution)));
+
+      const noPhantomOnUnprovenReceiver = !calls.some((e) => e.tier === 'ast' && e.target.includes('unknownVar'));
+      record('AT2 phantom guard: unproven receiver (unknownVar.area()) never fabricates a tier:ast edge', noPhantomOnUnprovenReceiver,
+        'astTargets=' + JSON.stringify(astCalls.map((e) => e.target)));
+
+      const methodNodes = g.nodes.filter((n) => n.kind === 'method');
+      const classNodes = g.nodes.filter((n) => n.kind === 'class');
+      record('AT2: class/method nodes emitted per the GC0 id scheme (sym:<file>#<Class>.<method>)',
+        methodNodes.length === 2 && classNodes.length === 1
+        && methodNodes.every((n) => n.id.startsWith('sym:src/shape.mjs#Shape.')),
+        'methods=' + JSON.stringify(methodNodes.map((n) => n.id)) + ' classes=' + JSON.stringify(classNodes.map((n) => n.id)));
+
+      // AT3 acceptance #5 — grammarVersions pins the engaged grammar's version.
+      record('AT3: grammarVersions records the pinned javascript version', g.grammarVersions?.javascript === '0.1.12',
+        'grammarVersions=' + JSON.stringify(g.grammarVersions));
+
+      // AT3 acceptance #5 (determinism) — byte-identical including grammarVersions.
+      const g2 = await resolveGraph(astRoot);
+      record('AT3: resolveGraph (incl. grammarVersions) deterministic across two runs', JSON.stringify(g) === JSON.stringify(g2),
+        JSON.stringify(g) === JSON.stringify(g2) ? 'identical' : 'DIVERGED');
+    } finally {
+      rmSync(astRoot, { recursive: true, force: true });
+    }
+  }
+
+  // AT3 (WF-0080, ADR-0147) acceptance #3/#4 — golden fixture: the AST tier's
+  // edge set on a fixture is a SUPERSET of the regex-only tier's on the SAME
+  // source, with zero phantom edges. Skips gracefully when the grammar isn't
+  // installed here (needs a real with/without-AST comparison).
+  const pair = buildSupersetFixturePair(KIT);
+  if (!pair) {
+    record('AT3 golden-fixture superset checks SKIPPED (grammar not installed here)', true, 'needs the optional dep to compare with/without AST');
+  } else {
+    try {
+      const withAstGraph = await resolveGraph(pair.withAst);
+      const regexOnlyGraph = await resolveGraph(pair.regexOnly);
+      const withAstNodeIds = new Set(withAstGraph.nodes.map((n) => n.id));
+      const withAstCalls = withAstGraph.edges.filter((e) => e.relation === 'calls');
+      const regexOnlyCalls = regexOnlyGraph.edges.filter((e) => e.relation === 'calls');
+
+      // Superset: every EXTRACTED edge the regex tier proves is also present
+      // (same source->target) in the AST-enabled run — AST never loses ground.
+      const extractedKey = (e) => `${e.source} ${e.target}`;
+      const regexExtractedKeys = new Set(regexOnlyCalls.filter((e) => e.resolution === 'EXTRACTED').map(extractedKey));
+      const withAstExtractedKeys = new Set(withAstCalls.filter((e) => e.resolution === 'EXTRACTED').map(extractedKey));
+      const isSuperset = [...regexExtractedKeys].every((k) => withAstExtractedKeys.has(k));
+      record('AT3: AST-tier EXTRACTED edge set is a superset of the regex-only tier\'s (same fixture)', isSuperset,
+        'regex=' + JSON.stringify([...regexExtractedKeys]) + ' withAst=' + JSON.stringify([...withAstExtractedKeys]));
+
+      // Precision gain: describe()'s call to area() is AMBIGUOUS under regex
+      // (not a top-level declared fn) but EXTRACTED/tier:'ast' under AST.
+      const regexDescribeAmbiguous = regexOnlyCalls.some(
+        (e) => e.source === 'file:src/shape.mjs' && e.target === 'unresolved:area' && e.resolution === 'AMBIGUOUS',
+      );
+      const astDescribeExtracted = withAstCalls.some(
+        (e) => e.source === 'file:src/shape.mjs' && e.target === 'sym:src/shape.mjs#Shape.area' && e.resolution === 'EXTRACTED' && e.tier === 'ast',
+      );
+      record('AT3: a regex-AMBIGUOUS method call resolves EXTRACTED/tier:ast under AST (precision gain)',
+        regexDescribeAmbiguous && astDescribeExtracted,
+        'regexAmbiguous=' + regexDescribeAmbiguous + ' astExtracted=' + astDescribeExtracted);
+
+      // Zero phantom edges: every tier:'ast' edge's endpoints are real nodes.
+      const astTierEdges = withAstCalls.filter((e) => e.tier === 'ast');
+      const zeroPhantom = astTierEdges.length > 0 && astTierEdges.every((e) => withAstNodeIds.has(e.source) && withAstNodeIds.has(e.target));
+      record('AT3: zero phantom tier:ast edges (every endpoint is a real node)', zeroPhantom,
+        'astTierEdgeCount=' + astTierEdges.length + ' allEndpointsReal=' + zeroPhantom);
+    } finally {
+      rmSync(pair.withAst, { recursive: true, force: true });
+      rmSync(pair.regexOnly, { recursive: true, force: true });
+    }
+  }
+
+  // AT3 (WF-0080, ADR-0147) acceptance #7 — degrade-to-regex: a fixture root
+  // with NO grammar wasm anywhere on its search path produces zero tier:'ast'
+  // edges and an empty grammarVersions, regardless of what's installed in the
+  // real environment (grammarForPath/loadTreeSitter only ever look inside the
+  // given root — see graph-ast.mjs::grammarCandidates — so an isolated root
+  // with no vendored/node_modules wasm is a genuine degrade, not a fluke).
+  const degradeRoot = mkdtempSync(join(tmpdir(), 'resolve-degrade-selfcheck-'));
+  try {
+    mkdirSync(join(degradeRoot, 'src'), { recursive: true });
+    writeFileSync(join(degradeRoot, 'src', 'shape.mjs'), [
+      'export class Shape {',
+      '  area() { return 0; }',
+      '  describe() { return this.area(); }',
+      '}',
+      'new Shape().describe();',
+    ].join('\n'), 'utf-8');
+    const g = await resolveGraph(degradeRoot);
+    const anyAstEdge = g.edges.some((e) => e.tier === 'ast');
+    const grammarVersionsEmpty = g.grammarVersions && Object.keys(g.grammarVersions).length === 0;
+    record('AT3: degrade-to-regex — no grammar on the root\'s search path -> zero tier:ast edges, empty grammarVersions',
+      !anyAstEdge && grammarVersionsEmpty,
+      'anyAstEdge=' + anyAstEdge + ' grammarVersions=' + JSON.stringify(g.grammarVersions));
+  } finally {
+    rmSync(degradeRoot, { recursive: true, force: true });
+  }
+
+  const violations = [];
+  const source = readFileSync(resolvePath, 'utf-8');
+  for (const spec of findImportSpecifiers(source)) {
+    if (spec.indexOf('node:') !== 0 && spec.charAt(0) !== '.') violations.push(spec);
+  }
+  record('zero-dep invariant (node:* + relative siblings only)', violations.length === 0,
+    violations.length === 0 ? 'no third-party imports' : 'violations: ' + violations.join(', '));
+
+  return results;
+}
+
+if (process.argv[1]?.endsWith('selfcheck-resolve.mjs')) {
+  const results = await runResolveChecks();
+  let failCount = 0;
+  for (const r of results) {
+    console.log((r.pass ? '  ok ' : '  XX ') + r.name + ' -- ' + r.detail);
+    if (!r.pass) failCount += 1;
+  }
+  console.log();
+  console.log(results.length + ' checks -- ' + (results.length - failCount) + ' pass / ' + failCount + ' fail');
+  console.log();
+  console.log(failCount > 0 ? 'FAIL' : 'PASS');
+  // WASM-safe exit: process.exit() while Emscripten has pending async trips the
+  // libuv teardown assertion (exit 127 on Windows). Set exitCode + let the loop
+  // drain naturally instead (root cause, verified: forced-exit=127, drain=0).
+  process.exitCode = failCount > 0 ? 1 : 0;
+}

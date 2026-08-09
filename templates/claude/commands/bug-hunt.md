@@ -25,18 +25,21 @@ Symptom under investigation:
 5. **Propose the cheapest decisive experiment** to confirm the top hypothesis (a log line, a unit
    test, a one-line probe). Run it (or ask the user to) before committing to a fix.
 
-6. **Only after root cause is confirmed**: propose the minimal fix, get approval, then implement.
-   Add a regression test if the stack supports it.
+6. **Only after root cause is confirmed**: propose the minimal fix. Implement it
+   only when the user's request includes the fix or they approve that follow-up.
+   Add a regression test when implementation is authorized.
 
-7. **Report + backlog.** Write a short root-cause report (symptom → root cause → fix →
-   regression test). Record the bug — and any *related* issues you surfaced — in the
-   DevPipeline, point by point:
-   ```
-   node vibekit/tools/scripts/pipeline.mjs add --type bug --priority <P0-P3> \
-     --source "bug:<area>" --title "<symptom>"
-   ```
-   Auto-priority: data-loss / security / broken build → P0, broken core path → P1,
-   degraded → P2, cosmetic → P3. If you fixed it this session, `pipeline.mjs move
-   <id> conclusion`. Priorities are **always editable** (`prioritize <id> <P>` / `/pipeline`).
+7. **Report the RCA.** Return a structured root-cause analysis —
+   not just a one-liner [ADR-0030]:
+   - **Symptom** — what was observed, with the exact error/repro.
+   - **Root cause** — the single underlying defect (the *why*, not the *where*).
+   - **Trigger** — what conditions surfaced it (why now / why here).
+   - **Fix** — the minimal change that removes the root cause.
+   - **Prevention** — the regression test + any guard (a selfcheck/lint rule) so
+     this class of bug can't silently return.
+
+   This diagnostic command creates no task or workflow. If the user wants to
+   track the defect, process that as an explicit follow-up mutation against a
+   named canonical task scope.
 
 Resist the urge to "just try something." A confirmed root cause beats three plausible guesses.

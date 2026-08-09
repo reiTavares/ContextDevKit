@@ -1,0 +1,14 @@
+# How a golden case is scored. Each field declares its match rule.
+# Match rules: exact | exact_set | semantic_similarity:>=N | numeric_tolerance:N
+metrics:
+  - accuracy              # share of golden cases that pass their rubric
+  - format_compliance    # output matches the schema/contract
+  - refusal_correctness  # refuses exactly when it should
+  - cost_per_call_usd
+  - latency_p95_ms
+  - faithfulness         # RAG only — answer grounded in retrieved context
+
+field_rules:
+  "{{output_field}}": exact
+  # "summary": "semantic_similarity:>=0.85"
+  # "value_brl": "numeric_tolerance:0"

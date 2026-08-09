@@ -1,0 +1,54 @@
+{
+  "$schema": "https://contextdevkit.dev/schemas/mcp-policy/server-allowlist/v1",
+  "version": 1,
+  "serverId": "github",
+  "risk": "R2",
+  "description": "Least-privilege tool allowlist for the GitHub MCP server. Default mode is read-only. Only the tools in 'allow' may be activated via a profile or manifest — no other tools are exposed even if the registry declares them. Tools in 'deny' are explicitly blocked in all profiles; activating them would require a risk upgrade to R4 and recorded human approval. Secret must be referenced as the env-var name GITHUB_PERSONAL_ACCESS_TOKEN only — literal token values are rejected at evaluation time by the policy engine. If GITHUB_PERSONAL_ACCESS_TOKEN is not set in the host environment at runtime the server is reported as 'skipped' by /mcp doctor, not as a hard failure. Note: merge_pull_request, delete_repository, and update_secret appear in the deny list as defense-in-depth documentation even though the wave-1 registry entry does not declare these tools in capabilities.tools; they are not enforceable by the allow-list engine against the current registry but are retained to guard against future capability expansion.",
+  "defaultMode": "read-only",
+  "secretPolicy": {
+    "requiredEnvVars": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+    "secretsAreByReference": true,
+    "literalValuesBlocked": true,
+    "missingSecretBehavior": "skipped"
+  },
+  "versionPin": {
+    "npm": "2.0.0",
+    "floatingRefsBlocked": true
+  },
+  "allow": [
+    "get_repo",
+    "list_repos",
+    "search_repos",
+    "list_issues",
+    "get_issue",
+    "list_pull_requests",
+    "get_pull_request",
+    "get_file_contents",
+    "list_commits",
+    "search_code"
+  ],
+  "deny": [
+    "create_issue",
+    "create_pull_request",
+    "merge_pull_request",
+    "create_or_update_file",
+    "push_files",
+    "delete_repository",
+    "update_secret",
+    "add_collaborator",
+    "delete_file",
+    "create_release",
+    "create_branch",
+    "create_repository",
+    "fork_repository",
+    "update_pull_request",
+    "close_issue",
+    "add_comment",
+    "update_issue"
+  ],
+  "writeProfileUpgradePath": {
+    "risk": "R4",
+    "requiresHumanApproval": true,
+    "note": "Write tools (create_pull_request, push_files, etc.) require a separate write-mode profile at R4 with a recorded human approval token. They are not available via this policy."
+  }
+}

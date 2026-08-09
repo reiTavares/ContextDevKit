@@ -1,0 +1,20 @@
+{
+  "note": "Golden cost numbers — E2 pinned to VARIANT (b). Frozen for regression (ADR-0079, card #234).",
+  "scenario": {
+    "buckets": { "freshInput": 200, "output": 100, "cacheRead": 1000, "cacheWrite": 1000, "reasoning": 0 },
+    "model": "opus-4-8"
+  },
+  "prices": {
+    "input": 5,
+    "output": 25,
+    "reasoning": 25,
+    "cacheRead": 0.5,
+    "cacheWriteTtl5m": 6.25
+  },
+  "expected": {
+    "actualUsd": 0.01025,
+    "noCacheUsd": 0.0135,
+    "grossCacheValueUsd": 0.00325,
+    "e2Variant": "b"
+  }
+}

@@ -21,5 +21,5 @@ Close version **$ARGUMENTS** in `docs/CHANGELOG.md`.
    ```
    And, if a GitHub remote exists and `gh` is available, offer `gh release create v$ARGUMENTS`.
 
-If VibeDevKit is at Level 5 and a `qa` gate marker is configured beyond T0, surface any failing
+If ContextDevKit is at Level 5 and a `qa` gate marker is configured beyond T0, surface any failing
 quality signals before closing.

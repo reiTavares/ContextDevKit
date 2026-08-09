@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+/**
+ * Agent-tuning signals — the deterministic half of /tune-agents.
+ *
+ * Aggregates the signals available for refining agent briefings: the roster +
+ * tier-2 briefing coverage, and how often each agent is referenced across the
+ * session history (a usage proxy). `/tune-agents` reads this, adds judgment, and
+ * PROPOSES briefing edits — it never auto-applies (mirrors /distill-sessions).
+ *
+ *   agent-tuning.mjs            # human summary
+ *   agent-tuning.mjs --json     # { agents: [...], sessionsAnalyzed, withoutBriefing }
+ *
+ * Zero-dependency, defensive: degrades to empty signals, never throws.
+ */
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { squadOf } from './squad-meta.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+
+const ROOT = process.cwd();
+const P = pathsFor(ROOT);
+const AGENTS = resolve(ROOT, '.claude/agents');
+const SQUADS = P.squads;
+const SESSIONS = P.sessions;
+
+function read(p) {
+  try {
+    return readFileSync(p, 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
+function listMd(dir) {
+  try {
+    return readdirSync(dir).filter((f) => f.endsWith('.md'));
+  } catch {
+    return [];
+  }
+}
+
+function collect() {
+  const agentFiles = listMd(AGENTS).filter((f) => f !== '_TEMPLATE.md');
+  const sessions = listMd(SESSIONS).map((f) => read(resolve(SESSIONS, f)));
+  const agents = agentFiles.map((f) => {
+    const name = f.slice(0, -3);
+    const squad = squadOf(AGENTS, name);
+    return {
+      name,
+      squad,
+      hasBriefing: existsSync(resolve(SQUADS, squad, `${name}.md`)),
+      mentions: sessions.filter((s) => s.includes(name)).length,
+    };
+  });
+  agents.sort((a, b) => b.mentions - a.mentions);
+  return { agents, sessionsAnalyzed: sessions.length, withoutBriefing: agents.filter((a) => !a.hasBriefing).map((a) => a.name) };
+}
+
+function main() {
+  const s = collect();
+  if (process.argv.includes('--json')) {
+    process.stdout.write(JSON.stringify(s, null, 2) + '\n');
+    return;
+  }
+  if (!s.agents.length) {
+    console.log('🎯 agent-tuning: no agents found (Level < 4?).');
+    return;
+  }
+  console.log(`🎯 agent-tuning signals — ${s.agents.length} agents, ${s.sessionsAnalyzed} sessions analyzed\n`);
+  for (const a of s.agents) console.log(`   ${a.hasBriefing ? '📄' : '  '} ${a.name}  (${a.squad})  ${a.mentions} mention(s)`);
+  console.log(`\n   ${s.withoutBriefing.length} agent(s) without a tier-2 briefing. Run /tune-agents to propose refinements.`);
+}
+
+main();

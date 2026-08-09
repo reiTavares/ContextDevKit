@@ -1,0 +1,156 @@
+#!/usr/bin/env node
+/**
+ * Zero-egress boundary + LLM/semantic-pass gate (SR2, WF-0073/BIZ-0004) — the
+ * hard-refusal core of ADR-0138.
+ *
+ * The user's calibration is on record: code-only, link to the real ADRs, ZERO
+ * EGRESS by default. This module is the five-layer, fail-closed boundary that
+ * makes that a structural guarantee, not a promise:
+ *
+ *   1. classification — every candidate file gets a sensitivity class; the
+ *      default is `unknown`, which is EXCLUDED (you opt files INTO egress).
+ *   2. hard denylist — `contextkit/memory/**`, `.git-private`, `.env*`, `.ssh/`,
+ *      `.aws/`, `*.pem`, `*.key`, `id_rsa*`, `.npmrc`, `credentials` — NEVER
+ *      egress-eligible and NEVER ingested, under ANY flag.
+ *   3. allowlist — only files matching an explicit allow-glob AND classified
+ *      `public-source` survive. An allowlist fails closed; a denylist would miss
+ *      a new sink.
+ *   4. consent binding — consent is issued for `sha256(sorted egress set)`; a
+ *      changed set invalidates it (blocks the "consent to X, send Y" swap).
+ *   5. refusal semantics — a no-cloud flag + a cloud request is an EXPLICIT
+ *      refusal, never a silent downgrade (constitution section 8).
+ *
+ * The actual network send is NOT wired here — the pass is refuse-by-default and
+ * local-first; this module ships the boundary + the refusal logic, fully tested.
+ * Pure, deterministic, zero non-`node:` imports.
+ */
+import { createHash } from 'node:crypto';
+import { PLATFORM_DIR } from '../../runtime/config/paths.mjs';
+
+/** Platform memory dir prefix, hard-denied from egress (ADR-0138); derived from PLATFORM_DIR (rule 4), never a literal. */
+const MEMORY_PREFIX = PLATFORM_DIR + '/memory/';
+
+/** Hard denylist patterns — never egress-eligible, never ingested, no override. */
+const HARD_DENY = [
+  /(^|\/)\.git-private(\/|$)/i,
+  /(^|\/)\.env($|\.|\/)/i,
+  /(^|\/)\.ssh\//i,
+  /(^|\/)\.aws\//i,
+  /(^|\/)\.gcp\//i,
+  /\.pem$/i, /\.key$/i, /\.p12$/i,
+  /(^|\/)id_rsa/i,
+  /(^|\/)\.npmrc$/i,
+  /(^|\/)\.netrc$/i,
+  /(^|\/)credentials(\.|$)/i,
+];
+
+/** Source extensions considered `public-source` (egress-eligible if allow-listed). */
+const PUBLIC_SOURCE_EXT = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.md', '.txt', '.json', '.py', '.go', '.rs']);
+
+/**
+ * Classifies a repo-relative path into a sensitivity class. Default `unknown`
+ * (excluded). A hard-deny match wins over everything.
+ * @param {string} path repo-relative, forward-slash
+ * @returns {'secret'|'private-memory'|'public-source'|'config'|'unknown'}
+ */
+export function classifySensitivity(path) {
+  const p = String(path).replaceAll('\\', '/');
+  if (p.includes(MEMORY_PREFIX)) return 'private-memory';
+  if (HARD_DENY.some((re) => re.test(p))) return 'secret';
+  if (/\.(env|pem|key|p12)$/i.test(p) || /(^|\/)credentials/i.test(p)) return 'secret';
+  const dot = p.lastIndexOf('.');
+  const ext = dot === -1 ? '' : p.slice(dot).toLowerCase();
+  if (ext === '.json' && /config|settings/i.test(p)) return 'config';
+  if (PUBLIC_SOURCE_EXT.has(ext)) return 'public-source';
+  return 'unknown';
+}
+
+/** Simple glob -> RegExp (`*` within a segment, `**` any depth). */
+function globToRe(glob) {
+  const esc = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const body = esc.replace(/\*\*/g, '').replace(/\*/g, '[^/]*').replaceAll('', '.*');
+  return new RegExp('^' + body + '$');
+}
+
+/**
+ * Resolves the egress set: files that (a) do NOT hit the hard denylist, (b) are
+ * classified `public-source`, and (c) match at least one allow-glob. Everything
+ * else is denied with a reason. Deterministic (sorted). Returns an egressHash
+ * over the ALLOWED set for consent binding.
+ *
+ * @param {string[]} files repo-relative paths
+ * @param {string[]} allowGlobs explicit allow patterns (empty = allow nothing)
+ * @returns {{allowed:string[], denied:Array<{path:string, reason:string}>, egressHash:string}}
+ */
+export function resolveEgressSet(files, allowGlobs = []) {
+  const res = allowGlobs.map(globToRe);
+  const allowed = [];
+  const denied = [];
+  for (const raw of files) {
+    const path = String(raw).replaceAll('\\', '/');
+    const cls = classifySensitivity(path);
+    if (cls === 'secret' || cls === 'private-memory') { denied.push({ path, reason: `hard-deny:${cls}` }); continue; }
+    if (cls !== 'public-source') { denied.push({ path, reason: `excluded:${cls}` }); continue; }
+    if (!res.some((re) => re.test(path))) { denied.push({ path, reason: 'not-allow-listed' }); continue; }
+    allowed.push(path);
+  }
+  allowed.sort();
+  denied.sort((a, b) => a.path.localeCompare(b.path));
+  const egressHash = createHash('sha256').update(allowed.join('\n'), 'utf8').digest('hex').slice(0, 16);
+  return { allowed, denied, egressHash };
+}
+
+/**
+ * Verifies a consent token is bound to the CURRENT egress set. Consent is
+ * `consent:<egressHash>`; if the set changed the hash changed and consent is
+ * invalid — blocks the "consent to X, then send Y" swap.
+ * @param {{egressHash:string}} egressSet
+ * @param {string} consentToken
+ * @returns {boolean}
+ */
+export function consentValidFor(egressSet, consentToken) {
+  return typeof consentToken === 'string' && consentToken === `consent:${egressSet.egressHash}`;
+}
+
+/**
+ * The semantic-pass gate — refuse-by-default. Returns REFUSED unless every
+ * condition holds: a backend is configured, the request is not a no-cloud
+ * contradiction, and (for a cloud backend) consent is bound to the exact egress
+ * set. Never performs a send itself — it authorizes or refuses; the wired send
+ * is a later, explicitly-consented operation.
+ *
+ * @param {object} opts
+ * @param {string} [opts.backend] '' | 'ollama'(local) | 'anthropic'|'openai'(cloud)
+ * @param {boolean} [opts.noCloud] a hard no-cloud flag
+ * @param {{egressHash:string, allowed:string[]}} [opts.egressSet]
+ * @param {string} [opts.consentToken]
+ * @returns {{decision:'REFUSED'|'ALLOWED_LOCAL'|'ALLOWED_CLOUD', reason:string}}
+ */
+export function authorizeSemanticPass(opts = {}) {
+  const backend = String(opts.backend || '');
+  const isCloud = backend === 'anthropic' || backend === 'openai' || backend === 'bedrock' || backend === 'gemini';
+  const isLocal = backend === 'ollama' || backend === 'local';
+
+  if (!backend) return { decision: 'REFUSED', reason: 'no backend configured (egress off by default)' };
+  // Compliance contradiction: no-cloud + cloud request -> explicit refusal.
+  if (opts.noCloud && isCloud) return { decision: 'REFUSED', reason: 'no-cloud flag set but a cloud backend was requested (contradiction, refused)' };
+  if (isLocal) return { decision: 'ALLOWED_LOCAL', reason: 'local-first backend; no egress' };
+  if (!isCloud) return { decision: 'REFUSED', reason: `unknown backend "${backend}"` };
+  // Cloud path: requires a bound consent over a non-empty egress set.
+  const egressSet = opts.egressSet;
+  if (!egressSet || !Array.isArray(egressSet.allowed) || egressSet.allowed.length === 0) {
+    return { decision: 'REFUSED', reason: 'cloud backend but empty/absent egress set' };
+  }
+  if (!consentValidFor(egressSet, opts.consentToken)) {
+    return { decision: 'REFUSED', reason: 'consent absent or not bound to the current egress-set hash' };
+  }
+  return { decision: 'ALLOWED_CLOUD', reason: `consented cloud egress of ${egressSet.allowed.length} allow-listed file(s)` };
+}
+
+if (process.argv[1] && process.argv[1].split(/[\\/]/).pop() === 'graph-egress.mjs') {
+  const demo = resolveEgressSet(
+    ['pkg/a.js', 'contextkit/memory/secret.md', '.env', 'docs/readme.md'],
+    ['pkg/**', 'docs/**'],
+  );
+  process.stdout.write(JSON.stringify(demo, null, 2) + '\n');
+}

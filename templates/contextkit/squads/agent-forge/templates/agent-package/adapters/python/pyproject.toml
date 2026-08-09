@@ -1,0 +1,10 @@
+[project]
+name = "{{AGENT_NAME}}-agent"
+version = "0.1.0"
+description = "Python runtime adapter for the {{AGENT_NAME}} Agent Package (forged by agent-forge)."
+requires-python = ">={{3.10}}"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

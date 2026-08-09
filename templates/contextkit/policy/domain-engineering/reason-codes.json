@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "reason-codes",
+  "title": "Stable reason-code catalog — ADR-0128 plan §28",
+  "note": "Stable identifiers for every classifier decision. Reason codes are part of the public contract: consumers (lifecycle, enforcement, telemetry) may key on them. Codes are append-only; renaming/removing one is a material change requiring a Decision.",
+  "codes": {
+    "CMIS_HARD_TRIGGER_WRITE_ATTEMPT": "Authoritative write attempt set CMIS=100 (Class A).",
+    "CMIS_VERDICT_NO_CODE": "CMIS resolved to NO_CODE (0-29).",
+    "CMIS_VERDICT_UNCERTAIN": "CMIS resolved to UNCERTAIN (30-49) — one clarifying question.",
+    "CMIS_VERDICT_CODE_MODIFICATION": "CMIS resolved to CODE_MODIFICATION (50-69).",
+    "CMIS_VERDICT_CODE_CREATION": "CMIS resolved to CODE_CREATION_OR_STRUCTURAL_CHANGE (70-100).",
+    "DAS_PROFILE_SIMPLE": "DAS resolved to simple (0-24).",
+    "DAS_PROFILE_MODULAR": "DAS resolved to modular (25-44).",
+    "DAS_PROFILE_DOMAIN_DRIVEN": "DAS resolved to domain-driven (45-69).",
+    "DAS_PROFILE_DISTRIBUTED_DOMAIN": "DAS resolved to distributed-domain (70-100).",
+    "DAS_FLOOR_DOMAIN_DRIVEN": "Hard trigger raised the DAS floor to domain-driven.",
+    "DAS_FLOOR_DISTRIBUTED_DOMAIN": "Hard trigger raised the DAS floor to distributed-domain.",
+    "PROFILE_NO_CODE": "Implementation Profile resolved to no-code (CMIS NO_CODE).",
+    "PROFILE_FROM_DAS": "Implementation Profile derived from the DAS profile floor.",
+    "PROFILE_ESCALATED_BY_RISK": "Inherited risk raised the profile rank.",
+    "PROFILE_ESCALATED_BY_BLAST": "Inherited blast radius raised the profile rank.",
+    "PROFILE_ESCALATED_BY_MATERIALITY": "Inherited materiality raised the profile rank.",
+    "PATH_HARD_EXCLUSION": "Path matched a hard exclusion (generated/vendor/build/fixtures).",
+    "PATH_CLASS_RESOLVED": "Path classified by directory/extension rule.",
+    "ENVELOPE_DEGRADED": "Classification degraded (missing policy/signals); recorded with a receipt, never a false pass.",
+    "POLICY_FALLBACK_DEFAULT": "Policy table absent on disk; embedded default used."
+  }
+}

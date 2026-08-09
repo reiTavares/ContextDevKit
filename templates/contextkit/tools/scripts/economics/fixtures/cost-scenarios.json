@@ -1,0 +1,148 @@
+{
+  "note": "Deterministic cost-engine fixtures — EACP-05 / ADR-0079 §12.2. Nine required scenarios for offline, reproducible verification. Synthetic; no real transcript content. E2 variant (b) throughout.",
+  "schemaVersion": "eacp-cost-scenarios/1",
+  "scenarios": {
+
+    "knownModel": {
+      "description": "Known model (opus-4-8, direct confidence) with mixed token buckets.",
+      "buckets": { "freshInput": 200, "output": 100, "cacheRead": 1000, "cacheWrite": 1000, "reasoning": 0 },
+      "model": "opus-4-8",
+      "expected": {
+        "actualUsd": 0.01025,
+        "noCacheUsd": 0.0135,
+        "grossCacheValueUsd": 0.00325,
+        "confidence": "direct",
+        "leadWithUsd": false,
+        "billingMode": "subscription"
+      }
+    },
+
+    "unknownModel": {
+      "description": "Model absent from registry — cost must be null / unknown, never $0.",
+      "buckets": { "freshInput": 500, "output": 200, "cacheRead": 0, "cacheWrite": 0, "reasoning": 0 },
+      "model": "totally-unknown-model-xyz",
+      "expected": {
+        "actualUsd": null,
+        "confidence": "unknown",
+        "leadWithUsd": false
+      }
+    },
+
+    "cacheReadHeavy": {
+      "description": "Cache-read-heavy usage: cacheRead >> freshInput. Verifies cacheRead is priced at entry.cacheRead, not at entry.input.",
+      "buckets": { "freshInput": 100, "output": 50, "cacheRead": 10000, "cacheWrite": 0, "reasoning": 0 },
+      "model": "opus-4-8",
+      "expected": {
+        "actualUsd": 0.00675,
+        "noCacheUsd": 0.05175,
+        "grossCacheValueUsd": 0.045,
+        "confidence": "direct",
+        "note": "actual=(100×5+50×25+10000×0.5)/1e6=0.00675; noCache=((100+10000)×5+50×25)/1e6=0.05175"
+      }
+    },
+
+    "cacheWriteTtl1h": {
+      "description": "Cache-write with TTL=1h multiplier (2× vs base input rate). Verifies cacheWriteByTtl.ttl1h is used when opts.cacheTtl='1h'.",
+      "buckets": { "freshInput": 0, "output": 0, "cacheRead": 0, "cacheWrite": 1000, "reasoning": 0 },
+      "model": "opus-4-8",
+      "opts": { "cacheTtl": "1h" },
+      "expected": {
+        "actualUsd": 0.01,
+        "note": "1000 tokens × $10/MTok (ttl1h) / 1e6 = $0.01"
+      }
+    },
+
+    "cacheWriteTtl5m": {
+      "description": "Cache-write with TTL=5m multiplier (1.25× vs base input rate). Default when cacheTtl omitted.",
+      "buckets": { "freshInput": 0, "output": 0, "cacheRead": 0, "cacheWrite": 1000, "reasoning": 0 },
+      "model": "opus-4-8",
+      "opts": {},
+      "expected": {
+        "actualUsd": 0.00625,
+        "note": "1000 tokens × $6.25/MTok (ttl5m) / 1e6 = $0.00625"
+      }
+    },
+
+    "missingRegistry": {
+      "description": "Registry absent (null) — financialSummary must return skipped marker, never fabricate $0.",
+      "simulatedRegistryNull": true,
+      "attribution": {
+        "byModel": {
+          "claude-opus-4-8": { "input": 200, "output": 100, "cacheRead": 1000, "cacheCreate": 1000, "turns": 1 }
+        }
+      },
+      "expected": {
+        "status": "skipped"
+      }
+    },
+
+    "fxConversion": {
+      "description": "FX snapshot applied to a known-USD result. Converted value = originalUsd × rate. originalUsd always preserved.",
+      "buckets": { "freshInput": 200, "output": 100, "cacheRead": 0, "cacheWrite": 0, "reasoning": 0 },
+      "model": "opus-4-8",
+      "fxSnapshot": {
+        "currency": "BRL",
+        "rate": 5.0,
+        "timestamp": "2026-06-15T12:00:00Z",
+        "source": "fixture (synthetic)",
+        "confidence": "direct"
+      },
+      "expected": {
+        "originalUsd": 0.0035,
+        "converted": 0.0175,
+        "currency": "BRL",
+        "fxConfidence": "direct",
+        "confidence": "direct",
+        "note": "actualUsd=(200×5+100×25)/1e6=0.0035; converted=0.0035×5.0=0.0175"
+      }
+    },
+
+    "originalUsdPreservation": {
+      "description": "FX snapshot with unknown confidence — converted must be null, but originalUsd is still returned.",
+      "buckets": { "freshInput": 200, "output": 100, "cacheRead": 0, "cacheWrite": 0, "reasoning": 0 },
+      "model": "opus-4-8",
+      "fxSnapshot": {
+        "currency": "EUR",
+        "rate": 0.92,
+        "timestamp": "2026-06-15T12:00:00Z",
+        "source": "fixture (unknown confidence)",
+        "confidence": "unknown"
+      },
+      "expected": {
+        "originalUsd": 0.0035,
+        "converted": null,
+        "fxConfidence": "unknown",
+        "confidence": "unknown"
+      }
+    },
+
+    "zeroUsage": {
+      "description": "All token buckets are zero — actualCost must be exactly $0.00 (not null) when the model is known.",
+      "buckets": { "freshInput": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0, "reasoning": 0 },
+      "model": "opus-4-8",
+      "expected": {
+        "actualUsd": 0,
+        "noCacheUsd": 0,
+        "grossCacheValueUsd": 0,
+        "confidence": "direct"
+      }
+    },
+
+    "mixedModels": {
+      "description": "Attribution with one priced model (opus) and one unknown model. totalActualUsd counts only opus; unpricedModels = 1; confidence = 'direct' (only priced model is direct).",
+      "attribution": {
+        "byModel": {
+          "claude-opus-4-8": { "input": 200, "output": 100, "cacheRead": 0, "cacheCreate": 0, "turns": 1 },
+          "totally-unknown-xyz": { "input": 500, "output": 200, "cacheRead": 0, "cacheCreate": 0, "turns": 2 }
+        }
+      },
+      "expected": {
+        "unpricedModels": 1,
+        "confidence": "direct",
+        "totalActualUsdIsPositive": true,
+        "perModelLength": 2,
+        "note": "opus contributes; unknown-xyz contributes null; totals partial"
+      }
+    }
+  }
+}

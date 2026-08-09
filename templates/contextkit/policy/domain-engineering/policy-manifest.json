@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "4.0.0",
+  "id": "policy-manifest",
+  "title": "Domain Engineering advisory policy manifest",
+  "updated": "2026-08-09",
+  "note": "All tables are observational and have no write, dispatch, or completion authority.",
+  "tables": [
+    { "id": "code-intent-weights", "file": "code-intent-weights.json", "concern": "Code intent observations" },
+    { "id": "domain-applicability-weights", "file": "domain-applicability-weights.json", "concern": "Domain applicability observations" },
+    { "id": "profile-thresholds", "file": "profile-thresholds.json", "concern": "Optional profile recommendations" },
+    { "id": "path-rules", "file": "path-rules.json", "concern": "Path classification" },
+    { "id": "hard-triggers", "file": "hard-triggers.json", "concern": "Deterministic classification signals" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Diagnostic reason codes" }
+  ]
+}

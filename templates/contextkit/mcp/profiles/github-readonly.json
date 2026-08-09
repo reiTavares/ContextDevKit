@@ -1,0 +1,25 @@
+{
+  "$schema": "https://contextdevkit.dev/schemas/mcp-profile/v1",
+  "id": "github-readonly",
+  "displayName": "GitHub (Read-Only)",
+  "description": "Least-privilege GitHub profile. Exposes only the read subset of the GitHub MCP server (repository metadata, issues, pull requests, file contents). Write and admin tools are not listed and are therefore denied by the policy engine's allow-list-only rule. Secret is referenced as GITHUB_PERSONAL_ACCESS_TOKEN (env-var name only — never a literal value). Risk R2: auto-approvable, read-only, secrets-by-ref. Activates via /mcp add github --mode read-only, and is included by the web-app and backend-api profiles. If GITHUB_PERSONAL_ACCESS_TOKEN is absent at runtime the server is skipped — not a hard failure.",
+  "servers": [
+    {
+      "id": "github",
+      "mode": "read-only",
+      "referencedSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedTools": [
+        "get_repo",
+        "list_repos",
+        "search_repos",
+        "list_issues",
+        "get_issue",
+        "list_pull_requests",
+        "get_pull_request",
+        "get_file_contents",
+        "list_commits",
+        "search_code"
+      ]
+    }
+  ]
+}

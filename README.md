@@ -1,238 +1,232 @@
-e # 🌀 VibeDevKit
+# ContextDevKit
 
-[![CI](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml/badge.svg)](https://github.com/reiTavares/VibeDevKit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/vibedevkit)](https://www.npmjs.com/package/vibedevkit)
-![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Zero deps](https://img.shields.io/badge/runtime%20deps-0-success)
+ContextDevKit is a portable governance and project-memory layer for AI-assisted
+development. It supports Claude Code, OpenAI Codex, Google Antigravity, and Grok
+without putting an application framework or package dependency on the runtime
+hook path.
 
-> A portable, **level-based AI-assisted development platform** for Claude Code.
-> Drop it into any project — greenfield or existing, any stack — and get durable
-> project memory, automatic context loading, drift detection, specialized
-> sub-agents, and proactive governance. Activate as much or as little as you want.
+The 4.0 model is deliberately quiet: governance starts when an interaction will
+mutate files or governed state. Conversation and read-only exploration create
+no task, workflow, ledger, receipt, or durable context.
 
-VibeDevKit is the generalized, stack-agnostic distillation of a production context
-system. It treats "vibe coding" as **engineering**: instead of hoping the AI
-remembers things, it makes the harness *enforce* them with hooks, and it records
-the *why* in version control so any future session — human or AI — can pick up
-where the last one left off.
+Portuguese documentation: [instrucoes.md](instrucoes.md).
 
-## Why
+## The operating contract
 
-A plain `CLAUDE.md` is just instructions the AI can ignore. VibeDevKit adds the
-parts that don't depend on the AI's goodwill:
+An interaction is classified before governance work begins:
 
-- **Hooks** inject context at session start, track every edit, and *block* the
-  session from ending with unregistered work.
-- **Durable memory** — ADRs (the *why*), session logs (the *what*), a glossary
-  (the naming authority), and an auto-generated changelog — all in your repo.
-- **Levels** so you adopt it gradually: start with memory only, turn on more as
-  the project (and your trust) grows.
+| Interaction | Durable effect |
+| --- | --- |
+| Conversation | None |
+| Read-only exploration | None |
+| Unclassified intent | One short clarification in the user's language; no persistence |
+| Mutation | Resolve existing work, classify its nature, select an execution shape, then run the applicable governance |
 
-## Requirements
+A real write attempt promotes the interaction to mutation exactly once. This
+applies to source, documentation, configuration, and memory files alike.
 
-- **Node.js ≥ 18** (the hooks/scripts are plain `.mjs`; Levels 1–3 need **zero**
-  npm packages).
-- **git** (for divergence detection and the Level 3 git hooks).
-- **Claude Code** (CLI, desktop, web, or IDE extension).
+Mutation work uses the smallest fitting shape:
+
+- **direct** — one to three cohesive tasks;
+- **batch** — four to twelve related tasks without strong ordering;
+- **workflow** — required ordering, dependencies, waves, multi-session work,
+  cutover, or rollback.
+
+`Business`, `Operation`, and `none` describe the nature of the work. `none` is
+normal for a focused feature, bug fix, documentation edit, or technical change.
+Business work needs a durable strategic outcome; Operation work needs a durable
+maintenance or operational capability. Neither label is inferred merely from a
+keyword.
+
+## One dispatcher, bounded governance
+
+Each host runs at most one ContextDevKit process for each governance event:
+
+1. `prompt-preflight`
+2. `write-preflight`
+3. `postflight`
+4. `completion`
+
+The dispatcher owns deduplication, a time budget, re-entry protection, and a
+circuit breaker. Internal failure follows `continue`: it is diagnostic, never a
+fabricated pass and never a reason to break the user's real work.
+
+Gate modes have precise meanings:
+
+- **canary** evaluates and reports without denying;
+- **shadow** observes without changing the outcome;
+- **guarded** may deny only an applicable, deterministic, evidenced violation
+  at its documented moment.
+
+Only three domains are guarded by default:
+
+| Gate | Blocking moment | Exact blocking condition |
+| --- | --- | --- |
+| `qa-signoff` | completion | a transition to `done` lacks deterministic QA evidence |
+| `ddd-invariants` | write-preflight, completion | an applicable Class A domain invariant is deterministically violated |
+| `technical-debt` | completion | the current diff introduces new high or critical debt |
+
+All other gates, including graph, intake, journey, workflow presence,
+simulation, deliberation, routing, subagent scope, economy, and context loading,
+default to canary. `privacy-lgpd` is shadow.
+
+The owner may provide a scoped human override for a guarded verdict. An override
+records actor, reason, scope, policy version/hash, base revision, timestamp,
+expiry, and outcome. It does not rewrite evidence or disable host/platform
+safety controls.
+
+## State authority
+
+There is one writable authority for each kind of state:
+
+| State | Authority |
+| --- | --- |
+| Workflow definition | `workflow.json` |
+| Workflow lifecycle | `workflow-state.json` |
+| Tasks and task status | `pipeline/tasks.json` |
+| Transient pipeline execution | `memory/runs/<run-id>/state.json` |
+| Owner preferences | the canonical owner-preference store |
+
+Task statuses are `backlog`, `working`, `blocked`, `testing`, `done`, and
+`cancelled`. Writes use validation, compare-and-swap revisions, a lock, and
+atomic replacement. A status transition and its audit event are committed in
+the same document.
+
+Markdown files such as `tasks.md` and `index.md` are derived projections. They
+are never parsed as runtime authority and may be repaired from JSON.
+
+A workflow package contains:
+
+```text
+WF-####-slug/
+├── workflow.json
+├── workflow-state.json
+├── prd.md
+├── spec.md
+├── decisions.md
+├── CONTINUATION-PROMPT.md
+├── context-manifest.json
+├── pipeline/
+│   ├── tasks.json
+│   └── tasks.md              # generated projection
+└── reports/
+```
+
+Direct and batch work use the same task document contract under their owning
+context. A workflow is created as a complete sibling staging directory,
+validated, and renamed into place atomically.
+
+## Graph, routing, and agents
+
+Project Map is the preferred first lookup because it can locate code and memory
+with less context. If the graph is missing, stale, partial, or cannot answer the
+query, broad search remains immediately available. Graph-first never blocks
+`Grep`, `Glob`, `rg`, or equivalent fallback.
+
+Model selection, specialist routing, swarm shape, economy hints, and owner
+preferences are recommendations. They never grant authority and their absence
+does not deny a write. A swarm is optional and is limited only by a real host
+technical limit when the host exposes one.
+
+LGPD routing is shadow-only. It may surface privacy observations but does not
+become a mandatory-agent gate.
+
+For destructive production work, force-push, or secret rotation, ContextDevKit
+emits a non-blocking `riskAcknowledgement`. Confirmation still belongs to the
+real host or platform boundary.
 
 ## Install
 
-**One command, from anywhere** (the repo is the installer):
+Requirements: Node.js 18 or newer. The hook hot path has zero runtime package
+dependencies.
 
 ```bash
-# from npm (recommended)
-npx vibedevkit --target . --level 2 --yes
-
-# or straight from GitHub (no npm needed)
-npx github:reiTavares/VibeDevKit --target . --level 2 --yes
+npx contextdevkit --target /path/to/project
 ```
 
-Or clone and run locally:
+For this repository checkout:
 
 ```bash
-# interactive — asks name / mode / level
-node install.mjs --target /path/to/your-project
-
-# non-interactive
-node install.mjs --target /path/to/your-project --level 2 --name "My App" --yes
+node install.mjs --target /path/to/project
 ```
 
-Greenfield? Run it in an empty (or `git init`-ed) folder and it scaffolds the
-whole thing. Existing project? It detects your stack, never clobbers your
-`CLAUDE.md` (it writes `CLAUDE.vibedevkit.md` to merge by hand), and preserves
-any hooks you already had.
+The installer supports tracked, local-only, and non-Git projects. In a non-Git
+directory it reports `NON-GIT` honestly and skips Git-only integration without
+disabling the rest of the kit.
 
-### Then: one-shot self-configuration
+Activation levels select available capabilities; they are not consent grades:
 
-Open the project in Claude Code, approve the hooks once — and **VibeDevKit tells
-you it isn't configured yet** (a first-run trigger fires from the boot hook).
-Run:
+| Level | Capability set |
+| --- | --- |
+| 1 | durable project memory |
+| 2 | host governance dispatchers and diagnostics |
+| 3 | multi-session coordination and claims |
+| 4 | specialist agents and QA roles |
+| 5 | impact, architecture, and quality analysis |
+| 6 | autonomous pipeline commands and learning loops |
+| 7 | fleet, ecosystem, visual QA, and advanced observability |
 
-```
-/setupvibedevkit
-```
+The current owner instruction determines what the agent may do. ContextDevKit
+does not convert a level, model route, or preference into permission.
 
-This inspects the project, tunes the config to your stack (`ledger` path lists,
-high-risk paths), fills in `CLAUDE.md` (rules, stack, glossary), scaffolds domain
-sub-agents, installs what's needed (with your OK), records a baseline ADR, and
-logs the session — going from "kit installed" to "kit fitted to *this* project"
-in a single pass. After it finishes, the trigger stops nagging.
+## Daily commands
 
-### What you'll see
-
-<!-- Drop a real recording here when you have one: a GIF or an asciinema embed.
-     ![demo](docs/media/setup.gif) -->
-
-```text
-$ npx vibedevkit --target . --level 2 --yes
-✓ .claude/settings.json wired for L2
-✓ engine installed (vibekit/runtime, vibekit/tools)
-✓ slash commands installed (.claude/commands)
-✓ CLAUDE.md created  ·  docs/CHANGELOG.md created
-✅ VibeDevKit installed at Level 2
-
-# open in Claude Code → the boot hook greets you with:
-## 🚀 First run — VibeDevKit not configured yet  →  run /setupvibedevkit
-
-> /setupvibedevkit
-  Phase 1 — Inspect ……  detected: TypeScript · Vite · React · vitest
-  Phase 3 — Apply ……    ledger tuned (src/, tests/); high-risk: src/db/schema.ts
-  Phase 4 — CLAUDE.md …  stack + immutable rules filled in
-  Phase 7 — baseline ADR-0001 recorded; session logged
-  ✅ VibeDevKit fitted to this project.
-```
-
-## The five levels
-
-| Level | Name | Adds |
-| --- | --- | --- |
-| **1** | Memory | Boot context injection, `/log-session`, ADRs, changelog |
-| **2** | Ledger | Drift detection — tracks edits, nudges you to register the session |
-| **3** | Multi-session | `/claim` · `/worktree-new`, derived indices, git hooks (Conventional Commits) |
-| **4** | Squads | Specialized sub-agents (`code-reviewer`, `context-keeper`, `architect`, QA squad, …) |
-| **5** | Proactive | `/simulate-impact` gate, `/tech-debt-sweep` (deterministic), `/contract-check`, auto-distill |
-| **6** | Autonomy & Insight | `/ship` (orchestrated squad pipeline), `/retro` (learning loop), `/vibe-stats` (metrics) |
-
-Change level anytime — from inside the project:
+Run the host-neutral CLI through `cdx.mjs` (Codex) or `ctx.mjs` (other hosts):
 
 ```bash
-node vibekit/tools/scripts/vibe-level.mjs        # show
-node vibekit/tools/scripts/vibe-level.mjs 4      # move to L4
+node cdx.mjs state
+node cdx.mjs project-map --find <symbol-or-path>
+node cdx.mjs dev-start <objective>
+node cdx.mjs pipeline
+node cdx.mjs workflow new <slug>
+node cdx.mjs qa-signoff
+node cdx.mjs log-session
 ```
 
-…or via the `/vibe-level` slash command. Going up adds capability; going down
-cleanly removes the now-disabled hooks. See [docs/LEVELS.md](docs/LEVELS.md).
+Mutating commands are dry-run by default when the command exposes a write
+switch. Read the printed receipt before applying a mutation.
 
-## What gets installed into your project
+## Upgrading from 3.x
 
-```
-your-project/
-  CLAUDE.md                     # boot context + your coding constitution
-  .claude/
-    settings.json               # hook wiring (composed for your level)
-    commands/                   # 14 slash commands
-    agents/                     # sub-agent archetypes (Level 4+)
-  vibekit/
-    runtime/hooks/              # the engine: boot, ledger, drift, L5 gate
-    runtime/config/             # zero-dep loader, defaults, settings composer
-    runtime/git-hooks/          # pre-commit (reindex) + commit-msg (Conventional)
-    tools/scripts/              # reindex, snapshot, claim/release, worktree, ...
-    memory/decisions/           # ADRs
-    memory/sessions/            # one file per session
-    memory/GLOSSARY.md
-    config.json                 # level + ledger path lists + L5 params
-  docs/CHANGELOG.md
-```
+There is no live compatibility fallback. Markdown lanes, v1 workflow plans,
+autonomy grades, legacy hook chains, and old writers are accepted only by the
+explicit offline migrator.
 
-## Slash commands
+The safe sequence is inventory and dry-run, stage, freeze old writers, verify
+parity and rollback readiness, cut over atomically, then retire v3 sources.
+Rollback switches to an independently copied, byte-verified v4 generation; the
+external workspace retains the inventoried v3 source bundle and manifest.
 
-**Setup:** `/aidevtool-from0` (empty project) · `/setupvibedevkit` (existing project)
+See [MIGRATION-3.x-TO-4.0.md](MIGRATION-3.x-TO-4.0.md) for commands, config-key
+conversion, refusal conditions, parity checks, and rollback.
 
-**Daily:** `/state` · `/log-session` · `/new-adr` · `/close-version`
-· `/context-refresh` · `/dev-start` · `/bug-hunt` · `/audit`
-
-**Multi-session:** `/claim` · `/release` · `/worktree-new`
-
-**Quality:** `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`
-
-**Product & execution:** `/roadmap` (product plan) · `/pipeline` (DevPipeline board)
-· `/ship` · `/retro` · `/vibe-stats` · `/distill-sessions` · `/distill-apply`
-
-**Structure & platform:** `/squad` (squads roster + grow) · `/git` (version control
-+ remote) · `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level` · `/vibe-config`
-· `/vibe-doctor`
-
-### Squads (Level 4)
-
-Sub-agents are organized into **squads** (`vibekit/squads/README.md`, managed with
-`/squad`): **devteam** (architect, code-reviewer, context-keeper, security,
-test-engineer), **qa-team** (qa-orchestrator + unit/integration/fuzzer/perf/e2e),
-**compliance-team** (`privacy-lgpd` — standardized Brazilian LGPD skills),
-**design-team** (ux-designer, ui-designer, accessibility), plus starters for
-**product-team** (`product-owner`) and **ops-team** (`devops`). Grow your own —
-or new squads (docs/data/growth) — from `_TEMPLATE.md` via `/squad`.
-
-### Roadmap vs DevPipeline
-
-Two different artifacts: **`vibekit/memory/roadmap.md`** is the *product/business
-plan* (capabilities, P-IDs, the what/why). The **DevPipeline**
-(`vibekit/pipeline/`, board in `devpipeline.md`) is *execution control* — bugs,
-increments, chores, and roadmap items broken into tasks with priority + SLA,
-flowing `backlog → testing → conclusion`. The roadmap says what to build; the
-pipeline runs the work.
-
-🇧🇷 Guia em português: [instrucoes.md](instrucoes.md).
-
-## Maintenance
+## Development and verification
 
 ```bash
-# diagnose an install (node, config, hook wiring vs level, git hooks, onboarding)
-/vibe-doctor          # or: node vibekit/tools/scripts/doctor.mjs
-
-# safe update — refresh engine + slash commands + hook wiring for your CURRENT
-# level. NEVER touches CLAUDE.md, vibekit/config.json, memory (ADRs/sessions/
-# roadmap), pipeline tasks, or scoped module CLAUDE.md files.
-npx vibedevkit@latest --target . --update
-#   (offline / from GitHub: npx github:reiTavares/VibeDevKit --target . --update)
-
-# change level (rewires settings.json, installs git hooks at L>=3)
-/vibe-level 4
-
-# uninstall — keeps your memory (ADRs, sessions) and CLAUDE.md
-node /path/to/vibedevkit/install.mjs --target . --uninstall
-# ...or also remove the engine/commands/agents:
-node /path/to/vibedevkit/install.mjs --target . --uninstall --purge
+npm run test:smoke
+npm run test:selfcheck
+npm run test:integration
+npm test
+npm run release:v4:gate
 ```
 
-## Customizing for your stack
+The suite runner is bounded, emits progress and heartbeats, and terminates a
+timed-out process tree. Release packaging uses an allowlist and refuses legacy
+runtime reachability, host-projection drift, test fixtures in the tarball, or an
+unexercised migration rollback.
 
-The one thing worth tuning per project: **which paths matter**. Edit
-`vibekit/config.json` → `ledger.*` (or use `/vibe-config`). A Python project adds
-`app/`, `tests/`; a Go project adds `cmd/`, `internal/`. Everything else works
-out of the box. See [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) for growing your
-own squad of sub-agents and adding slash commands.
+Version `4.0.0` is stamped only after all release gates are green.
 
-## Develop the kit itself
+## Documentation
 
-```bash
-npm test                      # selfcheck + integration test (what CI runs)
-node tools/selfcheck.mjs      # static: loads the engine, asserts wiring per level
-node tools/integration-test.mjs  # end-to-end: installs to a temp dir, drives real hooks
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the rules (zero hot-path deps, hooks
-never break work, add a test for anything you add).
-
-## Docs
-
-- [docs/LEVELS.md](docs/LEVELS.md) — what each level does and when to climb.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the engine works internally.
-- [docs/CUSTOMIZING.md](docs/CUSTOMIZING.md) — tune config, add agents/commands, rebrand.
-- [docs/ROADMAP.md](docs/ROADMAP.md) — architect analysis, the L6 layer, future directions.
-- [instrucoes.md](instrucoes.md) — guia de uso em português (pt-BR).
+- [Documentation index](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Governance contract](docs/reference/governance-contract.md)
+- [Configuration](docs/reference/config.md)
+- [Workflow engine](docs/workflow-engine/README.md)
+- [Security and privacy](docs/PRIVACY.md)
+- [Migration from 3.x](MIGRATION-3.x-TO-4.0.md)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)

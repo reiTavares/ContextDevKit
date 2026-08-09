@@ -1,0 +1,36 @@
+{
+  "id": "playwright-guarded",
+  "displayName": "Playwright Guarded (Testing)",
+  "description": "Least-privilege Playwright profile for QA/E2E and UI-fix tasks. Risk R3; ships guarded with an isolated, ephemeral browser profile (no persistent state). Restricted to read-oriented testing tools: navigate, snapshot, screenshot, and accessibility audit. Destructive and system-level tools are excluded. No network secrets required. Activated by web-app and product-design profiles, and by dynamic activation (MCP-194) for UI-fix tasks. Pairs with the qa-e2e playbook.",
+  "riskClass": "R3",
+  "activationMode": "guarded",
+  "browserProfile": {
+    "persistent": false,
+    "ephemeral": true,
+    "rationale": "Ephemeral profile prevents cross-run state leakage (cookies, auth tokens, local storage) that would widen the blast radius beyond the active test session."
+  },
+  "activatedBy": ["web-app", "product-design"],
+  "dynamicActivation": {
+    "ticket": "MCP-194",
+    "trigger": "ui-fix-task"
+  },
+  "pairsWith": ["qa-e2e"],
+  "servers": [
+    {
+      "id": "playwright",
+      "mode": "write",
+      "referencedSecrets": [],
+      "allowedTools": [
+        "browser_navigate",
+        "browser_snapshot",
+        "browser_screenshot",
+        "browser_wait_for",
+        "browser_accessibility_snapshot"
+      ],
+      "browserOptions": {
+        "headless": true,
+        "profile": "ephemeral"
+      }
+    }
+  ]
+}

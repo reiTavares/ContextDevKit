@@ -1,0 +1,264 @@
+/**
+ * Self-check — TEMPLATE INVENTORY (sibling runner of selfcheck-runtime/-config/
+ * -source, extracted from selfcheck.mjs at its natural seam — ADR-0041 F0,
+ * task 104). Asserts the shipped template tree is complete: slash commands
+ * (recursive, collision-free basenames — ticket 047), agent archetypes, tool
+ * scripts, GitHub scaffolding, agent-forge package template, workflows and
+ * playbooks. Pure presence checks — behavioral invariants live in the siblings.
+ */
+import { existsSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+/** Model-alias whitelist for agent frontmatter (ADR-0052 — aliases only, never versioned IDs). */
+const VALID_MODEL_ALIASES = new Set(['haiku', 'sonnet', 'opus', 'inherit']);
+
+/**
+ * Runs the template-inventory checks.
+ * @param {{ ok: (m: string) => void, bad: (m: string) => void }} reporter
+ * @param {{ KIT: string }} ctx repo root
+ */
+export async function runTemplateChecks({ ok, bad }, { KIT }) {
+  console.log('Checking template inventory...');
+  // Ticket 047 — commands live in domain subfolders + at root. Walk recursively
+  // and assert (a) every expected command resolves by basename, (b) no two
+  // commands collide on basename (Claude Code resolves by basename).
+  async function walkCmds(dir, acc = []) {
+    for (const ent of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      const full = resolve(dir, ent.name);
+      if (ent.isDirectory()) await walkCmds(full, acc);
+      else if (ent.name.endsWith('.md') && ent.name !== 'README.md') acc.push(ent.name);
+    }
+    return acc;
+  }
+  const cmds = await walkCmds(resolve(KIT, 'templates/claude/commands'));
+  cmds.length >= 35 ? ok(`${cmds.length} slash commands present (across packs + root)`) : bad(`only ${cmds.length} slash commands`);
+  const seen = new Map();
+  for (const c of cmds) seen.set(c, (seen.get(c) || 0) + 1);
+  const collisions = [...seen.entries()].filter(([, n]) => n > 1);
+  collisions.length === 0 ? ok('no command basename collides across packs (ticket 047)') : bad(`basename collisions: ${collisions.map(([n]) => n).join(', ')}`);
+  for (const c of ['setupcontextdevkit.md', 'distill-sessions.md', 'distill-apply.md', 'context-doctor.md', 'context-config.md', 'test-plan.md', 'scaffold-tests.md', 'qa-signoff.md', 'audit.md', 'ship.md', 'retro.md', 'context-stats.md', 'contract-check.md', 'aidevtool-from0.md', 'analyze-code-ia-practices.md', 'pipeline.md', 'roadmap.md', 'claude-md.md', 'git.md', 'squad.md', 'deps-audit.md', 'deep-analysis.md', 'security-setup.md', 'fleet.md', 'tune-agents.md', 'playbook.md', 'token-report.md', 'visual-test.md', 'forge-new.md',
+    'forge-list.md', 'forge-show.md', 'forge-doctor.md', 'forge-policy.md', 'forge-budget.md', 'forge-audit.md',
+    'forge-eval.md', 'forge-redteam.md', 'forge-route.md', 'forge-fallback-test.md',
+    'forge-refresh-matrix.md', 'forge-killswitch.md', 'forge-deprecate.md', 'runs.md', 'project-map.md', 'swarm.md', 'pipetest.md', 'fable.md']) {
+    cmds.includes(c) ? ok(`command ${c.replace('.md', '')} present`) : bad(`missing command ${c}`);
+  }
+  const agents = await readdir(resolve(KIT, 'templates/claude/agents')).catch(() => []);
+  agents.length >= 20 ? ok(`${agents.length} agent archetypes present`) : bad(`only ${agents.length} agents`);
+  for (const a of ['qa-orchestrator.md', 'qa-unit.md', 'qa-integration.md', 'qa-fuzzer.md', 'qa-perf.md', 'qa-e2e.md', 'privacy-lgpd.md', 'ux-designer.md', 'ui-designer.md', 'accessibility.md', 'product-owner.md', 'devops.md', 'infra-security.md', 'code-security.md',
+    'conversion-strategist.md', 'tracking-integrator.md',
+    'forge-orchestrator.md', 'agent-architect.md', 'model-router.md', 'prompt-engineer.md', 'tool-designer.md', 'packager.md',
+    'eval-designer.md', 'governance-officer.md', 'rag-designer.md']) {
+    agents.includes(a) ? ok(`agent ${a.replace('.md', '')} present`) : bad(`missing agent ${a}`);
+  }
+  // ADR-0052 — every agent declares a cost-tier model ALIAS in frontmatter.
+  // A versioned model ID (e.g. claude-haiku-4-5-20251001) would rot with model
+  // generations; the dated capability matrix owns concrete IDs, so it fails here.
+  let modelTierFailures = 0;
+  for (const a of agents.filter((f) => f.endsWith('.md') && f !== '_TEMPLATE.md')) {
+    const frontmatter = (await readFile(resolve(KIT, 'templates/claude/agents', a), 'utf-8')).split('\n---')[0];
+    const modelLine = frontmatter.match(/^model:\s*(\S+)/m);
+    if (!modelLine) { bad(`agent ${a} has no model: tier (ADR-0052)`); modelTierFailures++; continue; }
+    if (!VALID_MODEL_ALIASES.has(modelLine[1])) { bad(`agent ${a} model "${modelLine[1]}" is not an alias (ADR-0052: haiku|sonnet|opus|inherit)`); modelTierFailures++; }
+  }
+  if (modelTierFailures === 0) ok(`all agents declare a valid model: tier alias (ADR-0052)`);
+  existsSync(resolve(KIT, '.github/workflows/release.yml')) ? ok('release workflow present') : bad('missing release workflow');
+  const scripts = await readdir(resolve(KIT, 'templates/contextkit/tools/scripts')).catch(() => []);
+  for (const s of ['detect-stack.mjs', 'setup-complete.mjs', 'context-config.mjs', 'doctor.mjs', 'mark-simulation.mjs', 'predictions-review.mjs', 'tech-debt-scan.mjs', 'tech-debt-detectors.mjs', 'stats.mjs', 'contract-scan.mjs', 'pipeline.mjs', 'roadmap.mjs', 'claude-md.mjs', 'git.mjs', 'deps-audit.mjs', 'gh-alerts.mjs', 'pipeline-board.mjs', 'deep-analysis.mjs', 'squad.mjs', 'squad-meta.mjs', 'fleet.mjs', 'agent-tuning.mjs', 'playbook.mjs', 'token-report.mjs', 'token-attribution.mjs', 'memory-retrieve.mjs', 'visual-test.mjs', 'scaffold-tests.mjs', 'squad-pipeline.mjs', 'squad-pipeline-condition.mjs', 'pipeline-session.mjs', 'runs.mjs', 'pipeline-validate.mjs', 'distill-detect.mjs', 'workflow.mjs', 'workflow-pack.mjs', 'workflow-doc-check.mjs', 'workflow-gate.mjs', 'project-map.mjs', 'project-map-core.mjs', 'project-map-render.mjs', 'project-map-deps.mjs', 'project-map-symbols.mjs', 'project-map-insights.mjs', 'project-map-rules.mjs', 'lp-scaffold.mjs', 'lp-build.mjs', 'swarm-plan.mjs', 'swarm-state.mjs', 'squad-director.mjs',
+    'project-map-roots.mjs', 'project-map-coverage.mjs', 'context-manifest.mjs', 'context-manifest-readers.mjs',
+    'playbook-scope.mjs', 'memory-score.mjs', 'rule-archive.mjs', 'host-parity.mjs', 'host-parity-core.mjs',
+    'skill-runner.mjs', 'capability-compliance.mjs', 'benchmark-task.mjs',
+    'wiring-drift.mjs', 'wiring-drift-core.mjs', 'wiring-drift-checks.mjs',
+    'host-cost.mjs', 'capability-roi.mjs', 'capability-roi-core.mjs', 'cache-churn-health.mjs',
+    'lineage-graph.mjs', 'lineage-graph-core.mjs',
+    'lineage-public.mjs', 'lineage-public-core.mjs', 'lineage-calibration.mjs', 'lineage-calibration-core.mjs',
+    'lineage-rules.mjs', 'lineage-rules-core.mjs', 'policy-registry.mjs',
+    'engineering-scorecard.mjs', 'engineering-scorecard-core.mjs',
+    'fleet-compliance.mjs', 'fleet-compliance-core.mjs', 'agent-registry.mjs', 'agent-registry-core.mjs',
+    'policy-distribution.mjs', 'policy-distribution-core.mjs']) {
+    scripts.includes(s) ? ok(`script ${s} present`) : bad(`missing script ${s}`);
+  }
+  const ghTpl = await readdir(resolve(KIT, 'templates/github')).catch(() => []);
+  ghTpl.includes('PULL_REQUEST_TEMPLATE.md') ? ok('GitHub PR template present') : bad('missing PR template');
+  ghTpl.includes('dependabot.yml') ? ok('Dependabot config template present') : bad('missing dependabot.yml');
+  existsSync(resolve(KIT, 'templates/github/workflows/security.yml')) ? ok('security workflow template present') : bad('missing security workflow template');
+  existsSync(resolve(KIT, 'templates/github/workflows/quality.yml')) ? ok('quality workflow template present') : bad('missing quality workflow template');
+  for (const f of [
+    'templates/CLAUDE.md.tpl', 'templates/AGENTS.md.tpl', 'templates/cdx.mjs',
+    'templates/docs/CHANGELOG.md.tpl', 'templates/contextkit/config.json',
+    'templates/contextkit/instrucoes.md', 'templates/gitattributes', 'install.mjs',
+    '.github/workflows/ci.yml', 'CHANGELOG.md', 'instrucoes.md', 'docs/ROADMAP.md',
+    'templates/contextkit/runtime/git-hooks/pre-push.mjs',
+    'templates/contextkit/runtime/hooks/safe-io.mjs', 'templates/contextkit/runtime/config/levels.mjs',
+    'templates/contextkit/runtime/hooks/governance-prompt-preflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-write-preflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-postflight.mjs',
+    'templates/contextkit/runtime/hooks/governance-completion.mjs',
+    'templates/contextkit/runtime/hooks/governance-session-context.mjs',
+    'templates/contextkit/runtime/governance/event-runtime.mjs',
+    'templates/contextkit/runtime/git-hooks/quality-gates.mjs', // F2 / ADR-0062
+    'templates/contextkit/runtime/config/agent-hooks-compose.mjs',
+    'templates/github-optional/workflows/squad-issue.yml', // F5 / ADR-0064 (opt-in CI Squad action)
+    'tools/install/lib/marker-inject.mjs', // F4 / ADR-0067 (idempotent marker injection; F8 enabler)
+    'templates/claude/commands/context-budget.md', // F6 / ADR-0066 (context-budget skill)
+    'tools/install/bridges/render.mjs', 'tools/install/bridges/shared.mjs', 'tools/install/bridges/index.mjs', // F8 / ADR-0068
+    'tools/install/bridges/cursor.mjs', 'tools/install/bridges/copilot.mjs', 'tools/install/bridges/gemini.mjs',
+    'tools/install/bridges/windsurf.mjs', 'tools/install/bridges/aider.mjs', 'tools/install/bridges/continue.mjs',
+    'templates/contextkit/runtime/config/codex-hooks-compose.mjs',
+    'templates/contextkit/runtime/codex/convert-all.mjs',
+    'templates/contextkit/runtime/codex/convert-core.mjs',
+    'templates/contextkit/runtime/statusline.mjs', 'templates/contextkit/runtime/config/presets.mjs',
+    'templates/contextkit/best-practices.md',
+    'templates/contextkit/runtime/state/run-state-store.mjs',
+    'templates/contextkit/tools/scripts/telemetry/normalize.mjs', // PKG-06 CDK-062
+    'templates/contextkit/tools/scripts/telemetry/adapters/codex.mjs', // PKG-06 CDK-062
+    'templates/contextkit/detectors/README.md', 'templates/contextkit/detectors/example-detector.mjs.example',
+    'templates/contextkit/memory/roadmap.md', 'templates/contextkit/CLAUDE.child.md.tpl',
+    'templates/contextkit/squads/README.md', 'templates/contextkit/squads/_BRIEFING.md.tpl',
+    'templates/contextkit/squads/agent-forge/README.md', 'templates/contextkit/squads/agent-forge/best-practices.md',
+    'templates/contextkit/squads/agent-forge/ROADMAP.md',
+    'templates/contextkit/squads/agent-forge/lib/yaml.mjs',
+    'templates/contextkit/squads/agent-forge/lib/router.mjs',
+    'templates/contextkit/squads/agent-forge/lib/architect.mjs',
+    'templates/contextkit/squads/agent-forge/lib/prompt-gen.mjs',
+    'templates/contextkit/squads/agent-forge/lib/tool-gen.mjs',
+    'templates/contextkit/squads/agent-forge/lib/packager.mjs',
+    'templates/contextkit/squads/agent-forge/router/capability-matrix.json',
+    'templates/contextkit/squads/agent-forge/router/decision-rules.json',
+    'templates/contextkit/squads/agent-forge/cli/forge-new.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-ops.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-eval-cli.mjs',
+    'templates/contextkit/squads/agent-forge/cli/forge-admin.mjs',
+    'templates/contextkit/squads/agent-forge/lib/package-ops.mjs',
+    'templates/contextkit/squads/agent-forge/lib/eval-designer.mjs',
+    'templates/contextkit/squads/agent-forge/lib/eval-runner.mjs',
+    'templates/contextkit/squads/agent-forge/lib/governance-officer.mjs',
+    'templates/contextkit/squads/agent-forge/lib/rag-designer.mjs',
+    'templates/contextkit/squads/agent-forge/pipeline.yaml',
+    'tools/selfcheck-agent-forge-ops.mjs',
+    'templates/claude/commands/forge/forge-new.md',
+    'templates/claude/commands/README.md',
+    'docs/SQUADS/agent-forge.md', 'docs/AGENT-PACKAGE-FORMAT.md',
+    'docs/SQUAD-PIPELINE-FORMAT.md',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/manifest.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/README.md',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/.agentforgerc',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/prompts/system.canonical.md',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/tools/schemas.canonical.json',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/golden.jsonl',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/evals/thresholds.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/cost.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/compliance.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/quality.policy.yaml',
+    'templates/contextkit/squads/agent-forge/templates/agent-package/governance/audit.schema.json',
+    'templates/contextkit/memory/business-rules/_TEMPLATE.md',
+    'templates/contextkit/memory/predictions/.gitkeep',
+    'templates/contextkit/memory/workflows/.gitkeep',
+    'templates/contextkit/tools/scripts/workflow/create.mjs',
+    'templates/contextkit/tools/scripts/workflow/validate.mjs',
+    'templates/contextkit/tools/scripts/tasks-store.mjs',
+    'templates/contextkit/starters/landing/shell.html',
+    'templates/contextkit/starters/landing/lp.config.json',
+    'templates/contextkit/starters/landing/content/copy.json',
+    'templates/contextkit/starters/landing/content/legal.json',
+    'templates/contextkit/starters/landing/sections/01-hero.html',
+    'templates/contextkit/starters/landing/sections/07-footer-cta.html',
+    'templates/contextkit/starters/landing/partials/consent.html',
+    'templates/contextkit/starters/landing/partials/gtm.html',
+    'templates/contextkit/starters/landing/js/consent.js',
+    'templates/contextkit/starters/landing/js/tracking-models.js',
+    'templates/contextkit/starters/landing/legal/privacidade.html',
+    'templates/contextkit/starters/landing/legal/termos.html',
+    'templates/contextkit/squads/design-team/conversion-strategist.md',
+    'templates/contextkit/squads/design-team/tracking-integrator.md',
+    'templates/contextkit/policy/squads-registry.json',
+    'templates/contextkit/workflows/playbooks/squads/squad-devteam.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-qa.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-frontend.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-security.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-compliance.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-ops.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-growth.md',
+    'templates/contextkit/workflows/playbooks/squads/squad-agent-forge.md',
+  ]) {
+    existsSync(resolve(KIT, f)) ? ok(f) : bad(`missing ${f}`);
+  }
+  // F8 / ADR-0068: every bridge host in the registry must have a matching installer.
+  try {
+    const { BRIDGE_HOSTS } = await import('./install/bridges/index.mjs');
+    const missing = BRIDGE_HOSTS.filter((h) => !existsSync(resolve(KIT, `tools/install/bridges/${h.key}.mjs`)));
+    const unenforced = BRIDGE_HOSTS.every((h) => h.enforced === false);
+    missing.length === 0 ? ok(`bridge registry: all ${BRIDGE_HOSTS.length} hosts have an installer (F8)`) : bad(`bridge installers missing: ${missing.map((h) => h.key).join(', ')}`);
+    unenforced ? ok('bridge registry: every bridge is context-only (enforced:false)') : bad('a BRIDGE_HOSTS entry claims enforcement — bridges must be context-only');
+  } catch (err) {
+    bad(`bridge registry check failed: ${err?.message ?? err}`);
+  }
+  const wf = await readdir(resolve(KIT, 'templates/contextkit/workflows')).catch(() => []);
+  for (const f of ['README.md', 'L1-static-loading.md', 'L2-governance-dispatch.md', 'L3-multi-session.md', 'L4-squads.md', 'L5-proactive.md']) {
+    wf.includes(f) ? ok(`workflow ${f} present`) : bad(`missing workflow ${f}`);
+  }
+  const playbooks = await readdir(resolve(KIT, 'templates/contextkit/workflows/playbooks')).catch(() => []);
+  for (const f of ['tech-debt-sweep.md', 'simulate-impact.md', 'distillation-cycle.md', 'security-batch.md', 'landing-page.md', 'seo-aiso.md']) {
+    playbooks.includes(f) ? ok(`playbook ${f} present`) : bad(`missing playbook ${f}`);
+  }
+  const codexAgents = await readdir(resolve(KIT, 'templates/codex/agents')).catch(() => []);
+  codexAgents.filter((f) => f.endsWith('.toml')).length >= 20 ? ok('Codex subagent templates present') : bad('missing Codex subagent templates');
+  const claudeAgentNames = agents.filter((f) => f.endsWith('.md') && f !== '_TEMPLATE.md').map((f) => f.replace(/\.md$/, '')).sort();
+  const codexAgentNames = codexAgents.filter((f) => f.endsWith('.toml') && f !== '_TEMPLATE.toml').map((f) => f.replace(/\.toml$/, '')).sort();
+  const missingCodexAgents = claudeAgentNames.filter((name) => !codexAgentNames.includes(name));
+  const extraCodexAgents = codexAgentNames.filter((name) => !claudeAgentNames.includes(name));
+  missingCodexAgents.length === 0 && extraCodexAgents.length === 0
+    ? ok(`Codex subagent templates exactly match Claude agents (${codexAgentNames.length}/${claudeAgentNames.length})`)
+    : bad(`Codex/Claude agent template drift: missing=[${missingCodexAgents.join(',')}] extra=[${extraCodexAgents.join(',')}]`);
+  const codexSkills = await readdir(resolve(KIT, 'templates/codex/skills')).catch(() => []);
+  codexSkills.filter((f) => f.startsWith('source-command-')).length >= 35 ? ok('Codex source-command skill templates present') : bad('missing Codex source-command skill templates');
+  // ── task 143: INSTRUCTIONS.md.tpl — no hardcoded artifact counts that drift, no ghost personas ──
+  const instructions = await readFile(resolve(KIT, 'templates/INSTRUCTIONS.md.tpl'), 'utf-8').catch(() => null);
+  if (instructions == null) { bad('templates/INSTRUCTIONS.md.tpl missing or unreadable'); return; }
+  !/\b\d{2,}\s+(slash commands|skills|agents|playbooks)\b/i.test(instructions)
+    ? ok('INSTRUCTIONS.md.tpl has no hardcoded artifact counts (task 143)')
+    : bad('INSTRUCTIONS.md.tpl contains a hardcoded count that will drift (task 143)');
+  !/\bengine-keeper\b/i.test(instructions)
+    ? ok('INSTRUCTIONS.md.tpl does not name the engine-keeper ghost persona (task 143)')
+    : bad('INSTRUCTIONS.md.tpl mentions engine-keeper which does not exist (task 143)');
+
+  // WF-0111 W12: host projection inventory is declared in one manifest. Boot
+  // templates stay lean and do not duplicate the full agent registry.
+  try {
+    const registry = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/agent-capability-registry.json'), 'utf-8'));
+    const registeredAgents = registry.agents.map((entry) => entry.agent);
+    const projectionManifest = JSON.parse(await readFile(resolve(KIT, 'templates/contextkit/policy/host-projections.json'), 'utf-8'));
+    Object.keys(projectionManifest.hosts ?? {}).sort().join(',') === 'antigravity,claude,codex' &&
+      projectionManifest.hosts.antigravity.projections.some((projection) => projection.id === 'antigravity-agents')
+      ? ok('host projection manifest declares Antigravity agent generation')
+      : bad('host projection manifest does not declare Antigravity agent generation');
+
+    const claudeAgents = (await readdir(resolve(KIT, 'templates/claude/agents')))
+      .filter((file) => file.endsWith('.md') && file !== '_TEMPLATE.md')
+      .map((file) => file.replace(/\.md$/, ''));
+    const missingFromClaude = registeredAgents.filter((agent) => !claudeAgents.includes(agent));
+    missingFromClaude.length === 0
+      ? ok(`agent capability registry covers Claude agent source (${registeredAgents.length})`)
+      : bad(`agent capability registry missing Claude source agents: ${missingFromClaude.join(', ')}`);
+  } catch (err) {
+    bad(`agent roster parity check failed: ${err?.message ?? err}`);
+  }
+
+  // WF-0111 W12: all hosts expose the same five v4 contract labels; runner
+  // syntax lives outside the byte-identical block.
+  const contractLabels = [
+    '`mutation-only-intake`',
+    '`single-governance-dispatch`',
+    '`workflow-context-before-write`',
+    '`canonical-json-state`',
+    '`advisory-agent-routing`',
+  ];
+  const bootTemplates = ['templates/AGENTS.md.tpl', 'templates/CLAUDE.md.tpl', 'templates/INSTRUCTIONS.md.tpl'];
+  for (const template of bootTemplates) {
+    const text = await readFile(resolve(KIT, template), 'utf-8').catch(() => '');
+    contractLabels.every((label) => text.includes(label))
+      ? ok(`${template} exposes the five-part canonical host contract`)
+      : bad(`${template} is missing a canonical host contract label`);
+  }
+
+}

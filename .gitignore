@@ -10,11 +10,31 @@ desktop.ini
 .npmrc
 *.tgz
 
-# This is the KIT repo. Runtime state only appears in TARGET projects, but
-# ignore it here too in case you test-install into a subfolder.
-.claude/.sessions/
-.claude/.workspace/
-.context-snapshot.md
-
 # Throwaway install targets used by manual testing
 .selftest*/
+
+# Test-runner instrumentation (TEA-001) — metadata only, never committed.
+runs/
+
+# ContextDevKit — local runtime state (do not commit)
+.claude/.workspace/
+.context-snapshot.md
+.distillation-proposal.md
+.agent-tuning-proposal.md
+contextkit/memory/tech-debt-findings.json
+contextkit/memory/deps-findings.json
+contextkit/memory/deep-analysis-findings.json
+contextkit/.cache/
+contextkit/.updates/
+
+# #243 benchmark scratch (calibration cells / symptom briefs) — never committed
+_bench243/
+_contextkit/
+contextkit/memory/SESSIONS.md
+contextkit/memory/WORKSPACE.md
+contextkit/memory/DELIBERATIONS.md
+contextkit/memory/work-context-registry.json
+contextkit/memory/workflow-registry.json
+contextkit/memory/decision-registry.json
+contextkit/memory/project-map/
+tools/release/v4/reports/

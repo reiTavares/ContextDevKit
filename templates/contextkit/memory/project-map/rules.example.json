@@ -1,0 +1,9 @@
+{
+  "_comment": "Architectural-fitness rules for /project-map (ADR-0046). RENAME this file to rules.json to ENABLE enforcement (opt-in). Paths are repo-relative module-path PREFIXES — never roles (a heuristic must not fail CI). `project-map --check --strict` exits 1 on any violation; the secrets path-class (ADR-0041) auto-augments `sensitive`, so credential dirs are covered without being listed.",
+  "forbidden": [
+    { "from": "src/frontend", "to": "src/backend", "reason": "frontend must not import the backend directly" }
+  ],
+  "sensitive": [
+    { "module": "src/auth", "allowedInto": ["src/api", "src/middleware"] }
+  ]
+}

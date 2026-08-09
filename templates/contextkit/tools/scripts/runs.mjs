@@ -1,0 +1,210 @@
+#!/usr/bin/env node
+/**
+ * `/runs` — lists the last N in-flight items (tasks + pipeline runs) across the
+ * project, reading the canonical state.json substrate ([ADR-0015](../../memory/decisions/0015-pipeline-dsl-working-stage-and-multi-session-work-claims.md) Part C).
+ *
+ * Read-only — never mutates state. Refuses cleanly when no state files exist
+ * ("no runs yet"). Token-light by default — prints the 20 most recent; `--all`
+ * shows everything, `--json` for machine-readable output.
+ *
+ * Usage:
+ *   node contextkit/tools/scripts/runs.mjs                          # last 20, all kinds
+ *   node contextkit/tools/scripts/runs.mjs --kind task              # tasks only
+ *   node contextkit/tools/scripts/runs.mjs --kind pipeline-run
+ *   node contextkit/tools/scripts/runs.mjs --all                    # no limit
+ *   node contextkit/tools/scripts/runs.mjs --json                   # JSON for tooling
+ *   node contextkit/tools/scripts/runs.mjs --events <id>            # one item's transition log (ADR-0043)
+ *   node contextkit/tools/scripts/runs.mjs --events <id> --follow   # tail the log, daemon-free (COMP-003)
+ */
+import { listRunStates as listStates, readRunState as readState } from '../../runtime/state/run-state-store.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+
+const ROOT = process.cwd();
+const PIPE = pathsFor(ROOT).memory;
+const DEFAULT_LIMIT = 20;
+/** Poll interval for `--follow` mode — mirrors watch.mjs (COMP-003). */
+const FOLLOW_INTERVAL_MS = 500;
+const STATUS_BADGE = { backlog: '📋', working: '🔵', testing: '🟡', done: '✅', running: '🔄', 'blocked-on-checkpoint': '⏸', failed: '❌' };
+
+/** Returns the value after `--name`, or undefined when absent. */
+function arg(name) {
+  const i = process.argv.indexOf(`--${name}`);
+  return i !== -1 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
+
+function flag(name) {
+  return process.argv.includes(`--${name}`);
+}
+
+/** Best-effort age formatter mirroring workspace-sync's `relativeTime`. */
+function ago(ms) {
+  if (typeof ms !== 'number' || ms <= 0) return '—';
+  const s = Math.floor((Date.now() - ms) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+/** Duration when both startedAt + endedAt are present, else "—". */
+function duration(state) {
+  if (typeof state.startedAt !== 'number' || typeof state.endedAt !== 'number') return '—';
+  const s = Math.max(0, Math.floor((state.endedAt - state.startedAt) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+}
+
+function renderTasks(tasks) {
+  if (tasks.length === 0) return null;
+  const out = ['📋 tasks', '─'.repeat(60)];
+  for (const t of tasks) {
+    const badge = STATUS_BADGE[t.status] || '·';
+    const owner = t.ownerUser ? ` · ${t.ownerUser}` : '';
+    const branch = t.branch ? ` · ${t.branch}` : '';
+    const when = t.endedAt ? `ended ${ago(t.endedAt)} (${duration(t)})` : `started ${ago(t.startedAt)}`;
+    out.push(`  ${badge} ${t.id.padEnd(5)} [${t.status.padEnd(8)}]${owner}${branch} · ${when}`);
+  }
+  return out.join('\n');
+}
+
+function renderPipelineRuns(runs) {
+  if (runs.length === 0) return null;
+  const out = ['🤖 pipeline runs', '─'.repeat(60)];
+  for (const r of runs) {
+    const badge = STATUS_BADGE[r.status] || '·';
+    const step = r.step ? `${r.step.current ?? '?'}/${r.step.total ?? '?'} steps` : '';
+    const cycles = r.cycles && Object.keys(r.cycles).length > 0 ? `(${Object.entries(r.cycles).map(([k, v]) => `${k}×${v}`).join(', ')})` : '';
+    const when = r.endedAt ? `ended ${ago(r.endedAt)} (${duration(r)})` : `started ${ago(r.startedAt)}`;
+    out.push(`  ${badge} ${r.id.padEnd(20)} [${r.status.padEnd(10)}] ${step} ${cycles} · ${when}`);
+  }
+  return out.join('\n');
+}
+
+/**
+ * Formats one transition event for stdout — pure, no I/O.
+ *
+ * @param {{ ts: number, actor: string, from: string, to: string, note?: string, inverse?: string }} event
+ * @returns {string}
+ */
+export function formatEvent(event) {
+  const when = new Date(event.ts).toISOString().replace('T', ' ').slice(0, 16);
+  return `  ${when}  ${String(event.actor).padEnd(5)}  ${event.from || '∅'} → ${event.to}` +
+    (event.note ? `  · ${event.note}` : '') +
+    `  (undo → ${event.inverse || '∅'})`;
+}
+
+/**
+ * Returns the slice of events that are new since `lastIndex` (exclusive).
+ * Pure — no I/O, no timers. The unit-testable core of follow mode (COMP-003).
+ *
+ * @param {Array<object>} events - full events array from the state
+ * @param {number} lastIndex - number of events already printed
+ * @returns {Array<object>} new events to print
+ */
+export function newEventsSince(events, lastIndex) {
+  if (!Array.isArray(events) || lastIndex >= events.length) return [];
+  return events.slice(lastIndex);
+}
+
+/** ADR-0043 — prints one item's append-only transition log, newest last. */
+function showEvents(id) {
+  const state = readState(PIPE, id);
+  if (!state) {
+    process.stderr.write(`  Unknown id "${id}" — no state file found.\n`);
+    process.exit(1);
+  }
+  if ((state.events || []).length === 0) {
+    console.log(`  No transition events for "${id}" yet (events exist from F2 moves onward).`);
+    return;
+  }
+  console.log(`\n🧾 ${id} — ${state.events.length} transition(s), actor-attributed, each with its inverse:\n`);
+  for (const e of state.events) console.log(formatEvent(e));
+}
+
+/**
+ * Tails the transition log for `id`, polling every FOLLOW_INTERVAL_MS.
+ * Prints existing events once, then only new ones. Exits cleanly on SIGINT.
+ * Mirrors watch.mjs follower pattern (COMP-003, ADR-0043).
+ *
+ * @param {string} id
+ */
+function followEvents(id) {
+  // Fail-fast: verify the id resolves before entering the poll loop.
+  const initial = readState(PIPE, id);
+  if (!initial) {
+    process.stderr.write(`  Unknown id "${id}" — no state file found.\n`);
+    process.exit(1);
+  }
+
+  let printedCount = 0;
+
+  const tick = () => {
+    try {
+      const state = readState(PIPE, id);
+      const events = (state && state.events) ? state.events : [];
+      const fresh = newEventsSince(events, printedCount);
+      if (printedCount === 0 && events.length > 0) {
+        console.log(`\n🧾 ${id} — following transition log (Ctrl-C to stop)\n`);
+      }
+      for (const e of fresh) console.log(formatEvent(e));
+      printedCount = events.length;
+    } catch (err) {
+      process.stderr.write(`runs --follow: ${err.message}\n`);
+    }
+  };
+
+  tick();
+  const handle = setInterval(tick, FOLLOW_INTERVAL_MS);
+
+  const stop = () => {
+    clearInterval(handle);
+    process.stdout.write('\n# follow stopped\n');
+    process.exit(0);
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
+}
+
+function main() {
+  const eventsId = arg('events');
+  if (eventsId) {
+    if (flag('follow')) return followEvents(eventsId);
+    return showEvents(eventsId);
+  }
+  const kindFilter = arg('kind');
+  if (kindFilter && kindFilter !== 'pipeline-run') {
+    console.error(`Invalid --kind "${kindFilter}". ContextDevKit 4 run state supports only "pipeline-run"; tasks live in pipeline/tasks.json.`);
+    process.exit(1);
+  }
+  const limit = flag('all') ? Infinity : Number(arg('limit')) || DEFAULT_LIMIT;
+  const all = listStates(PIPE);
+  const truncated = Number.isFinite(limit) ? all.slice(0, limit) : all;
+
+  if (flag('json')) {
+    console.log(JSON.stringify({ total: all.length, shown: truncated.length, states: truncated }, null, 2));
+    return;
+  }
+
+  if (all.length === 0) {
+    console.log('  No runs yet. Start a task with `/pipeline start <id>` or run a squad pipeline.');
+    return;
+  }
+
+  const tasks = [];
+  const runs = truncated.filter((s) => s.kind === 'pipeline-run');
+  const sections = [renderTasks(tasks), renderPipelineRuns(runs)].filter(Boolean);
+  if (sections.length === 0) {
+    console.log(`  No ${kindFilter ?? 'state'} entries match. Total in store: ${all.length}.`);
+    return;
+  }
+  console.log('\n' + sections.join('\n\n') + '\n');
+  if (all.length > truncated.length) {
+    console.log(`  (showing ${truncated.length} of ${all.length} — pass --all for the full list)`);
+  }
+}
+
+main();

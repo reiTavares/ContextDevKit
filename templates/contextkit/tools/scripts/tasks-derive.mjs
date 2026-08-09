@@ -1,0 +1,161 @@
+/** Pure derivations over the canonical ContextDevKit 4 task authority. */
+import {
+  TASK_STATUSES,
+  createTaskRecord,
+  createTasksDocument,
+} from './tasks-schema.mjs';
+import { assertTasksDocument } from './tasks-validate.mjs';
+
+const BOARD_KIND = 'derived-task-board';
+const BOARD_SCHEMA_VERSION = 2;
+
+/** @param {unknown} left @param {unknown} right @returns {number} */
+function compareIds(left, right) {
+  return String(left).localeCompare(String(right), undefined, { numeric: true });
+}
+
+/**
+ * Normalizes a workflow reference without consulting filesystem placement.
+ *
+ * @param {unknown} rawScopeRef
+ * @returns {string}
+ */
+function normalizeScopeRef(rawScopeRef) {
+  if (typeof rawScopeRef === 'number' && Number.isInteger(rawScopeRef)) {
+    return `WF-${String(rawScopeRef).padStart(4, '0')}`;
+  }
+  if (typeof rawScopeRef === 'string' && /^\d+$/.test(rawScopeRef)) {
+    return `WF-${rawScopeRef.padStart(4, '0')}`;
+  }
+  return String(rawScopeRef ?? '');
+}
+
+/**
+ * Derives an initial v4 task authority from stable workflow definition data.
+ * It never reads lanes, journals, or workflow placement.
+ *
+ * @param {object} workflowDefinition
+ * @param {{scopeRef?:string,workflowId?:string|number,now?:string}} [options]
+ * @returns {object}
+ * @throws {TypeError} when definition data is incomplete
+ */
+export function deriveWorkflowTasks(workflowDefinition, options = {}) {
+  if (!workflowDefinition || typeof workflowDefinition !== 'object' || Array.isArray(workflowDefinition)) {
+    throw new TypeError('deriveWorkflowTasks: workflowDefinition must be an object');
+  }
+  const scopeRef = normalizeScopeRef(
+    options.scopeRef
+      ?? workflowDefinition.scopeRef
+      ?? workflowDefinition.id
+      ?? options.workflowId
+      ?? workflowDefinition.workflowId,
+  );
+  if (scopeRef === '') throw new TypeError('deriveWorkflowTasks: a workflow scope reference is required');
+
+  let sourceTasks = [];
+  if (Array.isArray(workflowDefinition.tasks)) {
+    sourceTasks = workflowDefinition.tasks;
+  } else if (Array.isArray(workflowDefinition.waves)) {
+    sourceTasks = workflowDefinition.waves.flatMap((wave) => (Array.isArray(wave?.tasks) ? wave.tasks : []));
+  }
+  const creationTimestamp = options.now ?? workflowDefinition.createdAt;
+  if (sourceTasks.some((task) => task?.createdAt === undefined) && creationTimestamp === undefined) {
+    throw new TypeError('deriveWorkflowTasks: options.now or workflowDefinition.createdAt is required for deterministic timestamps');
+  }
+  const tasks = sourceTasks.map((sourceTask) => createTaskRecord({
+    id: sourceTask.id,
+    batchId: sourceTask.batchId ?? null,
+    title: sourceTask.title,
+    status: sourceTask.status ?? 'backlog',
+    priority: sourceTask.priority ?? 'P2',
+    dependsOn: sourceTask.dependsOn ?? [],
+    acceptance: sourceTask.acceptance ?? [],
+    touchHints: sourceTask.touchHints ?? [],
+    evidenceRefs: sourceTask.evidenceRefs ?? [],
+    reportRefs: sourceTask.reportRefs ?? [],
+    createdAt: sourceTask.createdAt,
+    updatedAt: sourceTask.updatedAt,
+  }, { now: creationTimestamp }));
+  tasks.sort((leftTask, rightTask) => compareIds(leftTask.id, rightTask.id));
+  const document = createTasksDocument(scopeRef, { tasks });
+  return assertTasksDocument(document);
+}
+
+/**
+ * Returns task records matching an optional in-memory filter.
+ *
+ * @param {object} document
+ * @param {{status?:string,batchId?:string|null}} [filters]
+ * @returns {object[]}
+ */
+export function listTasks(document, filters = {}) {
+  assertTasksDocument(document);
+  if (filters.status !== undefined && !TASK_STATUSES.includes(filters.status)) {
+    throw new TypeError(`listTasks: unknown status "${filters.status}"`);
+  }
+  return document.tasks
+    .filter((task) => filters.status === undefined || task.status === filters.status)
+    .filter((task) => filters.batchId === undefined || task.batchId === filters.batchId)
+    .map((task) => structuredClone(task));
+}
+
+/**
+ * Derives stable status counts from one canonical task document.
+ *
+ * @param {object} document
+ * @returns {{total:number,byStatus:Record<string,number>}}
+ */
+export function deriveTaskSummary(document) {
+  assertTasksDocument(document);
+  const byStatus = Object.fromEntries(TASK_STATUSES.map((status) => [status, 0]));
+  for (const task of document.tasks) byStatus[task.status] += 1;
+  return { total: document.tasks.length, byStatus };
+}
+
+/**
+ * Derives a global, read-only board from validated scope documents.
+ *
+ * @param {object[]} documents
+ * @returns {object}
+ */
+export function deriveTaskBoard(documents) {
+  if (!Array.isArray(documents)) throw new TypeError('deriveTaskBoard: documents must be an array');
+  const scopeRefs = new Set();
+  const rows = [];
+  for (const document of documents) {
+    assertTasksDocument(document);
+    if (scopeRefs.has(document.scopeRef)) {
+      throw new Error(`deriveTaskBoard: duplicate authority for scope "${document.scopeRef}"`);
+    }
+    scopeRefs.add(document.scopeRef);
+    for (const task of document.tasks) {
+      rows.push({ scopeRef: document.scopeRef, ...structuredClone(task) });
+    }
+  }
+  rows.sort((leftRow, rightRow) => compareIds(leftRow.scopeRef, rightRow.scopeRef)
+    || compareIds(leftRow.id, rightRow.id));
+  const totals = Object.fromEntries(TASK_STATUSES.map((status) => [status, 0]));
+  for (const row of rows) totals[row.status] += 1;
+  return {
+    schemaVersion: BOARD_SCHEMA_VERSION,
+    kind: BOARD_KIND,
+    total: rows.length,
+    totals,
+    rows,
+  };
+}
+
+export const deriveBoard = deriveTaskBoard;
+
+/**
+ * Refuses authored global boards and accepts only this module's projection.
+ *
+ * @param {object} board
+ * @returns {object}
+ */
+export function assertDerivedOnly(board) {
+  if (!board || board.kind !== BOARD_KIND || board.schemaVersion !== BOARD_SCHEMA_VERSION || !Array.isArray(board.rows)) {
+    throw new TypeError('global task board must be produced by deriveTaskBoard');
+  }
+  return board;
+}

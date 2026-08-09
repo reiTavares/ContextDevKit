@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="{{config.language}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Política de Privacidade — {{copy.brand.name}}</title>
+  <meta name="description" content="Política de privacidade de {{legal.empresa.nomeFantasia}}: quais dados pessoais coletamos, com qual finalidade e quais são os seus direitos pela LGPD." />
+  <link rel="canonical" href="{{config.canonicalOrigin}}/privacidade.html" />
+  <meta name="robots" content="noindex, follow" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="index.html">{{copy.brand.name}}</a>
+    </div>
+  </header>
+  <main class="section">
+    <div class="container narrow">
+      <h1 class="section-title">Política de Privacidade</h1>
+      <p class="section-sub"><strong>⚠️ Minuta gerada automaticamente — revise com um advogado antes de publicar.</strong>
+        Este documento é um ponto de partida estruturado pela LGPD (Lei 13.709/2018);
+        ele não constitui aconselhamento jurídico.</p>
+
+      <h2>1. Quem somos</h2>
+      <p>{{legal.empresa.razaoSocial}} ("{{legal.empresa.nomeFantasia}}"), CNPJ
+        {{legal.empresa.cnpj}}, com sede em {{legal.empresa.endereco}}, é a controladora
+        dos dados pessoais tratados neste site. Contato: {{legal.empresa.email}}.</p>
+
+      <h2>2. Quais dados coletamos e por quê</h2>
+      <p><strong>Dados coletados:</strong> {{legal.dados.coletados}}</p>
+      <p><strong>Finalidade:</strong> {{legal.dados.finalidade}}</p>
+      <p><strong>Base legal (LGPD, Art. 7º):</strong> {{legal.dados.baseLegal}}</p>
+
+      <h2>3. Cookies e tecnologias de medição</h2>
+      <p>Este site só ativa cookies de medição e marketing <strong>após o seu
+        consentimento explícito</strong> no banner exibido na primeira visita. Sem o
+        aceite, nenhuma ferramenta de rastreamento é carregada. Você pode revogar a
+        escolha limpando os dados do site no navegador.</p>
+
+      <h2>4. Compartilhamento</h2>
+      <p>{{legal.dados.compartilhamento}}</p>
+
+      <h2>5. Retenção</h2>
+      <p>{{legal.dados.retencao}}</p>
+
+      <h2>6. Seus direitos (LGPD, Art. 18)</h2>
+      <p>Você pode solicitar a qualquer momento: confirmação do tratamento, acesso,
+        correção, anonimização, portabilidade, eliminação dos dados e revogação do
+        consentimento. Para exercer qualquer direito, escreva para
+        {{legal.encarregado.email}}.</p>
+
+      <h2>7. Encarregado de dados (DPO)</h2>
+      <p>{{legal.encarregado.nome}} — {{legal.encarregado.email}}.</p>
+
+      <h2>8. Alterações</h2>
+      <p>Esta política pode ser atualizada; a data da última modificação é
+        {{build.date}}.</p>
+
+      <p><a href="index.html">← Voltar</a></p>
+    </div>
+  </main>
+</body>
+</html>

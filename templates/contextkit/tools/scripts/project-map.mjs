@@ -1,0 +1,217 @@
+#!/usr/bin/env node
+/**
+ * /project-map — deterministic, stack-agnostic structural map of THIS project.
+ *
+ * Generates a durable, committed map under `<memory>/project-map/` that the agent
+ * reads INSTEAD of re-exploring the tree — modules classified frontend/backend/
+ * shared, dependency edges, a sampled symbol inventory, structural insights
+ * (cycles/orphans/oversized) and architectural-rule violations. ZERO AI tokens.
+ *
+ * Usage:
+ *   project-map.mjs                  # (re)generate the map
+ *   project-map.mjs --check          # delta vs the saved map + rule violations
+ *   project-map.mjs --check --strict # exit 1 if stale OR a rule is violated (CI)
+ *   project-map.mjs --for <path>     # focused subgraph (module + deps + importers)
+ *   project-map.mjs --memory         # dogfood memory index + fleet-safe next ids
+ *   project-map.mjs --find dogfood   # alias of --memory (ADR-0119)
+ *
+ * Output path single-sourced via `pathsFor` (rule 4). Best-effort; never throws on
+ * a bad file. Rules/insights are opt-in and additive (ADR-0046). [ADR-0038/0039/0040/0046]
+ */
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { emitEconomy } from './economy/telemetry-emit.mjs';
+import { pathsFor } from '../../runtime/config/paths.mjs';
+import { localVsFleet } from './registry/ids.mjs';
+import { loadConfigSync } from '../../runtime/config/load.mjs';
+import { scanProject } from './project-map-core.mjs';
+import { renderAll } from './project-map-render.mjs';
+import { computeInsights, manifestDelta, subgraphFor } from './project-map-insights.mjs';
+import { evaluateRules, loadRules } from './project-map-rules.mjs';
+import { buildDenseIndex, findSymbol, renderDense } from './project-map-dense.mjs';
+
+const ROOT = process.cwd();
+// CDK-050: config-driven scan scope (roots/excludes). Falls back to defaults.
+const CONFIG = loadConfigSync(ROOT);
+const args = process.argv.slice(2);
+const flag = (name) => args.includes(name);
+const valueOf = (name) => {
+  const i = args.indexOf(name);
+  return i >= 0 ? args[i + 1] : null;
+};
+
+const readManifest = (dir) => readFile(resolve(dir, 'manifest.json'), 'utf-8').then(JSON.parse).catch(() => null);
+
+/** Builds the full model with insights + rule violations attached. */
+function analyze(dir) {
+  const model = scanProject(ROOT, Date.now(), CONFIG);
+  model.insights = computeInsights(model.modules);
+  model.violations = evaluateRules(model.modules, loadRules(dir));
+  return model;
+}
+
+function printInsights(model) {
+  const { cycles, orphans, oversized } = model.insights;
+  if (cycles.length) console.log(`   ⚠️  ${cycles.length} dependency cycle(s): ${cycles.map((c) => c.join('→')).slice(0, 3).join(' · ')}`);
+  if (orphans.length) console.log(`   ℹ️  ${orphans.length} orphan module(s): ${orphans.slice(0, 5).join(', ')}`);
+  if (oversized.length) console.log(`   ℹ️  ${oversized.length} oversized module(s) (split candidates): ${oversized.join(', ')}`);
+  if (model.violations.length) console.log(`   ⛔ ${model.violations.length} rule violation(s): ${model.violations.map((v) => `${v.from}→${v.to}`).slice(0, 3).join(' · ')}`);
+}
+
+async function generate(dir) {
+  const model = analyze(dir);
+  await mkdir(dir, { recursive: true });
+  for (const [name, body] of Object.entries(renderAll(model))) await writeFile(resolve(dir, name), body, 'utf-8');
+  // No `generatedAt` here on purpose (ADR-0046 §1 / ADR-0039): the manifest must be
+  // byte-stable when nothing structural changed, or the pre-commit auto-refresh
+  // re-stages it on every commit (churn + merge-conflict surface). The deterministic
+  // `signature` is the map's identity; staleness is a files+bytes walk, not a clock.
+  const manifest = {
+    name: model.name,
+    signature: model.signature,
+    fileCount: model.fileCount,
+    modules: model.modules.map((m) => ({ path: m.path, role: m.role, files: m.files, bytes: m.bytes, deps: m.deps || [] })),
+    insights: model.insights,
+    violations: model.violations,
+  };
+  await writeFile(resolve(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf-8');
+  // --dense: emit a COMPLETE per-file symbol index + reverse lookup (grep
+  // replacement for large repos), additive to the sampled base map.
+  if (flag('--dense')) {
+    const index = buildDenseIndex(ROOT);
+    await writeFile(resolve(dir, '03-symbols-dense.md'), renderDense(model, index), 'utf-8');
+    console.log(`   + dense symbol index: 03-symbols-dense.md (${index.fileCount} files · ${index.symbolCount} symbols).`);
+  }
+  console.log(`✅ Project map written to contextkit/memory/project-map/ (${model.modules.length} modules · ${model.fileCount} files).`);
+  printInsights(model);
+  console.log('   Read 00-index.md first — it replaces re-greping the tree.');
+}
+
+function printDelta(saved, model) {
+  const d = manifestDelta(saved, model);
+  const line = (label, items) => items.length && console.log(`   ${label}: ${items.slice(0, 8).join(' · ')}${items.length > 8 ? ` (+${items.length - 8})` : ''}`);
+  line('+ modules', d.addedModules);
+  line('− modules', d.removedModules);
+  line('+ edges', d.addedEdges);
+  line('− edges', d.removedEdges);
+}
+
+async function check(dir) {
+  const saved = await readManifest(dir);
+  if (!saved) {
+    console.log('ℹ️  No project map yet. Run `/project-map` to generate one.');
+    return 0;
+  }
+  const model = analyze(dir);
+  const stale = model.signature !== saved.signature;
+  if (stale) {
+    console.log(`⚠️  Project map is STALE — saved \`${saved.signature}\` vs current \`${model.signature}\`. Run \`/project-map\`.`);
+    printDelta(saved, model);
+  } else {
+    console.log(`✅ Project map is fresh (signature ${saved.signature}).`);
+  }
+  for (const v of model.violations) console.log(`⛔ ${v.rule}: ${v.from} → ${v.to} (${v.reason})`);
+  const fail = (stale || model.violations.length > 0) && flag('--strict');
+  return fail ? 1 : 0;
+}
+
+function forPath(target) {
+  const sub = subgraphFor(scanProject(ROOT, Date.now(), CONFIG).modules, target);
+  if (!sub) {
+    console.log(`ℹ️  No mapped module owns \`${target}\`.`);
+    return 0;
+  }
+  console.log(`# ${sub.module}/`);
+  console.log(`depends on: ${sub.deps.map((d) => `${d}/`).join(', ') || '—'}`);
+  console.log(`imported by: ${sub.importers.map((d) => `${d}/`).join(', ') || '—'}`);
+  return 0;
+}
+
+/** CDK-051 — read-only coverage report over the saved map (no regeneration). */
+async function coverage(dir) {
+  const saved = await readManifest(dir);
+  if (!saved) {
+    console.log('ℹ️  No project map yet. Run `/project-map` to generate one.');
+    return 0;
+  }
+  const { computeCoverage, renderCoverage } = await import('./project-map-coverage.mjs');
+  console.log(renderCoverage(computeCoverage(saved, ROOT)));
+  return 0;
+}
+
+/**
+ * Finds and prints symbols matching `query` in the dense index.
+ * Exact match first, then case-insensitive substrings. Capped at 50 results.
+ * @param {string} query - the symbol name or substring to locate
+ * @returns {0}
+ */
+function findSymbolCmd(query) {
+  const index = buildDenseIndex(ROOT);
+  const matches = findSymbol(index, query);
+  if (matches.length === 0) {
+    console.log(`no symbol matching "${query}"`);
+    return 0;
+  }
+  // ADR-0117: a --find hit returns a 1-line answer instead of a whole-file read or
+  // grep sweep — record the avoided cost as an observed economy saving (capped).
+  try {
+    emitEconomy(ROOT, 'project-map', {
+      category: 'lever', action: 'applied', measurement: 'observed',
+      savedTokens: Math.min(2000, matches.length * 600),
+      sessionId: process.env.CLAUDE_CODE_SESSION_ID || null, note: 'find',
+    }, { now: Date.now() });
+  } catch { /* best-effort */ }
+  for (const { symbol, files } of matches) console.log(`${symbol} → ${files.join(', ')}`);
+  return 0;
+}
+
+/**
+ * Dogfood memory index (ADR-0119): reads everything under `<memory>/` and maps the
+ * methodology index — counts + the FLEET-reconciled next id per kind so the agent
+ * picks a collision-safe BIZ/OP/WF/ADR number without re-exploring or spending any
+ * tokens. Reused by the intake collision gate.
+ *
+ * @param {string} root - project root.
+ * @returns {0}
+ */
+function memoryIndexCmd(root) {
+  const paths = pathsFor(root);
+  const memory = paths.memory;
+  const dirCount = (dir) => (existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && e.name !== '_TEMPLATE' && e.name !== 'done').length
+    : 0);
+  const fileCount = (dir, re) => (existsSync(dir) ? readdirSync(dir).filter((n) => re.test(n)).length : 0);
+  const lines = [
+    '🧠 Dogfood memory index — deterministic, zero tokens',
+    '────────────────────────────────────────────────────────',
+    `  decisions (ADR)  : ${fileCount(paths.decisions, /^\d{4}[-.].*\.md$/)}`,
+    `  sessions         : ${fileCount(paths.sessions, /\.md$/)}`,
+    `  business         : ${dirCount(paths.business)}`,
+    `  operations       : ${dirCount(paths.operations)}`,
+    `  workflows active : ${dirCount(`${memory}/workflows`)}`,
+    `  workflows done   : ${dirCount(`${memory}/workflows/done`)}`,
+    '',
+    '  Fleet-reconciled next ids (collision-safe across worktrees):',
+  ];
+  for (const row of localVsFleet(root)) {
+    lines.push(`    ${row.kind.padEnd(4)} → ${row.fleet}${row.diverges ? '  ⚠ local would collide' : ''}`);
+  }
+  console.log(lines.join('\n'));
+  return 0;
+}
+
+async function main() {
+  const dir = pathsFor(ROOT).projectMap;
+  if (flag('--for')) process.exit(forPath(valueOf('--for')));
+  if (flag('--coverage')) process.exit(await coverage(dir));
+  if (flag('--check')) process.exit(await check(dir));
+  if (flag('--memory') || valueOf('--find') === 'dogfood') process.exit(memoryIndexCmd(ROOT));
+  if (flag('--find')) process.exit(findSymbolCmd(valueOf('--find') ?? ''));
+  await generate(dir);
+}
+
+main().catch((err) => {
+  console.error('❌ project-map failed:', err?.message ?? err);
+  process.exit(1);
+});

@@ -1,0 +1,13 @@
+<!-- Cookie-consent banner — DEFAULT ON (LGPD). js/consent.js shows it when no
+     stored choice exists and blocks every tracker until "accept". Accessible:
+     role=dialog, labelled, keyboard reachable; < 2 KB total with its JS. -->
+<div class="consent" id="lp-consent" role="dialog" aria-modal="false"
+     aria-labelledby="lp-consent-msg" hidden>
+  <p id="lp-consent-msg">{{copy.consent.message}}
+    <a href="privacidade.html">{{copy.consent.policyLinkLabel}}</a>
+  </p>
+  <div class="consent-actions">
+    <button class="btn btn-primary btn-sm" type="button" data-consent="granted">{{copy.consent.acceptLabel}}</button>
+    <button class="btn btn-ghost btn-sm" type="button" data-consent="denied">{{copy.consent.rejectLabel}}</button>
+  </div>
+</div>

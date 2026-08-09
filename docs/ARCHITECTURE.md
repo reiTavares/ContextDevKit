@@ -1,95 +1,151 @@
 # Architecture
 
-How VibeDevKit works internally — for anyone extending the engine.
+ContextDevKit is a source-distributed, host-neutral governance and project
+memory layer. Its runtime hot path is plain ESM on Node.js 18+ with zero package
+dependencies.
 
-## Two install locations
+## Source and projection boundaries
 
-Claude Code reads settings, slash commands, and agents from **hardcoded** paths
-under `.claude/`. Everything else — the engine, memory, scripts — lives under a
-single rebrandable folder, `vibekit/` (a "bounded context" separate from your
-product code). The only literal reference to that folder name is
-`PLATFORM_DIR` in `vibekit/runtime/config/paths.mjs`.
+The repository ships canonical sources under `templates/` and installer logic
+under `tools/install/` plus `install.mjs`.
 
-```
-.claude/              # fixed by Claude Code
-  settings.json       # hook wiring (composed by the installer per level)
-  commands/*.md       # slash commands (prompts with frontmatter)
-  agents/*.md         # sub-agents (frontmatter: name + description)
-  .sessions/          # per-session ledgers (gitignored runtime state)
-  .workspace/         # per-session claim files (gitignored runtime state)
-vibekit/
-  runtime/hooks/      # the four hooks + shared ledger/classification/readers
-  runtime/config/     # paths, defaults, zero-dep loader, settings composer, zod (opt)
-  runtime/git-hooks/  # pre-commit, commit-msg
-  tools/scripts/      # maintenance + slash-command helpers
-  memory/             # decisions/, sessions/, business-rules/, GLOSSARY.md, generated indices
-  config.json         # level + ledger path lists + L5 params
+```text
+templates/claude/commands/       canonical command sources
+templates/claude/agents/         canonical agent sources
+templates/contextkit/runtime/    shared runtime
+templates/contextkit/tools/      installed CLI and offline migration tools
+templates/contextkit/memory/     neutral initial memory assets
+templates/antigravity/           generated host projections
+templates/codex/                 generated host projections
+tools/                           repository-only tests and release tooling
 ```
 
-## The hooks (the engine)
+Host projections are declared in `host-projections.json`. Regeneration creates
+only declared files, removes orphans, and fails when a source is missing. An
+installed dogfood copy is never an additional source authority.
 
-Wired in `.claude/settings.json`, each is a `node` script fed the tool payload on
-stdin. **Contract for every hook: never throw, exit 0 on error, stay silent
-unless it has something to say.** A broken hook must never block real work.
+## Mutation-only interaction flow
 
-| Hook | Event | File | Job |
-| --- | --- | --- | --- |
-| Boot context | `SessionStart` | `session-start.mjs` | git fetch + divergence; drift banner; inject latest session + `[Unreleased]` + active claims |
-| Edit ledger | `PostToolUse` (Edit\|Write\|MultiEdit) | `track-edits.mjs` | append edit to per-session ledger; renew claim heartbeat; cross-claim warning |
-| Drift nudge | `Stop` | `check-registration.mjs` | block stop if ≥ 2 important files changed and session unregistered; L5 archive + distill nudge |
-| Concurrency guard (L3) | `PreToolUse` (Edit\|Write\|MultiEdit) | `concurrency-guard.mjs` | warn when another session/external change touched the same file (no clobber) |
-| Risk gate (L5) | `PreToolUse` (Edit\|Write\|MultiEdit) | `simulate-gate.mjs` | block edits to `highRiskPaths` without a covering `/simulate-impact` |
+```text
+host event
+  -> one governance entrypoint
+  -> event runtime
+     -> classify interaction
+     -> no-op for conversation/exploration
+     -> resolve gate plan once for mutation
+     -> run bounded evaluators
+     -> host adapter emits one result
+```
 
-Git hooks (installed at L≥3): `pre-commit` (regenerate indices), `commit-msg`
-(Conventional Commits), `pre-push` (fetch upstream + **block real conflicts** via
-`git merge-tree` — the cross-machine guarantee).
+There are four entrypoints: prompt preflight, write preflight, postflight, and
+completion. Each host registers one ContextDevKit process for each event. The
+entrypoints normalize the host payload and delegate; they do not contain domain
+logic or persist an alternate ledger.
 
-Shared modules:
+The event runtime owns re-entry protection, deduplication, timeouts, total
+budget, and circuit breaking. It returns structured diagnostics and follows
+`failurePolicy: continue` on internal failure.
 
-- **`ledger.mjs`** — per-session JSON ledger (read/write/list), simulation
-  records, session-id resolution. One ledger file per session so parallel chats
-  never stomp each other (and worktrees isolate naturally).
-- **`path-classification.mjs`** — `isTrackable` / `isImportant` /
-  `isRegistrationFile`, driven by `config.json` → `ledger.*`. **This is the seam
-  that makes the kit stack-agnostic.**
-- **`boot-context-readers.mjs`** — pure readers for the session/changelog/
-  workspace artifacts.
+## Governance policy
 
-## Configuration (zero-dependency by design)
+`runtime/governance/gate-registry.mjs` is the immutable gate registry.
+`runtime/governance/gate-mode.mjs` is the only policy resolver and verdict
+adapter. Missing or invalid configuration resolves to canary.
 
-The hot path (hooks) must run on a brand-new project with nothing installed, so
-`runtime/config/load.mjs` is **plain JSON + a recursive deep-merge over
-`defaults.mjs`** — no `zod`, no npm packages. Arrays replace; objects merge. A
-leading UTF-8 BOM is stripped (common on Windows). On any failure it returns the
-frozen defaults — config is best-effort, never fatal.
+Only QA sign-off at `done`, applicable deterministic Class A DDD invariants,
+and new high/critical technical debt introduced by the current diff can deny.
+All other policy surfaces are canary or shadow. Owner overrides are scoped,
+revision-bound, expiring audit metadata.
 
-Strict validation (`runtime/config/schema.mjs`, zod) is **optional** and used
-only by `/vibe-config`; it degrades gracefully when zod isn't present.
+## State authorities
 
-## Level system
+State is separated by aggregate:
 
-`config.json` → `level` (1–5) is the single switch.
+| Aggregate | Writable authority | Derived output |
+| --- | --- | --- |
+| Workflow definition/topology | `workflow.json` | `index.md` |
+| Workflow lifecycle | `workflow-state.json` | `index.md` |
+| Tasks/status/events | `pipeline/tasks.json` | `pipeline/tasks.md` |
+| Pipeline execution run | `memory/runs/<id>/state.json` | status/dashboard views |
+| Owner recommendations | owner-preference store | routing/display hints |
 
-- The **installer** and the in-project **`vibe-level.mjs`** both call the shared
-  `composeSettings(existing, level)` (`runtime/config/settings-compose.mjs`) to
-  rebuild the `hooks` block — preserving your own hooks, stripping previously
-  installed VibeDevKit entries so going down a level cleanly removes them. It is
-  idempotent: re-running never duplicates entries.
-- Hooks also read the level at runtime and self-gate (e.g. the Stop hook only
-  runs L5 distillation when `level >= 5`), so the wiring and the behaviour can
-  never disagree.
+Task updates validate the complete document, acquire a sibling lock, compare
+the expected revision, pair status and audit event, write a temporary file, and
+rename atomically. Projection repair happens after the authority commit and is
+reported separately if it fails.
 
-## Derived indices
+The runtime never derives status from a Markdown lane, frontmatter, event fold,
+workflow directory placement, `done/`, or a v1 plan. Those inputs exist only in
+the explicit offline 3.x migrator.
 
-`SESSIONS.md` (session index) and `WORKSPACE.md` (active claims) are **generated**
-from source-of-truth files (`sessions/*.md` and `.claude/.workspace/*.json`).
-This avoids merge conflicts between parallel sessions. The `pre-commit` git hook
-regenerates them before each commit. Never hand-edit a generated file.
+## Workflow packages
 
-## Why this shape
+A workflow is a complete version-2 aggregate:
 
-- **Defense in depth.** Instructions (CLAUDE.md, slash commands) are advisory;
-  hooks are enforced. The two layers cover each other.
-- **Reversible & inspectable.** Everything is plain files in your repo. Uninstall
-  by deleting `vibekit/` and the VibeDevKit block from `.claude/settings.json`.
-- **No lock-in on the hot path.** Zero runtime deps for Levels 1–3.
+```text
+WF-####-slug/
+├── workflow.json
+├── workflow-state.json
+├── context-manifest.json
+├── prd.md
+├── spec.md
+├── decisions.md
+├── index.md                    generated
+├── CONTINUATION-PROMPT.md      optional generated guidance
+├── pipeline/
+│   ├── tasks.json
+│   └── tasks.md                generated
+└── reports/
+```
+
+Creation occurs in a sibling staging directory. The creator writes every
+required artifact, renders projections, validates the whole pack, and renames
+it to the target atomically. Failure removes staging. Explicit repair is dry-run
+by default and refuses any directory without `workflow.json`.
+
+The workflow loader reads required authored and canonical content plus referenced
+reports before mutation. It is shared by hosts and consumers and performs no
+write.
+
+## Consumers
+
+CLI, MCP read resources, dashboard, statusline, boot context, and workflow
+context use one v4 authority reader. MCP exposes read resources for governed
+state; mutation stays in canonical writers reached by the normal host/CLI
+boundary.
+
+## Project Map
+
+Project Map indexes source plus configured memory roots. A provider interface
+allows the native graph or another graph implementation. Graph lookup is a
+preferred optimization: unavailable, stale, partial, or unanswered data falls
+back immediately to ordinary search. Refresh does not block the first action.
+
+## Routing and risk
+
+Model routing, agent selection, swarms, economy hints, and owner preferences are
+recommendations. They have no write authority. LGPD is shadow. High-risk real
+actions emit acknowledgement metadata and remain subject to the host/platform
+confirmation boundary.
+
+## Installation and portability
+
+The installer supports tracked, local-only, and non-Git targets. Git enriches
+metadata and hooks only when present; it never determines base artifact content.
+Paths are resolved with `node:path`, JSON readers strip a BOM, and generators do
+not depend on Bash or invisible Git ignore state.
+
+## Upgrade boundary
+
+The v3-to-v4 importer lives only in
+`contextkit/tools/migrations/v3-to-v4/`. Boot, normal CLI, hooks, MCP,
+dashboard, statusline, and host adapters never import it. Cutover requires a
+validated stage, status parity, exercised rollback, frozen v3 writers, and a
+marker CAS. Legacy sources are retired to an external audit bundle afterward.
+
+## Release boundary
+
+Repository tests are not installed in user projects. The package is built from
+an allowlist and refuses selftests, fixtures, golden data, dogfood memory,
+orphaned projections, and reachable legacy modules. Version 4.0.0 is stamped
+only after the complete release gate passes.

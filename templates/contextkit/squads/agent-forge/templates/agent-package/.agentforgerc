@@ -1,0 +1,12 @@
+{
+  "apf_version": "1",
+  "package_version": "0.1.0",
+  "checksum": "{{SHA256_OF_PACKAGE_CONTENTS}}",
+  "provenance": {
+    "forged_by": "agent-forge@{{FORGE_VERSION}}",
+    "blueprint_hash": "{{SHA256}}",
+    "eval_run": "{{EVAL_RUN_ID}}",
+    "eval_passed_at": "{{ISO8601}}",
+    "authorizing_adr": "{{ADR-XXXX}}"
+  }
+}

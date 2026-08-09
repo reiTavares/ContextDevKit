@@ -1,0 +1,8 @@
+# Where the knowledge content comes from. READ-ONLY specs — the index is built by the
+# client (see ../index/), never embarked in the package.
+sources:
+  - id: {{source_id}}
+    type: {{filesystem|url|s3|gcs|db}}
+    location: {{path or uri}}
+    include: ["**/*.{md,pdf,txt}"]
+    refresh: {{manual|daily|weekly}}

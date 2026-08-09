@@ -1,0 +1,25 @@
+{
+  "id": "web-app",
+  "displayName": "Web Application",
+  "description": "Profile for browser-rendered web applications. Adds GitHub integration for code/issue management and Playwright for E2E testing automation.",
+  "servers": [
+    {
+      "id": "contextdevkit",
+      "mode": "read-only",
+      "referencedSecrets": [],
+      "allowedTools": []
+    },
+    {
+      "id": "github",
+      "mode": "read-only",
+      "referencedSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedTools": ["list_repos", "get_repo", "list_issues", "get_issue", "list_pull_requests", "get_pull_request", "get_file_contents", "search_code"]
+    },
+    {
+      "id": "playwright",
+      "mode": "write",
+      "referencedSecrets": [],
+      "allowedTools": ["browser_navigate", "browser_click", "browser_type", "browser_screenshot", "browser_wait_for", "browser_close"]
+    }
+  ]
+}

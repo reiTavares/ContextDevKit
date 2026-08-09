@@ -1,0 +1,339 @@
+#!/usr/bin/env node
+/**
+ * Test-suite runner (TEA-002, SPEC §3) — a thin orchestration layer over the
+ * UNCHANGED suite files listed in `tools/test-suites.mjs`.
+ *
+ * WHY: extracts the 41-suite execution out of the brittle `package.json` `&&`
+ * chain into one place so subsets are runnable and the list can't silently
+ * drift. `npm test` === `node tools/run-suites.mjs --tier all` and MUST stay
+ * behavior-identical: serial, fail-fast on first non-zero, exit with the first
+ * failing suite's code (0 if all pass), with bounded execution and liveness.
+ *
+ * Flags:
+ *   --tier <name|all>   run a tier (default `all` when nothing else is given).
+ *   --list <a,b,c>      run an explicit comma-separated set of suite ids.
+ *   --legacy            run the literal old chain order (rollback parity path).
+ *   --verbose           inherit child stdio (stream full output live).
+ *   --impact            select suites from a changed-file diff via the optional
+ *                       `tools/test-impact.mjs` selector (Wave 2); graceful
+ *                       fallback to `--tier all` when absent.
+ *   --shuffle           run in randomized order (isolation proof, TEA-001 gap).
+ *   --repeat <N>        run the set N times (flakiness proof).
+ *   --jobs <N>          bounded concurrency (TEA-008, default 1, cap cpu-2).
+ *                       EXPERIMENTAL — measured SLOWER on these I/O-bound suites
+ *                       (serial 178s vs jobs=4 242s vs jobs=8 367s; ADR-0114). It
+ *                       exists as a re-measurement instrument, NOT a speedup; the
+ *                       default serial path is byte-identical. The shuffle/repeat/
+ *                       pool + `executeProbe` logic lives in `run-suites-pool.mjs`.
+ *   --suite-timeout-ms  terminate one suite after this many ms (default 600000).
+ *   --heartbeat-ms      print liveness while a suite is running (default 30000).
+ *
+ * SEAMS for later waves (we provide the optional hooks, not the impls):
+ *   - Reporter seam: a present `tools/test-report.mjs` exporting `renderRun`
+ *     takes over output; otherwise a built-in compact printer runs.
+ *   - Selector seam: a present `tools/test-impact.mjs` exporting `selectSuites`
+ *     drives `--impact`; otherwise we print a clear "not installed" notice.
+ *
+ * Zero runtime deps; `node:*` only. Windows-safe: array-arg spawn, no shell
+ * string interpolation, forward-slash paths, tolerant of a path with a space.
+ */
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { allSuites, suitesForTier } from './test-suites.mjs';
+import { recordRun } from './test-telemetry.mjs';
+import { executeProbe } from './run-suites-pool.mjs';
+
+const KIT = dirname(dirname(fileURLToPath(import.meta.url)));
+const RUNS_DIR = join(KIT, 'runs');
+const DEFAULT_SUITE_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_HEARTBEAT_MS = 30 * 1000;
+
+/**
+ * Parse argv into a normalized options object. Unknown flags are ignored
+ * (forward-compatible). Last-wins for repeated value flags.
+ * @param {string[]} argv - process.argv.slice(2).
+ * @returns {{tier:string|null,list:string[]|null,legacy:boolean,verbose:boolean,impact:boolean,jobs:number,shuffle:boolean,repeat:number,suiteTimeoutMs:number,heartbeatMs:number}}
+ */
+export function parseArgs(argv) {
+  const opts = {
+    tier: null,
+    list: null,
+    legacy: false,
+    verbose: false,
+    impact: false,
+    jobs: 1,
+    shuffle: false,
+    repeat: 1,
+    suiteTimeoutMs: DEFAULT_SUITE_TIMEOUT_MS,
+    heartbeatMs: DEFAULT_HEARTBEAT_MS,
+  };
+  const int = (raw, min) => Math.max(min, parseInt(raw ?? '', 10) || min);
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--tier') opts.tier = argv[++i] ?? 'all';
+    else if (arg === '--list') opts.list = (argv[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    else if (arg === '--legacy') opts.legacy = true;
+    else if (arg === '--verbose') opts.verbose = true;
+    else if (arg === '--impact') opts.impact = true;
+    else if (arg === '--jobs') opts.jobs = int(argv[++i], 1);
+    else if (arg === '--shuffle') opts.shuffle = true;
+    else if (arg === '--repeat') opts.repeat = int(argv[++i], 1);
+    else if (arg === '--suite-timeout-ms') opts.suiteTimeoutMs = int(argv[++i], 1);
+    else if (arg === '--heartbeat-ms') opts.heartbeatMs = int(argv[++i], 1);
+  }
+  return opts;
+}
+
+/**
+ * Resolve the ordered suite set to execute from the parsed options. Precedence:
+ * --legacy → full list in legacy order; --list → that id set (order preserved
+ * from the canonical list); --tier <name> → that tier; default → all.
+ * @param {ReturnType<typeof parseArgs>} opts
+ * @returns {Array<{id:string,file:string,tier:string,touches:string[]}>}
+ * @throws {Error} if --list names an unknown suite id (fail-fast).
+ */
+function resolveSuites(opts) {
+  if (opts.legacy) return [...allSuites()];
+  if (opts.list) {
+    const byId = new Map(allSuites().map((suite) => [suite.id, suite]));
+    const unknown = opts.list.filter((id) => !byId.has(id));
+    if (unknown.length) throw new Error(`unknown suite id(s): ${unknown.join(', ')}`);
+    // Preserve canonical order, restricted to the requested ids.
+    return allSuites().filter((suite) => opts.list.includes(suite.id));
+  }
+  const tier = opts.tier ?? 'all';
+  if (tier === 'all') return [...allSuites()];
+  return suitesForTier(tier);
+}
+
+/**
+ * Run one suite as a child Node process. Captures stdout/stderr unless verbose
+ * (then it inherits live). Never throws — a spawn failure becomes a non-zero
+ * synthetic exit so fail-fast still triggers.
+ * @param {{id:string,file:string}} suite
+ * @param {{kitRoot?:string,verbose?:boolean,timeoutMs?:number,heartbeatMs?:number,onHeartbeat?:(elapsedMs:number)=>void}} [options]
+ * @returns {Promise<{id:string,tier?:string,ms:number,exitCode:number,logBytes:number,stdout:string,stderr:string,timedOut:boolean,signal:string|null}>}
+ */
+export function runSuite(suite, options = {}) {
+  const kitRoot = options.kitRoot ?? KIT;
+  const verbose = options.verbose === true;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_SUITE_TIMEOUT_MS;
+  const heartbeatMs = options.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
+  const onHeartbeat = options.onHeartbeat ?? ((elapsedMs) => {
+    console.log(`  … ${suite.id} still running (${(elapsedMs / 1000).toFixed(0)}s)`);
+  });
+  return new Promise((resolveRecord) => {
+    const started = Date.now();
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    let timedOut = false;
+    let forceKill = null;
+    const child = spawn(process.execPath, [resolve(kitRoot, suite.file)], {
+      cwd: kitRoot,
+      stdio: verbose ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr?.on('data', (chunk) => { stderr += chunk.toString(); });
+    const heartbeat = setInterval(() => onHeartbeat(Date.now() - started), heartbeatMs);
+    heartbeat.unref?.();
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      stderr += `\nSuite timed out after ${timeoutMs}ms.\n`;
+      child.kill();
+      forceKill = setTimeout(() => child.kill('SIGKILL'), 1_000);
+      forceKill.unref?.();
+    }, timeoutMs);
+    timeout.unref?.();
+    const finish = (code, signal, error) => {
+      if (settled) return;
+      settled = true;
+      clearInterval(heartbeat);
+      clearTimeout(timeout);
+      if (forceKill) clearTimeout(forceKill);
+      if (error) stderr += `${error.message}\n`;
+      const ms = Date.now() - started;
+      const exitCode = timedOut ? 124 : code === null ? 1 : code;
+      resolveRecord({
+        id: suite.id,
+        tier: suite.tier,
+        ms,
+        exitCode,
+        logBytes: Buffer.byteLength(stdout, 'utf-8') + Buffer.byteLength(stderr, 'utf-8'),
+        stdout,
+        stderr,
+        timedOut,
+        signal: signal ?? null,
+      });
+    };
+    child.on('close', (code, signal) => finish(code, signal));
+    child.on('error', (error) => finish(1, null, error));
+  });
+}
+
+/**
+ * Built-in compact fallback printer (one line per suite). Used only when the
+ * optional `tools/test-report.mjs` reporter is absent. On failure it echoes the
+ * captured child output so the diagnosis is never hidden.
+ * @param {{id:string,ms:number,exitCode:number,stdout:string,stderr:string}} record
+ * @param {boolean} verbose - when true the child already streamed; skip echo.
+ * @returns {void}
+ */
+export function printCompact(record, verbose) {
+  const secs = (record.ms / 1000).toFixed(1);
+  if (record.exitCode === 0) {
+    console.log(`  ✓ ${record.id} ${secs}s`);
+    return;
+  }
+  console.error(`  ✗ ${record.id} ${secs}s (exit ${record.exitCode})`);
+  if (!verbose) {
+    const tail = (value) => value.split(/\r?\n/).slice(-40).join('\n');
+    if (record.stdout) process.stdout.write(`${tail(record.stdout)}\n`);
+    if (record.stderr) process.stderr.write(`${tail(record.stderr)}\n`);
+  }
+}
+
+/**
+ * Try to load the optional reporter seam. Wave 2 adds `tools/test-report.mjs`
+ * WITHOUT editing this runner. We expect an exported `renderRun(records, ctx)`.
+ * @returns {Promise<{renderRun:Function}|null>}
+ */
+async function loadReporter() {
+  try {
+    const mod = await import('./test-report.mjs');
+    return typeof mod.renderRun === 'function' ? mod : null;
+  } catch {
+    return null; // absent or broken → built-in compact printer.
+  }
+}
+
+/**
+ * Resolve the suite set for --impact via the optional selector seam. Wave 2 adds
+ * `tools/test-impact.mjs` exporting `selectSuites({ changed, suites })`. When the
+ * module is absent we print a clear notice and fall back to the full list — never
+ * crash, never silently run nothing (fail-safe, SPEC §4).
+ * @returns {Promise<Array<{id:string,file:string,tier:string,touches:string[]}>>}
+ */
+async function resolveImpactSuites() {
+  let selector = null;
+  try {
+    const mod = await import('./test-impact.mjs');
+    if (typeof mod.selectSuites === 'function') selector = mod;
+  } catch {
+    selector = null;
+  }
+  if (!selector) {
+    console.log('impact selector not installed yet (tools/test-impact.mjs absent) — running --tier all.');
+    return [...allSuites()];
+  }
+  const changed = changedFiles();
+  const selected = selector.selectSuites({ changed, suites: allSuites() });
+  return Array.isArray(selected) && selected.length ? selected : [...allSuites()];
+}
+
+/**
+ * Best-effort changed-file list (vs the merge-base) for the selector. Never
+ * throws; an empty/failed diff yields [] so the selector applies its fail-safe.
+ * @returns {string[]}
+ */
+function changedFiles() {
+  const diff = spawnSync('git', ['diff', '--name-only', 'HEAD'], { cwd: KIT, encoding: 'utf-8' });
+  if (diff.status !== 0 || !diff.stdout) return [];
+  return diff.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+/**
+ * Persist run instrumentation (TEA-001) — metadata only, gitignored. Writes the
+ * per-suite metrics + a run summary to `runs/last-run.json`. Best-effort: an I/O
+ * error here never breaks the run (defensive, immutable rule 2).
+ * @param {Array<{id:string,tier:string,ms:number,exitCode:number,logBytes:number}>} records
+ * @param {{mode:string,exitCode:number,totalMs:number,selection?:{selected:number,total:number}|null}} summary
+ * @returns {void}
+ */
+function persistRun(records, summary) {
+  try {
+    mkdirSync(RUNS_DIR, { recursive: true });
+    const payload = {
+      startedAt: new Date(Date.now() - summary.totalMs).toISOString(),
+      finishedAt: new Date().toISOString(),
+      mode: summary.mode,
+      exitCode: summary.exitCode,
+      totalMs: summary.totalMs,
+      selection: summary.selection ?? null,
+      suiteCount: records.length,
+      suites: records.map((r) => ({
+        id: r.id,
+        tier: r.tier,
+        ms: r.ms,
+        exitCode: r.exitCode,
+        logBytes: r.logBytes,
+        timedOut: r.timedOut === true,
+        signal: r.signal ?? null,
+      })),
+    };
+    writeFileSync(join(RUNS_DIR, 'last-run.json'), `${JSON.stringify(payload, null, 2)}\n`, 'utf-8');
+  } catch {
+    /* observability is best-effort; never fail the run on a metadata write. */
+  }
+}
+
+/**
+ * Entry point. Resolves the suite set, runs serially with fail-fast, persists
+ * instrumentation, and exits with the first failing suite's code (0 if green).
+ * Delegates to `executeProbe` (run-suites-pool.mjs) for --shuffle/--repeat/--jobs.
+ * @returns {Promise<void>}
+ */
+async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  let mode = opts.legacy ? 'legacy' : opts.list ? 'list' : opts.impact ? 'impact' : `tier:${opts.tier ?? 'all'}`;
+  const suites = opts.impact ? await resolveImpactSuites() : resolveSuites(opts);
+  // Selection metric (TEA-006 / task 301): for an --impact run, record how much
+  // the selector narrowed (selected vs the full inventory) so the telemetry sink
+  // can show the inner-loop saving. null for non-impact runs (no narrowing).
+  const selection = opts.impact ? { selected: suites.length, total: allSuites().length } : null;
+  const reporter = await loadReporter();
+  if (opts.jobs > 1 || opts.shuffle || opts.repeat > 1) {
+    return executeProbe(opts, suites, {
+      KIT, RUNS_DIR, reporter, printCompact, persistRun, recordRun, baseMode: mode, selection,
+    });
+  }
+  const records = [];
+  const runStarted = Date.now();
+  let exitCode = 0;
+
+  for (const [index, suite] of suites.entries()) {
+    console.log(`  ▶ ${suite.id} (${index + 1}/${suites.length})`);
+    const record = await runSuite(suite, {
+      verbose: opts.verbose,
+      timeoutMs: opts.suiteTimeoutMs,
+      heartbeatMs: opts.heartbeatMs,
+    });
+    records.push(record);
+    if (!reporter) printCompact(record, opts.verbose);
+    if (record.exitCode !== 0) {
+      exitCode = record.exitCode; // fail-fast: stop at the first non-zero.
+      break;
+    }
+  }
+
+  const totalMs = Date.now() - runStarted;
+  if (reporter) reporter.renderRun(records, { mode, runsDir: RUNS_DIR, exitCode });
+  else console.log(exitCode === 0 ? `\n✅ ${records.length} suite(s) passed (${(totalMs / 1000).toFixed(1)}s).\n`
+    : `\n❌ suite "${records[records.length - 1]?.id}" failed (exit ${exitCode}).\n`);
+
+  persistRun(records, { mode, exitCode, totalMs, selection });
+  // Append run summary to the durable history log (TEA-006). Fail-open: an
+  // error here must NEVER prevent the runner from exiting with the correct code.
+  try { recordRun(JSON.parse(readFileSync(join(RUNS_DIR, 'last-run.json'), 'utf-8').replace(/^﻿/, ''))); } catch { /* telemetry is best-effort */ }
+  process.exit(exitCode);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error('run-suites crashed:', err?.message ?? err);
+    process.exit(1);
+  });
+}

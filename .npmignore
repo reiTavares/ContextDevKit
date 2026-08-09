@@ -1,0 +1,16 @@
+# Defense in depth for the positive package.json/files allowlist.
+# The release audit consumes templates/contextkit/package-files.json and refuses
+# any path outside the declared roots or in these development-only categories.
+templates/**/*selftest*
+templates/**/fixtures/
+templates/**/fixtures/**
+templates/**/__fixtures__/
+templates/**/__fixtures__/**
+templates/**/golden/
+templates/**/golden/**
+templates/**/__snapshots__/
+templates/**/__snapshots__/**
+templates/**/.updates/
+templates/**/.updates/**
+tools/release/
+tools/release/**

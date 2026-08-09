@@ -8,10 +8,12 @@ name: Release
 #   Value: an npm "Automation" / granular token with publish rights (bypass 2FA)
 #
 # To cut a release:
-#   1. bump "version" in package.json
-#   2. git commit -am "chore(release): vX.Y.Z"
-#   3. git tag vX.Y.Z && git push && git push --tags
-# The workflow runs the test suite, then `npm publish`.
+#   1. close the matching section in CHANGELOG.md and bump package.json/lock
+#   2. merge the release PR to main
+#   3. push the annotated vX.Y.Z tag from that main commit
+# This workflow is the single publication path: it validates the exact changelog
+# section, runs the gates, publishes npm with provenance, and creates the GitHub
+# Release with the same complete notes. Do not publish npm manually as well.
 
 on:
   push:
@@ -20,27 +22,42 @@ on:
 
 permissions:
   contents: write # needed to create the GitHub Release
+  id-token: write # needed for npm publish --provenance (build attestation) [ADR-0031]
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Test (selfcheck + integration)
-        run: node tools/selfcheck.mjs && node tools/integration-test.mjs
+      - name: Render complete release notes from CHANGELOG.md
+        run: >-
+          node tools/release/release-notes.mjs
+          --version "${GITHUB_REF_NAME#v}"
+          --changelog CHANGELOG.md
+          --package package.json
+          --output "${RUNNER_TEMP}/release-notes.md"
 
-      - name: Publish to npm
-        run: npm publish --access public
+      # The publish path runs the SAME gate as CI [ADR-0031] — a release can no
+      # longer ship on a red gate (the v1.9.0 mistake). One source: `npm run ci`.
+      - name: CI gate (npm run ci)
+        run: npm run ci
+
+      - name: Publish to npm (with provenance)
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --generate-notes
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          --verify-tag
+          --title "${GITHUB_REF_NAME}"
+          --notes-file "${RUNNER_TEMP}/release-notes.md"

@@ -1,0 +1,9 @@
+{
+  "name": "{{AGENT_NAME}}-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Node runtime adapter for the {{AGENT_NAME}} Agent Package (forged by agent-forge).",
+  "main": "index.js",
+  "license": "{{SEE_LICENSE}}",
+  "dependencies": {}
+}

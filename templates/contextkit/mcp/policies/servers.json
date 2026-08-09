@@ -1,0 +1,22 @@
+{
+  "$schema": "https://contextdevkit.dev/schemas/mcp-policy/servers/v1",
+  "version": 1,
+  "description": "Per-server tool allow/deny lists. The default mode of any new server is read-only and NO tools are exposed unless explicitly listed in `allow` here or in the project manifest's allowedTools. `deny` always wins over `allow` (least privilege). Servers absent from this file inherit their R-class default (zero tools exposed until an allow-list is set).",
+  "servers": {
+    "contextdevkit": {
+      "risk": "R0",
+      "allow": ["session-log", "context-read", "glossary-read", "adr-read"],
+      "deny": []
+    },
+    "github": {
+      "risk": "R2",
+      "allow": ["search_repositories", "get_file_contents", "list_issues", "get_issue"],
+      "deny": ["create_or_update_file", "push_files", "create_pull_request", "merge_pull_request"]
+    },
+    "playwright": {
+      "risk": "R3",
+      "allow": [],
+      "deny": ["browser_install"]
+    }
+  }
+}

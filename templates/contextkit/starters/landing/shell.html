@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="{{config.language}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{copy.meta.title}}</title>
+  <meta name="description" content="{{copy.meta.description}}" />
+  <link rel="canonical" href="{{config.canonicalOrigin}}/" />
+  <meta name="theme-color" content="#0b0d10" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{copy.brand.name}}" />
+  <meta property="og:title" content="{{copy.meta.title}}" />
+  <meta property="og:description" content="{{copy.meta.description}}" />
+  <meta property="og:url" content="{{config.canonicalOrigin}}/" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+
+  <!--LP:JSONLD-->
+  <!--LP:GTM-->
+</head>
+<body>
+  <a class="skip-link" href="#main">{{copy.meta.skipLink}}</a>
+
+  <header class="site-header">
+    <div class="container nav">
+      <a class="brand" href="#top">{{copy.brand.name}}</a>
+      <a class="btn btn-primary btn-sm" href="{{copy.hero.ctaHref}}">{{copy.hero.ctaLabel}}</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!--LP:SECTIONS-->
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <span>{{copy.footer.companyLine}}</span>
+      <span class="footer-legal">
+        CNPJ {{legal.empresa.cnpj}} ·
+        <a href="privacidade.html">Política de Privacidade</a> ·
+        <a href="termos.html">Termos de Uso</a>
+      </span>
+    </div>
+  </footer>
+
+  <!--LP:CONSENT-->
+
+  <script>window.LP_CONFIG = {{build.clientConfig}};</script>
+  <script src="js/consent.js" defer></script>
+  <script src="js/enhance.js" defer></script>
+  <script src="js/forms.js" defer></script>
+</body>
+</html>

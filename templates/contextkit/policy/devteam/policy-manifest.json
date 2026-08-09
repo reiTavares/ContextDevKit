@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "4.0.0",
+  "id": "policy-manifest",
+  "title": "Advisory agent and skill recommendations",
+  "updated": "2026-08-09",
+  "note": "These tables recommend optional helpers. They never dispatch, require a role, or gate work.",
+  "tables": [
+    { "id": "skills-registry", "file": "skills-registry.json", "concern": "Optional skill metadata" },
+    { "id": "skill-triggers", "file": "skill-triggers.json", "concern": "Advisory trigger table" },
+    { "id": "playbook", "file": "playbook.json", "concern": "Optional proportional playbook" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Diagnostic reason codes" }
+  ]
+}

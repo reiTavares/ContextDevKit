@@ -1,0 +1,25 @@
+{
+  "_note": "CANONICAL tool schemas — the source of truth. tool-designer generates the per-provider adapters under tools/adapters/ from this. Every tool description follows: what it does / when to use / when NOT to use / one example. Keep input_schema strict.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "{{tool_name}}": {
+    "description": "WHAT: {{what it does}}. WHEN: {{when to call}}. WHEN NOT: {{when to avoid}}. EXAMPLE: {{one concrete example}}.",
+    "idempotent": true,
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["{{required_field}}"],
+      "properties": {
+        "{{required_field}}": { "type": "string", "description": "{{what it is}}" }
+      }
+    },
+    "error_format": {
+      "type": "object",
+      "description": "Actionable error the model can recover from.",
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    }
+  }
+}

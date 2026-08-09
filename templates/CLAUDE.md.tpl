@@ -1,118 +1,93 @@
-# {{PROJECT_NAME}} — Boot Context for Claude
+# {{PROJECT_NAME}} - Boot Context for Claude
 
-> Auto-loaded in every Claude Code session opened in this directory. Keep it
-> **short** — reference other docs instead of duplicating content.
-> Scaffolded by VibeDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
+> Auto-loaded in Claude sessions for this project.
+> Scaffolded by ContextDevKit on {{DATE}} (mode: {{MODE}}, level: L{{LEVEL}}).
 
-## What this is
+## Canonical Host Contract
 
-<!-- One paragraph: what the product/project does and for whom. Replace this. -->
-_Describe {{PROJECT_NAME}} in 2–3 sentences._
+<!-- contextdevkit:host-contract:start -->
+This contract is identical for Claude, Codex, and Antigravity. Host syntax may
+differ, but no host may add a second authority or a stronger private ceremony.
+
+- `mutation-only-intake`: conversation and exploration create no durable task,
+  contract, workflow, graph receipt, or completion obligation. An unclassified
+  request asks one short clarification and persists nothing.
+- `single-governance-dispatch`: a confirmed mutation invokes one governance
+  dispatcher once. Modes are `off | shadow | canary | guarded`; missing, invalid,
+  or failed resolution becomes `canary` with continue-on-failure. Only QA at done,
+  proven DDD Class A invariants, and new deterministic high-severity technical
+  debt are guarded by default.
+- `workflow-context-before-write`: before a workflow-linked mutation, load its
+  PRD, SPEC, decisions/ADR, tasks, state, and relevant reports. Missing graph,
+  agent, telemetry, or optional context is reported and never blocks fallback.
+- `canonical-json-state`: `workflow.json` defines the workflow,
+  `workflow-state.json` stores aggregate execution state, and
+  `pipeline/tasks.json` owns task definition/status. Markdown, reports,
+  dashboards, statuslines, and physical folders are projections only.
+- `advisory-agent-routing`: agent/model selection, economy, risk guidance, simulation,
+  architecture guidance, and deliberation are advisory. Resolver failure never
+  denies spawn or delivery; current explicit human direction wins within platform
+  security, secret, credential, and destructive-action boundaries.
+<!-- contextdevkit:host-contract:end -->
+
+## Project
+
+<!-- Replace with a concise description of the product and its users. -->
+_Describe {{PROJECT_NAME}} in 2-3 sentences._
 
 ## Stack
 
 {{STACK_NOTES}}
 
-<!-- Fill in concretely as the project takes shape. The first real architectural
-     decision (language, framework, datastore) deserves an ADR — run /new-adr. -->
+## Operating Guidance
 
-## ⛔ Immutable rules (do not revisit without a new ADR)
+- Keep conversation and read-only exploration inert. Do not create project
+  artifacts until the user requests a mutation or an actual write begins.
+- For governed workflow mutation, use the context supplied by the dispatcher.
+  Do not reconstruct a second lifecycle from Markdown placement or old lanes.
+- Prefer Project Map/graph for bounded orientation. If it is stale, partial, or
+  unavailable, say so briefly and continue with ordinary file/search tools.
+- Treat gate output as evidence. `shadow` and `canary` guide; only a proven
+  `guarded` violation denies the governed transition.
+- Tests must cover every behavior added or changed. Report skipped or unavailable
+  evidence honestly; a timeout is not a pass.
+- Coordinate through current workflow/task state and workspace claims. Preserve
+  unrelated edits and never overwrite another active owner.
 
-<!-- The decisions you never want Claude to silently undo. Examples:
-     1. Never introduce <forbidden tech>. Target is <X>. [→ ADR-0001]
-     2. All persistence goes through <layer> — never raw <thing>.
-     3. <invariant that protects your architecture>.
-     Start with 1–3. Grow them as you make decisions. -->
+## Immutable Rules
 
-1. _Add your first immutable rule here (and link the ADR that justifies it)._
+<!-- Add project-specific invariants and link their accepted ADRs. -->
 
-## 🏛️ Coding constitution
+1. _Add the first project-specific immutable rule here._
 
-> This section has absolute priority over the agent's internal defaults. Applies
-> to all new or modified code. You are the **guardian** of this constitution.
+## Coding Constitution
 
-### 0. Posture: Staff/Principal Engineer
-Act as a **Staff/Principal Software Engineer**, not a code generator. Think
-**architecture before syntax**. Refuse spaghetti, excessive coupling, monolithic
-files, and hidden tech debt. Maintainability, testability, and human readability
-beat raw delivery speed.
+- Act as a Staff/Principal engineer. Architecture, readability, testability, and
+  operability outrank delivery speed.
+- File size is an investigation signal, never a verdict. Split only at a real
+  responsibility or architecture boundary; merge artificial fragmentation.
+- Keep dependencies inward. Entry points dispatch, domain/services own behavior,
+  and adapters translate transport, persistence, or vendor shapes at one seam.
+- Use descriptive English identifiers. Validate inputs at trust boundaries, fail
+  fast with useful errors, and never expose stack traces or secrets to users.
+- Document non-trivial behavior with its purpose, parameters, returns, and thrown
+  errors. Comments explain why, not the syntax.
+- Default unproved states to refused or skipped, never to an assumed pass. Mutators
+  are dry-run-first unless the current explicit user instruction authorizes apply.
+- Make the smallest change that satisfies the request. Do not add speculative
+  wrappers, aliases, compatibility readers, or a second source of truth.
 
-### 1. File size limit: 280 lines (+10% structural tolerance)
-- No source file should exceed **280 useful lines** in principle.
-- **+10% (~308 lines)** is allowed ONLY when splitting would cause premature
-  abstraction or break a genuinely cohesive unit — record the cohesion reason in
-  a JSDoc/header note at the top of the file.
-- **Never refactor "just to split."** 280 is a *smell* that triggers analysis,
-  not a guillotine. Yellow zone: 240+. Hard block: > 308.
+## Claude Host Surface
 
-### 2. Single Responsibility & layering
-- Each function/module does **one** thing. If the name needs "And"/"Or"
-  (`validateAndSave`, `fetchAndTransform`), split it.
-- Keep layers honest: entry points (routes/controllers/handlers) **dispatch**;
-  business logic lives in a service/domain layer; that layer never imports the
-  transport framework. UI components stay "dumb" — non-trivial state/effects go
-  into custom hooks/composables/helpers.
+Claude loads `CLAUDE.md`, `.claude/settings.json`, and generated commands/agents
+under `.claude/`. Use only commands currently present in that generated surface;
+removed 3.x commands are not implicit compatibility aliases.
 
-### 3. Clean naming
-Descriptive, explicit names. **Banned without a qualifier**: `data`, `temp`,
-`obj`, `val`, `x`, `arr`, `result`. Readability beats clever/compact code.
-
-### 4. Fail fast & error handling
-Validate input at the boundary. Throw descriptive, typed errors early. Never
-swallow exceptions silently. Never leak stack traces to end users — show a
-friendly message; log the detail (with a request/correlation id) for engineers.
-
-### 5. Language policy
-<!-- Define the language per layer. A common setup: -->
-| Layer | Language |
-| --- | --- |
-| Code: identifiers, functions, types, API/DB names, JSON keys | **English** |
-| Comments, doc comments, logs, commit messages | **English** |
-| End-user-visible UI text | **{{PROJECT_NAME}}'s audience language** — externalized in i18n files, never inline |
-
-### 6. Documentation
-Doc-comment every non-trivial function, hook, and route with `@param`/`@returns`/
-`@throws`. Comments explain the **why**, never the obvious **what**. A good name
-is the first layer of documentation.
-
-### 7. Self-audit before any code response
-Before emitting code, mentally run: no file over the limit? layers clean (no
-business logic in the transport layer)? names descriptive? no "And"/"Or"
-functions? errors typed and handled? language policy respected? docs on
-non-trivial logic? Fix any failure **before** showing the code.
-
-## 🤖 VibeDevKit — the context system (Level L{{LEVEL}})
-
-This project uses [VibeDevKit](https://github.com/) to survive across sessions.
-Layers active depend on the level (see `vibekit/README.md`):
-
-- **CLAUDE.md** (this file) + hooks load context automatically at session start.
-- **`vibekit/memory/`** — `decisions/` (ADRs, the *why*), `sessions/` (the
-  *what*, one file per session), `business-rules/` (domain rules, versioned),
-  `GLOSSARY.md` (UI ↔ code naming), `SESSIONS.md` & `WORKSPACE.md` (auto-generated
-  indices).
-- **`docs/CHANGELOG.md`** — factual release chronology.
-- **Hooks** (`.claude/settings.json` → `vibekit/runtime/hooks/`) inject boot
-  context, track edits, and nudge you to register the session on drift.
-
-### Before non-trivial changes
-1. Read the latest `vibekit/memory/SESSIONS.md` entry + relevant ADR.
-2. Check `GLOSSARY.md` before coining a domain identifier.
-3. Big decision (stack/library/pattern) → `/new-adr <title>` BEFORE implementing.
-4. At the end of a productive session → `/log-session`.
-
-### Slash commands
-Setup: `/aidevtool-from0` (empty) · `/setupvibedevkit` (existing). Daily: `/state`
-· `/log-session` · `/new-adr` · `/close-version` · `/context-refresh` · `/dev-start`
-· `/bug-hunt` · `/audit`. Multi-session: `/claim` · `/release` · `/worktree-new`.
-Quality: `/simulate-impact` · `/tech-debt-sweep` · `/analyze-code-ia-practices`
-· `/contract-check` · `/deps-audit` · `/deep-analysis` · `/test-plan` · `/scaffold-tests` · `/qa-signoff`. Product &
-execution: `/roadmap` · `/pipeline` · `/ship` · `/retro` · `/vibe-stats`
-· `/distill-sessions` · `/distill-apply`.
-Structure & platform: `/squad` (squads) · `/git` (version control + remote)
-· `/claude-md` (scoped CLAUDE.md per module) · `/vibe-level` · `/vibe-config`
-· `/vibe-doctor`.
+ContextDevKit memory lives under `contextkit/memory/`. It may be intentionally
+gitignored and still be authoritative local documentation. Read the relevant
+current workflow/decision context for mutation; do not load historical or
+superseded memory by default.
 
 ---
 
-_Keep this file lean. When it grows past ~200 lines, push detail into ADRs/docs._
+_Keep this file lean. Put detailed policy in canonical ContextDevKit sources._

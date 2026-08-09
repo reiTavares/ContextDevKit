@@ -1,0 +1,36 @@
+# Cost pillar. Without it the agent dies of budget politics. REQUIRED.
+budgets:
+  per_call_usd_target: {{0.015}}
+  per_call_usd_hard_cap: {{0.05}}        # above → BLOCK the call
+  monthly_usd_target: {{500}}
+  monthly_usd_hard_cap: {{750}}          # above → KILL SWITCH
+
+alerts:
+  - at_pct: 50
+    channels: [log]
+  - at_pct: 80
+    channels: [log, email, slack]
+  - at_pct: 100
+    channels: [log, email, slack, pagerduty]
+    action: switch_to_cheap_path
+
+caching:
+  prompt_caching: required               # use it wherever the provider supports it
+  semantic_response_cache:
+    enabled: true
+    ttl_minutes: 60
+    similarity_threshold: 0.95
+
+rate_limiting:
+  per_user_qpm: 30
+  per_user_qpd: 1000
+  global_qps: 50
+  burst_multiplier: 1.5
+
+kill_switch:
+  enabled: true
+  triggers:
+    - condition: monthly_spend_exceeds_hard_cap
+      action: refuse_all_calls
+    - condition: per_call_cost_exceeds_hard_cap_3x_in_5min
+      action: refuse_until_manual_reset

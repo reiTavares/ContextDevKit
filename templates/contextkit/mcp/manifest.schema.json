@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contextdevkit.dev/schemas/mcp-manifest/v1",
+  "title": "ContextDevKit MCP Project Manifest",
+  "description": "Per-project MCP manifest. Records enabled server ids, pinning overrides, mode overrides, referenced secret NAMES, and allowedTools filters. NEVER stores secret values — only names of secrets held in the host's secret store.",
+  "type": "object",
+  "required": ["version", "servers"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Manifest format version — must be 1 for this schema."
+    },
+    "servers": {
+      "type": "array",
+      "description": "Ordered list of enabled MCP server entries for this project.",
+      "items": {
+        "$ref": "#/$defs/ManifestEntry"
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp of last manifest write. Set by manifest.mjs on every write."
+    }
+  },
+  "$defs": {
+    "ManifestEntry": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Registry id this entry activates."
+        },
+        "pin": {
+          "$ref": "#/$defs/PinOverride",
+          "description": "Optional pin override — replaces the registry default for this project only."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["read-only", "write"],
+          "description": "Optional mode override. Defaults to registry defaultMode. 'write' requires human approval."
+        },
+        "referencedSecrets": {
+          "type": "array",
+          "description": "Names of secrets (held in host secret store) required by this server. NEVER the values.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "allowedTools": {
+          "type": "array",
+          "description": "Explicit allow-list of tool names to expose. Empty array means all registry-declared tools.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "When true, the entry is preserved but not activated. Useful for temporary disabling.",
+          "default": false
+        }
+      }
+    },
+    "PinOverride": {
+      "type": "object",
+      "description": "Project-level pin that overrides the registry pin for one server.",
+      "additionalProperties": false,
+      "properties": {
+        "npm": {
+          "type": "string",
+          "description": "Exact npm version string, e.g. '1.2.3'."
+        },
+        "digest": {
+          "type": "string",
+          "description": "Container image digest (sha256:…)."
+        },
+        "sha": {
+          "type": "string",
+          "description": "Git commit SHA."
+        },
+        "identity": {
+          "type": "string",
+          "description": "Sigstore / cosign identity used to verify the artefact."
+        }
+      }
+    }
+  }
+}

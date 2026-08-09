@@ -1,0 +1,13 @@
+{
+  "$schema": "https://contextdevkit.dev/schemas/mcp-policy/class-defaults/v1",
+  "version": 1,
+  "description": "Canonical R0..R5 default activation posture. Mirrors runtime/mcp/risk-classes.mjs (CLASS_DEFAULTS) — the .mjs table is the executable source of truth; this file is the human-/command-readable projection. Keep them in sync (a test pins the match).",
+  "classes": {
+    "R0": { "label": "simple-activate",         "mode": "read-only", "requiresApproval": false, "blocked": false },
+    "R1": { "label": "allow-in-workspace",       "mode": "read-only", "requiresApproval": false, "blocked": false },
+    "R2": { "label": "approval+secrets-by-ref",  "mode": "read-only", "requiresApproval": false, "blocked": false },
+    "R3": { "label": "guarded",                  "mode": "read-only", "requiresApproval": false, "blocked": false },
+    "R4": { "label": "human-approval",           "mode": "read-only", "requiresApproval": true,  "blocked": false },
+    "R5": { "label": "blocked-by-default",       "mode": "read-only", "requiresApproval": true,  "blocked": true }
+  }
+}

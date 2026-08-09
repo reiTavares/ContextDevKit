@@ -1,0 +1,20 @@
+# {{copy.brand.name}}
+
+> {{copy.meta.description}}
+
+## O que é
+
+- [Página principal]({{config.canonicalOrigin}}/): {{copy.hero.title}} — {{copy.hero.subtitle}}
+
+## Perguntas frequentes
+
+- {{copy.faq.items.0.q}} {{copy.faq.items.0.a}}
+- {{copy.faq.items.1.q}} {{copy.faq.items.1.a}}
+- {{copy.faq.items.2.q}} {{copy.faq.items.2.a}}
+- {{copy.faq.items.3.q}} {{copy.faq.items.3.a}}
+
+## Fatos
+
+- Oferta: {{copy.offer.title}} — {{copy.offer.priceLabel}} ({{copy.offer.priceNote}})
+- Empresa: {{legal.empresa.razaoSocial}} (CNPJ {{legal.empresa.cnpj}})
+- Contato: {{legal.empresa.email}}

@@ -1,0 +1,65 @@
+pipeline:
+  squad: agent-forge
+  version: "1.0.0"
+  description: >
+    Forge a portable APF package from an approved Agent Blueprint.
+    Linear with one conditional branch (tools), one conditional capability
+    (rag), and one bounded retry loop on the eval gate.
+
+  steps:
+    # 1 — sanity-check the blueprint before any work runs.
+    - id: validate-blueprint
+      agent: forge-orchestrator
+      execution: inline
+      model_tier: fast
+
+    # 2 — route to a tier+provider shortlist (capability matrix + decision rules).
+    - id: route
+      agent: model-router
+      execution: inline
+      model_tier: fast
+
+    # 3 — human picks one model from the shortlist; the choice lands on disk.
+    - id: checkpoint-shortlist
+      type: checkpoint
+      outputFile: pipeline/data/shortlist.md
+
+    # 4 — emit the per-provider system prompts (canonical + 5 adapters).
+    - id: generate-prompt
+      agent: prompt-engineer
+      execution: inline
+      model_tier: powerful
+
+    # 5 — emit the per-provider tool schemas (only when the blueprint declares tools).
+    - id: generate-tools
+      agent: tool-designer
+      execution: inline
+      model_tier: powerful
+      condition: blueprint.tools.length > 0
+
+    # 6 — emit the RAG config (only when the blueprint enables retrieval).
+    - id: generate-rag
+      agent: rag-designer
+      execution: inline
+      model_tier: powerful
+      condition: capabilities.rag == true
+
+    # 7 — populate the three governance pillars from the blueprint (throws on under-config).
+    - id: governance
+      agent: governance-officer
+      execution: inline
+      model_tier: powerful
+
+    # 8 — refuse to ship unless the eval gate passes; loop back to refine the prompt up to 3 times.
+    - id: eval-gate
+      agent: eval-designer
+      execution: subagent
+      model_tier: powerful
+      on_reject: generate-prompt
+      max_review_cycles: 3
+
+    # 9 — assemble the APF tree, stamp provenance, write to agent-packages/.
+    - id: package
+      agent: packager
+      execution: inline
+      model_tier: fast

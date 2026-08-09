@@ -8,4 +8,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 Add your changes here. Use sub-sections: Added / Changed / Fixed / Removed.
 
-- Added: VibeDevKit context platform scaffolded ({{DATE}}).
+### Changed
+
+- WF-0087 now derives plurality-scoped `tasks.json` projections from validated
+  workflow plans and quarantines journal/state parity divergences before any
+  consumer cutover.
+
+- Added: ContextDevKit context platform scaffolded ({{DATE}}).

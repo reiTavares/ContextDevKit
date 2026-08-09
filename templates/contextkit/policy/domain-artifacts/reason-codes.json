@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
+  "id": "reason-codes",
+  "title": "Optional domain artifact diagnostics",
+  "codes": {
+    "ARTIFACT_SCHEMA_VALID": "Artifact satisfies its declared schema.",
+    "ARTIFACT_SCHEMA_INVALID": "Artifact is missing a declared field or has a wrong type.",
+    "ARTIFACT_UNKNOWN_KIND": "Artifact kind is not declared.",
+    "ARTIFACT_RECOMMENDED_FOR_PROFILE": "Artifact is recommended for this profile.",
+    "ARTIFACT_NEVER_FOR_PROFILE": "Artifact is disproportionate for this profile.",
+    "ARTIFACT_NOT_REQUIRED": "Artifact is optional for this profile.",
+    "RECIPE_RESOLVED": "Optional Task Compiler recipe resolved.",
+    "RECIPE_UNKNOWN_PROFILE": "No optional recipe applies to this profile.",
+    "SCAFFOLD_RELEASED": "Scaffold released after its explicit contract validation.",
+    "SCAFFOLD_REFUSED_NO_CONTRACT": "Scaffold refused because its explicit contract is absent.",
+    "SCAFFOLD_REFUSED_INVALID_CONTRACT": "Scaffold refused because its explicit contract is invalid.",
+    "SCAFFOLD_UNKNOWN_KIND": "Scaffold kind is not declared.",
+    "SCAFFOLD_PLACEHOLDER_EMITTED": "Scaffold emitted typed placeholders without inventing domain content.",
+    "ARTIFACTS_POLICY_DEGRADED": "Optional artifact policy is unavailable."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "domain-applicability-weights",
+  "title": "Domain Applicability Score (DAS) signal weights — ADR-0128 plan §7",
+  "ruleClass": "B",
+  "maximumAutomaticLevel": "advisory",
+  "note": "Deterministic, table-driven. Positive + reducer signals summed and clamped to [0,100]. Hard triggers raise the profile floor (see hard-triggers.json); DDD ceremony is never applied to simple work.",
+  "positiveSignals": {
+    "explicitInvariant": { "weight": 25, "tokens": ["invariant", "business rule", "must always", "must never", "consistency rule", "invariante", "regra de negócio", "regra de negocio", "deve sempre", "nunca deve", "regra de consistência", "regra de consistencia"] },
+    "lifecycleStates": { "weight": 20, "tokens": ["state machine", "lifecycle", "status transition", "workflow state", "state transition", "máquina de estados", "maquina de estados", "ciclo de vida", "transição de status", "transicao de status", "transição de estado", "transicao de estado"] },
+    "multipleCapabilities": { "weight": 20, "tokens": ["multiple capabilities", "several contexts", "cross-context", "bounded context", "múltiplas capacidades", "multiplas capacidades", "vários contextos", "varios contextos", "entre contextos"] },
+    "transactionalBoundary": { "weight": 15, "tokens": ["transaction", "consistency boundary", "atomic", "rollback", "two-phase", "transação", "transacao", "limite de consistência", "limite de consistencia", "atômico", "atomico"] },
+    "publicContract": { "weight": 15, "tokens": ["public api", "public contract", "schema", "event contract", "endpoint contract", "api pública", "api publica", "contrato público", "contrato publico", "contrato de evento"] },
+    "crossContextIntegration": { "weight": 15, "tokens": ["integration", "cross-service", "inter-module", "external system", "integração", "integracao", "entre serviços", "entre servicos", "sistema externo"] },
+    "centralDurableCapability": { "weight": 15, "tokens": ["core capability", "central capability", "durable capability", "platform capability", "capacidade central", "capacidade durável", "capacidade duravel", "capacidade da plataforma"] },
+    "multipleActors": { "weight": 10, "tokens": ["multiple actors", "several roles", "different users", "actor", "múltiplos atores", "multiplos atores", "vários papéis", "varios papeis", "usuários diferentes", "usuarios diferentes"] },
+    "recurringVocabulary": { "weight": 10, "tokens": ["ubiquitous language", "domain vocabulary", "domain term", "glossary", "linguagem ubíqua", "linguagem ubiqua", "vocabulário de domínio", "vocabulario de dominio", "glossário", "glossario"] },
+    "domainEvent": { "weight": 10, "tokens": ["domain event", "async event", "published event", "event-driven", "evento de domínio", "evento de dominio", "evento assíncrono", "evento assincrono", "evento publicado"] }
+  },
+  "reducerSignals": {
+    "simpleCrud": { "weight": -30, "tokens": ["simple crud", "basic crud", "list and create", "getter", "setter", "crud simples", "crud básico", "crud basico", "listar e criar"] },
+    "isolatedScript": { "weight": -25, "tokens": ["one-off script", "isolated script", "throwaway", "standalone script", "script pontual", "script isolado", "script descartável", "script descartavel", "script autônomo", "script autonomo"] },
+    "visualOnly": { "weight": -20, "tokens": ["visual only", "styling", "css", "layout tweak", "ui polish", "somente visual", "estilização", "estilizacao", "ajuste de layout", "polimento de ui"] },
+    "configOrDocs": { "weight": -20, "tokens": ["config change", "configuration", "documentation", "readme", "mudança de configuração", "mudanca de configuracao", "configuração", "configuracao", "documentação", "documentacao"] },
+    "mechanicalFix": { "weight": -15, "tokens": ["typo", "rename variable", "mechanical fix", "formatting", "erro de digitação", "erro de digitacao", "renomear variável", "renomear variavel", "correção mecânica", "correcao mecanica", "formatação", "formatacao"] },
+    "technicalAdapter": { "weight": -10, "tokens": ["adapter", "wrapper", "shim", "glue code", "adaptador", "invólucro", "involucro", "código de ligação", "codigo de ligacao"] }
+  },
+  "bands": [
+    { "max": 24, "profile": "simple" },
+    { "max": 44, "profile": "modular" },
+    { "max": 69, "profile": "domain-driven" },
+    { "max": 100, "profile": "distributed-domain" }
+  ],
+  "thresholds": { "modularMin": 25, "domainDrivenMin": 45, "distributedMin": 70 }
+}

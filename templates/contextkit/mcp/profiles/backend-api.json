@@ -1,0 +1,19 @@
+{
+  "id": "backend-api",
+  "displayName": "Backend API",
+  "description": "Profile for server-side API projects. GitHub integration for code review workflows; no browser automation needed.",
+  "servers": [
+    {
+      "id": "contextdevkit",
+      "mode": "read-only",
+      "referencedSecrets": [],
+      "allowedTools": []
+    },
+    {
+      "id": "github",
+      "mode": "read-only",
+      "referencedSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "allowedTools": ["list_repos", "get_repo", "list_issues", "get_issue", "create_issue", "list_pull_requests", "get_pull_request", "create_pull_request", "get_file_contents", "search_code"]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
+  "id": "recipe-contracts",
+  "title": "Optional Task Compiler domain recipes",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "note": "Recipes are explicit planning aids. They do not dispatch agents, create receipts, or gate source writes.",
+  "recipes": {
+    "domain-implementation": {
+      "title": "domain-implementation",
+      "version": "2.0.0",
+      "dispatchesTo": [
+        "implementation-simple",
+        "implementation-modular",
+        "implementation-domain-driven",
+        "implementation-distributed-domain"
+      ]
+    },
+    "implementation-simple": {
+      "title": "implementation-simple",
+      "version": "2.0.0",
+      "profile": "simple",
+      "playbookSteps": ["classify", "implement", "verify"]
+    },
+    "implementation-modular": {
+      "title": "implementation-modular",
+      "version": "2.0.0",
+      "profile": "modular",
+      "playbookSteps": ["classify", "implement", "verify", "review"]
+    },
+    "implementation-domain-driven": {
+      "title": "implementation-domain-driven",
+      "version": "2.0.0",
+      "profile": "domain-driven",
+      "playbookSteps": ["classify", "model", "decide", "implement", "verify", "review"]
+    },
+    "implementation-distributed-domain": {
+      "title": "implementation-distributed-domain",
+      "version": "2.0.0",
+      "profile": "distributed-domain",
+      "playbookSteps": ["classify", "model", "decide", "implement", "verify", "review"]
+    }
+  }
+}

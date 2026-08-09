@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
+  "id": "policy-manifest",
+  "title": "Optional Domain Artifacts and Task Compiler policy",
+  "updated": "2026-08-09",
+  "note": "The tables validate explicitly requested artifacts and resolve optional recipes. They never gate a source write.",
+  "tables": [
+    { "id": "artifact-schemas", "file": "artifact-schemas.json", "concern": "Three optional domain artifact contracts" },
+    { "id": "recipe-contracts", "file": "recipe-contracts.json", "concern": "Optional Task Compiler recipes" },
+    { "id": "scaffold-contracts", "file": "scaffold-contracts.json", "concern": "Typed placeholders after an explicit artifact" },
+    { "id": "reason-codes", "file": "reason-codes.json", "concern": "Diagnostic reason codes" }
+  ]
+}

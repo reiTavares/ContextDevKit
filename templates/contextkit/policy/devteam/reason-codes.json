@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 2,
+  "policyVersion": "4.0.0",
+  "id": "reason-codes",
+  "title": "Advisory devteam diagnostics",
+  "codes": {
+    "SKILLS_NO_CODE": "No skill recommendation applies to no-code work.",
+    "SKILLS_FALLBACK_BASELINE": "Optional baseline skill suggestion used because the trigger table is unavailable.",
+    "SKILL_TRIGGER_MATCHED": "Declared signals matched an optional skill suggestion.",
+    "PLAYBOOK_STEP_PROFILE_GATED": "A modeling step does not apply to this profile.",
+    "AGENTS_EMPTY_NO_CODE": "No agent recommendation applies to no-code work.",
+    "AGENTS_FROM_PROFILE": "Agent suggestions came from the resolved profile.",
+    "DEVTEAM_POLICY_DEGRADED": "Optional recommendation policy is unavailable.",
+    "RECEIPT_WRITE_FAILED": "Optional skill telemetry could not be persisted."
+  }
+}

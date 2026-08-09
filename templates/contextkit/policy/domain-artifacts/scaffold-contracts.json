@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "0.1.0",
+  "id": "scaffold-contracts",
+  "title": "Governed scaffolds (ADR-0128 §22, WF-0066)",
+  "ruleClass": "advisory",
+  "maximumAutomaticLevel": "advisory",
+  "note": "Scaffolds emit TYPED PLACEHOLDERS only — never an invented business rule (constitution §9, ADR-0128 architecture read). Each scaffold declares the artifact kind whose contract must already exist before it may be released (requiresContract); a scaffold with no satisfied contract is refused, not degraded to a guess (constitution §8 — default to refuse). placeholderFields are structural slots the generator fills with a typed TODO marker, never a domain-specific default.",
+  "scaffolds": {
+    "aggregate-root": {
+      "title": "Aggregate root",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["id", "invariantsToImplement", "commandHandlers"]
+    },
+    "value-object": {
+      "title": "Value object",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["fields", "equalityRule"]
+    },
+    "domain-event": {
+      "title": "Domain event",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["payloadFields", "emittedBy"]
+    },
+    "command": {
+      "title": "Command",
+      "requiresContract": "use-case",
+      "placeholderFields": ["input", "handler"]
+    },
+    "query": {
+      "title": "Query",
+      "requiresContract": "use-case",
+      "placeholderFields": ["input", "output"]
+    },
+    "handler": {
+      "title": "Handler",
+      "requiresContract": "use-case",
+      "placeholderFields": ["preconditions", "effects", "errors"]
+    },
+    "repository-port": {
+      "title": "Repository port",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["methods"]
+    },
+    "infrastructure-adapter": {
+      "title": "Infrastructure adapter",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["portImplemented", "externalDependency"]
+    },
+    "domain-test": {
+      "title": "Domain test",
+      "requiresContract": "aggregate",
+      "placeholderFields": ["invariantsUnderTest"]
+    },
+    "application-test": {
+      "title": "Application test",
+      "requiresContract": "use-case",
+      "placeholderFields": ["acceptance"]
+    }
+  }
+}
