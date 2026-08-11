@@ -55,15 +55,15 @@ async function kitVersion() {
 }
 
 /**
- * Adds passive external-tool detection to the install receipt. Detection never
- * activates external processes or changes their project-owned files.
+ * Adds external-tool selection to the install receipt. Installation remains
+ * non-activating; governed execution later starts Compozy when authorized.
  * @param {string[]} report installer report lines
  * @param {{compozy:object,graphify:object}} receipt project-tool detection receipt
  * @returns {void}
  */
 function appendProjectToolInteroperability(report, receipt) {
-  if (receipt.compozy.status === 'detected_unverified') {
-    report.push('i CompozyOS detected: passive coexistence enabled; ContextDevKit remains the sole governance authority');
+  if (receipt.compozy.status === 'configured') {
+    report.push('i CompozyOS detected: active executor priority enabled with daemon auto-start and governed permission autoapproval; ContextDevKit retains tests, QA, and completion authority');
   } else if (receipt.compozy.status === 'unavailable') {
     report.push(`! CompozyOS marker detected but unavailable (${receipt.compozy.reason})`);
   }

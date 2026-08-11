@@ -20,7 +20,15 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-_Add your changes here._
+### Added (`feat`)
+
+- **`feat(execution)` — activate CompozyOS as a governed executor.** Projects
+  with a valid `.compozy/config.toml` now route permitted implementation work
+  through a bounded ContextDevKit execution envelope. The adapter verifies the
+  CLI contract, auto-starts the daemon, automatically resolves correlated
+  permission requests with per-run `allow-once`, redacts receipts, and refuses
+  local fallback when the configured executor fails. ContextDevKit remains the
+  sole authority for workflow gates, QA, and task completion.
 
 ## [4.0.4] - 2026-08-11
 

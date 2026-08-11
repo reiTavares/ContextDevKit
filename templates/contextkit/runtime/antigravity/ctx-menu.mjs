@@ -37,6 +37,7 @@ export const CATEGORIES = [
       'pipeline': 'CLI for the canonical JSON task store',
       'pipeline-board': 'Renders a derived task board from canonical JSON',
       'pipeline-session': 'Binds explicit host work to canonical task scopes',
+      'execute': 'Authorize a task envelope and dispatch it to configured CompozyOS',
       'pipeline-validate': 'Provides canonical task dependency helpers',
       'dev-start': 'Bootstraps a focused canonical task scope',
       'ship': 'Orchestrates squad verification, runs test suites, pushes and cleans up',

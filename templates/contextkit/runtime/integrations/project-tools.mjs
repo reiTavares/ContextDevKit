@@ -1,8 +1,7 @@
 /**
- * Passive interoperability detection for project-local CompozyOS and Graphify
- * evidence. External markers are untrusted inputs: this module performs bounded
- * reads only and never executes a process, accesses the network, or mutates the
- * inspected workspace.
+ * Non-mutating interoperability detection for project-local CompozyOS and
+ * Graphify evidence. A safe Compozy marker selects the active executor, but
+ * process activation remains behind the governed execution dispatcher.
  */
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -223,6 +222,8 @@ function detectGraphifyOverlap(root, relativePaths, code, options) {
 
 /**
  * Detects project-local CompozyOS and Graphify evidence without activation.
+ * `configured` means Compozy is the mandatory executor after a governed
+ * envelope is authorized; it does not itself start a process.
  * @param {string} root workspace root
  * @param {{maxGraphBytes?:number,maxMarkerBytes?:number,lstatFn?:Function,realpathFn?:Function,readFileFn?:Function}} [options]
  * @returns {{schemaVersion:number,mutation:false,compozy:object,graphify:object}}
@@ -236,9 +237,9 @@ export function detectProjectTools(root, options = {}) {
   const compozyMarker = detectMarker(root, COMPOZY_CONFIG_PATH, 'config', detectorOptions);
   const compozy = compozyMarker.present
     ? {
-        status: 'detected_unverified',
+        status: 'configured',
         detected: true,
-        reason: 'compozy_activation_requires_explicit_adapter',
+        reason: 'compozy_active_executor_selected',
         markers: [compozyMarker.marker],
       }
     : {
