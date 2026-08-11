@@ -83,6 +83,20 @@ are required when both risks apply.
 manifest path and regenerates `docs/README.md`. Your product's root `README.md`
 stays yours.
 
+## CompozyOS and Graphify interoperability
+
+ContextDevKit passively detects `.compozy/config.toml` and
+`graphify-out/graph.json`. It does not execute either tool, install their
+dependencies, or rewrite their hooks/instructions. ContextDevKit remains the
+sole authority for workflow state, governance gates, approvals, claims, tests,
+QA, and durable evidence; CompozyOS coexistence is passive until an explicit
+governed execution adapter is implemented.
+
+File discovery uses `graphify -> native -> project-map-find`. Graphify is a
+bounded read-only optimization; unsafe, malformed, stale, partial, or empty
+evidence releases the next provider automatically. `/context-doctor` reports
+detected tools and host-surface overlap without activating them.
+
 ## Project personalization
 
 Put durable project instructions in `memory/preferences/personalization.md`.

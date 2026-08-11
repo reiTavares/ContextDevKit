@@ -444,6 +444,24 @@ node cdx.mjs log-session
 
 When a mutating command exposes a write switch, use its documented dry-run/apply behavior. Read the returned receipt as evidence of what the command actually did.
 
+## CompozyOS and Graphify interoperability
+
+ContextDevKit detects project-local CompozyOS (`.compozy/config.toml`) and
+Graphify (`graphify-out/graph.json`) without running either tool or changing
+their files. ContextDevKit remains the sole authority for workflow state,
+governance gates, approvals, claims, tests, QA, and durable evidence; CompozyOS
+is currently supported in passive coexistence mode only.
+
+For `graph query <term>`, file discovery uses the fixed order below:
+
+1. Graphify's bounded, read-only NetworkX artifact.
+2. The native ContextDevKit structural graph.
+3. The dense Project Map lookup equivalent to `project-map --find`.
+
+Unsafe, malformed, stale, partial, or empty external evidence automatically
+releases the next provider. Graphify instructions and hooks are preserved and
+reported as overlap; they never replace ContextDevKit governance automatically.
+
 ## Design principles
 
 1. **Delivery over bureaucracy.** Process exists to improve delivery, not replace it.

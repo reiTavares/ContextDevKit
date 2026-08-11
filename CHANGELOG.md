@@ -20,6 +20,57 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+_Add your changes here._
+
+## [4.0.4] - 2026-08-11
+
+> **CompozyOS coexistence and Graphify-first structural discovery.**
+> ContextDevKit 4.0.4 detects both project-local ecosystems without executing
+> external processes or surrendering governance authority. Valid Graphify
+> artifacts become the first file-discovery source, followed deterministically
+> by the native graph and Project Map lookup.
+
+### Added (`feat` / `docs`)
+
+- **`feat(integrations)` — detect CompozyOS and Graphify passively.** The
+  installer and doctor identify `.compozy/config.toml`, the bounded
+  `graphify-out/graph.json` NetworkX artifact, Graphify skills, and overlapping
+  host instructions/hooks. Detection is read-only, rejects symbolic-link and
+  junction escapes, caps artifact size, and never invokes an external CLI,
+  installer, MCP server, network client, or write path.
+- **`feat(graph)` — prioritize Graphify with deterministic fallback.** The graph
+  query surface now uses `graphify -> native -> project-map-find`, validates
+  workspace-relative `source_file` anchors, preserves provider order and
+  provenance in receipts, and continues automatically after malformed,
+  unavailable, stale, partial, or empty evidence.
+- **`docs(integrations)` — document the interoperability authority boundary.**
+  English and pt-BR guidance state that ContextDevKit remains the sole authority
+  for workflows, governance gates, approvals, claims, tests, QA, and durable
+  evidence while CompozyOS remains in passive coexistence mode.
+
+### Changed (`compat`)
+
+- **`compat(graph)` — retain the existing single-provider query contract.**
+  Injected providers and the legacy non-denying fallback receipt remain
+  compatible while the default CLI gains the ordered provider chain.
+- **`compat(installer)` — preserve project-owned ecosystem files.** A real
+  install with CompozyOS and Graphify already present keeps their configuration,
+  graph artifact, and owner-authored instructions unchanged while reporting any
+  host-surface overlap for review.
+
+### Tests (`test`)
+
+- **`test(integrations)` — cover adversarial interoperability cases.** The new
+  `project-tool-interop` suite covers absent/present markers, malformed and
+  oversized artifacts, Unicode labels, path escape rejection, junctions,
+  overlap diagnostics, fallback order, real installer/doctor behavior, and
+  zero mutation. The pre-release full gate passed 193/193 suites.
+
+### Release engineering (`chore`)
+
+- **`chore(release)` — bump package metadata to 4.0.4.** `package.json` and both
+  root version fields in `package-lock.json` agree on `4.0.4` for tag/package/
+  lockfile parity.
 
 ## [4.0.3] - 2026-08-09
 

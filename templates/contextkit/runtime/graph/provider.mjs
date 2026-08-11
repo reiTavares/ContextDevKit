@@ -6,8 +6,9 @@
  * and may invoke an injected ordinary-search callback immediately.
  */
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { pathsFor } from '../config/paths.mjs';
+import { readGraphifyArtifact } from '../integrations/project-tools.mjs';
 
 export const GRAPH_QUERY_STATUSES = Object.freeze(['available', 'partial', 'stale', 'unavailable']);
 
@@ -63,6 +64,81 @@ export function createNativeGraphProvider(root) {
 }
 
 /**
+ * Normalizes a Graphify source path without allowing an absolute or escaping
+ * anchor into the provider receipt.
+ * @param {string} root project root
+ * @param {unknown} sourcePath untrusted Graphify `source_file` value
+ * @returns {string|null}
+ */
+function normalizeWorkspaceAnchor(root, sourcePath) {
+  if (typeof sourcePath !== 'string' || sourcePath.trim().length === 0) return null;
+  const candidate = sourcePath.trim().replaceAll('\\', '/');
+  if (isAbsolute(candidate) || /^[A-Za-z]:/.test(candidate) || candidate.startsWith('//')) return null;
+  const resolvedRoot = resolve(root);
+  const resolvedCandidate = resolve(resolvedRoot, ...candidate.split('/'));
+  const relativePath = relative(resolvedRoot, resolvedCandidate);
+  if (relativePath === '' || relativePath.startsWith('..') || isAbsolute(relativePath)) return null;
+  return relativePath.replaceAll('\\', '/');
+}
+
+/**
+ * Creates a read-only Graphify provider over its documented NetworkX node-link
+ * artifact. Graphify evidence is always partial because the external artifact
+ * cannot prove complete ContextDevKit scan coverage.
+ * @param {string} root project root
+ * @param {object} [options] bounded artifact-reader overrides
+ * @returns {{name:string,query(request:object):object}}
+ */
+export function createGraphifyGraphProvider(root, options = {}) {
+  return Object.freeze({
+    name: 'graphify',
+    query(request) {
+      const artifact = readGraphifyArtifact(root, options);
+      if (artifact.status !== 'ready_read_only') {
+        return {
+          status: 'unavailable',
+          reason: artifact.reason ?? 'graphify graph artifact unavailable',
+          anchors: [],
+        };
+      }
+
+      const normalizedQuery = typeof request?.query === 'string'
+        ? request.query.trim().toLowerCase()
+        : '';
+      const rejectedAnchors = [];
+      const anchors = artifact.graphDocument.nodes
+        .filter((node) => {
+          const searchable = `${node?.id ?? ''} ${node?.label ?? ''} ${node?.name ?? ''} ${node?.source_file ?? ''}`.toLowerCase();
+          return normalizedQuery.length > 0 && searchable.includes(normalizedQuery);
+        })
+        .map((node) => {
+          const anchor = normalizeWorkspaceAnchor(root, node?.source_file);
+          if (!anchor && typeof node?.source_file === 'string') rejectedAnchors.push(node.source_file);
+          return anchor;
+        })
+        .filter(Boolean)
+        .sort()
+        .slice(0, 50);
+      return {
+        status: 'partial',
+        reason: 'Graphify artifact coverage is externally managed and unproved',
+        anchors,
+        coverage: {
+          status: 'partial',
+          pendingPaths: ['Graphify artifact does not prove complete workspace coverage'],
+        },
+        artifact: {
+          path: artifact.path,
+          nodeCount: artifact.nodeCount,
+          edgeCount: artifact.edgeCount,
+          rejectedAnchorCount: rejectedAnchors.length,
+        },
+      };
+    },
+  });
+}
+
+/**
  * Normalizes any native/external provider result into the stable graph contract.
  * @param {unknown} providerResult
  * @param {string} providerName
@@ -83,6 +159,94 @@ function normalizeProviderResult(providerResult, providerName) {
     status,
     provider: providerName,
     anchors: [...new Set(anchors)].sort().slice(0, 50),
+  };
+}
+
+/**
+ * Queries ordered structural providers and merges validated anchors while
+ * preserving an auditable attempt receipt. A partial, stale, failed, or empty
+ * answer never denies the next provider.
+ * @param {{root?:string,query:string,stale?:boolean}} request
+ * @param {{providers:Array<{name?:string,query(request:object):object}>}} options
+ * @returns {object}
+ */
+export function queryProjectGraphChain(request, { providers } = { providers: [] }) {
+  const selectedProviders = Array.isArray(providers) ? providers : [];
+  const attempts = [];
+  const matchedProviders = [];
+  const mergedAnchors = [];
+  const seenAnchors = new Set();
+
+  for (const selectedProvider of selectedProviders) {
+    const providerName = typeof selectedProvider?.name === 'string' ? selectedProvider.name : 'external';
+    let normalized;
+    try {
+      normalized = normalizeProviderResult(selectedProvider?.query?.(request), providerName);
+    } catch (error) {
+      normalized = {
+        status: 'unavailable',
+        provider: providerName,
+        anchors: [],
+        reason: `graph provider failed: ${error?.message ?? String(error)}`,
+      };
+    }
+
+    const outcome = normalized.anchors.length > 0
+      ? 'match'
+      : (normalized.status === 'available' ? 'no_match' : normalized.status);
+    attempts.push({
+      provider: providerName,
+      status: normalized.status,
+      outcome,
+      anchors: normalized.anchors,
+      reason: normalized.reason ?? null,
+      coverage: normalized.coverage ?? null,
+    });
+    if (normalized.anchors.length > 0) matchedProviders.push(providerName);
+    for (const anchor of normalized.anchors) {
+      if (!seenAnchors.has(anchor) && mergedAnchors.length < 50) {
+        seenAnchors.add(anchor);
+        mergedAnchors.push(anchor);
+      }
+    }
+
+    const completeMatch = normalized.status === 'available'
+      && normalized.coverage?.status === 'complete'
+      && mergedAnchors.length > 0;
+    if (completeMatch) break;
+  }
+
+  const finalAttempt = attempts.at(-1) ?? null;
+  const finalStatus = mergedAnchors.length > 0
+    ? 'available'
+    : (finalAttempt?.status ?? 'unavailable');
+  const selectedProviderName = matchedProviders[0] ?? finalAttempt?.provider ?? 'none';
+  const fallbackInvoked = attempts.length > 1;
+  const fallbackReason = fallbackInvoked
+    ? (attempts.find((attempt) => attempt.provider !== finalAttempt?.provider)?.reason ?? 'earlier provider did not produce a complete match')
+    : null;
+  return {
+    status: finalStatus,
+    provider: selectedProviderName,
+    anchors: mergedAnchors,
+    available: finalStatus === 'available',
+    matches: mergedAnchors,
+    outcome: mergedAnchors.length > 0 ? 'match' : 'no_match',
+    denied: false,
+    searchAllowed: true,
+    mutation: false,
+    attempts,
+    provenance: {
+      providerOrder: attempts.map((attempt) => attempt.provider),
+      matchedProviders,
+    },
+    fallback: {
+      required: fallbackInvoked,
+      invoked: fallbackInvoked,
+      reason: fallbackReason,
+      result: finalAttempt,
+      error: null,
+    },
   };
 }
 
