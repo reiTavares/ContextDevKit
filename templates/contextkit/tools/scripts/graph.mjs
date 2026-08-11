@@ -25,7 +25,35 @@
  */
 import { loadProjection, reverseCallers, boundedReachability, godNodes, shortestPath } from './graph-query.mjs';
 import { impactReport, contractReverseConsumers } from './graph-consumers.mjs';
-import { queryProjectGraph } from '../../runtime/graph/provider.mjs';
+import { buildDenseIndex, findSymbol } from './project-map-dense.mjs';
+import {
+  createGraphifyGraphProvider,
+  createNativeGraphProvider,
+  queryProjectGraph,
+  queryProjectGraphChain,
+} from '../../runtime/graph/provider.mjs';
+
+/**
+ * Creates the terminal `project-map --find` equivalent provider.
+ * @param {string} root project root
+ * @returns {{name:string,query(request:object):object}}
+ */
+export function createProjectMapFindProvider(root) {
+  return Object.freeze({
+    name: 'project-map-find',
+    query(request) {
+      const index = buildDenseIndex(root);
+      const matches = findSymbol(index, request?.query);
+      const anchors = [...new Set(matches.flatMap((match) => match.files))].slice(0, 50);
+      return {
+        status: index.coverage.status === 'complete' ? 'available' : 'partial',
+        anchors,
+        coverage: index.coverage,
+        reason: index.coverage.status === 'complete' ? null : 'Project Map scan coverage is partial',
+      };
+    },
+  });
+}
 
 /** Parses `--flag value` pairs and positionals from an argv slice. */
 function parseArgs(argv) {
@@ -71,6 +99,18 @@ export function dispatch(root, command, args, options = {}) {
     case 'god-nodes':
       return godNodes(loadProjection(root), Number(flags.top) || 10);
     case 'query':
+      if (!options.provider && !options.fallback) {
+        return queryProjectGraphChain(
+          { root, query: need(0, 'substr') },
+          {
+            providers: [
+              createGraphifyGraphProvider(root),
+              createNativeGraphProvider(root),
+              createProjectMapFindProvider(root),
+            ],
+          },
+        );
+      }
       return queryProjectGraph(
         { root, query: need(0, 'substr') },
         { provider: options.provider, fallback: options.fallback },

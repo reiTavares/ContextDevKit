@@ -115,6 +115,8 @@ export const SUITES = Object.freeze([
     touches: ['templates/contextkit/runtime/hooks/'] },
   { id: 'hookcoexist', file: it('hookcoexist'), tier: 'integration:ecosystem',
     touches: ['templates/contextkit/runtime/config/settings-compose', 'templates/contextkit/runtime/hooks/'] },
+  { id: 'project-tool-interop', file: it('project-tool-interop'), tier: 'integration:ecosystem',
+    touches: ['templates/contextkit/runtime/integrations/', 'templates/contextkit/runtime/graph/provider.mjs', 'templates/contextkit/tools/scripts/graph.mjs', 'templates/contextkit/tools/scripts/doctor.mjs', 'install.mjs'] },
   { id: 'qgates', file: it('qgates'), tier: 'integration:enforcement',
     touches: ['templates/contextkit/tools/scripts/qgates', 'templates/contextkit/runtime/hooks/'] },
   { id: 'ci-squad', file: it('ci-squad'), tier: 'integration:ecosystem',

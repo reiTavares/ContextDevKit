@@ -22,6 +22,7 @@ import { resolveGovernanceMatrix } from '../../runtime/governance/gate-mode.mjs'
 import { MAX_LEVEL, MIN_LEVEL, isValidLevel } from '../../runtime/config/levels.mjs';
 import { pathsFor, ANTIGRAVITY_DIR, ANTIGRAVITY_LEGACY_DIR, CODEX_DIR } from '../../runtime/config/paths.mjs';
 import { readJsonSafe } from '../../runtime/hooks/safe-io.mjs';
+import { detectProjectTools } from '../../runtime/integrations/project-tools.mjs';
 import { checkConfigPathRot, checkConfigCorruption } from './doctor-config.mjs';
 
 const ROOT = process.cwd();
@@ -179,6 +180,35 @@ function checkZod(level) {
 }
 
 /**
+ * Reports passive CompozyOS and Graphify interoperability without treating an
+ * external tool as governance authority or executing its hooks/installers.
+ * @returns {void}
+ */
+function checkProjectToolInteroperability() {
+  const receipt = detectProjectTools(ROOT);
+  if (receipt.compozy.status === 'detected_unverified') {
+    note(
+      'CompozyOS detected in passive coexistence mode',
+      'ContextDevKit remains the sole governance authority; external execution requires a future explicit adapter',
+    );
+  } else if (receipt.compozy.status === 'unavailable') {
+    note('CompozyOS marker is present but unsafe or unreadable', receipt.compozy.reason);
+  }
+
+  if (receipt.graphify.artifact.status === 'ready_read_only') {
+    pass('Graphify artifact ready for read-only file discovery (graphify -> native -> project-map-find)');
+  } else if (receipt.graphify.status === 'unavailable') {
+    note('Graphify artifact is unavailable; native graph and Project Map fallback remain active', receipt.graphify.reason);
+  }
+  if (receipt.graphify.conflicts.length > 0) {
+    note(
+      `Graphify overlaps ${receipt.graphify.conflicts.length} host instruction/hook surface(s)`,
+      'ContextDevKit preserves those files but remains the sole governance authority; review overlap before enabling external automation',
+    );
+  }
+}
+
+/**
  * Antigravity host health (ticket 086, ADR-0048). Advisory only — optional host.
  * Verifies ctx.mjs, package.json shortcuts, the four `.agents/` asset trees,
  * INSTRUCTIONS.md, no surviving {{TOKEN}}; flags a legacy `.antigravity/` tree.
@@ -314,6 +344,7 @@ checkRemote();
 checkArchDebtGate();
 checkGovernanceMatrix();
 checkZod(level);
+checkProjectToolInteroperability();
 checkAntigravityHost();
 checkCodexHost(level);
 console.log(

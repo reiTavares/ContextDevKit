@@ -41,6 +41,7 @@ import { parseArgs, HELP, prompt, LEVEL_LABELS } from './tools/install/cli.mjs';
 import { maybeGenerateBaseline } from './tools/install/project-map-baseline.mjs';
 import { maybeGenerateGraph } from './tools/install/graph-index.mjs';
 import { maybeInstallGraphDeps } from './tools/install/graph-deps.mjs';
+import { detectProjectTools } from './templates/contextkit/runtime/integrations/project-tools.mjs';
 
 const KIT_ROOT = dirname(fileURLToPath(import.meta.url));
 const TPL = resolve(KIT_ROOT, 'templates');
@@ -50,6 +51,30 @@ async function kitVersion() {
     return JSON.parse(await read(join(KIT_ROOT, 'package.json'))).version ?? '0.0.0';
   } catch {
     return '0.0.0';
+  }
+}
+
+/**
+ * Adds passive external-tool detection to the install receipt. Detection never
+ * activates external processes or changes their project-owned files.
+ * @param {string[]} report installer report lines
+ * @param {{compozy:object,graphify:object}} receipt project-tool detection receipt
+ * @returns {void}
+ */
+function appendProjectToolInteroperability(report, receipt) {
+  if (receipt.compozy.status === 'detected_unverified') {
+    report.push('i CompozyOS detected: passive coexistence enabled; ContextDevKit remains the sole governance authority');
+  } else if (receipt.compozy.status === 'unavailable') {
+    report.push(`! CompozyOS marker detected but unavailable (${receipt.compozy.reason})`);
+  }
+
+  if (receipt.graphify.artifact.status === 'ready_read_only') {
+    report.push('i Graphify detected: read-only file discovery order is graphify -> native -> project-map-find');
+  } else if (receipt.graphify.status === 'unavailable') {
+    report.push(`! Graphify artifact unavailable (${receipt.graphify.reason}); native graph and Project Map fallback remain active`);
+  }
+  if (receipt.graphify.conflicts.length > 0) {
+    report.push(`! Graphify host overlap detected in ${receipt.graphify.conflicts.length} file(s); preserved without changing ContextDevKit governance`);
   }
 }
 
@@ -120,6 +145,7 @@ async function main() {
   mode = effMode;
 
   const report = [];
+  appendProjectToolInteroperability(report, detectProjectTools(target));
   const version = await kitVersion();
 
   // Read the prior installed engine version BEFORE installEngine stamps the new one,

@@ -353,6 +353,20 @@ Ou, a partir do checkout:
 node install.mjs --target /caminho/do/projeto
 ```
 
+## Compatibilidade com CompozyOS e Graphify
+
+O ContextDevKit detecta passivamente `.compozy/config.toml` e
+`graphify-out/graph.json`, sem executar essas ferramentas nem alterar seus
+arquivos. O ContextDevKit continua sendo a única autoridade para estado de
+workflow, gates de governança, aprovações, claims, testes, QA e evidências
+duráveis. A coexistência com CompozyOS é passiva até existir um adaptador de
+execução explícito e governado.
+
+A descoberta de arquivos segue `graphify -> native -> project-map-find`.
+Evidência externa insegura, inválida, desatualizada, parcial ou vazia libera
+automaticamente o próximo provedor. O `/context-doctor` informa ferramentas
+detectadas e sobreposição de hooks/instruções sem ativá-las.
+
 ## Princípios
 
 1. **Entrega acima da burocracia.**

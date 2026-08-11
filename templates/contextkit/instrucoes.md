@@ -56,6 +56,20 @@ executar hooks ou MCP do projeto; o ContextDevKit não concede essa confiança
 automaticamente. As operações e workflows permanecem independentes dos
 workflows de providers.
 
+## Compatibilidade com CompozyOS e Graphify
+
+O ContextDevKit detecta passivamente `.compozy/config.toml` e
+`graphify-out/graph.json`, sem executar essas ferramentas, instalar dependências
+ou alterar hooks e instruções externos. O ContextDevKit continua sendo a única
+autoridade para workflow, governança, aprovações, claims, testes, QA e evidência.
+A coexistência com CompozyOS é passiva até existir um adaptador explícito e
+governado.
+
+A busca de arquivos segue `graphify -> native -> project-map-find`. Evidência
+insegura, inválida, desatualizada, parcial ou vazia libera automaticamente o
+próximo provedor. O `/context-doctor` relata detecção e sobreposição de
+hooks/instruções sem ativá-los.
+
 ## Comandos principais
 
 - **Setup:** `/aidevtool-from0` (vazio) · `/setupcontextdevkit` (existente)
