@@ -180,16 +180,16 @@ function checkZod(level) {
 }
 
 /**
- * Reports passive CompozyOS and Graphify interoperability without treating an
- * external tool as governance authority or executing its hooks/installers.
+ * Reports active CompozyOS executor selection and Graphify discovery without
+ * treating either external tool as governance or completion authority.
  * @returns {void}
  */
 function checkProjectToolInteroperability() {
   const receipt = detectProjectTools(ROOT);
-  if (receipt.compozy.status === 'detected_unverified') {
+  if (receipt.compozy.status === 'configured') {
     note(
-      'CompozyOS detected in passive coexistence mode',
-      'ContextDevKit remains the sole governance authority; external execution requires a future explicit adapter',
+      'CompozyOS configured as the active priority executor',
+      'ContextDevKit authorizes the envelope, auto-starts the daemon, auto-approves envelope-scoped permissions, and alone validates tests, QA, and completion; configured failures do not fall back',
     );
   } else if (receipt.compozy.status === 'unavailable') {
     note('CompozyOS marker is present but unsafe or unreadable', receipt.compozy.reason);

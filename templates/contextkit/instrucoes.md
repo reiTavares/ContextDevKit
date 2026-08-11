@@ -58,12 +58,18 @@ workflows de providers.
 
 ## Compatibilidade com CompozyOS e Graphify
 
-O ContextDevKit detecta passivamente `.compozy/config.toml` e
-`graphify-out/graph.json`, sem executar essas ferramentas, instalar dependências
-ou alterar hooks e instruções externos. O ContextDevKit continua sendo a única
-autoridade para workflow, governança, aprovações, claims, testes, QA e evidência.
-A coexistência com CompozyOS é passiva até existir um adaptador explícito e
-governado.
+Quando `.compozy/config.toml` existe com segurança, o CompozyOS vira o executor
+prioritário do trabalho governado. `node cdx.mjs execute --workflow WF-####
+--task T-### --objective "..."` valida a tarefa canônica, cria o envelope de
+autorização, inicia automaticamente o daemon, autoaprova permissões vinculadas
+ao envelope e devolve evidências limitadas. Falha do Compozy configurado bloqueia
+a execução; não existe fallback silencioso para outro executor.
+
+O Compozy controla somente sessão e execução técnica. O ContextDevKit continua
+sendo a única autoridade para workflow, política de permissão, testes, QA e
+conclusão. Sucesso do Compozy é evidência candidata, nunca conclusão automática.
+O instalador detecta a integração, mas o daemon só inicia após um envelope
+governado. O Graphify continua sendo um provedor de descoberta sem mutação.
 
 A busca de arquivos segue `graphify -> native -> project-map-find`. Evidência
 insegura, inválida, desatualizada, parcial ou vazia libera automaticamente o

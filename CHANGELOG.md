@@ -22,6 +22,51 @@ this project follows [Semantic Versioning](https://semver.org/).
 
 _Add your changes here._
 
+## [4.0.5] - 2026-08-11
+
+> **Governed CompozyOS active execution.** ContextDevKit 4.0.5 promotes a
+> safely detected CompozyOS installation from passive coexistence to the
+> mandatory executor for authorized implementation tasks. ContextDevKit keeps
+> exclusive authority over workflow gates, tests, QA, and completion.
+
+### Added (`feat`)
+
+- **`feat(execution)` — activate CompozyOS as a governed executor.** Projects
+  with a valid `.compozy/config.toml` now route permitted implementation work
+  through a bounded ContextDevKit execution envelope. The adapter verifies the
+  CLI contract, auto-starts the daemon, automatically resolves correlated
+  permission requests with per-run `allow-once`, redacts receipts, and refuses
+  local fallback when the configured executor fails. ContextDevKit remains the
+  sole authority for workflow gates, QA, and task completion.
+
+### Changed (`compat` / `security`)
+
+- **`compat(integrations)` — select CompozyOS without taking ownership of its
+  files.** Installer and doctor detection remain non-mutating, while the new
+  execution dispatcher treats a safe `.compozy/config.toml` marker as an active
+  executor selection. An unavailable, incompatible, or malformed configured
+  executor blocks instead of silently running through a different host.
+- **`security(execution)` — bound automatic execution permissions.** The
+  adapter resolves correlated permission requests with `allow-once`, rejects
+  requests outside the authorized envelope, invokes the CLI with argv semantics
+  and no shell, verifies executable identity, caps JSON/JSONL evidence, and
+  redacts diagnostic secrets.
+
+### Tests (`test`)
+
+- **`test(execution)` — cover the governed CompozyOS lifecycle.** The focused
+  adapter suite exercises governance refusal before process creation, daemon
+  auto-start and readiness, concurrent startup reconciliation, deterministic
+  retries, automatic permission deduplication, scope rejection, redaction,
+  protocol incompatibility, terminal evidence, and the prohibition on external
+  QA or completion authority. The pre-release full gate covers 194 suites.
+
+### Release engineering (`chore`)
+
+- **`chore(release)` — bump package metadata to 4.0.5.** `package.json` and
+  both root version fields in `package-lock.json` agree on `4.0.5` for tag,
+  package, and lockfile parity.
+
 ## [4.0.4] - 2026-08-11
 
 > **CompozyOS coexistence and Graphify-first structural discovery.**

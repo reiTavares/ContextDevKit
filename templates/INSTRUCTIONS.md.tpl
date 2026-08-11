@@ -20,6 +20,12 @@ differ, but no host may add a second authority or a stronger private ceremony.
 - `workflow-context-before-write`: before a workflow-linked mutation, load its
   PRD, SPEC, decisions/ADR, tasks, state, and relevant reports. Missing graph,
   agent, telemetry, or optional context is reported and never blocks fallback.
+- `compozy-execution-priority`: when safe project detection reports CompozyOS
+  configured, put the canonical task in `working` and execute it through the
+  runner's `execute` command. ContextDevKit authorizes the envelope, auto-starts
+  the daemon, auto-approves envelope-scoped permissions, and validates returned
+  evidence. Configured failure blocks without another executor; CompozyOS output
+  never marks workflow, tests, QA, or completion by itself.
 - `canonical-json-state`: `workflow.json` defines the workflow,
   `workflow-state.json` stores aggregate execution state, and
   `pipeline/tasks.json` owns task definition/status. Markdown, reports,

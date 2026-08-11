@@ -446,11 +446,21 @@ When a mutating command exposes a write switch, use its documented dry-run/apply
 
 ## CompozyOS and Graphify interoperability
 
-ContextDevKit detects project-local CompozyOS (`.compozy/config.toml`) and
-Graphify (`graphify-out/graph.json`) without running either tool or changing
-their files. ContextDevKit remains the sole authority for workflow state,
-governance gates, approvals, claims, tests, QA, and durable evidence; CompozyOS
-is currently supported in passive coexistence mode only.
+ContextDevKit detects project-local CompozyOS (`.compozy/config.toml`) and makes
+it the active priority executor for governed work. After a canonical task enters
+`working`, `node cdx.mjs execute --workflow WF-#### --task T-### --objective
+"..."` creates a versioned authorization envelope, auto-starts the CompozyOS
+daemon, automatically resolves envelope-scoped permission requests, and returns
+bounded execution evidence. A configured CompozyOS failure blocks; it never falls
+back silently to another executor.
+
+CompozyOS owns only its daemon session and technical execution. ContextDevKit
+remains the sole authority for workflow state, permission policy, claims, tests,
+QA, and completion. CompozyOS success is evidence to validate, not a completion
+receipt. Installation detects this capability but does not start the daemon;
+activation occurs only for a governed execution envelope.
+
+Graphify (`graphify-out/graph.json`) remains a non-mutating discovery provider.
 
 For `graph query <term>`, file discovery uses the fixed order below:
 
